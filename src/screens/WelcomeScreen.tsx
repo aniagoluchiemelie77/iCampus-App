@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const HomeScreen = () => {
+const WelcomeScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Hi, Chibz Welcome to iCampus</Text>
-      <Text style={styles.subtitle}>Your academic dashboard</Text>
+      <Text style={styles.title}>Good Evening Chiemelie</Text>
+      <Text style={styles.subtitle}>Welcome Back</Text>
     </View>
   );
 };
@@ -29,4 +29,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default WelcomeScreen;
