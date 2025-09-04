@@ -4,6 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import firestore from '@react-native-firebase/firestore';
+import { saveUserToFirestore } from './src/services/firebaseServices';
+import type { User } from './src/types/firebase'; // adjust path as needed
 
 // Screens
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -18,36 +21,52 @@ const App = () => {
   const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
 
   useEffect(() => {
-    const getIpAddress = async () => {
+    const initializeApp = async () => {
       try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        console.log('IP Address:', data.ip);
+        const [ipResponse, hasLaunched] = await Promise.all([
+          fetch('https://api.ipify.org?format=json'),
+          AsyncStorage.getItem('hasLaunched'),
+        ]);
+        let isFirstSignUp;
+        const ipData = await ipResponse.json();
+        console.log('IP Address:', ipData.ip);
+        const deviceType = DeviceInfo.getDeviceType();
+        if (hasLaunched === null) {
+          await AsyncStorage.setItem('hasLaunched', 'true');
+          setInitialRoute('SignUp');
+          isFirstSignUp = true;
+        } else {
+          setInitialRoute('Welcome');
+          isFirstSignUp = false;
+        }
+        const user: User = {
+          uid: 'user_123',
+          usertype: 'student',
+          isFirstLogin: isFirstSignUp,
+          firstname: 'Chiemelie',
+          lastname: 'Okorikpehre',
+          schoolName: 'Delta State University',
+          email: 'chiemelie@example.com',
+          ipAddress: [ipData.ip],
+          deviceType: [deviceType],
+          accessToken: 'some-token',
+          password: 'hashed-password',
+          department: 'Computer Science',
+          pointsBalance: 0,
+          hasSubscribed: false,
+          createdAt: firestore.Timestamp.now(),
+          country: 'Nigeria',
+        };
+        await saveUserToFirestore(user);
       } catch (error) {
-        console.error('Failed to fetch IP:', error);
-      }
-    };
-
-    const fetchDeviceInfo = async () => {
-      const type = DeviceInfo.getDeviceType();
-      const modelName = DeviceInfo.getModel();
-      console.log('Device Type:', type);
-      console.log('Model:', modelName);
-    };
-
-    const checkFirstLaunch = async () => {
-      const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-      if (hasLaunched === null) {
-        await AsyncStorage.setItem('hasLaunched', 'true');
-        setInitialRoute('SignUp');
-      } else {
+        console.error('Initialization failed:', error);
         setInitialRoute('Welcome');
       }
     };
 
-    getIpAddress();
-    fetchDeviceInfo();
-    checkFirstLaunch();
+    setTimeout(() => {
+      initializeApp();
+    }, 100); // slight delay to avoid blocking UI thread
   }, []);
 
   if (!initialRoute) {
@@ -68,6 +87,7 @@ const App = () => {
     </NavigationContainer>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -75,15 +95,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#222',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#fff',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#fff',
-  },
 });
+
 export default App;

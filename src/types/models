@@ -1,4 +1,5 @@
 
+import { Timestamp } from 'firebase/firestore';
 export type UserType = 'student' | 'lecturer' | 'admin' | 'courseRep';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'admin-adjustment' | 'recieve';
 export type UserRole = 'student' | 'lecturer' | 'admin';
@@ -7,10 +8,10 @@ export interface User {
   usertype: UserType;
   firstname: string;
   lastname: string;
-  isFirstLogin: boolean;
+  isFirstLogin: true;
   schoolName: string;
   email: string;
-  communities?: string[];
+  communities: string[];
   pointsBalance: number;
   staffId?: string;
   accessToken: string;
@@ -21,9 +22,9 @@ export interface User {
   department: string;
   profilePic?: string;
   hasSubscribed: boolean;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
   twoFactorEnabled?: boolean;
-  lastLogin?: FirebaseFirestore.Timestamp;
+  lastLogin?: Timestamp;
   phoneNumber?: string;
   country: string;
   badges?: string[];
@@ -40,7 +41,7 @@ export interface Community {
   members: string[]; // user UIDs
   createdBy: string; // UID
   moderators: string[]; // UIDs of lecturers or admins
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
 }
 export interface UserSettings {
   user: User;
@@ -53,7 +54,7 @@ export interface UserSettings {
   };
   calendarView?: 'monthly' | 'weekly' | 'daily';
   timeZone?: string; // e.g., 'Africa/Lagos'
-  updatedAt: FirebaseFirestore.Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface PointsTransaction {
@@ -64,7 +65,7 @@ export interface PointsTransaction {
   description?: string;
   relatedUserId?: string; // for transfers/receives
   relatedCommunityId?: string;
-  timestamp: FirebaseFirestore.Timestamp;
+  timestamp: Timestamp;
 }
 export interface PollCandidate {
     id: string;
@@ -82,24 +83,24 @@ export interface Poll {
   allowedRolesToCreate?: UserRole[]; // restrict creation by role
   candidates: PollCandidate[];
   invitedUserIds: string[];
-  startTime: FirebaseFirestore.Timestamp;
-  endTime: FirebaseFirestore.Timestamp;
+  startTime: Timestamp;
+  endTime: Timestamp;
   isLive: boolean;
   liveComments?: string[];
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
 }
 
 export interface PollVote {
   pollId: string;
   candidateId: string;
   voterId: string;
-  timestamp: FirebaseFirestore.Timestamp;
+  timestamp: Timestamp;
 }
 export interface PollComment {
   pollId: string;
   userId: string;
   content: string;
-  timestamp: FirebaseFirestore.Timestamp;
+  timestamp: Timestamp;
 }
 export interface ClassSession {
   id: string;
@@ -107,11 +108,11 @@ export interface ClassSession {
   courseTitle: string;
   department: string;
   schoolName: string;
-  startTime: FirebaseFirestore.Timestamp;
-  endTime: FirebaseFirestore.Timestamp;
+  startTime: Timestamp;
+  endTime: Timestamp;
   isLive: boolean;
   allowAudioRecording: boolean;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
   classCount?: number; 
   classHistory?: string[];
 }
@@ -121,13 +122,13 @@ export interface RollCall {
   createdBy: string; // lecturer UID
   presentStudentIds: string[];
   exceptions: string[]; // subscriber UIDs allowed without joining
-  createdAt: FirebaseFirestore.Timestamp;
-  startTime: FirebaseFirestore.Timestamp;
-  endTime: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
+  startTime: Timestamp;
+  endTime: Timestamp;
   method?: 'manual' | 'auto' | 'none';
   manualScanDetails?: {
     imageUrls: string[];
-    scannedAt: FirebaseFirestore.Timestamp;
+    scannedAt: Timestamp;
   }
 }
 export interface AttendanceRecord {
@@ -136,7 +137,7 @@ export interface AttendanceRecord {
   matricNumber: string;
   schoolName: string;
   courseTitle: string;
-  attendedAt: FirebaseFirestore.Timestamp;
+  attendedAt: Timestamp;
   isException: boolean;
   status?: 'present' | 'absent' | 'excused';
   notes?: string;
@@ -147,7 +148,7 @@ export interface AudioRecording {
   segments?: string[];
   recordedBy: string; // lecturer UID
   audioUrl: string;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
   duration?: number;
 }
 export interface Rating {
@@ -155,13 +156,13 @@ export interface Rating {
   itemId: string;
   score: number; // e.g., 1 to 5
   comment?: string;
-  ratedAt: FirebaseFirestore.Timestamp;
+  ratedAt: Timestamp;
 }
 export interface Store {
   id: string;
   category: string[];
   listedProducts: MarketplaceItem[];
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
 }
 export interface MarketplaceItem {
   id: string;
@@ -175,7 +176,7 @@ export interface MarketplaceItem {
   priceInPoints: number;
   lockedWithPassword?: boolean;
   password?: string; // only accessible after purchase
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
   ratings: Rating[];
   tags?: string[];
 }
@@ -183,21 +184,21 @@ export interface CartItem {
   userId: string;
   itemId: string;
   quantity: number;
-  addedAt: FirebaseFirestore.Timestamp;
+  addedAt: Timestamp;
 }
 export interface Cart {
   userId: string;
   items: CartItem[];
   totalCartItemQuantity: number;
-  addedAt: FirebaseFirestore.Timestamp;
-  updatedAt?: FirebaseFirestore.Timestamp;
+  addedAt: Timestamp;
+  updatedAt?: Timestamp;
 }
 export interface Refund {
   id: string;
   sellerId: string;
   buyerId: string;
   itemId: string;
-  refundedAt: FirebaseFirestore.Timestamp;
+  refundedAt: Timestamp;
   pointsRefunded: number;
   status?: 'successful' | 'cancelled';
 }
@@ -206,7 +207,7 @@ export interface Purchase {
   sellerId: string;
   buyerId: string;
   itemId: string;
-  purchasedAt: FirebaseFirestore.Timestamp;
+  purchasedAt: Timestamp;
   pointsUsed: number;
   unlockedPassword?: string; // if applicable
   status?: 'successful' | 'refunded' | 'cancelled';
@@ -230,14 +231,14 @@ export interface WithdrawalRequest {
   id: string;
   userId: string;
   pointsRequested: number;
-  requestedAt: FirebaseFirestore.Timestamp;
+  requestedAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface BuyRequest {
   id: string;
   userId: string;
   pointsRequested: number;
-  requestedAt: FirebaseFirestore.Timestamp;
+  requestedAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface TransferPointsRequest {
@@ -245,7 +246,7 @@ export interface TransferPointsRequest {
   fromId: string;
   toId: string;
   pointsRequested: number;
-  requestedAt: FirebaseFirestore.Timestamp;
+  requestedAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface RecievePointsRequest {
@@ -253,7 +254,7 @@ export interface RecievePointsRequest {
   fromId: string;
   toId: string;
   pointsRequested: number;
-  requestedAt: FirebaseFirestore.Timestamp;
+  requestedAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface CalendarEvent {
@@ -265,31 +266,27 @@ export interface CalendarEvent {
   courseTitle?: string; // for lecturer events
   department?: string; // for filtering visibility
   schoolName?: string;
-  startDate: FirebaseFirestore.Timestamp;
-  endDate: FirebaseFirestore.Timestamp;
+  startDate: Timestamp;
+  endDate: Timestamp;
   day?: string; // optional if using startDate/endDate
   lectureType?: 'online' | 'offline'; // for lecturer events
   attendanceType?: 'optional' | 'compulsory'; // for courseRep events
   visibility: 'private' | 'department' | 'public'; // controls who can see it
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
 }
 export interface EventReminder {
   eventId: string;
   userId: string;
-  reminderTime: FirebaseFirestore.Timestamp;
+  reminderTime: Timestamp;
   event?: EventNote;
 }
 export interface EventNote {
   eventId: string;
   userId: string;
   content: string;
-  timestamp: FirebaseFirestore.Timestamp;
+  timestamp: Timestamp;
   location?: string;
   isRecurring?: boolean;
   recurrenceRule?: string;
   tags?: string[]; // e.g., ['exam', 'group meeting', 'revision']
 }
-
-
-
-
