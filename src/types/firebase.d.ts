@@ -1,5 +1,5 @@
 
-export type UserType = 'student' | 'lecturer' | 'admin' | 'courseRep';
+export type UserType = 'student' | 'lecturer' | 'admin' | 'courseRep' | '';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'admin-adjustment' | 'recieve';
 export type UserRole = 'student' | 'lecturer' | 'admin';
 export interface User {
