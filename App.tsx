@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import firestore from '@react-native-firebase/firestore';
+//import firestore from '@react-native-firebase/firestore';
 import { TransitionPresets } from '@react-navigation/stack';
 //import { saveUserToFirestore } from './src/services/firebaseServices';
 import type { User } from './src/types/firebase'; // adjust path as needed
@@ -133,12 +133,24 @@ const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName={initialRoute}>
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="Welcome" component={WelcomeScreen} options={{
-               headerShown: false,
-    ...TransitionPresets.FadeFromRightAndroid, // ✅ or SlideFromRightIOS
-  }}/>
-        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="SignUp"
+          component={SignUpScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Welcome"
+          component={WelcomeScreen}
+          options={{
+            headerShown: false,
+            ...TransitionPresets.FadeFromRightAndroid, // ✅ or SlideFromRightIOS
+          }}
+        />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

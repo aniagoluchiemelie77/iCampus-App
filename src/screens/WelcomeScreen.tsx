@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, ImageBackground } from 'react-native';
+import { StyleSheet, View, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import type { RootStackParamList } from '../../App'; // adjust path
+import type { RootStackParamList } from '../../App';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Welcome'>;
 
@@ -11,34 +11,34 @@ const WelcomeScreen = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.navigate('Home');
-    }, 7000);
+      navigation.navigate('SignUp');
+    }, 9000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [navigation]);
 
   return (
-    <ImageBackground
-      source={require('../assets/images/iCampusLogo.png')} // ✅ your image path
-      style={styles.background}
-      resizeMode="contain"
-    >
-    </ImageBackground>
+    <View style={styles.container}>
+      <Image
+        source={require('../assets/images/iCampusLoadingSpinner.gif')}
+        style={styles.gif}
+        resizeMode="contain"
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#ffffff',
-  },
-  overlay: {
-    flex: 1,
+  container: {
+    flex: 1, // or any color you want
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff', // optional dark overlay
-  }
+    backgroundColor: '#fff',
+  },
+  gif: {
+    width: '100%',
+    height: '100%',
+    zIndex: 1,
+  },
 });
 
 export default WelcomeScreen;

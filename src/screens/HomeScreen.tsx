@@ -5,13 +5,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 const HomeScreen = () => {
   const [activeIcon, setActiveIcon] = useState<string | null>(null);
 
-  const icons = [
-    { name: 'home-outline', id: 'home' },
-    { name: 'school-outline', id: 'classroom' },
-    { name: 'cart-outline', id: 'store' },
-    { name: 'person-outline', id: 'profile' },
-  ];
-
   return (
     <View style={styles.container}>
       <View style={styles.centerContent}>
