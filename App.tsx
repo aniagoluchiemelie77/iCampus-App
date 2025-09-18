@@ -12,10 +12,12 @@ import type { User } from './src/types/firebase'; // adjust path as needed
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import ForgotPassword from './src/screens/ForgotPassword';
 export type RootStackParamList = {
   SignUp: undefined;
   Welcome: undefined;
   Home: undefined;
+  ForgotPassword: undefined;
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -24,7 +26,8 @@ const Stack = createStackNavigator<RootStackParamList>();
 const App = () => {
   const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
   const generateId = (length = 8) => {
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const chars =
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
     for (let i = 0; i < length; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -35,7 +38,6 @@ const App = () => {
     const userId = await AsyncStorage.getItem('userId');
     console.log('Stored userId:', userId);
   };
-  
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -81,8 +83,8 @@ const App = () => {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const result = await response.json();
-             console.log('Server response:', result);
-          }else {
+            console.log('Server response:', result);
+          } else {
             const text = await response.text();
             console.warn('Unexpected response:', text);
           }
@@ -94,18 +96,21 @@ const App = () => {
           getUserId();
           const storedId = await AsyncStorage.getItem('userId');
           if (storedId) {
-            const response = await fetch(`http://192.168.1.98:5000/users/${storedId}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
+            const response = await fetch(
+              `http://192.168.1.98:5000/users/${storedId}`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ isFirstLogin: false }),
               },
-              body: JSON.stringify({ isFirstLogin: false }),
-            }); 
+            );
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
               const result = await response.json();
               console.log(result);
-            }else {
+            } else {
               const text = await response.text();
               console.warn('Unexpected response:', text);
             }
@@ -143,12 +148,17 @@ const App = () => {
           component={WelcomeScreen}
           options={{
             headerShown: false,
-            ...TransitionPresets.FadeFromRightAndroid, // ✅ or SlideFromRightIOS
+            ...TransitionPresets.FadeFromRightAndroid,
           }}
         />
         <Stack.Screen
           name="Home"
           component={HomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPassword}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
