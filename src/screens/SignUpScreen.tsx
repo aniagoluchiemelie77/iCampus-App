@@ -19,6 +19,23 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 type NavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
+type VerifiedStudent = {
+  firstname: string;
+  lastname: string;
+  department: string;
+  current_level: string;
+  phone_number: string;
+  matriculation_number: string;
+  school_name: string;
+};
+type VerifiedLecturer = {
+  firstname: string;
+  lastname: string;
+  department: string;
+  phone_number: string;
+  school_name: string;
+  staff_id: string;
+};
 
 const SignUpScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -61,11 +78,17 @@ const SignUpScreen = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [verifiedStudent, setVerifiedStudent] =
+    useState<VerifiedStudent | null>(null);
+  const [studentNotFound, setStudentNotFound] = useState(false);
+  const [lecturerNotFound, setLecturerNotFound] = useState(false);
+  const [verifiedLecturer, setVerifiedLecturer] =
+    useState<VerifiedLecturer | null>(null);
 
   const [ipAddress, setIpAddress] = useState('');
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>('signup');
 
-  const generateId = (length = 13) => {
+  const generateId = (length = 14) => {
     const chars =
       '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
@@ -74,16 +97,16 @@ const SignUpScreen = () => {
     }
     return result;
   };
-  const isValidEmail = (email: string) => {
+  const isValidEmail = (inputEmail: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(inputEmail);
   };
-  const isValidPassword = (password: string) => {
+  const isValidPassword = (inputPassword: string) => {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{13,}$/;
-    return passwordRegex.test(password);
+    return passwordRegex.test(inputPassword);
   };
 
-  const generateId2 = (length = 9) => {
+  const generateId2 = (length = 10) => {
     const chars =
       '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
@@ -147,9 +170,7 @@ const SignUpScreen = () => {
         setAlertVisible(true);
         return;
       }
-
       await fetchIP(); // wait for IP to be set
-
       const payload = {
         country,
         institution,
@@ -169,22 +190,50 @@ const SignUpScreen = () => {
         uid: userId,
         usertype: payload.userType || '',
         isFirstLogin: isFirstSignUp,
-        firstname: '',
-        lastname: '',
+        firstname:
+          userType === 'student' && verifiedStudent
+            ? verifiedStudent.firstname
+            : userType === 'lecturer' && verifiedLecturer
+            ? verifiedLecturer.firstname
+            : '',
+        lastname:
+          userType === 'student' && verifiedStudent
+            ? verifiedStudent.lastname
+            : userType === 'lecturer' && verifiedLecturer
+            ? verifiedLecturer.lastname
+            : '',
         schoolName: payload.institution || '',
         email: payload.email || '',
         ipAddress: [ipAddress],
         deviceType: [deviceType],
         accessToken: tokenId,
         password: payload.password || '',
-        department: '',
+        department:
+          userType === 'student' && verifiedStudent
+            ? verifiedStudent.department
+            : userType === 'lecturer' && verifiedLecturer
+            ? verifiedLecturer.department
+            : '',
         pointsBalance: 0,
         hasSubscribed: false,
         createdAt: new Date().toISOString(),
         country: payload.country || '',
+        ...(userType === 'student' && verifiedStudent
+          ? {
+              current_level: verifiedStudent.current_level,
+              phone_number: verifiedStudent.phone_number,
+              matriculation_number: verifiedStudent.matriculation_number,
+            }
+          : {}),
+        ...(userType === 'lecturer' && verifiedLecturer
+          ? {
+              phone_number: verifiedLecturer.phone_number,
+              staff_id: verifiedLecturer.staff_id,
+            }
+          : {}),
       };
 
-      const response = await fetch('http://192.168.1.98:5000/users', {
+      const response = await fetch('http://192.168.1.98:5000/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +242,13 @@ const SignUpScreen = () => {
       });
 
       const contentType = response.headers.get('content-type');
-      if (response.ok && contentType?.includes('application/json')) {
+      if (response.status === 409) {
+        const result = await response.json();
+        setAlertType('warning');
+        setAlertMessage(result.message || 'User already exists.');
+        setAlertVisible(true);
+        return;
+      } else if (response.ok && contentType?.includes('application/json')) {
         const result = await response.json();
         setAlertType('success');
         setAlertMessage('Your account has been created.');
@@ -252,9 +307,58 @@ const SignUpScreen = () => {
       console.error('Login error:', error);
     }
   };
+  const verifyStudent = async () => {
+    console.log('🔍 Verify button pressed');
+    try {
+      const response = await fetch('http://192.168.0.101:5000/verifyStudent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_name: institution,
+          matriculation_number: matricNumber,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        console.log('Student verified:', data);
+        setVerifiedStudent(data);
+        setStudentNotFound(false); // optional state to hold result
+        nextStep(); // move to next screen or step
+      } else {
+        setStudentNotFound(true);
+      }
+    } catch (error) {
+      setStudentNotFound(true);
+      const err = error as Error;
+      console.error('Verification error:', err.message);
+    }
+  };
+  const verifyLecturer = async () => {
+    try {
+      const response = await fetch('http://192.168.1.98:5000/verifyLecturer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_name: institution,
+          staff_id: staffId,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setVerifiedLecturer(data);
+        setLecturerNotFound(false);
+        nextStep(); // ✅ move forward
+      } else {
+        setLecturerNotFound(true);
+      }
+    } catch (error) {
+      console.error('Lecturer verification error:', error);
+      setLecturerNotFound(true);
+    }
+  };
 
   return (
-    <View style={styles.bkg}>
+    <KeyboardAvoidingView style={styles.bkg}>
       <View style={styles.container}>
         <View>
           <Animated.View
@@ -480,14 +584,22 @@ const SignUpScreen = () => {
                       placeholderTextColor="#fff"
                       placeholder="Matric Number"
                       value={matricNumber}
-                      onChangeText={setMatricNumber}
+                      onChangeText={text => {
+                        setMatricNumber(text);
+                        setStudentNotFound(false); // clear error on change
+                      }}
                       style={styles.input}
                     />
+                    {studentNotFound && (
+                      <Text style={styles.validationText}>
+                        Student not found
+                      </Text>
+                    )}
                     <TouchableOpacity
                       style={styles.toggleBtns}
-                      onPress={nextStep}
+                      onPress={verifyStudent}
                     >
-                      <Text style={styles.selectorHeader}>Next</Text>
+                      <Text style={styles.selectorHeader}>Verify</Text>
                     </TouchableOpacity>
                   </KeyboardAvoidingView>
                 </>
@@ -542,17 +654,25 @@ const SignUpScreen = () => {
                       style={styles.input}
                       placeholder="Staff ID"
                       value={staffId}
-                      onChangeText={setStaffId}
+                      onChangeText={text => {
+                        setStaffId(text);
+                        setLecturerNotFound(false); // clear error on change
+                      }}
                     />
+                    {lecturerNotFound && (
+                      <Text style={styles.validationText}>User not found</Text>
+                    )}
+
                     <TouchableOpacity
                       style={styles.toggleBtns}
-                      onPress={nextStep}
+                      onPress={verifyLecturer}
                     >
-                      <Text style={styles.selectorHeader}>Next</Text>
+                      <Text style={styles.selectorHeader}>Verify</Text>
                     </TouchableOpacity>
                   </KeyboardAvoidingView>
                 </>
               )}
+
               {(step === 7 || (userType === 'lecturer' && step === 6)) && (
                 <>
                   <Text style={styles.inputHeader}>Terms and Conditions</Text>
@@ -651,7 +771,7 @@ const SignUpScreen = () => {
           )}
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

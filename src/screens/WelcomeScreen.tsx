@@ -12,15 +12,17 @@ const WelcomeScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigation.navigate('SignUp');
-    }, 9000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [navigation]);
 
   return (
     <View style={styles.container}>
       <Image
-        source={require('../assets/images/iCampusLoadingSpinner.gif')}
-        style={styles.gif}
+        source={{
+          uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1758222524/WhatsApp_Image_2025-09-18_at_7.38.18_PM_qtdqcg.jpg',
+        }} // Replace with your actual image URL
+        style={styles.gif} // You can rename this style to something more appropriate like styles.image
         resizeMode="contain"
       />
     </View>
@@ -37,7 +39,6 @@ const styles = StyleSheet.create({
   gif: {
     width: '100%',
     height: '100%',
-    zIndex: 1,
   },
 });
 

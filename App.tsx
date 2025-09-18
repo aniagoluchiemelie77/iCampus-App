@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DeviceInfo from 'react-native-device-info';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 //import firestore from '@react-native-firebase/firestore';
 import { TransitionPresets } from '@react-navigation/stack';
 //import { saveUserToFirestore } from './src/services/firebaseServices';
-import type { User } from './src/types/firebase'; // adjust path as needed
 // Screens
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -25,15 +23,6 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const App = () => {
   const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
-  const generateId = (length = 8) => {
-    const chars =
-      '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
   const getUserId = async () => {
     const userId = await AsyncStorage.getItem('userId');
     console.log('Stored userId:', userId);
@@ -46,52 +35,10 @@ const App = () => {
           fetch('https://api.ipify.org?format=json'),
           AsyncStorage.getItem('hasLaunched'),
         ]);
-        let isFirstSignUp;
         const ipData = await ipResponse.json();
-        const deviceType = DeviceInfo.getDeviceType();
         if (hasLaunched === null) {
+          console.log(ipData);
           setInitialRoute('SignUp');
-          isFirstSignUp = true;
-          const id = generateId();
-          await AsyncStorage.setItem('hasLaunched', 'true');
-          await AsyncStorage.setItem('userId', id);
-          const user: User = {
-            uid: id,
-            usertype: '',
-            isFirstLogin: isFirstSignUp,
-            firstname: '',
-            lastname: '',
-            schoolName: '',
-            email: '',
-            ipAddress: [ipData.ip],
-            deviceType: [deviceType],
-            accessToken: '',
-            password: '',
-            department: '',
-            pointsBalance: 0,
-            hasSubscribed: false,
-            createdAt: new Date().toISOString(),
-            country: '',
-          };
-          const response = await fetch('http://192.168.1.98:5000/users', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(user),
-          });
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            console.log('Server response:', result);
-          } else {
-            const text = await response.text();
-            console.warn('Unexpected response:', text);
-          }
-          if (!response.ok) {
-            console.error(`❌ Server error: ${response.status}`);
-            return;
-          }
         } else {
           getUserId();
           const storedId = await AsyncStorage.getItem('userId');
