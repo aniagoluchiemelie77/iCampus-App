@@ -9,6 +9,7 @@ export interface User {
   lastname: string;
   isFirstLogin: boolean;
   schoolName: string;
+  verificationToken?: string;
   email: string;
   communities?: string[];
   pointsBalance: number;
@@ -32,6 +33,7 @@ export interface User {
   coursesEnrolled?: string[];
   isCourseRep?: boolean;
   appVersion?: string;
+  isVerified?: boolean
 }
 export interface Community {
   id: string;

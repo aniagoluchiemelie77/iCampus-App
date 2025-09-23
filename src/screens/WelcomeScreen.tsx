@@ -12,7 +12,7 @@ const WelcomeScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigation.navigate('SignUp');
-    }, 5000);
+    }, 7000);
     return () => clearTimeout(timer);
   }, [navigation]);
 

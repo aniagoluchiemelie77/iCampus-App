@@ -1,12 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+const linking = {
+  prefixes: ['icampus://'],
+  config: {
+    screens: {
+      VerifyEmail: 'verify-email',
+    },
+  },
+};
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 //import firestore from '@react-native-firebase/firestore';
 import { TransitionPresets } from '@react-navigation/stack';
 //import { saveUserToFirestore } from './src/services/firebaseServices';
 // Screens
+import VerifyEmail from './src/screens/EmailVerificationPage';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -16,6 +26,10 @@ export type RootStackParamList = {
   Welcome: undefined;
   Home: undefined;
   ForgotPassword: undefined;
+  VerifyEmail: {
+    verified?: string;
+    email?: string;
+  };
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -83,7 +97,7 @@ const App = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator initialRouteName={initialRoute}>
         <Stack.Screen
           name="SignUp"
@@ -106,6 +120,11 @@ const App = () => {
         <Stack.Screen
           name="ForgotPassword"
           component={ForgotPassword}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="VerifyEmail"
+          component={VerifyEmail}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

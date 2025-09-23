@@ -8,7 +8,9 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import { Dropdown } from 'react-native-element-dropdown';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +37,12 @@ type VerifiedLecturer = {
   phone_number: string;
   school_name: string;
   staff_id: string;
+};
+type SignupResponse = {
+  verified?: boolean;
+  email?: string;
+  message?: string;
+  // Add any other fields your backend returns
 };
 
 const SignUpScreen = () => {
@@ -82,6 +90,7 @@ const SignUpScreen = () => {
     useState<VerifiedStudent | null>(null);
   const [studentNotFound, setStudentNotFound] = useState(false);
   const [lecturerNotFound, setLecturerNotFound] = useState(false);
+  const [isVerifying, setVerifying] = useState(false);
   const [verifiedLecturer, setVerifiedLecturer] =
     useState<VerifiedLecturer | null>(null);
 
@@ -249,11 +258,13 @@ const SignUpScreen = () => {
         setAlertVisible(true);
         return;
       } else if (response.ok && contentType?.includes('application/json')) {
-        const result = await response.json();
+        const result = (await response.json()) as SignupResponse;
         setAlertType('success');
-        setAlertMessage('Your account has been created.');
+        setAlertMessage(
+          'Your account has been created. Please check your email to verify your account.',
+        );
         console.log('Server response:', result);
-        navigation.navigate('Home');
+        navigation.navigate('VerifyEmail', { email: result.email });
       } else {
         const text = await response.text();
         setAlertType('error');
@@ -277,7 +288,7 @@ const SignUpScreen = () => {
     }
 
     try {
-      const response = await fetch('http://192.168.1.98:5000/users/login', {
+      const response = await fetch('http://10.0.2.2:5000/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,14 +320,18 @@ const SignUpScreen = () => {
   };
   const verifyStudent = async () => {
     console.log('🔍 Verify button pressed');
+    setVerifying(true);
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 20000);
     try {
-      const response = await fetch('http://192.168.0.101:5000/verifyStudent', {
+      const response = await fetch('http://10.0.2.2:5000/verifyStudent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           school_name: institution,
           matriculation_number: matricNumber,
         }),
+        signal: controller.signal,
       });
       const data = await response.json();
       if (response.ok) {
@@ -331,11 +346,13 @@ const SignUpScreen = () => {
       setStudentNotFound(true);
       const err = error as Error;
       console.error('Verification error:', err.message);
+    } finally {
+      setVerifying(false); // stop loading
     }
   };
   const verifyLecturer = async () => {
     try {
-      const response = await fetch('http://192.168.1.98:5000/verifyLecturer', {
+      const response = await fetch('http://10.0.2.2:5000/verifyLecturer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -358,7 +375,7 @@ const SignUpScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.bkg}>
+    <KeyboardAvoidingView style={styles.bkg} behavior="padding">
       <View style={styles.container}>
         <View>
           <Animated.View
@@ -403,16 +420,16 @@ const SignUpScreen = () => {
                     onPress={() => setShowCountryPicker(true)}
                     style={styles.selector}
                   >
-                    <Text style={styles.selectorHeader}>
+                    <Text style={styles.selectorHeader2}>
                       {country || 'Select Country'}
                     </Text>
                   </TouchableOpacity>
                   <CountryPicker
                     show={showCountryPicker}
-                    lang="en" // ✅ Required prop
+                    lang="en"
                     pickerButtonOnPress={item => {
                       setCountry(item.name.en);
-                      setShowCountryPicker(true);
+                      setShowCountryPicker(false);
                       nextStep();
                     }}
                   />
@@ -428,7 +445,9 @@ const SignUpScreen = () => {
                     labelField="label"
                     valueField="value"
                     search
+                    searchPlaceholderTextColor="#000"
                     placeholder="Select Institution"
+                    placeholderStyle={{ color: '#000' }}
                     value={institution}
                     onChange={item => {
                       setInstitution(item.value);
@@ -449,7 +468,7 @@ const SignUpScreen = () => {
                         nextStep();
                       }}
                     >
-                      <Text style={styles.selectorHeader}>A Student</Text>
+                      <Text style={styles.selectorHeader}>A student</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -459,7 +478,7 @@ const SignUpScreen = () => {
                         nextStep();
                       }}
                     >
-                      <Text style={styles.selectorHeader}>A Lecturer</Text>
+                      <Text style={styles.selectorHeader}>A lecturer</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -504,7 +523,7 @@ const SignUpScreen = () => {
                       <View style={styles.passwordInputWrapper}>
                         <TextInput
                           placeholder="Password"
-                          placeholderTextColor="#fff"
+                          placeholderTextColor="#000"
                           style={styles.passwordInput}
                           value={password}
                           onChangeText={setPassword}
@@ -513,9 +532,12 @@ const SignUpScreen = () => {
                         <TouchableOpacity
                           onPress={() => setShowPassword(!showPassword)}
                         >
-                          <Text style={styles.selectorHeader}>
-                            {showPassword ? 'Hide' : 'Show'}
-                          </Text>
+                          <Icon
+                            name={showPassword ? 'eye-off' : 'eye'}
+                            size={25}
+                            color="#000"
+                            style={styles.passwordIcons}
+                          />
                         </TouchableOpacity>
                       </View>
                       {!isValidPassword(password) && password.length > 0 && (
@@ -529,7 +551,7 @@ const SignUpScreen = () => {
                       <View style={styles.passwordInputWrapper}>
                         <TextInput
                           placeholder="Confirm Password"
-                          placeholderTextColor="#fff"
+                          placeholderTextColor="#000"
                           style={styles.passwordInput}
                           value={confirmPassword}
                           onChangeText={setConfirmPassword}
@@ -540,9 +562,12 @@ const SignUpScreen = () => {
                             setShowConfirmPassword(!showConfirmPassword)
                           }
                         >
-                          <Text style={styles.selectorHeader}>
-                            {showConfirmPassword ? 'Hide' : 'Show'}
-                          </Text>
+                          <Icon
+                            name={showConfirmPassword ? 'eye-off' : 'eye'}
+                            size={25}
+                            color="#000"
+                            style={styles.passwordIcons}
+                          />
                         </TouchableOpacity>
                       </View>
 
@@ -590,6 +615,9 @@ const SignUpScreen = () => {
                       }}
                       style={styles.input}
                     />
+                    {isVerifying && (
+                      <ActivityIndicator size="small" color="#222" />
+                    )}
                     {studentNotFound && (
                       <Text style={styles.validationText}>
                         Student not found
@@ -723,20 +751,33 @@ const SignUpScreen = () => {
                 <Text style={styles.inputHeader}>Enter your Email:</Text>
                 <TextInput
                   placeholder="Email"
-                  placeholderTextColor="#fff"
+                  placeholderTextColor="#000"
                   value={identifier}
                   onChangeText={setIdentifier}
                   style={styles.input}
                 />
                 <Text style={styles.inputHeader}>Password:</Text>
-                <TextInput
-                  placeholder="Password"
-                  placeholderTextColor="#fff"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  style={styles.input}
-                />
+                <View style={styles.passwordInputWrapper}>
+                  <TextInput
+                    placeholder="Password"
+                    placeholderTextColor="#000"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    style={[styles.input2]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Icon
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={24}
+                      color="#000"
+                      style={{ marginLeft: 10 }}
+                    />
+                  </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity
                   style={[styles.forgotPassDiv]}
                   onPress={() => navigation.navigate('ForgotPassword')}
@@ -779,36 +820,36 @@ const styles = StyleSheet.create({
   bkg: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#eee',
     flex: 1,
   },
   container: {
     alignItems: 'center',
-    width: '90%',
-    height: '55%',
+    width: '85%',
+    height: '60%',
     borderRadius: 10,
-    padding: 25,
-    justifyContent: 'space-between',
-    backgroundColor: '#41644A',
+    padding: 20,
+    justifyContent: 'space-evenly',
+    backgroundColor: '#fff',
     position: 'relative',
   },
   activeTabText: {
     fontSize: 37,
     fontWeight: 'bold',
-    color: '#f8b736ff',
+    color: '#000',
   },
   disabledBtn: {
-    backgroundColor: '#f8b736ff',
+    backgroundColor: '#222',
     opacity: 0.6,
   },
   tabButton: {
     padding: 5,
-    marginBottom: 10,
-    color: '#f8c662',
+    marginBottom: 5,
+    color: '#000',
   },
   header: {
     fontSize: 20,
-    color: '#f8c662',
+    color: '#000',
   },
   headerBtnsContainer: {
     flexDirection: 'row',
@@ -822,7 +863,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     fontSize: 20,
     padding: 10,
-    color: '#f8c662',
+    color: '#000',
     flex: 1,
     width: '100%',
     justifyContent: 'center',
@@ -831,19 +872,24 @@ const styles = StyleSheet.create({
   inputHeader: {
     fontSize: 20,
     marginBottom: 15,
-    color: '#fff',
+    color: '#000',
   },
   input: {
     borderWidth: 1,
     padding: 10,
-    width: '100%',
-    borderColor: '#fff',
-    color: '#fff',
-    marginBottom: 15,
+    minWidth: '100%',
+    borderColor: '#000',
+    color: '#000',
+    marginBottom: 10,
+  },
+  input2: {
+    padding: 10,
+    minWidth: '85%',
+    color: '#000',
   },
   validationText: {
     fontSize: 14,
-    color: '#f8b736ff',
+    color: '#fd1515ff',
     fontWeight: 800,
   },
   inputKAVContainer: {
@@ -857,16 +903,15 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     flex: 1,
-    color: '#fff',
-    height: '100%',
+    color: '#000',
+    width: '100%',
   },
   passwordInputWrapper: {
-    marginBottom: 15,
     borderWidth: 1,
+    marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#fff',
-    padding: 10,
+    borderColor: '#000',
   },
   toggle: {
     flexDirection: 'row',
@@ -880,18 +925,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#f8b736ff',
+    backgroundColor: '#000',
   },
   selector: {
     padding: 15,
     backgroundColor: 'inherit',
     borderWidth: 1,
     width: '90%',
-    borderColor: '#fff',
+    borderColor: '#000',
     color: '#fff',
   },
   selectorHeader: {
-    color: '#41644A',
+    color: '#fff',
+  },
+  passwordIcons: {
+    marginRight: 9,
+  },
+  selectorHeader2: {
+    color: '#000',
   },
   termsParagraph: {
     marginBottom: 10,
@@ -899,7 +950,7 @@ const styles = StyleSheet.create({
   },
   forgotPassParagraph: {
     fontSize: 19,
-    color: '#f8b736ff',
+    color: '#000',
   },
   forgotPassDiv: {
     padding: 10,
@@ -910,7 +961,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'inherit',
     borderWidth: 1,
     padding: 10,
-    borderColor: '#fff',
+    borderColor: '#000',
   },
 });
 
