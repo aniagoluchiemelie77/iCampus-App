@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { store } from './src/components/store'; // ✅ Correct
+import { Provider } from 'react-redux';
 const linking = {
   prefixes: ['icampus://'],
   config: {
@@ -21,11 +23,18 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ForgotPassword from './src/screens/ForgotPassword';
+import Settings from './src/screens/Settings';
+import Calender from './src/screens/Calender';
+import Profile from './src/screens/Profile';
+
 export type RootStackParamList = {
   SignUp: undefined;
   Welcome: undefined;
   Home: undefined;
   ForgotPassword: undefined;
+  Settings: undefined;
+  Calender: undefined;
+  Profile: undefined;
   VerifyEmail: {
     verified?: string;
     email?: string;
@@ -75,8 +84,10 @@ const App = () => {
               const text = await response.text();
               console.warn('Unexpected response:', text);
             }
+            setInitialRoute('SignUp');
+          } else {
+            setInitialRoute('SignUp');
           }
-          setInitialRoute('Welcome');
         }
       } catch (error) {
         console.error('Initialization failed:', error);
@@ -97,38 +108,55 @@ const App = () => {
   }
 
   return (
-    <NavigationContainer linking={linking}>
-      <Stack.Navigator initialRouteName={initialRoute}>
-        <Stack.Screen
-          name="SignUp"
-          component={SignUpScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Welcome"
-          component={WelcomeScreen}
-          options={{
-            headerShown: false,
-            ...TransitionPresets.FadeFromRightAndroid,
-          }}
-        />
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="ForgotPassword"
-          component={ForgotPassword}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="VerifyEmail"
-          component={VerifyEmail}
-          options={{ headerShown: false }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Provider store={store}>
+      <NavigationContainer linking={linking}>
+        <Stack.Navigator initialRouteName={initialRoute}>
+          <Stack.Screen
+            name="SignUp"
+            component={SignUpScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Welcome"
+            component={WelcomeScreen}
+            options={{
+              headerShown: false,
+              ...TransitionPresets.FadeFromRightAndroid,
+            }}
+          />
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPassword}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={Profile}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={Settings}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Calender"
+            component={Calender}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="VerifyEmail"
+            component={VerifyEmail}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </Provider>
   );
 };
 

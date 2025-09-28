@@ -22,9 +22,9 @@ export interface User {
   department: string;
   profilePic?: string;
   hasSubscribed: boolean;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: string;
   twoFactorEnabled?: boolean;
-  lastLogin?: FirebaseFirestore.Timestamp;
+  lastLogin?: string;
   phoneNumber?: string;
   country: string;
   badges?: string[];
@@ -34,6 +34,8 @@ export interface User {
   isCourseRep?: boolean;
   appVersion?: string;
   isVerified?: boolean
+  userToken?: string,
+  tokenCreatedAt?: string
 }
 export interface Community {
   id: string;
@@ -159,9 +161,13 @@ export interface Rating {
   comment?: string;
   ratedAt: FirebaseFirestore.Timestamp;
 }
+export interface ProductCategory {
+  id: string;
+  categoryName: string[];
+}
 export interface Store {
   id: string;
-  category: string[];
+  category: ProductCategory;
   listedProducts: MarketplaceItem[];
   createdAt: FirebaseFirestore.Timestamp;
 }

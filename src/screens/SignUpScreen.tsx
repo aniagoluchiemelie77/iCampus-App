@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -8,18 +9,22 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import { Dropdown } from 'react-native-element-dropdown';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../components/UserSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
 import type { User } from '../types/firebase';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
+import { v4 as uuidv4 } from 'uuid';
 import { StackNavigationProp } from '@react-navigation/stack';
+
 type NavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
 type VerifiedStudent = {
   firstname: string;
@@ -48,6 +53,7 @@ type SignupResponse = {
 const SignUpScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const dispatch = useDispatch();
 
   const switchTab = (tab: 'signup' | 'login') => {
     Animated.timing(fadeAnim, {
@@ -172,6 +178,7 @@ const SignUpScreen = () => {
   };
   let isFirstSignUp;
   const handleSubmit = async () => {
+    console.log('Submit Btn Clicked');
     try {
       if (!termsAccepted) {
         setAlertType('warning');
@@ -197,6 +204,7 @@ const SignUpScreen = () => {
       await saveUserData(tokenId); // wait for storage to complete
       const user: User = {
         uid: userId,
+        profilePic: ' ',
         usertype: payload.userType || '',
         isFirstLogin: isFirstSignUp,
         firstname:
@@ -280,6 +288,7 @@ const SignUpScreen = () => {
     }
   };
   const handleLogin = async () => {
+    console.log('Submit Btn Clicked');
     if (!identifier || !password) {
       setAlertType('warning');
       setAlertMessage('Please enter your Email and Password.');
@@ -288,21 +297,28 @@ const SignUpScreen = () => {
     }
 
     try {
-      const response = await fetch('http://10.0.2.2:5000/users/login', {
+      console.log('Login 1');
+      const response = await fetch('http://192.168.1.98:5000/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ identifier, password }),
       });
-
       const contentType = response.headers.get('content-type');
       if (response.ok && contentType?.includes('application/json')) {
+        console.log('Submit Btn Clicked, Login 2');
         const result = await response.json();
-        console.log(result);
-        setAlertType('success');
-        setAlertMessage('Login successful. Welcome back!');
-        setAlertVisible(true);
+        const token = uuidv4();
+        // ✅ Store token and user info
+        await AsyncStorage.setItem('authToken', token);
+        await AsyncStorage.setItem('user', JSON.stringify(result.user));
+        console.log(result.user);
+        console.log('authToken:', token);
+        // ✅ Optionally set user in Context or Redux
+        dispatch(
+          setUser({ ...result.user, token, tokenCreatedAt: Date.now() }),
+        );
         navigation.navigate('Home');
       } else {
         const errorText = await response.text();
@@ -376,353 +392,439 @@ const SignUpScreen = () => {
 
   return (
     <KeyboardAvoidingView style={styles.bkg} behavior="padding">
-      <View style={styles.container}>
-        <View>
-          <Animated.View
-            style={[styles.headerBtnsContainer, { opacity: fadeAnim }]}
-          >
-            <TouchableOpacity
-              style={styles.tabButton}
-              onPress={() => switchTab('signup')}
+      <ScrollView
+        contentContainerStyle={styles.bkg3}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.container}>
+          <View>
+            <Animated.View
+              style={[styles.headerBtnsContainer, { opacity: fadeAnim }]}
             >
-              <Text
-                style={[
-                  styles.header,
-                  activeTab === 'signup' && styles.activeTabText,
-                ]}
+              <TouchableOpacity
+                style={styles.tabButton}
+                onPress={() => switchTab('signup')}
               >
-                Sign Up
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.header,
+                    activeTab === 'signup' && styles.activeTabText,
+                  ]}
+                >
+                  Sign Up
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.tabButton}
-              onPress={() => switchTab('login')}
-            >
-              <Text
-                style={[
-                  styles.header,
-                  activeTab === 'login' && styles.activeTabText,
-                ]}
+              <TouchableOpacity
+                style={styles.tabButton}
+                onPress={() => switchTab('login')}
               >
-                Login
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-        <View style={styles.inputContainer}>
-          {activeTab === 'signup' ? (
-            <>
-              {step === 0 && (
-                <>
-                  <Text style={styles.inputHeader}>Select Country:</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowCountryPicker(true)}
-                    style={styles.selector}
-                  >
-                    <Text style={styles.selectorHeader2}>
-                      {country || 'Select Country'}
-                    </Text>
-                  </TouchableOpacity>
-                  <CountryPicker
-                    show={showCountryPicker}
-                    lang="en"
-                    pickerButtonOnPress={item => {
-                      setCountry(item.name.en);
-                      setShowCountryPicker(false);
-                      nextStep();
-                    }}
-                  />
-                </>
-              )}
-              {step === 1 && (
-                <>
-                  <Text style={styles.inputHeader}>
-                    Select Institution Name:
-                  </Text>
-                  <Dropdown
-                    data={institutionItems}
-                    labelField="label"
-                    valueField="value"
-                    search
-                    searchPlaceholderTextColor="#000"
-                    placeholder="Select Institution"
-                    placeholderStyle={{ color: '#000' }}
-                    value={institution}
-                    onChange={item => {
-                      setInstitution(item.value);
-                      nextStep();
-                    }}
-                    style={styles.dropdown}
-                  />
-                </>
-              )}
-              {step === 2 && (
-                <>
-                  <Text style={styles.inputHeader}>Are You?:</Text>
-                  <View style={styles.toggle}>
+                <Text
+                  style={[
+                    styles.header,
+                    activeTab === 'login' && styles.activeTabText,
+                  ]}
+                >
+                  Login
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+          <View style={styles.inputContainer}>
+            {activeTab === 'signup' ? (
+              <>
+                {step === 0 && (
+                  <>
+                    <Text style={styles.inputHeader}>Select Country:</Text>
                     <TouchableOpacity
-                      style={styles.toggleBtns}
-                      onPress={() => {
-                        setUserType('student');
-                        nextStep();
-                      }}
+                      onPress={() => setShowCountryPicker(true)}
+                      style={styles.selector}
                     >
-                      <Text style={styles.selectorHeader}>A student</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.toggleBtns}
-                      onPress={() => {
-                        setUserType('lecturer');
-                        nextStep();
-                      }}
-                    >
-                      <Text style={styles.selectorHeader}>A lecturer</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-              {step === 3 && (
-                <>
-                  <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.inputKAVContainer}
-                  >
-                    <Text style={styles.inputHeader}>Enter your Email:</Text>
-                    <TextInput
-                      placeholder="Email"
-                      placeholderTextColor="#fff"
-                      value={email}
-                      onChangeText={setEmail}
-                      style={styles.input}
-                    />
-                    <Text style={styles.validationText}>
-                      {!isValidEmail(email) && email.length > 0
-                        ? 'Invalid email format'
-                        : ''}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.toggleBtns}
-                      onPress={nextStep}
-                      disabled={!isValidEmail(email) && email.length > 0}
-                    >
-                      <Text style={styles.selectorHeader}>Next</Text>
-                    </TouchableOpacity>
-                  </KeyboardAvoidingView>
-                </>
-              )}
-              {step === 4 && (
-                <>
-                  <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.inputKAVContainer}
-                  >
-                    <Text style={styles.inputHeader}>Enter your Password:</Text>
-                    <View style={styles.passwordContainer}>
-                      <View style={styles.passwordInputWrapper}>
-                        <TextInput
-                          placeholder="Password"
-                          placeholderTextColor="#000"
-                          style={styles.passwordInput}
-                          value={password}
-                          onChangeText={setPassword}
-                          secureTextEntry={!showPassword}
-                        />
-                        <TouchableOpacity
-                          onPress={() => setShowPassword(!showPassword)}
-                        >
-                          <Icon
-                            name={showPassword ? 'eye-off' : 'eye'}
-                            size={25}
-                            color="#000"
-                            style={styles.passwordIcons}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                      {!isValidPassword(password) && password.length > 0 && (
-                        <Text style={styles.validationText}>
-                          Password must be at least 13 characters and include
-                          uppercase, lowercase, number, and symbol.
-                        </Text>
-                      )}
-                    </View>
-                    <View style={styles.passwordContainer}>
-                      <View style={styles.passwordInputWrapper}>
-                        <TextInput
-                          placeholder="Confirm Password"
-                          placeholderTextColor="#000"
-                          style={styles.passwordInput}
-                          value={confirmPassword}
-                          onChangeText={setConfirmPassword}
-                          secureTextEntry={!showConfirmPassword}
-                        />
-                        <TouchableOpacity
-                          onPress={() =>
-                            setShowConfirmPassword(!showConfirmPassword)
-                          }
-                        >
-                          <Icon
-                            name={showConfirmPassword ? 'eye-off' : 'eye'}
-                            size={25}
-                            color="#000"
-                            style={styles.passwordIcons}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      {confirmPassword.length > 0 &&
-                        confirmPassword !== password && (
-                          <Text style={styles.validationText}>
-                            Passwords do not match.
-                          </Text>
-                        )}
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.toggleBtns,
-                        (!isValidPassword(password) ||
-                          confirmPassword !== password) &&
-                          styles.disabledBtn,
-                      ]}
-                      onPress={nextStep}
-                      disabled={
-                        !isValidPassword(password) ||
-                        confirmPassword !== password
-                      }
-                    >
-                      <Text style={styles.selectorHeader}>Next</Text>
-                    </TouchableOpacity>
-                  </KeyboardAvoidingView>
-                </>
-              )}
-              {userType === 'student' && step === 5 && (
-                <>
-                  <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.inputKAVContainer}
-                  >
-                    <Text style={styles.inputHeader}>
-                      Enter your Matriculation Number:
-                    </Text>
-                    <TextInput
-                      placeholderTextColor="#fff"
-                      placeholder="Matric Number"
-                      value={matricNumber}
-                      onChangeText={text => {
-                        setMatricNumber(text);
-                        setStudentNotFound(false); // clear error on change
-                      }}
-                      style={styles.input}
-                    />
-                    {isVerifying && (
-                      <ActivityIndicator size="small" color="#222" />
-                    )}
-                    {studentNotFound && (
-                      <Text style={styles.validationText}>
-                        Student not found
+                      <Text style={styles.selectorHeader2}>
+                        {country || 'Select Country'}
                       </Text>
-                    )}
-                    <TouchableOpacity
-                      style={styles.toggleBtns}
-                      onPress={verifyStudent}
-                    >
-                      <Text style={styles.selectorHeader}>Verify</Text>
                     </TouchableOpacity>
-                  </KeyboardAvoidingView>
-                </>
-              )}
-              {userType === 'student' && step === 6 && (
-                <>
-                  <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.inputKAVContainer}
-                  >
-                    <Text style={styles.inputHeader}>
-                      What are your Hobbies? (optional):
-                    </Text>
-                    <TextInput
-                      placeholderTextColor="#fff"
-                      style={styles.input}
-                      placeholder="Hobbies (optional)"
-                      value={hobbies}
-                      onChangeText={setHobbies}
+                    <CountryPicker
+                      show={showCountryPicker}
+                      lang="en"
+                      pickerButtonOnPress={item => {
+                        setCountry(item.name.en);
+                        setShowCountryPicker(false);
+                        nextStep();
+                      }}
                     />
+                  </>
+                )}
+                {step === 1 && (
+                  <>
+                    <Text style={styles.inputHeader}>
+                      Select Institution Name:
+                    </Text>
+                    <Dropdown
+                      data={institutionItems}
+                      labelField="label"
+                      valueField="value"
+                      search
+                      searchPlaceholderTextColor="#000"
+                      placeholder="Select Institution"
+                      placeholderStyle={{ color: '#000' }}
+                      value={institution}
+                      onChange={item => {
+                        setInstitution(item.value);
+                        nextStep();
+                      }}
+                      style={styles.dropdown}
+                    />
+                  </>
+                )}
+                {step === 2 && (
+                  <>
+                    <Text style={styles.inputHeader}>Are You?:</Text>
                     <View style={styles.toggle}>
                       <TouchableOpacity
                         style={styles.toggleBtns}
                         onPress={() => {
+                          setUserType('student');
                           nextStep();
                         }}
                       >
-                        <Text style={styles.selectorHeader}>Next</Text>
+                        <Text style={styles.selectorHeader}>A student</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         style={styles.toggleBtns}
                         onPress={() => {
+                          setUserType('lecturer');
                           nextStep();
                         }}
                       >
-                        <Text style={styles.selectorHeader}>Skip</Text>
+                        <Text style={styles.selectorHeader}>A lecturer</Text>
                       </TouchableOpacity>
                     </View>
-                  </KeyboardAvoidingView>
-                </>
-              )}
-              {userType === 'lecturer' && step === 5 && (
-                <>
-                  <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.inputKAVContainer}
-                  >
-                    <Text style={styles.inputHeader}>Enter your Staff Id:</Text>
-                    <TextInput
-                      placeholderTextColor="#fff"
-                      style={styles.input}
-                      placeholder="Staff ID"
-                      value={staffId}
-                      onChangeText={text => {
-                        setStaffId(text);
-                        setLecturerNotFound(false); // clear error on change
-                      }}
-                    />
-                    {lecturerNotFound && (
-                      <Text style={styles.validationText}>User not found</Text>
-                    )}
+                  </>
+                )}
+                {step === 3 && (
+                  <>
+                    <KeyboardAvoidingView
+                      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                      style={styles.inputKAVContainer}
+                    >
+                      <Text style={styles.inputHeader}>Enter your Email:</Text>
+                      <TextInput
+                        placeholder="Email"
+                        placeholderTextColor="#fff"
+                        value={email}
+                        onChangeText={setEmail}
+                        style={styles.input}
+                      />
+                      <Text style={styles.validationText}>
+                        {!isValidEmail(email) && email.length > 0
+                          ? 'Invalid email format'
+                          : ''}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.toggleBtns}
+                        onPress={nextStep}
+                        disabled={!isValidEmail(email) && email.length > 0}
+                      >
+                        <Text style={styles.selectorHeader}>Next</Text>
+                      </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                  </>
+                )}
+                {step === 4 && (
+                  <>
+                    <KeyboardAvoidingView
+                      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                      style={styles.inputKAVContainer}
+                    >
+                      <Text style={styles.inputHeader}>
+                        Enter your Password:
+                      </Text>
+                      <View style={styles.passwordContainer}>
+                        <View style={styles.passwordInputWrapper}>
+                          <TextInput
+                            placeholder="Password"
+                            placeholderTextColor="#000"
+                            style={styles.passwordInput}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry={!showPassword}
+                          />
+                          <TouchableOpacity
+                            onPress={() => setShowPassword(!showPassword)}
+                          >
+                            <Icon
+                              name={showPassword ? 'eye-off' : 'eye'}
+                              size={25}
+                              color="#000"
+                              style={styles.passwordIcons}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                        {!isValidPassword(password) && password.length > 0 && (
+                          <Text style={styles.validationText}>
+                            Password must be at least 13 characters and include
+                            uppercase, lowercase, number, and symbol.
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.passwordContainer}>
+                        <View style={styles.passwordInputWrapper}>
+                          <TextInput
+                            placeholder="Confirm Password"
+                            placeholderTextColor="#000"
+                            style={styles.passwordInput}
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            secureTextEntry={!showConfirmPassword}
+                          />
+                          <TouchableOpacity
+                            onPress={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                          >
+                            <Icon
+                              name={showConfirmPassword ? 'eye-off' : 'eye'}
+                              size={25}
+                              color="#000"
+                              style={styles.passwordIcons}
+                            />
+                          </TouchableOpacity>
+                        </View>
 
+                        {confirmPassword.length > 0 &&
+                          confirmPassword !== password && (
+                            <Text style={styles.validationText}>
+                              Passwords do not match.
+                            </Text>
+                          )}
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.toggleBtns,
+                          (!isValidPassword(password) ||
+                            confirmPassword !== password) &&
+                            styles.disabledBtn,
+                        ]}
+                        onPress={nextStep}
+                        disabled={
+                          !isValidPassword(password) ||
+                          confirmPassword !== password
+                        }
+                      >
+                        <Text style={styles.selectorHeader}>Next</Text>
+                      </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                  </>
+                )}
+                {userType === 'student' && step === 5 && (
+                  <>
+                    <KeyboardAvoidingView
+                      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                      style={styles.inputKAVContainer}
+                    >
+                      <Text style={styles.inputHeader}>
+                        Enter your Matriculation Number:
+                      </Text>
+                      <TextInput
+                        placeholderTextColor="#fff"
+                        placeholder="Matric Number"
+                        value={matricNumber}
+                        onChangeText={text => {
+                          setMatricNumber(text);
+                          setStudentNotFound(false); // clear error on change
+                        }}
+                        style={styles.input}
+                      />
+                      {studentNotFound && (
+                        <Text style={styles.validationText}>
+                          Student not found
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={[
+                          styles.toggleBtns,
+                          isVerifying && styles.disabledBtn,
+                        ]}
+                        onPress={verifyStudent}
+                        disabled={isVerifying}
+                      >
+                        <Text style={styles.selectorHeader}>
+                          {isVerifying ? 'Verifying...' : 'Verify'}
+                        </Text>
+                      </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                  </>
+                )}
+                {userType === 'student' && step === 6 && (
+                  <>
+                    <KeyboardAvoidingView
+                      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                      style={styles.inputKAVContainer}
+                    >
+                      <Text style={styles.inputHeader}>
+                        What are your Hobbies? (optional):
+                      </Text>
+                      <TextInput
+                        placeholderTextColor="#fff"
+                        style={styles.input}
+                        placeholder="Hobbies (optional)"
+                        value={hobbies}
+                        onChangeText={setHobbies}
+                      />
+                      <View style={styles.toggle}>
+                        <TouchableOpacity
+                          style={styles.toggleBtns}
+                          onPress={() => {
+                            nextStep();
+                          }}
+                        >
+                          <Text style={styles.selectorHeader}>Next</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.toggleBtns}
+                          onPress={() => {
+                            nextStep();
+                          }}
+                        >
+                          <Text style={styles.selectorHeader}>Skip</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </KeyboardAvoidingView>
+                  </>
+                )}
+                {userType === 'lecturer' && step === 5 && (
+                  <>
+                    <KeyboardAvoidingView
+                      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                      style={styles.inputKAVContainer}
+                    >
+                      <Text style={styles.inputHeader}>
+                        Enter your Staff Id:
+                      </Text>
+                      <TextInput
+                        placeholderTextColor="#fff"
+                        style={styles.input}
+                        placeholder="Staff ID"
+                        value={staffId}
+                        onChangeText={text => {
+                          setStaffId(text);
+                          setLecturerNotFound(false); // clear error on change
+                        }}
+                      />
+                      {lecturerNotFound && (
+                        <Text style={styles.validationText}>
+                          User not found
+                        </Text>
+                      )}
+
+                      <TouchableOpacity
+                        style={styles.toggleBtns}
+                        onPress={verifyLecturer}
+                      >
+                        <Text style={styles.selectorHeader}>Verify</Text>
+                      </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                  </>
+                )}
+
+                {(step === 7 || (userType === 'lecturer' && step === 6)) && (
+                  <>
+                    <Text style={styles.inputHeader}>Terms and Conditions</Text>
+                    <TouchableOpacity
+                      onPress={() => setTermsAccepted(!termsAccepted)}
+                    >
+                      <Text
+                        style={[
+                          styles.termsParagraph,
+                          { color: termsAccepted ? 'green' : 'red' }, // ✅ dynamic override
+                        ]}
+                      >
+                        {termsAccepted
+                          ? '✓ Terms Accepted'
+                          : '☐ Accept Terms & Conditions'}
+                      </Text>
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.toggleBtns}
-                      onPress={verifyLecturer}
+                      onPress={handleSubmit}
                     >
-                      <Text style={styles.selectorHeader}>Verify</Text>
+                      <Text style={styles.selectorHeader}>Sign Up</Text>
                     </TouchableOpacity>
-                  </KeyboardAvoidingView>
-                </>
-              )}
-
-              {(step === 7 || (userType === 'lecturer' && step === 6)) && (
-                <>
-                  <Text style={styles.inputHeader}>Terms and Conditions</Text>
-                  <TouchableOpacity
-                    onPress={() => setTermsAccepted(!termsAccepted)}
-                  >
-                    <Text
-                      style={[
-                        styles.termsParagraph,
-                        { color: termsAccepted ? 'green' : 'red' }, // ✅ dynamic override
-                      ]}
+                    <SweetAlertModal
+                      visible={alertVisible}
+                      onClose={() => setAlertVisible(false)}
+                      title={
+                        alertType === 'success'
+                          ? 'Success!'
+                          : alertType === 'error'
+                          ? 'Oops!'
+                          : alertType === 'warning'
+                          ? 'Warning!'
+                          : 'Notice'
+                      }
+                      message={alertMessage}
+                      type={alertType}
+                    />
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={styles.inputKAVContainer}
+                >
+                  <Text style={styles.inputHeader}>Enter your Email:</Text>
+                  <TextInput
+                    placeholder="Email"
+                    placeholderTextColor="#000"
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    style={styles.input}
+                  />
+                  <Text style={styles.validationText}>
+                    {!isValidEmail(identifier) && identifier.length > 0
+                      ? 'Invalid email format'
+                      : ''}
+                  </Text>
+                  <Text style={styles.inputHeader}>Password:</Text>
+                  <View style={styles.passwordInputWrapper}>
+                    <TextInput
+                      placeholder="Password"
+                      placeholderTextColor="#000"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      style={[styles.input2]}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
                     >
-                      {termsAccepted
-                        ? '✓ Terms Accepted'
-                        : '☐ Accept Terms & Conditions'}
+                      <Icon
+                        name={showPassword ? 'eye-off' : 'eye'}
+                        size={22}
+                        color="#000"
+                        style={{ marginRight: 30 }}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.forgotPassDiv]}
+                    onPress={() => navigation.navigate('ForgotPassword')}
+                  >
+                    <Text style={[styles.forgotPassParagraph]}>
+                      Forgot Password?
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.toggleBtns}
-                    onPress={handleSubmit}
+                    onPress={handleLogin}
                   >
-                    <Text style={styles.selectorHeader}>Sign Up</Text>
+                    <Text style={styles.selectorHeader}>Login</Text>
                   </TouchableOpacity>
                   <SweetAlertModal
                     visible={alertVisible}
@@ -739,79 +841,12 @@ const SignUpScreen = () => {
                     message={alertMessage}
                     type={alertType}
                   />
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.inputKAVContainer}
-              >
-                <Text style={styles.inputHeader}>Enter your Email:</Text>
-                <TextInput
-                  placeholder="Email"
-                  placeholderTextColor="#000"
-                  value={identifier}
-                  onChangeText={setIdentifier}
-                  style={styles.input}
-                />
-                <Text style={styles.inputHeader}>Password:</Text>
-                <View style={styles.passwordInputWrapper}>
-                  <TextInput
-                    placeholder="Password"
-                    placeholderTextColor="#000"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    style={[styles.input2]}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    <Icon
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={24}
-                      color="#000"
-                      style={{ marginLeft: 10 }}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.forgotPassDiv]}
-                  onPress={() => navigation.navigate('ForgotPassword')}
-                >
-                  <Text style={[styles.forgotPassParagraph]}>
-                    Forgot Password?
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.toggleBtns}
-                  onPress={handleLogin}
-                >
-                  <Text style={styles.selectorHeader}>Login</Text>
-                </TouchableOpacity>
-                <SweetAlertModal
-                  visible={alertVisible}
-                  onClose={() => setAlertVisible(false)}
-                  title={
-                    alertType === 'success'
-                      ? 'Success!'
-                      : alertType === 'error'
-                      ? 'Oops!'
-                      : alertType === 'warning'
-                      ? 'Warning!'
-                      : 'Notice'
-                  }
-                  message={alertMessage}
-                  type={alertType}
-                />
-              </KeyboardAvoidingView>
-            </>
-          )}
+                </KeyboardAvoidingView>
+              </>
+            )}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
@@ -823,10 +858,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
     flex: 1,
   },
+  bkg3: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     alignItems: 'center',
-    width: '85%',
-    height: '60%',
+    width: '93%',
+    minHeight: '60%',
     borderRadius: 10,
     padding: 20,
     justifyContent: 'space-evenly',
@@ -834,7 +874,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   activeTabText: {
-    fontSize: 37,
+    fontSize: 34,
     fontWeight: 'bold',
     color: '#000',
   },
@@ -844,7 +884,6 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     padding: 5,
-    marginBottom: 5,
     color: '#000',
   },
   header: {
@@ -856,12 +895,12 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'space-around',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 5,
     padding: 8,
     top: 0,
   },
   inputContainer: {
-    fontSize: 20,
+    fontSize: 17,
     padding: 10,
     color: '#000',
     flex: 1,
@@ -870,7 +909,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   inputHeader: {
-    fontSize: 20,
+    fontSize: 17,
     marginBottom: 15,
     color: '#000',
   },
@@ -888,7 +927,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   validationText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#fd1515ff',
     fontWeight: 800,
   },
@@ -946,10 +985,10 @@ const styles = StyleSheet.create({
   },
   termsParagraph: {
     marginBottom: 10,
-    fontSize: 19,
+    fontSize: 17,
   },
   forgotPassParagraph: {
-    fontSize: 19,
+    fontSize: 17,
     color: '#000',
   },
   forgotPassDiv: {

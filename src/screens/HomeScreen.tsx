@@ -1,89 +1,162 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  ScrollView,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {
+  ClassroomScreen,
+  StoreScreen,
+  ProfileScreen,
+  Home,
+} from '../components/HomeScreenComponents';
+import { useNavigation } from '@react-navigation/native';
+import type { RootStackParamList } from '../../App';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { clearUser } from '../components/UserSlice';
+import { useAppSelector } from '../components/hooks';
+
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 const HomeScreen = () => {
-  const [activeIcon, setActiveIcon] = useState<string | null>(null);
+  const user = useAppSelector(state => state.user);
+  const dispatch = useDispatch();
+  const navigation = useNavigation<NavigationProp>();
+  const isTokenExpired = (createdAt: number) => {
+    const now = Date.now();
+    return now - createdAt > 1000 * 60 * 60 * 24; // 24 hours
+  };
+  const [activeIcon, setActiveIcon] = useState<string>('home'); // ✅ default to 'home'
+  useEffect(() => {
+    if (
+      user?.tokenCreatedAt &&
+      isTokenExpired(new Date(user.tokenCreatedAt).getTime())
+    ) {
+      dispatch(clearUser());
+      navigation.navigate('SignUp');
+    }
+  }, [dispatch, navigation, user.tokenCreatedAt]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.centerContent}>
-        <Text style={styles.header}>Welcome Chiemelie, to iCampus</Text>
-        {/* You can add welcome text or dashboard content here */}
-      </View>
+    <View style={homeStyles.container}>
+      <ScrollView
+        contentContainerStyle={homeStyles.centerContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {activeIcon === 'home' && <Home />}
+        {activeIcon === 'classroom' && <ClassroomScreen />}
+        {activeIcon === 'store' && <StoreScreen />}
+        {activeIcon === 'profile' && <ProfileScreen />}
+      </ScrollView>
 
-      <View style={styles.iconBar}>
+      <View style={homeStyles.iconBar}>
         <TouchableOpacity
           onPress={() => setActiveIcon('home')}
-          style={styles.iconItem}
+          style={homeStyles.iconItem}
         >
           <Icon
-            name="home-outline"
-            size={30}
-            color={activeIcon === 'home' ? '#021a14' : '#032820'}
+            name={activeIcon === 'home' ? 'home' : 'home-outline'}
+            size={28}
+            color="#000"
           />
-          <Text style={styles.iconLabel}>Home</Text>
+          <Text
+            style={[
+              homeStyles.iconLabel,
+              activeIcon === 'home' && homeStyles.activeIconLabel,
+            ]}
+          >
+            Home
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => setActiveIcon('classroom')}
-          style={styles.iconItem}
+          style={homeStyles.iconItem}
         >
           <Icon
-            name="school-outline"
-            size={30}
-            color={activeIcon === 'classroom' ? '#021a14' : '#032820'}
+            name={activeIcon === 'classroom' ? 'school' : 'school-outline'}
+            size={28}
+            color="#000"
           />
-          <Text style={styles.iconLabel}>Classroom</Text>
+          <Text
+            style={[
+              homeStyles.iconLabel,
+              activeIcon === 'classroom' && homeStyles.activeIconLabel,
+            ]}
+          >
+            Classroom
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => setActiveIcon('store')}
-          style={styles.iconItem}
+          style={homeStyles.iconItem}
         >
           <Icon
-            name="cart-outline"
-            size={30}
-            color={activeIcon === 'store' ? '#021a14' : '#032820'}
+            name={activeIcon === 'store' ? 'cart' : 'cart-outline'}
+            size={28}
+            color="#000"
           />
-          <Text style={styles.iconLabel}>Store</Text>
+          <Text
+            style={[
+              homeStyles.iconLabel,
+              activeIcon === 'store' && homeStyles.activeIconLabel,
+            ]}
+          >
+            Store
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => setActiveIcon('profile')}
-          style={styles.iconItem}
+          style={homeStyles.iconItem}
         >
           <Icon
-            name="person-outline"
-            size={30}
-            color={activeIcon === 'profile' ? '#021a14' : '#032820'}
+            name={activeIcon === 'profile' ? 'person' : 'person-outline'}
+            size={28}
+            color="#000"
           />
-          <Text style={styles.iconLabel}>Profile</Text>
+          <Text
+            style={[
+              homeStyles.iconLabel,
+              activeIcon === 'profile' && homeStyles.activeIconLabel,
+            ]}
+          >
+            Profile
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+export const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#eee',
     justifyContent: 'space-between',
   },
   centerContent: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 20,
-    backgroundColor: '#fff', // ✅ replaced 'inherit' with a valid color
+    paddingVertical: 15,
+    backgroundColor: '#eee',
   },
   iconItem: {
     alignItems: 'center',
+  },
+  activeIconLabel: {
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   iconLabel: {
     marginTop: 5,
@@ -97,5 +170,4 @@ const styles = StyleSheet.create({
     color: '#000',
   },
 });
-
 export default HomeScreen;
