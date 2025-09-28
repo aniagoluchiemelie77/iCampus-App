@@ -22,7 +22,8 @@ import VerifyEmail from './src/screens/EmailVerificationPage';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import ForgotPassword from './src/screens/ForgotPassword';
+import ForgotPasswordScreen from './src/screens/ForgotPassword';
+import ChangePasswordScreen from './src/screens/ChangePassword';
 import Settings from './src/screens/Settings';
 import Calender from './src/screens/Calender';
 import Profile from './src/screens/Profile';
@@ -31,7 +32,10 @@ export type RootStackParamList = {
   SignUp: undefined;
   Welcome: undefined;
   Home: undefined;
-  ForgotPassword: undefined;
+  ForgotPasswordScreen: undefined;
+  ChangePasswordScreen: {
+    email?: string;
+  };
   Settings: undefined;
   Calender: undefined;
   Profile: undefined;
@@ -130,8 +134,13 @@ const App = () => {
             options={{ headerShown: false }}
           />
           <Stack.Screen
-            name="ForgotPassword"
-            component={ForgotPassword}
+            name="ChangePasswordScreen"
+            component={ChangePasswordScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ForgotPasswordScreen"
+            component={ForgotPasswordScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen

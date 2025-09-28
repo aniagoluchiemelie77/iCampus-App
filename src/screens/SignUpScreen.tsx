@@ -196,7 +196,6 @@ const SignUpScreen = () => {
         ...(userType === 'student' && { matricNumber, hobbies }),
         ...(userType === 'lecturer' && { staffId }),
       };
-
       const deviceType = DeviceInfo.getDeviceType();
       const tokenId = generateId();
       const userId = generateId2();
@@ -257,7 +256,6 @@ const SignUpScreen = () => {
         },
         body: JSON.stringify(user),
       });
-
       const contentType = response.headers.get('content-type');
       if (response.status === 409) {
         const result = await response.json();
@@ -814,7 +812,7 @@ const SignUpScreen = () => {
 
                   <TouchableOpacity
                     style={[styles.forgotPassDiv]}
-                    onPress={() => navigation.navigate('ForgotPassword')}
+                    onPress={() => navigation.navigate('ForgotPasswordScreen')}
                   >
                     <Text style={[styles.forgotPassParagraph]}>
                       Forgot Password?
@@ -851,7 +849,7 @@ const SignUpScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   bkg: {
     alignItems: 'center',
     justifyContent: 'center',
