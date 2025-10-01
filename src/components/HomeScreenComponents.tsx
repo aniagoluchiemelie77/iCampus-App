@@ -1,12 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import {  Text, View, StyleSheet, TouchableOpacity, Image, TextInput} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Text,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  Animated,
+  Modal,
+  TouchableWithoutFeedback,
+  ScrollView,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { homeStyles } from '../screens/HomeScreen'; // Adjust path as needed
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from './hooks';
-import type { ProductCategory } from '../types/firebase'; 
+import type { ProductCategory } from '../types/firebase';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -15,6 +26,136 @@ const getGreeting = () => {
   if (hour < 12) return 'Good Morning';
   if (hour < 17) return 'Good Afternoon';
   return 'Good Evening';
+};
+const CalenderPopup = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const [visible, setVisible] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  const openPopup = () => {
+    setVisible(true);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+  const closePopup = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setVisible(false));
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={[
+          homeStyles.iconItem,
+          styles.activityIcons,
+          styles.activityIcons2,
+        ]}
+        onPress={openPopup}
+      >
+        <Icon name="calendar-number-outline" size={30} color="#f54b02" />
+      </TouchableOpacity>
+
+      <Modal transparent visible={visible} animationType="fade">
+        <TouchableWithoutFeedback onPress={closePopup}>
+          <View style={styles.overlay}>
+            <Animated.View
+              style={[styles.popup, { transform: [{ scale: scaleAnim }] }]}
+            >
+              <View style={styles.topHeader2}>
+                <Text style={styles.welcomeText2}>Events</Text>
+                <TouchableOpacity
+                  onPress={closePopup}
+                  style={[
+                    homeStyles.iconItem,
+                    styles.activityIcons,
+                    styles.activityIcons2,
+                    styles.cancelIcon,
+                  ]}
+                >
+                  <Icon name="close-outline" size={28} color="#f54b02" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Calender')}
+                style={[
+                  homeStyles.iconItem,
+                  styles.activityIcons,
+                  styles.activityIcons2,
+                  styles.CaddIcon,
+                ]}
+              >
+                <Icon name="add-outline" size={32} color="#f54b02" />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
+  );
+};
+const SettingsPopup = () => {
+  const [visible, setVisible] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  const openPopup = () => {
+    setVisible(true);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+  const closePopup = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setVisible(false));
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={[
+          homeStyles.iconItem,
+          styles.activityIcons,
+          styles.activityIcons2,
+        ]}
+        onPress={openPopup}
+      >
+        <Icon name="settings-outline" size={28} color="#f54b02" />
+      </TouchableOpacity>
+
+      <Modal transparent visible={visible} animationType="fade">
+        <TouchableWithoutFeedback onPress={closePopup}>
+          <View style={styles.overlayRight}>
+            <Animated.View
+              style={[styles.popupRight, { transform: [{ scale: scaleAnim }] }]}
+            >
+              <View style={styles.topHeader2}>
+                <TouchableOpacity
+                  onPress={closePopup}
+                  style={[
+                    homeStyles.iconItem,
+                    styles.activityIcons,
+                    styles.activityIcons2,
+                    styles.cancelIcon,
+                  ]}
+                >
+                  <Icon name="close-outline" size={28} color="#f54b02" />
+                </TouchableOpacity>
+                <Text style={styles.welcomeText2}>Settings</Text>
+              </View>
+            </Animated.View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
+  );
 };
 //Home screen
 export function Home() {
@@ -25,16 +166,7 @@ export function Home() {
   return (
     <View style={styles.bckg}>
       <View style={styles.topHeader}>
-        <TouchableOpacity
-          style={[
-            homeStyles.iconItem,
-            styles.activityIcons,
-            styles.activityIcons2,
-          ]}
-          onPress={() => navigation.navigate('Calender')}
-        >
-          <Icon name="calendar-outline" size={28} color="#f54b02" />
-        </TouchableOpacity>
+        <CalenderPopup />
         <View style={styles.iconSubdiv}>
           <TouchableOpacity
             style={[
@@ -45,16 +177,7 @@ export function Home() {
           >
             <Icon name="notifications-outline" size={28} color="#f54b02" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              styles.activityIcons,
-              styles.activityIcons2,
-            ]}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Icon name="settings-outline" size={28} color="#f54b02" />
-          </TouchableOpacity>
+          <SettingsPopup />
         </View>
       </View>
       <View style={styles.welcomeHeader}>
@@ -93,50 +216,56 @@ export function Home() {
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="people-outline" size={30} color="#000" />
+              <Icon name="people-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>Communities</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="list-outline" size={30} color="#000" />
-              <Text style={homeStyles.iconLabel}>Create A Poll</Text>
+              <Icon name="bar-chart-outline" size={30} color="#f54b02" />
+              <Text style={homeStyles.iconLabel}>Create Poll</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="chatbubble-ellipses-outline" size={30} color="#000" />
+              <Icon name="bulb-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>Smart Help</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="calculator-outline" size={30} color="#000" />
+              <Icon name="calculator-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>Get GPA</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="book-outline" size={30} color="#000" />
+              <Icon name="book-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>Browse Materials</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="receipt-outline" size={30} color="#000" />
+              <Icon name="receipt-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>Spend Wise</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="wallet-outline" size={30} color="#000" />
+              <Icon name="wallet-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>My Wallet</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
             >
-              <Icon name="time-outline" size={30} color="#000" />
+              <Icon name="calendar-number-outline" size={30} color="#f54b02" />
               <Text style={homeStyles.iconLabel}>Go Plan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[homeStyles.iconItem, styles.activityIcons]}
+            >
+              <Icon name="library-outline" size={30} color="#f54b02" />
+              <Text style={homeStyles.iconLabel}>Library</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -229,7 +358,20 @@ export function StoreScreen() {
 
 // ProfileScreen.js
 export function ProfileScreen() {
-  return <Text>Welcome to Profile</Text>;
+  const user = useAppSelector(state => state.user);
+  return (
+    <ScrollView contentContainerStyle={styles.bckg}>
+      <View style={styles.profileImgDiv}>
+        <Image source={{ uri: user.profilePic }} style={styles.avatarProfile} />
+        <View>
+          <Text style={styles.profileImgDivText}>
+            {user.firstname} {user.lastname}
+          </Text>
+        </View>
+      </View>
+      <Text>Welcome to Profile</Text>
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -248,6 +390,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
   },
+  topHeader2: {
+    backgroundColor: 'inherit',
+    padding: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
   welcomeHeader: {
     padding: 5,
     flexDirection: 'row',
@@ -257,6 +407,10 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     marginLeft: 5,
+    fontSize: 19,
+    fontWeight: 800,
+  },
+  welcomeText2: {
     fontSize: 19,
     fontWeight: 800,
   },
@@ -331,5 +485,82 @@ const styles = StyleSheet.create({
     width: '82%',
     borderColor: '#838181ff',
     color: '#000',
+  },
+  container: {
+    width: 'auto',
+  },
+  searchIcon: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 10,
+  },
+  iconText: {
+    fontSize: 24,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
+    justifyContent: 'flex-start',
+    position: 'relative',
+  },
+  overlayRight: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
+    justifyContent: 'flex-end',
+    position: 'relative',
+    top: 0,
+    right: 0,
+  },
+  popup: {
+    top: 0,
+    left: 0,
+    width: '85%',
+    minHeight: '100%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 12,
+    elevation: 5,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  popupRight: {
+    top: 0,
+    right: 0,
+    width: '85%',
+    minHeight: '100%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 12,
+    elevation: 5,
+    alignItems: 'center',
+    position: 'absolute',
+  },
+  cancelIcon: {
+    alignSelf: 'flex-end',
+    width: 'auto',
+  },
+  CaddIcon: {
+    bottom: 20,
+    right: 15,
+    position: 'absolute',
+  },
+  avatarProfile: {
+    width: '100%', // spans full width of parent
+    height: '100%', // adjust as needed
+    resizeMode: 'contain',
+  },
+  profileImgDiv: {
+    minWidth: '100%', // spans full width of parent
+    height: 280,
+    position: 'relative',
+  },
+  profileImgDivText: {
+    bottom: 10, // spans full width of parent
+    left: 10,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    position: 'absolute', // adjust as neede
   },
 });

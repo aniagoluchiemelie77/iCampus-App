@@ -12,7 +12,7 @@ const WelcomeScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigation.navigate('SignUp');
-    }, 7000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [navigation]);
 
@@ -20,7 +20,7 @@ const WelcomeScreen = () => {
     <View style={styles.container}>
       <Image
         source={{
-          uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1758222524/WhatsApp_Image_2025-09-18_at_7.38.18_PM_qtdqcg.jpg',
+          uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1759354003/Black_And_White_King_Logo_ydy68f.png',
         }} // Replace with your actual image URL
         style={styles.gif} // You can rename this style to something more appropriate like styles.image
         resizeMode="contain"
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     flex: 1, // or any color you want
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#f54b02',
   },
   gif: {
     width: '100%',

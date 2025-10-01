@@ -65,7 +65,7 @@ const App = () => {
         const ipData = await ipResponse.json();
         if (hasLaunched === null) {
           console.log(ipData);
-          setInitialRoute('SignUp');
+          setInitialRoute('Welcome');
         } else {
           getUserId();
           const storedId = await AsyncStorage.getItem('userId');
@@ -88,9 +88,9 @@ const App = () => {
               const text = await response.text();
               console.warn('Unexpected response:', text);
             }
-            setInitialRoute('SignUp');
+            setInitialRoute('Welcome');
           } else {
-            setInitialRoute('SignUp');
+            setInitialRoute('Welcome');
           }
         }
       } catch (error) {

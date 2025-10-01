@@ -874,7 +874,7 @@ export const styles = StyleSheet.create({
   activeTabText: {
     fontSize: 34,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#f54b02',
   },
   disabledBtn: {
     backgroundColor: '#222',
@@ -962,7 +962,7 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#000',
+    backgroundColor: '#f54b02',
   },
   selector: {
     padding: 15,
