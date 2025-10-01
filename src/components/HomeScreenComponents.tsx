@@ -33,7 +33,7 @@ export function Home() {
           ]}
           onPress={() => navigation.navigate('Calender')}
         >
-          <Icon name="calendar-outline" size={28} color="#fcac0eff" />
+          <Icon name="calendar-outline" size={28} color="#f54b02" />
         </TouchableOpacity>
         <View style={styles.iconSubdiv}>
           <TouchableOpacity
@@ -43,7 +43,7 @@ export function Home() {
               styles.activityIcons2,
             ]}
           >
-            <Icon name="notifications-outline" size={28} color="#fcac0eff" />
+            <Icon name="notifications-outline" size={28} color="#f54b02" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -53,7 +53,7 @@ export function Home() {
             ]}
             onPress={() => navigation.navigate('Settings')}
           >
-            <Icon name="settings-outline" size={28} color="#fcac0eff" />
+            <Icon name="settings-outline" size={28} color="#f54b02" />
           </TouchableOpacity>
         </View>
       </View>
@@ -175,7 +175,7 @@ export function StoreScreen() {
             styles.activityIcons2,
           ]}
         >
-          <Icon name="notifications-outline" size={28} color="#fcac0eff" />
+          <Icon name="notifications-outline" size={28} color="#f54b02" />
         </TouchableOpacity>
       </View>
       <View style={styles.activityDiv}>
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     height: 60,
     width: 60,
     borderRadius: 30,
-    borderColor: '#fcac0eff', // Your preferred border color
+    borderColor: '#f54b02', // Your preferred border color
     backgroundColor: '#fff',
     borderWidth: 2,
     shadowColor: '#000',
