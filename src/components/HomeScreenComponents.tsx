@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from './hooks';
-import type { ProductCategory } from '../types/firebase';
+import type { ProductCategory, CalendarEvent } from '../types/firebase';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -27,13 +27,28 @@ const getGreeting = () => {
   if (hour < 17) return 'Good Afternoon';
   return 'Good Evening';
 };
+
 const CalenderPopup = () => {
+  const user = useAppSelector(state => state.user);
   const navigation = useNavigation<NavigationProp>();
   const [visible, setVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch(
+        `http://192.168.1.98:5000/user/events?userId=${user.uid}`,
+      );
+      const data = await response.json();
+      setEvents(data);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  };
 
   const openPopup = () => {
     setVisible(true);
+    fetchEvents();
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -46,6 +61,58 @@ const CalenderPopup = () => {
       useNativeDriver: true,
     }).start(() => setVisible(false));
   };
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+
+    // Add ordinal suffix
+    const getOrdinal = (n: number) => {
+      if (n > 3 && n < 21) return 'th';
+      switch (n % 10) {
+        case 1:
+          return 'st';
+        case 2:
+          return 'nd';
+        case 3:
+          return 'rd';
+        default:
+          return 'th';
+      }
+    };
+
+    const dayWithSuffix = `${day}${getOrdinal(day)}`;
+
+    const formatted = new Intl.DateTimeFormat('en-GB', {
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    }).format(date);
+
+    return `${dayWithSuffix} ${formatted}`;
+  };
+
+  const brightColors = [
+    '#6abd0cff',
+    '#d11755ff',
+    '#0496a9ff',
+    '#c4440dff',
+    '#b54607ff',
+  ];
+  const titleColorMap: { [title: string]: string } = {};
+  const getColorForTitle = (title: string) => {
+    if (!titleColorMap[title]) {
+      const index = Object.keys(titleColorMap).length % brightColors.length;
+      titleColorMap[title] = brightColors[index];
+    }
+    return titleColorMap[title];
+  };
+  const sortedEvents = [...events].sort((a, b) => {
+    const aDate = new Date(a.startDate + 'T' + (a.eventStartTime || '00:00'));
+    const bDate = new Date(b.startDate + 'T' + (b.eventStartTime || '00:00'));
+    return aDate.getTime() - bDate.getTime();
+  });
 
   return (
     <View style={styles.container}>
@@ -61,11 +128,15 @@ const CalenderPopup = () => {
       </TouchableOpacity>
 
       <Modal transparent visible={visible} animationType="fade">
-        <TouchableWithoutFeedback onPress={closePopup}>
-          <View style={styles.overlay}>
-            <Animated.View
-              style={[styles.popup, { transform: [{ scale: scaleAnim }] }]}
-            >
+        <View style={styles.overlay}>
+          {/* Touchable area only covers the background */}
+          <TouchableWithoutFeedback onPress={closePopup}>
+            <View style={styles.backdrop} />
+          </TouchableWithoutFeedback>
+
+          {/* Modal content stays interactive and scrollable */}
+          <View style={styles.popup}>
+            <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
               <View style={styles.topHeader2}>
                 <Text style={styles.welcomeText2}>Events</Text>
                 <TouchableOpacity
@@ -80,20 +151,71 @@ const CalenderPopup = () => {
                   <Icon name="close-outline" size={28} color="#f54b02" />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Calender')}
-                style={[
-                  homeStyles.iconItem,
-                  styles.activityIcons,
-                  styles.activityIcons2,
-                  styles.CaddIcon,
-                ]}
-              >
-                <Icon name="add-outline" size={32} color="#f54b02" />
-              </TouchableOpacity>
             </Animated.View>
+
+            <View style={styles.eventsContainer}>
+              <ScrollView contentContainerStyle={styles.eventsDiv}>
+                {sortedEvents.map(event => (
+                  <View key={event._id} style={styles.eventCard}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={[
+                        styles.eventTitle,
+                        { backgroundColor: getColorForTitle(event.title) },
+                      ]}
+                    >
+                      {event.title}
+                    </Text>
+                    <Text
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      style={styles.eventDescription}
+                    >
+                      {event.description}
+                    </Text>
+                    <View style={styles.eventLocationDiv}>
+                      <Icon name="location-outline" size={18} color="#f54b02" />
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={styles.eventLocation}
+                      >
+                        {event.location}
+                      </Text>
+                    </View>
+                    <View style={styles.eventCardFooter}>
+                      <Text style={styles.eventDate}>
+                        {new Date(event.startDate).toLocaleDateString() ===
+                        new Date(event.endDate).toLocaleDateString()
+                          ? formatDate(event.startDate)
+                          : `${formatDate(event.startDate)} - ${formatDate(
+                              event.endDate,
+                            )}`}
+                      </Text>
+                      {event.eventType === 'Lectures' &&
+                        event.lectureType === 'online' && (
+                          <Text style={styles.lectureType}>Online</Text>
+                        )}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Calender')}
+              style={[
+                homeStyles.iconItem,
+                styles.activityIcons,
+                styles.activityIcons2,
+                styles.CaddIcon,
+              ]}
+            >
+              <Icon name="add-outline" size={32} color="#f54b02" />
+            </TouchableOpacity>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </View>
   );
@@ -162,6 +284,58 @@ export function Home() {
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<NavigationProp>();
   const [showActivities, setShowActivities] = useState(true);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch(
+        `http://192.168.1.98:5000/user/events?userId=${user.uid}`,
+      );
+      const data = await response.json();
+      setEvents(data);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  };
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+
+    // Add ordinal suffix
+    const getOrdinal = (n: number) => {
+      if (n > 3 && n < 21) return 'th';
+      switch (n % 10) {
+        case 1:
+          return 'st';
+        case 2:
+          return 'nd';
+        case 3:
+          return 'rd';
+        default:
+          return 'th';
+      }
+    };
+
+    const dayWithSuffix = `${day}${getOrdinal(day)}`;
+
+    const formatted = new Intl.DateTimeFormat('en-GB', {
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    }).format(date);
+
+    return `${dayWithSuffix} ${formatted}`;
+  };
+  const sortedEvents = [...events].sort((a, b) => {
+    const aDate = new Date(a.startDate + 'T' + (a.eventStartTime || '00:00'));
+    const bDate = new Date(b.startDate + 'T' + (b.eventStartTime || '00:00'));
+    return aDate.getTime() - bDate.getTime();
+  });
+  const latestEvents = [...sortedEvents].reverse().slice(0, 7);
+  useEffect(() => {
+    fetchEvents();
+  });
 
   return (
     <View style={styles.bckg}>
@@ -195,81 +369,119 @@ export function Home() {
           {getGreeting()}, {user.firstname}
         </Text>
       </View>
-      <View style={styles.activityDiv}>
-        <View style={styles.activityDivHeader}>
-          <Text style={styles.activityDivHeaderText}>Activities</Text>
-          <TouchableOpacity
-            style={[homeStyles.iconItem, styles.activityIcons]}
-            onPress={() => setShowActivities(prev => !prev)}
-          >
-            <Icon
-              name={
-                showActivities ? 'chevron-up-outline' : 'chevron-down-outline'
-              }
-              size={30}
-              color="#000"
-            />
-          </TouchableOpacity>
-        </View>
-        {showActivities && (
-          <View style={styles.activityIconsDiv}>
+      <ScrollView contentContainerStyle={styles.activityDivContainer}>
+        <View style={styles.activityDiv}>
+          <View style={styles.activityDivHeader}>
+            <Text style={styles.activityDivHeaderText}>Activities</Text>
             <TouchableOpacity
               style={[homeStyles.iconItem, styles.activityIcons]}
+              onPress={() => setShowActivities(prev => !prev)}
             >
-              <Icon name="people-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Communities</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="bar-chart-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Create Poll</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="bulb-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Smart Help</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="calculator-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Get GPA</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="book-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Browse Materials</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="receipt-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Spend Wise</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="wallet-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>My Wallet</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="calendar-number-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Go Plan</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[homeStyles.iconItem, styles.activityIcons]}
-            >
-              <Icon name="library-outline" size={30} color="#f54b02" />
-              <Text style={homeStyles.iconLabel}>Library</Text>
+              <Icon
+                name={
+                  showActivities ? 'chevron-up-outline' : 'chevron-down-outline'
+                }
+                size={30}
+                color="#000"
+              />
             </TouchableOpacity>
           </View>
+          {showActivities && (
+            <View style={styles.activityIconsDiv}>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="people-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Communities</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="bar-chart-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Create Poll</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="bulb-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Smart Help</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="calculator-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Get GPA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="book-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Browse Materials</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="receipt-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Spend Wise</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="wallet-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>My Wallet</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Calender')}
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon
+                  name="calendar-number-outline"
+                  size={30}
+                  color="#f54b02"
+                />
+                <Text style={homeStyles.iconLabel}>Go Plan</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.iconItem, styles.activityIcons]}
+              >
+                <Icon name="library-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Library</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        {showActivities && (
+          <>
+            <View style={styles.eventsContainer2}>
+              {latestEvents.map(event => (
+                <View key={event._id} style={styles.eventCardOuterWidth}>
+                  <View style={styles.eventCardInnerWidth}>
+                    <Text
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      style={styles.eventDescription}
+                    >
+                      {event.description}
+                    </Text>
+                    <Text style={styles.eventDate}>
+                      {new Date(event.startDate).toLocaleDateString() ===
+                      new Date(event.endDate).toLocaleDateString()
+                        ? formatDate(event.startDate)
+                        : `${formatDate(event.startDate)} - ${formatDate(
+                            event.endDate,
+                          )}`}
+                    </Text>
+                    {event.eventType === 'Lectures' &&
+                      event.lectureType === 'online' && (
+                        <Text style={styles.lectureType}>Online Lecture</Text>
+                      )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -316,7 +528,7 @@ export function StoreScreen() {
             <>
               <TouchableOpacity
                 style={[homeStyles.iconItem, styles.activityIcons]}
-                key={cat.id}
+                key={cat._id}
               >
                 <Icon name="people-outline" size={30} color="#000" />
                 <Text style={homeStyles.iconLabel}>{cat.categoryName}</Text>
@@ -489,6 +701,11 @@ const styles = StyleSheet.create({
   container: {
     width: 'auto',
   },
+  activityDivContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
   searchIcon: {
     position: 'absolute',
     top: 40,
@@ -502,10 +719,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
     justifyContent: 'flex-start',
-    position: 'relative',
   },
   overlayRight: {
-    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
     justifyContent: 'flex-end',
     position: 'relative',
@@ -562,5 +777,96 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
     position: 'absolute', // adjust as neede
+  },
+  eventsContainer: {
+    width: '100%',
+    paddingVertical: 5,
+    alignItems: 'flex-start',
+  },
+  eventCardOuterWidth: {
+    width: '100%',
+    backgroundColor: '#f54b02',
+    height: 60,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eventCardInnerWidth: {
+    width: '80%',
+    backgroundColor: '#fff',
+    height: '100%',
+    alignItems: 'center',
+    padding: 5,
+    elevation: 2, // for Android shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  eventsContainer2: {
+    width: '100%',
+    paddingVertical: 5,
+    alignItems: 'center',
+  },
+  eventsDiv: {
+    justifyContent: 'center',
+  },
+  eventCard: {
+    borderBottomWidth: 1,
+    borderColor: '#a6a5a5ff',
+    paddingVertical: 5,
+    marginBottom: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  eventTitle: {
+    color: '#fff',
+    padding: 5,
+    fontSize: 12,
+    alignSelf: 'flex-start',
+    borderRadius: 5,
+    fontWeight: '600',
+  },
+  eventDate: {
+    fontSize: 11,
+    color: 'gray',
+  },
+  eventLocationDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    width: '100%',
+  },
+  eventLocation: {
+    marginLeft: 2,
+    alignSelf: 'flex-start',
+  },
+  eventDescription: {
+    color: 'black',
+    fontWeight: '700',
+    paddingVertical: 4,
+  },
+  eventCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 3,
+  },
+  lectureType: {
+    fontSize: 10,
+    fontWeight: '800',
+    backgroundColor: '#f54b02',
+    color: '#fff',
+    padding: 3,
+    borderRadius: 5,
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });

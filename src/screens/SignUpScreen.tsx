@@ -907,8 +907,8 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   inputHeader: {
-    fontSize: 17,
-    marginBottom: 15,
+    fontSize: 14,
+    marginBottom: 10,
     color: '#000',
   },
   input: {
@@ -917,7 +917,8 @@ export const styles = StyleSheet.create({
     minWidth: '100%',
     borderColor: '#000',
     color: '#000',
-    marginBottom: 10,
+    marginBottom: 8,
+    fontSize: 14,
   },
   input2: {
     padding: 10,
@@ -986,7 +987,7 @@ export const styles = StyleSheet.create({
     fontSize: 17,
   },
   forgotPassParagraph: {
-    fontSize: 17,
+    fontSize: 14,
     color: '#000',
   },
   forgotPassDiv: {

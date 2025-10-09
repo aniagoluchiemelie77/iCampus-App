@@ -163,6 +163,7 @@ export interface Rating {
 }
 export interface ProductCategory {
   id: string;
+  _id: string;
   categoryName: string[];
 }
 export interface Store {
@@ -265,21 +266,26 @@ export interface RecievePointsRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface CalendarEvent {
+   _id: string;
   id: string;
-  createdBy: string; // UID of the user
-  creatorRole: UserType;
+  createdBy: User.id; // UID of the user
+  creatorType: UserType;
   title: string;
   description?: string;
-  courseTitle?: string; // for lecturer events
-  department?: string; // for filtering visibility
-  schoolName?: string;
-  startDate: FirebaseFirestore.Timestamp;
-  endDate: FirebaseFirestore.Timestamp;
-  day?: string; // optional if using startDate/endDate
+  courseTitle?: string;
+  startDate: string;
+  endDate: string;
+  eventType?: 'Lectures' | 'Other';// optional if using startDate/endDate
   lectureType?: 'online' | 'offline'; // for lecturer events
-  attendanceType?: 'optional' | 'compulsory'; // for courseRep events
-  visibility: 'private' | 'department' | 'public'; // controls who can see it
-  createdAt: FirebaseFirestore.Timestamp;
+  visibility?: 'private' | 'department' | 'public'; // controls who can see it
+  createdAt: string;
+  eventTime: string;
+  location?: string;
+  eventStartTime?: string; // e.g., "14:00"
+  eventEndTime?: string;   // e.g., "15:30"
+  isRecurring?: boolean;
+  recurrenceRule?: string; // e.g., "FREQ=WEEKLY;BYDAY=MO,WE,FR"
+  tags?: string[]; // e.g., ['exam', 'group meeting', 'revision']
 }
 export interface EventReminder {
   eventId: string;
