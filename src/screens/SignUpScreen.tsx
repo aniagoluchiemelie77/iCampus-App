@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -24,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { v4 as uuidv4 } from 'uuid';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { SignupScreenStyles } from '../assets/styles/colors';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
 type VerifiedStudent = {
@@ -232,6 +232,7 @@ const SignUpScreen = () => {
             : '',
         pointsBalance: 0,
         hasSubscribed: false,
+        isCourseRep: false,
         createdAt: new Date().toISOString(),
         country: payload.country || '',
         ...(userType === 'student' && verifiedStudent
@@ -389,24 +390,27 @@ const SignUpScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.bkg} behavior="padding">
+    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
       <ScrollView
-        contentContainerStyle={styles.bkg3}
+        contentContainerStyle={SignupScreenStyles.bkg3}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.container}>
+        <View style={SignupScreenStyles.container}>
           <View>
             <Animated.View
-              style={[styles.headerBtnsContainer, { opacity: fadeAnim }]}
+              style={[
+                SignupScreenStyles.headerBtnsContainer,
+                { opacity: fadeAnim },
+              ]}
             >
               <TouchableOpacity
-                style={styles.tabButton}
+                style={SignupScreenStyles.tabButton}
                 onPress={() => switchTab('signup')}
               >
                 <Text
                   style={[
-                    styles.header,
-                    activeTab === 'signup' && styles.activeTabText,
+                    SignupScreenStyles.header,
+                    activeTab === 'signup' && SignupScreenStyles.activeTabText,
                   ]}
                 >
                   Sign Up
@@ -414,13 +418,13 @@ const SignUpScreen = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.tabButton}
+                style={SignupScreenStyles.tabButton}
                 onPress={() => switchTab('login')}
               >
                 <Text
                   style={[
-                    styles.header,
-                    activeTab === 'login' && styles.activeTabText,
+                    SignupScreenStyles.header,
+                    activeTab === 'login' && SignupScreenStyles.activeTabText,
                   ]}
                 >
                   Login
@@ -428,17 +432,19 @@ const SignUpScreen = () => {
               </TouchableOpacity>
             </Animated.View>
           </View>
-          <View style={styles.inputContainer}>
+          <View style={SignupScreenStyles.inputContainer}>
             {activeTab === 'signup' ? (
               <>
                 {step === 0 && (
                   <>
-                    <Text style={styles.inputHeader}>Select Country:</Text>
+                    <Text style={SignupScreenStyles.inputHeader}>
+                      Select Country:
+                    </Text>
                     <TouchableOpacity
                       onPress={() => setShowCountryPicker(true)}
-                      style={styles.selector}
+                      style={SignupScreenStyles.selector}
                     >
-                      <Text style={styles.selectorHeader2}>
+                      <Text style={SignupScreenStyles.selectorHeader2}>
                         {country || 'Select Country'}
                       </Text>
                     </TouchableOpacity>
@@ -455,7 +461,7 @@ const SignUpScreen = () => {
                 )}
                 {step === 1 && (
                   <>
-                    <Text style={styles.inputHeader}>
+                    <Text style={SignupScreenStyles.inputHeader}>
                       Select Institution Name:
                     </Text>
                     <Dropdown
@@ -471,32 +477,38 @@ const SignUpScreen = () => {
                         setInstitution(item.value);
                         nextStep();
                       }}
-                      style={styles.dropdown}
+                      style={SignupScreenStyles.dropdown}
                     />
                   </>
                 )}
                 {step === 2 && (
                   <>
-                    <Text style={styles.inputHeader}>Are You?:</Text>
-                    <View style={styles.toggle}>
+                    <Text style={SignupScreenStyles.inputHeader}>
+                      Are You?:
+                    </Text>
+                    <View style={SignupScreenStyles.toggle}>
                       <TouchableOpacity
-                        style={styles.toggleBtns}
+                        style={SignupScreenStyles.toggleBtns}
                         onPress={() => {
                           setUserType('student');
                           nextStep();
                         }}
                       >
-                        <Text style={styles.selectorHeader}>A student</Text>
+                        <Text style={SignupScreenStyles.selectorHeader}>
+                          A student
+                        </Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.toggleBtns}
+                        style={SignupScreenStyles.toggleBtns}
                         onPress={() => {
                           setUserType('lecturer');
                           nextStep();
                         }}
                       >
-                        <Text style={styles.selectorHeader}>A lecturer</Text>
+                        <Text style={SignupScreenStyles.selectorHeader}>
+                          A lecturer
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -505,27 +517,31 @@ const SignUpScreen = () => {
                   <>
                     <KeyboardAvoidingView
                       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                      style={styles.inputKAVContainer}
+                      style={SignupScreenStyles.inputKAVContainer}
                     >
-                      <Text style={styles.inputHeader}>Enter your Email:</Text>
+                      <Text style={SignupScreenStyles.inputHeader}>
+                        Enter your Email:
+                      </Text>
                       <TextInput
                         placeholder="Email"
                         placeholderTextColor="#fff"
                         value={email}
                         onChangeText={setEmail}
-                        style={styles.input}
+                        style={SignupScreenStyles.input}
                       />
-                      <Text style={styles.validationText}>
+                      <Text style={SignupScreenStyles.validationText}>
                         {!isValidEmail(email) && email.length > 0
                           ? 'Invalid email format'
                           : ''}
                       </Text>
                       <TouchableOpacity
-                        style={styles.toggleBtns}
+                        style={SignupScreenStyles.toggleBtns}
                         onPress={nextStep}
                         disabled={!isValidEmail(email) && email.length > 0}
                       >
-                        <Text style={styles.selectorHeader}>Next</Text>
+                        <Text style={SignupScreenStyles.selectorHeader}>
+                          Next
+                        </Text>
                       </TouchableOpacity>
                     </KeyboardAvoidingView>
                   </>
@@ -534,17 +550,17 @@ const SignUpScreen = () => {
                   <>
                     <KeyboardAvoidingView
                       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                      style={styles.inputKAVContainer}
+                      style={SignupScreenStyles.inputKAVContainer}
                     >
-                      <Text style={styles.inputHeader}>
+                      <Text style={SignupScreenStyles.inputHeader}>
                         Enter your Password:
                       </Text>
-                      <View style={styles.passwordContainer}>
-                        <View style={styles.passwordInputWrapper}>
+                      <View style={SignupScreenStyles.passwordContainer}>
+                        <View style={SignupScreenStyles.passwordInputWrapper}>
                           <TextInput
                             placeholder="Password"
                             placeholderTextColor="#000"
-                            style={styles.passwordInput}
+                            style={SignupScreenStyles.passwordInput}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
@@ -556,23 +572,23 @@ const SignUpScreen = () => {
                               name={showPassword ? 'eye-off' : 'eye'}
                               size={25}
                               color="#000"
-                              style={styles.passwordIcons}
+                              style={SignupScreenStyles.passwordIcons}
                             />
                           </TouchableOpacity>
                         </View>
                         {!isValidPassword(password) && password.length > 0 && (
-                          <Text style={styles.validationText}>
+                          <Text style={SignupScreenStyles.validationText}>
                             Password must be at least 13 characters and include
                             uppercase, lowercase, number, and symbol.
                           </Text>
                         )}
                       </View>
-                      <View style={styles.passwordContainer}>
-                        <View style={styles.passwordInputWrapper}>
+                      <View style={SignupScreenStyles.passwordContainer}>
+                        <View style={SignupScreenStyles.passwordInputWrapper}>
                           <TextInput
                             placeholder="Confirm Password"
                             placeholderTextColor="#000"
-                            style={styles.passwordInput}
+                            style={SignupScreenStyles.passwordInput}
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             secureTextEntry={!showConfirmPassword}
@@ -586,24 +602,24 @@ const SignUpScreen = () => {
                               name={showConfirmPassword ? 'eye-off' : 'eye'}
                               size={25}
                               color="#000"
-                              style={styles.passwordIcons}
+                              style={SignupScreenStyles.passwordIcons}
                             />
                           </TouchableOpacity>
                         </View>
 
                         {confirmPassword.length > 0 &&
                           confirmPassword !== password && (
-                            <Text style={styles.validationText}>
+                            <Text style={SignupScreenStyles.validationText}>
                               Passwords do not match.
                             </Text>
                           )}
                       </View>
                       <TouchableOpacity
                         style={[
-                          styles.toggleBtns,
+                          SignupScreenStyles.toggleBtns,
                           (!isValidPassword(password) ||
                             confirmPassword !== password) &&
-                            styles.disabledBtn,
+                            SignupScreenStyles.disabledBtn,
                         ]}
                         onPress={nextStep}
                         disabled={
@@ -611,7 +627,9 @@ const SignUpScreen = () => {
                           confirmPassword !== password
                         }
                       >
-                        <Text style={styles.selectorHeader}>Next</Text>
+                        <Text style={SignupScreenStyles.selectorHeader}>
+                          Next
+                        </Text>
                       </TouchableOpacity>
                     </KeyboardAvoidingView>
                   </>
@@ -620,9 +638,9 @@ const SignUpScreen = () => {
                   <>
                     <KeyboardAvoidingView
                       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                      style={styles.inputKAVContainer}
+                      style={SignupScreenStyles.inputKAVContainer}
                     >
-                      <Text style={styles.inputHeader}>
+                      <Text style={SignupScreenStyles.inputHeader}>
                         Enter your Matriculation Number:
                       </Text>
                       <TextInput
@@ -633,22 +651,22 @@ const SignUpScreen = () => {
                           setMatricNumber(text);
                           setStudentNotFound(false); // clear error on change
                         }}
-                        style={styles.input}
+                        style={SignupScreenStyles.input}
                       />
                       {studentNotFound && (
-                        <Text style={styles.validationText}>
+                        <Text style={SignupScreenStyles.validationText}>
                           Student not found
                         </Text>
                       )}
                       <TouchableOpacity
                         style={[
-                          styles.toggleBtns,
-                          isVerifying && styles.disabledBtn,
+                          SignupScreenStyles.toggleBtns,
+                          isVerifying && SignupScreenStyles.disabledBtn,
                         ]}
                         onPress={verifyStudent}
                         disabled={isVerifying}
                       >
-                        <Text style={styles.selectorHeader}>
+                        <Text style={SignupScreenStyles.selectorHeader}>
                           {isVerifying ? 'Verifying...' : 'Verify'}
                         </Text>
                       </TouchableOpacity>
@@ -659,35 +677,39 @@ const SignUpScreen = () => {
                   <>
                     <KeyboardAvoidingView
                       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                      style={styles.inputKAVContainer}
+                      style={SignupScreenStyles.inputKAVContainer}
                     >
-                      <Text style={styles.inputHeader}>
+                      <Text style={SignupScreenStyles.inputHeader}>
                         What are your Hobbies? (optional):
                       </Text>
                       <TextInput
                         placeholderTextColor="#fff"
-                        style={styles.input}
+                        style={SignupScreenStyles.input}
                         placeholder="Hobbies (optional)"
                         value={hobbies}
                         onChangeText={setHobbies}
                       />
-                      <View style={styles.toggle}>
+                      <View style={SignupScreenStyles.toggle}>
                         <TouchableOpacity
-                          style={styles.toggleBtns}
+                          style={SignupScreenStyles.toggleBtns}
                           onPress={() => {
                             nextStep();
                           }}
                         >
-                          <Text style={styles.selectorHeader}>Next</Text>
+                          <Text style={SignupScreenStyles.selectorHeader}>
+                            Next
+                          </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          style={styles.toggleBtns}
+                          style={SignupScreenStyles.toggleBtns}
                           onPress={() => {
                             nextStep();
                           }}
                         >
-                          <Text style={styles.selectorHeader}>Skip</Text>
+                          <Text style={SignupScreenStyles.selectorHeader}>
+                            Skip
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </KeyboardAvoidingView>
@@ -697,14 +719,14 @@ const SignUpScreen = () => {
                   <>
                     <KeyboardAvoidingView
                       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                      style={styles.inputKAVContainer}
+                      style={SignupScreenStyles.inputKAVContainer}
                     >
-                      <Text style={styles.inputHeader}>
+                      <Text style={SignupScreenStyles.inputHeader}>
                         Enter your Staff Id:
                       </Text>
                       <TextInput
                         placeholderTextColor="#fff"
-                        style={styles.input}
+                        style={SignupScreenStyles.input}
                         placeholder="Staff ID"
                         value={staffId}
                         onChangeText={text => {
@@ -713,16 +735,18 @@ const SignUpScreen = () => {
                         }}
                       />
                       {lecturerNotFound && (
-                        <Text style={styles.validationText}>
+                        <Text style={SignupScreenStyles.validationText}>
                           User not found
                         </Text>
                       )}
 
                       <TouchableOpacity
-                        style={styles.toggleBtns}
+                        style={SignupScreenStyles.toggleBtns}
                         onPress={verifyLecturer}
                       >
-                        <Text style={styles.selectorHeader}>Verify</Text>
+                        <Text style={SignupScreenStyles.selectorHeader}>
+                          Verify
+                        </Text>
                       </TouchableOpacity>
                     </KeyboardAvoidingView>
                   </>
@@ -730,13 +754,15 @@ const SignUpScreen = () => {
 
                 {(step === 7 || (userType === 'lecturer' && step === 6)) && (
                   <>
-                    <Text style={styles.inputHeader}>Terms and Conditions</Text>
+                    <Text style={SignupScreenStyles.inputHeader}>
+                      Terms and Conditions
+                    </Text>
                     <TouchableOpacity
                       onPress={() => setTermsAccepted(!termsAccepted)}
                     >
                       <Text
                         style={[
-                          styles.termsParagraph,
+                          SignupScreenStyles.termsParagraph,
                           { color: termsAccepted ? 'green' : 'red' }, // ✅ dynamic override
                         ]}
                       >
@@ -746,10 +772,12 @@ const SignUpScreen = () => {
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.toggleBtns}
+                      style={SignupScreenStyles.toggleBtns}
                       onPress={handleSubmit}
                     >
-                      <Text style={styles.selectorHeader}>Sign Up</Text>
+                      <Text style={SignupScreenStyles.selectorHeader}>
+                        Sign Up
+                      </Text>
                     </TouchableOpacity>
                     <SweetAlertModal
                       visible={alertVisible}
@@ -773,30 +801,32 @@ const SignUpScreen = () => {
               <>
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={styles.inputKAVContainer}
+                  style={SignupScreenStyles.inputKAVContainer}
                 >
-                  <Text style={styles.inputHeader}>Enter your Email:</Text>
+                  <Text style={SignupScreenStyles.inputHeader}>
+                    Enter your Email:
+                  </Text>
                   <TextInput
                     placeholder="Email"
                     placeholderTextColor="#000"
                     value={identifier}
                     onChangeText={setIdentifier}
-                    style={styles.input}
+                    style={SignupScreenStyles.input}
                   />
-                  <Text style={styles.validationText}>
+                  <Text style={SignupScreenStyles.validationText}>
                     {!isValidEmail(identifier) && identifier.length > 0
                       ? 'Invalid email format'
                       : ''}
                   </Text>
-                  <Text style={styles.inputHeader}>Password:</Text>
-                  <View style={styles.passwordInputWrapper}>
+                  <Text style={SignupScreenStyles.inputHeader}>Password:</Text>
+                  <View style={SignupScreenStyles.passwordInputWrapper}>
                     <TextInput
                       placeholder="Password"
                       placeholderTextColor="#000"
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
-                      style={[styles.input2]}
+                      style={[SignupScreenStyles.input2]}
                     />
                     <TouchableOpacity
                       onPress={() => setShowPassword(!showPassword)}
@@ -811,18 +841,18 @@ const SignUpScreen = () => {
                   </View>
 
                   <TouchableOpacity
-                    style={[styles.forgotPassDiv]}
+                    style={[SignupScreenStyles.forgotPassDiv]}
                     onPress={() => navigation.navigate('ForgotPasswordScreen')}
                   >
-                    <Text style={[styles.forgotPassParagraph]}>
+                    <Text style={[SignupScreenStyles.forgotPassParagraph]}>
                       Forgot Password?
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.toggleBtns}
+                    style={SignupScreenStyles.toggleBtns}
                     onPress={handleLogin}
                   >
-                    <Text style={styles.selectorHeader}>Login</Text>
+                    <Text style={SignupScreenStyles.selectorHeader}>Login</Text>
                   </TouchableOpacity>
                   <SweetAlertModal
                     visible={alertVisible}
@@ -848,159 +878,5 @@ const SignUpScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-export const styles = StyleSheet.create({
-  bkg: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#eee',
-    flex: 1,
-  },
-  bkg3: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  container: {
-    alignItems: 'center',
-    width: '93%',
-    minHeight: '60%',
-    borderRadius: 10,
-    padding: 20,
-    justifyContent: 'space-evenly',
-    backgroundColor: '#fff',
-    position: 'relative',
-  },
-  activeTabText: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: '#f54b02',
-  },
-  disabledBtn: {
-    backgroundColor: '#222',
-    opacity: 0.6,
-  },
-  tabButton: {
-    padding: 5,
-    color: '#000',
-  },
-  header: {
-    fontSize: 20,
-    color: '#000',
-  },
-  headerBtnsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginBottom: 5,
-    padding: 8,
-    top: 0,
-  },
-  inputContainer: {
-    fontSize: 17,
-    padding: 10,
-    color: '#000',
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  inputHeader: {
-    fontSize: 14,
-    marginBottom: 10,
-    color: '#000',
-  },
-  input: {
-    borderWidth: 1,
-    padding: 10,
-    minWidth: '100%',
-    borderColor: '#000',
-    color: '#000',
-    marginBottom: 8,
-    fontSize: 14,
-  },
-  input2: {
-    padding: 10,
-    minWidth: '85%',
-    color: '#000',
-  },
-  validationText: {
-    fontSize: 13,
-    color: '#fd1515ff',
-    fontWeight: 800,
-  },
-  inputKAVContainer: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  passwordContainer: {
-    width: '100%',
-    justifyContent: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-    color: '#000',
-    width: '100%',
-  },
-  passwordInputWrapper: {
-    borderWidth: 1,
-    marginBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#000',
-  },
-  toggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    padding: 10,
-    width: '100%',
-  },
-  toggleBtns: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#f54b02',
-  },
-  selector: {
-    padding: 15,
-    backgroundColor: 'inherit',
-    borderWidth: 1,
-    width: '90%',
-    borderColor: '#000',
-    color: '#fff',
-  },
-  selectorHeader: {
-    color: '#fff',
-  },
-  passwordIcons: {
-    marginRight: 9,
-  },
-  selectorHeader2: {
-    color: '#000',
-  },
-  termsParagraph: {
-    marginBottom: 10,
-    fontSize: 17,
-  },
-  forgotPassParagraph: {
-    fontSize: 14,
-    color: '#000',
-  },
-  forgotPassDiv: {
-    padding: 10,
-    alignSelf: 'flex-end',
-  },
-  dropdown: {
-    width: '100%',
-    backgroundColor: 'inherit',
-    borderWidth: 1,
-    padding: 10,
-    borderColor: '#000',
-  },
-});
 
 export default SignUpScreen;

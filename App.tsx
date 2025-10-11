@@ -28,6 +28,7 @@ import Settings from './src/screens/Settings';
 import Calender from './src/screens/Calender';
 import Profile from './src/screens/Profile';
 
+
 export type RootStackParamList = {
   SignUp: undefined;
   Welcome: undefined;

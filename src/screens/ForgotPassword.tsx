@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
-import { styles } from './SignUpScreen';
+import { SignupScreenStyles } from '../assets/styles/colors';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
@@ -111,44 +111,48 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.bkg} behavior="padding">
+    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
       <ScrollView
-        contentContainerStyle={styles.bkg3}
+        contentContainerStyle={SignupScreenStyles.bkg3}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.container}>
-          <View style={styles.headerBtnsContainer}>
-            <Text style={styles.activeTabText}>Forgot Password</Text>
+        <View style={SignupScreenStyles.container}>
+          <View style={SignupScreenStyles.headerBtnsContainer}>
+            <Text style={SignupScreenStyles.activeTabText}>
+              Forgot Password
+            </Text>
           </View>
-          <View style={styles.inputContainer}>
+          <View style={SignupScreenStyles.inputContainer}>
             {!emailVerified && (
               <>
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={styles.inputKAVContainer}
+                  style={SignupScreenStyles.inputKAVContainer}
                 >
-                  <Text style={styles.inputHeader}>Enter your Email:</Text>
+                  <Text style={SignupScreenStyles.inputHeader}>
+                    Enter your Email:
+                  </Text>
                   <TextInput
-                    style={styles.input}
+                    style={SignupScreenStyles.input}
                     placeholder="Email"
                     placeholderTextColor="#000"
                     value={email}
                     onChangeText={setEmail}
                   />
-                  <Text style={styles.validationText}>
+                  <Text style={SignupScreenStyles.validationText}>
                     {!isValidEmail(email) && email.length > 0
                       ? 'Invalid email format'
                       : ''}
                   </Text>
                   <TouchableOpacity
                     style={[
-                      styles.toggleBtns,
-                      isVerifying && styles.disabledBtn,
+                      SignupScreenStyles.toggleBtns,
+                      isVerifying && SignupScreenStyles.disabledBtn,
                     ]}
                     onPress={handleVerifyEmail}
                     disabled={isVerifying}
                   >
-                    <Text style={styles.selectorHeader}>
+                    <Text style={SignupScreenStyles.selectorHeader}>
                       {isVerifying ? 'Verifying...' : 'Verify'}
                     </Text>
                   </TouchableOpacity>
@@ -159,13 +163,13 @@ export default function ForgotPasswordScreen() {
               <>
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={styles.inputKAVContainer}
+                  style={SignupScreenStyles.inputKAVContainer}
                 >
-                  <Text style={styles.inputHeader}>
+                  <Text style={SignupScreenStyles.inputHeader}>
                     Enter the 6-digit verification code sent to your email:
                   </Text>
                   <TextInput
-                    style={styles.input}
+                    style={SignupScreenStyles.input}
                     placeholder="Enter 6-digit code"
                     placeholderTextColor="#000"
                     value={code}
@@ -175,13 +179,13 @@ export default function ForgotPasswordScreen() {
                   />
                   <TouchableOpacity
                     style={[
-                      styles.toggleBtns,
-                      isVerifying && styles.disabledBtn,
+                      SignupScreenStyles.toggleBtns,
+                      isVerifying && SignupScreenStyles.disabledBtn,
                     ]}
                     onPress={handleVerifyCode}
                     disabled={isVerifying}
                   >
-                    <Text style={styles.selectorHeader}>
+                    <Text style={SignupScreenStyles.selectorHeader}>
                       {isVerifying ? 'Verifying...' : 'Verify'}
                     </Text>
                   </TouchableOpacity>

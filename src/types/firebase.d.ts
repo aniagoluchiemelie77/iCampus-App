@@ -28,7 +28,7 @@ export interface User {
   phoneNumber?: string;
   country: string;
   badges?: string[];
-  level?: number;
+  current_level?: string;
   assignedCourses?: string[];
   coursesEnrolled?: string[];
   isCourseRep?: boolean;
@@ -268,16 +268,20 @@ export interface RecievePointsRequest {
 export interface CalendarEvent {
    _id: string;
   id: string;
-  createdBy: User.id; // UID of the user
+  userId?: User.id;
+  createdBy: string; // UID of the user
   creatorType: UserType;
   title: string;
   description?: string;
   courseTitle?: string;
+  department?: string;
+  level?: string;
   startDate: string;
   endDate: string;
-  eventType?: 'Lectures' | 'Other';// optional if using startDate/endDate
-  lectureType?: 'online' | 'offline'; // for lecturer events
-  visibility?: 'private' | 'department' | 'public'; // controls who can see it
+  eventType?: 'Lectures' | 'Webinar' | 'other';// optional if using startDate/endDate
+  lectureType?: 'online' | 'physical'; // for lecturer events
+  visibility?: 'private' | 'department' | 'public';
+  restriction?: string; // controls who can see it
   createdAt: string;
   eventTime: string;
   location?: string;

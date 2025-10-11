@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Text,
-  ScrollView,
-} from 'react-native';
+import { View, TouchableOpacity, Text, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
   ClassroomScreen,
@@ -19,6 +13,7 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { clearUser } from '../components/UserSlice';
 import { useAppSelector } from '../components/hooks';
+import { homeStyles } from '../assets/styles/colors';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -134,40 +129,4 @@ const HomeScreen = () => {
   );
 };
 
-export const homeStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#eee',
-    justifyContent: 'space-between',
-  },
-  centerContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 15,
-    backgroundColor: '#eee',
-  },
-  iconItem: {
-    alignItems: 'center',
-  },
-  activeIconLabel: {
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  iconLabel: {
-    marginTop: 5,
-    fontSize: 11,
-    color: '#032820',
-  },
-  header: {
-    marginTop: 5,
-    fontSize: 35,
-    fontWeight: 700,
-    color: '#000',
-  },
-});
 export default HomeScreen;

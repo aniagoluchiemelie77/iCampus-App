@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
-import { styles } from './SignUpScreen';
+import { SignupScreenStyles } from '../assets/styles/colors';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation, useRoute, RouteProp  } from '@react-navigation/native';
@@ -73,29 +73,29 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.bkg} behavior="padding">
+    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
       <ScrollView
-        contentContainerStyle={styles.bkg3}
+        contentContainerStyle={SignupScreenStyles.bkg3}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.container}>
-          <View style={styles.headerBtnsContainer}>
-            <Text style={styles.activeTabText}>Forgot Password</Text>
+        <View style={SignupScreenStyles.container}>
+          <View style={SignupScreenStyles.headerBtnsContainer}>
+            <Text style={SignupScreenStyles.activeTabText}>Forgot Password</Text>
           </View>
-          <View style={styles.inputContainer}>
+          <View style={SignupScreenStyles.inputContainer}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.inputKAVContainer}
+                style={SignupScreenStyles.inputKAVContainer}
             >
-                <Text style={styles.inputHeader}>
+                <Text style={SignupScreenStyles.inputHeader}>
                     Enter your New Password:
                 </Text>
-                <View style={styles.passwordContainer}>
-                    <View style={styles.passwordInputWrapper}>
+                <View style={SignupScreenStyles.passwordContainer}>
+                    <View style={SignupScreenStyles.passwordInputWrapper}>
                         <TextInput
                             placeholder="Password"
                             placeholderTextColor="#000"
-                            style={styles.passwordInput}
+                            style={SignupScreenStyles.passwordInput}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
@@ -107,22 +107,22 @@ export default function ChangePasswordScreen() {
                                 name={showPassword ? 'eye-off' : 'eye'}
                                 size={25}
                                 color="#000"
-                                style={styles.passwordIcons}
+                                style={SignupScreenStyles.passwordIcons}
                             />
                         </TouchableOpacity>
                     </View>
                     {!isValidPassword(password) && password.length > 0 && (
-                        <Text style={styles.validationText}>
+                        <Text style={SignupScreenStyles.validationText}>
                             Password must be at least 13 characters and include uppercase, lowercase, number, and symbol.
                         </Text>
                     )}
                 </View>
-                <View style={styles.passwordContainer}>
-                    <View style={styles.passwordInputWrapper}>
+                <View style={SignupScreenStyles.passwordContainer}>
+                    <View style={SignupScreenStyles.passwordInputWrapper}>
                         <TextInput
                             placeholder="Confirm Password"
                             placeholderTextColor="#000"
-                            style={styles.passwordInput}
+                            style={SignupScreenStyles.passwordInput}
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             secureTextEntry={!showConfirmPassword}
@@ -136,29 +136,29 @@ export default function ChangePasswordScreen() {
                                 name={showConfirmPassword ? 'eye-off' : 'eye'}
                                 size={25}
                                 color="#000"
-                                style={styles.passwordIcons}
+                                style={SignupScreenStyles.passwordIcons}
                             />
                         </TouchableOpacity>
                     </View>            
                     {confirmPassword.length > 0 && confirmPassword !== password && (
-                        <Text style={styles.validationText}>
+                        <Text style={SignupScreenStyles.validationText}>
                             Passwords do not match.
                         </Text>
                     )}
                 </View>
                 <TouchableOpacity
                     style={[
-                        styles.toggleBtns,
+                        SignupScreenStyles.toggleBtns,
                         (!isValidPassword(password) ||
                             confirmPassword !== password) &&
-                        styles.disabledBtn,
+                        SignupScreenStyles.disabledBtn,
                     ]}
                     onPress={handleChangePassword}
                     disabled={
                         !isValidPassword(password) || confirmPassword !== password || isVerifying
                     }
                 >
-                    <Text style={styles.selectorHeader}>
+                    <Text style={SignupScreenStyles.selectorHeader}>
                         {isVerifying ? 'Changing...' : 'Change'}
                     </Text>
                 </TouchableOpacity>
