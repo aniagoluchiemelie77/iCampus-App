@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  RefreshControl,
   Text,
   View,
   TouchableOpacity,
@@ -24,7 +25,7 @@ import { HomeScreenComponentStyles } from '../assets/styles/colors';
 import { useEventContext } from './EventContext';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
-
+const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good Morning';
@@ -372,10 +373,10 @@ const SettingsPopup = () => {
 //Home screen
 export function Home() {
   const user = useAppSelector(state => state.user);
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const [showActivities, setShowActivities] = useState(true);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const intervalRef = useRef<number | null>(null);
   const fetchEvents = useCallback(async () => {
     const uid = user.uid ?? '';
     const department = user.department ?? '';
@@ -390,19 +391,22 @@ export function Home() {
       console.error('Error fetching events:', error);
     }
   }, [user.uid, user.department, user.current_level]);
-
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchEvents();
+    setRefreshing(false);
+  }, [fetchEvents]);
   useEffect(() => {
-    fetchEvents(); // Initial fetch
-
-    if (!intervalRef.current) {
-      intervalRef.current = setInterval(fetchEvents, 2 * 60 * 60 * 1000);
-    }
-
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    // Run once on mount
+    fetchEvents();
+    // Set up hourly interval
+    intervalId = setInterval(() => {
+      fetchEvents();
+    }, REFRESH_INTERVAL_MS);
+    // Cleanup on unmount
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (intervalId) clearInterval(intervalId);
     };
   }, [fetchEvents]);
   const formatDate = (dateString: string) => {
@@ -447,9 +451,6 @@ export function Home() {
     return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
   });
   const latestEvents = sortedEvents.slice(0, 7);
-  useEffect(() => {
-    fetchEvents();
-  });
 
   return (
     <EventProvider user={user}>
@@ -492,6 +493,9 @@ export function Home() {
         </View>
         <ScrollView
           contentContainerStyle={HomeScreenComponentStyles.activityDivContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
           <View style={HomeScreenComponentStyles.activityDiv}>
             <View style={HomeScreenComponentStyles.activityDivHeader}>

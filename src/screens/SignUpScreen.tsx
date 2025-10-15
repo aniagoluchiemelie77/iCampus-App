@@ -296,7 +296,6 @@ const SignUpScreen = () => {
     }
 
     try {
-      console.log('Login 1');
       const response = await fetch('http://192.168.1.98:5000/users/login', {
         method: 'POST',
         headers: {

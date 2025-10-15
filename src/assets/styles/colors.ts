@@ -571,10 +571,8 @@ export const EmailVerifyScreenStyles = StyleSheet.create({
 
 export const CalendarScreenStyles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#eee',
     alignItems: 'center',
-    justifyContent: 'flex-start',
   },
   headerContainer: {
     backgroundColor: '#fff',
@@ -593,6 +591,73 @@ export const CalendarScreenStyles = StyleSheet.create({
     color: '#f54b02',
     marginLeft: 8,
   },
+  tabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+    width: '93%',
+    backgroundColor: '#fff',
+    marginVertical: 3,
+    borderRadius: 6,
+  },
+  activeTabButton: {
+    backgroundColor: '#fff',
+  },
+  inactiveTabButton: {
+    backgroundColor: '#fff',
+  },
+  tabTextActive: {
+    color: '#f54b02',
+    fontWeight: '700',
+  },
+  tabTextInactive: {
+    color: '#000',
+  },
+  tabContentsContainer:{
+    width: '93%',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+  },
+  inputGroup: {
+    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    marginBottom: 3,
+    alignItems: 'flex-start'
+  },
+  label: {
+    fontWeight: '700',
+    marginBottom: 2,
+    color: '#000'
+  },
+  input: {
+    width: '100%',
+    padding: 7,
+    borderWidth: 1,
+    borderColor: '#787777ff',
+    color: '#000'
+  },
+  inputGroupDate: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  inputGroupDateSubdiv: {
+    padding: 7,
+    alignItems: 'flex-start'
+  },
+  input2: {
+    width: '80%',
+  },
+  submitBtn: {
+    marginTop: 13,
+    backgroundColor: '#f54b02',
+  }
+
 });
 
 export const SweetAlertPopupStyles = StyleSheet.create({

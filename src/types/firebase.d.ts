@@ -278,12 +278,12 @@ export interface CalendarEvent {
   level?: string;
   startDate: string;
   endDate: string;
-  eventType?: 'Lectures' | 'Webinar' | 'other';// optional if using startDate/endDate
-  lectureType?: 'online' | 'physical'; // for lecturer events
+  eventType?: string;// optional if using startDate/endDate
+  lectureType?: string; // for lecturer events
   visibility?: 'private' | 'department' | 'public';
   restriction?: string; // controls who can see it
   createdAt: string;
-  eventTime: string;
+  eventTime?: string;
   location?: string;
   eventStartTime?: string; // e.g., "14:00"
   eventEndTime?: string;   // e.g., "15:30"
