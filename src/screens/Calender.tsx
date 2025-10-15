@@ -17,6 +17,7 @@ import { CalendarScreenStyles } from '../assets/styles/colors';
 import { Button } from 'react-native-paper'; // or any UI lib
 import type { CalendarEvent } from '../types/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SweetAlertModal from '../components/alertscomponent';
 
 type HeaderProps = {
   title: string;
@@ -39,6 +40,9 @@ const CustomHeader: React.FC<HeaderProps> = ({ title, onBack }) => {
 
 const AddEventTabs: React.FC = () => {
   const navigation = useNavigation();
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const [alertMessage, setAlertMessage] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -391,59 +395,81 @@ const AddEventTabs: React.FC = () => {
 
     try {
       // 2. Prepare event payload
-      let userId, department;
-      if (activeTab === 'Private') {
-        userId = user.uid;
-      } else if (activeTab === 'Department') {
-        userId = '';
-        department = user.department;
-      } else {
-        userId = '';
-      }
-      const eventPayload = {
-        userId: userId,
-        title: form.title,
-        description: form.description,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        startTime: form.eventStartTime,
-        endTime: form.eventEndTime,
-        isRecurring: form.isRecurring,
-        recurrenceRule: form.recurrenceRule || null,
-        visibility: activeTab, // 'Private', 'Public', or 'Department'
+      const basePayload: Omit<CalendarEvent, '_id' | 'id'> = {
         createdBy: user.uid,
         creatorType: user.usertype,
-        location: form.location,
-        tags: form.tags,
+        title: form.title,
+        description: form.description,
         courseTitle: form.courseTitle,
-        department: department,
-        level: form.restriction,
+        department: undefined,
+        level: undefined,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        eventType: form.eventType,
+        lectureType: form.lectureType,
+        visibility: activeTab.toLowerCase() as
+          | 'private'
+          | 'department'
+          | 'public',
+        restriction: form.restriction,
         createdAt: new Date().toISOString(),
+        eventTime: undefined,
+        location: form.location,
+        eventStartTime: form.eventStartTime,
+        eventEndTime: form.eventEndTime,
+        isRecurring: undefined,
+        recurrenceRule: undefined,
+        tags: form.tags,
       };
-
+      // 🔁 Extend based on activeTab
+      let eventPayload: Omit<CalendarEvent, '_id' | 'id'>;
+      if (activeTab === 'Private') {
+        eventPayload = {
+          ...basePayload,
+          userId: user.uid,
+          isRecurring: form.isRecurring,
+          recurrenceRule: form.recurrenceRule || '',
+        };
+      } else if (activeTab === 'Department') {
+        eventPayload = {
+          ...basePayload,
+          department: user.department,
+          level: form.restriction,
+        };
+      } else if (activeTab === 'Public') {
+        eventPayload = {
+          ...basePayload,
+          restriction: form.restriction,
+        };
+      } else {
+        eventPayload = basePayload;
+      }
+      const token = await AsyncStorage.getItem('authToken');
       // 3. Send to backend (replace with your actual endpoint)
-      const response = await fetch('http://192.168.1.98:5000/user/events', {
+      const response = await fetch('http://192.168.1.98:5000/user/events/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.accessToken}`, // if using auth
+          Authorization: `Bearer ${token}`, // if using auth
         },
         body: JSON.stringify(eventPayload),
       });
-
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Submission failed');
+        setAlertType('error');
+        setAlertMessage('Failed to create new event, please retry.');
+        setAlertVisible(true);
       }
-
       // 4. Handle success
       const result = await response.json();
       console.log('Event created:', result);
-      Alert.alert('Success', 'Event added successfully!');
-      navigation.goBack();
+      setAlertType('success');
+      setAlertMessage('Event created successfully.');
+      setAlertVisible(true);
+      setTimeout(() => {
+        navigation.goBack();
+      }, 2000);
     } catch (error) {
       console.error('Submit error:', error);
-      Alert.alert('Error', error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -517,6 +543,19 @@ const AddEventTabs: React.FC = () => {
           {isSubmitting ? 'Submitting...' : 'Add Event'}
         </Button>
       </View>
+      <SweetAlertModal
+        visible={alertVisible}
+        onClose={() => setAlertVisible(false)}
+        title={
+          alertType === 'success'
+            ? 'Success!'
+            : alertType === 'error'
+            ? 'Oops!'
+            : 'Notice'
+        }
+        message={alertMessage}
+        type={alertType}
+      />
     </ScrollView>
   );
 };

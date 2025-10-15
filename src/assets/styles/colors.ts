@@ -144,7 +144,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
   popup: {
     top: 0,
     left: 0,
-    width: '85%',
+    width: '90%',
     minHeight: '100%',
     padding: 15,
     backgroundColor: '#eee',
@@ -313,9 +313,10 @@ todayIndicatorText: {
     alignSelf: 'flex-start',
   },
   eventDescription: {
-    color: 'black',
+    color: '#000',
     fontWeight: '700',
     paddingVertical: 4,
+    maxWidth: '80%',
   },
   eventCardFooter: {
     flexDirection: 'row',

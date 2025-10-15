@@ -138,9 +138,13 @@ const CalenderPopup = () => {
     }
     return titleColorMap[title];
   };
-  const sortedEvents = [...events].sort((a, b) => {
-    return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-  });
+  const today = new Date();
+  const sortedEvents = [...events]
+    .filter(event => new Date(event.startDate) > today)
+    .sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
 
   return (
     <View style={HomeScreenComponentStyles.container}>
@@ -447,9 +451,13 @@ export function Home() {
       eventDate.getFullYear() === today.getFullYear()
     );
   };
-  const sortedEvents = [...events].sort((a, b) => {
-    return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-  });
+  const today = new Date();
+  const sortedEvents = [...events]
+    .filter(event => new Date(event.startDate) > today)
+    .sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
   const latestEvents = sortedEvents.slice(0, 7);
 
   return (
@@ -623,7 +631,7 @@ export function Home() {
               >
                 <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
                   <Text
-                    numberOfLines={2}
+                    numberOfLines={1}
                     ellipsizeMode="tail"
                     style={HomeScreenComponentStyles.eventDescription}
                   >

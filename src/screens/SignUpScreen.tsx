@@ -21,7 +21,6 @@ import type { User } from '../types/firebase';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
-import { v4 as uuidv4 } from 'uuid';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SignupScreenStyles } from '../assets/styles/colors';
 
@@ -307,7 +306,7 @@ const SignUpScreen = () => {
       if (response.ok && contentType?.includes('application/json')) {
         console.log('Submit Btn Clicked, Login 2');
         const result = await response.json();
-        const token = uuidv4();
+        const token = result.token;
         // ✅ Store token and user info
         await AsyncStorage.setItem('authToken', token);
         await AsyncStorage.setItem('user', JSON.stringify(result.user));
