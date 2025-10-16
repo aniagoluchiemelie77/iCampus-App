@@ -20,7 +20,7 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { EventProvider } from './EventContext';
 import { useAppSelector } from './hooks';
-import type { ProductCategory, CalendarEvent } from '../types/firebase';
+import type { ProductCategoryList, CalendarEvent } from '../types/firebase';
 import { HomeScreenComponentStyles } from '../assets/styles/colors';
 import { useEventContext } from './EventContext';
 
@@ -694,7 +694,7 @@ export function ClassroomScreen() {
 
 // StoreScreen.js
 export function StoreScreen() {
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [categories, setCategories] = useState<ProductCategoryList[]>([]);
 
   useEffect(() => {
     fetch('http://192.168.1.98:5000/store/categories')
