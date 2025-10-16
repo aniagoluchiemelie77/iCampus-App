@@ -8,7 +8,6 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     alignItems: 'center',
   },
   topHeader: {
-    backgroundColor: '#eee',
     paddingVertical: 10,
     paddingHorizontal: 15,
     flexDirection: 'row',
@@ -57,7 +56,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
-    width: '90%',
+    width: '93%',
     borderRadius: 15,
     margin: 7,
   },
@@ -82,6 +81,29 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     width: '100%',
     flexWrap: 'wrap',
   },
+  storeCategoriesDiv: {
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  tabItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f2f2f2',
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  activeTab: {
+  borderBottomWidth: 2,
+  borderBottomColor: '#FF6B6B',
+  backgroundColor: '#fff',
+},
   iconSubdiv: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,9 +113,17 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     padding: 10,
     margin: 4,
   },
+  activityIcons3: {
+    padding: 8,
+  },
   activityIcons2: {
     borderRadius: '50%',
     backgroundColor: '#fff',
+  },
+  storeHeaderText:{
+    fontWeight: '700',
+    fontSize: 21,
+    color: '#e94d0aff',
   },
   searchContainer: {
     padding: 10,
@@ -101,6 +131,24 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    height: 42,
+  },
+  icon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
   },
   searchInput: {
     padding: 10,
@@ -164,6 +212,11 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     elevation: 5,
     alignItems: 'center',
     position: 'absolute',
+  },
+  favoriteIcon: {
+    position: 'absolute',
+    top: 5,
+    right: 5
   },
   cancelIcon: {
     alignSelf: 'flex-end',
@@ -318,6 +371,12 @@ todayIndicatorText: {
     paddingVertical: 4,
     maxWidth: '80%',
   },
+  eventDescription2: {
+    color: '#000',
+    fontWeight: '700',
+    paddingVertical: 6,
+    width: '100%',
+  },
   eventCardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -340,6 +399,62 @@ todayIndicatorText: {
     right: 0,
     bottom: 0,
   },
+  productList: {
+    paddingVertical: 10,
+  },
+  productCard: {
+    borderRadius: 10,
+    position: 'relative',
+    height: 270,
+    alignItems: 'center',
+    margin: 6,
+    justifyContent: 'flex-start',
+    flexBasis: '49%', // ensures two items per row with spacing
+    overflow: 'hidden',
+    backgroundColor: '#eee',
+  },
+  productImage: {
+    height: 160,
+    width: '100%',
+    aspectRatio: 1, // keeps image square regardless of source size
+    resizeMode: 'cover',
+  },
+  productTitle: {
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+    width: '100%',
+    fontWeight: '700',
+    color: '#000',
+    fontSize: 13
+  },
+  productPriceDiv: {
+    paddingHorizontal: 7,
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    paddingVertical: 5
+  },
+  productPrice: {
+    fontWeight: '600',
+    marginLeft: 4,
+    fontSize: 13,
+    color: '#f54b02'
+  }, 
+  pagination: {
+    width: '100%',
+    padding: 7
+  },
+  Add2CartBtn: {
+    width: '80%',
+    padding: 9,
+    backgroundColor: '#f54b02',
+    alignItems: 'center',
+    borderRadius: 10
+  },
+  Add2CartBtnText: {
+    color: '#eee',
+    fontWeight: '700'
+  }
 });
 
 export const WelcomeScreenStyles = StyleSheet.create({

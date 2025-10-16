@@ -236,10 +236,14 @@ export interface ProductCategory {
   listedProductsCount: number;
   createdAt: string;
   updatedAt?: string;
+  schoolName?: string;
 }
 export interface Product {
   productId: string;
+  colors?: string[]; // optional
+  sizes?: string[]; // optional
   id: string;
+  schoolName: string;
   isAvailable?: boolean;
   category: ProductCategory.categoryName;
   sellerId: User.uid; // UID of lecturer or student
@@ -256,7 +260,8 @@ export interface Product {
   fileUrl?: string; // if isFile is true
   fileSizeInMB?: number; // optional
   downloadCount?: number; // optional
-  viewsCount?: number; // optional
+  viewsCount?: number;
+  location?: string // optional
 }
 export interface CartItem {
   id: string;

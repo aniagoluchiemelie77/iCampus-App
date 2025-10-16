@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  ActivityIndicator,
+  FlatList,
   RefreshControl,
   Text,
   View,
@@ -20,9 +22,15 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { EventProvider } from './EventContext';
 import { useAppSelector } from './hooks';
-import type { ProductCategoryList, CalendarEvent } from '../types/firebase';
+import type {
+  ProductCategoryList,
+  CalendarEvent,
+  Product,
+} from '../types/firebase';
 import { HomeScreenComponentStyles } from '../assets/styles/colors';
 import { useEventContext } from './EventContext';
+import LinearGradient from 'react-native-linear-gradient';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
@@ -230,7 +238,7 @@ const CalenderPopup = () => {
                     <Text
                       numberOfLines={2}
                       ellipsizeMode="tail"
-                      style={HomeScreenComponentStyles.eventDescription}
+                      style={HomeScreenComponentStyles.eventDescription2}
                     >
                       {event.description}
                     </Text>
@@ -462,7 +470,10 @@ export function Home() {
 
   return (
     <EventProvider user={user}>
-      <View style={HomeScreenComponentStyles.bckg}>
+      <LinearGradient
+        style={HomeScreenComponentStyles.bckg}
+        colors={['#eee', '#edccbdff']}
+      >
         <View style={HomeScreenComponentStyles.topHeader}>
           <CalenderPopup />
           <View style={HomeScreenComponentStyles.iconSubdiv}>
@@ -614,7 +625,7 @@ export function Home() {
                   ]}
                 >
                   <Icon name="library-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Library</Text>
+                  <Text style={homeStyles.iconLabel}>eLibrary</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -682,7 +693,7 @@ export function Home() {
             ))}
           </View>
         </ScrollView>
-      </View>
+      </LinearGradient>
     </EventProvider>
   );
 }
@@ -694,22 +705,103 @@ export function ClassroomScreen() {
 
 // StoreScreen.js
 export function StoreScreen() {
+  const user = useAppSelector(state => state.user);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategoryList[]>([]);
+  const [page, setPage] = useState(0);
+  const [imageIndexes, setImageIndexes] = useState<{ [key: string]: number }>({});
+  const [fadeAnims, setFadeAnims] = useState<{ [key: string]: Animated.Value }>({});
+  const [loading, setLoading] = useState(false);
+  const limit = 10;
 
+  // Fetch categories
   useEffect(() => {
-    fetch('http://192.168.1.98:5000/store/categories')
+    if (!user?.schoolName) return;
+    const encodedSchool = encodeURIComponent(user.schoolName);
+
+    fetch(
+      `http://192.168.1.98:5000/store/categories?schoolName=${encodedSchool}`,
+    )
       .then(res => res.json())
       .then(data => setCategories(data))
       .catch(err => console.error('Error fetching categories:', err));
-  }, []);
+  }, [user?.schoolName]);
+
+  // Fetch products
+  useEffect(() => {
+    if (!user?.schoolName) return;
+    setLoading(true);
+
+    const encodedSchool = encodeURIComponent(user.schoolName);
+    const categoryParam =
+      selectedCategory === 'all'
+        ? ''
+        : `&category=${encodeURIComponent(selectedCategory)}`;
+    const offset = page * limit;
+
+    fetch(
+      `http://192.168.1.98:5000/store/products?schoolName=${encodedSchool}${categoryParam}&limit=${limit}&offset=${offset}`,
+    )
+      .then(res => res.json())
+      .then(data => {
+        setProducts(data.products);
+        const anims: { [key: string]: Animated.Value } = {};
+        (data.products as Product[]).forEach((p: Product) => {
+  anims[p.productId] = new Animated.Value(1);
+});
+        setFadeAnims(anims);
+      })
+      .catch(err => console.error('Error fetching products:', err))
+      .finally(() => setLoading(false));
+  }, [selectedCategory, page, user?.schoolName]);
+
+  // Image switching every 2 minutes
+  useEffect(() => {
+  const interval = setInterval(() => {
+    setImageIndexes(prev => {
+      const updated = { ...prev };
+
+      products.forEach(product => {
+        const urls = product.mediaUrls;
+        if (urls.length > 1) {
+          const currentIndex = prev[product.productId] || 0;
+          const nextIndex = (currentIndex + 1) % urls.length;
+
+          Animated.sequence([
+            Animated.timing(fadeAnims[product.productId], {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnims[product.productId], {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]).start();
+
+          updated[product.productId] = nextIndex;
+        }
+      });
+
+      return updated;
+    });
+  }, 60000); // 1 minute
+
+  return () => clearInterval(interval);
+}, [products, fadeAnims]);
+
+
   return (
-    <View style={HomeScreenComponentStyles.bckg}>
+    <LinearGradient
+      style={HomeScreenComponentStyles.bckg}
+      colors={['#eee', '#edccbdff']}
+    >
       <View style={HomeScreenComponentStyles.searchContainer}>
-        <TextInput
-          style={HomeScreenComponentStyles.searchInput}
-          placeholder="Search..."
-          placeholderTextColor="#838181ff"
-        />
+        <Text style={HomeScreenComponentStyles.storeHeaderText}>
+          Shop Online with iCampus
+        </Text>
         <TouchableOpacity
           style={[
             homeStyles.iconItem,
@@ -720,86 +812,135 @@ export function StoreScreen() {
           <Icon name="notifications-outline" size={28} color="#f54b02" />
         </TouchableOpacity>
       </View>
+
       <View style={HomeScreenComponentStyles.activityDiv}>
-        <View style={HomeScreenComponentStyles.activityDivHeader}>
-          <Text style={HomeScreenComponentStyles.activityDivHeaderText}>
-            Categories
-          </Text>
+        <View style={HomeScreenComponentStyles.inputContainer}>
+          <MaterialIcons
+            name="search"
+            size={20}
+            color="#838181"
+            style={HomeScreenComponentStyles.icon}
+          />
+          <TextInput
+            style={HomeScreenComponentStyles.input}
+            placeholder="Search..."
+            placeholderTextColor="#838181"
+          />
         </View>
-        <View style={HomeScreenComponentStyles.activityIconsDiv}>
-          {categories.map(cat => (
-            <>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={HomeScreenComponentStyles.storeCategoriesDiv}
+        >
+          {['All', ...categories].map(cat => {
+            const categoryName =
+              typeof cat === 'string' ? cat : cat.categoryName;
+            const categoryId =
+              typeof cat === 'string' ? 'all' : String(cat.categoryName).trim();
+            const isActive = selectedCategory === categoryId;
+
+            return (
               <TouchableOpacity
+                key={categoryId}
                 style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
+                  HomeScreenComponentStyles.tabItem,
+                  isActive && HomeScreenComponentStyles.activeTab,
                 ]}
-                key={cat._id}
+                onPress={() => {
+                  setSelectedCategory(categoryId);
+                  setPage(0);
+                }}
               >
-                <Icon name="people-outline" size={30} color="#000" />
-                <Text style={homeStyles.iconLabel}>{cat.categoryName}</Text>
+                <Text style={HomeScreenComponentStyles.tabLabel}>
+                  {categoryName}
+                </Text>
               </TouchableOpacity>
-            </>
-          ))}
+            );
+          })}
+        </ScrollView>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#f54b02" />
+        ) : (
+          <FlatList
+            data={products}
+            keyExtractor={item => item.productId}
+            numColumns={2}
+            renderItem={({ item }) => {
+              const imageUrl =
+                item.mediaUrls.length > 1
+                  ? item.mediaUrls[imageIndexes[item.productId] || 0]
+                  : item.mediaUrls[0];
+
+              return (
+                <View style={HomeScreenComponentStyles.productCard}>
+                  <Animated.View style={{ opacity: fadeAnims[item.productId] }}>
+                    <Image
+                      source={{ uri: imageUrl }}
+                      style={HomeScreenComponentStyles.productImage}
+                      resizeMode="cover"
+                    />
+                  </Animated.View>
+
+                  <TouchableOpacity
+                    style={[
+                      homeStyles.iconItem,
+                      HomeScreenComponentStyles.activityIcons3,
+                      HomeScreenComponentStyles.activityIcons2,
+                      HomeScreenComponentStyles.favoriteIcon,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="favorite-border"
+                      size={19}
+                      color="#f54b02"
+                    />
+                  </TouchableOpacity>
+
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={HomeScreenComponentStyles.productTitle}
+                  >
+                    {item.title}
+                  </Text>
+
+                  <View style={HomeScreenComponentStyles.productPriceDiv}>
+                    <MaterialIcons name="diamond" size={18} color="#f54b02" />
+                    <Text style={HomeScreenComponentStyles.productPrice}>
+                      {item.priceInPoints}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={HomeScreenComponentStyles.Add2CartBtn}
+                  >
+                    <Text style={HomeScreenComponentStyles.Add2CartBtnText}>
+                      Add to Cart
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }}
+            ListEmptyComponent={<Text>No products found.</Text>}
+            contentContainerStyle={HomeScreenComponentStyles.productList}
+          />
+        )}
+
+        <View style={HomeScreenComponentStyles.pagination}>
+          <TouchableOpacity onPress={() => setPage(p => Math.max(p - 1, 0))}>
+            <Text>Previous</Text>
+          </TouchableOpacity>
+          <Text>Page {page + 1}</Text>
+          <TouchableOpacity onPress={() => setPage(p => p + 1)}>
+            <Text>Next</Text>
+          </TouchableOpacity>
         </View>
       </View>
-      <View style={HomeScreenComponentStyles.activityDiv}>
-        <View style={HomeScreenComponentStyles.activityDivHeader}>
-          <Text style={HomeScreenComponentStyles.activityDivHeaderText}>
-            Popular
-          </Text>
-        </View>
-        <View style={HomeScreenComponentStyles.activityIconsDiv}>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              HomeScreenComponentStyles.activityIcons,
-            ]}
-          >
-            <Icon name="people-outline" size={30} color="#000" />
-            <Text style={homeStyles.iconLabel}>Communities</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              HomeScreenComponentStyles.activityIcons,
-            ]}
-          >
-            <Icon name="list-outline" size={30} color="#000" />
-            <Text style={homeStyles.iconLabel}>Create A Poll</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              HomeScreenComponentStyles.activityIcons,
-            ]}
-          >
-            <Icon name="chatbubble-ellipses-outline" size={30} color="#000" />
-            <Text style={homeStyles.iconLabel}>Smart Help</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              HomeScreenComponentStyles.activityIcons,
-            ]}
-          >
-            <Icon name="calculator-outline" size={30} color="#000" />
-            <Text style={homeStyles.iconLabel}>Get GPA</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              HomeScreenComponentStyles.activityIcons,
-            ]}
-          >
-            <Icon name="book-outline" size={30} color="#000" />
-            <Text style={homeStyles.iconLabel}>Browse Materials</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+    </LinearGradient>
   );
-}
+};
 
 // ProfileScreen.js
 export function ProfileScreen() {

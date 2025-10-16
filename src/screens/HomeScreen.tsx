@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { View, TouchableOpacity, Text, ScrollView } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
   ClassroomScreen,
@@ -38,15 +38,12 @@ const HomeScreen = () => {
 
   return (
     <View style={homeStyles.container}>
-      <ScrollView
-        contentContainerStyle={homeStyles.centerContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={homeStyles.centerContent}>
         {activeIcon === 'home' && <Home />}
         {activeIcon === 'classroom' && <ClassroomScreen />}
         {activeIcon === 'store' && <StoreScreen />}
         {activeIcon === 'profile' && <ProfileScreen />}
-      </ScrollView>
+      </View>
 
       <View style={homeStyles.iconBar}>
         <TouchableOpacity
