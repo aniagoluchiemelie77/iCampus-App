@@ -104,10 +104,44 @@ export const HomeScreenComponentStyles = StyleSheet.create({
   borderBottomColor: '#FF6B6B',
   backgroundColor: '#fff',
 },
+badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#f54b02',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeText: { color: '#fff', fontSize: 12 },
+  blurBackground: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  popupContainer: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    height: '80%',
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+  },
+  popupContent: {
+    paddingBottom: 100,
+  },
+  iconWrapper: { position: 'relative', marginRight: 16 },
   iconSubdiv: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconSubdiv2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
   },
   activityIcons: {
     padding: 10,
@@ -122,8 +156,9 @@ export const HomeScreenComponentStyles = StyleSheet.create({
   },
   storeHeaderText:{
     fontWeight: '700',
-    fontSize: 21,
+    fontSize: 17,
     color: '#e94d0aff',
+    maxWidth: '70%'
   },
   searchContainer: {
     padding: 10,

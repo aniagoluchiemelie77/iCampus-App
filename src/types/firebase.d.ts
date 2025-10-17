@@ -239,6 +239,7 @@ export interface ProductCategory {
   schoolName?: string;
 }
 export interface Product {
+  _id?: string;
   productId: string;
   colors?: string[]; // optional
   sizes?: string[]; // optional
@@ -260,7 +261,7 @@ export interface Product {
   fileUrl?: string; // if isFile is true
   fileSizeInMB?: number; // optional
   downloadCount?: number; // optional
-  viewsCount?: number;
+  favCount?: number;
   location?: string // optional
 }
 export interface CartItem {

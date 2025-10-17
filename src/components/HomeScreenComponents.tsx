@@ -15,12 +15,14 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { homeStyles } from '../assets/styles/colors'; // Adjust path as needed
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { EventProvider } from './EventContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 import type {
   ProductCategoryList,
@@ -31,8 +33,13 @@ import { HomeScreenComponentStyles } from '../assets/styles/colors';
 import { useEventContext } from './EventContext';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Toast from 'react-native-toast-message';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+type NavigationPropProductDetails = StackNavigationProp<
+  RootStackParamList,
+  'ProductDetails'
+>;
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -706,14 +713,94 @@ export function ClassroomScreen() {
 // StoreScreen.js
 export function StoreScreen() {
   const user = useAppSelector(state => state.user);
+  const navigation = useNavigation<NavigationPropProductDetails>();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategoryList[]>([]);
   const [page, setPage] = useState(0);
-  const [imageIndexes, setImageIndexes] = useState<{ [key: string]: number }>({});
-  const [fadeAnims, setFadeAnims] = useState<{ [key: string]: Animated.Value }>({});
+  const [imageIndexes, setImageIndexes] = useState<{ [key: string]: number }>(
+    {},
+  );
+  const [fadeAnims, setFadeAnims] = useState<{ [key: string]: Animated.Value }>(
+    {},
+  );
   const [loading, setLoading] = useState(false);
   const limit = 10;
+  const [cart, setCart] = useState<string[]>([]);
+  const [pressed, setPressed] = useState<Record<string, boolean>>({});
+
+  const [cartProducts, setCartProducts] = useState<Product[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
+  const [favorites, setFavorites] = useState<Product[]>([]);
+
+  const toggleFavorite = async (productId: string) => {
+    const isFavoriting = !favorites[productId as keyof typeof favorites];
+    const token = await AsyncStorage.getItem('authToken');
+
+    setFavorites(prev => ({ ...prev, [productId]: isFavoriting }));
+
+    Toast.show({
+      type: 'success',
+      text1: isFavoriting
+        ? 'Product added to favorites'
+        : 'Product removed from favorites',
+    });
+
+    try {
+      await fetch(`https://your-api.com/products/${productId}/favorite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ increment: isFavoriting }),
+      });
+
+      const stored = await AsyncStorage.getItem('favorites');
+      const favoritesArray: string[] = stored ? JSON.parse(stored) : [];
+
+      let updatedFavorites;
+      if (isFavoriting) {
+        updatedFavorites = [...new Set([...favoritesArray, productId])];
+      } else {
+        updatedFavorites = favoritesArray.filter(id => id !== productId);
+      }
+
+      await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+    } catch (error) {
+      console.error('Error updating favorite count or storage:', error);
+    }
+  };
+
+  const handleAddToCart = async (product: Product) => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+
+      await fetch(`http://192.168.1.98:5000/store/${product.productId}/cart`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const existingCart = await AsyncStorage.getItem('cart');
+      const cartIds: string[] = existingCart ? JSON.parse(existingCart) : [];
+
+      const updatedCart = [...new Set([...cartIds, product.productId])];
+      await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
+
+      setCart(updatedCart);
+      setPressed(prev => ({ ...prev, [product.productId]: true }));
+      setTimeout(() => {
+        setPressed(prev => ({ ...prev, [product.productId]: false }));
+      }, 300);
+    } catch (error) {
+      console.error('Error saving to cart:', error);
+    }
+  };
 
   // Fetch categories
   useEffect(() => {
@@ -748,8 +835,8 @@ export function StoreScreen() {
         setProducts(data.products);
         const anims: { [key: string]: Animated.Value } = {};
         (data.products as Product[]).forEach((p: Product) => {
-  anims[p.productId] = new Animated.Value(1);
-});
+          anims[p.productId] = new Animated.Value(1);
+        });
         setFadeAnims(anims);
       })
       .catch(err => console.error('Error fetching products:', err))
@@ -758,40 +845,77 @@ export function StoreScreen() {
 
   // Image switching every 2 minutes
   useEffect(() => {
-  const interval = setInterval(() => {
-    setImageIndexes(prev => {
-      const updated = { ...prev };
+    const interval = setInterval(() => {
+      setImageIndexes(prev => {
+        const updated = { ...prev };
 
-      products.forEach(product => {
-        const urls = product.mediaUrls;
-        if (urls.length > 1) {
-          const currentIndex = prev[product.productId] || 0;
-          const nextIndex = (currentIndex + 1) % urls.length;
+        products.forEach(product => {
+          const urls = product.mediaUrls;
+          if (urls.length > 1) {
+            const currentIndex = prev[product.productId] || 0;
+            const nextIndex = (currentIndex + 1) % urls.length;
 
-          Animated.sequence([
-            Animated.timing(fadeAnims[product.productId], {
-              toValue: 0,
-              duration: 500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(fadeAnims[product.productId], {
-              toValue: 1,
-              duration: 500,
-              useNativeDriver: true,
-            }),
-          ]).start();
+            Animated.sequence([
+              Animated.timing(fadeAnims[product.productId], {
+                toValue: 0,
+                duration: 500,
+                useNativeDriver: true,
+              }),
+              Animated.timing(fadeAnims[product.productId], {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+              }),
+            ]).start();
 
-          updated[product.productId] = nextIndex;
-        }
+            updated[product.productId] = nextIndex;
+          }
+        });
+
+        return updated;
+      });
+    }, 60000); // 1 minute
+
+    return () => clearInterval(interval);
+  }, [products, fadeAnims]);
+
+  //Fetch Cart Products
+  useEffect(() => {
+    const fetchCartDetails = async () => {
+      const token = await AsyncStorage.getItem('authToken');
+
+      const response = await fetch('http://192.168.1.98:5000/store/cart', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      return updated;
-    });
-  }, 60000); // 1 minute
+      const cartProducts2 = await response.json();
+      setCartProducts(cartProducts2);
+    };
 
-  return () => clearInterval(interval);
-}, [products, fadeAnims]);
+    if (showCart) fetchCartDetails();
+  }, [showCart]);
 
+  //Fetch Favorite Products
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      const token = await AsyncStorage.getItem('authToken');
+
+      const response = await fetch('http://192.168.1.98:5000/store/favorites', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const favProducts = await response.json();
+      setFavoriteProducts(favProducts);
+    };
+
+    if (showFavorites) fetchFavorites();
+  }, [showFavorites]);
 
   return (
     <LinearGradient
@@ -802,15 +926,42 @@ export function StoreScreen() {
         <Text style={HomeScreenComponentStyles.storeHeaderText}>
           Shop Online with iCampus
         </Text>
-        <TouchableOpacity
-          style={[
-            homeStyles.iconItem,
-            HomeScreenComponentStyles.activityIcons,
-            HomeScreenComponentStyles.activityIcons2,
-          ]}
-        >
-          <Icon name="notifications-outline" size={28} color="#f54b02" />
-        </TouchableOpacity>
+        <View style={HomeScreenComponentStyles.iconSubdiv2}>
+          <TouchableOpacity
+            onPress={() => setShowFavorites(true)}
+            style={[
+              homeStyles.iconItem,
+              HomeScreenComponentStyles.activityIcons,
+              HomeScreenComponentStyles.activityIcons2,
+            ]}
+          >
+            <MaterialIcons name="favorite" size={28} color="#f54b02" />
+            {favorites.length > 0 && (
+              <View style={HomeScreenComponentStyles.badge}>
+                <Text style={HomeScreenComponentStyles.badgeText}>
+                  {favorites.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowCart(true)}
+            style={[
+              homeStyles.iconItem,
+              HomeScreenComponentStyles.activityIcons,
+              HomeScreenComponentStyles.activityIcons2,
+            ]}
+          >
+            <MaterialIcons name="shopping-cart" size={28} color="#f54b02" />
+            {cart.length > 0 && (
+              <View style={HomeScreenComponentStyles.badge}>
+                <Text style={HomeScreenComponentStyles.badgeText}>
+                  {cart.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={HomeScreenComponentStyles.activityDiv}>
@@ -874,53 +1025,72 @@ export function StoreScreen() {
                   : item.mediaUrls[0];
 
               return (
-                <View style={HomeScreenComponentStyles.productCard}>
-                  <Animated.View style={{ opacity: fadeAnims[item.productId] }}>
-                    <Image
-                      source={{ uri: imageUrl }}
-                      style={HomeScreenComponentStyles.productImage}
-                      resizeMode="cover"
-                    />
-                  </Animated.View>
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate('ProductDetails', { product: item })
+                  }
+                >
+                  <View style={HomeScreenComponentStyles.productCard}>
+                    <Animated.View
+                      style={{ opacity: fadeAnims[item.productId] }}
+                    >
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={HomeScreenComponentStyles.productImage}
+                        resizeMode="cover"
+                      />
+                    </Animated.View>
 
-                  <TouchableOpacity
-                    style={[
-                      homeStyles.iconItem,
-                      HomeScreenComponentStyles.activityIcons3,
-                      HomeScreenComponentStyles.activityIcons2,
-                      HomeScreenComponentStyles.favoriteIcon,
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="favorite-border"
-                      size={19}
-                      color="#f54b02"
-                    />
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => toggleFavorite(item.productId)}
+                      style={[
+                        homeStyles.iconItem,
+                        HomeScreenComponentStyles.activityIcons3,
+                        HomeScreenComponentStyles.activityIcons2,
+                        HomeScreenComponentStyles.favoriteIcon,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={
+                          favorites.find(p => p._id === item.productId)
+                            ? 'favorite'
+                            : 'favorite-border'
+                        }
+                        size={19}
+                        color="#f54b02"
+                      />
+                    </TouchableOpacity>
 
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={HomeScreenComponentStyles.productTitle}
-                  >
-                    {item.title}
-                  </Text>
-
-                  <View style={HomeScreenComponentStyles.productPriceDiv}>
-                    <MaterialIcons name="diamond" size={18} color="#f54b02" />
-                    <Text style={HomeScreenComponentStyles.productPrice}>
-                      {item.priceInPoints}
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={HomeScreenComponentStyles.productTitle}
+                    >
+                      {item.title}
                     </Text>
+
+                    <View style={HomeScreenComponentStyles.productPriceDiv}>
+                      <MaterialIcons name="diamond" size={18} color="#f54b02" />
+                      <Text style={HomeScreenComponentStyles.productPrice}>
+                        {item.priceInPoints}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        HomeScreenComponentStyles.Add2CartBtn,
+                        pressed[item.productId] && {
+                          backgroundColor: '#f54b02',
+                        },
+                      ]}
+                      onPress={() => handleAddToCart(item)}
+                    >
+                      <Text style={HomeScreenComponentStyles.Add2CartBtnText}>
+                        Add to Cart
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-
-                  <TouchableOpacity
-                    style={HomeScreenComponentStyles.Add2CartBtn}
-                  >
-                    <Text style={HomeScreenComponentStyles.Add2CartBtnText}>
-                      Add to Cart
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               );
             }}
             ListEmptyComponent={<Text>No products found.</Text>}
@@ -938,6 +1108,57 @@ export function StoreScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      <Toast />
+      <Modal visible={showCart} transparent animationType="slide">
+        <TouchableWithoutFeedback onPress={() => setShowCart(false)}>
+          <BlurView
+            style={HomeScreenComponentStyles.blurBackground}
+            blurType="dark"
+            blurAmount={10}
+          />
+        </TouchableWithoutFeedback>
+        <View style={HomeScreenComponentStyles.popupContainer}>
+          <ScrollView
+            contentContainerStyle={HomeScreenComponentStyles.popupContent}
+          >
+            {cartProducts.length > 0 ? (
+              <View>
+                {cartProducts.map(product => (
+                  <Text key={product._id}>{product.title}</Text>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ textAlign: 'center', marginTop: 20 }}>
+                No items in cart
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Favorites Modal */}
+      <Modal visible={showFavorites} transparent animationType="slide">
+        <TouchableWithoutFeedback onPress={() => setShowFavorites(false)}>
+          <BlurView
+            style={HomeScreenComponentStyles.blurBackground}
+            blurType="dark"
+            blurAmount={10}
+          />
+        </TouchableWithoutFeedback>
+        <View style={HomeScreenComponentStyles.popupContainer}>
+          <ScrollView
+            contentContainerStyle={HomeScreenComponentStyles.popupContent}
+          >
+            {favoriteProducts.length > 0 && (
+              <View>
+                {favoriteProducts.map(product => (
+                  <Text key={product._id}>{product.title}</Text>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };

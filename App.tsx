@@ -3,6 +3,8 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; // ✅ Correct
 import { Provider } from 'react-redux';
+import type { Product } from './src/types/firebase';
+
 const linking = {
   prefixes: ['icampus://'],
   config: {
@@ -27,7 +29,7 @@ import ChangePasswordScreen from './src/screens/ChangePassword';
 import Settings from './src/screens/Settings';
 import Calender from './src/screens/Calender';
 import Profile from './src/screens/Profile';
-
+import ProductDetails from './src/screens/ProductDetails';
 
 export type RootStackParamList = {
   SignUp: undefined;
@@ -44,6 +46,7 @@ export type RootStackParamList = {
     verified?: string;
     email?: string;
   };
+  ProductDetails: { product: Product };
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -162,6 +165,11 @@ const App = () => {
           <Stack.Screen
             name="VerifyEmail"
             component={VerifyEmail}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ProductDetails"
+            component={ProductDetails}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
