@@ -58,6 +58,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     backgroundColor: '#fff',
     width: '93%',
     borderRadius: 15,
+    flex: 1,
     margin: 7,
   },
   activityDivHeader: {
@@ -82,10 +83,10 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   storeCategoriesDiv: {
-    paddingVertical: 10,
+    paddingTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
+    paddingBottom: 80
   },
   tabItem: {
     paddingVertical: 8,
@@ -217,6 +218,11 @@ badge: {
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
     justifyContent: 'flex-start',
   },
+  overlay2: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
+    justifyContent: 'flex-end',
+  },
   overlayRight: {
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
     justifyContent: 'flex-end',
@@ -229,6 +235,19 @@ badge: {
     left: 0,
     width: '90%',
     minHeight: '100%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 12,
+    elevation: 5,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  popupBottom: {
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    height: '80%',
     padding: 15,
     backgroundColor: '#eee',
     borderRadius: 12,
@@ -283,7 +302,6 @@ badge: {
   eventsContainer: {
     width: '100%',
     paddingVertical: 5,
-    alignItems: 'flex-start',
     flex: 1,
     position: 'relative',
   },
@@ -366,7 +384,7 @@ todayIndicatorText: {
   eventCard: {
     borderBottomWidth: 1,
     borderColor: '#a6a5a5ff',
-    paddingVertical: 5,
+    paddingVertical: 8,
     marginBottom: 5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -395,6 +413,7 @@ todayIndicatorText: {
     alignItems: 'center',
     alignSelf: 'flex-start',
     width: '100%',
+    paddingVertical: 5
   },
   eventLocation: {
     marginLeft: 2,
@@ -409,7 +428,7 @@ todayIndicatorText: {
   eventDescription2: {
     color: '#000',
     fontWeight: '700',
-    paddingVertical: 6,
+    paddingVertical: 10,
     width: '100%',
   },
   eventCardFooter: {
@@ -435,22 +454,23 @@ todayIndicatorText: {
     bottom: 0,
   },
   productList: {
-    paddingVertical: 10,
-  },
-  productCard: {
-    borderRadius: 10,
-    position: 'relative',
-    height: 270,
-    alignItems: 'center',
-    margin: 6,
-    justifyContent: 'flex-start',
-    flexBasis: '49%', // ensures two items per row with spacing
-    overflow: 'hidden',
-    backgroundColor: '#eee',
-  },
+  marginVertical: 2,
+  paddingBottom: 50,
+  width: '100%'
+},
+ productCard: {
+  flexBasis: '46%',
+  margin: 6,
+  borderRadius: 10,
+  height: 270,
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  backgroundColor: '#eee',
+},
   productImage: {
     height: 160,
-    width: '100%',
+    width: '90%',
+    borderRadius: 10,
     aspectRatio: 1, // keeps image square regardless of source size
     resizeMode: 'cover',
   },
@@ -463,21 +483,34 @@ todayIndicatorText: {
     fontSize: 13
   },
   productPriceDiv: {
-    paddingHorizontal: 7,
+    padding: 7,
     flexDirection: 'row',
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
     alignItems: 'center',
-    paddingVertical: 5
   },
   productPrice: {
     fontWeight: '600',
-    marginLeft: 4,
+    marginLeft: 3,
     fontSize: 13,
     color: '#f54b02'
   }, 
   pagination: {
-    width: '100%',
-    padding: 7
+    width: '50%',
+    padding: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eee',
+    marginVertical: 10,
+    borderRadius: 15,
+    justifyContent: 'space-between'
+  },
+  paginationMainText: {
+    fontWeight: '700',
+    color: '#f54b02',
+    fontSize: 17
+  },
+  paginationText: {
+    fontWeight: '700',
   },
   Add2CartBtn: {
     width: '80%',

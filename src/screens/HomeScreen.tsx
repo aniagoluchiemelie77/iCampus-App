@@ -14,6 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { clearUser } from '../components/UserSlice';
 import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors';
+import { AppDataProvider } from '../components/EventContext';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -37,92 +38,94 @@ const HomeScreen = () => {
   }, [dispatch, navigation, user.tokenCreatedAt]);
 
   return (
-    <View style={homeStyles.container}>
-      <View style={homeStyles.centerContent}>
-        {activeIcon === 'home' && <Home />}
-        {activeIcon === 'classroom' && <ClassroomScreen />}
-        {activeIcon === 'store' && <StoreScreen />}
-        {activeIcon === 'profile' && <ProfileScreen />}
+    <AppDataProvider user={user}>
+      <View style={homeStyles.container}>
+        <View style={homeStyles.centerContent}>
+          {activeIcon === 'home' && <Home />}
+          {activeIcon === 'classroom' && <ClassroomScreen />}
+          {activeIcon === 'store' && <StoreScreen />}
+          {activeIcon === 'profile' && <ProfileScreen />}
+        </View>
+
+        <View style={homeStyles.iconBar}>
+          <TouchableOpacity
+            onPress={() => setActiveIcon('home')}
+            style={homeStyles.iconItem}
+          >
+            <Icon
+              name={activeIcon === 'home' ? 'home' : 'home-outline'}
+              size={28}
+              color="#000"
+            />
+            <Text
+              style={[
+                homeStyles.iconLabel,
+                activeIcon === 'home' && homeStyles.activeIconLabel,
+              ]}
+            >
+              Home
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveIcon('classroom')}
+            style={homeStyles.iconItem}
+          >
+            <Icon
+              name={activeIcon === 'classroom' ? 'school' : 'school-outline'}
+              size={28}
+              color="#000"
+            />
+            <Text
+              style={[
+                homeStyles.iconLabel,
+                activeIcon === 'classroom' && homeStyles.activeIconLabel,
+              ]}
+            >
+              Classroom
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveIcon('store')}
+            style={homeStyles.iconItem}
+          >
+            <Icon
+              name={activeIcon === 'store' ? 'cart' : 'cart-outline'}
+              size={28}
+              color="#000"
+            />
+            <Text
+              style={[
+                homeStyles.iconLabel,
+                activeIcon === 'store' && homeStyles.activeIconLabel,
+              ]}
+            >
+              Store
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveIcon('profile')}
+            style={homeStyles.iconItem}
+          >
+            <Icon
+              name={activeIcon === 'profile' ? 'person' : 'person-outline'}
+              size={28}
+              color="#000"
+            />
+            <Text
+              style={[
+                homeStyles.iconLabel,
+                activeIcon === 'profile' && homeStyles.activeIconLabel,
+              ]}
+            >
+              Profile
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <View style={homeStyles.iconBar}>
-        <TouchableOpacity
-          onPress={() => setActiveIcon('home')}
-          style={homeStyles.iconItem}
-        >
-          <Icon
-            name={activeIcon === 'home' ? 'home' : 'home-outline'}
-            size={28}
-            color="#000"
-          />
-          <Text
-            style={[
-              homeStyles.iconLabel,
-              activeIcon === 'home' && homeStyles.activeIconLabel,
-            ]}
-          >
-            Home
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveIcon('classroom')}
-          style={homeStyles.iconItem}
-        >
-          <Icon
-            name={activeIcon === 'classroom' ? 'school' : 'school-outline'}
-            size={28}
-            color="#000"
-          />
-          <Text
-            style={[
-              homeStyles.iconLabel,
-              activeIcon === 'classroom' && homeStyles.activeIconLabel,
-            ]}
-          >
-            Classroom
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveIcon('store')}
-          style={homeStyles.iconItem}
-        >
-          <Icon
-            name={activeIcon === 'store' ? 'cart' : 'cart-outline'}
-            size={28}
-            color="#000"
-          />
-          <Text
-            style={[
-              homeStyles.iconLabel,
-              activeIcon === 'store' && homeStyles.activeIconLabel,
-            ]}
-          >
-            Store
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveIcon('profile')}
-          style={homeStyles.iconItem}
-        >
-          <Icon
-            name={activeIcon === 'profile' ? 'person' : 'person-outline'}
-            size={28}
-            color="#000"
-          />
-          <Text
-            style={[
-              homeStyles.iconLabel,
-              activeIcon === 'profile' && homeStyles.activeIconLabel,
-            ]}
-          >
-            Profile
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </AppDataProvider>
   );
 };
 
