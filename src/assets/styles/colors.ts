@@ -133,6 +133,17 @@ badge: {
   popupContent: {
     paddingBottom: 100,
   },
+  popupContent2: {
+    padding: 10,
+    width: '100%',
+  },
+  viewCartItems: {
+    padding: 10,
+    width: '85%',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#717070ff'
+  },
   iconWrapper: { position: 'relative', marginRight: 16 },
   iconSubdiv: {
     flexDirection: 'row',
@@ -476,18 +487,19 @@ todayIndicatorText: {
   },
    productImageDiv: {
     height: 160,
-    width: '90%',
+    width: '100%',
     borderRadius: 10,
     position: 'relative',
     alignItems: 'flex-end'
   },
   productTitle: {
-    paddingHorizontal: 7,
-    paddingVertical: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 15,
     width: '100%',
     fontWeight: '700',
     color: '#000',
-    fontSize: 13
+    fontSize: 13,
+    marginTop: 5
   },
   productPriceDiv: {
     padding: 8,
@@ -499,12 +511,25 @@ todayIndicatorText: {
     right: 10,
     backgroundColor: '#f54b02'
   },
+  productPriceDiv2: {
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
   productPrice: {
     fontWeight: '600',
     marginLeft: 3,
     fontSize: 13,
     color: '#eee'
-  }, 
+  },
+  productPrice2: {
+    fontWeight: '600',
+    marginLeft: 3,
+    fontSize: 13,
+    color: '#000'
+  }
+  , 
   pagination: {
     width: '50%',
     padding: 17,
@@ -528,11 +553,83 @@ todayIndicatorText: {
     padding: 9,
     backgroundColor: '#f54b02',
     alignItems: 'center',
-    borderRadius: 10
+    borderRadius: 10,
   },
   Add2CartBtnText: {
     color: '#eee',
     fontWeight: '700'
+  },
+  cartItem: {
+    width: '90%',
+    backgroundColor: '#fff',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#abababff',
+    marginVertical: 7,
+    borderRadius: 10,
+    justifyContent: 'space-between',
+    flexDirection: 'row',
+    height: 90
+  }, 
+  cartItemLeftDiv: {
+    width: '75%',
+    height: '100%',
+    flexDirection: 'row',
+  },
+  imageDiv: {
+    width: '60%',
+    height: '100%',
+    borderRadius: 10
+  },
+  notImageDiv: {
+    flex: 1,
+    paddingLeft: 7
+  },
+  cartItemRightDiv: {
+    flex: 1,
+    padding: 10
+  },
+  cartItemRightDivSubdiv: {
+    flexDirection: 'row',
+    padding: 10,
+    backgroundColor: '#eee'
+  },
+  hiddenRow: {
+    backgroundColor: '#f54b02',
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20%'
+  },
+  totalSection: {
+    width: '90%',
+  },
+  totalSectionD1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    justifyContent: 'space-between'
+  },
+  totalLabel: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: "#000"
+  },
+  totalPrice: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  checkoutBtn: {
+    width: '90%',
+    backgroundColor: "#f54b02",
+    padding: 10,
+    borderRadius: 10,
+  },
+  checkoutText: {
+    color: '#eee'
+  },
+  totalPriceSign: {
+    marginRight: 3
   }
 });
 

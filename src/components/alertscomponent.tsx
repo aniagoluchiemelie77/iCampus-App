@@ -7,6 +7,7 @@ import { SweetAlertPopupStyles } from '../assets/styles/colors';
 export interface SweetAlertModalProps {
   visible: boolean;
   onClose: () => void;
+  onConfirm?: () => void;
   title: string;
   message: string;
   type?: 'success' | 'error' | 'warning' | 'info';

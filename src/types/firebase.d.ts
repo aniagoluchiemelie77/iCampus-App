@@ -37,7 +37,8 @@ export interface User {
   userToken?: string,
   tokenCreatedAt?: string,
   coursesTeaching?: string[];
-  pointsAccountId?: UserPointsAccount.pointsAccountId
+  pointsAccountId?: UserPointsAccount.pointsAccountId,
+  cart?: string[]
 }
 export interface Community {
   id: string;

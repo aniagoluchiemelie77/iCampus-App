@@ -15,6 +15,7 @@ interface AppDataContextType {
   events: any[];
   favorites: Product[];
   cartProducts: Product[];
+  cart: string[];
   errorMessage: string | null;
   fetchEvents: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
@@ -42,6 +43,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [cartProducts, setCartProducts] = useState<Product[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cart, setCart] = useState<string[]>([]);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -84,13 +86,16 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) throw new Error(`Status ${response.status}`);
       const data = await response.json();
+      setCart(data.map((item: Product) => item.id));
       setCartProducts(data);
     } catch (error) {
       console.error('Error fetching cart items:', error);
     }
   }, []);
+
   const toggleFavorite = async (productId: string) => {
     const isFavoriting = !favorites.some(p => p._id === productId);
     const token = await AsyncStorage.getItem('authToken');
@@ -148,6 +153,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         favorites,
         cartProducts,
         errorMessage,
+        cart,
         fetchEvents,
         fetchFavorites,
         fetchCartItems,

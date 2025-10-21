@@ -24,6 +24,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
+import { SwipeListView } from 'react-native-swipe-list-view';
+import SweetAlertModal from './alertscomponent';
 import type {
   ProductCategoryList,
   CalendarEvent,
@@ -704,6 +706,7 @@ export function ClassroomScreen() {
 export function StoreScreen() {
   const user = useAppSelector(state => state.user);
   const {
+    cart,
     favorites,
     cartProducts,
     fetchFavorites,
@@ -723,13 +726,18 @@ export function StoreScreen() {
   }>({});
   const [loading, setLoading] = useState(false);
   const limit = 10;
-  const [cart, setCart] = useState<string[]>([]);
 
   const [pressed, setPressed] = useState<{ [key: string]: boolean }>({});
 
   const [showCart, setShowCart] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
+    'success',
+  );
+  const [alertMessage, setAlertMessage] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const openFavoritesPopup = () => {
     setShowFavorites(true);
@@ -760,28 +768,20 @@ export function StoreScreen() {
   const handleAddToCart = async (product: Product) => {
     try {
       const token = await AsyncStorage.getItem('authToken');
-      const existingCart = await AsyncStorage.getItem('cart');
-      const cartIds: string[] = existingCart ? JSON.parse(existingCart) : [];
 
-      const updatedCart = [...new Set([...cartIds, product.productId])];
-      await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
-
-      const res = await fetch(
-        `http://192.168.1.98:5000/store/${product._id}/cart`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ productId: product.id }), // or product._id
+      });
 
-      setCart(updatedCart);
       if (res.ok) {
         setPressed(prev => ({
           ...prev,
-          [product.productId]: true, // ✅ mark this item as added
+          [product.id]: true,
         }));
       } else {
         Toast.show({ type: 'error', text1: 'Failed to add to cart' });
@@ -790,6 +790,47 @@ export function StoreScreen() {
       console.error('Error saving to cart:', error);
     }
   };
+  const increment = async (productId: string) => {
+    const token = await AsyncStorage.getItem('authToken');
+    await fetch(`http://192.168.1.98:5000/store/cart/increment`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ productId }),
+    });
+    fetchCartItems(); // refresh cart
+  };
+
+  const decrement = async (productId: string) => {
+    const token = await AsyncStorage.getItem('authToken');
+    await fetch(`http://192.168.1.98:5000/store/cart/decrement`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ productId }),
+    });
+    fetchCartItems();
+  };
+  const confirmDelete = (productId: string) => {
+    setPendingDeleteId(productId);
+    setAlertType('warning');
+    setAlertMessage('Confirm delete cart item?');
+    setAlertVisible(true);
+  };
+
+  const deleteItem = async (productId: string) => {
+    const token = await AsyncStorage.getItem('authToken');
+    await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ productId }),
+    });
+    fetchCartItems();
+  };
+  const totalPoints = cartProducts.reduce((sum, product, _, arr) => {
+    const count = arr.filter(p => p._id === product._id).length;
+    const alreadyCounted = arr.findIndex(p => p._id === product._id) !== _;
+    return alreadyCounted ? sum : sum + product.priceInPoints * count;
+  }, 0);
+
   // Fetch categories
   useEffect(() => {
     if (!user?.schoolName) return;
@@ -1099,22 +1140,110 @@ export function StoreScreen() {
                 </TouchableOpacity>
               </View>
             </Animated.View>
-            <View style={HomeScreenComponentStyles.popupContainer}>
-              <ScrollView
-                contentContainerStyle={HomeScreenComponentStyles.popupContent}
-              >
-                {cartProducts.length > 0 ? (
-                  <View>
-                    {cartProducts.map(product => (
-                      <Text key={product._id}>{product.title}</Text>
-                    ))}
+
+            <ScrollView
+              contentContainerStyle={HomeScreenComponentStyles.popupContent2}
+            >
+              <SwipeListView
+                data={cartProducts}
+                keyExtractor={(item, index) =>
+                  item.productId ?? index.toString()
+                }
+                renderItem={({ item }) => (
+                  <View style={HomeScreenComponentStyles.cartItem}>
+                    <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
+                      <View style={HomeScreenComponentStyles.imageDiv}>
+                        <Image
+                          source={{ uri: item.mediaUrls[0] }} // ✅ use the first image
+                          style={HomeScreenComponentStyles.productImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      <View style={HomeScreenComponentStyles.notImageDiv}>
+                        <Text
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                          style={HomeScreenComponentStyles.eventDescription2}
+                        >
+                          {item.title}
+                        </Text>
+                        <View
+                          style={HomeScreenComponentStyles.productPriceDiv2}
+                        >
+                          <MaterialIcons
+                            name="diamond"
+                            size={18}
+                            color="#000"
+                          />
+                          <Text style={HomeScreenComponentStyles.productPrice2}>
+                            {item.priceInPoints}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={HomeScreenComponentStyles.cartItemRightDiv}>
+                      <View
+                        style={HomeScreenComponentStyles.cartItemRightDivSubdiv}
+                      >
+                        {item.productId && (
+                          <>
+                            <TouchableOpacity
+                              onPress={() => increment(item.productId!)}
+                            >
+                              <MaterialIcons
+                                name="add"
+                                size={18}
+                                color="#f54b02"
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => decrement(item.productId!)}
+                            >
+                              <MaterialIcons
+                                name="remove"
+                                size={18}
+                                color="#f54b02"
+                              />
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                    </View>
                   </View>
-                ) : (
-                  <Text style={{ textAlign: 'center', marginTop: 20 }}>
-                    No items in cart
-                  </Text>
                 )}
-              </ScrollView>
+                renderHiddenItem={({ item }) => (
+                  <View style={HomeScreenComponentStyles.hiddenRow}>
+                    <TouchableOpacity
+                      onPress={() => confirmDelete(item.productId!)}
+                    >
+                      <MaterialIcons name="delete" size={18} color="#eee" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                rightOpenValue={-75}
+              />
+            </ScrollView>
+            <View style={HomeScreenComponentStyles.totalSection}>
+              <View style={HomeScreenComponentStyles.totalSectionD1}>
+                <Text style={HomeScreenComponentStyles.totalLabel}>Total:</Text>
+                <Text style={HomeScreenComponentStyles.totalPrice}>
+                  <MaterialIcons
+                    name="diamond"
+                    size={20}
+                    color="#000"
+                    style={HomeScreenComponentStyles.totalPriceSign}
+                  />
+                  {totalPoints}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={HomeScreenComponentStyles.checkoutBtn}
+                //onPress={handleCheckout}
+              >
+                <Text style={HomeScreenComponentStyles.checkoutText}>
+                  Checkout
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -1162,6 +1291,31 @@ export function StoreScreen() {
           </View>
         </View>
       </Modal>
+      <SweetAlertModal
+        visible={alertVisible}
+        onClose={() => {
+          setAlertVisible(false);
+          setPendingDeleteId(null);
+        }}
+        onConfirm={() => {
+          if (pendingDeleteId) {
+            deleteItem(pendingDeleteId);
+            setAlertVisible(false);
+            setPendingDeleteId(null);
+          }
+        }}
+        title={
+          alertType === 'success'
+            ? 'Success!'
+            : alertType === 'error'
+            ? 'Oops!'
+            : alertType === 'warning'
+            ? 'Warning!'
+            : 'Notice'
+        }
+        message={alertMessage}
+        type={alertType}
+      />
     </LinearGradient>
   );
 };
