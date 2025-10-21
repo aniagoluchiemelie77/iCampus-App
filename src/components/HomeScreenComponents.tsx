@@ -34,8 +34,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 
-
-
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
   RootStackParamList,
@@ -477,230 +475,223 @@ export function Home() {
   const latestEvents = sortedEvents.slice(0, 7);
 
   return (
-      <LinearGradient
-        style={HomeScreenComponentStyles.bckg}
-        colors={['#eee', '#edccbdff']}
-      >
-        <View style={HomeScreenComponentStyles.topHeader}>
-          <CalenderPopup />
-          <View style={HomeScreenComponentStyles.iconSubdiv}>
-            <TouchableOpacity
-              style={[
-                homeStyles.iconItem,
-                HomeScreenComponentStyles.activityIcons,
-                HomeScreenComponentStyles.activityIcons2,
-              ]}
-            >
-              <Icon name="notifications-outline" size={28} color="#f54b02" />
-            </TouchableOpacity>
-            <SettingsPopup />
-          </View>
-        </View>
-        <View style={HomeScreenComponentStyles.welcomeHeader}>
+    <LinearGradient
+      style={HomeScreenComponentStyles.bckg}
+      colors={['#eee', '#edccbdff']}
+    >
+      <View style={HomeScreenComponentStyles.topHeader}>
+        <CalenderPopup />
+        <View style={HomeScreenComponentStyles.iconSubdiv}>
           <TouchableOpacity
             style={[
               homeStyles.iconItem,
               HomeScreenComponentStyles.activityIcons,
+              HomeScreenComponentStyles.activityIcons2,
             ]}
-            onPress={() => navigation.navigate('Profile')}
           >
-            {user?.profilePic ? (
-              <Image
-                source={{ uri: user.profilePic }}
-                style={HomeScreenComponentStyles.avatar}
-              />
-            ) : (
-              <Icon name="person-circle-outline" size={35} color="#000" />
-            )}
+            <Icon name="notifications-outline" size={28} color="#f54b02" />
           </TouchableOpacity>
-          <Text style={HomeScreenComponentStyles.welcomeText}>
-            {getGreeting()}, {user.firstname}
-          </Text>
+          <SettingsPopup />
         </View>
-        <ScrollView
-          contentContainerStyle={HomeScreenComponentStyles.activityDivContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+      </View>
+      <View style={HomeScreenComponentStyles.welcomeHeader}>
+        <TouchableOpacity
+          style={[homeStyles.iconItem, HomeScreenComponentStyles.activityIcons]}
+          onPress={() => navigation.navigate('Profile')}
         >
-          <View style={HomeScreenComponentStyles.activityDiv}>
-            <View style={HomeScreenComponentStyles.activityDivHeader}>
-              <Text style={HomeScreenComponentStyles.activityDivHeaderText}>
-                Activities
-              </Text>
+          {user?.profilePic ? (
+            <Image
+              source={{ uri: user.profilePic }}
+              style={HomeScreenComponentStyles.avatar}
+            />
+          ) : (
+            <Icon name="person-circle-outline" size={35} color="#000" />
+          )}
+        </TouchableOpacity>
+        <Text style={HomeScreenComponentStyles.welcomeText}>
+          {getGreeting()}, {user.firstname}
+        </Text>
+      </View>
+      <ScrollView
+        contentContainerStyle={HomeScreenComponentStyles.activityDivContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={HomeScreenComponentStyles.activityDiv}>
+          <View style={HomeScreenComponentStyles.activityDivHeader}>
+            <Text style={HomeScreenComponentStyles.activityDivHeaderText}>
+              Activities
+            </Text>
+            <TouchableOpacity
+              style={[
+                homeStyles.iconItem,
+                HomeScreenComponentStyles.activityIcons,
+              ]}
+              onPress={() => setShowActivities(prev => !prev)}
+            >
+              <Icon
+                name={
+                  showActivities ? 'chevron-up-outline' : 'chevron-down-outline'
+                }
+                size={30}
+                color="#000"
+              />
+            </TouchableOpacity>
+          </View>
+          {showActivities && (
+            <View style={HomeScreenComponentStyles.activityIconsDiv}>
               <TouchableOpacity
                 style={[
                   homeStyles.iconItem,
                   HomeScreenComponentStyles.activityIcons,
                 ]}
-                onPress={() => setShowActivities(prev => !prev)}
               >
-                <Icon
-                  name={
-                    showActivities
-                      ? 'chevron-up-outline'
-                      : 'chevron-down-outline'
-                  }
-                  size={30}
-                  color="#000"
-                />
+                <Icon name="people-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Communities</Text>
               </TouchableOpacity>
-            </View>
-            {showActivities && (
-              <View style={HomeScreenComponentStyles.activityIconsDiv}>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="people-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Communities</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="bar-chart-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Create Poll</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="bulb-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Smart Help</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="calculator-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Get GPA</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="book-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Browse Materials</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="receipt-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>Spend Wise</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="wallet-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>My Wallet</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Calender')}
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon
-                    name="calendar-number-outline"
-                    size={30}
-                    color="#f54b02"
-                  />
-                  <Text style={homeStyles.iconLabel}>Go Plan</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                  ]}
-                >
-                  <Icon name="library-outline" size={30} color="#f54b02" />
-                  <Text style={homeStyles.iconLabel}>eLibrary</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-          <View style={HomeScreenComponentStyles.eventsContainer2}>
-            {latestEvents.map(event => (
-              <View
-                key={event._id}
+              <TouchableOpacity
                 style={[
-                  HomeScreenComponentStyles.eventCardOuterWidth,
-                  isToday(event.startDate) &&
-                    HomeScreenComponentStyles.todayBorderHighlight,
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
                 ]}
               >
-                <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={HomeScreenComponentStyles.eventDescription}
-                  >
-                    {event.description}
-                  </Text>
-                  {isToday(event.startDate) && (
-                    <View style={HomeScreenComponentStyles.todayIndicator}>
-                      <Text
-                        style={HomeScreenComponentStyles.todayIndicatorText}
-                      >
-                        Today
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
-                  <View style={HomeScreenComponentStyles.eventMetaRow}>
-                    <Icon name="location-outline" size={16} color="#f54b02" />
-                    <Text style={HomeScreenComponentStyles.eventMetaText}>
-                      {event.location}
-                    </Text>
-                  </View>
-                  <View style={HomeScreenComponentStyles.eventMetaRow}>
-                    <Icon name="bookmarks-outline" size={16} color="#f54b02" />
-                    <Text style={HomeScreenComponentStyles.eventMetaText}>
-                      {(event.visibility ?? 'unspecified')
-                        .charAt(0)
-                        .toUpperCase() +
-                        (event.visibility ?? 'unspecified').slice(1)}
-                    </Text>
-                  </View>
-                  {event.eventType === 'Lectures' &&
-                    event.lectureType === 'online' && (
-                      <Text style={HomeScreenComponentStyles.lectureType}>
-                        Online
-                      </Text>
-                    )}
-                </View>
-                <Text style={HomeScreenComponentStyles.eventDate2}>
-                  {new Date(event.startDate).toLocaleDateString() ===
-                  new Date(event.endDate).toLocaleDateString()
-                    ? formatDate(event.startDate)
-                    : `${formatDate(event.startDate)} - ${formatDate(
-                        event.endDate,
-                      )}`}
+                <Icon name="bar-chart-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Create Poll</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon name="bulb-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Smart Help</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon name="calculator-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Get GPA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon name="book-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Browse Materials</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon name="receipt-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>Spend Wise</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon name="wallet-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>My Wallet</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Calender')}
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon
+                  name="calendar-number-outline"
+                  size={30}
+                  color="#f54b02"
+                />
+                <Text style={homeStyles.iconLabel}>Go Plan</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                ]}
+              >
+                <Icon name="library-outline" size={30} color="#f54b02" />
+                <Text style={homeStyles.iconLabel}>eLibrary</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        <View style={HomeScreenComponentStyles.eventsContainer2}>
+          {latestEvents.map(event => (
+            <View
+              key={event._id}
+              style={[
+                HomeScreenComponentStyles.eventCardOuterWidth,
+                isToday(event.startDate) &&
+                  HomeScreenComponentStyles.todayBorderHighlight,
+              ]}
+            >
+              <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={HomeScreenComponentStyles.eventDescription}
+                >
+                  {event.description}
                 </Text>
+                {isToday(event.startDate) && (
+                  <View style={HomeScreenComponentStyles.todayIndicator}>
+                    <Text style={HomeScreenComponentStyles.todayIndicatorText}>
+                      Today
+                    </Text>
+                  </View>
+                )}
               </View>
-            ))}
-          </View>
-        </ScrollView>
-      </LinearGradient>
+              <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
+                <View style={HomeScreenComponentStyles.eventMetaRow}>
+                  <Icon name="location-outline" size={16} color="#f54b02" />
+                  <Text style={HomeScreenComponentStyles.eventMetaText}>
+                    {event.location}
+                  </Text>
+                </View>
+                <View style={HomeScreenComponentStyles.eventMetaRow}>
+                  <Icon name="bookmarks-outline" size={16} color="#f54b02" />
+                  <Text style={HomeScreenComponentStyles.eventMetaText}>
+                    {(event.visibility ?? 'unspecified')
+                      .charAt(0)
+                      .toUpperCase() +
+                      (event.visibility ?? 'unspecified').slice(1)}
+                  </Text>
+                </View>
+                {event.eventType === 'Lectures' &&
+                  event.lectureType === 'online' && (
+                    <Text style={HomeScreenComponentStyles.lectureType}>
+                      Online
+                    </Text>
+                  )}
+              </View>
+              <Text style={HomeScreenComponentStyles.eventDate2}>
+                {new Date(event.startDate).toLocaleDateString() ===
+                new Date(event.endDate).toLocaleDateString()
+                  ? formatDate(event.startDate)
+                  : `${formatDate(event.startDate)} - ${formatDate(
+                      event.endDate,
+                    )}`}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
@@ -712,8 +703,13 @@ export function ClassroomScreen() {
 // StoreScreen.js
 export function StoreScreen() {
   const user = useAppSelector(state => state.user);
-  const { favorites, cartProducts, fetchFavorites, fetchCartItems, toggleFavorite } =
-    useAppDataContext();
+  const {
+    favorites,
+    cartProducts,
+    fetchFavorites,
+    fetchCartItems,
+    toggleFavorite,
+  } = useAppDataContext();
   const navigation = useNavigation<NavigationPropProductDetails>();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
@@ -730,7 +726,6 @@ export function StoreScreen() {
   const [cart, setCart] = useState<string[]>([]);
 
   const [pressed, setPressed] = useState<{ [key: string]: boolean }>({});
-
 
   const [showCart, setShowCart] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
@@ -753,15 +748,15 @@ export function StoreScreen() {
     }).start();
   };
   const closePopup = () => {
-  Animated.timing(scaleAnim, {
-    toValue: 0,
-    duration: 200,
-    useNativeDriver: true,
-  }).start(() => {
-    setShowCart(false);
-    setShowFavorites(false);
-  });
-};
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowCart(false);
+      setShowFavorites(false);
+    });
+  };
   const handleAddToCart = async (product: Product) => {
     try {
       const token = await AsyncStorage.getItem('authToken');
@@ -771,24 +766,26 @@ export function StoreScreen() {
       const updatedCart = [...new Set([...cartIds, product.productId])];
       await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
 
-
-      const res = await fetch(`http://192.168.1.98:5000/store/${product._id}/cart`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const res = await fetch(
+        `http://192.168.1.98:5000/store/${product._id}/cart`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       setCart(updatedCart);
       if (res.ok) {
-      setPressed(prev => ({
-        ...prev,
-        [product.productId]: true, // ✅ mark this item as added
-      }));
-    } else {
-      Toast.show({ type: 'error', text1: 'Failed to add to cart' });
-    }
+        setPressed(prev => ({
+          ...prev,
+          [product.productId]: true, // ✅ mark this item as added
+        }));
+      } else {
+        Toast.show({ type: 'error', text1: 'Failed to add to cart' });
+      }
     } catch (error) {
       console.error('Error saving to cart:', error);
     }
@@ -984,21 +981,28 @@ export function StoreScreen() {
                   }
                 >
                   <View style={HomeScreenComponentStyles.productCard}>
-                    <Animated.View
-                      style={{ opacity: fadeAnims[item.productId] }}
-                    >
-                      <Image
-                        source={{ uri: imageUrl }}
-                        style={HomeScreenComponentStyles.productImage}
-                        resizeMode="cover"
-                      />
-                    </Animated.View>
+                    <View style={HomeScreenComponentStyles.productImageDiv}>
+                      <Animated.View
+                        style={{ opacity: fadeAnims[item.productId] }}
+                      >
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={HomeScreenComponentStyles.productImage}
+                          resizeMode="cover"
+                        />
+                      </Animated.View>
+                      <View style={HomeScreenComponentStyles.productPriceDiv}>
+                        <MaterialIcons name="diamond" size={18} color="#eee" />
+                        <Text style={HomeScreenComponentStyles.productPrice}>
+                          {item.priceInPoints}
+                        </Text>
+                      </View>
+                    </View>
 
-                    {products.map(product => 
-                    (
+                    {products.map(product => (
                       <TouchableOpacity
                         key={product._id}
-                        onPress={() => toggleFavorite(product._id ?? "")}
+                        onPress={() => toggleFavorite(product._id ?? '')}
                         style={[
                           homeStyles.iconItem,
                           HomeScreenComponentStyles.activityIcons3,
@@ -1016,9 +1020,7 @@ export function StoreScreen() {
                           color="#f54b02"
                         />
                       </TouchableOpacity>
-                    )
-                    )}
-
+                    ))}
 
                     <Text
                       numberOfLines={1}
@@ -1027,13 +1029,6 @@ export function StoreScreen() {
                     >
                       {item.title}
                     </Text>
-
-                    <View style={HomeScreenComponentStyles.productPriceDiv}>
-                      <MaterialIcons name="diamond" size={18} color="#f54b02" />
-                      <Text style={HomeScreenComponentStyles.productPrice}>
-                        {item.priceInPoints}
-                      </Text>
-                    </View>
 
                     <TouchableOpacity
                       style={[
@@ -1045,7 +1040,7 @@ export function StoreScreen() {
                       onPress={() => handleAddToCart(item)}
                     >
                       <Text style={HomeScreenComponentStyles.Add2CartBtnText}>
-                        {pressed[item.productId] ? "In Cart" : "Add to Cart"}
+                        {pressed[item.productId] ? 'In Cart' : 'Add to Cart'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1058,11 +1053,24 @@ export function StoreScreen() {
 
         <View style={HomeScreenComponentStyles.pagination}>
           <TouchableOpacity onPress={() => setPage(p => Math.max(p - 1, 0))}>
-            <MaterialIcons name="navigate-before" size={28} color="#000" style={HomeScreenComponentStyles.paginationText}/>
+            <MaterialIcons
+              name="navigate-before"
+              size={28}
+              color="#000"
+              style={HomeScreenComponentStyles.paginationText}
+            />
           </TouchableOpacity>
-          <Text style={HomeScreenComponentStyles.paginationMainText}> {page + 1}</Text>
+          <Text style={HomeScreenComponentStyles.paginationMainText}>
+            {' '}
+            {page + 1}
+          </Text>
           <TouchableOpacity onPress={() => setPage(p => p + 1)}>
-            <MaterialIcons name="navigate-next" size={28} color="#000" style={HomeScreenComponentStyles.paginationText} />
+            <MaterialIcons
+              name="navigate-next"
+              size={28}
+              color="#000"
+              style={HomeScreenComponentStyles.paginationText}
+            />
           </TouchableOpacity>
         </View>
       </View>

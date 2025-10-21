@@ -468,11 +468,18 @@ todayIndicatorText: {
   backgroundColor: '#eee',
 },
   productImage: {
-    height: 160,
-    width: '90%',
+    height: '100%',
+    width: '100%',
     borderRadius: 10,
     aspectRatio: 1, // keeps image square regardless of source size
     resizeMode: 'cover',
+  },
+   productImageDiv: {
+    height: 160,
+    width: '90%',
+    borderRadius: 10,
+    position: 'relative',
+    alignItems: 'flex-end'
   },
   productTitle: {
     paddingHorizontal: 7,
@@ -483,16 +490,20 @@ todayIndicatorText: {
     fontSize: 13
   },
   productPriceDiv: {
-    padding: 7,
+    padding: 8,
     flexDirection: 'row',
-    alignSelf: 'flex-end',
     alignItems: 'center',
+    borderRadius: 20,
+    position: 'absolute',
+    bottom: -20,
+    right: 10,
+    backgroundColor: '#f54b02'
   },
   productPrice: {
     fontWeight: '600',
     marginLeft: 3,
     fontSize: 13,
-    color: '#f54b02'
+    color: '#eee'
   }, 
   pagination: {
     width: '50%',
