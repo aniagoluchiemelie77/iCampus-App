@@ -15,6 +15,7 @@ interface AppDataContextType {
   events: any[];
   favorites: Product[];
   cartProducts: Product[];
+  favoriteProducts: Product[];
   cart: string[];
   errorMessage: string | null;
   fetchEvents: () => Promise<void>;
@@ -40,8 +41,9 @@ export const useAppDataContext = () => {
 
 export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [events, setEvents] = useState<any[]>([]);
-  const [favorites, setFavorites] = useState<Product[]>([]);
+  const [favorites] = useState<Product[]>([]);
   const [cartProducts, setCartProducts] = useState<Product[]>([]);
+  const [favoriteProducts, setFavoritesProducts] = useState<Product[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cart] = useState<string[]>([]);
 
@@ -56,7 +58,12 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       setErrorMessage(null);
     } catch (error) {
       console.error('Error fetching events:', error);
-      setErrorMessage('Error retrieving events, please retry');
+      Toast.show({
+        type: 'error',
+        text1: "Error, couldn't fetch events",
+        position: 'bottom',
+        bottomOffset: 30,
+      });
     }
   }, [user.uid, user.department, user.current_level]);
 
@@ -69,61 +76,82 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (!response.ok) throw new Error(`Status ${response.status}`);
-      const data = await response.json();
-      setFavorites(data);
+      if (response.ok) {
+        const data = await response.json();
+        setFavoritesProducts(data.products);
+      }
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      Toast.show({
+        type: 'error',
+        text1: "Error, couldn't fetch favorites.",
+        position: 'bottom',
+        bottomOffset: 30,
+      });
+    }
+  }, []);
+  const fetchCartItems = useCallback(async () => {
+    const token = await AsyncStorage.getItem('authToken');
+    try {
+      const response = await fetch('http://192.168.1.98:5000/store/cart', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      setCartProducts(data);
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: "Error, couldn't fetch cart items.",
+        position: 'bottom',
+        bottomOffset: 30,
+      });
     }
   }, []);
 
-  const fetchCartItems = useCallback(async () => {
-    const token = await AsyncStorage.getItem('authToken');
-    const response = await fetch('http://192.168.1.98:5000/store/cart', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json();
-    console.log(data);
-    setCartProducts(data);
-  }, []);
-
   const toggleFavorite = async (productId: string) => {
-    const isFavoriting = !favorites.some(p => p._id === productId);
     const token = await AsyncStorage.getItem('authToken');
-
-    Toast.show({
-      type: 'success',
-      text1: isFavoriting
-        ? 'Product added to favorites'
-        : 'Product removed from favorites',
-    });
 
     try {
-      await fetch(`https://your-api.com/products/${productId}/favorite`, {
+      console.log('Query...');
+      const res = await fetch(`http://192.168.1.98:5000/store/toggleFavorite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ increment: isFavoriting }),
+        body: JSON.stringify({ productId }),
       });
 
-      const stored = await AsyncStorage.getItem('favorites');
-      const favoritesArray: string[] = stored ? JSON.parse(stored) : [];
+      if (res.ok) {
+        const data = await res.json(); // Get the response body
+        Toast.show({
+          type: 'success',
+          text1: data.message,
+          position: 'bottom',
+          bottomOffset: 30, // Use server message directly
+        });
 
-      let updatedFavorites;
-      if (isFavoriting) {
-        updatedFavorites = [...new Set([...favoritesArray, productId])];
+        // Optional: update local favorites state if returned
+        setFavoritesProducts(data.favorites);
       } else {
-        updatedFavorites = favoritesArray.filter(id => id !== productId);
+        const errorData = await res.json();
+        Toast.show({
+          type: 'error',
+          text1: errorData.error || 'Failed to toggle favorite',
+          position: 'bottom',
+          bottomOffset: 30,
+        });
       }
-
-      await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-      fetchFavorites(); // refresh from server
+      fetchFavorites(); // Refresh from server
     } catch (error) {
-      console.error('Error updating favorite count or storage:', error);
+      console.error('Toggle error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to save product as favorite',
+      });
     }
   };
+
   useEffect(() => {
     fetchEvents();
     fetchFavorites();
@@ -144,6 +172,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         cartProducts,
         errorMessage,
         cart,
+        favoriteProducts,
         fetchEvents,
         fetchFavorites,
         fetchCartItems,

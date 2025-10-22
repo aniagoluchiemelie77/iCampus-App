@@ -1037,3 +1037,24 @@ export const SweetAlertPopupStyles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export const ToastPopupStyles = StyleSheet.create({
+  successToastDiv: {
+    borderLeftColor: '#5ee762ff', 
+    backgroundColor: '#fff'
+  },
+  successToastText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#5ee762ff',
+  },
+  errorToastDiv: {
+    borderLeftColor: '#f12c1eff', 
+    backgroundColor: '#fff'
+  },
+  errorToastText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f12c1eff',
+  }
+})

@@ -35,6 +35,7 @@ import { HomeScreenComponentStyles } from '../assets/styles/colors';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import toastConfig from './ToastConfig';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
@@ -706,11 +707,11 @@ export function ClassroomScreen() {
 export function StoreScreen() {
   const user = useAppSelector(state => state.user);
   const {
-    favorites,
     cartProducts,
     fetchFavorites,
     fetchCartItems,
     toggleFavorite,
+    favoriteProducts,
   } = useAppDataContext();
   const navigation = useNavigation<NavigationPropProductDetails>();
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -789,12 +790,24 @@ export function StoreScreen() {
         Toast.show({
           type: 'success',
           text1: 'Product successfully added to cart',
+          position: 'bottom',
+          bottomOffset: 30,
         });
       } else {
-        Toast.show({ type: 'error', text1: 'Failed to add to cart' });
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to add to cart',
+          position: 'bottom',
+          bottomOffset: 30,
+        });
       }
     } catch (error) {
-      console.error('Error saving to cart:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to add to cart',
+        position: 'bottom',
+        bottomOffset: 30,
+      });
     }
   };
   const increment = async (productId: string) => {
@@ -844,25 +857,52 @@ export function StoreScreen() {
   };
 
   const deleteItem = async (productId: string) => {
-    console.log('Deleting:', productId);
     const token = await AsyncStorage.getItem('authToken');
-    await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId }),
-    });
-    fetchCartItems();
+    try {
+      await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId }),
+      });
+      fetchCartItems();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: "Error, couldn't delete cart item. Please retry.",
+        position: 'bottom',
+        bottomOffset: 30,
+      });
+    }
+  };
+  const removeFavorite = async (productId: string) => {
+    const token = await AsyncStorage.getItem('authToken');
+    try {
+      await fetch(`http://192.168.1.98:5000/store/favorites/remove`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId }),
+      });
+      fetchFavorites();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: "Error, couldn't remove item from favorites, please retry.",
+        position: 'bottom',
+        bottomOffset: 30,
+      });
+    }
   };
   const totalPoints =
     cartProducts?.reduce((sum, item) => {
       const quantity = quantities[item.productId] || 1;
       return sum + item.priceInPoints * quantity;
     }, 0) ?? 0;
-  console.log('User points:', user.pointsBalance);
-  console.log('Total points:', totalPoints);
 
   // Fetch categories
   useEffect(() => {
@@ -949,7 +989,7 @@ export function StoreScreen() {
     });
     setQuantities(initialQuantities);
   }, [cartProducts]);
-
+  console.log('Favorite products:', favoriteProducts);
   return (
     <LinearGradient
       style={HomeScreenComponentStyles.bckg}
@@ -968,11 +1008,11 @@ export function StoreScreen() {
               HomeScreenComponentStyles.activityIcons2,
             ]}
           >
-            <MaterialIcons name="favorite" size={28} color="#f54b02" />
-            {favorites.length > 0 && (
+            <MaterialIcons name="favorite-border" size={25} color="#f54b02" />
+            {favoriteProducts.length > 0 && (
               <View style={HomeScreenComponentStyles.badge}>
                 <Text style={HomeScreenComponentStyles.badgeText}>
-                  {favorites.length}
+                  {favoriteProducts.length}
                 </Text>
               </View>
             )}
@@ -985,7 +1025,7 @@ export function StoreScreen() {
               HomeScreenComponentStyles.activityIcons2,
             ]}
           >
-            <MaterialIcons name="shopping-cart" size={28} color="#f54b02" />
+            <MaterialIcons name="shopping-cart" size={25} color="#f54b02" />
             {cartProducts.length > 0 && (
               <View style={HomeScreenComponentStyles.badge}>
                 <Text style={HomeScreenComponentStyles.badgeText}>
@@ -1057,7 +1097,9 @@ export function StoreScreen() {
                   ? item.mediaUrls[imageIndexes[item.productId] || 0]
                   : item.mediaUrls[0];
 
-              const isFavorite = favorites.some(p => p._id === item._id);
+              const isFavorite = favoriteProducts.some(
+                p => p.productId === item.productId,
+              );
               const isInCart = cartProducts.some(
                 p => p.productId === item.productId,
               );
@@ -1089,7 +1131,7 @@ export function StoreScreen() {
 
                     {/* Favorite Button */}
                     <TouchableOpacity
-                      onPress={() => toggleFavorite(item._id ?? '')}
+                      onPress={() => toggleFavorite(item.productId ?? '')}
                       style={[
                         homeStyles.iconItem,
                         HomeScreenComponentStyles.activityIcons3,
@@ -1100,7 +1142,7 @@ export function StoreScreen() {
                       <MaterialIcons
                         name={isFavorite ? 'favorite' : 'favorite-border'}
                         size={19}
-                        color={pressed ? '#aaa' : '#f54b02'}
+                        color={pressed ? '#f54b02' : '#f54b02'}
                       />
                     </TouchableOpacity>
 
@@ -1163,7 +1205,7 @@ export function StoreScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      <Toast />
+      <Toast config={toastConfig} />
       <Modal transparent animationType="fade" visible={showCart}>
         <View style={HomeScreenComponentStyles.overlay2}>
           <TouchableWithoutFeedback onPress={closePopup}>
@@ -1342,17 +1384,16 @@ export function StoreScreen() {
       </Modal>
 
       {/* Favorites Modal */}
-      <Modal transparent visible={showFavorites} animationType="fade">
+      <Modal transparent animationType="fade" visible={showFavorites}>
         <View style={HomeScreenComponentStyles.overlay2}>
           <TouchableWithoutFeedback onPress={closePopup}>
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
-
           <View style={HomeScreenComponentStyles.popupBottom}>
             <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
               <View style={HomeScreenComponentStyles.topHeader2}>
                 <Text style={HomeScreenComponentStyles.welcomeText2}>
-                  Favorites
+                  Favorites ({favoriteProducts.length})
                 </Text>
                 <TouchableOpacity
                   onPress={closePopup}
@@ -1367,18 +1408,88 @@ export function StoreScreen() {
                 </TouchableOpacity>
               </View>
             </Animated.View>
-            <View style={HomeScreenComponentStyles.popupContainer}>
-              <ScrollView
-                contentContainerStyle={HomeScreenComponentStyles.popupContent}
-              >
-                {favorites.length > 0 && (
-                  <View>
-                    {favorites.map(product => (
-                      <Text key={product._id}>{product.title}</Text>
-                    ))}
-                  </View>
-                )}
-              </ScrollView>
+
+            <View style={HomeScreenComponentStyles.popupContent2}>
+              <FlatList
+                data={favoriteProducts}
+                keyExtractor={item => item.productId}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingBottom: 10,
+                }}
+                renderItem={({ item }) => {
+                  if (!item || !item.mediaUrls || item.mediaUrls.length === 0)
+                    return null;
+
+                  return (
+                    <SwipeRow rightOpenValue={-45} disableRightSwipe>
+                      {/* Hidden row */}
+                      <View style={HomeScreenComponentStyles.hiddenRow}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            console.log('Delete btn pressed');
+                            removeFavorite(item.productId!);
+                          }}
+                        >
+                          <MaterialIcons name="delete" size={18} color="#eee" />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Visible row */}
+                      <TouchableOpacity
+                        onPress={() =>
+                          navigation.navigate('ProductDetails', {
+                            product: item,
+                          })
+                        }
+                      >
+                        <View style={HomeScreenComponentStyles.cartItem}>
+                          <View
+                            style={HomeScreenComponentStyles.cartItemLeftDiv}
+                          >
+                            <View style={HomeScreenComponentStyles.imageDiv}>
+                              <Image
+                                source={{ uri: item.mediaUrls[0] }}
+                                style={HomeScreenComponentStyles.productImage}
+                                resizeMode="cover"
+                              />
+                            </View>
+                            <View style={HomeScreenComponentStyles.notImageDiv}>
+                              <Text
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                                style={
+                                  HomeScreenComponentStyles.eventDescription2
+                                }
+                              >
+                                {item.title}
+                              </Text>
+                              <View
+                                style={
+                                  HomeScreenComponentStyles.productPriceDiv2
+                                }
+                              >
+                                <MaterialIcons
+                                  name="diamond"
+                                  size={18}
+                                  color="#000"
+                                />
+                                <Text
+                                  style={
+                                    HomeScreenComponentStyles.productPrice2
+                                  }
+                                >
+                                  {item.priceInPoints}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </SwipeRow>
+                  );
+                }}
+              />
             </View>
           </View>
         </View>

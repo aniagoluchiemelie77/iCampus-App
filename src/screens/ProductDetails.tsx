@@ -1,14 +1,8 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { Text, Image, StyleSheet } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
-
-type Product = {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  imageUrl?: string;
-};
+import type { Product } from '../types/firebase';
+import { ScrollView } from 'react-native-gesture-handler';
 
 type RouteParams = {
   ProductDetails: {
@@ -21,20 +15,19 @@ const ProductDetails = () => {
   const { product } = route.params;
 
   return (
-    <View style={styles.container}>
-      {product.imageUrl && (
-        <Image source={{ uri: product.imageUrl }} style={styles.image} />
+    <ScrollView style={styles.container}>
+      {product.mediaUrls && (
+        <Image source={{ uri: product.mediaUrls[0] }} style={styles.image} />
       )}
-      <Text style={styles.name}>{product.name}</Text>
+      <Text style={styles.name}>{product.title}</Text>
       <Text style={styles.description}>{product.description}</Text>
-      <Text style={styles.price}>₦{product.price.toFixed(2)}</Text>
-    </View>
+      <Text style={styles.price}>₦{product.priceInPoints}</Text>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     backgroundColor: '#fff',
     flex: 1,
   },
@@ -47,12 +40,13 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#000',
     marginBottom: 10,
   },
   description: {
     fontSize: 16,
-    color: '#555',
+    color: '#000',
     marginBottom: 15,
   },
   price: {

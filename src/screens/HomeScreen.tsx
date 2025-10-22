@@ -15,6 +15,8 @@ import { clearUser } from '../components/UserSlice';
 import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/toastConfig';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -125,6 +127,7 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
+      <Toast config={toastConfig} />
     </AppDataProvider>
   );
 };
