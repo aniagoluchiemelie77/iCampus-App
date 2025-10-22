@@ -16,7 +16,7 @@ import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/toastConfig';
+import toastConfig from '../components/ToastConfig';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 

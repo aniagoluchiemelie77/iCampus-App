@@ -1046,7 +1046,7 @@ export const ToastPopupStyles = StyleSheet.create({
   successToastText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#5ee762ff',
+    color: '#000',
   },
   errorToastDiv: {
     borderLeftColor: '#f12c1eff', 
@@ -1055,6 +1055,6 @@ export const ToastPopupStyles = StyleSheet.create({
   errorToastText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#f12c1eff',
+    color: '#000',
   }
 })

@@ -791,14 +791,14 @@ export function StoreScreen() {
           type: 'success',
           text1: 'Product successfully added to cart',
           position: 'bottom',
-          bottomOffset: 30,
+          bottomOffset: 10,
         });
       } else {
         Toast.show({
           type: 'error',
           text1: 'Failed to add to cart',
           position: 'bottom',
-          bottomOffset: 30,
+          bottomOffset: 10,
         });
       }
     } catch (error) {
@@ -806,7 +806,7 @@ export function StoreScreen() {
         type: 'error',
         text1: 'Failed to add to cart',
         position: 'bottom',
-        bottomOffset: 30,
+        bottomOffset: 10,
       });
     }
   };
@@ -873,7 +873,7 @@ export function StoreScreen() {
         type: 'error',
         text1: "Error, couldn't delete cart item. Please retry.",
         position: 'bottom',
-        bottomOffset: 30,
+        bottomOffset: 10,
       });
     }
   };
@@ -894,7 +894,7 @@ export function StoreScreen() {
         type: 'error',
         text1: "Error, couldn't remove item from favorites, please retry.",
         position: 'bottom',
-        bottomOffset: 30,
+        bottomOffset: 10,
       });
     }
   };

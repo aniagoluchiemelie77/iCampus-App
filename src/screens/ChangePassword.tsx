@@ -80,103 +80,106 @@ export default function ChangePasswordScreen() {
       >
         <View style={SignupScreenStyles.container}>
           <View style={SignupScreenStyles.headerBtnsContainer}>
-            <Text style={SignupScreenStyles.activeTabText}>Forgot Password</Text>
+            <Text style={SignupScreenStyles.activeTabText}>
+              Forgot Password
+            </Text>
           </View>
           <View style={SignupScreenStyles.inputContainer}>
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={SignupScreenStyles.inputKAVContainer}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={SignupScreenStyles.inputKAVContainer}
             >
-                <Text style={SignupScreenStyles.inputHeader}>
-                    Enter your New Password:
+              <Text style={SignupScreenStyles.inputHeader}>
+                Enter your New Password:
+              </Text>
+              <View style={SignupScreenStyles.passwordContainer}>
+                <View style={SignupScreenStyles.passwordInputWrapper}>
+                  <TextInput
+                    placeholder="Password"
+                    placeholderTextColor="#000"
+                    style={SignupScreenStyles.passwordInput}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Icon
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={25}
+                      color="#000"
+                      style={SignupScreenStyles.passwordIcons}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {!isValidPassword(password) && password.length > 0 && (
+                  <Text style={SignupScreenStyles.validationText}>
+                    Password must be at least 13 characters and include
+                    uppercase, lowercase, number, and symbol.
+                  </Text>
+                )}
+              </View>
+              <View style={SignupScreenStyles.passwordContainer}>
+                <View style={SignupScreenStyles.passwordInputWrapper}>
+                  <TextInput
+                    placeholder="Confirm Password"
+                    placeholderTextColor="#000"
+                    style={SignupScreenStyles.passwordInput}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Icon
+                      name={showConfirmPassword ? 'eye-off' : 'eye'}
+                      size={25}
+                      color="#000"
+                      style={SignupScreenStyles.passwordIcons}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {confirmPassword.length > 0 && confirmPassword !== password && (
+                  <Text style={SignupScreenStyles.validationText}>
+                    Passwords do not match.
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={[
+                  SignupScreenStyles.toggleBtns,
+                  (!isValidPassword(password) ||
+                    confirmPassword !== password) &&
+                    SignupScreenStyles.disabledBtn,
+                ]}
+                onPress={handleChangePassword}
+                disabled={
+                  !isValidPassword(password) ||
+                  confirmPassword !== password ||
+                  isVerifying
+                }
+              >
+                <Text style={SignupScreenStyles.selectorHeader}>
+                  {isVerifying ? 'Changing...' : 'Change'}
                 </Text>
-                <View style={SignupScreenStyles.passwordContainer}>
-                    <View style={SignupScreenStyles.passwordInputWrapper}>
-                        <TextInput
-                            placeholder="Password"
-                            placeholderTextColor="#000"
-                            style={SignupScreenStyles.passwordInput}
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry={!showPassword}
-                        />
-                        <TouchableOpacity
-                            onPress={() => setShowPassword(!showPassword)}
-                        >
-                            <Icon
-                                name={showPassword ? 'eye-off' : 'eye'}
-                                size={25}
-                                color="#000"
-                                style={SignupScreenStyles.passwordIcons}
-                            />
-                        </TouchableOpacity>
-                    </View>
-                    {!isValidPassword(password) && password.length > 0 && (
-                        <Text style={SignupScreenStyles.validationText}>
-                            Password must be at least 13 characters and include uppercase, lowercase, number, and symbol.
-                        </Text>
-                    )}
-                </View>
-                <View style={SignupScreenStyles.passwordContainer}>
-                    <View style={SignupScreenStyles.passwordInputWrapper}>
-                        <TextInput
-                            placeholder="Confirm Password"
-                            placeholderTextColor="#000"
-                            style={SignupScreenStyles.passwordInput}
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            secureTextEntry={!showConfirmPassword}
-                        />
-                        <TouchableOpacity
-                            onPress={() =>
-                                setShowConfirmPassword(!showConfirmPassword)
-                            }
-                        >
-                            <Icon
-                                name={showConfirmPassword ? 'eye-off' : 'eye'}
-                                size={25}
-                                color="#000"
-                                style={SignupScreenStyles.passwordIcons}
-                            />
-                        </TouchableOpacity>
-                    </View>            
-                    {confirmPassword.length > 0 && confirmPassword !== password && (
-                        <Text style={SignupScreenStyles.validationText}>
-                            Passwords do not match.
-                        </Text>
-                    )}
-                </View>
-                <TouchableOpacity
-                    style={[
-                        SignupScreenStyles.toggleBtns,
-                        (!isValidPassword(password) ||
-                            confirmPassword !== password) &&
-                        SignupScreenStyles.disabledBtn,
-                    ]}
-                    onPress={handleChangePassword}
-                    disabled={
-                        !isValidPassword(password) || confirmPassword !== password || isVerifying
-                    }
-                >
-                    <Text style={SignupScreenStyles.selectorHeader}>
-                        {isVerifying ? 'Changing...' : 'Change'}
-                    </Text>
-                </TouchableOpacity>
-                <SweetAlertModal
-                    visible={alertVisible}
-                    onClose={() => setAlertVisible(false)}
-                    title={
-                        alertType === 'success'
-                            ? 'Success!'
-                        : alertType === 'error'
-                            ? 'Oops!'
-                        : alertType === 'warning'
-                            ? 'Warning!'
-                        : 'Notice'
-                    }
-                    message={alertMessage}
-                    type={alertType}
-                />
+              </TouchableOpacity>
+              <SweetAlertModal
+                visible={alertVisible}
+                onDismiss={() => setAlertVisible(false)}
+                title={
+                  alertType === 'success'
+                    ? 'Success!'
+                    : alertType === 'error'
+                    ? 'Oops!'
+                    : alertType === 'warning'
+                    ? 'Warning!'
+                    : 'Notice'
+                }
+                message={alertMessage}
+                type={alertType}
+              />
             </KeyboardAvoidingView>
           </View>
         </View>
