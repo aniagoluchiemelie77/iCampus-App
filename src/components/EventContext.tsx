@@ -43,7 +43,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [cartProducts, setCartProducts] = useState<Product[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [cart, setCart] = useState<string[]>([]);
+  const [cart] = useState<string[]>([]);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -78,22 +78,13 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   }, []);
 
   const fetchCartItems = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      const response = await fetch('http://192.168.1.98:5000/store/cart', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) throw new Error(`Status ${response.status}`);
-      const data = await response.json();
-      setCart(data.map((item: Product) => item.id));
-      setCartProducts(data);
-    } catch (error) {
-      console.error('Error fetching cart items:', error);
-    }
+    const token = await AsyncStorage.getItem('authToken');
+    const response = await fetch('http://192.168.1.98:5000/store/cart', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await response.json();
+    console.log(data);
+    setCartProducts(data);
   }, []);
 
   const toggleFavorite = async (productId: string) => {
@@ -133,7 +124,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       console.error('Error updating favorite count or storage:', error);
     }
   };
-
   useEffect(() => {
     fetchEvents();
     fetchFavorites();

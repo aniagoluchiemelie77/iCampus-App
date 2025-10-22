@@ -134,8 +134,12 @@ badge: {
     paddingBottom: 100,
   },
   popupContent2: {
-    padding: 10,
+    paddingHorizontal: 10,
     width: '100%',
+    flex: 1,
+    marginVertical: 15,
+    height: '100%',
+    paddingBottom: 30
   },
   viewCartItems: {
     padding: 10,
@@ -258,7 +262,7 @@ badge: {
     left: 0,
     right: 0,
     width: '100%',
-    height: '80%',
+    height: '90%',
     padding: 15,
     backgroundColor: '#eee',
     borderRadius: 12,
@@ -439,7 +443,7 @@ todayIndicatorText: {
   eventDescription2: {
     color: '#000',
     fontWeight: '700',
-    paddingVertical: 10,
+    paddingVertical: 5,
     width: '100%',
   },
   eventCardFooter: {
@@ -551,85 +555,130 @@ todayIndicatorText: {
   Add2CartBtn: {
     width: '80%',
     padding: 9,
-    backgroundColor: '#f54b02',
     alignItems: 'center',
     borderRadius: 10,
   },
   Add2CartBtnText: {
-    color: '#eee',
     fontWeight: '700'
   },
+cartItemLeftDiv: {
+  width: '70%',
+  height: '100%',
+  flexDirection: 'row',
+  zIndex: 2,
+},
+cartItemRightDiv: {
+  height: '100%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  flex: 1,
+},
   cartItem: {
-    width: '90%',
-    backgroundColor: '#fff',
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#abababff',
-    marginVertical: 7,
-    borderRadius: 10,
+    width: '100%',
+  backgroundColor: '#fff',
+  padding: 10,
+  borderWidth: 1,
+  borderColor: '#c0bebeff',
+  marginVertical: 7,
+  borderRadius: 10,
+  flexDirection: 'row',
+  height: 90,
+  position: 'relative',
+  zIndex: 1,
+  overflow: 'hidden',
     justifyContent: 'space-between',
-    flexDirection: 'row',
-    height: 90
   }, 
-  cartItemLeftDiv: {
-    width: '75%',
-    height: '100%',
-    flexDirection: 'row',
-  },
-  imageDiv: {
-    width: '60%',
-    height: '100%',
-    borderRadius: 10
-  },
-  notImageDiv: {
-    flex: 1,
-    paddingLeft: 7
-  },
-  cartItemRightDiv: {
-    flex: 1,
-    padding: 10
-  },
-  cartItemRightDivSubdiv: {
-    flexDirection: 'row',
-    padding: 10,
-    backgroundColor: '#eee'
-  },
-  hiddenRow: {
+   hiddenRow: {
     backgroundColor: '#f54b02',
     padding: 10,
     alignItems: 'center',
+    width: '100%', 
+    height: 90,
+    flexDirection: 'row',
+    justifyContent: 'flex-end', // aligns content to the right
+    borderRadius: 10,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    zIndex: 0,
+    marginVertical: 7,
+  },
+  imageDiv: {
+    width: '40%',
+    height: '100%',
+    borderRadius: 10,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  notImageDiv: {
+    flex: 1,
+    paddingLeft: 3,
     justifyContent: 'center',
-    width: '20%'
+  },
+  cartItemRightDivSubdiv: {
+    paddingVertical: 10,
+  },
+  cartItemRightDivSubdiv2: {
+    flexDirection: 'row',
+    backgroundColor: '#eee',
+    padding: 10,
+    borderRadius: 10,
+    width: '90%',
+    justifyContent: 'space-between',
+    gap: 5
+  },
+  cartItemRightDivText: {
+    marginTop: 3,
+    flexDirection: 'row',
+    fontWeight: '700',
+    backgroundColor: '#fff'
   },
   totalSection: {
-    width: '90%',
+    width: '100%',
+    flex: 1,
+    position: 'absolute',
+    bottom: 10,
+    backgroundColor: '#fff',
+    zIndex: 2,
+    padding: 13
   },
   totalSectionD1: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    padding: 10
   },
   totalLabel: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '700',
     color: "#000"
   },
   totalPrice: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   checkoutBtn: {
-    width: '90%',
+    width: '100%',
     backgroundColor: "#f54b02",
-    padding: 10,
+    padding: 20,
     borderRadius: 10,
   },
   checkoutText: {
-    color: '#eee'
+    color: '#eee',
+    fontWeight: '700',
+    alignSelf: 'center',
+    fontSize: 18,
   },
   totalPriceSign: {
     marginRight: 3
+  },
+  totalPriceValue: {
+    fontSize: 20,
+    fontWeight: '700'
   }
 });
 
@@ -953,6 +1002,11 @@ export const CalendarScreenStyles = StyleSheet.create({
 });
 
 export const SweetAlertPopupStyles = StyleSheet.create({
+  bckg: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   container: {
     backgroundColor: '#fff',
     padding: 25,

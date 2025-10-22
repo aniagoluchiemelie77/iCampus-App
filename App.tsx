@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; // ✅ Correct
 import { Provider } from 'react-redux';
 import type { Product } from './src/types/firebase';
-
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
   prefixes: ['icampus://'],
   config: {
@@ -13,7 +13,6 @@ const linking = {
     },
   },
 };
-
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 //import firestore from '@react-native-firebase/firestore';
@@ -116,65 +115,67 @@ const App = () => {
   }
 
   return (
-    <Provider store={store}>
-      <NavigationContainer linking={linking}>
-        <Stack.Navigator initialRouteName={initialRoute}>
-          <Stack.Screen
-            name="SignUp"
-            component={SignUpScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Welcome"
-            component={WelcomeScreen}
-            options={{
-              headerShown: false,
-              ...TransitionPresets.FadeFromRightAndroid,
-            }}
-          />
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ChangePasswordScreen"
-            component={ChangePasswordScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ForgotPasswordScreen"
-            component={ForgotPasswordScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Profile"
-            component={Profile}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={Settings}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Calender"
-            component={Calender}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="VerifyEmail"
-            component={VerifyEmail}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ProductDetails"
-            component={ProductDetails}
-            options={{ headerShown: false }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <NavigationContainer linking={linking}>
+          <Stack.Navigator initialRouteName={initialRoute}>
+            <Stack.Screen
+              name="SignUp"
+              component={SignUpScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Welcome"
+              component={WelcomeScreen}
+              options={{
+                headerShown: false,
+                ...TransitionPresets.FadeFromRightAndroid,
+              }}
+            />
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ChangePasswordScreen"
+              component={ChangePasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ForgotPasswordScreen"
+              component={ForgotPasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Profile"
+              component={Profile}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={Settings}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Calender"
+              component={Calender}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="VerifyEmail"
+              component={VerifyEmail}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProductDetails"
+              component={ProductDetails}
+              options={{ headerShown: false }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </Provider>
+    </GestureHandlerRootView>
   );
 };
 

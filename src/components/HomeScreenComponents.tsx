@@ -24,7 +24,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
-import { SwipeListView } from 'react-native-swipe-list-view';
+const SwipeRow = require('react-native-swipe-list-view').SwipeRow;
 import SweetAlertModal from './alertscomponent';
 import type {
   ProductCategoryList,
@@ -706,7 +706,6 @@ export function ClassroomScreen() {
 export function StoreScreen() {
   const user = useAppSelector(state => state.user);
   const {
-    cart,
     favorites,
     cartProducts,
     fetchFavorites,
@@ -733,11 +732,14 @@ export function StoreScreen() {
   const [showFavorites, setShowFavorites] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>(
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [quantities, setQuantities] = useState<{ [productId: string]: number }>(
+    {},
+  );
 
   const openFavoritesPopup = () => {
     setShowFavorites(true);
@@ -775,14 +777,19 @@ export function StoreScreen() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ productId: product.id }), // or product._id
+        body: JSON.stringify({ productId: product.productId }), // or product._id
       });
 
       if (res.ok) {
         setPressed(prev => ({
           ...prev,
-          [product.id]: true,
+          [product.productId]: true, // ✅ must match item.productId
         }));
+        await fetchCartItems();
+        Toast.show({
+          type: 'success',
+          text1: 'Product successfully added to cart',
+        });
       } else {
         Toast.show({ type: 'error', text1: 'Failed to add to cart' });
       }
@@ -794,42 +801,68 @@ export function StoreScreen() {
     const token = await AsyncStorage.getItem('authToken');
     await fetch(`http://192.168.1.98:5000/store/cart/increment`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ productId }),
     });
-    fetchCartItems(); // refresh cart
+
+    setQuantities(prev => ({
+      ...prev,
+      [productId]: (prev[productId] || 0) + 1,
+    }));
   };
 
   const decrement = async (productId: string) => {
+    const currentQty = quantities[productId] || 1;
+    if (currentQty <= 1) return; // ✅ prevent decrement below 1
+
     const token = await AsyncStorage.getItem('authToken');
     await fetch(`http://192.168.1.98:5000/store/cart/decrement`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ productId }),
     });
+
+    setQuantities(prev => ({
+      ...prev,
+      [productId]: currentQty - 1,
+    }));
+
     fetchCartItems();
   };
+
   const confirmDelete = (productId: string) => {
     setPendingDeleteId(productId);
-    setAlertType('warning');
+    setAlertType('info');
     setAlertMessage('Confirm delete cart item?');
     setAlertVisible(true);
   };
 
   const deleteItem = async (productId: string) => {
+    console.log('Deleting:', productId);
     const token = await AsyncStorage.getItem('authToken');
     await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ productId }),
     });
     fetchCartItems();
   };
-  const totalPoints = cartProducts.reduce((sum, product, _, arr) => {
-    const count = arr.filter(p => p._id === product._id).length;
-    const alreadyCounted = arr.findIndex(p => p._id === product._id) !== _;
-    return alreadyCounted ? sum : sum + product.priceInPoints * count;
-  }, 0);
+  const totalPoints =
+    cartProducts?.reduce((sum, item) => {
+      const quantity = quantities[item.productId] || 1;
+      return sum + item.priceInPoints * quantity;
+    }, 0) ?? 0;
+  console.log('User points:', user.pointsBalance);
+  console.log('Total points:', totalPoints);
 
   // Fetch categories
   useEffect(() => {
@@ -907,6 +940,15 @@ export function StoreScreen() {
 
     return () => clearInterval(interval);
   }, [products, fadeAnims]);
+  useEffect(() => {
+    if (!Array.isArray(cartProducts)) return;
+
+    const initialQuantities: { [productId: string]: number } = {};
+    cartProducts.forEach(item => {
+      initialQuantities[item.productId] = 1;
+    });
+    setQuantities(initialQuantities);
+  }, [cartProducts]);
 
   return (
     <LinearGradient
@@ -944,10 +986,10 @@ export function StoreScreen() {
             ]}
           >
             <MaterialIcons name="shopping-cart" size={28} color="#f54b02" />
-            {cart.length > 0 && (
+            {cartProducts.length > 0 && (
               <View style={HomeScreenComponentStyles.badge}>
                 <Text style={HomeScreenComponentStyles.badgeText}>
-                  {cart.length}
+                  {cartProducts.length}
                 </Text>
               </View>
             )}
@@ -1015,6 +1057,11 @@ export function StoreScreen() {
                   ? item.mediaUrls[imageIndexes[item.productId] || 0]
                   : item.mediaUrls[0];
 
+              const isFavorite = favorites.some(p => p._id === item._id);
+              const isInCart = cartProducts.some(
+                p => p.productId === item.productId,
+              );
+
               return (
                 <TouchableOpacity
                   onPress={() =>
@@ -1040,29 +1087,24 @@ export function StoreScreen() {
                       </View>
                     </View>
 
-                    {products.map(product => (
-                      <TouchableOpacity
-                        key={product._id}
-                        onPress={() => toggleFavorite(product._id ?? '')}
-                        style={[
-                          homeStyles.iconItem,
-                          HomeScreenComponentStyles.activityIcons3,
-                          HomeScreenComponentStyles.activityIcons2,
-                          HomeScreenComponentStyles.favoriteIcon,
-                        ]}
-                      >
-                        <MaterialIcons
-                          name={
-                            favorites.some(p => p._id === product._id)
-                              ? 'favorite'
-                              : 'favorite-border'
-                          }
-                          size={19}
-                          color="#f54b02"
-                        />
-                      </TouchableOpacity>
-                    ))}
+                    {/* Favorite Button */}
+                    <TouchableOpacity
+                      onPress={() => toggleFavorite(item._id ?? '')}
+                      style={[
+                        homeStyles.iconItem,
+                        HomeScreenComponentStyles.activityIcons3,
+                        HomeScreenComponentStyles.activityIcons2,
+                        HomeScreenComponentStyles.favoriteIcon,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={isFavorite ? 'favorite' : 'favorite-border'}
+                        size={19}
+                        color={pressed ? '#aaa' : '#f54b02'}
+                      />
+                    </TouchableOpacity>
 
+                    {/* Title */}
                     <Text
                       numberOfLines={1}
                       ellipsizeMode="tail"
@@ -1071,17 +1113,23 @@ export function StoreScreen() {
                       {item.title}
                     </Text>
 
+                    {/* Add to Cart Button */}
                     <TouchableOpacity
                       style={[
                         HomeScreenComponentStyles.Add2CartBtn,
-                        pressed[item.productId] && {
-                          backgroundColor: '#f54b02',
-                        },
+                        isInCart
+                          ? { backgroundColor: '#fff' }
+                          : { backgroundColor: '#f54b02' },
                       ]}
                       onPress={() => handleAddToCart(item)}
                     >
-                      <Text style={HomeScreenComponentStyles.Add2CartBtnText}>
-                        {pressed[item.productId] ? 'In Cart' : 'Add to Cart'}
+                      <Text
+                        style={[
+                          HomeScreenComponentStyles.Add2CartBtnText,
+                          isInCart ? { color: '#f54b02' } : { color: '#eee' },
+                        ]}
+                      >
+                        {isInCart ? 'In Cart' : 'Add to Cart'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1125,7 +1173,7 @@ export function StoreScreen() {
             <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
               <View style={HomeScreenComponentStyles.topHeader2}>
                 <Text style={HomeScreenComponentStyles.welcomeText2}>
-                  Cart Items
+                  Cart Items ({cartProducts.length})
                 </Text>
                 <TouchableOpacity
                   onPress={closePopup}
@@ -1141,107 +1189,151 @@ export function StoreScreen() {
               </View>
             </Animated.View>
 
-            <ScrollView
-              contentContainerStyle={HomeScreenComponentStyles.popupContent2}
-            >
-              <SwipeListView
+            <View style={HomeScreenComponentStyles.popupContent2}>
+              <FlatList
                 data={cartProducts}
-                keyExtractor={(item, index) =>
-                  item.productId ?? index.toString()
-                }
+                keyExtractor={item => item.productId}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingBottom: 100,
+                }}
                 renderItem={({ item }) => (
-                  <View style={HomeScreenComponentStyles.cartItem}>
-                    <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
-                      <View style={HomeScreenComponentStyles.imageDiv}>
-                        <Image
-                          source={{ uri: item.mediaUrls[0] }} // ✅ use the first image
-                          style={HomeScreenComponentStyles.productImage}
-                          resizeMode="cover"
-                        />
-                      </View>
-                      <View style={HomeScreenComponentStyles.notImageDiv}>
-                        <Text
-                          numberOfLines={2}
-                          ellipsizeMode="tail"
-                          style={HomeScreenComponentStyles.eventDescription2}
-                        >
-                          {item.title}
-                        </Text>
+                  <SwipeRow rightOpenValue={-45} disableRightSwipe>
+                    {/* Hidden row */}
+                    <View style={HomeScreenComponentStyles.hiddenRow}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          console.log('Delete btn pressed');
+                          confirmDelete(item.productId!);
+                        }}
+                      >
+                        <MaterialIcons name="delete" size={18} color="#eee" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Visible row */}
+                    <TouchableOpacity
+                      onPress={() =>
+                        navigation.navigate('ProductDetails', { product: item })
+                      }
+                    >
+                      <View style={HomeScreenComponentStyles.cartItem}>
+                        <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
+                          <View style={HomeScreenComponentStyles.imageDiv}>
+                            <Image
+                              source={{ uri: item.mediaUrls[0] }}
+                              style={HomeScreenComponentStyles.productImage}
+                              resizeMode="cover"
+                            />
+                          </View>
+                          <View style={HomeScreenComponentStyles.notImageDiv}>
+                            <Text
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                              style={
+                                HomeScreenComponentStyles.eventDescription2
+                              }
+                            >
+                              {item.title}
+                            </Text>
+                            <View
+                              style={HomeScreenComponentStyles.productPriceDiv2}
+                            >
+                              <MaterialIcons
+                                name="diamond"
+                                size={18}
+                                color="#000"
+                              />
+                              <Text
+                                style={HomeScreenComponentStyles.productPrice2}
+                              >
+                                {item.priceInPoints}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
                         <View
-                          style={HomeScreenComponentStyles.productPriceDiv2}
+                          style={HomeScreenComponentStyles.cartItemRightDiv}
                         >
-                          <MaterialIcons
-                            name="diamond"
-                            size={18}
-                            color="#000"
-                          />
-                          <Text style={HomeScreenComponentStyles.productPrice2}>
-                            {item.priceInPoints}
-                          </Text>
+                          <View
+                            style={
+                              HomeScreenComponentStyles.cartItemRightDivSubdiv
+                            }
+                          >
+                            <View
+                              style={
+                                HomeScreenComponentStyles.cartItemRightDivSubdiv2
+                              }
+                            >
+                              <TouchableOpacity
+                                onPress={() => {
+                                  console.log('Increment pressed');
+                                  increment(item.productId!);
+                                }}
+                              >
+                                <MaterialIcons
+                                  name="add"
+                                  size={18}
+                                  color="#f54b02"
+                                />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  console.log('Increment pressed');
+                                  decrement(item.productId!);
+                                }}
+                              >
+                                <MaterialIcons
+                                  name="remove"
+                                  size={18}
+                                  color="#f54b02"
+                                />
+                              </TouchableOpacity>
+                            </View>
+
+                            <Text
+                              style={
+                                HomeScreenComponentStyles.cartItemRightDivText
+                              }
+                            >
+                              Qty: {quantities[item.productId] || 1}
+                            </Text>
+                          </View>
                         </View>
                       </View>
-                    </View>
-                    <View style={HomeScreenComponentStyles.cartItemRightDiv}>
-                      <View
-                        style={HomeScreenComponentStyles.cartItemRightDivSubdiv}
-                      >
-                        {item.productId && (
-                          <>
-                            <TouchableOpacity
-                              onPress={() => increment(item.productId!)}
-                            >
-                              <MaterialIcons
-                                name="add"
-                                size={18}
-                                color="#f54b02"
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => decrement(item.productId!)}
-                            >
-                              <MaterialIcons
-                                name="remove"
-                                size={18}
-                                color="#f54b02"
-                              />
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                )}
-                renderHiddenItem={({ item }) => (
-                  <View style={HomeScreenComponentStyles.hiddenRow}>
-                    <TouchableOpacity
-                      onPress={() => confirmDelete(item.productId!)}
-                    >
-                      <MaterialIcons name="delete" size={18} color="#eee" />
                     </TouchableOpacity>
-                  </View>
+                  </SwipeRow>
                 )}
-                rightOpenValue={-75}
               />
-            </ScrollView>
+            </View>
             <View style={HomeScreenComponentStyles.totalSection}>
               <View style={HomeScreenComponentStyles.totalSectionD1}>
                 <Text style={HomeScreenComponentStyles.totalLabel}>Total:</Text>
-                <Text style={HomeScreenComponentStyles.totalPrice}>
+                <View style={HomeScreenComponentStyles.totalPrice}>
                   <MaterialIcons
                     name="diamond"
-                    size={20}
+                    size={24}
                     color="#000"
                     style={HomeScreenComponentStyles.totalPriceSign}
                   />
-                  {totalPoints}
-                </Text>
+                  <Text style={HomeScreenComponentStyles.totalPriceValue}>
+                    {totalPoints}
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity
-                style={HomeScreenComponentStyles.checkoutBtn}
+                style={[
+                  HomeScreenComponentStyles.checkoutBtn,
+                  totalPoints > user.pointsBalance && { opacity: 0.5 },
+                ]}
+                disabled={totalPoints > user.pointsBalance}
                 //onPress={handleCheckout}
               >
                 <Text style={HomeScreenComponentStyles.checkoutText}>
-                  Checkout
+                  {totalPoints > user.pointsBalance
+                    ? 'Insufficient Points Balance'
+                    : 'Checkout'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1291,13 +1383,15 @@ export function StoreScreen() {
           </View>
         </View>
       </Modal>
+
       <SweetAlertModal
         visible={alertVisible}
-        onClose={() => {
+        onDismiss={() => {
           setAlertVisible(false);
           setPendingDeleteId(null);
         }}
         onConfirm={() => {
+          console.log('Confirm pressed:', pendingDeleteId);
           if (pendingDeleteId) {
             deleteItem(pendingDeleteId);
             setAlertVisible(false);
@@ -1309,8 +1403,8 @@ export function StoreScreen() {
             ? 'Success!'
             : alertType === 'error'
             ? 'Oops!'
-            : alertType === 'warning'
-            ? 'Warning!'
+            : alertType === 'info'
+            ? 'Confirm action'
             : 'Notice'
         }
         message={alertMessage}
