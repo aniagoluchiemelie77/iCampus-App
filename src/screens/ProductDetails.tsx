@@ -6,12 +6,14 @@ import {
   FlatList,
   Image,
   Dimensions,
-  StyleSheet,
   TouchableOpacity,
 } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import type { Product, User } from '../types/firebase';
-import { CalendarScreenStyles } from '../assets/styles/colors';
+import {
+  CalendarScreenStyles,
+  ProductDetailsStyles,
+} from '../assets/styles/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 const { width } = Dimensions.get('window');
@@ -147,16 +149,16 @@ const ProductDetails = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={ProductDetailsStyles.container}>
       <CustomHeader
         title="Product Details"
         onBack={() => navigation.goBack()}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 80 }}
-        style={styles.container2}
+        style={ProductDetailsStyles.container2}
       >
-        <View style={styles.carouselContainer}>
+        <View style={ProductDetailsStyles.carouselContainer}>
           <FlatList
             ref={flatListRef}
             data={product.mediaUrls}
@@ -166,61 +168,79 @@ const ProductDetails = () => {
             keyExtractor={(item, index) => index.toString()}
             onScroll={handleScroll}
             renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.image} />
+              <Image
+                source={{ uri: item }}
+                style={ProductDetailsStyles.image}
+              />
             )}
           />
-          <Text style={styles.counter}>
+          <Text style={ProductDetailsStyles.counter}>
             {currentIndex + 1}/{product.mediaUrls.length}
           </Text>
         </View>
-        <View style={styles.titleDiv}>
-          <View style={styles.titleDivLeftDiv}>
-            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+        <View style={ProductDetailsStyles.titleDiv}>
+          <View style={ProductDetailsStyles.titleDivLeftDiv}>
+            <Text
+              style={ProductDetailsStyles.name}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
               {product.title}
             </Text>
 
             {product.description ? (
-              <Text style={styles.description}>{product.description}</Text>
+              <Text style={ProductDetailsStyles.description}>
+                {product.description}
+              </Text>
             ) : null}
             {product.location ? (
-              <View style={styles.locationInfo}>
-                <Icon name="location-on" size={20} color="#f54b02" />
-                <Text style={styles.location}>{product.location}</Text>
+              <View style={ProductDetailsStyles.locationInfo}>
+                <Icon name="location-outline" size={20} color="#f54b02" />
+                <Text style={ProductDetailsStyles.location}>
+                  {product.location}
+                </Text>
               </View>
             ) : null}
 
-            <Text style={styles.category}>{product.category}</Text>
+            <Text style={ProductDetailsStyles.category}>
+              {product.category}
+            </Text>
           </View>
 
-          <View style={styles.titleDivRightDiv}>
-            <View style={styles.titleDivRightDivSubdiv}>
+          <View style={ProductDetailsStyles.titleDivRightDiv}>
+            <View style={ProductDetailsStyles.titleDivRightDivSubdiv}>
               <Icon name="diamond-outline" size={25} color="#f54b02" />
-              <Text style={styles.price}>{product.priceInPoints}</Text>
+              <Text style={ProductDetailsStyles.price}>
+                {product.priceInPoints}
+              </Text>
             </View>
           </View>
         </View>
-        <View style={styles.sizeAndColorsDiv}>
+        <View style={ProductDetailsStyles.sizeAndColorsDiv}>
           {(hasSizes || hasColors) && (
-            <View style={styles.sizeAndColorsDiv}>
+            <View style={ProductDetailsStyles.sizeAndColorsDiv}>
               {hasSizes && (
                 <View
                   style={[
-                    styles.sizeDiv,
+                    ProductDetailsStyles.sizeDiv,
                     { width: hasColors ? '46%' : '100%' },
                   ]}
                 >
-                  <Text style={styles.label}>Sizes</Text>
-                  <View style={styles.colorSelectorsDiv}>
+                  <Text style={ProductDetailsStyles.label}>Sizes</Text>
+                  <View style={ProductDetailsStyles.colorSelectorsDiv}>
                     {product.sizes?.map((size, index) => (
                       <TouchableOpacity
                         key={index}
                         style={[
-                          styles.option,
-                          selectedSize === size && styles.selectedOption,
+                          ProductDetailsStyles.option,
+                          selectedSize === size &&
+                            ProductDetailsStyles.selectedOption,
                         ]}
                         onPress={() => setSelectedSize(size)}
                       >
-                        <Text style={styles.optionText}>{size}</Text>
+                        <Text style={ProductDetailsStyles.optionText}>
+                          {size}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -230,19 +250,20 @@ const ProductDetails = () => {
               {hasColors && (
                 <View
                   style={[
-                    styles.colorsDiv,
+                    ProductDetailsStyles.colorsDiv,
                     { width: hasSizes ? '46%' : '100%' },
                   ]}
                 >
-                  <Text style={styles.label}>Colors</Text>
-                  <View style={styles.colorSelectorsDiv}>
+                  <Text style={ProductDetailsStyles.label}>Colors</Text>
+                  <View style={ProductDetailsStyles.colorSelectorsDiv}>
                     {product.colors?.map((color, index) => (
                       <TouchableOpacity
                         key={index}
                         style={[
-                          styles.optionColor,
+                          ProductDetailsStyles.optionColor,
                           { backgroundColor: color },
-                          selectedColor === color && styles.selectedOption,
+                          selectedColor === color &&
+                            ProductDetailsStyles.selectedOption,
                         ]}
                         onPress={() => setSelectedColor(color)}
                       />
@@ -254,18 +275,23 @@ const ProductDetails = () => {
           )}
         </View>
         {product.type === 'File' && product.fileUrl && (
-          <View style={styles.fileInfoContainer}>
-            <View style={styles.fileInfoContainerLeftDiv}>
-              <Text style={styles.fileInfoText}>
+          <View style={ProductDetailsStyles.fileInfoContainer}>
+            <View style={ProductDetailsStyles.fileInfoContainerLeftDiv}>
+              <Text style={ProductDetailsStyles.fileInfoText}>
                 File Format:{' '}
                 {product.fileUrl.split('.').pop()?.toUpperCase() || 'UNKNOWN'}
               </Text>
             </View>
-            <View style={styles.fileInfoContainerRightDiv}>
-              <Text style={styles.fileInfoText2}>
+            <View style={ProductDetailsStyles.fileInfoContainerRightDiv}>
+              <Text style={ProductDetailsStyles.fileInfoText2}>
                 File size: {product.fileSizeInMB} MB
               </Text>
-              <Text style={[styles.fileInfoText2, styles.secondText]}>
+              <Text
+                style={[
+                  ProductDetailsStyles.fileInfoText2,
+                  ProductDetailsStyles.secondText,
+                ]}
+              >
                 Download Count:{' '}
                 {formatDownloadCount(product.downloadCount ?? 0)}
               </Text>
@@ -274,9 +300,11 @@ const ProductDetails = () => {
         )}
 
         {!loadingSeller && seller && (
-          <View style={styles.sellerCard}>
-            <View style={styles.sellerTitleDiv}>
-              <Text style={styles.sellerTitle}>Seller Details</Text>
+          <View style={ProductDetailsStyles.sellerCard}>
+            <View style={ProductDetailsStyles.sellerTitleDiv}>
+              <Text style={ProductDetailsStyles.sellerTitle}>
+                Seller Details
+              </Text>
               <TouchableOpacity
                 onPress={() =>
                   navigation2.navigate('ProductSellerScreen', {
@@ -291,31 +319,35 @@ const ProductDetails = () => {
                 />
               </TouchableOpacity>
             </View>
-            <View style={styles.sellerInfo}>
+            <View style={ProductDetailsStyles.sellerInfo}>
               <Image
                 source={{ uri: seller.profilePic }}
-                style={styles.sellerAvatar}
+                style={ProductDetailsStyles.sellerAvatar}
               />
-              <View style={styles.sellerDetailsDiv}>
-                <Text style={styles.sellerName}>
+              <View style={ProductDetailsStyles.sellerDetailsDiv}>
+                <Text style={ProductDetailsStyles.sellerName}>
                   {seller.firstname} {seller.lastname}
                 </Text>
-                <View style={styles.sideBySide}>
+                <View style={ProductDetailsStyles.sideBySide}>
                   <Icon name="mail-outline" size={20} color="#f54b02" />
-                  <Text style={styles.sellerEmail}>{seller.email}</Text>
+                  <Text style={ProductDetailsStyles.sellerEmail}>
+                    {seller.email}
+                  </Text>
                 </View>
-                <View style={styles.sideBySide}>
+                <View style={ProductDetailsStyles.sideBySide}>
                   <Icon name="call-outline" size={20} color="#f54b02" />
-                  <Text style={styles.sellerPhone}>{seller.phone_number}</Text>
+                  <Text style={ProductDetailsStyles.sellerPhone}>
+                    {seller.phone_number}
+                  </Text>
                 </View>
               </View>
             </View>
           </View>
         )}
         {!loadingOthers && otherProducts.length > 0 && (
-          <View style={styles.otherProductsContainer}>
+          <View style={ProductDetailsStyles.otherProductsContainer}>
             {seller && (
-              <Text style={styles.otherProductsTitle}>
+              <Text style={ProductDetailsStyles.otherProductsTitle}>
                 More from {seller.firstname} {seller.lastname}
               </Text>
             )}
@@ -326,22 +358,22 @@ const ProductDetails = () => {
                   onPress={() =>
                     navigation2.push('ProductDetails', { product: item })
                   }
-                  style={styles.otherProductCard}
+                  style={ProductDetailsStyles.otherProductCard}
                 >
                   <Image
                     source={{ uri: item.mediaUrls[0] }}
-                    style={styles.otherProductImage}
+                    style={ProductDetailsStyles.otherProductImage}
                   />
                   <Text
-                    style={styles.otherProductTitle}
+                    style={ProductDetailsStyles.otherProductTitle}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
                     {item.title}
                   </Text>
-                  <View style={styles.otherProductsPriceDivInfo}>
+                  <View style={ProductDetailsStyles.otherProductsPriceDivInfo}>
                     <Icon name="diamond-outline" size={20} color="#f54b02" />
-                    <Text style={styles.otherProductPrice}>
+                    <Text style={ProductDetailsStyles.otherProductPrice}>
                       {item.priceInPoints}
                     </Text>
                   </View>
@@ -351,14 +383,14 @@ const ProductDetails = () => {
           </View>
         )}
       </ScrollView>
-      <View style={styles.footer}>
-        <View style={styles.leftFooter}>
-          <TouchableOpacity style={styles.footerBtn}>
-            <Text style={styles.footerBtnText}>Checkout</Text>
+      <View style={ProductDetailsStyles.footer}>
+        <View style={ProductDetailsStyles.leftFooter}>
+          <TouchableOpacity style={ProductDetailsStyles.footerBtn}>
+            <Text style={ProductDetailsStyles.footerBtnText}>Checkout</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.rightFooter}>
-          <TouchableOpacity style={styles.footerBtn}>
+        <View style={ProductDetailsStyles.rightFooter}>
+          <TouchableOpacity style={ProductDetailsStyles.footerBtn}>
             <MaterialIcons name="shopping-cart" size={20} color="#eee" />
           </TouchableOpacity>
         </View>
@@ -367,296 +399,6 @@ const ProductDetails = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#eee',
-    flex: 1,
-    position: 'relative',
-  },
-  container2: {
-    padding: 6,
-  },
-  image: {
-    width: Dimensions.get('window').width,
-    height: 450,
-    resizeMode: 'cover',
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000',
-  },
-  description: {
-    fontSize: 15,
-    color: '#000',
-    paddingVertical: 10,
-  },
-  price: {
-    fontSize: 20,
-    color: '#f54b02',
-    fontWeight: '700',
-    marginLeft: 2,
-  },
-  carouselContainer: { position: 'relative', borderRadius: 10 },
-  counter: {
-    position: 'absolute',
-    bottom: 15,
-    right: 15,
-    backgroundColor: '#fff',
-    color: '#f54b02',
-    padding: 15,
-    borderRadius: 20,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  titleDiv: {
-    width: '100%',
-    flexDirection: 'row',
-    padding: 15,
-    backgroundColor: '#fff',
-  },
-  titleDivLeftDiv: {
-    width: '70%',
-  },
-  category: {
-    fontSize: 12,
-    color: '#8a8989ff',
-    paddingTop: 7,
-  },
-  location: {
-    fontSize: 12,
-    color: '#8a8989ff',
-    marginRight: 4,
-  },
-  titleDivRightDiv: {
-    flex: 1,
-  },
-  titleDivRightDivSubdiv: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    width: '100%',
-  },
-  sizeAndColorsDiv: {
-    flexDirection: 'row',
-    marginVertical: 5,
-    width: '100%',
-  },
-  sizeDiv: {
-    padding: 15,
-    margin: 7,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  colorsDiv: {
-    padding: 15,
-    margin: 7,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  option: {
-    borderRadius: 10,
-    backgroundColor: '#eee',
-    marginRight: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 46,
-    height: 46,
-  },
-  optionColor: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    marginRight: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorSelectorsDiv: {
-    marginTop: 7,
-    flexDirection: 'row',
-    alignSelf: 'center',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#000',
-  },
-  label: {
-    fontWeight: 'bold',
-    marginBottom: 10,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  selectedOption: {
-    borderWidth: 2,
-    borderColor: '#f54b02',
-  },
-  sellerCard: {
-    marginVertical: 5,
-    padding: 15,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  sellerTitleDiv: {
-    padding: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sellerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#000',
-  },
-  sellerInfo: {
-    flexDirection: 'row',
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  otherProductsPriceDivInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    justifyContent: 'flex-end',
-    padding: 6,
-  },
-  sellerAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 10,
-  },
-  sellerDetailsDiv: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  sellerName: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sideBySide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sellerEmail: {
-    fontSize: 13,
-    color: '#555',
-    marginLeft: 4,
-  },
-  sellerPhone: {
-    fontSize: 13,
-    color: '#555',
-    marginLeft: 4,
-  },
-  sellerDept: {
-    fontSize: 13,
-    color: '#777',
-  },
-  footer: {
-    width: '100%',
-    position: 'absolute',
-    bottom: 0,
-    backgroundColor: '#fff',
-    padding: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 70,
-  },
-  leftFooter: {
-    width: '76%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rightFooter: {
-    flex: 1,
-    marginLeft: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerBtn: {
-    padding: 10,
-    backgroundColor: '#f54b02',
-    borderRadius: 10,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerBtnText: {
-    fontWeight: '700',
-    color: '#eee',
-  },
-  fileInfoContainer: {
-    marginVertical: 5,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    padding: 10,
-  },
-  fileInfoText: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '600',
-  },
-  fileInfoText2: {
-    fontSize: 14,
-    color: '#000',
-    padding: 10,
-  },
-  fileInfoContainerLeftDiv: {
-    width: '50%',
-    padding: 10,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fileInfoContainerRightDiv: {
-    alignItems: 'flex-start',
-  },
-  secondText: {
-    backgroundColor: '#eee',
-    padding: 10,
-  },
-  otherProductsContainer: {
-    marginVertical: 10,
-    backgroundColor: '#fff',
-    padding: 10,
-  },
-  otherProductsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-    padding: 10,
-  },
-  otherProductCard: {
-    width: 170,
-    marginRight: 13,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#eee',
-    paddingVertical: 3,
-  },
-  otherProductImage: {
-    width: 160,
-    height: 160,
-    borderRadius: 10,
-  },
-  otherProductTitle: {
-    fontSize: 13,
-    padding: 7,
-    fontWeight: '700',
-    width: '100%',
-    justifyContent: 'flex-start',
-  },
-  otherProductPrice: {
-    fontSize: 13,
-    color: '#f54b02',
-    fontWeight: '700',
-    marginLeft: 3,
-  },
-});
+
 
 export default ProductDetails;

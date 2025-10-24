@@ -25,7 +25,6 @@ import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 const SwipeRow = require('react-native-swipe-list-view').SwipeRow;
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type {
   ProductCategoryList,
   CalendarEvent,
@@ -970,6 +969,7 @@ export function StoreScreen() {
 
     return () => clearInterval(interval);
   }, [products, fadeAnims]);
+
   useEffect(() => {
     if (!Array.isArray(cartProducts)) return;
 
@@ -1046,34 +1046,38 @@ export function StoreScreen() {
         <ScrollView
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={HomeScreenComponentStyles.storeCategoriesDiv}
+          horizontal
         >
-          {['All', ...categories].map(cat => {
-            const categoryName =
-              typeof cat === 'string' ? cat : cat.categoryName;
-            const categoryId =
-              typeof cat === 'string' ? 'all' : String(cat.categoryName).trim();
-            const isActive = selectedCategory === categoryId;
+          <View style={HomeScreenComponentStyles.storeCategoriesDivSubdiv}>
+            {['All', 'Popular', ...categories].map(cat => {
+              const categoryName =
+                typeof cat === 'string' ? cat : cat.categoryName;
+              const categoryId =
+                typeof cat === 'string'
+                  ? cat.toLowerCase()
+                  : String(cat.categoryName).trim().toLowerCase();
+              const isActive = selectedCategory === categoryId;
 
-            return (
-              <TouchableOpacity
-                key={categoryId}
-                style={[
-                  HomeScreenComponentStyles.tabItem,
-                  isActive && HomeScreenComponentStyles.activeTab,
-                ]}
-                onPress={() => {
-                  setSelectedCategory(categoryId);
-                  setPage(0);
-                }}
-              >
-                <Text style={HomeScreenComponentStyles.tabLabel}>
-                  {categoryName}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+              return (
+                <TouchableOpacity
+                  key={categoryId}
+                  style={[
+                    HomeScreenComponentStyles.tabItem,
+                    isActive && HomeScreenComponentStyles.activeTab,
+                  ]}
+                  onPress={() => {
+                    setSelectedCategory(categoryId);
+                    setPage(0);
+                  }}
+                >
+                  <Text style={HomeScreenComponentStyles.tabLabel}>
+                    {categoryName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </ScrollView>
-
         {loading ? (
           <ActivityIndicator size="large" color="#f54b02" />
         ) : (
@@ -1100,72 +1104,68 @@ export function StoreScreen() {
                   onPress={() =>
                     navigation.navigate('ProductDetails', { product: item })
                   }
+                  style={HomeScreenComponentStyles.productCard}
                 >
-                  <View style={HomeScreenComponentStyles.productCard}>
-                    <View style={HomeScreenComponentStyles.productImageDiv}>
-                      <Animated.View
-                        style={{ opacity: fadeAnims[item.productId] }}
-                      >
-                        <Image
-                          source={{ uri: imageUrl }}
-                          style={HomeScreenComponentStyles.productImage}
-                          resizeMode="cover"
-                        />
-                      </Animated.View>
-                      <View style={HomeScreenComponentStyles.productPriceDiv}>
-                        <MaterialIcons name="diamond" size={18} color="#eee" />
-                        <Text style={HomeScreenComponentStyles.productPrice}>
-                          {item.priceInPoints}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Favorite Button */}
-                    <TouchableOpacity
-                      onPress={() => toggleFavorite(item.productId ?? '')}
-                      style={[
-                        homeStyles.iconItem,
-                        HomeScreenComponentStyles.activityIcons3,
-                        HomeScreenComponentStyles.activityIcons2,
-                        HomeScreenComponentStyles.favoriteIcon,
-                      ]}
+                  <View style={HomeScreenComponentStyles.productImageDiv}>
+                    <Animated.View
+                      style={{ opacity: fadeAnims[item.productId] }}
                     >
-                      <MaterialIcons
-                        name={isFavorite ? 'favorite' : 'favorite-border'}
-                        size={19}
-                        color={pressed ? '#f54b02' : '#f54b02'}
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={HomeScreenComponentStyles.productImage}
+                        resizeMode="cover"
                       />
-                    </TouchableOpacity>
-
-                    {/* Title */}
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={HomeScreenComponentStyles.productTitle}
-                    >
-                      {item.title}
-                    </Text>
-
-                    {/* Add to Cart Button */}
-                    <TouchableOpacity
-                      style={[
-                        HomeScreenComponentStyles.Add2CartBtn,
-                        isInCart
-                          ? { backgroundColor: '#fff' }
-                          : { backgroundColor: '#f54b02' },
-                      ]}
-                      onPress={() => handleAddToCart(item)}
-                    >
-                      <Text
-                        style={[
-                          HomeScreenComponentStyles.Add2CartBtnText,
-                          isInCart ? { color: '#f54b02' } : { color: '#eee' },
-                        ]}
-                      >
-                        {isInCart ? 'In Cart' : 'Add to Cart'}
+                    </Animated.View>
+                    <View style={HomeScreenComponentStyles.productPriceDiv}>
+                      <MaterialIcons name="diamond" size={18} color="#eee" />
+                      <Text style={HomeScreenComponentStyles.productPrice}>
+                        {item.priceInPoints}
                       </Text>
-                    </TouchableOpacity>
+                    </View>
                   </View>
+                  {/* Favorite Button */}
+                  <TouchableOpacity
+                    onPress={() => toggleFavorite(item.productId ?? '')}
+                    style={[
+                      homeStyles.iconItem,
+                      HomeScreenComponentStyles.activityIcons3,
+                      HomeScreenComponentStyles.activityIcons2,
+                      HomeScreenComponentStyles.favoriteIcon,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={isFavorite ? 'favorite' : 'favorite-border'}
+                      size={19}
+                      color={pressed ? '#f54b02' : '#f54b02'}
+                    />
+                  </TouchableOpacity>
+                  {/* Title */}
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={HomeScreenComponentStyles.productTitle}
+                  >
+                    {item.title}
+                  </Text>
+                  {/* Add to Cart Button */}
+                  <TouchableOpacity
+                    style={[
+                      HomeScreenComponentStyles.Add2CartBtn,
+                      isInCart
+                        ? { backgroundColor: '#fff' }
+                        : { backgroundColor: '#f54b02' },
+                    ]}
+                    onPress={() => handleAddToCart(item)}
+                  >
+                    <Text
+                      style={[
+                        HomeScreenComponentStyles.Add2CartBtnText,
+                        isInCart ? { color: '#f54b02' } : { color: '#eee' },
+                      ]}
+                    >
+                      {isInCart ? 'In Cart' : 'Add to Cart'}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             }}
@@ -1235,128 +1235,122 @@ export function StoreScreen() {
                     rightOpenValue={50}
                     disableRightSwipe={false}
                     disableLeftSwipe={true}
-                    onRowOpen={(direction: 'left' | 'right') => {
+                    onRowDidOpen={(direction: 'left' | 'right') => {
                       console.log('Swipped:', direction);
                       if (direction === 'right') {
                         deleteItem(item.productId!);
                       }
                     }}
                   >
-                    <GestureDetector
-                      gesture={Gesture.Pan().onEnd(event => {
-                        if (event.translationX > 50) {
-                          console.log('Swiped right:', item.productId);
-                          //deleteItem(item.productId);
-                        }
-                      })}
+                    <View style={{ height: 0 }} />
+                    <TouchableOpacity
+                      onPress={() =>
+                        navigation.navigate('ProductDetails', {
+                          product: item,
+                        })
+                      }
                     >
-                      <Animated.View>
-                        <View style={{ height: 0 }} />
-                        <TouchableOpacity
-                          onPress={() =>
-                            navigation.navigate('ProductDetails', {
-                              product: item,
-                            })
-                          }
-                        >
-                          <View style={HomeScreenComponentStyles.cartItem}>
-                            <View
-                              style={HomeScreenComponentStyles.cartItemLeftDiv}
+                      <View style={HomeScreenComponentStyles.cartItem}>
+                        <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
+                          <View style={HomeScreenComponentStyles.imageDiv}>
+                            <Image
+                              source={{ uri: item.mediaUrls[0] }}
+                              style={HomeScreenComponentStyles.productImage}
+                              resizeMode="cover"
+                            />
+                          </View>
+                          <View style={HomeScreenComponentStyles.notImageDiv}>
+                            <Text
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                              style={
+                                HomeScreenComponentStyles.eventDescription2
+                              }
                             >
-                              <View style={HomeScreenComponentStyles.imageDiv}>
-                                <Image
-                                  source={{ uri: item.mediaUrls[0] }}
-                                  style={HomeScreenComponentStyles.productImage}
-                                  resizeMode="cover"
-                                />
-                              </View>
-                              <View
-                                style={HomeScreenComponentStyles.notImageDiv}
-                              >
-                                <Text
-                                  numberOfLines={1}
-                                  ellipsizeMode="tail"
-                                  style={
-                                    HomeScreenComponentStyles.eventDescription2
-                                  }
-                                >
-                                  {item.title}
-                                </Text>
-                                <View
-                                  style={
-                                    HomeScreenComponentStyles.productPriceDiv2
-                                  }
-                                >
-                                  <MaterialIcons
-                                    name="diamond"
-                                    size={18}
-                                    color="#000"
-                                  />
-                                  <Text
-                                    style={
-                                      HomeScreenComponentStyles.productPrice2
-                                    }
-                                  >
-                                    {item.priceInPoints}
-                                  </Text>
-                                </View>
-                              </View>
-                            </View>
-
+                              {item.title}
+                            </Text>
                             <View
-                              style={HomeScreenComponentStyles.cartItemRightDiv}
+                              style={HomeScreenComponentStyles.productPriceDiv2}
                             >
-                              <View
-                                style={
-                                  HomeScreenComponentStyles.cartItemRightDivSubdiv
-                                }
+                              <MaterialIcons
+                                name="diamond"
+                                size={18}
+                                color="#000"
+                              />
+                              <Text
+                                style={HomeScreenComponentStyles.productPrice2}
                               >
-                                <View
-                                  style={
-                                    HomeScreenComponentStyles.cartItemRightDivSubdiv2
-                                  }
-                                >
-                                  <TouchableOpacity
-                                    onPress={() => {
-                                      console.log('Increment pressed');
-                                      increment(item.productId!);
-                                    }}
-                                  >
-                                    <MaterialIcons
-                                      name="add"
-                                      size={18}
-                                      color="#f54b02"
-                                    />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    onPress={() => {
-                                      console.log('Increment pressed');
-                                      decrement(item.productId!);
-                                    }}
-                                  >
-                                    <MaterialIcons
-                                      name="remove"
-                                      size={18}
-                                      color="#f54b02"
-                                    />
-                                  </TouchableOpacity>
-                                </View>
-
-                                <Text
-                                  style={
-                                    HomeScreenComponentStyles.cartItemRightDivText
-                                  }
-                                >
-                                  Qty: {quantities[item.productId] || 1}
-                                </Text>
-                              </View>
+                                {item.priceInPoints}
+                              </Text>
                             </View>
                           </View>
-                        </TouchableOpacity>
-                      </Animated.View>
-                    </GestureDetector>
+                        </View>
+
+                        <View
+                          style={HomeScreenComponentStyles.cartItemRightDiv}
+                        >
+                          <View
+                            style={
+                              HomeScreenComponentStyles.cartItemRightDivSubdiv
+                            }
+                          >
+                            <View
+                              style={
+                                HomeScreenComponentStyles.cartItemRightDivSubdiv2
+                              }
+                            >
+                              <TouchableOpacity
+                                onPress={() => {
+                                  console.log('Increment pressed');
+                                  increment(item.productId!);
+                                }}
+                              >
+                                <MaterialIcons
+                                  name="add"
+                                  size={18}
+                                  color="#f54b02"
+                                />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  console.log('Increment pressed');
+                                  decrement(item.productId!);
+                                }}
+                              >
+                                <MaterialIcons
+                                  name="remove"
+                                  size={18}
+                                  color="#f54b02"
+                                />
+                              </TouchableOpacity>
+                            </View>
+
+                            <Text
+                              style={
+                                HomeScreenComponentStyles.cartItemRightDivText
+                              }
+                            >
+                              Qty: {quantities[item.productId] || 1}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
                   </SwipeRow>
                 )}
+                ListEmptyComponent={
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 17, color: '#888' }}>
+                      Cart is empty
+                    </Text>
+                  </View>
+                }
               />
             </View>
             <View style={HomeScreenComponentStyles.totalSection}>
@@ -1497,6 +1491,19 @@ export function StoreScreen() {
                     </SwipeRow>
                   );
                 }}
+                ListEmptyComponent={
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 17, color: '#888' }}>
+                      No product marked as favorite.
+                    </Text>
+                  </View>
+                }
               />
             </View>
           </View>

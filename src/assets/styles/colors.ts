@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 
 export const HomeScreenComponentStyles = StyleSheet.create({
   bckg: {
@@ -57,6 +57,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
     width: '93%',
+    height: 'auto',
     borderRadius: 15,
     flex: 1,
     margin: 7,
@@ -83,10 +84,16 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   storeCategoriesDiv: {
-    paddingTop: 20,
-    flexDirection: 'row',
+    padding: 8,
     alignItems: 'center',
-    paddingBottom: 80
+    height: 60,
+    flexDirection: 'row',         
+    justifyContent: 'center',
+    marginBottom: 40
+  },
+  storeCategoriesDivSubdiv: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   tabItem: {
     paddingVertical: 8,
@@ -191,6 +198,7 @@ badge: {
     borderRadius: 15,
     paddingHorizontal: 10,
     height: 42,
+    marginBottom: 10
   },
   icon: {
     marginRight: 8,
@@ -470,7 +478,7 @@ todayIndicatorText: {
   },
   productList: {
   marginVertical: 2,
-  paddingBottom: 50,
+  paddingBottom: 10,
   width: '100%'
 },
  productCard: {
@@ -481,6 +489,7 @@ todayIndicatorText: {
   alignItems: 'center',
   justifyContent: 'flex-start',
   backgroundColor: '#eee',
+  overflow: 'hidden'
 },
   productImage: {
     height: '100%',
@@ -490,15 +499,18 @@ todayIndicatorText: {
     resizeMode: 'cover',
   },
    productImageDiv: {
-    height: 160,
-    width: '100%',
+    height: 170,
     borderRadius: 10,
     position: 'relative',
-    alignItems: 'flex-end'
+    alignSelf: 'center',
+    width: '100%', 
+    alignItems: 'center', // center the image horizontally
+    justifyContent: 'center',
+    
   },
   productTitle: {
-    paddingHorizontal: 5,
-    paddingVertical: 15,
+    paddingHorizontal: 8,
+    paddingVertical: 11,
     width: '100%',
     fontWeight: '700',
     color: '#000',
@@ -511,8 +523,8 @@ todayIndicatorText: {
     alignItems: 'center',
     borderRadius: 20,
     position: 'absolute',
-    bottom: -20,
-    right: 10,
+    bottom: 5,
+    right: 5,
     backgroundColor: '#f54b02'
   },
   productPriceDiv2: {
@@ -1041,3 +1053,295 @@ export const ToastPopupStyles = StyleSheet.create({
     color: '#000',
   }
 })
+
+export const ProductDetailsStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#eee',
+    flex: 1,
+    position: 'relative',
+  },
+  container2: {
+    padding: 6,
+  },
+  image: {
+    width: Dimensions.get('window').width,
+    height: 450,
+    resizeMode: 'cover',
+  },
+  name: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+  },
+  description: {
+    fontSize: 15,
+    color: '#000',
+    paddingVertical: 10,
+  },
+  price: {
+    fontSize: 20,
+    color: '#f54b02',
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  carouselContainer: { position: 'relative', borderRadius: 10 },
+  counter: {
+    position: 'absolute',
+    bottom: 15,
+    right: 15,
+    backgroundColor: '#fff',
+    color: '#f54b02',
+    padding: 15,
+    borderRadius: 20,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  titleDiv: {
+    width: '100%',
+    flexDirection: 'row',
+    padding: 15,
+    backgroundColor: '#fff',
+  },
+  titleDivLeftDiv: {
+    width: '70%',
+  },
+  category: {
+    fontSize: 12,
+    color: '#8a8989ff',
+    paddingTop: 7,
+  },
+  location: {
+    fontSize: 12,
+    color: '#8a8989ff',
+    marginRight: 4,
+  },
+  titleDivRightDiv: {
+    flex: 1,
+  },
+  titleDivRightDivSubdiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    width: '100%',
+  },
+  sizeAndColorsDiv: {
+    flexDirection: 'row',
+    marginVertical: 5,
+    width: '100%',
+  },
+  sizeDiv: {
+    padding: 15,
+    margin: 7,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  colorsDiv: {
+    padding: 15,
+    margin: 7,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  option: {
+    borderRadius: 10,
+    backgroundColor: '#eee',
+    marginRight: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 46,
+    height: 46,
+  },
+  optionColor: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    marginRight: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorSelectorsDiv: {
+    marginTop: 7,
+    flexDirection: 'row',
+    alignSelf: 'center',
+  },
+  optionText: {
+    fontSize: 14,
+    color: '#000',
+  },
+  label: {
+    fontWeight: 'bold',
+    marginBottom: 10,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  selectedOption: {
+    borderWidth: 2,
+    borderColor: '#f54b02',
+  },
+  sellerCard: {
+    marginVertical: 5,
+    padding: 15,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  sellerTitleDiv: {
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sellerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+    color: '#000',
+  },
+  sellerInfo: {
+    flexDirection: 'row',
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  otherProductsPriceDivInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    justifyContent: 'flex-end',
+    padding: 6,
+  },
+  sellerAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 10,
+  },
+  sellerDetailsDiv: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  sellerName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sideBySide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sellerEmail: {
+    fontSize: 13,
+    color: '#555',
+    marginLeft: 4,
+  },
+  sellerPhone: {
+    fontSize: 13,
+    color: '#555',
+    marginLeft: 4,
+  },
+  sellerDept: {
+    fontSize: 13,
+    color: '#777',
+  },
+  footer: {
+    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    backgroundColor: '#fff',
+    padding: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 70,
+  },
+  leftFooter: {
+    width: '76%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightFooter: {
+    flex: 1,
+    marginLeft: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerBtn: {
+    padding: 10,
+    backgroundColor: '#f54b02',
+    borderRadius: 10,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerBtnText: {
+    fontWeight: '700',
+    color: '#eee',
+  },
+  fileInfoContainer: {
+    marginVertical: 5,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    padding: 10,
+  },
+  fileInfoText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '600',
+  },
+  fileInfoText2: {
+    fontSize: 14,
+    color: '#000',
+    padding: 10,
+  },
+  fileInfoContainerLeftDiv: {
+    width: '50%',
+    padding: 10,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fileInfoContainerRightDiv: {
+    alignItems: 'flex-start',
+  },
+  secondText: {
+    backgroundColor: '#eee',
+    padding: 10,
+  },
+  otherProductsContainer: {
+    marginVertical: 10,
+    backgroundColor: '#fff',
+    padding: 10,
+  },
+  otherProductsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+    padding: 10,
+  },
+  otherProductCard: {
+    width: 170,
+    marginRight: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#eee',
+    paddingVertical: 3,
+  },
+  otherProductImage: {
+    width: 160,
+    height: 160,
+    borderRadius: 10,
+  },
+  otherProductTitle: {
+    fontSize: 13,
+    padding: 7,
+    fontWeight: '700',
+    width: '100%',
+    justifyContent: 'flex-start',
+  },
+  otherProductPrice: {
+    fontSize: 13,
+    color: '#f54b02',
+    fontWeight: '700',
+    marginLeft: 3,
+  },
+});
