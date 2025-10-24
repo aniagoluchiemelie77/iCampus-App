@@ -25,7 +25,7 @@ import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 const SwipeRow = require('react-native-swipe-list-view').SwipeRow;
-import SweetAlertModal from './alertscomponent';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type {
   ProductCategoryList,
   CalendarEvent,
@@ -721,6 +721,7 @@ export function StoreScreen() {
   const [imageIndexes, setImageIndexes] = useState<{ [key: string]: number }>(
     {},
   );
+
   const [fadeAnims, setFadeAnims] = useState<{
     [key: string]: Animated.Value;
   }>({});
@@ -732,12 +733,6 @@ export function StoreScreen() {
   const [showCart, setShowCart] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<{ [productId: string]: number }>(
     {},
   );
@@ -849,14 +844,8 @@ export function StoreScreen() {
     fetchCartItems();
   };
 
-  const confirmDelete = (productId: string) => {
-    setPendingDeleteId(productId);
-    setAlertType('info');
-    setAlertMessage('Confirm delete cart item?');
-    setAlertVisible(true);
-  };
-
   const deleteItem = async (productId: string) => {
+    console.log('Removing Product');
     const token = await AsyncStorage.getItem('authToken');
     try {
       await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
@@ -878,6 +867,7 @@ export function StoreScreen() {
     }
   };
   const removeFavorite = async (productId: string) => {
+    console.log('Removing Favorite');
     const token = await AsyncStorage.getItem('authToken');
     try {
       await fetch(`http://192.168.1.98:5000/store/favorites/remove`, {
@@ -990,6 +980,7 @@ export function StoreScreen() {
     setQuantities(initialQuantities);
   }, [cartProducts]);
   console.log('Favorite products:', favoriteProducts);
+
   return (
     <LinearGradient
       style={HomeScreenComponentStyles.bckg}
@@ -1240,111 +1231,130 @@ export function StoreScreen() {
                   paddingBottom: 100,
                 }}
                 renderItem={({ item }) => (
-                  <SwipeRow rightOpenValue={-45} disableRightSwipe>
-                    {/* Hidden row */}
-                    <View style={HomeScreenComponentStyles.hiddenRow}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          console.log('Delete btn pressed');
-                          confirmDelete(item.productId!);
-                        }}
-                      >
-                        <MaterialIcons name="delete" size={18} color="#eee" />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Visible row */}
-                    <TouchableOpacity
-                      onPress={() =>
-                        navigation.navigate('ProductDetails', { product: item })
+                  <SwipeRow
+                    rightOpenValue={50}
+                    disableRightSwipe={false}
+                    disableLeftSwipe={true}
+                    onRowOpen={(direction: 'left' | 'right') => {
+                      console.log('Swipped:', direction);
+                      if (direction === 'right') {
+                        deleteItem(item.productId!);
                       }
+                    }}
+                  >
+                    <GestureDetector
+                      gesture={Gesture.Pan().onEnd(event => {
+                        if (event.translationX > 50) {
+                          console.log('Swiped right:', item.productId);
+                          //deleteItem(item.productId);
+                        }
+                      })}
                     >
-                      <View style={HomeScreenComponentStyles.cartItem}>
-                        <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
-                          <View style={HomeScreenComponentStyles.imageDiv}>
-                            <Image
-                              source={{ uri: item.mediaUrls[0] }}
-                              style={HomeScreenComponentStyles.productImage}
-                              resizeMode="cover"
-                            />
-                          </View>
-                          <View style={HomeScreenComponentStyles.notImageDiv}>
-                            <Text
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                              style={
-                                HomeScreenComponentStyles.eventDescription2
-                              }
-                            >
-                              {item.title}
-                            </Text>
-                            <View
-                              style={HomeScreenComponentStyles.productPriceDiv2}
-                            >
-                              <MaterialIcons
-                                name="diamond"
-                                size={18}
-                                color="#000"
-                              />
-                              <Text
-                                style={HomeScreenComponentStyles.productPrice2}
-                              >
-                                {item.priceInPoints}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-
-                        <View
-                          style={HomeScreenComponentStyles.cartItemRightDiv}
+                      <Animated.View>
+                        <View style={{ height: 0 }} />
+                        <TouchableOpacity
+                          onPress={() =>
+                            navigation.navigate('ProductDetails', {
+                              product: item,
+                            })
+                          }
                         >
-                          <View
-                            style={
-                              HomeScreenComponentStyles.cartItemRightDivSubdiv
-                            }
-                          >
+                          <View style={HomeScreenComponentStyles.cartItem}>
                             <View
-                              style={
-                                HomeScreenComponentStyles.cartItemRightDivSubdiv2
-                              }
+                              style={HomeScreenComponentStyles.cartItemLeftDiv}
                             >
-                              <TouchableOpacity
-                                onPress={() => {
-                                  console.log('Increment pressed');
-                                  increment(item.productId!);
-                                }}
-                              >
-                                <MaterialIcons
-                                  name="add"
-                                  size={18}
-                                  color="#f54b02"
+                              <View style={HomeScreenComponentStyles.imageDiv}>
+                                <Image
+                                  source={{ uri: item.mediaUrls[0] }}
+                                  style={HomeScreenComponentStyles.productImage}
+                                  resizeMode="cover"
                                 />
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  console.log('Increment pressed');
-                                  decrement(item.productId!);
-                                }}
+                              </View>
+                              <View
+                                style={HomeScreenComponentStyles.notImageDiv}
                               >
-                                <MaterialIcons
-                                  name="remove"
-                                  size={18}
-                                  color="#f54b02"
-                                />
-                              </TouchableOpacity>
+                                <Text
+                                  numberOfLines={1}
+                                  ellipsizeMode="tail"
+                                  style={
+                                    HomeScreenComponentStyles.eventDescription2
+                                  }
+                                >
+                                  {item.title}
+                                </Text>
+                                <View
+                                  style={
+                                    HomeScreenComponentStyles.productPriceDiv2
+                                  }
+                                >
+                                  <MaterialIcons
+                                    name="diamond"
+                                    size={18}
+                                    color="#000"
+                                  />
+                                  <Text
+                                    style={
+                                      HomeScreenComponentStyles.productPrice2
+                                    }
+                                  >
+                                    {item.priceInPoints}
+                                  </Text>
+                                </View>
+                              </View>
                             </View>
 
-                            <Text
-                              style={
-                                HomeScreenComponentStyles.cartItemRightDivText
-                              }
+                            <View
+                              style={HomeScreenComponentStyles.cartItemRightDiv}
                             >
-                              Qty: {quantities[item.productId] || 1}
-                            </Text>
+                              <View
+                                style={
+                                  HomeScreenComponentStyles.cartItemRightDivSubdiv
+                                }
+                              >
+                                <View
+                                  style={
+                                    HomeScreenComponentStyles.cartItemRightDivSubdiv2
+                                  }
+                                >
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      console.log('Increment pressed');
+                                      increment(item.productId!);
+                                    }}
+                                  >
+                                    <MaterialIcons
+                                      name="add"
+                                      size={18}
+                                      color="#f54b02"
+                                    />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      console.log('Increment pressed');
+                                      decrement(item.productId!);
+                                    }}
+                                  >
+                                    <MaterialIcons
+                                      name="remove"
+                                      size={18}
+                                      color="#f54b02"
+                                    />
+                                  </TouchableOpacity>
+                                </View>
+
+                                <Text
+                                  style={
+                                    HomeScreenComponentStyles.cartItemRightDivText
+                                  }
+                                >
+                                  Qty: {quantities[item.productId] || 1}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    </GestureDetector>
                   </SwipeRow>
                 )}
               />
@@ -1422,20 +1432,18 @@ export function StoreScreen() {
                     return null;
 
                   return (
-                    <SwipeRow rightOpenValue={-45} disableRightSwipe>
-                      {/* Hidden row */}
-                      <View style={HomeScreenComponentStyles.hiddenRow}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            console.log('Delete btn pressed');
-                            removeFavorite(item.productId!);
-                          }}
-                        >
-                          <MaterialIcons name="delete" size={18} color="#eee" />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Visible row */}
+                    <SwipeRow
+                      rightOpenValue={50}
+                      disableRightSwipe={false}
+                      disableLeftSwipe={true}
+                      onRowOpen={(direction: 'left' | 'right') => {
+                        console.log('Swipped:', direction);
+                        if (direction === 'right') {
+                          removeFavorite(item.productId!);
+                        }
+                      }}
+                    >
+                      <View style={{ height: 0 }} />
                       <TouchableOpacity
                         onPress={() =>
                           navigation.navigate('ProductDetails', {
@@ -1494,33 +1502,6 @@ export function StoreScreen() {
           </View>
         </View>
       </Modal>
-
-      <SweetAlertModal
-        visible={alertVisible}
-        onDismiss={() => {
-          setAlertVisible(false);
-          setPendingDeleteId(null);
-        }}
-        onConfirm={() => {
-          console.log('Confirm pressed:', pendingDeleteId);
-          if (pendingDeleteId) {
-            deleteItem(pendingDeleteId);
-            setAlertVisible(false);
-            setPendingDeleteId(null);
-          }
-        }}
-        title={
-          alertType === 'success'
-            ? 'Success!'
-            : alertType === 'error'
-            ? 'Oops!'
-            : alertType === 'info'
-            ? 'Confirm action'
-            : 'Notice'
-        }
-        message={alertMessage}
-        type={alertType}
-      />
     </LinearGradient>
   );
 };

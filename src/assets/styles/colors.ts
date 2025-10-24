@@ -589,23 +589,6 @@ cartItemRightDiv: {
   overflow: 'hidden',
     justifyContent: 'space-between',
   }, 
-   hiddenRow: {
-    backgroundColor: '#f54b02',
-    padding: 10,
-    alignItems: 'center',
-    width: '100%', 
-    height: 90,
-    flexDirection: 'row',
-    justifyContent: 'flex-end', // aligns content to the right
-    borderRadius: 10,
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    left: 0,
-    zIndex: 0,
-    marginVertical: 7,
-  },
   imageDiv: {
     width: '40%',
     height: '100%',

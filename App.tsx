@@ -3,7 +3,7 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; // ✅ Correct
 import { Provider } from 'react-redux';
-import type { Product } from './src/types/firebase';
+import type { Product, User } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
   prefixes: ['icampus://'],
@@ -29,6 +29,7 @@ import Settings from './src/screens/Settings';
 import Calender from './src/screens/Calender';
 import Profile from './src/screens/Profile';
 import ProductDetails from './src/screens/ProductDetails';
+import ProductSellerScreen from './src/screens/ProductSellerScreen';
 
 export type RootStackParamList = {
   SignUp: undefined;
@@ -46,6 +47,7 @@ export type RootStackParamList = {
     email?: string;
   };
   ProductDetails: { product: Product };
+  ProductSellerScreen: { seller: User };
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -135,6 +137,11 @@ const App = () => {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProductSellerScreen"
+              component={ProductSellerScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

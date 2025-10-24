@@ -39,7 +39,8 @@ export interface User {
   coursesTeaching?: string[];
   pointsAccountId?: UserPointsAccount.pointsAccountId,
   cart?: string[];
-  favorites?: string[]
+  favorites?: string[];
+  phone_number?: string
 }
 export interface Community {
   id: string;
