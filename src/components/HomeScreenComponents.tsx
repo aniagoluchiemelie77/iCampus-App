@@ -24,7 +24,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
-const SwipeRow = require('react-native-swipe-list-view').SwipeRow;
+import { SwipeListView } from 'react-native-swipe-list-view';
 import type {
   ProductCategoryList,
   CalendarEvent,
@@ -1028,6 +1028,18 @@ export function StoreScreen() {
           Shop with iCampus
         </Text>
         <View style={HomeScreenComponentStyles.iconSubdiv2}>
+          {user.hasSubscribed && (
+            <TouchableOpacity
+              //onPress={openFavoritesPopup}
+              style={[
+                homeStyles.iconItem,
+                HomeScreenComponentStyles.activityIcons,
+                HomeScreenComponentStyles.activityIcons2,
+              ]}
+            >
+              <MaterialIcons name="manage-accounts" size={25} color="#f54b02" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={openFavoritesPopup}
             style={[
@@ -1262,127 +1274,105 @@ export function StoreScreen() {
             </Animated.View>
 
             <View style={HomeScreenComponentStyles.popupContent2}>
-              <FlatList
+              <SwipeListView
                 data={cartProducts}
                 keyExtractor={item => item.productId}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingBottom: 100,
-                }}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                rightOpenValue={-45} // negative value for right swipe
+                disableRightSwipe={true}
                 renderItem={({ item }) => (
-                  <SwipeRow
-                    rightOpenValue={45}
-                    disableRightSwipe={false}
-                    disableLeftSwipe={true}
-                    contentContainerStyle={{
-                      position: 'relative',
-                    }}
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate('ProductDetails', {
+                        product: item,
+                      })
+                    }
                   >
-                    {/* Hidden row */}
-                    <View style={HomeScreenComponentStyles.hiddenRow}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          console.log('Delete btn pressed');
-                          deleteItem(item.productId!);
-                        }}
-                      >
-                        <Icon name="trash-outline" size={18} color="#eee" />
-                      </TouchableOpacity>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() =>
-                        navigation.navigate('ProductDetails', {
-                          product: item,
-                        })
-                      }
-                    >
-                      <View style={HomeScreenComponentStyles.cartItem}>
-                        <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
-                          <View style={HomeScreenComponentStyles.imageDiv}>
-                            <Image
-                              source={{ uri: item.mediaUrls[0] }}
-                              style={HomeScreenComponentStyles.productImage}
-                              resizeMode="cover"
-                            />
-                          </View>
-                          <View style={HomeScreenComponentStyles.notImageDiv}>
-                            <Text
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                              style={
-                                HomeScreenComponentStyles.eventDescription2
-                              }
-                            >
-                              {item.title}
-                            </Text>
-                            <View
-                              style={HomeScreenComponentStyles.productPriceDiv2}
-                            >
-                              <MaterialIcons
-                                name="diamond"
-                                size={18}
-                                color="#000"
-                              />
-                              <Text
-                                style={HomeScreenComponentStyles.productPrice2}
-                              >
-                                {item.priceInPoints}
-                              </Text>
-                            </View>
-                          </View>
+                    <View style={HomeScreenComponentStyles.cartItem}>
+                      <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
+                        <View style={HomeScreenComponentStyles.imageDiv}>
+                          <Image
+                            source={{ uri: item.mediaUrls[0] }}
+                            style={HomeScreenComponentStyles.productImage}
+                            resizeMode="cover"
+                          />
                         </View>
-
-                        <View
-                          style={HomeScreenComponentStyles.cartItemRightDiv}
-                        >
-                          <View
-                            style={
-                              HomeScreenComponentStyles.cartItemRightDivSubdiv
-                            }
+                        <View style={HomeScreenComponentStyles.notImageDiv}>
+                          <Text
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={HomeScreenComponentStyles.eventDescription2}
                           >
-                            <View
-                              style={
-                                HomeScreenComponentStyles.cartItemRightDivSubdiv2
-                              }
-                            >
-                              <TouchableOpacity
-                                onPress={() => {
-                                  console.log('Increment pressed');
-                                  increment(item.productId!);
-                                }}
-                              >
-                                <MaterialIcons
-                                  name="add"
-                                  size={18}
-                                  color="#f54b02"
-                                />
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  console.log('Increment pressed');
-                                  decrement(item.productId!);
-                                }}
-                              >
-                                <MaterialIcons
-                                  name="remove"
-                                  size={18}
-                                  color="#f54b02"
-                                />
-                              </TouchableOpacity>
-                            </View>
-
+                            {item.title}
+                          </Text>
+                          <View
+                            style={HomeScreenComponentStyles.productPriceDiv2}
+                          >
+                            <MaterialIcons
+                              name="diamond"
+                              size={18}
+                              color="#000"
+                            />
                             <Text
-                              style={
-                                HomeScreenComponentStyles.cartItemRightDivText
-                              }
+                              style={HomeScreenComponentStyles.productPrice2}
                             >
-                              Qty: {quantities[item.productId] || 1}
+                              {item.priceInPoints}
                             </Text>
                           </View>
                         </View>
                       </View>
+
+                      <View style={HomeScreenComponentStyles.cartItemRightDiv}>
+                        <View
+                          style={
+                            HomeScreenComponentStyles.cartItemRightDivSubdiv
+                          }
+                        >
+                          <View
+                            style={
+                              HomeScreenComponentStyles.cartItemRightDivSubdiv2
+                            }
+                          >
+                            <TouchableOpacity
+                              onPress={() => increment(item.productId)}
+                            >
+                              <MaterialIcons
+                                name="add"
+                                size={18}
+                                color="#f54b02"
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => decrement(item.productId)}
+                            >
+                              <MaterialIcons
+                                name="remove"
+                                size={18}
+                                color="#f54b02"
+                              />
+                            </TouchableOpacity>
+                          </View>
+                          <Text
+                            style={
+                              HomeScreenComponentStyles.cartItemRightDivText
+                            }
+                          >
+                            Qty: {quantities[item.productId] || 1}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                renderHiddenItem={({ item }) => (
+                  <View style={HomeScreenComponentStyles.hiddenRow}>
+                    <TouchableOpacity
+                      onPress={() => deleteItem(item.productId)}
+                    >
+                      <Icon name="trash-outline" size={18} color="#eee" />
                     </TouchableOpacity>
-                  </SwipeRow>
+                  </View>
                 )}
                 ListEmptyComponent={
                   <View
@@ -1417,7 +1407,9 @@ export function StoreScreen() {
               <TouchableOpacity
                 style={[
                   HomeScreenComponentStyles.checkoutBtn,
-                  totalPoints > user.pointsBalance && { opacity: 0.5 },
+                  totalPoints > user.pointsBalance && {
+                    backgroundColor: '#fb966bff',
+                  },
                 ]}
                 disabled={totalPoints > user.pointsBalance}
                 //onPress={handleCheckout}
@@ -1460,89 +1452,66 @@ export function StoreScreen() {
             </Animated.View>
 
             <View style={HomeScreenComponentStyles.popupContent2}>
-              <FlatList
+              <SwipeListView
                 data={favoriteProducts}
                 keyExtractor={item => item.productId}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingBottom: 10,
-                }}
-                renderItem={({ item }) => {
-                  if (!item || !item.mediaUrls || item.mediaUrls.length === 0)
-                    return null;
-
-                  return (
-                    <SwipeRow
-                      rightOpenValue={50}
-                      disableRightSwipe={false}
-                      disableLeftSwipe={true}
-                      contentContainerStyle={{
-                        position: 'relative',
-                      }}
-                    >
-                      <View style={HomeScreenComponentStyles.hiddenRow}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            console.log('Delete btn pressed');
-                            removeFavorite(item.productId!);
-                          }}
-                        >
-                          <Icon name="trash-outline" size={18} color="#eee" />
-                        </TouchableOpacity>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() =>
-                          navigation.navigate('ProductDetails', {
-                            product: item,
-                          })
-                        }
-                      >
-                        <View style={HomeScreenComponentStyles.cartItem}>
-                          <View
-                            style={HomeScreenComponentStyles.cartItemLeftDiv}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                rightOpenValue={-45} // negative value for right swipe
+                disableRightSwipe={true}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate('ProductDetails', {
+                        product: item,
+                      })
+                    }
+                  >
+                    <View style={HomeScreenComponentStyles.cartItem}>
+                      <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
+                        <View style={HomeScreenComponentStyles.imageDiv}>
+                          <Image
+                            source={{ uri: item.mediaUrls[0] }}
+                            style={HomeScreenComponentStyles.productImage}
+                            resizeMode="cover"
+                          />
+                        </View>
+                        <View style={HomeScreenComponentStyles.notImageDiv}>
+                          <Text
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={HomeScreenComponentStyles.eventDescription2}
                           >
-                            <View style={HomeScreenComponentStyles.imageDiv}>
-                              <Image
-                                source={{ uri: item.mediaUrls[0] }}
-                                style={HomeScreenComponentStyles.productImage}
-                                resizeMode="cover"
-                              />
-                            </View>
-                            <View style={HomeScreenComponentStyles.notImageDiv}>
-                              <Text
-                                numberOfLines={1}
-                                ellipsizeMode="tail"
-                                style={
-                                  HomeScreenComponentStyles.eventDescription2
-                                }
-                              >
-                                {item.title}
-                              </Text>
-                              <View
-                                style={
-                                  HomeScreenComponentStyles.productPriceDiv2
-                                }
-                              >
-                                <MaterialIcons
-                                  name="diamond"
-                                  size={18}
-                                  color="#000"
-                                />
-                                <Text
-                                  style={
-                                    HomeScreenComponentStyles.productPrice2
-                                  }
-                                >
-                                  {item.priceInPoints}
-                                </Text>
-                              </View>
-                            </View>
+                            {item.title}
+                          </Text>
+                          <View
+                            style={HomeScreenComponentStyles.productPriceDiv2}
+                          >
+                            <MaterialIcons
+                              name="diamond"
+                              size={18}
+                              color="#000"
+                            />
+                            <Text
+                              style={HomeScreenComponentStyles.productPrice2}
+                            >
+                              {item.priceInPoints}
+                            </Text>
                           </View>
                         </View>
-                      </TouchableOpacity>
-                    </SwipeRow>
-                  );
-                }}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                renderHiddenItem={({ item }) => (
+                  <View style={HomeScreenComponentStyles.hiddenRow}>
+                    <TouchableOpacity
+                      onPress={() => removeFavorite(item.productId)}
+                    >
+                      <Icon name="trash-outline" size={18} color="#eee" />
+                    </TouchableOpacity>
+                  </View>
+                )}
                 ListEmptyComponent={
                   <View
                     style={{
@@ -1552,7 +1521,7 @@ export function StoreScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 17, color: '#888' }}>
-                      No product marked as favorite.
+                      No product marked as Favorite.
                     </Text>
                   </View>
                 }

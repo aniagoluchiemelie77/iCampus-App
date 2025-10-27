@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useAppDataContext, AppDataProvider } from '../components/EventContext';
 import {
   View,
   Text,
@@ -16,9 +17,13 @@ import {
 } from '../assets/styles/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useAppSelector } from '../components/hooks';
 const { width } = Dimensions.get('window');
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
 
 type RouteParams = {
   ProductDetails: {
@@ -44,6 +49,14 @@ const CustomHeader: React.FC<HeaderProps> = ({ title, onBack }) => {
   );
 };
 const ProductDetails = () => {
+  const user = useAppSelector(state => state.user);
+  const {
+    cartProducts,
+    //fetchFavorites,
+    fetchCartItems,
+    //toggleFavorite,
+    //favoriteProducts,
+  } = useAppDataContext();
   const navigation = useNavigation();
   const navigation2 = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RouteParams, 'ProductDetails'>>();
@@ -56,6 +69,7 @@ const ProductDetails = () => {
   const hasColors = Array.isArray(product.colors) && product.colors.length > 0;
   const [seller, setSeller] = useState<User | null>(null);
   const [loadingSeller, setLoadingSeller] = useState(true);
+  const [pressed, setPressed] = useState<{ [key: string]: boolean }>({});
   const formatDownloadCount = (count: number): string => {
     if (count >= 10000) return '10K+';
     if (count >= 100000) return '100K+';
@@ -69,6 +83,48 @@ const ProductDetails = () => {
   };
   const [otherProducts, setOtherProducts] = useState<Product[]>([]);
   const [loadingOthers, setLoadingOthers] = useState(true);
+  const handleAddToCart = async (cartItem: Product) => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+
+      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId: cartItem.productId }), // or cartItem.productId
+      });
+
+      if (res.ok) {
+        setPressed(prev => ({
+          ...prev,
+          [cartItem.productId]: true, // ✅ must match item.productId
+        }));
+        await fetchCartItems();
+        Toast.show({
+          type: 'success',
+          text1: 'Product successfully added to cart',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to add to cart',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to add to cart',
+        position: 'bottom',
+        bottomOffset: 10,
+      });
+    }
+  };
 
   //Fetch Seller Details
   useEffect(() => {
@@ -147,255 +203,285 @@ const ProductDetails = () => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
     setCurrentIndex(index);
   };
+  const isInsufficientPoints = product.priceInPoints > user.pointsBalance;
+  const isInCart = cartProducts.some(
+    item => item.productId === product.productId,
+  );
 
   return (
-    <View style={ProductDetailsStyles.container}>
-      <CustomHeader
-        title="Product Details"
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 80 }}
-        style={ProductDetailsStyles.container2}
-      >
-        <View style={ProductDetailsStyles.carouselContainer}>
-          <FlatList
-            ref={flatListRef}
-            data={product.mediaUrls}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item, index) => index.toString()}
-            onScroll={handleScroll}
-            renderItem={({ item }) => (
-              <Image
-                source={{ uri: item }}
-                style={ProductDetailsStyles.image}
-              />
-            )}
-          />
-          <Text style={ProductDetailsStyles.counter}>
-            {currentIndex + 1}/{product.mediaUrls.length}
-          </Text>
-        </View>
-        <View style={ProductDetailsStyles.titleDiv}>
-          <View style={ProductDetailsStyles.titleDivLeftDiv}>
-            <Text
-              style={ProductDetailsStyles.name}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {product.title}
-            </Text>
-
-            {product.description ? (
-              <Text style={ProductDetailsStyles.description}>
-                {product.description}
-              </Text>
-            ) : null}
-            {product.location ? (
-              <View style={ProductDetailsStyles.locationInfo}>
-                <Icon name="location-outline" size={20} color="#f54b02" />
-                <Text style={ProductDetailsStyles.location}>
-                  {product.location}
-                </Text>
-              </View>
-            ) : null}
-
-            <Text style={ProductDetailsStyles.category}>
-              {product.category}
+    <AppDataProvider user={user}>
+      <View style={ProductDetailsStyles.container}>
+        <CustomHeader
+          title="Product Details"
+          onBack={() => navigation.goBack()}
+        />
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 80 }}
+          style={ProductDetailsStyles.container2}
+        >
+          <View style={ProductDetailsStyles.carouselContainer}>
+            <FlatList
+              ref={flatListRef}
+              data={product.mediaUrls}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item, index) => index.toString()}
+              onScroll={handleScroll}
+              renderItem={({ item }) => (
+                <Image
+                  source={{ uri: item }}
+                  style={ProductDetailsStyles.image}
+                />
+              )}
+            />
+            <Text style={ProductDetailsStyles.counter}>
+              {currentIndex + 1}/{product.mediaUrls.length}
             </Text>
           </View>
+          <View style={ProductDetailsStyles.titleDiv}>
+            <View style={ProductDetailsStyles.titleDivLeftDiv}>
+              <Text
+                style={ProductDetailsStyles.name}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {product.title}
+              </Text>
 
-          <View style={ProductDetailsStyles.titleDivRightDiv}>
-            <View style={ProductDetailsStyles.titleDivRightDivSubdiv}>
-              <Icon name="diamond-outline" size={25} color="#f54b02" />
-              <Text style={ProductDetailsStyles.price}>
-                {product.priceInPoints}
+              {product.description ? (
+                <Text style={ProductDetailsStyles.description}>
+                  {product.description}
+                </Text>
+              ) : null}
+              {product.location ? (
+                <View style={ProductDetailsStyles.locationInfo}>
+                  <Icon name="location-outline" size={20} color="#f54b02" />
+                  <Text style={ProductDetailsStyles.location}>
+                    {product.location}
+                  </Text>
+                </View>
+              ) : null}
+
+              <Text style={ProductDetailsStyles.category}>
+                {product.category}
               </Text>
             </View>
-          </View>
-        </View>
-        <View style={ProductDetailsStyles.sizeAndColorsDiv}>
-          {(hasSizes || hasColors) && (
-            <View style={ProductDetailsStyles.sizeAndColorsDiv}>
-              {hasSizes && (
-                <View
-                  style={[
-                    ProductDetailsStyles.sizeDiv,
-                    { width: hasColors ? '46%' : '100%' },
-                  ]}
-                >
-                  <Text style={ProductDetailsStyles.label}>Sizes</Text>
-                  <View style={ProductDetailsStyles.colorSelectorsDiv}>
-                    {product.sizes?.map((size, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          ProductDetailsStyles.option,
-                          selectedSize === size &&
-                            ProductDetailsStyles.selectedOption,
-                        ]}
-                        onPress={() => setSelectedSize(size)}
-                      >
-                        <Text style={ProductDetailsStyles.optionText}>
-                          {size}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
 
-              {hasColors && (
-                <View
+            <View style={ProductDetailsStyles.titleDivRightDiv}>
+              <View style={ProductDetailsStyles.titleDivRightDivSubdiv}>
+                <Icon name="diamond-outline" size={25} color="#f54b02" />
+                <Text style={ProductDetailsStyles.price}>
+                  {product.priceInPoints}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View style={ProductDetailsStyles.sizeAndColorsDiv}>
+            {(hasSizes || hasColors) && (
+              <View style={ProductDetailsStyles.sizeAndColorsDiv}>
+                {hasSizes && (
+                  <View
+                    style={[
+                      ProductDetailsStyles.sizeDiv,
+                      { width: hasColors ? '46%' : '100%' },
+                    ]}
+                  >
+                    <Text style={ProductDetailsStyles.label}>Sizes</Text>
+                    <View style={ProductDetailsStyles.colorSelectorsDiv}>
+                      {product.sizes?.map((size, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            ProductDetailsStyles.option,
+                            selectedSize === size &&
+                              ProductDetailsStyles.selectedOption,
+                          ]}
+                          onPress={() => setSelectedSize(size)}
+                        >
+                          <Text style={ProductDetailsStyles.optionText}>
+                            {size}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {hasColors && (
+                  <View
+                    style={[
+                      ProductDetailsStyles.colorsDiv,
+                      { width: hasSizes ? '46%' : '100%' },
+                    ]}
+                  >
+                    <Text style={ProductDetailsStyles.label}>Colors</Text>
+                    <View style={ProductDetailsStyles.colorSelectorsDiv}>
+                      {product.colors?.map((color, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            ProductDetailsStyles.optionColor,
+                            { backgroundColor: color },
+                            selectedColor === color &&
+                              ProductDetailsStyles.selectedOption,
+                          ]}
+                          onPress={() => setSelectedColor(color)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+          {product.type === 'File' && product.fileUrl && (
+            <View style={ProductDetailsStyles.fileInfoContainer}>
+              <View style={ProductDetailsStyles.fileInfoContainerLeftDiv}>
+                <Text style={ProductDetailsStyles.fileInfoText}>
+                  File Format:{' '}
+                  {product.fileUrl.split('.').pop()?.toUpperCase() || 'UNKNOWN'}
+                </Text>
+              </View>
+              <View style={ProductDetailsStyles.fileInfoContainerRightDiv}>
+                <Text style={ProductDetailsStyles.fileInfoText2}>
+                  File size: {product.fileSizeInMB} MB
+                </Text>
+                <Text
                   style={[
-                    ProductDetailsStyles.colorsDiv,
-                    { width: hasSizes ? '46%' : '100%' },
+                    ProductDetailsStyles.fileInfoText2,
+                    ProductDetailsStyles.secondText,
                   ]}
                 >
-                  <Text style={ProductDetailsStyles.label}>Colors</Text>
-                  <View style={ProductDetailsStyles.colorSelectorsDiv}>
-                    {product.colors?.map((color, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          ProductDetailsStyles.optionColor,
-                          { backgroundColor: color },
-                          selectedColor === color &&
-                            ProductDetailsStyles.selectedOption,
-                        ]}
-                        onPress={() => setSelectedColor(color)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              )}
+                  Download Count:{' '}
+                  {formatDownloadCount(product.downloadCount ?? 0)}
+                </Text>
+              </View>
             </View>
           )}
-        </View>
-        {product.type === 'File' && product.fileUrl && (
-          <View style={ProductDetailsStyles.fileInfoContainer}>
-            <View style={ProductDetailsStyles.fileInfoContainerLeftDiv}>
-              <Text style={ProductDetailsStyles.fileInfoText}>
-                File Format:{' '}
-                {product.fileUrl.split('.').pop()?.toUpperCase() || 'UNKNOWN'}
-              </Text>
-            </View>
-            <View style={ProductDetailsStyles.fileInfoContainerRightDiv}>
-              <Text style={ProductDetailsStyles.fileInfoText2}>
-                File size: {product.fileSizeInMB} MB
-              </Text>
-              <Text
-                style={[
-                  ProductDetailsStyles.fileInfoText2,
-                  ProductDetailsStyles.secondText,
-                ]}
-              >
-                Download Count:{' '}
-                {formatDownloadCount(product.downloadCount ?? 0)}
-              </Text>
-            </View>
-          </View>
-        )}
 
-        {!loadingSeller && seller && (
-          <View style={ProductDetailsStyles.sellerCard}>
-            <View style={ProductDetailsStyles.sellerTitleDiv}>
-              <Text style={ProductDetailsStyles.sellerTitle}>
-                Seller Details
-              </Text>
-              <TouchableOpacity
-                onPress={() =>
-                  navigation2.navigate('ProductSellerScreen', {
-                    seller: product.sellerId,
-                  })
-                }
-              >
-                <MaterialIcons
-                  name="navigate-next"
-                  size={23}
-                  color="#8e8d8dff"
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={ProductDetailsStyles.sellerInfo}>
-              <Image
-                source={{ uri: seller.profilePic }}
-                style={ProductDetailsStyles.sellerAvatar}
-              />
-              <View style={ProductDetailsStyles.sellerDetailsDiv}>
-                <Text style={ProductDetailsStyles.sellerName}>
-                  {seller.firstname} {seller.lastname}
+          {!loadingSeller && seller && (
+            <View style={ProductDetailsStyles.sellerCard}>
+              <View style={ProductDetailsStyles.sellerTitleDiv}>
+                <Text style={ProductDetailsStyles.sellerTitle}>
+                  Seller Details
                 </Text>
-                <View style={ProductDetailsStyles.sideBySide}>
-                  <Icon name="mail-outline" size={20} color="#f54b02" />
-                  <Text style={ProductDetailsStyles.sellerEmail}>
-                    {seller.email}
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation2.navigate('ProductSellerScreen', {
+                      seller: product.sellerId,
+                    })
+                  }
+                >
+                  <MaterialIcons
+                    name="navigate-next"
+                    size={23}
+                    color="#8e8d8dff"
+                  />
+                </TouchableOpacity>
+              </View>
+              <View style={ProductDetailsStyles.sellerInfo}>
+                <Image
+                  source={{ uri: seller.profilePic }}
+                  style={ProductDetailsStyles.sellerAvatar}
+                />
+                <View style={ProductDetailsStyles.sellerDetailsDiv}>
+                  <Text style={ProductDetailsStyles.sellerName}>
+                    {seller.firstname} {seller.lastname}
                   </Text>
-                </View>
-                <View style={ProductDetailsStyles.sideBySide}>
-                  <Icon name="call-outline" size={20} color="#f54b02" />
-                  <Text style={ProductDetailsStyles.sellerPhone}>
-                    {seller.phone_number}
-                  </Text>
+                  <View style={ProductDetailsStyles.sideBySide}>
+                    <Icon name="mail-outline" size={20} color="#f54b02" />
+                    <Text style={ProductDetailsStyles.sellerEmail}>
+                      {seller.email}
+                    </Text>
+                  </View>
+                  <View style={ProductDetailsStyles.sideBySide}>
+                    <Icon name="call-outline" size={20} color="#f54b02" />
+                    <Text style={ProductDetailsStyles.sellerPhone}>
+                      {seller.phone_number}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
-        )}
-        {!loadingOthers && otherProducts.length > 0 && (
-          <View style={ProductDetailsStyles.otherProductsContainer}>
-            {seller && (
-              <Text style={ProductDetailsStyles.otherProductsTitle}>
-                More from {seller.firstname} {seller.lastname}
-              </Text>
-            )}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {otherProducts.map(item => (
-                <TouchableOpacity
-                  key={item.productId}
-                  onPress={() =>
-                    navigation2.push('ProductDetails', { product: item })
-                  }
-                  style={ProductDetailsStyles.otherProductCard}
-                >
-                  <Image
-                    source={{ uri: item.mediaUrls[0] }}
-                    style={ProductDetailsStyles.otherProductImage}
-                  />
-                  <Text
-                    style={ProductDetailsStyles.otherProductTitle}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
+          )}
+          {!loadingOthers && otherProducts.length > 0 && (
+            <View style={ProductDetailsStyles.otherProductsContainer}>
+              {seller && (
+                <Text style={ProductDetailsStyles.otherProductsTitle}>
+                  More from {seller.firstname} {seller.lastname}
+                </Text>
+              )}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {otherProducts.map(item => (
+                  <TouchableOpacity
+                    key={item.productId}
+                    onPress={() =>
+                      navigation2.push('ProductDetails', { product: item })
+                    }
+                    style={ProductDetailsStyles.otherProductCard}
                   >
-                    {item.title}
-                  </Text>
-                  <View style={ProductDetailsStyles.otherProductsPriceDivInfo}>
-                    <Icon name="diamond-outline" size={20} color="#f54b02" />
-                    <Text style={ProductDetailsStyles.otherProductPrice}>
-                      {item.priceInPoints}
+                    <View style={ProductDetailsStyles.otherProductImageDiv}>
+                      <Image
+                        source={{ uri: item.mediaUrls[0] }}
+                        style={ProductDetailsStyles.otherProductImage}
+                      />
+                      <View
+                        style={ProductDetailsStyles.otherProductsPriceDivInfo}
+                      >
+                        <Icon name="diamond-outline" size={20} color="#fff" />
+                        <Text style={ProductDetailsStyles.otherProductPrice}>
+                          {item.priceInPoints}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text
+                      style={ProductDetailsStyles.otherProductTitle}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                    >
+                      {item.title}
                     </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </ScrollView>
+        <View style={ProductDetailsStyles.footer}>
+          <View style={ProductDetailsStyles.leftFooter}>
+            <TouchableOpacity
+              style={[
+                ProductDetailsStyles.footerBtn,
+                isInsufficientPoints && { backgroundColor: '#fb966bff' }, // dimmed style
+              ]}
+              disabled={isInsufficientPoints}
+            >
+              <Text style={ProductDetailsStyles.footerBtnText}>Checkout</Text>
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-      <View style={ProductDetailsStyles.footer}>
-        <View style={ProductDetailsStyles.leftFooter}>
-          <TouchableOpacity style={ProductDetailsStyles.footerBtn}>
-            <Text style={ProductDetailsStyles.footerBtnText}>Checkout</Text>
-          </TouchableOpacity>
+          <View
+            style={[
+              ProductDetailsStyles.rightFooter,
+              isInCart && { width: '24%' }, // apply width only if in cart
+            ]}
+          >
+            <TouchableOpacity
+              style={ProductDetailsStyles.footerBtn}
+              onPress={() => handleAddToCart(product)}
+            >
+              <MaterialIcons
+                name="shopping-cart"
+                size={20}
+                color={pressed ? '#fff' : '#fff'}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={ProductDetailsStyles.rightFooter}>
-          <TouchableOpacity style={ProductDetailsStyles.footerBtn}>
-            <MaterialIcons name="shopping-cart" size={20} color="#eee" />
-          </TouchableOpacity>
-        </View>
+        <Toast config={toastConfig} />
       </View>
-    </View>
+    </AppDataProvider>
   );
 };
 

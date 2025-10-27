@@ -593,7 +593,7 @@ cartItemRightDiv: {
     width: '100%', 
     height: 90,
     flexDirection: 'row',
-    justifyContent: 'flex-start', // aligns content to the left
+    justifyContent: 'flex-end', // aligns content to the right
     borderRadius: 10,
     position: 'absolute',
     top: 0,
@@ -1224,9 +1224,13 @@ export const ProductDetailsStyles = StyleSheet.create({
   otherProductsPriceDivInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    justifyContent: 'flex-end',
     padding: 6,
+    borderRadius: 10,
+    backgroundColor: '#f54b02',
+    position: 'absolute',
+    zIndex: 1,
+    bottom: 5,
+    right: 5
   },
   sellerAvatar: {
     width: 70,
@@ -1271,7 +1275,6 @@ export const ProductDetailsStyles = StyleSheet.create({
     height: 70,
   },
   leftFooter: {
-    width: '76%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1337,7 +1340,7 @@ export const ProductDetailsStyles = StyleSheet.create({
     padding: 10,
   },
   otherProductCard: {
-    width: 170,
+    width: 120,
     marginRight: 13,
     borderRadius: 10,
     alignItems: 'center',
@@ -1345,9 +1348,15 @@ export const ProductDetailsStyles = StyleSheet.create({
     paddingVertical: 3,
   },
   otherProductImage: {
-    width: 160,
-    height: 160,
+    width: '100%',
+    height: '100%',
+  },
+  otherProductImageDiv: {
+    width: 110,
+    height: 110,
     borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative'
   },
   otherProductTitle: {
     fontSize: 13,
@@ -1358,7 +1367,7 @@ export const ProductDetailsStyles = StyleSheet.create({
   },
   otherProductPrice: {
     fontSize: 13,
-    color: '#f54b02',
+    color: '#fff',
     fontWeight: '700',
     marginLeft: 3,
   },

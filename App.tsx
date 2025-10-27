@@ -31,6 +31,8 @@ import Profile from './src/screens/Profile';
 import ProductDetails from './src/screens/ProductDetails';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
 
+
+
 export type RootStackParamList = {
   SignUp: undefined;
   Welcome: undefined;
