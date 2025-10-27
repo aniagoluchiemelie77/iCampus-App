@@ -11,7 +11,6 @@ import { SweetAlertPopupStyles } from '../assets/styles/colors';
 
 export interface SweetAlertModalProps {
   visible: boolean;
-  onDismiss: () => void;
   onConfirm?: () => void;
   title: string;
   message: string;
@@ -19,7 +18,6 @@ export interface SweetAlertModalProps {
 }
 const SweetAlertModal: React.FC<SweetAlertModalProps> = ({
   visible,
-  onDismiss,
   onConfirm,
   title,
   message,
@@ -42,7 +40,7 @@ const SweetAlertModal: React.FC<SweetAlertModalProps> = ({
   return (
     <Modal isVisible={visible} animationIn="zoomIn" animationOut="zoomOut">
       <TouchableWithoutFeedback
-        onPress={onDismiss}
+        onPress={onConfirm}
         style={SweetAlertPopupStyles.bckg}
       >
         <View style={SweetAlertPopupStyles.container}>

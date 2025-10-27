@@ -735,6 +735,7 @@ export function StoreScreen() {
   const [quantities, setQuantities] = useState<{ [productId: string]: number }>(
     {},
   );
+  const [searchQuery, setSearchQuery] = useState('');
 
   const openFavoritesPopup = () => {
     setShowFavorites(true);
@@ -893,6 +894,42 @@ export function StoreScreen() {
       return sum + item.priceInPoints * quantity;
     }, 0) ?? 0;
 
+  //Seach Query Functionality
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!user?.schoolName || searchQuery.trim() === '') return;
+
+      try {
+        const params = new URLSearchParams({
+          schoolName: user.schoolName,
+          search: searchQuery,
+          limit: '10',
+          offset: '0',
+        });
+
+        const response = await fetch(
+          `http://192.168.1.98:5000/store/search?${params.toString()}`,
+        );
+        const data = await response.json();
+        console.log('Query Results:', data.products);
+        setProducts(data.products);
+      } catch (error) {
+        Toast.show({
+          type: 'error',
+          text1: "Error, couldn't fetch cart items.",
+          position: 'bottom',
+          bottomOffset: 5,
+        });
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      fetchResults();
+    }, 300); // debounce delay
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, user?.schoolName]);
+
   // Fetch categories
   useEffect(() => {
     if (!user?.schoolName) return;
@@ -988,7 +1025,7 @@ export function StoreScreen() {
     >
       <View style={HomeScreenComponentStyles.searchContainer}>
         <Text style={HomeScreenComponentStyles.storeHeaderText}>
-          Shop Online with iCampus
+          Shop with iCampus
         </Text>
         <View style={HomeScreenComponentStyles.iconSubdiv2}>
           <TouchableOpacity
@@ -1040,6 +1077,8 @@ export function StoreScreen() {
             style={HomeScreenComponentStyles.input}
             placeholder="Search..."
             placeholderTextColor="#838181"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
         </View>
 
@@ -1232,17 +1271,24 @@ export function StoreScreen() {
                 }}
                 renderItem={({ item }) => (
                   <SwipeRow
-                    rightOpenValue={50}
+                    rightOpenValue={45}
                     disableRightSwipe={false}
                     disableLeftSwipe={true}
-                    onRowDidOpen={(direction: 'left' | 'right') => {
-                      console.log('Swipped:', direction);
-                      if (direction === 'right') {
-                        deleteItem(item.productId!);
-                      }
+                    contentContainerStyle={{
+                      position: 'relative',
                     }}
                   >
-                    <View style={{ height: 0 }} />
+                    {/* Hidden row */}
+                    <View style={HomeScreenComponentStyles.hiddenRow}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          console.log('Delete btn pressed');
+                          deleteItem(item.productId!);
+                        }}
+                      >
+                        <Icon name="trash-outline" size={18} color="#eee" />
+                      </TouchableOpacity>
+                    </View>
                     <TouchableOpacity
                       onPress={() =>
                         navigation.navigate('ProductDetails', {
@@ -1430,14 +1476,20 @@ export function StoreScreen() {
                       rightOpenValue={50}
                       disableRightSwipe={false}
                       disableLeftSwipe={true}
-                      onRowOpen={(direction: 'left' | 'right') => {
-                        console.log('Swipped:', direction);
-                        if (direction === 'right') {
-                          removeFavorite(item.productId!);
-                        }
+                      contentContainerStyle={{
+                        position: 'relative',
                       }}
                     >
-                      <View style={{ height: 0 }} />
+                      <View style={HomeScreenComponentStyles.hiddenRow}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            console.log('Delete btn pressed');
+                            removeFavorite(item.productId!);
+                          }}
+                        >
+                          <Icon name="trash-outline" size={18} color="#eee" />
+                        </TouchableOpacity>
+                      </View>
                       <TouchableOpacity
                         onPress={() =>
                           navigation.navigate('ProductDetails', {

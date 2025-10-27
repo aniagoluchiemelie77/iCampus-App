@@ -167,7 +167,7 @@ export default function ChangePasswordScreen() {
               </TouchableOpacity>
               <SweetAlertModal
                 visible={alertVisible}
-                onDismiss={() => setAlertVisible(false)}
+                onConfirm={() => setAlertVisible(false)}
                 title={
                   alertType === 'success'
                     ? 'Success!'

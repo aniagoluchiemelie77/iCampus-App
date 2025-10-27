@@ -192,7 +192,7 @@ export default function ForgotPasswordScreen() {
                 </KeyboardAvoidingView>
                 <SweetAlertModal
                   visible={alertVisible}
-                  onDismiss={() => setAlertVisible(false)}
+                  onConfirm={() => setAlertVisible(false)}
                   title={
                     alertType === 'success'
                       ? 'Success!'

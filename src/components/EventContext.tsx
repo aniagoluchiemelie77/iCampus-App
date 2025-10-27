@@ -62,7 +62,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         type: 'error',
         text1: "Error, couldn't fetch events",
         position: 'bottom',
-        bottomOffset: 30,
+        bottomOffset: 5,
       });
     }
   }, [user.uid, user.department, user.current_level]);
@@ -86,7 +86,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         type: 'error',
         text1: "Error, couldn't fetch favorites.",
         position: 'bottom',
-        bottomOffset: 30,
+        bottomOffset: 5,
       });
     }
   }, []);
@@ -103,7 +103,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         type: 'error',
         text1: "Error, couldn't fetch cart items.",
         position: 'bottom',
-        bottomOffset: 30,
+        bottomOffset: 5,
       });
     }
   }, []);
@@ -128,7 +128,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
           type: 'success',
           text1: data.message,
           position: 'bottom',
-          bottomOffset: 30, // Use server message directly
+          bottomOffset: 5, // Use server message directly
         });
 
         // Optional: update local favorites state if returned
@@ -139,7 +139,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
           type: 'error',
           text1: errorData.error || 'Failed to toggle favorite',
           position: 'bottom',
-          bottomOffset: 30,
+          bottomOffset: 5,
         });
       }
       fetchFavorites(); // Refresh from server

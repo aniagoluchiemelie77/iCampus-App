@@ -545,7 +545,7 @@ const AddEventTabs: React.FC = () => {
       </View>
       <SweetAlertModal
         visible={alertVisible}
-        onDismiss={() => setAlertVisible(false)}
+        onConfirm={() => setAlertVisible(false)}
         title={
           alertType === 'success'
             ? 'Success!'

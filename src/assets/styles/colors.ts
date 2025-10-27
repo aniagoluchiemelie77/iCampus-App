@@ -586,6 +586,23 @@ cartItemRightDiv: {
   backgroundColor: '#fff',
   flex: 1,
 },
+ hiddenRow: {
+    backgroundColor: '#f54b02',
+    padding: 10,
+    alignItems: 'center',
+    width: '100%', 
+    height: 90,
+    flexDirection: 'row',
+    justifyContent: 'flex-start', // aligns content to the left
+    borderRadius: 10,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    zIndex: 0,
+    marginVertical: 7,
+  },
   cartItem: {
     width: '100%',
   backgroundColor: '#fff',
@@ -631,6 +648,7 @@ cartItemRightDiv: {
     fontWeight: '700',
     backgroundColor: '#fff'
   },
+ 
   totalSection: {
     width: '100%',
     flex: 1,

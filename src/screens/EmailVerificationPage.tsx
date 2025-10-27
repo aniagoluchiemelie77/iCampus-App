@@ -84,7 +84,7 @@ const VerifyEmail = () => {
 
             <SweetAlertModal
               visible={alertVisible}
-              onDismiss={() => setAlertVisible(false)}
+              onConfirm={() => setAlertVisible(false)}
               title={
                 alertType === 'success'
                   ? 'Success!'
