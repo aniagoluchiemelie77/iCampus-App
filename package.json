@@ -21,6 +21,7 @@
     "@reduxjs/toolkit": "^2.9.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
+    "dayjs": "^1.11.18",
     "mongoose": "^8.18.0",
     "nanoid": "^5.1.5",
     "nodemailer": "^7.0.6",

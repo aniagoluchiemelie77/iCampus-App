@@ -479,10 +479,9 @@ const ProductDetails = () => {
                       </Text>
                     </View>
                   </View>
-
                   <Text
                     style={ProductDetailsStyles.otherProductTitle}
-                    numberOfLines={2}
+                    numberOfLines={1}
                     ellipsizeMode="tail"
                   >
                     {item.title}

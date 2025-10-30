@@ -33,6 +33,7 @@ import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
 
+
 export type RootStackParamList = {
   SignUp: undefined;
   Notifications: undefined;
@@ -130,11 +131,13 @@ const App = () => {
               component={SignUpScreen}
               options={{ headerShown: false }}
             />
+
             <Stack.Screen
               name="Notifications"
               component={Notifications}
               options={{ headerShown: false }}
             />
+
             <Stack.Screen
               name="Checkout"
               component={Checkout}

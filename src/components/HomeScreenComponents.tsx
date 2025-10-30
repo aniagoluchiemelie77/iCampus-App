@@ -35,6 +35,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
+import { useSelector } from 'react-redux';
+import { RootState } from '../components/store';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
@@ -393,6 +395,9 @@ const SettingsPopup = () => {
 //Home screen
 export function Home() {
   const user = useAppSelector(state => state.user);
+  const unreadCount = useSelector(
+    (state: RootState) => state.notifications.unreadCount,
+  );
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const [showActivities, setShowActivities] = useState(true);
@@ -495,6 +500,13 @@ export function Home() {
             onPress={() => navigation.navigate('Notifications')}
           >
             <Icon name="notifications-outline" size={28} color="#f54b02" />
+            {unreadCount > 0 && (
+              <View style={HomeScreenComponentStyles.badge}>
+                <Text style={HomeScreenComponentStyles.badgeText}>
+                  {unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <SettingsPopup />
         </View>

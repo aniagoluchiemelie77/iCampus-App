@@ -7,13 +7,17 @@ import React, {
   ReactNode,
 } from "react";
 
-import type { Product, User } from '../types/firebase';
+import type { Product, User, Notification } from '../types/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import { useDispatch } from 'react-redux';
+import type { AppDispatch } from './store';
+import { setNotifications2 } from './NotificationSplice';
 
 interface AppDataContextType {
   events: any[];
   favorites: Product[];
+  notification: Notification[];
   cartProducts: Product[];
   favoriteProducts: Product[];
   cart: string[];
@@ -21,6 +25,7 @@ interface AppDataContextType {
   fetchEvents: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
   fetchCartItems: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
   toggleFavorite: (productId: string) => Promise<void>;
 }
 
@@ -41,8 +46,10 @@ export const useAppDataContext = () => {
 
 export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [events, setEvents] = useState<any[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
   const [favorites] = useState<Product[]>([]);
   const [cartProducts, setCartProducts] = useState<Product[]>([]);
+  const [notification, createNotifications] = useState<Notification[]>([]);
   const [favoriteProducts, setFavoritesProducts] = useState<Product[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cart] = useState<string[]>([]);
@@ -90,6 +97,35 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   }, []);
+  const fetchNotifications = useCallback(async () => {
+    const queryParams = new URLSearchParams({
+      userId: user.uid,
+      limit: '100',
+      offset: '0',
+      unread: 'true',
+    });
+    try {
+      const res = await fetch(
+        `http://192.168.1.98:5000/users/notifications?${queryParams}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        console.log(data.notifications);
+        if (Array.isArray(data.notifications)) {
+          dispatch(setNotifications2(data.notifications));
+          createNotifications(data.notifications);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+      Toast.show({
+        type: 'error',
+        text1: "Error, couldn't fetch favorites.",
+        position: 'bottom',
+        bottomOffset: 5,
+      });
+    }
+  }, [user.uid, dispatch]);
   const fetchCartItems = useCallback(async () => {
     const token = await AsyncStorage.getItem('authToken');
     try {
@@ -156,19 +192,24 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     fetchEvents();
     fetchFavorites();
     fetchCartItems();
+    fetchNotifications();
     const interval = setInterval(() => {
       fetchEvents();
       fetchFavorites();
       fetchCartItems();
+      fetchNotifications();
     }, 2 * 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchEvents, fetchFavorites, fetchCartItems]);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchEvents, fetchFavorites, fetchCartItems, fetchNotifications]);
 
   return (
     <AppDataContext.Provider
       value={{
         events,
         favorites,
+        notification,
         cartProducts,
         errorMessage,
         cart,
@@ -176,6 +217,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         fetchEvents,
         fetchFavorites,
         fetchCartItems,
+        fetchNotifications,
         toggleFavorite,
       }}
     >

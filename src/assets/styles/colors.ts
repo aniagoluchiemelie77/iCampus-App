@@ -1,4 +1,5 @@
 import { StyleSheet, Dimensions } from 'react-native';
+const screenWidth = Dimensions.get('window').width;
 
 export const HomeScreenComponentStyles = StyleSheet.create({
   bckg: {
@@ -1365,5 +1366,72 @@ export const ProductDetailsStyles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     marginLeft: 3,
+  },
+});
+export const NotificationPageStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#eee',
+    flex: 1,
+  },
+  notificationsContainer: {
+    width: '100%',
+    padding: 10,
+    marginVertical: 7,
+  },
+  notificationsDivCard: {
+    minWidth: '100%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 10,
+    marginVertical: 5,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#fc8f61ff',
+  },
+  notificationsText: {
+    fontSize: 14,
+  },
+  notificationsTextDiv: {
+    marginTop: 8,
+    width: '100%',
+  },
+  notificationsDate: {
+    fontSize: 11,
+    color: '#807f7fff',
+    alignSelf: 'flex-start',
+  },
+  notificationsDateDiv: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  tabDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    overflow: 'hidden',
+    width: '100%',
+    backgroundColor: '#fff',
+  },
+  notificationsDiv: {
+    maxWidth: screenWidth,
+    alignItems: 'center',
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+    flex: 1,
+    alignSelf: 'stretch',
+    padding: 10,
+  },
+  emptyNotifications: {
+    padding: 15,
+    width: '100%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyNotificationsText: {
+    color: '#807f7fff',
+    fontSize: 11,
+    marginLeft: 5,
   },
 });
