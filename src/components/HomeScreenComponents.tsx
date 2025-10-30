@@ -37,6 +37,14 @@ import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { useSelector } from 'react-redux';
 import { RootState } from '../components/store';
+import { useDispatch } from 'react-redux';
+import {
+  addToCart,
+  removeFromCart,
+  incrementQuantity,
+  decrementQuantity,
+  selectCartProductIds,
+} from '../components/CartProductsSlice';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
@@ -184,7 +192,6 @@ const CalenderPopup = () => {
           </Text>
         )}
         <View style={HomeScreenComponentStyles.overlay}>
-          {/* Touchable area only covers the background */}
           <TouchableWithoutFeedback onPress={closePopup}>
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
@@ -720,14 +727,10 @@ export function ClassroomScreen() {
 // StoreScreen.js
 export function StoreScreen() {
   const user = useAppSelector(state => state.user);
-  const {
-    cartProducts,
-    fetchFavorites,
-    fetchCartItems,
-    toggleFavorite,
-    favoriteProducts,
-  } = useAppDataContext();
+  const { fetchFavorites, fetchCartItems, toggleFavorite, favoriteProducts } =
+    useAppDataContext();
   const navigation = useNavigation<NavigationPropProductDetails>();
+  const dispatch = useDispatch();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategoryList[]>([]);
@@ -797,6 +800,12 @@ export function StoreScreen() {
           [product.productId]: true, // ✅ must match item.productId
         }));
         await fetchCartItems();
+        dispatch(
+          addToCart({
+            ...product,
+            quantity: 1,
+          }),
+        );
         Toast.show({
           type: 'success',
           text1: 'Product successfully added to cart',
@@ -835,6 +844,7 @@ export function StoreScreen() {
       ...prev,
       [productId]: (prev[productId] || 0) + 1,
     }));
+    dispatch(incrementQuantity({ productId }));
   };
 
   const decrement = async (productId: string) => {
@@ -855,7 +865,7 @@ export function StoreScreen() {
       ...prev,
       [productId]: currentQty - 1,
     }));
-
+    dispatch(decrementQuantity({ productId }));
     fetchCartItems();
   };
 
@@ -863,7 +873,7 @@ export function StoreScreen() {
     console.log('Removing Product');
     const token = await AsyncStorage.getItem('authToken');
     try {
-      await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
+      const res = await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -871,7 +881,17 @@ export function StoreScreen() {
         },
         body: JSON.stringify({ productId }),
       });
-      fetchCartItems();
+      if (res.ok) {
+        dispatch(removeFromCart({ productId }));
+        fetchCartItems();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: "Error, couldn't delete cart item. Please retry.",
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
     } catch (error) {
       Toast.show({
         type: 'error',
@@ -903,11 +923,19 @@ export function StoreScreen() {
       });
     }
   };
-  const totalPoints =
-    cartProducts?.reduce((sum, item) => {
-      const quantity = quantities[item.productId] || 1;
-      return sum + item.priceInPoints * quantity;
-    }, 0) ?? 0;
+  const totalPoints = useSelector((state: RootState) =>
+    state.cart.items.reduce(
+      (sum, item) => sum + item.priceInPoints * item.quantity,
+      0,
+    ),
+  );
+  const cartProducts = useSelector((state: RootState) => state.cart.items);
+  const cartQuantities = useSelector((state: RootState) =>
+    state.cart.items.reduce((acc, item) => {
+      acc[item.productId] = item.quantity;
+      return acc;
+    }, {} as Record<string, number>),
+  );
 
   //Seach Query Functionality
   useEffect(() => {
@@ -1031,7 +1059,8 @@ export function StoreScreen() {
     });
     setQuantities(initialQuantities);
   }, [cartProducts]);
-  console.log('Favorite products:', favoriteProducts);
+
+  const cartProductIds = useSelector(selectCartProductIds);
 
   return (
     <LinearGradient
@@ -1161,9 +1190,7 @@ export function StoreScreen() {
               const isFavorite = favoriteProducts.some(
                 p => p.productId === item.productId,
               );
-              const isInCart = cartProducts.some(
-                p => p.productId === item.productId,
-              );
+              const inCart = cartProductIds.includes(item.productId);
 
               return (
                 <TouchableOpacity
@@ -1217,7 +1244,7 @@ export function StoreScreen() {
                   <TouchableOpacity
                     style={[
                       HomeScreenComponentStyles.Add2CartBtn,
-                      isInCart
+                      inCart
                         ? { backgroundColor: '#fff' }
                         : { backgroundColor: '#f54b02' },
                     ]}
@@ -1226,10 +1253,10 @@ export function StoreScreen() {
                     <Text
                       style={[
                         HomeScreenComponentStyles.Add2CartBtnText,
-                        isInCart ? { color: '#f54b02' } : { color: '#eee' },
+                        inCart ? { color: '#f54b02' } : { color: '#eee' },
                       ]}
                     >
-                      {isInCart ? 'In Cart' : 'Add to Cart'}
+                      {inCart ? 'In Cart' : 'Add to Cart'}
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -1373,7 +1400,7 @@ export function StoreScreen() {
                               HomeScreenComponentStyles.cartItemRightDivText
                             }
                           >
-                            Qty: {quantities[item.productId] || 1}
+                            Qty: {cartQuantities[item.productId] || 1}
                           </Text>
                         </View>
                       </View>

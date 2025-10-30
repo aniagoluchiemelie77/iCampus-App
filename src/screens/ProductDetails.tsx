@@ -17,14 +17,20 @@ import {
   ProductDetailsStyles,
 } from '../assets/styles/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
 const { width } = Dimensions.get('window');
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSelector } from 'react-redux';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import { RootState } from '../components/store';
+
+import { addToCart } from '../components/CartProductsSlice';
+import { useDispatch } from 'react-redux';
 
 type RouteParams = {
   ProductDetails: {
@@ -53,8 +59,14 @@ const ProductDetails = () => {
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation();
   const navigation2 = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
   const route = useRoute<RouteProp<RouteParams, 'ProductDetails'>>();
   const { product } = route.params;
+  const cartProductIds = useSelector((state: RootState) =>
+    state.cart.items.map(item => item.productId),
+  );
+  const inCart = cartProductIds.includes(product.productId);
+  const [refreshFlag, setRefreshFlag] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -103,6 +115,51 @@ const ProductDetails = () => {
       console.error('Error fetching more products:', err);
     } finally {
       setLoadingMore(false);
+    }
+  };
+  const handleAddToCart = async (product: Product) => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId: product.productId }), // or product._id
+      });
+
+      if (res.ok) {
+        dispatch(
+          addToCart({
+            ...product,
+            quantity: 1,
+            selectedSize: selectedSize ?? undefined,
+            selectedColor: selectedColor ?? undefined,
+          }),
+        );
+        Toast.show({
+          type: 'success',
+          text1: 'Product successfully added to cart',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+        setRefreshFlag(prev => !prev);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to add to cart',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to add to cart',
+        position: 'bottom',
+        bottomOffset: 10,
+      });
     }
   };
 
@@ -200,6 +257,11 @@ const ProductDetails = () => {
 
     loadInitialProducts();
   }, [user?.schoolName]);
+
+  //Refresh action after cart has been updated
+  useEffect(() => {
+    console.log('Cart updated, refresh triggered');
+  }, [refreshFlag]);
 
   const handleScroll = (event: any) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -360,7 +422,6 @@ const ProductDetails = () => {
             </View>
           </View>
         )}
-
         {!loadingSeller && seller && (
           <View style={ProductDetailsStyles.sellerCard}>
             <View style={ProductDetailsStyles.sellerTitleDiv}>
@@ -515,6 +576,16 @@ const ProductDetails = () => {
             <Text style={ProductDetailsStyles.footerBtnText}>Checkout</Text>
           </TouchableOpacity>
         </View>
+        {!inCart && (
+          <View style={ProductDetailsStyles.RightFooter}>
+            <TouchableOpacity
+              style={[ProductDetailsStyles.footerBtn]}
+              onPress={() => handleAddToCart(product)}
+            >
+              <MaterialIcons name="shopping-cart" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
       <Toast config={toastConfig} />
     </View>

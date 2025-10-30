@@ -5,7 +5,6 @@ import { useAppSelector } from '../components/hooks';
 import type { Notification } from '../types/firebase';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-
 import {
   CalendarScreenStyles,
   HomeScreenComponentStyles,

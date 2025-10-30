@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from './store';
 import { setNotifications2 } from './NotificationSplice';
+import { setCartItems } from './CartProductsSlice';
 
 interface AppDataContextType {
   events: any[];
@@ -128,13 +129,16 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   }, [user.uid, dispatch]);
   const fetchCartItems = useCallback(async () => {
     const token = await AsyncStorage.getItem('authToken');
+    console.log('Token:', token);
     try {
       const response = await fetch('http://192.168.1.98:5000/store/cart', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
       setCartProducts(data);
+      dispatch(setCartItems(data));
     } catch (error) {
+      console.warn(error);
       Toast.show({
         type: 'error',
         text1: "Error, couldn't fetch cart items.",
@@ -142,7 +146,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         bottomOffset: 5,
       });
     }
-  }, []);
+  }, [dispatch]);
 
   const toggleFavorite = async (productId: string) => {
     const token = await AsyncStorage.getItem('authToken');

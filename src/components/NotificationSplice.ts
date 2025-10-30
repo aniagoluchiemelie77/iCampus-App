@@ -9,7 +9,6 @@ const initialState: NotificationState = {
   list: [],
   unreadCount: 0,
 };
-
 const notificationSlice = createSlice({
   name: 'notifications',
   initialState,
@@ -31,6 +30,5 @@ const notificationSlice = createSlice({
     },
   },
 });
-
 export const { setNotifications2, markAsRead, clearUnread } = notificationSlice.actions;
 export default notificationSlice.reducer;
