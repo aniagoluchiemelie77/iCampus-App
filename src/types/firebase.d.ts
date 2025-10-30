@@ -58,11 +58,11 @@ export interface Community {
   level?: string; // optional
   tags?: string[]; // e.g., ['tech', 'sports', 'arts']
 }
-export interface Notifications {
+export interface Notification {
   id: string;
   notificationId: string;
   userId?: User.uid; // recipient UID
-  title: string;
+  title?: string;
   message: string;
   isRead: boolean;
   createdAt: string;

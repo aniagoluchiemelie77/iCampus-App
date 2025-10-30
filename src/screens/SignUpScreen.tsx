@@ -286,7 +286,6 @@ const SignUpScreen = () => {
     }
   };
   const handleLogin = async () => {
-    console.log('Submit Btn Clicked');
     if (!identifier || !password) {
       setAlertType('warning');
       setAlertMessage('Please enter your Email and Password.');
@@ -295,24 +294,43 @@ const SignUpScreen = () => {
     }
 
     try {
+      // Step 1: Get public IP
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const { ip } = await ipRes.json();
+      console.log(ip);
+
+      // Step 2: Get location from IP
+      const locationRes = await fetch(
+        `https://ipinfo.io/${ip}?token=0812a745a27433`,
+      );
+      const locationData = await locationRes.json();
+      console.log('Location data:', locationData);
+
+      // Format location string
+      const location =
+        [locationData.city, locationData.region, locationData.country]
+          .filter(Boolean)
+          .join(', ') || 'Unknown location';
+
+      console.log('Formatted location:', location);
+
+      // Step 3: Send login request with IP and location
       const response = await fetch('http://192.168.1.98:5000/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier, password, ipAddress: ip, location }),
       });
+
       const contentType = response.headers.get('content-type');
       if (response.ok && contentType?.includes('application/json')) {
-        console.log('Submit Btn Clicked, Login 2');
         const result = await response.json();
         const token = result.token;
-        // ✅ Store token and user info
+
         await AsyncStorage.setItem('authToken', token);
         await AsyncStorage.setItem('user', JSON.stringify(result.user));
-        console.log(result.user);
-        console.log('authToken:', token);
-        // ✅ Optionally set user in Context or Redux
+
         dispatch(
           setUser({ ...result.user, token, tokenCreatedAt: Date.now() }),
         );
@@ -331,6 +349,7 @@ const SignUpScreen = () => {
       console.error('Login error:', error);
     }
   };
+
   const verifyStudent = async () => {
     console.log('🔍 Verify button pressed');
     setVerifying(true);

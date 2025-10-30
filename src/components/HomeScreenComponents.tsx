@@ -416,6 +416,8 @@ export function Home() {
     await fetchEvents();
     setRefreshing(false);
   }, [fetchEvents]);
+
+  //Fetch Events
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
     // Run once on mount
@@ -490,6 +492,7 @@ export function Home() {
               HomeScreenComponentStyles.activityIcons,
               HomeScreenComponentStyles.activityIcons2,
             ]}
+            onPress={() => navigation.navigate('Notifications')}
           >
             <Icon name="notifications-outline" size={28} color="#f54b02" />
           </TouchableOpacity>

@@ -1275,12 +1275,7 @@ export const ProductDetailsStyles = StyleSheet.create({
     height: 70,
   },
   leftFooter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rightFooter: {
-    flex: 1,
-    marginLeft: 5,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -30,11 +30,12 @@ import Calender from './src/screens/Calender';
 import Profile from './src/screens/Profile';
 import ProductDetails from './src/screens/ProductDetails';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
-
-
+import Checkout from './src/screens/Checkout';
+import Notifications from './src/screens/Notifications';
 
 export type RootStackParamList = {
   SignUp: undefined;
+  Notifications: undefined;
   Welcome: undefined;
   Home: undefined;
   ForgotPasswordScreen: undefined;
@@ -50,6 +51,7 @@ export type RootStackParamList = {
   };
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
+  Checkout: { product: Product[] };
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -126,6 +128,16 @@ const App = () => {
             <Stack.Screen
               name="SignUp"
               component={SignUpScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Notifications"
+              component={Notifications}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Checkout"
+              component={Checkout}
               options={{ headerShown: false }}
             />
             <Stack.Screen
