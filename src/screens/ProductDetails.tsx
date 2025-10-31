@@ -15,6 +15,7 @@ import type { Product, User } from '../types/firebase';
 import {
   CalendarScreenStyles,
   ProductDetailsStyles,
+  HomeScreenComponentStyles,
 } from '../assets/styles/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -569,8 +570,12 @@ const ProductDetails = () => {
           <TouchableOpacity
             style={[
               ProductDetailsStyles.footerBtn,
-              isInsufficientPoints && { backgroundColor: '#fb966bff' }, // dimmed style
+              isInsufficientPoints && HomeScreenComponentStyles.disabledButton, // dimmed style
             ]}
+            onPress={() => {
+              handleAddToCart(product);
+              navigation2.navigate('Checkout');
+            }}
             disabled={isInsufficientPoints}
           >
             <Text style={ProductDetailsStyles.footerBtnText}>Checkout</Text>

@@ -52,7 +52,7 @@ export type RootStackParamList = {
   };
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
-  Checkout: { product: Product[] };
+  Checkout: undefined;
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';

@@ -149,6 +149,26 @@ badge: {
     height: '100%',
     paddingBottom: 30
   },
+  clearCartDiv: {
+    width: '100%',
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    backgroundColor: '#fff',
+  },
+  clearCartBtn: {
+    backgroundColor: '#f54b02',
+    borderRadius: 10,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearCartText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14
+  },
   viewCartItems: {
     padding: 10,
     width: '85%',
@@ -664,6 +684,13 @@ cartItemRightDiv: {
     justifyContent: 'space-between',
     padding: 10
   },
+  totalSectionCheckout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    width: '100%'
+  },
   totalLabel: {
     fontSize: 20,
     fontWeight: '700',
@@ -679,6 +706,9 @@ cartItemRightDiv: {
     backgroundColor: "#f54b02",
     padding: 20,
     borderRadius: 10,
+  },
+  disabledButton: {
+    backgroundColor: '#fb966bff',
   },
   checkoutText: {
     color: '#eee',
@@ -1220,6 +1250,11 @@ export const ProductDetailsStyles = StyleSheet.create({
   locationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  locationInfo2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 7
   },
   otherProductsPriceDivInfo: {
     flexDirection: 'row',

@@ -30,7 +30,10 @@ import type {
   CalendarEvent,
   Product,
 } from '../types/firebase';
-import { HomeScreenComponentStyles } from '../assets/styles/colors';
+import {
+  HomeScreenComponentStyles,
+  NotificationPageStyles,
+} from '../assets/styles/colors';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -44,6 +47,7 @@ import {
   incrementQuantity,
   decrementQuantity,
   selectCartProductIds,
+  clearCart,
 } from '../components/CartProductsSlice';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -829,6 +833,80 @@ export function StoreScreen() {
       });
     }
   };
+  const handleClearCart = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+
+      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        dispatch(clearCart()); // Optional: clear Redux cart state
+        await fetchCartItems(); // Refresh cart view
+        Toast.show({
+          type: 'success',
+          text1: 'Cart cleared successfully',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to clear cart',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to clear cart',
+        position: 'bottom',
+        bottomOffset: 10,
+      });
+    }
+  };
+  const handleClearFavorites = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+
+      const res = await fetch('http://192.168.1.98:5000/store/favorites', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        await fetchFavorites(); // Refresh cart view
+        Toast.show({
+          type: 'success',
+          text1: 'Favorites cleared successfully',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to clear favorites',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to clear favorites',
+        position: 'bottom',
+        bottomOffset: 10,
+      });
+    }
+  };
+
   const increment = async (productId: string) => {
     const token = await AsyncStorage.getItem('authToken');
     await fetch(`http://192.168.1.98:5000/store/cart/increment`, {
@@ -1316,6 +1394,20 @@ export function StoreScreen() {
             </Animated.View>
 
             <View style={HomeScreenComponentStyles.popupContent2}>
+              {cartProducts.length > 0 && (
+                <View style={HomeScreenComponentStyles.clearCartDiv}>
+                  <TouchableOpacity
+                    onPress={handleClearCart}
+                    style={HomeScreenComponentStyles.clearCartBtn}
+                  >
+                    <Text style={HomeScreenComponentStyles.clearCartText}>
+                      Clear Cart
+                    </Text>
+                    <Icon name="trash-outline" size={20} color="#eee" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <SwipeListView
                 data={cartProducts}
                 keyExtractor={item => item.productId}
@@ -1417,16 +1509,19 @@ export function StoreScreen() {
                   </View>
                 )}
                 ListEmptyComponent={
-                  <View
-                    style={{
-                      flex: 1,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 17, color: '#888' }}>
-                      Cart is empty
-                    </Text>
+                  <View style={NotificationPageStyles.notificationsDiv}>
+                    <View style={NotificationPageStyles.emptyNotifications}>
+                      <Icon
+                        name="alert-circle-outline"
+                        size={20}
+                        color="#807f7fff"
+                      />
+                      <Text
+                        style={NotificationPageStyles.emptyNotificationsText}
+                      >
+                        Cart is empty.
+                      </Text>
+                    </View>
                   </View>
                 }
               />
@@ -1449,12 +1544,11 @@ export function StoreScreen() {
               <TouchableOpacity
                 style={[
                   HomeScreenComponentStyles.checkoutBtn,
-                  totalPoints > user.pointsBalance && {
-                    backgroundColor: '#fb966bff',
-                  },
+                  totalPoints > user.pointsBalance &&
+                    HomeScreenComponentStyles.disabledButton,
                 ]}
                 disabled={totalPoints > user.pointsBalance}
-                //onPress={handleCheckout}
+                onPress={() => navigation.navigate('Checkout')}
               >
                 <Text style={HomeScreenComponentStyles.checkoutText}>
                   {totalPoints > user.pointsBalance
@@ -1494,6 +1588,19 @@ export function StoreScreen() {
             </Animated.View>
 
             <View style={HomeScreenComponentStyles.popupContent2}>
+              {favoriteProducts.length > 0 && (
+                <View style={HomeScreenComponentStyles.clearCartDiv}>
+                  <TouchableOpacity
+                    onPress={handleClearFavorites}
+                    style={HomeScreenComponentStyles.clearCartBtn}
+                  >
+                    <Text style={HomeScreenComponentStyles.clearCartText}>
+                      Clear Favorites
+                    </Text>
+                    <Icon name="trash-outline" size={20} color="#eee" />
+                  </TouchableOpacity>
+                </View>
+              )}
               <SwipeListView
                 data={favoriteProducts}
                 keyExtractor={item => item.productId}
@@ -1555,16 +1662,19 @@ export function StoreScreen() {
                   </View>
                 )}
                 ListEmptyComponent={
-                  <View
-                    style={{
-                      flex: 1,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 17, color: '#888' }}>
-                      No product marked as Favorite.
-                    </Text>
+                  <View style={NotificationPageStyles.notificationsDiv}>
+                    <View style={NotificationPageStyles.emptyNotifications}>
+                      <Icon
+                        name="alert-circle-outline"
+                        size={20}
+                        color="#807f7fff"
+                      />
+                      <Text
+                        style={NotificationPageStyles.emptyNotificationsText}
+                      >
+                        No favorites found.
+                      </Text>
+                    </View>
                   </View>
                 }
               />

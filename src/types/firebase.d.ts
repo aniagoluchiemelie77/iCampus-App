@@ -1,6 +1,7 @@
 
 export type UserType = 'student' | 'lecturer' | 'admin' | '';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
+export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type UserRole = 'student' | 'lecturer' | 'admin';
 export interface User {
   uid: string;
@@ -41,6 +42,8 @@ export interface User {
   cart?: string[];
   favorites?: string[];
   phone_number?: string
+  purchaseHistory?: PurchaseHistory[];
+  PurchaseTransactions?: UserTransactions[];
 }
 export interface Community {
   id: string;
@@ -253,7 +256,7 @@ export interface Product {
   sellerId: User.uid; // UID of lecturer or student
   title: string;
   description?: string;
-  mediaUrls: string[]; // images or videos
+  mediaUrls: string[]; 
   type: 'product' | 'File';
   priceInPoints: number;
   lockedWithPassword?: boolean;
@@ -336,6 +339,22 @@ export interface BuyRequest {
   requestedAt: string;
   status: 'pending' | 'approved' | 'rejected';
 }
+export interface PurchaseHistory {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  totalProductsPurchased: number;
+  totalPointsSpent: number;
+  items: {
+    productId: string;
+    title: string;
+    quantity: number;
+    priceInPoints: number;
+    selectedSize: string;
+    selectedColor: string;
+  }[]; 
+  date: string;
+}
+
 export interface TransferPointsRequest {
   id: string;
   transferRequestId: string;
@@ -397,6 +416,18 @@ export interface EventNote {
   tags?: string[]; // e.g., ['exam', 'group meeting', 'revision']
 }
 
+export interface UserTransactions {
+  id: string; // unique ID for this transaction group (optional)
+  userId: string; // or User['uid'] if referencing from your User type
+  transactions: Transaction[];
+}
+export interface Transaction {
+  id: string; // unique DB ID
+  transactionId: string; // external or internal reference
+  type: PurchaseTransactionType;
+  amountInPoints: number;
+  date: string; 
+}
 
 
 
