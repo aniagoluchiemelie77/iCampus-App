@@ -39,7 +39,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { useSelector } from 'react-redux';
-import { RootState } from '../components/store';
+
 import { useDispatch } from 'react-redux';
 import {
   addToCart,
@@ -47,8 +47,12 @@ import {
   incrementQuantity,
   decrementQuantity,
   selectCartProductIds,
+  selectCartItems,
   clearCart,
+  selectTotalPoints,
+  selectCartQuantities,
 } from '../components/CartProductsSlice';
+import { selectUnreadCount } from '../components/NotificationSplice';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
@@ -406,9 +410,7 @@ const SettingsPopup = () => {
 //Home screen
 export function Home() {
   const user = useAppSelector(state => state.user);
-  const unreadCount = useSelector(
-    (state: RootState) => state.notifications.unreadCount,
-  );
+  const unreadCount = useSelector(selectUnreadCount);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const [showActivities, setShowActivities] = useState(true);
@@ -834,6 +836,7 @@ export function StoreScreen() {
     }
   };
   const handleClearCart = async () => {
+    console.log('Clear cart btn clicked');
     try {
       const token = await AsyncStorage.getItem('authToken');
 
@@ -907,44 +910,105 @@ export function StoreScreen() {
     }
   };
 
-  const increment = async (productId: string) => {
-    const token = await AsyncStorage.getItem('authToken');
-    await fetch(`http://192.168.1.98:5000/store/cart/increment`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId }),
-    });
+  const increment = async (
+    productId: string,
+    selectedSize?: string,
+    selectedColor?: string,
+  ) => {
+    const product = cartProducts.find(
+      p =>
+        p.productId === productId &&
+        p.selectedSize === selectedSize &&
+        p.selectedColor === selectedColor,
+    );
 
-    setQuantities(prev => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1,
-    }));
-    dispatch(incrementQuantity({ productId }));
+    const stock = product?.stock || 0;
+    const currentQty = product?.quantity || 1;
+
+    if (currentQty >= stock) {
+      Toast.show({
+        type: 'info',
+        text1: 'Maximum stock reached',
+        position: 'bottom',
+        bottomOffset: 5,
+      });
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const response = await fetch(
+        `http://192.168.1.98:5000/store/cart/increment`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productId, selectedSize, selectedColor }),
+        },
+      );
+
+      if (!response.ok) {
+        console.error('Failed to increment on server');
+        return;
+      }
+
+      // Optional: parse updated item from server
+      // const updatedItem = await response.json();
+
+      // Update local state if needed
+      dispatch(incrementQuantity({ productId, selectedSize, selectedColor }));
+      setQuantities(prev => ({
+        ...prev,
+        [productId]: (prev[productId] ?? 1) + 1,
+      }));
+
+      console.log('Incrementing Completed');
+    } catch (error) {
+      console.error('Increment error:', error);
+    }
   };
 
   const decrement = async (productId: string) => {
-    const currentQty = quantities[productId] || 1;
-    if (currentQty <= 1) return; // ✅ prevent decrement below 1
+    const currentQty = quantities[productId] ?? 1;
+    if (currentQty <= 1) return;
 
-    const token = await AsyncStorage.getItem('authToken');
-    await fetch(`http://192.168.1.98:5000/store/cart/decrement`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId }),
-    });
+    try {
+      console.log('Decrementing Product');
+      const token = await AsyncStorage.getItem('authToken');
 
-    setQuantities(prev => ({
-      ...prev,
-      [productId]: currentQty - 1,
-    }));
-    dispatch(decrementQuantity({ productId }));
-    fetchCartItems();
+      const response = await fetch(
+        `http://192.168.1.98:5000/store/cart/decrement`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productId }),
+        },
+      );
+
+      if (!response.ok) {
+        console.error('Failed to decrement on server');
+        return;
+      }
+
+      // Update local quantity
+      setQuantities(prev => ({
+        ...prev,
+        [productId]: currentQty - 1,
+      }));
+
+      dispatch(decrementQuantity({ productId }));
+      console.log('Decrementing Completed');
+
+      // Optional: refresh cart from server
+      fetchCartItems();
+    } catch (error) {
+      console.error('Decrement error:', error);
+    }
   };
 
   const deleteItem = async (productId: string) => {
@@ -1001,19 +1065,9 @@ export function StoreScreen() {
       });
     }
   };
-  const totalPoints = useSelector((state: RootState) =>
-    state.cart.items.reduce(
-      (sum, item) => sum + item.priceInPoints * item.quantity,
-      0,
-    ),
-  );
-  const cartProducts = useSelector((state: RootState) => state.cart.items);
-  const cartQuantities = useSelector((state: RootState) =>
-    state.cart.items.reduce((acc, item) => {
-      acc[item.productId] = item.quantity;
-      return acc;
-    }, {} as Record<string, number>),
-  );
+  const totalPoints = useSelector(selectTotalPoints);
+  const cartProducts = useSelector(selectCartItems);
+  const cartQuantities = useSelector(selectCartQuantities);
 
   //Seach Query Functionality
   useEffect(() => {
@@ -1138,7 +1192,13 @@ export function StoreScreen() {
     setQuantities(initialQuantities);
   }, [cartProducts]);
 
+  useEffect(() => {
+    console.log('Cart items:', cartProducts);
+    console.log('Cart quantities:', cartQuantities);
+    console.log('Calculating total points...', totalPoints);
+  }, [cartProducts, cartQuantities, totalPoints]);
   const cartProductIds = useSelector(selectCartProductIds);
+  console.log(totalPoints);
 
   return (
     <LinearGradient
@@ -1375,7 +1435,7 @@ export function StoreScreen() {
           </TouchableWithoutFeedback>
           <View style={HomeScreenComponentStyles.popupBottom}>
             <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-              <View style={HomeScreenComponentStyles.topHeader2}>
+              <View style={HomeScreenComponentStyles.topHeader3}>
                 <Text style={HomeScreenComponentStyles.welcomeText2}>
                   Cart Items ({cartProducts.length})
                 </Text>
@@ -1569,7 +1629,7 @@ export function StoreScreen() {
           </TouchableWithoutFeedback>
           <View style={HomeScreenComponentStyles.popupBottom}>
             <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-              <View style={HomeScreenComponentStyles.topHeader2}>
+              <View style={HomeScreenComponentStyles.topHeader3}>
                 <Text style={HomeScreenComponentStyles.welcomeText2}>
                   Favorites ({favoriteProducts.length})
                 </Text>

@@ -127,16 +127,28 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   }, [user.uid, dispatch]);
+
   const fetchCartItems = useCallback(async () => {
     const token = await AsyncStorage.getItem('authToken');
     console.log('Token:', token);
+
     try {
       const response = await fetch('http://192.168.1.98:5000/store/cart', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await response.json();
-      setCartProducts(data);
-      dispatch(setCartItems(data));
+
+      const rawData = await response.json();
+      console.log('Fetched cart items:', rawData);
+
+      // Normalize each item
+      const normalizedItems = rawData.map((item: any) => ({
+        ...item,
+        quantity: Number(item.cartQuantity) || 1, // ✅ use cartQuantity from backend
+        stock: Number(item.quantity) || 0, // ✅ preserve stock separately
+      }));
+
+      setCartProducts(normalizedItems);
+      dispatch(setCartItems(normalizedItems));
     } catch (error) {
       console.warn(error);
       Toast.show({
@@ -147,6 +159,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   }, [dispatch]);
+
 
   const toggleFavorite = async (productId: string) => {
     const token = await AsyncStorage.getItem('authToken');

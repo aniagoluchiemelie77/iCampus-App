@@ -118,7 +118,7 @@ const ProductDetails = () => {
       setLoadingMore(false);
     }
   };
-  const handleAddToCart = async (product: Product) => {
+  const handleAddToCart = async (cartItem: Product) => {
     try {
       const token = await AsyncStorage.getItem('authToken');
       const res = await fetch('http://192.168.1.98:5000/store/cart', {
@@ -127,13 +127,13 @@ const ProductDetails = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ productId: product.productId }), // or product._id
+        body: JSON.stringify({ productId: cartItem.productId }), // or cartItem._id
       });
 
       if (res.ok) {
         dispatch(
           addToCart({
-            ...product,
+            ...cartItem,
             quantity: 1,
             selectedSize: selectedSize ?? undefined,
             selectedColor: selectedColor ?? undefined,

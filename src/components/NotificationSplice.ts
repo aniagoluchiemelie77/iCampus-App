@@ -1,5 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import { Notification } from '../types/firebase'; // adjust path
+import { RootState } from './store'; 
 
 interface NotificationState {
   list: Notification[];
@@ -32,3 +33,8 @@ const notificationSlice = createSlice({
 });
 export const { setNotifications2, markAsRead, clearUnread } = notificationSlice.actions;
 export default notificationSlice.reducer;
+export const selectNotifications = (state: RootState) => state.notifications.list;
+export const selectUnreadCount = createSelector(
+  [selectNotifications],
+  (list) => list.filter(n => !n.isRead).length
+);

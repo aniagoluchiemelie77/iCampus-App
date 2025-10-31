@@ -24,6 +24,14 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
   },
+  topHeader3: {
+    backgroundColor: 'inherit',
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
   welcomeHeader: {
     padding: 5,
     flexDirection: 'row',
@@ -142,19 +150,18 @@ badge: {
     paddingBottom: 100,
   },
   popupContent2: {
+    paddingTop: 5,
     paddingHorizontal: 10,
     width: '100%',
-    flex: 1,
-    marginVertical: 15,
+    marginVertical: 10,
     height: '100%',
-    paddingBottom: 30
   },
   clearCartDiv: {
     width: '100%',
-    padding: 10,
+    paddingTop: 0,
+    paddingBottom: 10,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    backgroundColor: '#fff',
   },
   clearCartBtn: {
     backgroundColor: '#f54b02',
@@ -163,6 +170,8 @@ badge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'flex-end',
+    width: 'auto'
   },
   clearCartText: {
     color: '#fff',
@@ -292,7 +301,6 @@ badge: {
     right: 0,
     width: '100%',
     height: '90%',
-    padding: 15,
     backgroundColor: '#eee',
     borderRadius: 12,
     elevation: 5,

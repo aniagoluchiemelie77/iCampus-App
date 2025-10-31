@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectCartItems, clearCart } from '../components/cartProductsSlice'; // adjust path
+import { selectCartItems, clearCart } from '../components/CartProductsSlice'; // adjust path
 import { useAppSelector } from '../components/hooks';
 import {
   NotificationPageStyles,
@@ -210,6 +210,11 @@ const CheckoutScreen = () => {
             </View>
           </View>
         }
+        contentContainerStyle={{
+          padding: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       />
       <View style={styles.footer}>
         <View style={HomeScreenComponentStyles.totalSectionCheckout}>
@@ -246,31 +251,30 @@ const CheckoutScreen = () => {
 
 export default CheckoutScreen;
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15, backgroundColor: '#eee' },
+  container: { flex: 1, backgroundColor: '#eee' },
   itemContainer: {
     flexDirection: 'row',
     marginVertical: 7,
     padding: 10,
     backgroundColor: '#fff',
-    width: '95%',
+    width: '100%',
     borderRadius: 10,
   },
   image: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     borderRadius: 10,
     marginBottom: 5,
   },
   imageDiv: {
-    width: 90,
-    flexGrow: 1,
+    width: 100,
     alignItems: 'center',
   },
-  details: { marginLeft: 10, flex: 1, padding: 10 },
+  details: { flex: 1, padding: 10 },
   name: { fontWeight: '700', fontSize: 15, color: '#000', marginBottom: 5 },
   empty: { textAlign: 'center', marginTop: 50, fontSize: 18 },
   footer: {
-    borderColor: '#fff',
+    backgroundColor: '#fff',
     padding: 10,
     width: '100%',
     alignItems: 'center',
@@ -303,8 +307,9 @@ const styles = StyleSheet.create({
   sizeContainer2: {
     padding: 7,
     width: '100%',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   priceText: {
     fontWeight: '700',
