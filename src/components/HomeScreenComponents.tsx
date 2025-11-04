@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
+  Dimensions,
   ActivityIndicator,
   FlatList,
   RefreshControl,
@@ -14,13 +21,10 @@ import {
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  StyleSheet,
 } from 'react-native';
-//import { BlurView } from '@react-native-community/blur';
-import Swiper from 'react-native-swiper';
-import * as ImagePicker from 'expo-image-picker';
+import { selectImage } from './SelectImage';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { homeStyles } from '../assets/styles/colors'; // Adjust path as needed
+
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -36,6 +40,8 @@ import type {
 import {
   HomeScreenComponentStyles,
   NotificationPageStyles,
+  homeStyles,
+  ProfileComponentStyles,
 } from '../assets/styles/colors';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -57,8 +63,17 @@ import {
 } from '../components/CartProductsSlice';
 import { selectUnreadCount } from '../components/NotificationSplice';
 import { updateUserImage } from '../components/UserSlice';
+const { width } = Dimensions.get('window');
 
 import { CLOUDINARY_APICLOUDNAME } from '@env';
+interface ProfileSwiperProps {
+  images: string[];
+  handleImageUpdate: () => void;
+  uploading: boolean;
+  homeStyles: any;
+  HomeScreenComponentStyles: any;
+  styles: any;
+}
 
 export const uploadImageToCloudinary = async (
   imageUri: string,
@@ -94,12 +109,12 @@ type NavigationPropProductDetails = StackNavigationProp<
   'ProductDetails'
 >;
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
-const getGreeting = () => {
+/*const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good Morning';
   if (hour < 17) return 'Good Afternoon';
   return 'Good Evening';
-};
+};*/
 
 const CalenderPopup = () => {
   const { events, errorMessage, fetchEvents } = useAppDataContext();
@@ -553,19 +568,23 @@ export function Home() {
           </TouchableOpacity>
           <SettingsPopup />
         </View>
-      </View>
+        {/*</View>
       <View style={HomeScreenComponentStyles.welcomeHeader}>
         <TouchableOpacity
           style={[homeStyles.iconItem, HomeScreenComponentStyles.activityIcons]}
           onPress={() => navigation.navigate('Profile')}
         >
           {Array.isArray(user.profilePic) && user.profilePic.length > 0 && (
-            <Image source={{ uri: user.profilePic[0] }} style={styles.image} />
+            <Image
+              source={{ uri: user.profilePic[user.profilePic.length - 1] }}
+              style={ProfileComponentStyles.image}
+            />
           )}
         </TouchableOpacity>
         <Text style={HomeScreenComponentStyles.welcomeText}>
           {getGreeting()}, {user.firstname}
         </Text>
+      </View> */}
       </View>
       <ScrollView
         contentContainerStyle={HomeScreenComponentStyles.activityDivContainer}
@@ -655,6 +674,7 @@ export function Home() {
                   homeStyles.iconItem,
                   HomeScreenComponentStyles.activityIcons,
                 ]}
+                onPress={() => navigation.navigate('PointsPage')}
               >
                 <Icon name="wallet-outline" size={30} color="#f54b02" />
                 <Text style={homeStyles.iconLabel}>My Wallet</Text>
@@ -1768,30 +1788,88 @@ export function StoreScreen() {
 }
 
 // ProfileScreen.js
+const ProfileSwiper: React.FC<ProfileSwiperProps> = ({
+  images,
+  handleImageUpdate,
+  uploading,
+}) => {
+  const flatListRef = useRef<FlatList>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / width);
+    setCurrentIndex(index);
+  };
+
+  return (
+    <View style={ProfileComponentStyles.imageDiv}>
+      <FlatList
+        ref={flatListRef}
+        data={images}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item, index) => index.toString()}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        renderItem={({ item }) => (
+          <Image
+            source={{ uri: item }}
+            style={{ resizeMode: 'cover', height: 350, width }}
+          />
+        )}
+      />
+
+      <TouchableOpacity
+        style={ProfileComponentStyles.button}
+        onPress={handleImageUpdate}
+      >
+        <MaterialIcons
+          name="add-a-photo"
+          size={uploading ? 37 : 39}
+          color="#fff"
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          homeStyles.iconItem,
+          HomeScreenComponentStyles.activityIconsb,
+          HomeScreenComponentStyles.activityIcons2,
+        ]}
+      >
+        <Icon name="settings-outline" size={28} color="#f54b02" />
+      </TouchableOpacity>
+      <View style={ProfileComponentStyles.progressBar}>
+        <View
+          style={[
+            ProfileComponentStyles.progressFill,
+            { width: `${((currentIndex + 1) / images.length) * 100}%` },
+          ]}
+        />
+      </View>
+    </View>
+  );
+};
+
 export function ProfileScreen() {
   const user = useAppSelector(state => state.user);
   const dispatch = useDispatch();
+  const navigation = useNavigation<NavigationPropProductDetails>();
   const [uploading, setUploading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showPoints, setShowPoints] = useState(false);
 
   const handleImageUpdate = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      // @ts-ignore
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
+    const imageUri = await selectImage();
 
-    if (!result.canceled && result.assets.length > 0) {
-      const newImage = result.assets[0].uri;
-
-      const imageUrl = await uploadImageToCloudinary(newImage);
+    if (imageUri) {
+      const imageUrl = await uploadImageToCloudinary(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
-        setSelectedImage(imageUrl); // ✅ Store Cloudinary URL, not local URI
+        setSelectedImage(imageUrl); // ✅ Store Cloudinary URL
         setShowModal(true);
       }
     }
@@ -1848,70 +1926,33 @@ export function ProfileScreen() {
       setSelectedImage(null);
     }
   };
+  const reversedPics = useMemo(
+    () => [...(user.profilePic ?? [])].reverse(),
+    [user.profilePic],
+  );
 
   return (
-    <LinearGradient style={styles.container} colors={['#eee', '#edccbdff']}>
-      <ScrollView>
+    <LinearGradient
+      style={ProfileComponentStyles.container}
+      colors={['#eee', '#edccbdff']}
+    >
+      <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
         {Array.isArray(user.profilePic) && user.profilePic.length > 0 && (
-          <View style={styles.imageDiv}>
-            <Swiper style={styles.swiper} showsButtons loop={false}>
-              {[...user.profilePic].reverse().map((imgUri: string, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: imgUri }}
-                  style={styles.image}
-                />
-              ))}
-            </Swiper>
-            <TouchableOpacity style={styles.button} onPress={handleImageUpdate}>
-              <Text style={styles.buttonText}>
-                {uploading ? (
-                  <MaterialIcons
-                    name="add-a-photo-outlined"
-                    size={20}
-                    color="#fff"
-                  />
-                ) : (
-                  'Update Profile Image'
-                )}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <ProfileSwiper
+            images={reversedPics}
+            handleImageUpdate={handleImageUpdate}
+            uploading={uploading}
+            styles={ProfileComponentStyles}
+            homeStyles={homeStyles}
+            HomeScreenComponentStyles={HomeScreenComponentStyles}
+          />
         )}
 
-        <View style={styles.nameBox}>
-          <Text style={styles.name}>
+        <View style={ProfileComponentStyles.nameBoxb}>
+          <Text style={ProfileComponentStyles.name}>
             {user.firstname} {user.lastname}
           </Text>
-        </View>
-        <View style={styles.nameBox}>
-          <View style={styles.rowBox}>
-            <MaterialIcons name="email-outlined" size={14} color="#f54b02" />
-            <Text style={styles.textRight}>{user.email}</Text>
-          </View>
-          <View style={styles.rowBox}>
-            <MaterialIcons name="call-outlined" size={14} color="#f54b02" />
-            <Text style={styles.textRight}>{user.phone_number}</Text>
-          </View>
-        </View>
-        <View style={styles.nameBox2}>
-          <View style={styles.rowBox2}>
-            <MaterialIcons name="school-outlined" size={14} color="#f54b02" />
-            <Text style={styles.textRight}>{user.schoolName}</Text>
-          </View>
-          <View style={styles.rowBox2}>
-            <MaterialIcons name="school-outlined" size={14} color="#f54b02" />
-            <Text style={styles.textRight}>{user.department}</Text>
-          </View>
-          <View style={styles.rowBox2}>
-            <MaterialIcons
-              name="bookmarks-outlined"
-              size={14}
-              color="#f54b02"
-            />
-            <Text style={styles.textRight}>{user.matricNumber}</Text>
-          </View>
-          <View style={styles.rowBox2}>
+          <View style={ProfileComponentStyles.rowBox2c}>
             {Array.from({
               length: Math.min(
                 parseInt(user.current_level ?? '100', 10) / 100,
@@ -1920,74 +1961,100 @@ export function ProfileScreen() {
             }).map((_, index) => (
               <MaterialIcons
                 key={index}
-                name="star-rate-outlined"
-                size={14}
+                name="star"
+                size={15}
                 color="#f54b02"
-                style={styles.iconMargin}
+                style={ProfileComponentStyles.iconMargin2}
               />
             ))}
           </View>
         </View>
-        <TouchableOpacity style={styles.nameBox3}>
-          <View style={styles.rowBox2a}>
-            <View style={styles.rowBox3}>
-              <View style={styles.row}>
-                <Icon name="diamond" size={19} color="#f54b02" />
-                <Text style={styles.name}>
-                  {showPoints ? user.pointsBalance : '••••'}
+        <View style={ProfileComponentStyles.nameBox2}>
+          <View style={ProfileComponentStyles.rowBox2}>
+            <Icon name="mail-outline" size={15} color="#f54b02" />
+            <Text style={ProfileComponentStyles.textRight}>{user.email}</Text>
+          </View>
+          <View style={ProfileComponentStyles.rowBox2}>
+            <Icon name="call-outline" size={15} color="#f54b02" />
+            <Text style={ProfileComponentStyles.textRight}>
+              {user.phone_number}
+            </Text>
+          </View>
+        </View>
+        <View style={ProfileComponentStyles.nameBox2}>
+          <View style={ProfileComponentStyles.rowBox2b}>
+            <Icon name="school-outline" size={15} color="#f54b02" />
+            <Text style={ProfileComponentStyles.textRight}>
+              {user.schoolName}
+            </Text>
+          </View>
+          <View style={ProfileComponentStyles.rowBox2}>
+            <Icon name="school-outline" size={15} color="#f54b02" />
+            <Text style={ProfileComponentStyles.textRight}>
+              {user.department}
+            </Text>
+          </View>
+          <View style={ProfileComponentStyles.rowBox2}>
+            <Icon name="bookmarks-outline" size={14} color="#f54b02" />
+            <Text style={ProfileComponentStyles.textRight}>
+              {user.matricNumber}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={ProfileComponentStyles.nameBox3}
+          onPress={() => navigation.navigate('PointsPage')}
+        >
+          <View style={ProfileComponentStyles.rowBox2a}>
+            <View style={ProfileComponentStyles.rowBox3}>
+              <View style={ProfileComponentStyles.row}>
+                <Icon name="diamond" size={24} color="#f54b02" />
+                <Text style={ProfileComponentStyles.pointsBal}>
+                  {showPoints ? user.pointsBalance.toLocaleString() : '••••'}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowPoints(prev => !prev)}
-                style={styles.iconMargin}
+                style={ProfileComponentStyles.iconMargin}
               >
                 <MaterialIcons
                   name={showPoints ? 'visibility' : 'visibility-off'}
-                  size={14}
+                  size={22}
                   color="#000"
+                  style={ProfileComponentStyles.iconMargin}
                 />
               </TouchableOpacity>
             </View>
-            <MaterialIcons
-              name="chevron-right-outlined"
-              size={14}
-              color="#838282ff"
-            />
+            <Icon name="chevron-forward" size={24} color="#838282ff" />
           </View>
 
-          <View style={styles.rowBox2}>
-            <TouchableOpacity style={styles.equalDiv}>
+          <View style={ProfileComponentStyles.rowBox2}>
+            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+              <Icon name="cart" size={23} color="#f54b02" />
+              <Text style={ProfileComponentStyles.textColored}>Buy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+              <MaterialIcons name="account-balance" size={23} color="#f54b02" />
+              <Text style={ProfileComponentStyles.textColored}>Withdraw</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+              <Icon name="send" size={23} color="#f54b02" />
+              <Text style={ProfileComponentStyles.textColored}>Transfer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
               <MaterialIcons
-                name="shopping-cart-outlined"
-                size={14}
+                name="send-and-archive"
+                size={23}
                 color="#f54b02"
               />
-              <Text style={styles.textColored}>Buy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.equalDiv}>
-              <MaterialIcons
-                name="account-balance-outlined"
-                size={14}
-                color="#f54b02"
-              />
-              <Text style={styles.textColored}>Withdraw</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.equalDiv}>
-              <MaterialIcons name="send-outlined" size={14} color="#f54b02" />
-              <Text style={styles.textColored}>Transfer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.equalDiv}>
-              <MaterialIcons
-                name="send-and-archive-outlined"
-                size={14}
-                color="#f54b02"
-              />
-              <Text style={styles.textColored}>Recieve</Text>
+              <Text style={ProfileComponentStyles.textColored}>Recieve</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
         <View>
-          <Text style={styles.text}>{user.coursesEnrolled}</Text>
+          <Text style={ProfileComponentStyles.text}>
+            {user.coursesEnrolled}
+          </Text>
         </View>
       </ScrollView>
       <Modal visible={showModal} transparent animationType="slide">
@@ -2004,23 +2071,23 @@ export function ProfileScreen() {
             {selectedImage && (
               <Image
                 source={{ uri: selectedImage }}
-                style={styles.modalImage}
+                style={ProfileComponentStyles.modalImage}
               />
             )}
-            <View style={styles.modalButtons}>
+            <View style={ProfileComponentStyles.modalButtons}>
               <TouchableOpacity
-                style={styles.confirmButton}
+                style={ProfileComponentStyles.confirmButton}
                 onPress={confirmUpload}
               >
-                <Text style={styles.buttonText}>
+                <Text style={ProfileComponentStyles.buttonText}>
                   {uploading ? 'Uploading...' : 'Confirm'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.cancelButton}
+                style={ProfileComponentStyles.cancelButton}
                 onPress={() => setShowModal(false)}
               >
-                <Text style={styles.buttonText}>Cancel</Text>
+                <Text style={ProfileComponentStyles.buttonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2030,176 +2097,3 @@ export function ProfileScreen() {
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  name: {
-    fontSize: 21,
-    fontWeight: '700',
-  },
-  text: {
-    fontSize: 14,
-    color: '#000',
-  },
-  textColored: {
-    paddingTop: 3,
-    fontSize: 14,
-    color: '#f54b02',
-  },
-  textRight: {
-    fontSize: 14,
-    color: '#000',
-    marginLeft: 4,
-  },
-  swiper: {
-    height: '100%',
-    width: '100%',
-  },
-  imageDiv: {
-    height: 300,
-    width: '100%',
-    position: 'relative',
-    marginBottom: 5,
-  },
-  image: {
-    width: '100%',
-    height: 300,
-    resizeMode: 'cover',
-    borderRadius: 10,
-  },
-  button: {
-    backgroundColor: '#f54b02',
-    position: 'absolute',
-    bottom: -15,
-    right: 0,
-    padding: 10,
-    borderRadius: 10,
-    zIndex: 1,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    width: '80%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  modalImage: {
-    width: 300,
-    height: 300,
-    borderRadius: 10,
-    marginBottom: 7,
-    alignSelf: 'center',
-    resizeMode: 'cover',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  confirmButton: {
-    backgroundColor: '#f54b02',
-    padding: 10,
-    borderRadius: 10,
-    width: '50%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f54b02',
-    padding: 10,
-    borderRadius: 10,
-    width: '50%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nameBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginVertical: 5,
-    padding: 10,
-    backgroundColor: '#fff',
-    width: '95%',
-    borderRadius: 10,
-  },
-  nameBox2: {
-    alignItems: 'flex-start',
-    marginVertical: 5,
-    padding: 10,
-    backgroundColor: '#fff',
-    width: '95%',
-    borderRadius: 10,
-  },
-  nameBox3: {
-    alignItems: 'flex-start',
-    marginVertical: 5,
-    padding: 10,
-    backgroundColor: '#fff',
-    width: '95%',
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: '#f54b02',
-  },
-  rowBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    width: '45%',
-  },
-  rowBox2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    width: '100%',
-    paddingBottom: 5,
-  },
-  rowBox2a: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingBottom: 5,
-  },
-  rowBox3: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    width: '70%',
-    padding: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  equalDiv: {
-    width: '25%',
-    padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconMargin: {
-    marginLeft: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

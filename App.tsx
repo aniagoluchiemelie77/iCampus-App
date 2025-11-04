@@ -32,7 +32,7 @@ import ProductDetails from './src/screens/ProductDetails';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
-
+import PointsPage from './src/screens/PointsPage';
 
 export type RootStackParamList = {
   SignUp: undefined;
@@ -53,6 +53,7 @@ export type RootStackParamList = {
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
+  PointsPage: undefined;
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -131,7 +132,11 @@ const App = () => {
               component={SignUpScreen}
               options={{ headerShown: false }}
             />
-
+            <Stack.Screen
+              name="PointsPage"
+              component={PointsPage}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="Notifications"
               component={Notifications}
