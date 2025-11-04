@@ -14,8 +14,11 @@ import {
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  StyleSheet,
 } from 'react-native';
 //import { BlurView } from '@react-native-community/blur';
+import Swiper from 'react-native-swiper';
+import * as ImagePicker from 'expo-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { homeStyles } from '../assets/styles/colors'; // Adjust path as needed
 import { useNavigation } from '@react-navigation/native';
@@ -53,6 +56,37 @@ import {
   selectCartQuantities,
 } from '../components/CartProductsSlice';
 import { selectUnreadCount } from '../components/NotificationSplice';
+import { updateUserImage } from '../components/UserSlice';
+
+import { CLOUDINARY_APICLOUDNAME } from '@env';
+
+export const uploadImageToCloudinary = async (
+  imageUri: string,
+): Promise<string | null> => {
+  const data = new FormData();
+  data.append('file', {
+    uri: imageUri,
+    name: 'profile.jpg',
+    type: 'image/jpeg',
+  });
+  data.append('upload_preset', 'profileImgs');
+
+  try {
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_APICLOUDNAME}/image/upload`,
+      {
+        method: 'POST',
+        body: data,
+      },
+    );
+
+    const result = await res.json();
+    return result.secure_url;
+  } catch (err) {
+    console.error('Cloudinary upload failed:', err);
+    return null;
+  }
+};
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
@@ -87,7 +121,7 @@ const CalenderPopup = () => {
   const closePopup = () => {
     Animated.timing(scaleAnim, {
       toValue: 0,
-      duration: 200,
+      duration: 50,
       useNativeDriver: true,
     }).start(() => setVisible(false));
   };
@@ -193,7 +227,7 @@ const CalenderPopup = () => {
         <Icon name="calendar-number-outline" size={30} color="#f54b02" />
       </TouchableOpacity>
 
-      <Modal transparent visible={visible} animationType="fade">
+      <Modal transparent visible={visible}>
         {errorMessage && (
           <Text style={{ color: 'gray', textAlign: 'center' }}>
             {errorMessage}
@@ -206,24 +240,20 @@ const CalenderPopup = () => {
 
           {/* Modal content stays interactive and scrollable */}
           <View style={HomeScreenComponentStyles.popup}>
-            <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-              <View style={HomeScreenComponentStyles.topHeader2}>
-                <Text style={HomeScreenComponentStyles.welcomeText2}>
-                  Events
-                </Text>
-                <TouchableOpacity
-                  onPress={closePopup}
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                    HomeScreenComponentStyles.activityIcons2,
-                    HomeScreenComponentStyles.cancelIcon,
-                  ]}
-                >
-                  <Icon name="close-outline" size={28} color="#f54b02" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+            <View style={HomeScreenComponentStyles.topHeader2}>
+              <Text style={HomeScreenComponentStyles.welcomeText2}>Events</Text>
+              <TouchableOpacity
+                onPress={closePopup}
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                  HomeScreenComponentStyles.activityIcons2,
+                  HomeScreenComponentStyles.cancelIcon,
+                ]}
+              >
+                <Icon name="close-outline" size={28} color="#f54b02" />
+              </TouchableOpacity>
+            </View>
 
             <View style={HomeScreenComponentStyles.eventsContainer}>
               <ScrollView
@@ -357,7 +387,7 @@ const SettingsPopup = () => {
   const closePopup = () => {
     Animated.timing(scaleAnim, {
       toValue: 0,
-      duration: 200,
+      duration: 50,
       useNativeDriver: true,
     }).start(() => setVisible(false));
   };
@@ -529,13 +559,8 @@ export function Home() {
           style={[homeStyles.iconItem, HomeScreenComponentStyles.activityIcons]}
           onPress={() => navigation.navigate('Profile')}
         >
-          {user?.profilePic ? (
-            <Image
-              source={{ uri: user.profilePic }}
-              style={HomeScreenComponentStyles.avatar}
-            />
-          ) : (
-            <Icon name="person-circle-outline" size={35} color="#000" />
+          {Array.isArray(user.profilePic) && user.profilePic.length > 0 && (
+            <Image source={{ uri: user.profilePic[0] }} style={styles.image} />
           )}
         </TouchableOpacity>
         <Text style={HomeScreenComponentStyles.welcomeText}>
@@ -780,7 +805,7 @@ export function StoreScreen() {
   const closePopup = () => {
     Animated.timing(scaleAnim, {
       toValue: 0,
-      duration: 200,
+      duration: 50,
       useNativeDriver: true,
     }).start(() => {
       setShowCart(false);
@@ -1428,30 +1453,28 @@ export function StoreScreen() {
         </View>
       </View>
       <Toast config={toastConfig} />
-      <Modal transparent animationType="fade" visible={showCart}>
+      <Modal transparent visible={showCart}>
         <View style={HomeScreenComponentStyles.overlay2}>
           <TouchableWithoutFeedback onPress={closePopup}>
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
           <View style={HomeScreenComponentStyles.popupBottom}>
-            <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-              <View style={HomeScreenComponentStyles.topHeader3}>
-                <Text style={HomeScreenComponentStyles.welcomeText2}>
-                  Cart Items ({cartProducts.length})
-                </Text>
-                <TouchableOpacity
-                  onPress={closePopup}
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                    HomeScreenComponentStyles.activityIcons2,
-                    HomeScreenComponentStyles.cancelIcon,
-                  ]}
-                >
-                  <Icon name="close-outline" size={28} color="#f54b02" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+            <View style={HomeScreenComponentStyles.topHeader3}>
+              <Text style={HomeScreenComponentStyles.welcomeText2}>
+                Cart Items ({cartProducts.length})
+              </Text>
+              <TouchableOpacity
+                onPress={closePopup}
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                  HomeScreenComponentStyles.activityIcons2,
+                  HomeScreenComponentStyles.cancelIcon,
+                ]}
+              >
+                <Icon name="close-outline" size={28} color="#f54b02" />
+              </TouchableOpacity>
+            </View>
 
             <View style={HomeScreenComponentStyles.popupContent2}>
               {cartProducts.length > 0 && (
@@ -1622,30 +1645,28 @@ export function StoreScreen() {
       </Modal>
 
       {/* Favorites Modal */}
-      <Modal transparent animationType="fade" visible={showFavorites}>
+      <Modal transparent visible={showFavorites}>
         <View style={HomeScreenComponentStyles.overlay2}>
           <TouchableWithoutFeedback onPress={closePopup}>
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
           <View style={HomeScreenComponentStyles.popupBottom}>
-            <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-              <View style={HomeScreenComponentStyles.topHeader3}>
-                <Text style={HomeScreenComponentStyles.welcomeText2}>
-                  Favorites ({favoriteProducts.length})
-                </Text>
-                <TouchableOpacity
-                  onPress={closePopup}
-                  style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                    HomeScreenComponentStyles.activityIcons2,
-                    HomeScreenComponentStyles.cancelIcon,
-                  ]}
-                >
-                  <Icon name="close-outline" size={28} color="#f54b02" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+            <View style={HomeScreenComponentStyles.topHeader3}>
+              <Text style={HomeScreenComponentStyles.welcomeText2}>
+                Favorites ({favoriteProducts.length})
+              </Text>
+              <TouchableOpacity
+                onPress={closePopup}
+                style={[
+                  homeStyles.iconItem,
+                  HomeScreenComponentStyles.activityIcons,
+                  HomeScreenComponentStyles.activityIcons2,
+                  HomeScreenComponentStyles.cancelIcon,
+                ]}
+              >
+                <Icon name="close-outline" size={28} color="#f54b02" />
+              </TouchableOpacity>
+            </View>
 
             <View style={HomeScreenComponentStyles.popupContent2}>
               {favoriteProducts.length > 0 && (
@@ -1744,25 +1765,441 @@ export function StoreScreen() {
       </Modal>
     </LinearGradient>
   );
-};
+}
 
 // ProfileScreen.js
 export function ProfileScreen() {
   const user = useAppSelector(state => state.user);
+  const dispatch = useDispatch();
+  const [uploading, setUploading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showPoints, setShowPoints] = useState(false);
+
+  const handleImageUpdate = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      // @ts-ignore
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const newImage = result.assets[0].uri;
+
+      const imageUrl = await uploadImageToCloudinary(newImage);
+
+      if (imageUrl) {
+        console.log('Uploaded to Cloudinary:', imageUrl);
+        setSelectedImage(imageUrl); // ✅ Store Cloudinary URL, not local URI
+        setShowModal(true);
+      }
+    }
+  };
+
+  const confirmUpload = async () => {
+    if (!selectedImage) return;
+
+    try {
+      setUploading(true);
+      const token = await AsyncStorage.getItem('authToken');
+      const response = await fetch(
+        'http://192.168.1.98:5000/users/upload-profile-image',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ imageUrl: selectedImage }), // ✅ Send Cloudinary URL
+        },
+      );
+
+      const result = await response.json();
+      if (response.ok && result.imageUrl) {
+        dispatch(updateUserImage(result.imageUrl));
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: result.message,
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        Toast.show({
+          type: 'error',
+          text1: err.message,
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'An unexpected error occurred',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    } finally {
+      setUploading(false);
+      setShowModal(false);
+      setSelectedImage(null);
+    }
+  };
+
   return (
-    <ScrollView contentContainerStyle={HomeScreenComponentStyles.bckg}>
-      <View style={HomeScreenComponentStyles.profileImgDiv}>
-        <Image
-          source={{ uri: user.profilePic }}
-          style={HomeScreenComponentStyles.avatarProfile}
-        />
-        <View>
-          <Text style={HomeScreenComponentStyles.profileImgDivText}>
+    <LinearGradient style={styles.container} colors={['#eee', '#edccbdff']}>
+      <ScrollView>
+        {Array.isArray(user.profilePic) && user.profilePic.length > 0 && (
+          <View style={styles.imageDiv}>
+            <Swiper style={styles.swiper} showsButtons loop={false}>
+              {[...user.profilePic].reverse().map((imgUri: string, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: imgUri }}
+                  style={styles.image}
+                />
+              ))}
+            </Swiper>
+            <TouchableOpacity style={styles.button} onPress={handleImageUpdate}>
+              <Text style={styles.buttonText}>
+                {uploading ? (
+                  <MaterialIcons
+                    name="add-a-photo-outlined"
+                    size={20}
+                    color="#fff"
+                  />
+                ) : (
+                  'Update Profile Image'
+                )}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.nameBox}>
+          <Text style={styles.name}>
             {user.firstname} {user.lastname}
           </Text>
         </View>
-      </View>
-      <Text>Welcome to Profile</Text>
-    </ScrollView>
+        <View style={styles.nameBox}>
+          <View style={styles.rowBox}>
+            <MaterialIcons name="email-outlined" size={14} color="#f54b02" />
+            <Text style={styles.textRight}>{user.email}</Text>
+          </View>
+          <View style={styles.rowBox}>
+            <MaterialIcons name="call-outlined" size={14} color="#f54b02" />
+            <Text style={styles.textRight}>{user.phone_number}</Text>
+          </View>
+        </View>
+        <View style={styles.nameBox2}>
+          <View style={styles.rowBox2}>
+            <MaterialIcons name="school-outlined" size={14} color="#f54b02" />
+            <Text style={styles.textRight}>{user.schoolName}</Text>
+          </View>
+          <View style={styles.rowBox2}>
+            <MaterialIcons name="school-outlined" size={14} color="#f54b02" />
+            <Text style={styles.textRight}>{user.department}</Text>
+          </View>
+          <View style={styles.rowBox2}>
+            <MaterialIcons
+              name="bookmarks-outlined"
+              size={14}
+              color="#f54b02"
+            />
+            <Text style={styles.textRight}>{user.matricNumber}</Text>
+          </View>
+          <View style={styles.rowBox2}>
+            {Array.from({
+              length: Math.min(
+                parseInt(user.current_level ?? '100', 10) / 100,
+                5,
+              ),
+            }).map((_, index) => (
+              <MaterialIcons
+                key={index}
+                name="star-rate-outlined"
+                size={14}
+                color="#f54b02"
+                style={styles.iconMargin}
+              />
+            ))}
+          </View>
+        </View>
+        <TouchableOpacity style={styles.nameBox3}>
+          <View style={styles.rowBox2a}>
+            <View style={styles.rowBox3}>
+              <View style={styles.row}>
+                <Icon name="diamond" size={19} color="#f54b02" />
+                <Text style={styles.name}>
+                  {showPoints ? user.pointsBalance : '••••'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowPoints(prev => !prev)}
+                style={styles.iconMargin}
+              >
+                <MaterialIcons
+                  name={showPoints ? 'visibility' : 'visibility-off'}
+                  size={14}
+                  color="#000"
+                />
+              </TouchableOpacity>
+            </View>
+            <MaterialIcons
+              name="chevron-right-outlined"
+              size={14}
+              color="#838282ff"
+            />
+          </View>
+
+          <View style={styles.rowBox2}>
+            <TouchableOpacity style={styles.equalDiv}>
+              <MaterialIcons
+                name="shopping-cart-outlined"
+                size={14}
+                color="#f54b02"
+              />
+              <Text style={styles.textColored}>Buy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.equalDiv}>
+              <MaterialIcons
+                name="account-balance-outlined"
+                size={14}
+                color="#f54b02"
+              />
+              <Text style={styles.textColored}>Withdraw</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.equalDiv}>
+              <MaterialIcons name="send-outlined" size={14} color="#f54b02" />
+              <Text style={styles.textColored}>Transfer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.equalDiv}>
+              <MaterialIcons
+                name="send-and-archive-outlined"
+                size={14}
+                color="#f54b02"
+              />
+              <Text style={styles.textColored}>Recieve</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.text}>{user.coursesEnrolled}</Text>
+        </View>
+      </ScrollView>
+      <Modal visible={showModal} transparent animationType="slide">
+        <View style={HomeScreenComponentStyles.overlayCenter}>
+          <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
+            <View style={HomeScreenComponentStyles.backdrop} />
+          </TouchableWithoutFeedback>
+          <View style={HomeScreenComponentStyles.popupCenter}>
+            <View style={HomeScreenComponentStyles.topHeader2}>
+              <Text style={HomeScreenComponentStyles.welcomeText2}>
+                Confirm Profile Photo
+              </Text>
+            </View>
+            {selectedImage && (
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.modalImage}
+              />
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={confirmUpload}
+              >
+                <Text style={styles.buttonText}>
+                  {uploading ? 'Uploading...' : 'Confirm'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowModal(false)}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Toast config={toastConfig} />
+    </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  name: {
+    fontSize: 21,
+    fontWeight: '700',
+  },
+  text: {
+    fontSize: 14,
+    color: '#000',
+  },
+  textColored: {
+    paddingTop: 3,
+    fontSize: 14,
+    color: '#f54b02',
+  },
+  textRight: {
+    fontSize: 14,
+    color: '#000',
+    marginLeft: 4,
+  },
+  swiper: {
+    height: '100%',
+    width: '100%',
+  },
+  imageDiv: {
+    height: 300,
+    width: '100%',
+    position: 'relative',
+    marginBottom: 5,
+  },
+  image: {
+    width: '100%',
+    height: 300,
+    resizeMode: 'cover',
+    borderRadius: 10,
+  },
+  button: {
+    backgroundColor: '#f54b02',
+    position: 'absolute',
+    bottom: -15,
+    right: 0,
+    padding: 10,
+    borderRadius: 10,
+    zIndex: 1,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalImage: {
+    width: 300,
+    height: 300,
+    borderRadius: 10,
+    marginBottom: 7,
+    alignSelf: 'center',
+    resizeMode: 'cover',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  confirmButton: {
+    backgroundColor: '#f54b02',
+    padding: 10,
+    borderRadius: 10,
+    width: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f54b02',
+    padding: 10,
+    borderRadius: 10,
+    width: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nameBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginVertical: 5,
+    padding: 10,
+    backgroundColor: '#fff',
+    width: '95%',
+    borderRadius: 10,
+  },
+  nameBox2: {
+    alignItems: 'flex-start',
+    marginVertical: 5,
+    padding: 10,
+    backgroundColor: '#fff',
+    width: '95%',
+    borderRadius: 10,
+  },
+  nameBox3: {
+    alignItems: 'flex-start',
+    marginVertical: 5,
+    padding: 10,
+    backgroundColor: '#fff',
+    width: '95%',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: '#f54b02',
+  },
+  rowBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    width: '45%',
+  },
+  rowBox2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    width: '100%',
+    paddingBottom: 5,
+  },
+  rowBox2a: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingBottom: 5,
+  },
+  rowBox3: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    width: '70%',
+    padding: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  equalDiv: {
+    width: '25%',
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconMargin: {
+    marginLeft: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

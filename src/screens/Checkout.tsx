@@ -1,13 +1,6 @@
 // CheckoutScreen.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectCartItems, clearCart } from '../components/CartProductsSlice'; // adjust path
 import { useAppSelector } from '../components/hooks';
@@ -16,6 +9,7 @@ import {
   CalendarScreenStyles,
   ProductDetailsStyles,
   HomeScreenComponentStyles,
+  CheckoutPageStyles,
 } from '../assets/styles/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -131,16 +125,19 @@ const CheckoutScreen = () => {
   };
 
   const renderItem = ({ item }: any) => (
-    <View style={styles.itemContainer}>
-      <View style={styles.imageDiv}>
-        <View style={styles.categoryContainer}>
-          <Text style={styles.categoryText}>{item.category}</Text>
+    <View style={CheckoutPageStyles.itemContainer}>
+      <View style={CheckoutPageStyles.imageDiv}>
+        <View style={CheckoutPageStyles.categoryContainer}>
+          <Text style={CheckoutPageStyles.categoryText}>{item.category}</Text>
         </View>
-        <Image source={{ uri: item.mediaUrls[0] }} style={styles.image} />
+        <Image
+          source={{ uri: item.mediaUrls[0] }}
+          style={CheckoutPageStyles.image}
+        />
       </View>
 
-      <View style={styles.details}>
-        <Text style={styles.name}>{item.title}</Text>
+      <View style={CheckoutPageStyles.details}>
+        <Text style={CheckoutPageStyles.name}>{item.title}</Text>
         {item.location && (
           <View style={ProductDetailsStyles.locationInfo2}>
             <Icon name="location-outline" size={20} color="#f54b02" />
@@ -149,11 +146,16 @@ const CheckoutScreen = () => {
         )}
 
         {item.type === 'File' && item.fileSizeInMB && (
-          <View style={styles.fileInfoDiv}>
-            <Text style={[styles.fileInfoText, styles.marginRight]}>
+          <View style={CheckoutPageStyles.fileInfoDiv}>
+            <Text
+              style={[
+                CheckoutPageStyles.fileInfoText,
+                CheckoutPageStyles.marginRight,
+              ]}
+            >
               File Size: {item.fileSizeInMB} MB
             </Text>
-            <Text style={styles.fileInfoText}>
+            <Text style={CheckoutPageStyles.fileInfoText}>
               File Format:{' '}
               {item.fileUrl.split('.').pop()?.toUpperCase() || 'UNKNOWN'}
             </Text>
@@ -161,30 +163,32 @@ const CheckoutScreen = () => {
         )}
 
         {item.sizes?.length > 0 && (
-          <View style={styles.sizeContainer}>
-            <Text style={styles.fileInfoText}>
+          <View style={CheckoutPageStyles.sizeContainer}>
+            <Text style={CheckoutPageStyles.fileInfoText}>
               Size: {item.selectedSize || 'N/A'}
             </Text>
           </View>
         )}
 
         {item.colors?.length > 0 && item.selectedColor && (
-          <View style={styles.colorRow}>
+          <View style={CheckoutPageStyles.colorRow}>
             <View
               style={[
-                styles.colorCircle,
+                CheckoutPageStyles.colorCircle,
                 { backgroundColor: item.selectedColor },
               ]}
             />
           </View>
         )}
 
-        <View style={styles.sizeContainer}>
-          <Text style={styles.fileInfoText}>Qty: {item.quantity}</Text>
+        <View style={CheckoutPageStyles.sizeContainer}>
+          <Text style={CheckoutPageStyles.fileInfoText}>
+            Qty: {item.quantity}
+          </Text>
         </View>
-        <View style={styles.sizeContainer2}>
+        <View style={CheckoutPageStyles.sizeContainer2}>
           <Icon name="diamond-outline" size={21} color="#f54b02" />
-          <Text style={styles.priceText}>
+          <Text style={CheckoutPageStyles.priceText}>
             {' '}
             {formatPoints(item.priceInPoints)}
           </Text>
@@ -194,7 +198,7 @@ const CheckoutScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={CheckoutPageStyles.container}>
       <CustomHeader title="Checkout" onBack={() => navigation.goBack()} />
       <FlatList
         data={cartItems}
@@ -216,7 +220,7 @@ const CheckoutScreen = () => {
           justifyContent: 'center',
         }}
       />
-      <View style={styles.footer}>
+      <View style={CheckoutPageStyles.footer}>
         <View style={HomeScreenComponentStyles.totalSectionCheckout}>
           <Text style={HomeScreenComponentStyles.totalLabel}>Total:</Text>
           <View style={HomeScreenComponentStyles.totalPrice}>
@@ -234,14 +238,14 @@ const CheckoutScreen = () => {
 
         <TouchableOpacity
           style={[
-            styles.payButton,
+            CheckoutPageStyles.payButton,
             totalPrice > user.pointsBalance &&
               HomeScreenComponentStyles.disabledButton,
           ]}
           onPress={handlePayment}
           disabled={totalPrice > user.pointsBalance}
         >
-          <Text style={styles.payText}>Pay Now</Text>
+          <Text style={CheckoutPageStyles.payText}>Pay Now</Text>
         </TouchableOpacity>
       </View>
       <Toast config={toastConfig} />
@@ -250,91 +254,4 @@ const CheckoutScreen = () => {
 };
 
 export default CheckoutScreen;
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee' },
-  itemContainer: {
-    flexDirection: 'row',
-    marginVertical: 7,
-    padding: 10,
-    backgroundColor: '#fff',
-    width: '100%',
-    borderRadius: 10,
-  },
-  image: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    marginBottom: 5,
-  },
-  imageDiv: {
-    width: 100,
-    alignItems: 'center',
-  },
-  details: { flex: 1, padding: 10 },
-  name: { fontWeight: '700', fontSize: 15, color: '#000', marginBottom: 5 },
-  empty: { textAlign: 'center', marginTop: 50, fontSize: 18 },
-  footer: {
-    backgroundColor: '#fff',
-    padding: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
 
-  categoryContainer: {
-    width: '100%',
-    padding: 7,
-  },
-  categoryText: { color: '#585858ff', fontSize: 12, fontWeight: '700' },
-  fileInfoDiv: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    justifyContent: 'flex-start',
-    padding: 7,
-  },
-  fileInfoText: {
-    color: '#484848ff',
-    fontSize: 13,
-  },
-  marginRight: {
-    marginRight: 5,
-  },
-  sizeContainer: {
-    padding: 7,
-    width: '100%',
-    justifyContent: 'flex-start',
-  },
-  sizeContainer2: {
-    padding: 7,
-    width: '100%',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  priceText: {
-    fontWeight: '700',
-    marginLeft: 5,
-    color: '#f54b02',
-    fontSize: 13,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 5,
-  },
-  colorCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  payButton: {
-    backgroundColor: '#f54b02',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '95%',
-  },
-  payText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-});

@@ -74,6 +74,12 @@ const Notifications = () => {
           );
           data = await res.json();
           dispatch(clearUnread());
+        } else if (activeTab === 'transactions') {
+          const type = 'transactions';
+          res = await fetch(
+            `http://192.168.1.98:5000/users/notifications?${queryParams}&type=${type}`,
+          );
+          data = await res.json();
         } else {
           res = await fetch(
             `http://192.168.1.98:5000/users/notifications?${queryParams}`,
@@ -107,7 +113,7 @@ const Notifications = () => {
     <View style={NotificationPageStyles.container}>
       <CustomHeader title="Notifications" onBack={() => navigation2.goBack()} />
       <View style={NotificationPageStyles.tabDiv}>
-        {['all', 'unread', 'mark'].map(tab => (
+        {['all', 'transactions', 'unread', 'mark'].map(tab => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
@@ -119,6 +125,8 @@ const Notifications = () => {
             <Text style={HomeScreenComponentStyles.tabLabel}>
               {tab === 'mark'
                 ? 'Mark as Read'
+                : tab === 'transactions'
+                ? 'Transactions'
                 : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>

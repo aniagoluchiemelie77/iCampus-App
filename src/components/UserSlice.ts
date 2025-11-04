@@ -19,7 +19,8 @@ const initialState: User = {
   createdAt: '',
   country: '',
   userToken: '',
-  tokenCreatedAt: ''
+  tokenCreatedAt: '',
+  profilePic: [],
 };
 const userSlice = createSlice({
   name: 'user',
@@ -31,8 +32,15 @@ const userSlice = createSlice({
     clearUser() {
       return initialState;
     },
+    updateUserImage(state, action: PayloadAction<string>) {
+  if (state.profilePic) {
+    state.profilePic.push(action.payload);
+  } else {
+    state.profilePic = [action.payload];
+  }
+}
+
   },
 });
-
-export const { setUser, clearUser } = userSlice.actions;
+export const { setUser, clearUser, updateUserImage } = userSlice.actions;
 export default userSlice.reducer;

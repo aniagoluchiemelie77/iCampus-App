@@ -21,7 +21,7 @@ export interface User {
   password: string;
   matricNumber?: string;
   department: string;
-  profilePic?: string;
+  profilePic?: string[];
   hasSubscribed: boolean;
   createdAt: string;
   twoFactorEnabled?: boolean;

@@ -271,6 +271,12 @@ badge: {
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
     justifyContent: 'flex-start',
   },
+  overlayCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   overlay2: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
@@ -294,6 +300,14 @@ badge: {
     elevation: 5,
     alignItems: 'center',
     position: 'relative',
+  },
+  popupCenter: {
+    width: '60%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 12,
+    elevation: 5,
+    alignItems: 'center',
   },
   popupBottom: {
     bottom: 0,
@@ -732,7 +746,6 @@ cartItemRightDiv: {
     fontWeight: '700'
   }
 });
-
 export const WelcomeScreenStyles = StyleSheet.create({
   container: {
     flex: 1, // or any color you want
@@ -745,7 +758,6 @@ export const WelcomeScreenStyles = StyleSheet.create({
     height: '100%',
   },
 });
-
 export const SignupScreenStyles = StyleSheet.create({
   bkg: {
     alignItems: 'center',
@@ -899,7 +911,6 @@ export const SignupScreenStyles = StyleSheet.create({
     borderColor: '#000',
   },
 });
-
 export const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
@@ -936,7 +947,6 @@ export const homeStyles = StyleSheet.create({
     color: '#000',
   },
 });
-
 export const EmailVerifyScreenStyles = StyleSheet.create({
   bkg: {
     alignItems: 'center',
@@ -960,7 +970,6 @@ export const EmailVerifyScreenStyles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
 export const CalendarScreenStyles = StyleSheet.create({
   container: {
     backgroundColor: '#eee',
@@ -1051,7 +1060,6 @@ export const CalendarScreenStyles = StyleSheet.create({
   }
 
 });
-
 export const SweetAlertPopupStyles = StyleSheet.create({
   bckg: {
     flex: 1,
@@ -1088,7 +1096,6 @@ export const SweetAlertPopupStyles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
 export const ToastPopupStyles = StyleSheet.create({
   successToastDiv: {
     borderLeftColor: '#5ee762ff', 
@@ -1108,8 +1115,7 @@ export const ToastPopupStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   }
-})
-
+});
 export const ProductDetailsStyles = StyleSheet.create({
   container: {
     backgroundColor: '#eee',
@@ -1483,4 +1489,92 @@ export const NotificationPageStyles = StyleSheet.create({
     fontSize: 11,
     marginLeft: 5,
   },
+});
+export const CheckoutPageStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#eee' },
+  itemContainer: {
+    flexDirection: 'row',
+    marginVertical: 7,
+    padding: 10,
+    backgroundColor: '#fff',
+    width: '100%',
+    borderRadius: 10,
+  },
+  image: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    marginBottom: 5,
+  },
+  imageDiv: {
+    width: 100,
+    alignItems: 'center',
+  },
+  details: { flex: 1, padding: 10 },
+  name: { fontWeight: '700', fontSize: 15, color: '#000', marginBottom: 5 },
+  empty: { textAlign: 'center', marginTop: 50, fontSize: 18 },
+  footer: {
+    backgroundColor: '#fff',
+    padding: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+
+  categoryContainer: {
+    width: '100%',
+    padding: 7,
+  },
+  categoryText: { color: '#585858ff', fontSize: 12, fontWeight: '700' },
+  fileInfoDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    justifyContent: 'flex-start',
+    padding: 7,
+  },
+  fileInfoText: {
+    color: '#484848ff',
+    fontSize: 13,
+  },
+  marginRight: {
+    marginRight: 5,
+  },
+  sizeContainer: {
+    padding: 7,
+    width: '100%',
+    justifyContent: 'flex-start',
+  },
+  sizeContainer2: {
+    padding: 7,
+    width: '100%',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  priceText: {
+    fontWeight: '700',
+    marginLeft: 5,
+    color: '#f54b02',
+    fontSize: 13,
+  },
+  colorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 5,
+  },
+  colorCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  payButton: {
+    backgroundColor: '#f54b02',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '95%',
+  },
+  payText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

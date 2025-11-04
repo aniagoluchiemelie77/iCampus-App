@@ -431,10 +431,15 @@ const ProductDetails = () => {
               </Text>
             </View>
             <View style={ProductDetailsStyles.sellerInfo}>
-              <Image
-                source={{ uri: seller.profilePic }}
-                style={ProductDetailsStyles.sellerAvatar}
-              />
+              {Array.isArray(seller.profilePic) &&
+              seller.profilePic.length > 0 ? (
+                <Image
+                  source={{ uri: seller.profilePic[0] }}
+                  style={ProductDetailsStyles.sellerAvatar}
+                />
+              ) : (
+                <Text>No profile image available</Text>
+              )}
               <View style={ProductDetailsStyles.sellerDetailsDiv}>
                 <Text style={ProductDetailsStyles.sellerName}>
                   {seller.firstname} {seller.lastname}
