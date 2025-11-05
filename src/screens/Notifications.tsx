@@ -38,6 +38,14 @@ const CustomHeader: React.FC<HeaderProps> = ({ title, onBack }) => {
     </View>
   );
 };
+const EmptyNotification = () => (
+  <View style={NotificationPageStyles.emptyNotifications}>
+    <MaterialIcons name="notifications-off" size={20} color="#807f7fff" />
+    <Text style={NotificationPageStyles.emptyNotificationsText}>
+      No notification found.
+    </Text>
+  </View>
+);
 
 const Notifications = () => {
   const user = useAppSelector(state => state.user);
@@ -45,6 +53,7 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'unread'
   const dispatch = useDispatch();
+  const tabs = ['all', 'transactions', 'unread', 'mark'];
   //Fetch Notifications
   useEffect(() => {
     const queryParams = new URLSearchParams({
@@ -112,74 +121,64 @@ const Notifications = () => {
   return (
     <View style={NotificationPageStyles.container}>
       <CustomHeader title="Notifications" onBack={() => navigation2.goBack()} />
-      <View style={NotificationPageStyles.tabDiv}>
-        {['all', 'transactions', 'unread', 'mark'].map(tab => (
+      <FlatList
+        data={tabs}
+        horizontal
+        keyExtractor={item => item}
+        showsHorizontalScrollIndicator={true}
+        contentContainerStyle={NotificationPageStyles.tabDiv}
+        renderItem={({ item }) => (
           <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => setActiveTab(item)}
             style={[
               HomeScreenComponentStyles.tabItem,
-              activeTab === tab && HomeScreenComponentStyles.activeTab,
+              activeTab === item && HomeScreenComponentStyles.activeTab,
             ]}
           >
             <Text style={HomeScreenComponentStyles.tabLabel}>
-              {tab === 'mark'
+              {item === 'mark'
                 ? 'Mark as Read'
-                : tab === 'transactions'
+                : item === 'transactions'
                 ? 'Transactions'
-                : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                : item.charAt(0).toUpperCase() + item.slice(1)}
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        )}
+      />
 
-      {Array.isArray(notifications) && notifications.length === 0 ? (
-        <View style={NotificationPageStyles.notificationsDiv}>
-          <View style={NotificationPageStyles.emptyNotifications}>
-            <MaterialIcons
-              name="notifications-off"
-              size={20}
-              color="#807f7fff"
-            />
-            <Text style={NotificationPageStyles.emptyNotificationsText}>
-              No notification found.
-            </Text>
-          </View>
-        </View>
-      ) : (
-        <FlatList
-          data={notifications}
-          keyExtractor={item => item.notificationId}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                NotificationPageStyles.notificationsDivCard,
-                item.isRead && { backgroundColor: '#fff' },
-              ]}
+      <FlatList
+        data={Array.isArray(notifications) ? notifications : []}
+        keyExtractor={item => item.notificationId}
+        renderItem={({ item }) => (
+          <View
+            style={[
+              NotificationPageStyles.notificationsDivCard,
+              item.isRead && { backgroundColor: '#fff' },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => handleMarkAsRead(item.notificationId)}
             >
-              <TouchableOpacity
-                onPress={() => handleMarkAsRead(item.notificationId)}
-              >
-                <View style={NotificationPageStyles.notificationsDateDiv}>
-                  <Text style={NotificationPageStyles.notificationsDate}>
-                    {formatNotificationDate(item.createdAt)}
-                  </Text>
-                </View>
-                <View style={NotificationPageStyles.notificationsTextDiv}>
-                  <Text
-                    numberOfLines={4}
-                    ellipsizeMode="tail"
-                    style={NotificationPageStyles.notificationsText}
-                  >
-                    {item.message}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
-          contentContainerStyle={NotificationPageStyles.notificationsDiv}
-        />
-      )}
+              <View style={NotificationPageStyles.notificationsDateDiv}>
+                <Text style={NotificationPageStyles.notificationsDate}>
+                  {formatNotificationDate(item.createdAt)}
+                </Text>
+              </View>
+              <View style={NotificationPageStyles.notificationsTextDiv}>
+                <Text
+                  numberOfLines={4}
+                  ellipsizeMode="tail"
+                  style={NotificationPageStyles.notificationsText}
+                >
+                  {item.message}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+        ListEmptyComponent={EmptyNotification}
+        contentContainerStyle={NotificationPageStyles.notificationsDiv}
+      />
     </View>
   );
 };

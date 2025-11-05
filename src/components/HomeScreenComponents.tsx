@@ -66,7 +66,7 @@ import { updateUserImage } from '../components/UserSlice';
 const { width } = Dimensions.get('window');
 
 import { CLOUDINARY_APICLOUDNAME } from '@env';
-import Logo from '../assets/images/Logo.svg';
+import Logo from '../assets/images/Logo.tsx';
 
 interface ProfileSwiperProps {
   images: string[];
@@ -551,7 +551,7 @@ export function Home() {
     >
       <View style={HomeScreenComponentStyles.topHeader}>
         <CalenderPopup />
-        <Logo width={100} height={100} />
+        <Logo />
         <View style={HomeScreenComponentStyles.iconSubdiv}>
           <TouchableOpacity
             style={[
@@ -1255,9 +1255,7 @@ export function StoreScreen() {
       colors={['#eee', '#edccbdff']}
     >
       <View style={HomeScreenComponentStyles.searchContainer}>
-        <Text style={HomeScreenComponentStyles.storeHeaderText}>
-          Shop with iCampus
-        </Text>
+        <Logo />
         <View style={HomeScreenComponentStyles.iconSubdiv2}>
           {user.hasSubscribed && (
             <TouchableOpacity

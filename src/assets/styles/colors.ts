@@ -834,7 +834,7 @@ export const SignupScreenStyles = StyleSheet.create({
     fontSize: 13,
     marginTop: 10,
     width: '100%',
-    textAlign: 'center',
+    paddingHorizontal: 5
   },
   welcomeHeader: {
     width: '100%',
@@ -1469,7 +1469,9 @@ export const ProductDetailsStyles = StyleSheet.create({
 export const NotificationPageStyles = StyleSheet.create({
   container: {
     backgroundColor: '#eee',
-    flex: 1,
+    height: '100%',
+    width: '100%',
+    justifyContent: 'flex-start'
   },
   notificationsContainer: {
     width: '100%',
@@ -1503,20 +1505,25 @@ export const NotificationPageStyles = StyleSheet.create({
     alignItems: 'center',
   },
   tabDiv: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    overflow: 'hidden',
-    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 5,
     backgroundColor: '#fff',
+    overflow: 'scroll',
+    flexDirection: 'row',
+    minWidth: screenWidth,
+    height: 90,
+    justifyContent: 'flex-start',
+    marginBottom: 5,
   },
   notificationsDiv: {
     maxWidth: screenWidth,
     alignItems: 'center',
     flexDirection: 'column',
     backgroundColor: '#fff',
-    alignSelf: 'stretch',
     padding: 10,
+    flexGrow: 1,
+    justifyContent: 'flex-start',
   },
   emptyNotifications: {
     padding: 15,
