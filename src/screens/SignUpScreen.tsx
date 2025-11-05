@@ -202,7 +202,7 @@ const SignUpScreen = () => {
       await saveUserData(tokenId); // wait for storage to complete
       const user: User = {
         uid: userId,
-        profilePic: ' ',
+        profilePic: [],
         usertype: payload.userType || '',
         isFirstLogin: isFirstSignUp,
         firstname:

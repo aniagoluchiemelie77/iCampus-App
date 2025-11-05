@@ -66,6 +66,8 @@ import { updateUserImage } from '../components/UserSlice';
 const { width } = Dimensions.get('window');
 
 import { CLOUDINARY_APICLOUDNAME } from '@env';
+import Logo from '../assets/images/Logo.svg';
+
 interface ProfileSwiperProps {
   images: string[];
   handleImageUpdate: () => void;
@@ -540,6 +542,7 @@ export function Home() {
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
     );
   const latestEvents = sortedEvents.slice(0, 7);
+  console.log('Logo:', Logo);
 
   return (
     <LinearGradient
@@ -548,6 +551,7 @@ export function Home() {
     >
       <View style={HomeScreenComponentStyles.topHeader}>
         <CalenderPopup />
+        <Logo width={100} height={100} />
         <View style={HomeScreenComponentStyles.iconSubdiv}>
           <TouchableOpacity
             style={[

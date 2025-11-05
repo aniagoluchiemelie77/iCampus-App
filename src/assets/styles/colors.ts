@@ -787,6 +787,16 @@ export const SignupScreenStyles = StyleSheet.create({
     backgroundColor: '#fff',
     position: 'relative',
   },
+  container2: {
+    alignItems: 'center',
+    width: '90%',
+    minHeight: '59%',
+    borderRadius: 10,
+    padding: 20,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    position: 'relative',
+  },
   activeTabText: {
     fontSize: 34,
     fontWeight: 'bold',
@@ -813,9 +823,35 @@ export const SignupScreenStyles = StyleSheet.create({
     padding: 8,
     top: 0,
   },
+  headerBtnsContainerLogin: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 7,
+  },
+  welcomeText: {
+    color: '#000',
+    fontSize: 13,
+    marginTop: 10,
+    width: '100%',
+    textAlign: 'center',
+  },
+  welcomeHeader: {
+    width: '100%',
+    textAlign: 'center',
+  },
   inputContainer: {
     fontSize: 17,
     padding: 10,
+    color: '#000',
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  inputContainerLogin: {
+    fontSize: 16,
+    paddingHorizontal: 10,
     color: '#000',
     flex: 1,
     width: '100%',
@@ -833,7 +869,7 @@ export const SignupScreenStyles = StyleSheet.create({
     minWidth: '100%',
     borderColor: '#000',
     color: '#000',
-    marginBottom: 8,
+    marginBottom: 4,
     fontSize: 14,
   },
   input2: {
@@ -1793,3 +1829,5 @@ export const ProfileComponentStyles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+

@@ -33,11 +33,12 @@ import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
 import PointsPage from './src/screens/PointsPage';
+import Login from './src/screens/Login';
 
 export type RootStackParamList = {
   SignUp: undefined;
   Notifications: undefined;
-  Welcome: undefined;
+  Welcome: { route: string };
   Home: undefined;
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
@@ -54,6 +55,7 @@ export type RootStackParamList = {
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
   PointsPage: undefined;
+  Login: undefined;
 };
 
 type RouteName = 'SignUp' | 'Welcome' | 'Home';
@@ -61,13 +63,18 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const App = () => {
   const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
-  const getUserId = async () => {
-    const userId = await AsyncStorage.getItem('userId');
-    console.log('Stored userId:', userId);
+  const [initialParams, setInitialParams] = useState<
+    RootStackParamList['Welcome'] | undefined
+  >(undefined);
+
+  const getUserId = () => {
+    const userId = 'm83Y2Blq53';
+    return userId;
   };
 
   useEffect(() => {
     const initializeApp = async () => {
+      const storedId = getUserId();
       try {
         const [ipResponse, hasLaunched] = await Promise.all([
           fetch('https://api.ipify.org?format=json'),
@@ -76,32 +83,29 @@ const App = () => {
         const ipData = await ipResponse.json();
         if (hasLaunched === null) {
           console.log(ipData);
+          await AsyncStorage.setItem('hasLaunched', 'true');
           setInitialRoute('Welcome');
+          setInitialParams({ route: 'SignUp' });
         } else {
-          getUserId();
-          const storedId = await AsyncStorage.getItem('userId');
-          if (storedId) {
-            const response = await fetch(
-              `http://192.168.1.98:5000/users/${storedId}`,
-              {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ isFirstLogin: false }),
+          const response = await fetch(
+            `http://192.168.1.98:5000/users/${storedId}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
               },
-            );
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const result = await response.json();
-              console.log(result);
-            } else {
-              const text = await response.text();
-              console.warn('Unexpected response:', text);
-            }
+              body: JSON.stringify({ isFirstLogin: false }),
+            },
+          );
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const result = await response.json();
             setInitialRoute('Welcome');
+            setInitialParams({ route: 'Login' });
+            console.log(result);
           } else {
-            setInitialRoute('Welcome');
+            const text = await response.text();
+            console.warn('Unexpected response:', text);
           }
         }
       } catch (error) {
@@ -126,7 +130,7 @@ const App = () => {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
         <NavigationContainer linking={linking}>
-          <Stack.Navigator initialRouteName={initialRoute}>
+          <Stack.Navigator initialRouteName={initialRoute || 'SignUp'}>
             <Stack.Screen
               name="SignUp"
               component={SignUpScreen}
@@ -135,6 +139,11 @@ const App = () => {
             <Stack.Screen
               name="PointsPage"
               component={PointsPage}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Login"
+              component={Login}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -151,6 +160,7 @@ const App = () => {
             <Stack.Screen
               name="Welcome"
               component={WelcomeScreen}
+              initialParams={initialParams}
               options={{
                 headerShown: false,
                 ...TransitionPresets.FadeFromRightAndroid,
