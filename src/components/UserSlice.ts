@@ -21,6 +21,8 @@ const initialState: User = {
   userToken: '',
   tokenCreatedAt: '',
   profilePic: [],
+  coursesEnrolled: [],
+  coursesTeaching: [],
 };
 const userSlice = createSlice({
   name: 'user',

@@ -1469,9 +1469,7 @@ export const ProductDetailsStyles = StyleSheet.create({
 export const NotificationPageStyles = StyleSheet.create({
   container: {
     backgroundColor: '#eee',
-    height: '100%',
-    width: '100%',
-    justifyContent: 'flex-start'
+    flex: 1,
   },
   notificationsContainer: {
     width: '100%',
@@ -1492,38 +1490,42 @@ export const NotificationPageStyles = StyleSheet.create({
     fontSize: 14,
   },
   notificationsTextDiv: {
-    marginTop: 8,
+    marginTop: 10,
     width: '100%',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#fc8f61ff',
   },
   notificationsDate: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#807f7fff',
     alignSelf: 'flex-start',
   },
+  notificationsDate2: {
+    fontSize: 12,
+    alignSelf: 'flex-end',
+    color: '#f54b02',
+  },
   notificationsDateDiv: {
+    paddingVertical: 5,
     width: '100%',
     alignItems: 'center',
   },
   tabDiv: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 5,
-    backgroundColor: '#fff',
-    overflow: 'scroll',
     flexDirection: 'row',
-    minWidth: screenWidth,
-    height: 90,
-    justifyContent: 'flex-start',
-    marginBottom: 5,
+    alignItems: 'center',
+    padding: 10,
+    overflow: 'hidden',
+    width: '100%',
+    backgroundColor: '#fff',
   },
   notificationsDiv: {
     maxWidth: screenWidth,
     alignItems: 'center',
     flexDirection: 'column',
     backgroundColor: '#fff',
+    flex: 1,
+    alignSelf: 'stretch',
     padding: 10,
-    flexGrow: 1,
-    justifyContent: 'flex-start',
   },
   emptyNotifications: {
     padding: 15,
@@ -1765,6 +1767,14 @@ export const ProfileComponentStyles = StyleSheet.create({
     width: '95%',
     borderRadius: 10,
   },
+  courseBox: {
+    alignItems: 'flex-start',
+    marginVertical: 5,
+    padding: 13,
+    backgroundColor: '#fff',
+    width: '95%',
+    borderRadius: 10,
+  },
   nameBox3: {
     alignItems: 'flex-start',
     marginVertical: 5,
@@ -1835,6 +1845,71 @@ export const ProfileComponentStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    backgroundColor: '#fff',
+    padding: 10,
+    alignItems: 'center',
+    elevation: 4,
+    zIndex: 10,
+    justifyContent: 'space-between'
+  },
+  topBarText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f54b02',
+  },
+  sectionTitle: {
+    padding: 10,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
+    width: '100%',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#c0bebeff',
+  },
+  courseCardDiv: {
+    width: '100%',
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  courseCard: {
+    width: 90,
+    height: 90,
+    backgroundColor: '#eee',
+    margin: 6,
+    borderRadius: 10,
+    padding: 7,
+  },
+  emptyTextDiv: {
+    width: '100%',
+    alignItems: 'center',
+    padding: 10,
+    flexDirection: 'row',
+  },
+  uploadButton: {
+    padding: 8,
+    backgroundColor: '#f54b02',
+    borderRadius: 10,
+    marginLeft: 5,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  emptyText: {
+    color: '#807f7fff',
+    fontSize: 13
+  },
+  uploadText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700'
+  }
 });
 
 

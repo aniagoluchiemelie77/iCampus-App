@@ -30,14 +30,13 @@ export interface User {
   country: string;
   badges?: string[];
   current_level?: string;
-  assignedCourses?: string[];
-  coursesEnrolled?: string[];
+  coursesEnrolled?: Course.courseId[];
   isCourseRep?: boolean;
   appVersion?: string;
   isVerified?: boolean
   userToken?: string,
   tokenCreatedAt?: string,
-  coursesTeaching?: string[];
+  coursesTeaching?: Course.courseId[];
   pointsAccountId?: UserPointsAccount.pointsAccountId,
   cart?: string[];
   favorites?: string[];
@@ -427,6 +426,20 @@ export interface Transaction {
   type: PurchaseTransactionType;
   amountInPoints: number;
   date: string; 
+}
+export interface Course {
+  id: string;
+  courseId: string;
+  courseCode: string;
+  courseTitle?: string;
+  department: string;
+  level: string;
+  schoolName: string;
+  lecturerIds: User.uid[]; 
+  studentsEnrolled: User.uid[];
+  credits?: number;
+  semester?: string; 
+  createdAt: string; 
 }
 
 

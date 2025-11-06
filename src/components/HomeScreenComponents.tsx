@@ -64,9 +64,20 @@ import {
 import { selectUnreadCount } from '../components/NotificationSplice';
 import { updateUserImage } from '../components/UserSlice';
 const { width } = Dimensions.get('window');
-
+import {
+  UploadFileForCourseExtraction,
+  UploadImageForCourseExtraction,
+} from './FileAndImageUpload';
 import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {
+  pick,
+  errorCodes,
+  isErrorWithCode,
+  types,
+} from '@react-native-documents/picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 interface ProfileSwiperProps {
   images: string[];
@@ -1862,6 +1873,44 @@ export function ProfileScreen() {
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showPoints, setShowPoints] = useState(false);
+  const [showTopBar, setShowTopBar] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleUploadCourseForm = async () => {
+    try {
+      const imageResult = await launchImageLibrary({ mediaType: 'photo' });
+
+      if (imageResult.assets && imageResult.assets.length > 0) {
+        const image = imageResult.assets[0];
+        if (image?.uri) {
+          UploadImageForCourseExtraction(image.uri);
+        }
+        return;
+      }
+
+      const fileResult = await pick({
+        type: [types.pdf, types.docx],
+      });
+
+      const file = fileResult[0];
+
+      if (file?.uri && file?.type) {
+        UploadFileForCourseExtraction(file.uri, file.type);
+      } else {
+        console.warn('Missing file URI or type');
+      }
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        console.log('User canceled upload');
+        Toast.show({
+          type: 'error',
+          text1: 'Unable to select file',
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    }
+  };
 
   const handleImageUpdate = async () => {
     const imageUri = await selectImage();
@@ -1938,7 +1987,28 @@ export function ProfileScreen() {
       style={ProfileComponentStyles.container}
       colors={['#eee', '#edccbdff']}
     >
-      <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
+      <ScrollView
+        contentContainerStyle={{ alignItems: 'center', position: 'relative' }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: false,
+            listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+              const offsetY = event.nativeEvent.contentOffset.y;
+              setShowTopBar(offsetY > 120);
+            },
+          },
+        )}
+        scrollEventThrottle={16}
+      >
+        {showTopBar && (
+          <View style={ProfileComponentStyles.topBar}>
+            <Text style={ProfileComponentStyles.topBarText}>
+              {user.firstname} {user.lastname}
+            </Text>
+            <Logo />
+          </View>
+        )}
         {Array.isArray(user.profilePic) && user.profilePic.length > 0 && (
           <ProfileSwiper
             images={reversedPics}
@@ -1949,26 +2019,29 @@ export function ProfileScreen() {
             HomeScreenComponentStyles={HomeScreenComponentStyles}
           />
         )}
-
         <View style={ProfileComponentStyles.nameBoxb}>
           <Text style={ProfileComponentStyles.name}>
             {user.firstname} {user.lastname}
           </Text>
           <View style={ProfileComponentStyles.rowBox2c}>
-            {Array.from({
-              length: Math.min(
-                parseInt(user.current_level ?? '100', 10) / 100,
-                5,
-              ),
-            }).map((_, index) => (
-              <MaterialIcons
-                key={index}
-                name="star"
-                size={15}
-                color="#f54b02"
-                style={ProfileComponentStyles.iconMargin2}
-              />
-            ))}
+            {user.staffId !== ' ' ? (
+              <MaterialCommunityIcons name="teach" size={17} color="#f54b02" />
+            ) : (
+              Array.from({
+                length: Math.min(
+                  parseInt(user.current_level ?? '100', 10) / 100,
+                  5,
+                ),
+              }).map((_, index) => (
+                <MaterialIcons
+                  key={index}
+                  name="star"
+                  size={15}
+                  color="#f54b02"
+                  style={ProfileComponentStyles.iconMargin2}
+                />
+              ))
+            )}
           </View>
         </View>
         <View style={ProfileComponentStyles.nameBox2}>
@@ -1996,10 +2069,11 @@ export function ProfileScreen() {
               {user.department}
             </Text>
           </View>
+
           <View style={ProfileComponentStyles.rowBox2}>
             <Icon name="bookmarks-outline" size={14} color="#f54b02" />
             <Text style={ProfileComponentStyles.textRight}>
-              {user.matricNumber}
+              {user.staffId === ' ' ? user.matricNumber : user.staffId}
             </Text>
           </View>
         </View>
@@ -2053,10 +2127,68 @@ export function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
-        <View>
-          <Text style={ProfileComponentStyles.text}>
-            {user.coursesEnrolled}
-          </Text>
+        <View style={ProfileComponentStyles.courseBox}>
+          {user.staffId !== ' ' ? (
+            <>
+              <Text style={ProfileComponentStyles.sectionTitle}>
+                Courses Teaching
+              </Text>
+              <View style={ProfileComponentStyles.courseCardDiv}>
+                {Array.isArray(user.coursesTeaching) &&
+                user.coursesTeaching.length > 0 ? (
+                  user.coursesTeaching.map((courseId, index) => (
+                    <View key={index} style={ProfileComponentStyles.courseCard}>
+                      <Text>Course ID: {courseId}</Text>
+                      {/* You can later replace this with full course info */}
+                    </View>
+                  ))
+                ) : (
+                  <View style={ProfileComponentStyles.emptyTextDiv}>
+                    <MaterialCommunityIcons
+                      name="books-off"
+                      size={20}
+                      color="#807f7fff"
+                    />
+                    <Text style={NotificationPageStyles.emptyNotificationsText}>
+                      No records of courses you teach.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={ProfileComponentStyles.sectionTitle}>
+                Courses Enrolled
+              </Text>
+              {Array.isArray(user.coursesEnrolled) &&
+              user.coursesEnrolled.length > 0 ? (
+                user.coursesEnrolled.map((courseId, index) => (
+                  <View key={index} style={ProfileComponentStyles.courseCard}>
+                    <Text>Course ID: {courseId}</Text>
+                    {/* You can later replace this with full course info */}
+                  </View>
+                ))
+              ) : (
+                <>
+                  <View style={ProfileComponentStyles.emptyTextDiv}>
+                    <Text style={ProfileComponentStyles.emptyText}>
+                      No records of your registered courses
+                    </Text>
+                    <TouchableOpacity
+                      style={ProfileComponentStyles.uploadButton}
+                      onPress={handleUploadCourseForm}
+                    >
+                      <MaterialIcons name="camera-alt" size={20} color="#fff" />
+                      <Text style={ProfileComponentStyles.uploadText}>
+                        Upload Course Form
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
       <Modal visible={showModal} transparent animationType="slide">

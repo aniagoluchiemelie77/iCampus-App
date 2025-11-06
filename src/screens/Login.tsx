@@ -105,104 +105,98 @@ const Login = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">  
-    <ScrollView
-            contentContainerStyle={SignupScreenStyles.bkg3}
-            keyboardShouldPersistTaps="handled"
-          >
+    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
+      <ScrollView
+        contentContainerStyle={SignupScreenStyles.bkg3}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={SignupScreenStyles.container2}>
-            <View style={
-                SignupScreenStyles.headerBtnsContainerLogin
-              }>
-                <Text
-                  style={[
-                    SignupScreenStyles.activeTabText, SignupScreenStyles.welcomeHeader
-                  ]}
-                >
-                  Login
-                </Text>
-                <Text
-                  style={
-                    SignupScreenStyles.welcomeText
-                  }
-                >
-                  Good to see you again! Let’s pick up where you left off.
-                </Text>
-            </View>
-            <View style={SignupScreenStyles.inputContainerLogin}>
+          <View style={SignupScreenStyles.headerBtnsContainerLogin}>
+            <Text
+              style={[
+                SignupScreenStyles.activeTabText,
+                SignupScreenStyles.welcomeHeader,
+              ]}
+            >
+              Login
+            </Text>
+            <Text style={SignupScreenStyles.welcomeText}>
+              Good to see you again, Let’s pick up where you left off.
+            </Text>
+          </View>
+          <View style={SignupScreenStyles.inputContainerLogin}>
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+              <Text style={SignupScreenStyles.inputHeader}>
+                Enter your Email:
+              </Text>
+              <TextInput
+                placeholder="Email"
+                placeholderTextColor="#000"
+                value={identifier}
+                onChangeText={setIdentifier}
+                style={SignupScreenStyles.input}
+              />
+              <Text style={SignupScreenStyles.validationText}>
+                {!isValidEmail(identifier) && identifier.length > 0
+                  ? 'Invalid email format'
+                  : ''}
+              </Text>
+              <Text style={SignupScreenStyles.inputHeader}>Password:</Text>
+              <View style={SignupScreenStyles.passwordInputWrapper}>
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor="#000"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  style={[SignupScreenStyles.input2]}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
                 >
-                  <Text style={SignupScreenStyles.inputHeader}>
-                    Enter your Email:
-                  </Text>
-                  <TextInput
-                    placeholder="Email"
-                    placeholderTextColor="#000"
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    style={SignupScreenStyles.input}
+                  <Icon
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={22}
+                    color="#000"
+                    style={{ marginRight: 30 }}
                   />
-                  <Text style={SignupScreenStyles.validationText}>
-                    {!isValidEmail(identifier) && identifier.length > 0
-                      ? 'Invalid email format'
-                      : ''}
-                  </Text>
-                  <Text style={SignupScreenStyles.inputHeader}>Password:</Text>
-                  <View style={SignupScreenStyles.passwordInputWrapper}>
-                    <TextInput
-                      placeholder="Password"
-                      placeholderTextColor="#000"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      style={[SignupScreenStyles.input2]}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                    >
-                      <Icon
-                        name={showPassword ? 'eye-off' : 'eye'}
-                        size={22}
-                        color="#000"
-                        style={{ marginRight: 30 }}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[SignupScreenStyles.forgotPassDiv]}
-                    onPress={() => navigation.navigate('ForgotPasswordScreen')}
-                  >
-                    <Text style={[SignupScreenStyles.forgotPassParagraph]}>
-                      Forgot Password?
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={SignupScreenStyles.toggleBtns}
-                    onPress={handleLogin}
-                  >
-                    <Text style={SignupScreenStyles.selectorHeader}>Login</Text>
-                  </TouchableOpacity>
-                  <SweetAlertModal
-                    visible={alertVisible}
-                    onConfirm={() => setAlertVisible(false)}
-                    title={
-                      alertType === 'success'
-                        ? 'Success!'
-                        : alertType === 'error'
-                        ? 'Oops!'
-                        : alertType === 'warning'
-                        ? 'Warning!'
-                        : 'Notice'
-                    }
-                    message={alertMessage}
-                    type={alertType}
-                  />
-                </KeyboardAvoidingView>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[SignupScreenStyles.forgotPassDiv]}
+                onPress={() => navigation.navigate('ForgotPasswordScreen')}
+              >
+                <Text style={[SignupScreenStyles.forgotPassParagraph]}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={SignupScreenStyles.toggleBtns}
+                onPress={handleLogin}
+              >
+                <Text style={SignupScreenStyles.selectorHeader}>Login</Text>
+              </TouchableOpacity>
+              <SweetAlertModal
+                visible={alertVisible}
+                onConfirm={() => setAlertVisible(false)}
+                title={
+                  alertType === 'success'
+                    ? 'Success!'
+                    : alertType === 'error'
+                    ? 'Oops!'
+                    : alertType === 'warning'
+                    ? 'Warning!'
+                    : 'Notice'
+                }
+                message={alertMessage}
+                type={alertType}
+              />
+            </KeyboardAvoidingView>
           </View>
         </View>
-        </ScrollView>  
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };

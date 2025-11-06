@@ -16,7 +16,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { useDispatch } from 'react-redux';
-import { markAsRead, clearUnread } from '../components/NotificationSplice';
+import { markAsRead } from '../components/NotificationSplice';
 
 dayjs.extend(advancedFormat);
 export const formatNotificationDate = (dateString: string): string => {
@@ -52,8 +52,10 @@ const Notifications = () => {
   const navigation2 = useNavigation<NavigationProp>();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'unread'
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [transactionCount, setTransactionCount] = useState(0);
+
   const dispatch = useDispatch();
-  const tabs = ['all', 'transactions', 'unread', 'mark'];
   //Fetch Notifications
   useEffect(() => {
     const queryParams = new URLSearchParams({
@@ -67,23 +69,7 @@ const Notifications = () => {
       try {
         let res;
         let data;
-
-        if (activeTab === 'mark') {
-          res = await fetch(
-            'http://192.168.1.98:5000/users/notifications/mark-all-read',
-            {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: user.uid,
-                limit: '50',
-                offset: '0',
-              }),
-            },
-          );
-          data = await res.json();
-          dispatch(clearUnread());
-        } else if (activeTab === 'transactions') {
+        if (activeTab === 'transactions') {
           const type = 'transactions';
           res = await fetch(
             `http://192.168.1.98:5000/users/notifications?${queryParams}&type=${type}`,
@@ -104,6 +90,33 @@ const Notifications = () => {
 
     fetchNotifications2().catch(err => console.error('Error:', err));
   }, [user?.uid, activeTab, dispatch]);
+
+  useEffect(() => {
+    const fetchNotificationCounts = async () => {
+      try {
+        const baseUrl = 'http://192.168.1.98:5000/users/notifications/count';
+
+        const unreadRes = await fetch(
+          `${baseUrl}?userId=${user.uid}&unread=true`,
+        );
+        const unreadData = await unreadRes.json();
+        setUnreadCount(unreadData.count || 0);
+
+        const transactionRes = await fetch(
+          `${baseUrl}?userId=${user.uid}&type=transactions`,
+        );
+        const transactionData = await transactionRes.json();
+        setTransactionCount(transactionData.count || 0);
+      } catch (err) {
+        console.error('Error fetching notification counts:', err);
+      }
+    };
+
+    if (user?.uid) {
+      fetchNotificationCounts();
+    }
+  }, [user?.uid]);
+
   const handleMarkAsRead = async (id: string) => {
     try {
       console.log('Marking as read');
@@ -121,30 +134,35 @@ const Notifications = () => {
   return (
     <View style={NotificationPageStyles.container}>
       <CustomHeader title="Notifications" onBack={() => navigation2.goBack()} />
-      <FlatList
-        data={tabs}
-        horizontal
-        keyExtractor={item => item}
-        showsHorizontalScrollIndicator={true}
-        contentContainerStyle={NotificationPageStyles.tabDiv}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => setActiveTab(item)}
-            style={[
-              HomeScreenComponentStyles.tabItem,
-              activeTab === item && HomeScreenComponentStyles.activeTab,
-            ]}
-          >
-            <Text style={HomeScreenComponentStyles.tabLabel}>
-              {item === 'mark'
-                ? 'Mark as Read'
-                : item === 'transactions'
-                ? 'Transactions'
-                : item.charAt(0).toUpperCase() + item.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
+      <View style={NotificationPageStyles.tabDiv}>
+        {['all', 'unread', 'transactions'].map(tab => {
+          let count = null;
+          if (tab === 'unread' && unreadCount > 0) {
+            count = unreadCount;
+          } else if (tab === 'transactions' && transactionCount > 0) {
+            count = transactionCount;
+          }
+
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[
+                HomeScreenComponentStyles.tabItem,
+                activeTab === tab && HomeScreenComponentStyles.activeTab,
+              ]}
+            >
+              <Text style={HomeScreenComponentStyles.tabLabel}>
+                {tab === 'transactions'
+                  ? `Transactions${count ? ` (${count})` : ''}`
+                  : `${tab.charAt(0).toUpperCase() + tab.slice(1)}${
+                      count ? ` (${count})` : ''
+                    }`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <FlatList
         data={Array.isArray(notifications) ? notifications : []}
@@ -171,6 +189,11 @@ const Notifications = () => {
                   style={NotificationPageStyles.notificationsText}
                 >
                   {item.message}
+                </Text>
+              </View>
+              <View style={NotificationPageStyles.notificationsDateDiv}>
+                <Text style={NotificationPageStyles.notificationsDate2}>
+                  View
                 </Text>
               </View>
             </TouchableOpacity>
