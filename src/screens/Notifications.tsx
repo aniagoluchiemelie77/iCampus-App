@@ -181,6 +181,9 @@ const Notifications = () => {
                 <Text style={NotificationPageStyles.notificationsDate}>
                   {formatNotificationDate(item.createdAt)}
                 </Text>
+                <Text style={NotificationPageStyles.notificationsDate2}>
+                  View
+                </Text>
               </View>
               <View style={NotificationPageStyles.notificationsTextDiv}>
                 <Text
@@ -189,11 +192,6 @@ const Notifications = () => {
                   style={NotificationPageStyles.notificationsText}
                 >
                   {item.message}
-                </Text>
-              </View>
-              <View style={NotificationPageStyles.notificationsDateDiv}>
-                <Text style={NotificationPageStyles.notificationsDate2}>
-                  View
                 </Text>
               </View>
             </TouchableOpacity>

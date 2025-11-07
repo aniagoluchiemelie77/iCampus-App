@@ -1499,25 +1499,23 @@ export const NotificationPageStyles = StyleSheet.create({
     fontSize: 14,
   },
   notificationsTextDiv: {
-    marginTop: 10,
+    paddingVertical: 10,
     width: '100%',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#fc8f61ff',
   },
   notificationsDate: {
     fontSize: 12,
     color: '#807f7fff',
-    alignSelf: 'flex-start',
   },
   notificationsDate2: {
     fontSize: 12,
-    alignSelf: 'flex-end',
     color: '#f54b02',
   },
   notificationsDateDiv: {
     paddingVertical: 5,
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    flexDirection: 'row'
   },
   tabDiv: {
     flexDirection: 'row',
@@ -1532,8 +1530,7 @@ export const NotificationPageStyles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'column',
     backgroundColor: '#fff',
-    flex: 1,
-    alignSelf: 'stretch',
+    flexGrow: 1,
     padding: 10,
   },
   emptyNotifications: {
@@ -1898,17 +1895,17 @@ export const ProfileComponentStyles = StyleSheet.create({
   },
   emptyTextDiv: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 10,
-    flexDirection: 'row',
   },
   uploadButton: {
     padding: 8,
     backgroundColor: '#f54b02',
     borderRadius: 10,
-    marginLeft: 5,
+    marginVertical: 10,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexDirection: 'row'
   },
   emptyText: {
     color: '#807f7fff',

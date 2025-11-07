@@ -66,7 +66,7 @@ import {
 import { selectUnreadCount } from './NotificationSplice';
 import { updateUserImage } from './UserSlice';
 const { width } = Dimensions.get('window');
-import { UploadCourseFormWithProgress } from './FileAndImageUpload';
+import { useUploadCourseFormWithProgress } from './FileAndImageUpload';
 import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -78,6 +78,8 @@ import {
 } from '@react-native-documents/picker';
 import { launchImageLibrary } from 'react-native-image-picker';
 import * as Progress from 'react-native-progress';
+import ActionSheet from 'react-native-action-sheet';
+import RNFS from 'react-native-fs';
 
 interface ProfileSwiperProps {
   images: string[];
@@ -1879,73 +1881,91 @@ export function ProfileScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [courseData, setCourseData] = useState<Course[]>([]);
   const [studentData, setStudentData] = useState<User | null>(null);
+  const uploadCourseForm = useUploadCourseFormWithProgress();
+  const prepareFileForUpload = async (uri: string, extension: string) => {
+    const destPath = `${RNFS.TemporaryDirectoryPath}/upload.${extension}`;
+    await RNFS.copyFile(uri, destPath);
+    return destPath;
+  };
+
+  const pickImage = async () => {
+    const imageResult = await launchImageLibrary({ mediaType: 'photo' });
+    const image = imageResult.assets?.[0];
+    if (image?.uri && image?.type) {
+      console.log(image.uri, image.type);
+      setModalVisible(true);
+      uploadCourseForm(
+        image.uri,
+        image.type,
+        percent => setUploadProgress(percent),
+        data => {
+          setCourseData(data.courses);
+          setStudentData(data.student);
+          setModalVisible(false);
+        },
+        error => {
+          console.error(error);
+          Toast.show({
+            type: 'error',
+            text1: 'Upload failed',
+            position: 'bottom',
+            bottomOffset: 10,
+          });
+          setModalVisible(false);
+        },
+      );
+    }
+  };
+
+  const pickDocument = async () => {
+    console.log('Documents');
+    const result = await pick({ type: [types.pdf, types.docx] });
+    const file = result?.[0];
+    if (file?.uri && file?.type) {
+      console.log(file.uri, file.type);
+      setModalVisible(true);
+
+      const extension = file.name?.split('.').pop() ?? 'pdf';
+      const filePath = await prepareFileForUpload(file.uri, extension);
+
+      uploadCourseForm(
+        filePath,
+        file.type,
+        percent => setUploadProgress(percent),
+        data => {
+          setCourseData(data.courses);
+          setStudentData(data.student);
+          setModalVisible(false);
+        },
+        error => {
+          console.error(error);
+          Toast.show({
+            type: 'error',
+            text1: 'Upload failed',
+            position: 'bottom',
+            bottomOffset: 10,
+          });
+          setModalVisible(false);
+        },
+      );
+    } else {
+      console.warn('Missing file URI or type');
+      setModalVisible(false);
+    }
+  };
 
   const handleUploadCourseForm = async () => {
     try {
-      console.log('Upload Btn clicked...');
-      setModalVisible(true); // Show progress modal
-
-      // Try image selection first
-      const imageResult = await launchImageLibrary({ mediaType: 'photo' });
-
-      if (imageResult.assets && imageResult.assets.length > 0) {
-        const image = imageResult.assets[0];
-        if (image?.uri && image?.type) {
-          console.log(image.uri, image.type);
-          UploadCourseFormWithProgress(
-            image.uri,
-            image.type,
-            percent => setUploadProgress(percent),
-            data => {
-              setCourseData(data.courses);
-              setStudentData(data.student);
-              setModalVisible(false);
-            },
-            error => {
-              console.error(error);
-              Toast.show({
-                type: 'error',
-                text1: 'Upload failed',
-                position: 'bottom',
-                bottomOffset: 10,
-              });
-              setModalVisible(false);
-            },
-          );
-          return;
-        }
-      }
-
-      // If no image, try document selection
-      const fileResult = await pick({ type: [types.pdf, types.docx] });
-      const file = fileResult[0];
-
-      if (file?.uri && file?.type) {
-        console.log(file.uri, file.type);
-        UploadCourseFormWithProgress(
-          file.uri,
-          file.type,
-          percent => setUploadProgress(percent),
-          data => {
-            setCourseData(data.courses);
-            setStudentData(data.student);
-            setModalVisible(false);
-          },
-          error => {
-            console.error(error);
-            Toast.show({
-              type: 'error',
-              text1: 'Upload failed',
-              position: 'bottom',
-              bottomOffset: 10,
-            });
-            setModalVisible(false);
-          },
-        );
-      } else {
-        console.warn('Missing file URI or type');
-        setModalVisible(false);
-      }
+      ActionSheet.showActionSheetWithOptions(
+        {
+          options: ['Pick Image', 'Pick Document', 'Cancel'],
+          cancelButtonIndex: 2,
+        },
+        buttonIndex => {
+          if (buttonIndex === 0) pickImage();
+          else if (buttonIndex === 1) pickDocument();
+        },
+      );
     } catch (err) {
       setModalVisible(false);
       if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
@@ -2074,7 +2094,7 @@ export function ProfileScreen() {
             {user.firstname} {user.lastname}
           </Text>
           <View style={ProfileComponentStyles.rowBox2c}>
-            {user.staffId !== ' ' ? (
+            {user.staffId ? (
               <MaterialCommunityIcons name="teach" size={17} color="#f54b02" />
             ) : (
               Array.from({
@@ -2123,7 +2143,7 @@ export function ProfileScreen() {
           <View style={ProfileComponentStyles.rowBox2}>
             <Icon name="bookmarks-outline" size={14} color="#f54b02" />
             <Text style={ProfileComponentStyles.textRight}>
-              {user.staffId === ' ' ? user.matricNumber : user.staffId}
+              {user.staffId ? user.staffId : user.matricNumber}
             </Text>
           </View>
         </View>
@@ -2178,7 +2198,7 @@ export function ProfileScreen() {
           </View>
         </TouchableOpacity>
         <View style={ProfileComponentStyles.courseBox}>
-          {user.staffId !== ' ' ? (
+          {user.staffId ? (
             <>
               <Text style={ProfileComponentStyles.sectionTitle}>
                 Courses Teaching
@@ -2265,7 +2285,12 @@ export function ProfileScreen() {
                     style={ProfileComponentStyles.uploadButton}
                     onPress={handleUploadCourseForm}
                   >
-                    <MaterialIcons name="camera-alt" size={20} color="#fff" />
+                    <MaterialIcons
+                      name="camera-alt"
+                      size={20}
+                      color="#fff"
+                      style={{ marginRight: 4 }}
+                    />
                     <Text style={ProfileComponentStyles.uploadText}>
                       Upload course registration form
                     </Text>
