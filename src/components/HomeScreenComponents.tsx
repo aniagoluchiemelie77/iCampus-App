@@ -36,6 +36,8 @@ import type {
   ProductCategoryList,
   CalendarEvent,
   Product,
+  User,
+  Course,
 } from '../types/firebase';
 import {
   HomeScreenComponentStyles,
@@ -60,14 +62,11 @@ import {
   clearCart,
   selectTotalPoints,
   selectCartQuantities,
-} from '../components/CartProductsSlice';
-import { selectUnreadCount } from '../components/NotificationSplice';
-import { updateUserImage } from '../components/UserSlice';
+} from './CartProductsSlice';
+import { selectUnreadCount } from './NotificationSplice';
+import { updateUserImage } from './UserSlice';
 const { width } = Dimensions.get('window');
-import {
-  UploadFileForCourseExtraction,
-  UploadImageForCourseExtraction,
-} from './FileAndImageUpload';
+import { UploadCourseFormWithProgress } from './FileAndImageUpload';
 import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -78,6 +77,7 @@ import {
   types,
 } from '@react-native-documents/picker';
 import { launchImageLibrary } from 'react-native-image-picker';
+import * as Progress from 'react-native-progress';
 
 interface ProfileSwiperProps {
   images: string[];
@@ -1875,31 +1875,79 @@ export function ProfileScreen() {
   const [showPoints, setShowPoints] = useState(false);
   const [showTopBar, setShowTopBar] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [courseData, setCourseData] = useState<Course[]>([]);
+  const [studentData, setStudentData] = useState<User | null>(null);
 
   const handleUploadCourseForm = async () => {
     try {
+      console.log('Upload Btn clicked...');
+      setModalVisible(true); // Show progress modal
+
+      // Try image selection first
       const imageResult = await launchImageLibrary({ mediaType: 'photo' });
 
       if (imageResult.assets && imageResult.assets.length > 0) {
         const image = imageResult.assets[0];
-        if (image?.uri) {
-          UploadImageForCourseExtraction(image.uri);
+        if (image?.uri && image?.type) {
+          console.log(image.uri, image.type);
+          UploadCourseFormWithProgress(
+            image.uri,
+            image.type,
+            percent => setUploadProgress(percent),
+            data => {
+              setCourseData(data.courses);
+              setStudentData(data.student);
+              setModalVisible(false);
+            },
+            error => {
+              console.error(error);
+              Toast.show({
+                type: 'error',
+                text1: 'Upload failed',
+                position: 'bottom',
+                bottomOffset: 10,
+              });
+              setModalVisible(false);
+            },
+          );
+          return;
         }
-        return;
       }
 
-      const fileResult = await pick({
-        type: [types.pdf, types.docx],
-      });
-
+      // If no image, try document selection
+      const fileResult = await pick({ type: [types.pdf, types.docx] });
       const file = fileResult[0];
 
       if (file?.uri && file?.type) {
-        UploadFileForCourseExtraction(file.uri, file.type);
+        console.log(file.uri, file.type);
+        UploadCourseFormWithProgress(
+          file.uri,
+          file.type,
+          percent => setUploadProgress(percent),
+          data => {
+            setCourseData(data.courses);
+            setStudentData(data.student);
+            setModalVisible(false);
+          },
+          error => {
+            console.error(error);
+            Toast.show({
+              type: 'error',
+              text1: 'Upload failed',
+              position: 'bottom',
+              bottomOffset: 10,
+            });
+            setModalVisible(false);
+          },
+        );
       } else {
         console.warn('Missing file URI or type');
+        setModalVisible(false);
       }
     } catch (err) {
+      setModalVisible(false);
       if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
         console.log('User canceled upload');
         Toast.show({
@@ -1908,6 +1956,8 @@ export function ProfileScreen() {
           position: 'bottom',
           bottomOffset: 10,
         });
+      } else {
+        console.error('Unexpected error:', err);
       }
     }
   };
@@ -2161,31 +2211,66 @@ export function ProfileScreen() {
               <Text style={ProfileComponentStyles.sectionTitle}>
                 Courses Enrolled
               </Text>
-              {Array.isArray(user.coursesEnrolled) &&
-              user.coursesEnrolled.length > 0 ? (
-                user.coursesEnrolled.map((courseId, index) => (
-                  <View key={index} style={ProfileComponentStyles.courseCard}>
-                    <Text>Course ID: {courseId}</Text>
-                    {/* You can later replace this with full course info */}
-                  </View>
-                ))
+              {Array.isArray(courseData) && courseData.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={ProfileComponentStyles.courseCardDiv}
+                >
+                  <FlatList
+                    data={[...courseData].sort((a, b) =>
+                      a.courseCode > b.courseCode ? -1 : 1,
+                    )}
+                    keyExtractor={(item, index) => `${item.courseId}-${index}`}
+                    horizontal
+                    contentContainerStyle={{ paddingHorizontal: 6 }}
+                    renderItem={({ item }) => (
+                      <View style={ProfileComponentStyles.courseCard}>
+                        <Text style={ProfileComponentStyles.courseDetailMain}>
+                          {item.courseCode}
+                        </Text>
+                        <Text style={ProfileComponentStyles.courseDetail2}>
+                          Credits: {item.credits}
+                        </Text>
+                        {studentData && (
+                          <>
+                            {studentData.secondSemesterUnits !== undefined && (
+                              <Text
+                                style={ProfileComponentStyles.courseDetail3}
+                              >
+                                2nd Semester Units:{' '}
+                                {studentData.secondSemesterUnits}
+                              </Text>
+                            )}
+                            {studentData.firstSemesterUnits !== undefined && (
+                              <Text
+                                style={ProfileComponentStyles.courseDetail3}
+                              >
+                                2nd Semester Units:{' '}
+                                {studentData.firstSemesterUnits}
+                              </Text>
+                            )}
+                          </>
+                        )}
+                      </View>
+                    )}
+                  />
+                </ScrollView>
               ) : (
-                <>
-                  <View style={ProfileComponentStyles.emptyTextDiv}>
-                    <Text style={ProfileComponentStyles.emptyText}>
-                      No records of your registered courses
+                <View style={ProfileComponentStyles.emptyTextDiv}>
+                  <Text style={ProfileComponentStyles.emptyText}>
+                    No records of your registered courses
+                  </Text>
+                  <TouchableOpacity
+                    style={ProfileComponentStyles.uploadButton}
+                    onPress={handleUploadCourseForm}
+                  >
+                    <MaterialIcons name="camera-alt" size={20} color="#fff" />
+                    <Text style={ProfileComponentStyles.uploadText}>
+                      Upload course registration form
                     </Text>
-                    <TouchableOpacity
-                      style={ProfileComponentStyles.uploadButton}
-                      onPress={handleUploadCourseForm}
-                    >
-                      <MaterialIcons name="camera-alt" size={20} color="#fff" />
-                      <Text style={ProfileComponentStyles.uploadText}>
-                        Upload Course Form
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
+                  </TouchableOpacity>
+                </View>
               )}
             </>
           )}
@@ -2227,6 +2312,23 @@ export function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={HomeScreenComponentStyles.overlayCenter}>
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={HomeScreenComponentStyles.backdrop} />
+          </TouchableWithoutFeedback>
+          <View style={HomeScreenComponentStyles.popupCenterSmall}>
+            <Progress.Circle
+              progress={uploadProgress / 100}
+              size={80}
+              showsText={true}
+              color="#f54b02"
+              borderWidth={2}
+            />
+          </View>
+        </View>
+      </Modal>
+
       <Toast config={toastConfig} />
     </LinearGradient>
   );

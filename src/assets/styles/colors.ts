@@ -316,6 +316,15 @@ badge: {
     elevation: 5,
     alignItems: 'center',
   },
+  popupCenterSmall: {
+    width: '40%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 12,
+    elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   popupBottom: {
     bottom: 0,
     left: 0,
@@ -1870,14 +1879,12 @@ export const ProfileComponentStyles = StyleSheet.create({
     color: '#000',
     width: '100%',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#c0bebeff',
+    borderBottomColor: '#fc8f61ff',
   },
   courseCardDiv: {
-    width: '100%',
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    padding: 7,
+    minWidth: '100%',
+    alignItems: 'center'
   },
   courseCard: {
     width: 90,
@@ -1886,6 +1893,8 @@ export const ProfileComponentStyles = StyleSheet.create({
     margin: 6,
     borderRadius: 10,
     padding: 7,
+    borderWidth: 0.5,
+    borderColor: '#fc8f61ff'
   },
   emptyTextDiv: {
     width: '100%',
@@ -1909,6 +1918,27 @@ export const ProfileComponentStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '700'
+  },
+  courseDetailMain: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f54b02',
+    width: '100%',
+    textAlign: 'center'
+  },
+  courseDetail2: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#222',
+    width: '100%',
+    textAlign: 'center'
+  },
+  courseDetail3: {
+    paddingVertical: 4,
+    fontSize: 11,
+    width: '100%',
+    textAlign: 'center',
+    color: '#5f5d5dff'
   }
 });
 

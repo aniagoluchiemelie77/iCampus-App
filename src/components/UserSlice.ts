@@ -35,14 +35,20 @@ const userSlice = createSlice({
       return initialState;
     },
     updateUserImage(state, action: PayloadAction<string>) {
-  if (state.profilePic) {
-    state.profilePic.push(action.payload);
-  } else {
-    state.profilePic = [action.payload];
-  }
-}
+      if (state.profilePic) {
+        state.profilePic.push(action.payload);
+      } else {
+        state.profilePic = [action.payload];
+      }
+    },
+    updateCoursesEnrolled(state, action: PayloadAction<string[]>) {
+      state.coursesEnrolled = action.payload;
+    },
+    updateCoursesTeaching(state, action: PayloadAction<string[]>) {
+      state.coursesTeaching = action.payload;
+    },
 
   },
 });
-export const { setUser, clearUser, updateUserImage } = userSlice.actions;
+export const { setUser, clearUser, updateUserImage, updateCoursesEnrolled, updateCoursesTeaching} = userSlice.actions;
 export default userSlice.reducer;

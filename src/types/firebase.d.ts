@@ -43,6 +43,8 @@ export interface User {
   phone_number?: string
   purchaseHistory?: PurchaseHistory[];
   PurchaseTransactions?: UserTransactions[];
+  secondSemesterUnits?: string,
+  firstSemesterUnits?: string
 }
 export interface Community {
   id: string;
