@@ -23,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SignupScreenStyles } from '../assets/styles/colors';
+import baseUrl from '../../App';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
 type VerifiedStudent = {
@@ -249,7 +250,7 @@ const SignUpScreen = () => {
           : {}),
       };
 
-      const response = await fetch('http://192.168.1.98:5000/users/register', {
+      const response = await fetch(`${baseUrl}users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +316,7 @@ const SignUpScreen = () => {
       console.log('Formatted location:', location);
 
       // Step 3: Send login request with IP and location
-      const response = await fetch('http://192.168.1.98:5000/users/login', {
+      const response = await fetch(`${baseUrl}users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -356,7 +357,7 @@ const SignUpScreen = () => {
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 20000);
     try {
-      const response = await fetch('http://10.0.2.2:5000/verifyStudent', {
+      const response = await fetch(`${baseUrl}verifyStudent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -384,7 +385,7 @@ const SignUpScreen = () => {
   };
   const verifyLecturer = async () => {
     try {
-      const response = await fetch('http://10.0.2.2:5000/verifyLecturer', {
+      const response = await fetch(`${baseUrl}verifyLecturer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

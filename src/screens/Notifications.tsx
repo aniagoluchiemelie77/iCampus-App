@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { useDispatch } from 'react-redux';
 import { markAsRead } from '../components/NotificationSplice';
+import baseUrl from '../../App';
 
 dayjs.extend(advancedFormat);
 export const formatNotificationDate = (dateString: string): string => {
@@ -72,13 +73,11 @@ const Notifications = () => {
         if (activeTab === 'transactions') {
           const type = 'transactions';
           res = await fetch(
-            `http://192.168.1.98:5000/users/notifications?${queryParams}&type=${type}`,
+            `${baseUrl}users/notifications?${queryParams}&type=${type}`,
           );
           data = await res.json();
         } else {
-          res = await fetch(
-            `http://192.168.1.98:5000/users/notifications?${queryParams}`,
-          );
+          res = await fetch(`${baseUrl}users/notifications?${queryParams}`);
           data = await res.json();
         }
 
@@ -94,16 +93,14 @@ const Notifications = () => {
   useEffect(() => {
     const fetchNotificationCounts = async () => {
       try {
-        const baseUrl = 'http://192.168.1.98:5000/users/notifications/count';
-
         const unreadRes = await fetch(
-          `${baseUrl}?userId=${user.uid}&unread=true`,
+          `${baseUrl}users/notifications/count?userId=${user.uid}&unread=true`,
         );
         const unreadData = await unreadRes.json();
         setUnreadCount(unreadData.count || 0);
 
         const transactionRes = await fetch(
-          `${baseUrl}?userId=${user.uid}&type=transactions`,
+          `${baseUrl}users/notifications/count?userId=${user.uid}&type=transactions`,
         );
         const transactionData = await transactionRes.json();
         setTransactionCount(transactionData.count || 0);
@@ -120,7 +117,7 @@ const Notifications = () => {
   const handleMarkAsRead = async (id: string) => {
     try {
       console.log('Marking as read');
-      await fetch(`http://192.168.1.98:5000/users/notifications/${id}/read`, {
+      await fetch(`${baseUrl}users/notifications/${id}/read`, {
         method: 'PATCH',
       });
       setNotifications(prev =>

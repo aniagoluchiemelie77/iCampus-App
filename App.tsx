@@ -34,7 +34,7 @@ import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
 import PointsPage from './src/screens/PointsPage';
 import Login from './src/screens/Login';
-
+export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
   SignUp: undefined;
   Notifications: undefined;
@@ -87,16 +87,13 @@ const App = () => {
           setInitialRoute('Welcome');
           setInitialParams({ route: 'SignUp' });
         } else {
-          const response = await fetch(
-            `http://192.168.1.98:5000/users/${storedId}`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ isFirstLogin: false }),
+          const response = await fetch(`${baseUrl}users/${storedId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
             },
-          );
+            body: JSON.stringify({ isFirstLogin: false }),
+          });
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const result = await response.json();

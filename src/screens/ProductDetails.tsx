@@ -31,6 +31,7 @@ import { RootState } from '../components/store';
 
 import { addToCart } from '../components/CartProductsSlice';
 import { useDispatch } from 'react-redux';
+import baseUrl from '../../App';
 
 type RouteParams = {
   ProductDetails: {
@@ -106,7 +107,7 @@ const ProductDetails = () => {
 
     try {
       const res = await fetch(
-        `http://192.168.1.98:5000/store/products?schoolName=${encodedSchool}&category=all&limit=${limit}&offset=${offset}`,
+        `${baseUrl}store/products?schoolName=${encodedSchool}&category=all&limit=${limit}&offset=${offset}`,
       );
       const data = await res.json();
       setOtherProducts2(prev => [...prev, ...data.products]);
@@ -120,7 +121,7 @@ const ProductDetails = () => {
   const handleAddToCart = async (cartItem: Product) => {
     try {
       const token = await AsyncStorage.getItem('authToken');
-      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+      const res = await fetch(`${baseUrl}store/cart`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,9 +168,7 @@ const ProductDetails = () => {
   useEffect(() => {
     const fetchSeller = async () => {
       try {
-        const res = await fetch(
-          `http://192.168.1.98:5000/store/products/${product.sellerId}`,
-        );
+        const res = await fetch(`${baseUrl}store/products/${product.sellerId}`);
         const data = await res.json();
         setSeller(data);
       } catch (err) {
@@ -205,7 +204,7 @@ const ProductDetails = () => {
     const fetchOtherProducts = async () => {
       try {
         const res = await fetch(
-          'http://192.168.1.98:5000/store/products/otherProductsBySeller',
+          `${baseUrl}store/products/otherProductsBySeller`,
           {
             method: 'POST',
             headers: {
@@ -242,7 +241,7 @@ const ProductDetails = () => {
       setLoadingMore(true);
       try {
         const res = await fetch(
-          `http://192.168.1.98:5000/store/products?schoolName=${encodedSchool}&category=all&limit=${limit}&offset=0`,
+          `${baseUrl}store/products?schoolName=${encodedSchool}&category=all&limit=${limit}&offset=0`,
         );
         const data = await res.json();
         setOtherProducts2(data.products);

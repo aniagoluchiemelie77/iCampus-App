@@ -13,6 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
+import baseUrl from '../../App';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -45,14 +46,11 @@ export default function ForgotPasswordScreen() {
     }
     setVerifying(true);
     try {
-      const response = await fetch(
-        'http://192.168.1.98:5000/users/forgotPassword',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        },
-      );
+      const response = await fetch(`${baseUrl}users/forgotPassword`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
@@ -86,7 +84,7 @@ export default function ForgotPasswordScreen() {
 
   const handleVerifyCode = async () => {
     setVerifying(true);
-    const response = await fetch('http://192.168.1.98:5000/users/verifyCode', {
+    const response = await fetch(`${baseUrl}users/verifyCode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code }),

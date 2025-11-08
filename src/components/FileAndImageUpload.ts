@@ -4,6 +4,7 @@ import { updateCoursesEnrolled } from './UserSlice';
 import type {
   Course,
 } from '../types/firebase';
+import baseUrl from '../../App';
 
 export const useUploadCourseFormWithProgress = () => {
   console.log('Pre send');
@@ -30,7 +31,7 @@ export const useUploadCourseFormWithProgress = () => {
       formData.append('staffId', user.staffId);
     }
     console.log('Sending...');
-    xhr.open('POST', 'http://192.168.1.98:5000/users/upload-course-form');
+    xhr.open('POST', `${baseUrl}users/upload-course-form`);
 
     xhr.upload.onprogress = event => {
       if (event.lengthComputable) {

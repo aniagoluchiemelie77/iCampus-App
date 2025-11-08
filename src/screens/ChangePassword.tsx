@@ -14,6 +14,7 @@ import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation, useRoute, RouteProp  } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import baseUrl from '../../App';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -24,7 +25,8 @@ type ChangePasswordParams = {
 };
 
 export default function ChangePasswordScreen() {
-  const route = useRoute<RouteProp<{ params: ChangePasswordParams }, 'params'>>();
+  const route =
+    useRoute<RouteProp<{ params: ChangePasswordParams }, 'params'>>();
   const { email } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const [password, setPassword] = useState('');
@@ -50,7 +52,7 @@ export default function ChangePasswordScreen() {
       return;
     }
     setVerifying(true);
-    const response = await fetch('http://192.168.1.98:5000/users/changePassword', {
+    const response = await fetch(`${baseUrl}users/changePassword`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password, confirmPassword, email }),

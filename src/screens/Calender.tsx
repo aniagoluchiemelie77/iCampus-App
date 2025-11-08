@@ -18,6 +18,7 @@ import { Button } from 'react-native-paper'; // or any UI lib
 import type { CalendarEvent } from '../types/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SweetAlertModal from '../components/alertscomponent';
+import baseUrl from '../../App';
 
 type HeaderProps = {
   title: string;
@@ -446,7 +447,7 @@ const AddEventTabs: React.FC = () => {
       }
       const token = await AsyncStorage.getItem('authToken');
       // 3. Send to backend (replace with your actual endpoint)
-      const response = await fetch('http://192.168.1.98:5000/user/events/add', {
+      const response = await fetch(`${baseUrl}user/events/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

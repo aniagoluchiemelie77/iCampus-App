@@ -27,6 +27,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
+import baseUrl from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -479,7 +480,7 @@ export function Home() {
     const uid = user.uid ?? '';
     const department = user.department ?? '';
     const level = user.current_level ?? '';
-    const url = `http://192.168.1.98:5000/user/events?userId=${uid}&department=${department}&level=${level}`;
+    const url = `${baseUrl}user/events?userId=${uid}&department=${department}&level=${level}`;
     console.log('Fetching events from:', url);
     try {
       const response = await fetch(url);
@@ -853,7 +854,7 @@ export function StoreScreen() {
     try {
       const token = await AsyncStorage.getItem('authToken');
 
-      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+      const res = await fetch(`${baseUrl}store/cart`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -902,7 +903,7 @@ export function StoreScreen() {
     try {
       const token = await AsyncStorage.getItem('authToken');
 
-      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+      const res = await fetch(`${baseUrl}store/cart`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -939,7 +940,7 @@ export function StoreScreen() {
     try {
       const token = await AsyncStorage.getItem('authToken');
 
-      const res = await fetch('http://192.168.1.98:5000/store/favorites', {
+      const res = await fetch(`${baseUrl}store/favorites`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -999,17 +1000,14 @@ export function StoreScreen() {
 
     try {
       const token = await AsyncStorage.getItem('authToken');
-      const response = await fetch(
-        `http://192.168.1.98:5000/store/cart/increment`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ productId, selectedSize, selectedColor }),
+      const response = await fetch(`${baseUrl}store/cart/increment`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({ productId, selectedSize, selectedColor }),
+      });
 
       if (!response.ok) {
         console.error('Failed to increment on server');
@@ -1040,17 +1038,14 @@ export function StoreScreen() {
       console.log('Decrementing Product');
       const token = await AsyncStorage.getItem('authToken');
 
-      const response = await fetch(
-        `http://192.168.1.98:5000/store/cart/decrement`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ productId }),
+      const response = await fetch(`${baseUrl}store/cart/decrement`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({ productId }),
+      });
 
       if (!response.ok) {
         console.error('Failed to decrement on server');
@@ -1077,7 +1072,7 @@ export function StoreScreen() {
     console.log('Removing Product');
     const token = await AsyncStorage.getItem('authToken');
     try {
-      const res = await fetch(`http://192.168.1.98:5000/store/cart/remove`, {
+      const res = await fetch(`${baseUrl}store/cart/remove`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1109,7 +1104,7 @@ export function StoreScreen() {
     console.log('Removing Favorite');
     const token = await AsyncStorage.getItem('authToken');
     try {
-      await fetch(`http://192.168.1.98:5000/store/favorites/remove`, {
+      await fetch(`${baseUrl}store/favorites/remove`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1145,7 +1140,7 @@ export function StoreScreen() {
         });
 
         const response = await fetch(
-          `http://192.168.1.98:5000/store/search?${params.toString()}`,
+          `${baseUrl}store/search?${params.toString()}`,
         );
         const data = await response.json();
         console.log('Query Results:', data.products);
@@ -1172,9 +1167,7 @@ export function StoreScreen() {
     if (!user?.schoolName) return;
     const encodedSchool = encodeURIComponent(user.schoolName);
 
-    fetch(
-      `http://192.168.1.98:5000/store/categories?schoolName=${encodedSchool}`,
-    )
+    fetch(`${baseUrl}store/categories?schoolName=${encodedSchool}`)
       .then(res => res.json())
       .then(data => setCategories(data))
       .catch(err => console.error('Error fetching categories:', err));
@@ -1193,7 +1186,7 @@ export function StoreScreen() {
     const offset = page * limit;
 
     fetch(
-      `http://192.168.1.98:5000/store/products?schoolName=${encodedSchool}${categoryParam}&limit=${limit}&offset=${offset}`,
+      `${baseUrl}store/products?schoolName=${encodedSchool}${categoryParam}&limit=${limit}&offset=${offset}`,
     )
       .then(res => res.json())
       .then(data => {
@@ -2004,17 +1997,14 @@ export function ProfileScreen() {
     try {
       setUploading(true);
       const token = await AsyncStorage.getItem('authToken');
-      const response = await fetch(
-        'http://192.168.1.98:5000/users/upload-profile-image',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ imageUrl: selectedImage }), // ✅ Send Cloudinary URL
+      const response = await fetch(`${baseUrl}users/upload-profile-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ imageUrl: selectedImage }), // ✅ Send Cloudinary URL
+      });
 
       const result = await response.json();
       if (response.ok && result.imageUrl) {

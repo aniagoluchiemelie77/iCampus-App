@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
+import baseUrl from '../../App';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
@@ -20,7 +21,6 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { SignupScreenStyles } from '../assets/styles/colors';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
-
 
 const Login = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -69,7 +69,7 @@ const Login = () => {
       console.log('Formatted location:', location);
 
       // Step 3: Send login request with IP and location
-      const response = await fetch('http://192.168.1.98:5000/users/login', {
+      const response = await fetch(`${baseUrl}users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

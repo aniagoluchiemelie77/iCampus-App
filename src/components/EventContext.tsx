@@ -14,7 +14,7 @@ import { useDispatch } from 'react-redux';
 import type { AppDispatch } from './store';
 import { setNotifications2 } from './NotificationSplice';
 import { setCartItems } from './CartProductsSlice';
-
+import baseUrl from '../../App';
 interface AppDataContextType {
   events: any[];
   favorites: Product[];
@@ -58,7 +58,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const fetchEvents = useCallback(async () => {
     try {
       const response = await fetch(
-        `http://192.168.1.98:5000/user/events?userId=${user.uid}&department=${user.department}&level=${user.current_level}`,
+        `${baseUrl}user/events?userId=${user.uid}&department=${user.department}&level=${user.current_level}`,
       );
       if (!response.ok) throw new Error(`Status ${response.status}`);
       const data = await response.json();
@@ -78,7 +78,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const fetchFavorites = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('authToken');
-      const response = await fetch('http://192.168.1.98:5000/store/favorites', {
+      const response = await fetch(`${baseUrl}store/favorites`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -107,7 +107,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     });
     try {
       const res = await fetch(
-        `http://192.168.1.98:5000/users/notifications?${queryParams}`,
+        `${baseUrl}users/notifications?${queryParams}`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -133,7 +133,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     console.log('Token:', token);
 
     try {
-      const response = await fetch('http://192.168.1.98:5000/store/cart', {
+      const response = await fetch(`${baseUrl}store/cart`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -166,7 +166,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
     try {
       console.log('Query...');
-      const res = await fetch(`http://192.168.1.98:5000/store/toggleFavorite`, {
+      const res = await fetch(`${baseUrl}store/toggleFavorite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

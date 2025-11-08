@@ -18,6 +18,7 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '../../App';
+import baseUrl from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 type NavigationPropCheckout = StackNavigationProp<
@@ -67,7 +68,7 @@ const CheckoutScreen = () => {
     );
 
     try {
-      const res = await fetch('http://192.168.1.98:5000/store/cart', {
+      const res = await fetch(`${baseUrl}store/cart`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +76,7 @@ const CheckoutScreen = () => {
         },
       });
       if (res.ok) {
-        await fetch('http://192.168.1.98:5000/store/checkout', {
+        await fetch(`${baseUrl}store/checkout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
