@@ -1884,8 +1884,11 @@ export function ProfileScreen() {
   const uploadCourseForm = useUploadCourseFormWithProgress();
   const prepareFileForUpload = async (uri: string, extension: string) => {
     const destPath = `${RNFS.TemporaryDirectoryPath}/upload.${extension}`;
+    const exists = await RNFS.exists(destPath);
+    console.log('File exists:', exists);
     await RNFS.copyFile(uri, destPath);
-    return destPath;
+    console.log(destPath);
+    return `file://${destPath}`;
   };
 
   const pickImage = async () => {
@@ -1924,7 +1927,6 @@ export function ProfileScreen() {
     if (file?.uri && file?.type) {
       console.log(file.uri, file.type);
       setModalVisible(true);
-
       const extension = file.name?.split('.').pop() ?? 'pdf';
       const filePath = await prepareFileForUpload(file.uri, extension);
 

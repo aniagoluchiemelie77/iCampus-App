@@ -6,6 +6,7 @@ import type {
 } from '../types/firebase';
 
 export const useUploadCourseFormWithProgress = () => {
+  console.log('Pre send');
   const user = useAppSelector(state => state.user);
   const dispatch = useDispatch();
 
@@ -28,7 +29,7 @@ export const useUploadCourseFormWithProgress = () => {
     if (user.staffId !== '') {
       formData.append('staffId', user.staffId);
     }
-
+    console.log('Sending...');
     xhr.open('POST', 'http://192.168.1.98:5000/users/upload-course-form');
 
     xhr.upload.onprogress = event => {
@@ -40,6 +41,7 @@ export const useUploadCourseFormWithProgress = () => {
 
     xhr.onload = () => {
       if (xhr.status === 200) {
+        console.log('Data recieved...');
         const response = JSON.parse(xhr.responseText);
         dispatch(
           updateCoursesEnrolled((response.courses as Course[]).map(c => c.courseId))

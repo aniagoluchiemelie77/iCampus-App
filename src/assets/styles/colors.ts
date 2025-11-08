@@ -1862,6 +1862,7 @@ export const ProfileComponentStyles = StyleSheet.create({
     alignItems: 'center',
     elevation: 4,
     zIndex: 10,
+    flexDirection: 'row',
     justifyContent: 'space-between'
   },
   topBarText: {
