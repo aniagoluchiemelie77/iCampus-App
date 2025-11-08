@@ -18,7 +18,7 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '../../App';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 type NavigationPropCheckout = StackNavigationProp<

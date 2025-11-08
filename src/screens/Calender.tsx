@@ -18,7 +18,7 @@ import { Button } from 'react-native-paper'; // or any UI lib
 import type { CalendarEvent } from '../types/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SweetAlertModal from '../components/alertscomponent';
-import baseUrl from '../../App';
+import { baseUrl } from '../components/HomeScreenComponents';
 
 type HeaderProps = {
   title: string;

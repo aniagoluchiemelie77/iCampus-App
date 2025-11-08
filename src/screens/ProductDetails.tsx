@@ -31,7 +31,7 @@ import { RootState } from '../components/store';
 
 import { addToCart } from '../components/CartProductsSlice';
 import { useDispatch } from 'react-redux';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 
 type RouteParams = {
   ProductDetails: {

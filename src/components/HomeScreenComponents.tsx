@@ -27,7 +27,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
-import baseUrl from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -81,7 +80,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import * as Progress from 'react-native-progress';
 import ActionSheet from 'react-native-action-sheet';
 import RNFS from 'react-native-fs';
-
+export const baseUrl = 'http://192.168.1.98:5000/';
 interface ProfileSwiperProps {
   images: string[];
   handleImageUpdate: () => void;

@@ -14,7 +14,7 @@ import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation, useRoute, RouteProp  } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,

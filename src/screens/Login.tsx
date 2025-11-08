@@ -9,7 +9,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';

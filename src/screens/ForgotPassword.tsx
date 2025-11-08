@@ -13,7 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,

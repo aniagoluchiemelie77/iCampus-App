@@ -23,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SignupScreenStyles } from '../assets/styles/colors';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
 type VerifiedStudent = {

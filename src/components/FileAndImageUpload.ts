@@ -4,7 +4,7 @@ import { updateCoursesEnrolled } from './UserSlice';
 import type {
   Course,
 } from '../types/firebase';
-import baseUrl from '../../App';
+import {baseUrl} from './HomeScreenComponents';
 
 export const useUploadCourseFormWithProgress = () => {
   console.log('Pre send');

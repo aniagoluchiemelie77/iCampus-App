@@ -17,7 +17,7 @@ import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { useDispatch } from 'react-redux';
 import { markAsRead } from '../components/NotificationSplice';
-import baseUrl from '../../App';
+import {baseUrl} from '../components/HomeScreenComponents';
 
 dayjs.extend(advancedFormat);
 export const formatNotificationDate = (dateString: string): string => {

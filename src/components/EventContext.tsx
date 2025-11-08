@@ -14,7 +14,7 @@ import { useDispatch } from 'react-redux';
 import type { AppDispatch } from './store';
 import { setNotifications2 } from './NotificationSplice';
 import { setCartItems } from './CartProductsSlice';
-import baseUrl from '../../App';
+import { baseUrl } from './HomeScreenComponents';
 interface AppDataContextType {
   events: any[];
   favorites: Product[];
