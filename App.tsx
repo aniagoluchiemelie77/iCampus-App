@@ -54,7 +54,7 @@ export type RootStackParamList = {
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
-  PointsPage: undefined;
+  PointsPage: { mode: 'buy' | 'withdraw' | 'transfer' | 'receive' };
   Login: undefined;
 };
 

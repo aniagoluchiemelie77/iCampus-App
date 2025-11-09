@@ -8,6 +8,7 @@ import {
   Image,
   Dimensions,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import type { Product, User } from '../types/firebase';
@@ -27,11 +28,13 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
-import { RootState } from '../components/store';
 
-import { addToCart } from '../components/CartProductsSlice';
+import {
+  addToCart,
+  selectCartProductIds,
+} from '../components/CartProductsSlice';
 import { useDispatch } from 'react-redux';
-import {baseUrl} from '../components/HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 
 type RouteParams = {
   ProductDetails: {
@@ -63,9 +66,7 @@ const ProductDetails = () => {
   const dispatch = useDispatch();
   const route = useRoute<RouteProp<RouteParams, 'ProductDetails'>>();
   const { product } = route.params;
-  const cartProductIds = useSelector((state: RootState) =>
-    state.cart.items.map(item => item.productId),
-  );
+  const cartProductIds = useSelector(selectCartProductIds);
   const inCart = cartProductIds.includes(product.productId);
   const [refreshFlag, setRefreshFlag] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -76,18 +77,21 @@ const ProductDetails = () => {
   const hasColors = Array.isArray(product.colors) && product.colors.length > 0;
   const [seller, setSeller] = useState<User | null>(null);
   const [loadingSeller, setLoadingSeller] = useState(true);
+  const [selectedQuantity, setSelectedQuantity] = useState<string>('1');
 
+  // Format stock or download count
   const formatDownloadCount = (count: number): string => {
-    if (count >= 10000) return '10K+';
-    if (count >= 100000) return '100K+';
-    if (count >= 1000000) return '1M+';
-    if (count >= 10000000) return '10M+';
-    if (count >= 100000000) return '100M+';
     if (count >= 1000000000) return '1B+';
+    if (count >= 100000000) return '100M+';
+    if (count >= 10000000) return '10M+';
+    if (count >= 1000000) return '1M+';
+    if (count >= 100000) return '100K+';
+    if (count >= 10000) return '10K+';
     if (count >= 1000) return '1K+';
     if (count >= 100) return '100+';
     return count.toString();
   };
+
   const [otherProducts, setOtherProducts] = useState<Product[]>([]);
   const [otherProducts2, setOtherProducts2] = useState<Product[]>([]);
   const [loadingOthers, setLoadingOthers] = useState(true);
@@ -137,6 +141,7 @@ const ProductDetails = () => {
             quantity: 1,
             selectedSize: selectedSize ?? undefined,
             selectedColor: selectedColor ?? undefined,
+            selectedQuantity: selectedQuantity ?? undefined,
           }),
         );
         Toast.show({
@@ -162,6 +167,32 @@ const ProductDetails = () => {
         bottomOffset: 10,
       });
     }
+  };
+  function formatStockCount(stock: number): string {
+    if (stock > 100) return '100+';
+    if (stock > 90) return '90+';
+    if (stock > 80) return '80+';
+    if (stock > 70) return '70+';
+    if (stock > 60) return '60+';
+    if (stock > 50) return '50+';
+    if (stock > 40) return '40+';
+    if (stock > 30) return '30+';
+    if (stock > 20) return '20+';
+    if (stock > 10) return '10+';
+    return `${stock}`;
+  }
+  const handleSizeSelect = async (size: string) => {
+    setSelectedSize(size);
+    await AsyncStorage.setItem('selectedSize', size);
+  };
+
+  const handleColorSelect = async (color: string) => {
+    setSelectedColor(color);
+    await AsyncStorage.setItem('selectedColor', color);
+  };
+  const handleQuantitySelect = async (quantity: string) => {
+    setSelectedQuantity(quantity);
+    await AsyncStorage.setItem('selectedQuantity', quantity);
   };
 
   //Fetch Seller Details
@@ -261,6 +292,18 @@ const ProductDetails = () => {
   useEffect(() => {
     console.log('Cart updated, refresh triggered');
   }, [refreshFlag]);
+  //Fetch savedSize and Color
+  useEffect(() => {
+    const loadSelections = async () => {
+      const savedSize = await AsyncStorage.getItem('selectedSize');
+      const savedColor = await AsyncStorage.getItem('selectedColor');
+      const savedQuantity = await AsyncStorage.getItem('selectedQuantity');
+      if (savedSize) setSelectedSize(savedSize);
+      if (savedColor) setSelectedColor(savedColor);
+      if (savedQuantity) setSelectedQuantity(savedQuantity);
+    };
+    loadSelections();
+  }, []);
 
   const handleScroll = (event: any) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -316,6 +359,9 @@ const ProductDetails = () => {
                 {product.description}
               </Text>
             ) : null}
+            <Text style={ProductDetailsStyles.category}>
+              {product.category}
+            </Text>
             {product.location ? (
               <View style={ProductDetailsStyles.locationInfo}>
                 <Icon name="location-outline" size={20} color="#f54b02" />
@@ -324,10 +370,36 @@ const ProductDetails = () => {
                 </Text>
               </View>
             ) : null}
-
-            <Text style={ProductDetailsStyles.category}>
-              {product.category}
-            </Text>
+            {product.inStock ? (
+              <View style={ProductDetailsStyles.quantityDiv}>
+                <Text style={ProductDetailsStyles.quantityDivStockCount}>
+                  {formatStockCount(Number(product.inStock))} in stock
+                </Text>
+                <View style={ProductDetailsStyles.notStockCount}>
+                  <Text style={ProductDetailsStyles.quantityDivStockCount2}>
+                    Select Quantity:
+                  </Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    maxLength={String(product.inStock).length}
+                    onChangeText={value => {
+                      const numericValue = Number(value);
+                      const stock = Number(product.inStock); // ensure both are numbers
+                      if (numericValue >= 1 && numericValue <= stock) {
+                        handleQuantitySelect(value);
+                      }
+                    }}
+                    style={{
+                      borderWidth: 0.5,
+                      borderColor: '#f54b02',
+                      padding: 8,
+                      color: '#222',
+                      flex: 1,
+                    }}
+                  />
+                </View>
+              </View>
+            ) : null}
           </View>
 
           <View style={ProductDetailsStyles.titleDivRightDiv}>
@@ -359,7 +431,7 @@ const ProductDetails = () => {
                           selectedSize === size &&
                             ProductDetailsStyles.selectedOption,
                         ]}
-                        onPress={() => setSelectedSize(size)}
+                        onPress={() => handleSizeSelect(size)}
                       >
                         <Text style={ProductDetailsStyles.optionText}>
                           {size}
@@ -388,7 +460,7 @@ const ProductDetails = () => {
                           selectedColor === color &&
                             ProductDetailsStyles.selectedOption,
                         ]}
-                        onPress={() => setSelectedColor(color)}
+                        onPress={() => handleColorSelect(color)}
                       />
                     ))}
                   </View>

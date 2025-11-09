@@ -55,8 +55,6 @@ import { useDispatch } from 'react-redux';
 import {
   addToCart,
   removeFromCart,
-  incrementQuantity,
-  decrementQuantity,
   selectCartProductIds,
   selectCartItems,
   clearCart,
@@ -691,7 +689,9 @@ export function Home() {
                   homeStyles.iconItem,
                   HomeScreenComponentStyles.activityIcons,
                 ]}
-                onPress={() => navigation.navigate('PointsPage')}
+                onPress={() =>
+                  navigation.navigate('PointsPage', { mode: 'buy' })
+                }
               >
                 <Icon name="wallet-outline" size={30} color="#f54b02" />
                 <Text style={homeStyles.iconLabel}>My Wallet</Text>
@@ -818,9 +818,6 @@ export function StoreScreen() {
   const [showCart, setShowCart] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
-  const [quantities, setQuantities] = useState<{ [productId: string]: number }>(
-    {},
-  );
   const [searchQuery, setSearchQuery] = useState('');
 
   const openFavoritesPopup = () => {
@@ -971,7 +968,7 @@ export function StoreScreen() {
       });
     }
   };
-
+  /*
   const increment = async (
     productId: string,
     selectedSize?: string,
@@ -1017,7 +1014,6 @@ export function StoreScreen() {
       // const updatedItem = await response.json();
 
       // Update local state if needed
-      dispatch(incrementQuantity({ productId, selectedSize, selectedColor }));
       setQuantities(prev => ({
         ...prev,
         [productId]: (prev[productId] ?? 1) + 1,
@@ -1028,7 +1024,6 @@ export function StoreScreen() {
       console.error('Increment error:', error);
     }
   };
-
   const decrement = async (productId: string) => {
     const currentQty = quantities[productId] ?? 1;
     if (currentQty <= 1) return;
@@ -1056,8 +1051,6 @@ export function StoreScreen() {
         ...prev,
         [productId]: currentQty - 1,
       }));
-
-      dispatch(decrementQuantity({ productId }));
       console.log('Decrementing Completed');
 
       // Optional: refresh cart from server
@@ -1065,7 +1058,7 @@ export function StoreScreen() {
     } catch (error) {
       console.error('Decrement error:', error);
     }
-  };
+  };*/
 
   const deleteItem = async (productId: string) => {
     console.log('Removing Product');
@@ -1174,10 +1167,11 @@ export function StoreScreen() {
 
   // Fetch products
   useEffect(() => {
-    if (!user?.schoolName) return;
+    if (!user?.schoolName || !user?.uid) return;
     setLoading(true);
 
     const encodedSchool = encodeURIComponent(user.schoolName);
+    const encodedUserId = encodeURIComponent(user.uid);
     const categoryParam =
       selectedCategory === 'all'
         ? ''
@@ -1185,7 +1179,7 @@ export function StoreScreen() {
     const offset = page * limit;
 
     fetch(
-      `${baseUrl}store/products?schoolName=${encodedSchool}${categoryParam}&limit=${limit}&offset=${offset}`,
+      `${baseUrl}store/products?schoolName=${encodedSchool}&userId=${encodedUserId}${categoryParam}&limit=${limit}&offset=${offset}`,
     )
       .then(res => res.json())
       .then(data => {
@@ -1198,7 +1192,7 @@ export function StoreScreen() {
       })
       .catch(err => console.error('Error fetching products:', err))
       .finally(() => setLoading(false));
-  }, [selectedCategory, page, user?.schoolName]);
+  }, [selectedCategory, page, user?.schoolName, user?.uid]);
 
   // Image switching every 2 minutes
   useEffect(() => {
@@ -1235,16 +1229,6 @@ export function StoreScreen() {
 
     return () => clearInterval(interval);
   }, [products, fadeAnims]);
-
-  useEffect(() => {
-    if (!Array.isArray(cartProducts)) return;
-
-    const initialQuantities: { [productId: string]: number } = {};
-    cartProducts.forEach(item => {
-      initialQuantities[item.productId] = 1;
-    });
-    setQuantities(initialQuantities);
-  }, [cartProducts]);
 
   useEffect(() => {
     console.log('Cart items:', cartProducts);
@@ -1335,19 +1319,19 @@ export function StoreScreen() {
         >
           <View style={HomeScreenComponentStyles.storeCategoriesDivSubdiv}>
             {['All', 'Popular', ...categories].map(cat => {
-              const categoryName =
-                typeof cat === 'string' ? cat : cat.categoryName;
-              const categoryId =
-                typeof cat === 'string'
-                  ? cat.toLowerCase()
-                  : String(cat.categoryName).trim().toLowerCase();
+              const isString = typeof cat === 'string';
+              const categoryName = isString ? cat : cat.categoryName;
+              const categoryId = isString
+                ? cat.toLowerCase()
+                : String(cat.categoryName).trim().toLowerCase();
               const isActive = selectedCategory === categoryId;
+              const categoryIcon = isString ? null : cat.icon; // assuming icon is defined in category object
 
               return (
                 <TouchableOpacity
                   key={categoryId}
                   style={[
-                    HomeScreenComponentStyles.tabItem,
+                    HomeScreenComponentStyles.tabItem2,
                     isActive && HomeScreenComponentStyles.activeTab,
                   ]}
                   onPress={() => {
@@ -1355,7 +1339,14 @@ export function StoreScreen() {
                     setPage(0);
                   }}
                 >
-                  <Text style={HomeScreenComponentStyles.tabLabel}>
+                  {!isString && categoryIcon && (
+                    <MaterialCommunityIcons
+                      color="#333"
+                      name={categoryIcon}
+                      size={15}
+                    />
+                  )}
+                  <Text style={HomeScreenComponentStyles.tabLabel2}>
                     {categoryName}
                   </Text>
                 </TouchableOpacity>
@@ -1363,6 +1354,7 @@ export function StoreScreen() {
             })}
           </View>
         </ScrollView>
+
         {loading ? (
           <ActivityIndicator size="large" color="#f54b02" />
         ) : (
@@ -1480,6 +1472,7 @@ export function StoreScreen() {
         </View>
       </View>
       <Toast config={toastConfig} />
+      {/*Cart Modal */}
       <Modal transparent visible={showCart}>
         <View style={HomeScreenComponentStyles.overlay2}>
           <TouchableWithoutFeedback onPress={closePopup}>
@@ -1566,46 +1559,6 @@ export function StoreScreen() {
                           </View>
                         </View>
                       </View>
-
-                      <View style={HomeScreenComponentStyles.cartItemRightDiv}>
-                        <View
-                          style={
-                            HomeScreenComponentStyles.cartItemRightDivSubdiv
-                          }
-                        >
-                          <View
-                            style={
-                              HomeScreenComponentStyles.cartItemRightDivSubdiv2
-                            }
-                          >
-                            <TouchableOpacity
-                              onPress={() => increment(item.productId)}
-                            >
-                              <MaterialIcons
-                                name="add"
-                                size={18}
-                                color="#f54b02"
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => decrement(item.productId)}
-                            >
-                              <MaterialIcons
-                                name="remove"
-                                size={18}
-                                color="#f54b02"
-                              />
-                            </TouchableOpacity>
-                          </View>
-                          <Text
-                            style={
-                              HomeScreenComponentStyles.cartItemRightDivText
-                            }
-                          >
-                            Qty: {cartQuantities[item.productId] || 1}
-                          </Text>
-                        </View>
-                      </View>
                     </View>
                   </TouchableOpacity>
                 )}
@@ -1670,7 +1623,6 @@ export function StoreScreen() {
           </View>
         </View>
       </Modal>
-
       {/* Favorites Modal */}
       <Modal transparent visible={showFavorites}>
         <View style={HomeScreenComponentStyles.overlay2}>
@@ -2140,7 +2092,7 @@ export function ProfileScreen() {
         </View>
         <TouchableOpacity
           style={ProfileComponentStyles.nameBox3}
-          onPress={() => navigation.navigate('PointsPage')}
+          onPress={() => navigation.navigate('PointsPage', { mode: 'buy' })}
         >
           <View style={ProfileComponentStyles.rowBox2a}>
             <View style={ProfileComponentStyles.rowBox3}>
@@ -2166,19 +2118,37 @@ export function ProfileScreen() {
           </View>
 
           <View style={ProfileComponentStyles.rowBox2}>
-            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+            <TouchableOpacity
+              style={ProfileComponentStyles.equalDiv}
+              onPress={() => navigation.navigate('PointsPage', { mode: 'buy' })}
+            >
               <Icon name="cart" size={23} color="#f54b02" />
               <Text style={ProfileComponentStyles.textColored}>Buy</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+            <TouchableOpacity
+              style={ProfileComponentStyles.equalDiv}
+              onPress={() =>
+                navigation.navigate('PointsPage', { mode: 'withdraw' })
+              }
+            >
               <MaterialIcons name="account-balance" size={23} color="#f54b02" />
               <Text style={ProfileComponentStyles.textColored}>Withdraw</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+            <TouchableOpacity
+              style={ProfileComponentStyles.equalDiv}
+              onPress={() =>
+                navigation.navigate('PointsPage', { mode: 'transfer' })
+              }
+            >
               <Icon name="send" size={23} color="#f54b02" />
               <Text style={ProfileComponentStyles.textColored}>Transfer</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={ProfileComponentStyles.equalDiv}>
+            <TouchableOpacity
+              style={ProfileComponentStyles.equalDiv}
+              onPress={() =>
+                navigation.navigate('PointsPage', { mode: 'receive' })
+              }
+            >
               <MaterialIcons
                 name="send-and-archive"
                 size={23}

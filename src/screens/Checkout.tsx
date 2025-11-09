@@ -2,7 +2,10 @@
 import React from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectCartItems, clearCart } from '../components/CartProductsSlice'; // adjust path
+import {
+  selectCartItems,
+  clearCartAndStorage,
+} from '../components/CartProductsSlice'; // adjust path
 import { useAppSelector } from '../components/hooks';
 import {
   NotificationPageStyles,
@@ -11,6 +14,7 @@ import {
   HomeScreenComponentStyles,
   CheckoutPageStyles,
 } from '../assets/styles/colors';
+import { AppDispatch } from '../components/store';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { HeaderProps } from './ProductDetails';
@@ -18,7 +22,7 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '../../App';
-import {baseUrl} from '../components/HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 type NavigationPropCheckout = StackNavigationProp<
@@ -41,33 +45,38 @@ const CustomHeader: React.FC<HeaderProps> = ({ title, onBack }) => {
 
 const CheckoutScreen = () => {
   const cartItems = useSelector(selectCartItems);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const navigation2 = useNavigation<NavigationPropCheckout>();
   const user = useAppSelector(state => state.user);
 
-  const totalPrice = cartItems.reduce(
-    (sum, item) => sum + item.priceInPoints * item.quantity,
-    0,
-  );
+  const totalPrice = cartItems.reduce((sum, item) => {
+    const quantity = Number(item.selectedQuantity) || 1;
+    const price = Number(item.priceInPoints) || 0;
+    return sum + price * quantity;
+  }, 0);
   const purchasedItems = cartItems.map(item => ({
     productId: item.productId,
     title: item.title,
-    quantity: item.quantity,
+    selectedQuantity: item.selectedQuantity || '1',
     priceInPoints: item.priceInPoints,
     selectedSize: item.selectedSize || '',
     selectedColor: item.selectedColor || '',
+    ...(item.isFile === true && {
+      fileUrl: item.fileUrl,
+      password: item.password,
+    }),
   }));
-
   const handlePayment = async () => {
-    const token = await AsyncStorage.getItem('authToken');
-    const totalProductsPurchased = cartItems.length;
-    const totalPointsSpent = cartItems.reduce(
-      (sum, item) => sum + item.priceInPoints * item.quantity,
-      0,
-    );
-
     try {
+      const token = await AsyncStorage.getItem('authToken');
+      const totalProductsPurchased = cartItems.length;
+      const totalPointsSpent = cartItems.reduce(
+        (sum, item) =>
+          sum +
+          Number(item.priceInPoints) * (Number(item.selectedQuantity) || 1),
+        0,
+      );
       const res = await fetch(`${baseUrl}store/cart`, {
         method: 'DELETE',
         headers: {
@@ -75,22 +84,31 @@ const CheckoutScreen = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (res.ok) {
-        await fetch(`${baseUrl}store/checkout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            userId: user.uid,
-            totalProductsPurchased,
-            totalPointsSpent,
-            items: purchasedItems,
-          }),
+      if (!res.ok) {
+        Toast.show({
+          type: 'error',
+          text1: 'Cart clearing failed, please retry',
+          position: 'bottom',
+          bottomOffset: 10,
         });
-        console.log('Purchase successful.');
-        dispatch(clearCart());
+        return;
+      }
+      const checkoutRes = await fetch(`${baseUrl}store/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          totalProductsPurchased,
+          totalPointsSpent,
+          items: purchasedItems,
+        }),
+      });
+
+      if (checkoutRes.ok) {
+        dispatch(clearCartAndStorage());
         Toast.show({
           type: 'success',
           text1: `Paid ${formatPoints(totalPointsSpent)} successfully`,
@@ -103,21 +121,23 @@ const CheckoutScreen = () => {
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Payment failed',
+          text1: 'Checkout failed',
+          text2: 'Something went wrong during payment.',
           position: 'bottom',
           bottomOffset: 10,
         });
       }
     } catch (error) {
+      console.error('Payment error:', error);
       Toast.show({
         type: 'error',
-        text1: 'Payment error',
+        text1: 'Unexpected error',
+        text2: 'Please check your connection or try again later.',
         position: 'bottom',
         bottomOffset: 10,
       });
     }
   };
-
   const formatPoints = (points: number): string => {
     if (points >= 1000) {
       return `${(points / 1000).toFixed(1)}K (${points})`;
@@ -163,10 +183,10 @@ const CheckoutScreen = () => {
           </View>
         )}
 
-        {item.sizes?.length > 0 && (
+        {item.sizes?.length > 0 && item.selectedSize && (
           <View style={CheckoutPageStyles.sizeContainer}>
             <Text style={CheckoutPageStyles.fileInfoText}>
-              Size: {item.selectedSize || 'N/A'}
+              Size: {item.selectedSize}
             </Text>
           </View>
         )}
@@ -184,7 +204,7 @@ const CheckoutScreen = () => {
 
         <View style={CheckoutPageStyles.sizeContainer}>
           <Text style={CheckoutPageStyles.fileInfoText}>
-            Qty: {item.quantity}
+            Qty: {item.selectedQuantity || '1'}
           </Text>
         </View>
         <View style={CheckoutPageStyles.sizeContainer2}>

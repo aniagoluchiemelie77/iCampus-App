@@ -9,11 +9,17 @@ import {
   CalendarScreenStyles,
 } from '../assets/styles/colors';
 import { useNavigation } from '@react-navigation/native';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../../App';
 
+type PointsPageRouteProp = RouteProp<RootStackParamList, 'PointsPage'>;
 export type HeaderProps = {
   title: string;
   onBack: () => void;
 };
+interface Props {
+  route: PointsPageRouteProp;
+}
 const CustomHeader: React.FC<HeaderProps> = ({ title, onBack }) => {
   return (
     <View style={CalendarScreenStyles.headerContainer}>
@@ -27,14 +33,12 @@ const CustomHeader: React.FC<HeaderProps> = ({ title, onBack }) => {
     </View>
   );
 };
-const PointsPage = () => {
+const PointsPage: React.FC<Props> = ({ route }) => {
+  const { mode } = route.params;
   const navigation = useNavigation();
   return (
     <View>
-        <CustomHeader
-        title="My Points"
-        onBack={() => navigation.goBack()}
-      />
+      <CustomHeader title="My Points" onBack={() => navigation.goBack()} />
       <Text>PointsPage</Text>
     </View>
   );

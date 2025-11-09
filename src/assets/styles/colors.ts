@@ -110,11 +110,28 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     marginRight: 10,
     borderRadius: 20,
     backgroundColor: '#f2f2f2',
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  tabItem2: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f2f2f2',
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   tabLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
+  },
+  tabLabel2: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 4
   },
   activeTab: {
   borderBottomWidth: 2,
@@ -632,7 +649,7 @@ todayIndicatorText: {
     fontWeight: '700'
   },
 cartItemLeftDiv: {
-  width: '70%',
+  flex: 1,
   height: '100%',
   flexDirection: 'row',
   zIndex: 2,
@@ -1224,6 +1241,28 @@ export const ProductDetailsStyles = StyleSheet.create({
     fontSize: 12,
     color: '#8a8989ff',
     paddingTop: 7,
+  },
+  quantityDiv: {
+    width: '100%',
+    paddingVertical: 7
+  },
+  quantityDivStockCount: {
+    fontSize: 12,
+    color: '#8a8989ff',
+    width: '100%',
+    marginBottom: 3,
+  },
+  quantityDivStockCount2: {
+    fontSize: 12,
+    color: '#222',
+    fontWeight: '600',
+    marginRight: 3,
+    width: '40%'
+  },
+  notStockCount: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   location: {
     fontSize: 12,

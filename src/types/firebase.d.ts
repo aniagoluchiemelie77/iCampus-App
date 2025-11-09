@@ -235,6 +235,7 @@ export interface ProductCategoryList {
   _id: string;
   categoryName: string[];
   updatedAt?: string;
+  icon?: string
 }
 export interface ProductCategory {
   id: string;
@@ -256,6 +257,7 @@ export interface Product {
   category: ProductCategory.categoryName;
   sellerId: User.uid; // UID of lecturer or student
   title: string;
+  inStock?: string;
   description?: string;
   mediaUrls: string[]; 
   type: 'product' | 'File';
