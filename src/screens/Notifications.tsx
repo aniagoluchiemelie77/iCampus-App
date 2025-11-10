@@ -172,7 +172,12 @@ const Notifications = () => {
             ]}
           >
             <TouchableOpacity
-              onPress={() => handleMarkAsRead(item.notificationId)}
+              onPress={() => {
+                handleMarkAsRead(item.notificationId);
+                navigation2.navigate('NotificationDetails', {
+                  notificationId: item.notificationId,
+                });
+              }}
             >
               <View style={NotificationPageStyles.notificationsDateDiv}>
                 <Text style={NotificationPageStyles.notificationsDate}>

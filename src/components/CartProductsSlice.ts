@@ -90,13 +90,20 @@ export const selectTotalPoints = createSelector(
       return sum + price * quantity;
     }, 0)
 );
-export const clearCartAndStorage = () => async (dispatch: AppDispatch) => {
+export const clearCartAndStorage = () => async (dispatch: AppDispatch, getState: () => RootState) => {
   try {
-    await AsyncStorage.removeItem('selectedSize');
-    await AsyncStorage.removeItem('selectedColor');
-    await AsyncStorage.removeItem('selectedQuantity');
+    const { cart } = getState(); // Access current cart state
+    const productIds = cart.items.map(item => item.productId); // Adjust based on your state shape
+
+    // Remove product-specific keys
+    for (const productId of productIds) {
+      await AsyncStorage.removeItem(`selectedSize-${productId}`);
+      await AsyncStorage.removeItem(`selectedColor-${productId}`);
+      await AsyncStorage.removeItem(`selectedQuantity-${productId}`);
+    }
     dispatch(clearCart());
   } catch (error) {
     console.error('Failed to clear AsyncStorage:', error);
   }
 };
+

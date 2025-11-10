@@ -60,8 +60,8 @@ const CheckoutScreen = () => {
     title: item.title,
     selectedQuantity: item.selectedQuantity || '1',
     priceInPoints: item.priceInPoints,
-    selectedSize: item.selectedSize || '',
-    selectedColor: item.selectedColor || '',
+    selectedSize: item.selectedSize || ' ',
+    selectedColor: item.selectedColor || ' ',
     ...(item.isFile === true && {
       fileUrl: item.fileUrl,
       password: item.password,
@@ -115,9 +115,7 @@ const CheckoutScreen = () => {
           position: 'bottom',
           bottomOffset: 10,
         });
-        setTimeout(() => {
-          navigation2.navigate('Home');
-        }, 3000);
+        navigation2.navigate('Home');
       } else {
         Toast.show({
           type: 'error',
@@ -217,6 +215,9 @@ const CheckoutScreen = () => {
       </View>
     </View>
   );
+  cartItems.forEach(item => {
+    console.log(`${item.productId} selectedQuantity: ${item.selectedQuantity}`);
+  });
 
   return (
     <View style={CheckoutPageStyles.container}>

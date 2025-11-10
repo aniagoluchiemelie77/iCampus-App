@@ -1052,9 +1052,26 @@ export const CalendarScreenStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  headerContainer2: {
+    backgroundColor: '#fff',
+    width: '100%',
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
   backButton: {
     alignItems: 'center',
     flexDirection: 'row',
+  },
+  backButton2: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flex: 1
+  },
+  callCenterbtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 17,

@@ -77,7 +77,9 @@ const ProductDetails = () => {
   const hasColors = Array.isArray(product.colors) && product.colors.length > 0;
   const [seller, setSeller] = useState<User | null>(null);
   const [loadingSeller, setLoadingSeller] = useState(true);
-  const [selectedQuantity, setSelectedQuantity] = useState<string>('1');
+  const [selectedQuantities, setSelectedQuantities] = useState<{
+    [key: string]: string;
+  }>({});
 
   // Format stock or download count
   const formatDownloadCount = (count: number): string => {
@@ -141,7 +143,7 @@ const ProductDetails = () => {
             quantity: 1,
             selectedSize: selectedSize ?? undefined,
             selectedColor: selectedColor ?? undefined,
-            selectedQuantity: selectedQuantity ?? undefined,
+            selectedQuantity: selectedQuantities[cartItem.productId] ?? '1',
           }),
         );
         Toast.show({
@@ -181,18 +183,24 @@ const ProductDetails = () => {
     if (stock > 10) return '10+';
     return `${stock}`;
   }
-  const handleSizeSelect = async (size: string) => {
+  const handleSizeSelect = async (size: string, productId: string) => {
     setSelectedSize(size);
-    await AsyncStorage.setItem('selectedSize', size);
+    await AsyncStorage.setItem(`selectedSize-${productId}`, size);
   };
 
-  const handleColorSelect = async (color: string) => {
+  const handleColorSelect = async (color: string, productId: string) => {
     setSelectedColor(color);
-    await AsyncStorage.setItem('selectedColor', color);
+    await AsyncStorage.setItem(`selectedColor-${productId}`, color);
   };
-  const handleQuantitySelect = async (quantity: string) => {
-    setSelectedQuantity(quantity);
-    await AsyncStorage.setItem('selectedQuantity', quantity);
+  const handleQuantitySelect2 = async (quantity: string, productId: string) => {
+    // Update local state map
+    setSelectedQuantities(prev => ({
+      ...prev,
+      [productId]: quantity,
+    }));
+
+    // Persist to AsyncStorage
+    await AsyncStorage.setItem(`selectedQuantity-${productId}`, quantity);
   };
 
   //Fetch Seller Details
@@ -267,52 +275,89 @@ const ProductDetails = () => {
     if (!user?.schoolName) return;
 
     const encodedSchool = encodeURIComponent(user.schoolName);
+    const encodedUserId = encodeURIComponent(user.uid);
 
     const loadInitialProducts = async () => {
       setLoadingMore(true);
       try {
         const res = await fetch(
-          `${baseUrl}store/products?schoolName=${encodedSchool}&category=all&limit=${limit}&offset=0`,
+          `${baseUrl}store/products?schoolName=${encodedSchool}&category=all&limit=${limit}&offset=0&userId=${encodedUserId}`,
         );
+
+        if (!res.ok) {
+          Toast.show({
+            type: 'error',
+            text1: `HTTP error, couldnt fetch other products.`,
+            position: 'bottom',
+            bottomOffset: 10,
+          });
+        }
+
         const data = await res.json();
+
+        if (!data || !Array.isArray(data.products)) {
+          console.warn('Unexpected response format:', data);
+          setOtherProducts2([]); // fallback to empty array
+          setTotalProducts(null); // ✅ OK
+          return;
+        }
+
+        console.log('Fetched products:', data.products);
         setOtherProducts2(data.products);
-        setTotalProducts(data.total);
+        setTotalProducts(data.total ?? data.products.length);
         setOffset(limit); // prepare for next page
       } catch (err) {
         console.error('Error fetching products:', err);
+        setOtherProducts2([]); // fallback to empty array
+        setTotalProducts(null); // ✅ OK
       } finally {
         setLoadingMore(false);
       }
     };
 
     loadInitialProducts();
-  }, [user?.schoolName]);
+  }, [user?.schoolName, user?.uid]);
 
   //Refresh action after cart has been updated
   useEffect(() => {
     console.log('Cart updated, refresh triggered');
   }, [refreshFlag]);
-  //Fetch savedSize and Color
+
+  //Fetch savedSize and Color and Quantity
   useEffect(() => {
     const loadSelections = async () => {
-      const savedSize = await AsyncStorage.getItem('selectedSize');
-      const savedColor = await AsyncStorage.getItem('selectedColor');
-      const savedQuantity = await AsyncStorage.getItem('selectedQuantity');
+      if (!product.productId) return; // Ensure product.productId is available
+
+      const savedSize = await AsyncStorage.getItem(
+        `selectedSize-${product.productId}`,
+      );
+      const savedColor = await AsyncStorage.getItem(
+        `selectedColor-${product.productId}`,
+      );
+      const savedQuantity = await AsyncStorage.getItem(
+        `selectedQuantity-${product.productId}`,
+      );
       if (savedSize) setSelectedSize(savedSize);
       if (savedColor) setSelectedColor(savedColor);
-      if (savedQuantity) setSelectedQuantity(savedQuantity);
+      if (savedQuantity) {
+        setSelectedQuantities(prev => ({
+          ...prev,
+          [product.productId]: savedQuantity,
+        }));
+      }
     };
+
     loadSelections();
-  }, []);
+  }, [product.productId]);
 
   const handleScroll = (event: any) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
     setCurrentIndex(index);
   };
   const isInsufficientPoints = product.priceInPoints > user.pointsBalance;
-  const uniqueProducts = Array.from(
-    new Map(otherProducts2.map(p => [p.productId, p])).values(),
-  );
+  const uniqueProducts = Array.isArray(otherProducts2)
+    ? Array.from(new Map(otherProducts2.map(p => [p.productId, p])).values())
+    : [];
 
   return (
     <View style={ProductDetailsStyles.container}>
@@ -382,11 +427,12 @@ const ProductDetails = () => {
                   <TextInput
                     keyboardType="numeric"
                     maxLength={String(product.inStock).length}
+                    value={selectedQuantities[product.productId] ?? ''}
                     onChangeText={value => {
                       const numericValue = Number(value);
-                      const stock = Number(product.inStock); // ensure both are numbers
+                      const stock = Number(product.inStock);
                       if (numericValue >= 1 && numericValue <= stock) {
-                        handleQuantitySelect(value);
+                        handleQuantitySelect2(value, product.productId);
                       }
                     }}
                     style={{
@@ -431,7 +477,9 @@ const ProductDetails = () => {
                           selectedSize === size &&
                             ProductDetailsStyles.selectedOption,
                         ]}
-                        onPress={() => handleSizeSelect(size)}
+                        onPress={() =>
+                          handleSizeSelect(size, product.productId)
+                        }
                       >
                         <Text style={ProductDetailsStyles.optionText}>
                           {size}
@@ -460,7 +508,9 @@ const ProductDetails = () => {
                           selectedColor === color &&
                             ProductDetailsStyles.selectedOption,
                         ]}
-                        onPress={() => handleColorSelect(color)}
+                        onPress={() =>
+                          handleColorSelect(color, product.productId)
+                        }
                       />
                     ))}
                   </View>
@@ -573,72 +623,77 @@ const ProductDetails = () => {
             </ScrollView>
           </View>
         )}
-        {!loadingOthers && otherProducts2.length > 0 && (
-          <View style={ProductDetailsStyles.otherProductsContainer}>
-            <Text style={ProductDetailsStyles.otherProductsTitle}>For You</Text>
+        {!loadingOthers &&
+          Array.isArray(otherProducts2) &&
+          otherProducts2.length > 0 && (
+            <View style={ProductDetailsStyles.otherProductsContainer}>
+              <Text style={ProductDetailsStyles.otherProductsTitle}>
+                For You
+              </Text>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              onScroll={({ nativeEvent }) => {
-                const { contentOffset, layoutMeasurement, contentSize } =
-                  nativeEvent;
-                const isEndReached =
-                  contentOffset.x + layoutMeasurement.width >=
-                  contentSize.width - 10;
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onScroll={({ nativeEvent }) => {
+                  const { contentOffset, layoutMeasurement, contentSize } =
+                    nativeEvent;
+                  const isEndReached =
+                    contentOffset.x + layoutMeasurement.width >=
+                    contentSize.width - 10;
 
-                if (isEndReached) {
-                  console.log('Is reached...');
-                  fetchMoreProducts();
-                }
-              }}
-              scrollEventThrottle={400}
-            >
-              {uniqueProducts.map(item => (
-                <TouchableOpacity
-                  key={item.productId}
-                  onPress={() =>
-                    navigation2.push('ProductDetails', { product: item })
+                  if (isEndReached) {
+                    console.log('Is reached...');
+                    fetchMoreProducts();
                   }
-                  style={ProductDetailsStyles.otherProductCard}
-                >
-                  <View style={ProductDetailsStyles.otherProductImageDiv}>
-                    <Image
-                      source={{ uri: item.mediaUrls[0] }}
-                      style={ProductDetailsStyles.otherProductImage}
-                    />
-                    <View
-                      style={ProductDetailsStyles.otherProductsPriceDivInfo}
+                }}
+                scrollEventThrottle={400}
+              >
+                {uniqueProducts.length > 0 &&
+                  uniqueProducts.map(item => (
+                    <TouchableOpacity
+                      key={item.productId}
+                      onPress={() =>
+                        navigation2.push('ProductDetails', { product: item })
+                      }
+                      style={ProductDetailsStyles.otherProductCard}
                     >
-                      <Icon name="diamond-outline" size={20} color="#fff" />
-                      <Text style={ProductDetailsStyles.otherProductPrice}>
-                        {item.priceInPoints}
+                      <View style={ProductDetailsStyles.otherProductImageDiv}>
+                        <Image
+                          source={{ uri: item.mediaUrls[0] }}
+                          style={ProductDetailsStyles.otherProductImage}
+                        />
+                        <View
+                          style={ProductDetailsStyles.otherProductsPriceDivInfo}
+                        >
+                          <Icon name="diamond-outline" size={20} color="#fff" />
+                          <Text style={ProductDetailsStyles.otherProductPrice}>
+                            {item.priceInPoints}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={ProductDetailsStyles.otherProductTitle}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {item.title}
                       </Text>
-                    </View>
-                  </View>
-                  <Text
-                    style={ProductDetailsStyles.otherProductTitle}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
+                    </TouchableOpacity>
+                  ))}
+                {loadingMore && (
+                  <View
+                    style={{
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      padding: 10,
+                    }}
                   >
-                    {item.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {loadingMore && (
-                <View
-                  style={{
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: 10,
-                  }}
-                >
-                  <ActivityIndicator size="small" color="#f54b02" />
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        )}
+                    <ActivityIndicator size="small" color="#f54b02" />
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          )}
       </ScrollView>
       <View style={ProductDetailsStyles.footer}>
         <View style={ProductDetailsStyles.leftFooter}>

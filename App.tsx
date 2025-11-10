@@ -34,6 +34,8 @@ import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
 import PointsPage from './src/screens/PointsPage';
 import Login from './src/screens/Login';
+import NotificationDetails from './src/screens/NotificationDetails';
+
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
   SignUp: undefined;
@@ -43,6 +45,9 @@ export type RootStackParamList = {
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
     email?: string;
+  };
+  NotificationDetails: {
+    notificationId?: string;
   };
   Settings: undefined;
   Calender: undefined;
@@ -176,6 +181,11 @@ const App = () => {
             <Stack.Screen
               name="ChangePasswordScreen"
               component={ChangePasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="NotificationDetails"
+              component={NotificationDetails}
               options={{ headerShown: false }}
             />
             <Stack.Screen

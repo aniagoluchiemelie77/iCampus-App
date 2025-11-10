@@ -78,6 +78,10 @@ export interface Notification {
   relatedSchoolName: User.schoolName;
   department?: string; // optional
   level?: string; // optional
+  type?: string;
+  status?: string;
+  transactionIdMid?: string;
+  fileUrls?: string[] 
 }
 export interface UserSettings {
   userId: User.uid;
@@ -354,6 +358,8 @@ export interface PurchaseHistory {
     priceInPoints: number;
     selectedSize: string;
     selectedColor: string;
+    selectedQuantity: string;
+    fileUrl: string
   }[]; 
   date: string;
 }

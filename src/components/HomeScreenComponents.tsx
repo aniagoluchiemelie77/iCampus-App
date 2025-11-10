@@ -1520,11 +1520,15 @@ export function StoreScreen() {
                 disableRightSwipe={true}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    onPress={() =>
-                      navigation.navigate('ProductDetails', {
-                        product: item,
-                      })
-                    }
+                    onPress={() => {
+                      dispatch(
+                        addToCart({
+                          ...item,
+                          selectedQuantity: '1', // default as string
+                        }),
+                      );
+                      navigation.navigate('ProductDetails', { product: item }); // navigate with product as param
+                    }}
                   >
                     <View style={HomeScreenComponentStyles.cartItem}>
                       <View style={HomeScreenComponentStyles.cartItemLeftDiv}>
