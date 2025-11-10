@@ -450,9 +450,20 @@ const ProductDetails = () => {
 
           <View style={ProductDetailsStyles.titleDivRightDiv}>
             <View style={ProductDetailsStyles.titleDivRightDivSubdiv}>
-              <Icon name="diamond-outline" size={25} color="#f54b02" />
+              <Icon
+                name="diamond-outline"
+                size={21}
+                color="#f54b02"
+                style={{ paddingBottom: 6 }}
+              />
+
               <Text style={ProductDetailsStyles.price}>
-                {product.priceInPoints}
+                <Text style={ProductDetailsStyles.largeText}>
+                  {Math.floor(product.priceInPoints).toLocaleString()}
+                </Text>
+                <Text style={ProductDetailsStyles.smallText}>
+                  .{(product.priceInPoints % 1).toFixed(2).split('.')[1]}
+                </Text>
               </Text>
             </View>
           </View>

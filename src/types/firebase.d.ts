@@ -43,6 +43,7 @@ export interface User {
   phone_number?: string
   purchaseHistory?: PurchaseHistory[];
   PurchaseTransactions?: UserTransactions[];
+  UserBankOrCardDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string
 }
@@ -450,6 +451,32 @@ export interface Course {
   credits?: number;
   semester?: string; 
   createdAt: string; 
+}
+export interface UserBillingAddressDetails {
+  id: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  street?: string;
+  zip?: string
+}
+export interface UserBankOrCardDetails {
+  id: string;
+  cardOrBankDetailsId: string;
+  userId: User.uid;
+  paymentToken?: string;
+  method: 'card' | 'bank';
+  provider: string;
+  lastFourDigits: string;
+  cardBrand?: string;
+  expiryMonth?: string;
+  expiryYear?: string;
+  bankName?: string;
+  country: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt?:string;
+  billingAddressDetails?: {UserBillingAddressDetails};
 }
 
 

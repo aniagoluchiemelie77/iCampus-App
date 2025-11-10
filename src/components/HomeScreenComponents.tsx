@@ -59,7 +59,6 @@ import {
   selectCartItems,
   clearCart,
   selectTotalPoints,
-  selectCartQuantities,
 } from './CartProductsSlice';
 import { selectUnreadCount } from './NotificationSplice';
 import { updateUserImage } from './UserSlice';
@@ -689,9 +688,7 @@ export function Home() {
                   homeStyles.iconItem,
                   HomeScreenComponentStyles.activityIcons,
                 ]}
-                onPress={() =>
-                  navigation.navigate('PointsPage', { mode: 'buy' })
-                }
+                onPress={() => navigation.navigate('PointsPage')}
               >
                 <Icon name="wallet-outline" size={30} color="#f54b02" />
                 <Text style={homeStyles.iconLabel}>My Wallet</Text>
@@ -968,98 +965,6 @@ export function StoreScreen() {
       });
     }
   };
-  /*
-  const increment = async (
-    productId: string,
-    selectedSize?: string,
-    selectedColor?: string,
-  ) => {
-    const product = cartProducts.find(
-      p =>
-        p.productId === productId &&
-        p.selectedSize === selectedSize &&
-        p.selectedColor === selectedColor,
-    );
-
-    const stock = product?.stock || 0;
-    const currentQty = product?.quantity || 1;
-
-    if (currentQty >= stock) {
-      Toast.show({
-        type: 'info',
-        text1: 'Maximum stock reached',
-        position: 'bottom',
-        bottomOffset: 5,
-      });
-      return;
-    }
-
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      const response = await fetch(`${baseUrl}store/cart/increment`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ productId, selectedSize, selectedColor }),
-      });
-
-      if (!response.ok) {
-        console.error('Failed to increment on server');
-        return;
-      }
-
-      // Optional: parse updated item from server
-      // const updatedItem = await response.json();
-
-      // Update local state if needed
-      setQuantities(prev => ({
-        ...prev,
-        [productId]: (prev[productId] ?? 1) + 1,
-      }));
-
-      console.log('Incrementing Completed');
-    } catch (error) {
-      console.error('Increment error:', error);
-    }
-  };
-  const decrement = async (productId: string) => {
-    const currentQty = quantities[productId] ?? 1;
-    if (currentQty <= 1) return;
-
-    try {
-      console.log('Decrementing Product');
-      const token = await AsyncStorage.getItem('authToken');
-
-      const response = await fetch(`${baseUrl}store/cart/decrement`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ productId }),
-      });
-
-      if (!response.ok) {
-        console.error('Failed to decrement on server');
-        return;
-      }
-
-      // Update local quantity
-      setQuantities(prev => ({
-        ...prev,
-        [productId]: currentQty - 1,
-      }));
-      console.log('Decrementing Completed');
-
-      // Optional: refresh cart from server
-      fetchCartItems();
-    } catch (error) {
-      console.error('Decrement error:', error);
-    }
-  };*/
-
   const deleteItem = async (productId: string) => {
     console.log('Removing Product');
     const token = await AsyncStorage.getItem('authToken');
@@ -1116,7 +1021,6 @@ export function StoreScreen() {
   };
   const totalPoints = useSelector(selectTotalPoints);
   const cartProducts = useSelector(selectCartItems);
-  const cartQuantities = useSelector(selectCartQuantities);
 
   //Seach Query Functionality
   useEffect(() => {
@@ -1229,14 +1133,7 @@ export function StoreScreen() {
 
     return () => clearInterval(interval);
   }, [products, fadeAnims]);
-
-  useEffect(() => {
-    console.log('Cart items:', cartProducts);
-    console.log('Cart quantities:', cartQuantities);
-    console.log('Calculating total points...', totalPoints);
-  }, [cartProducts, cartQuantities, totalPoints]);
   const cartProductIds = useSelector(selectCartProductIds);
-  console.log(totalPoints);
 
   return (
     <LinearGradient
@@ -1599,12 +1496,17 @@ export function StoreScreen() {
                 <View style={HomeScreenComponentStyles.totalPrice}>
                   <MaterialIcons
                     name="diamond"
-                    size={24}
+                    size={22}
                     color="#000"
                     style={HomeScreenComponentStyles.totalPriceSign}
                   />
                   <Text style={HomeScreenComponentStyles.totalPriceValue}>
-                    {totalPoints}
+                    <Text style={HomeScreenComponentStyles.largeText}>
+                      {Math.floor(totalPoints).toLocaleString()}
+                    </Text>
+                    <Text style={HomeScreenComponentStyles.smallText}>
+                      .{(totalPoints % 1).toFixed(2).split('.')[1]}
+                    </Text>
                   </Text>
                 </View>
               </View>
@@ -2096,16 +1998,34 @@ export function ProfileScreen() {
         </View>
         <TouchableOpacity
           style={ProfileComponentStyles.nameBox3}
-          onPress={() => navigation.navigate('PointsPage', { mode: 'buy' })}
+          onPress={() => navigation.navigate('PointsPage')}
         >
           <View style={ProfileComponentStyles.rowBox2a}>
             <View style={ProfileComponentStyles.rowBox3}>
               <View style={ProfileComponentStyles.row}>
-                <Icon name="diamond" size={24} color="#f54b02" />
-                <Text style={ProfileComponentStyles.pointsBal}>
-                  {showPoints ? user.pointsBalance.toLocaleString() : '••••'}
-                </Text>
+                <Icon
+                  name="diamond"
+                  size={18}
+                  color="#f54b02"
+                  style={ProfileComponentStyles.icon}
+                />
+                {showPoints ? (
+                  <Text style={ProfileComponentStyles.baseText}>
+                    <Text style={ProfileComponentStyles.smallText}> </Text>
+                    <Text style={ProfileComponentStyles.largeText}>
+                      {Math.floor(user.pointsBalance).toLocaleString()}
+                    </Text>
+                    <Text style={ProfileComponentStyles.smallText}>
+                      .{(user.pointsBalance % 1).toFixed(2).split('.')[1]}
+                    </Text>
+                  </Text>
+                ) : (
+                  <Text style={ProfileComponentStyles.baseText}>
+                    <Text style={ProfileComponentStyles.smallText}>****</Text>
+                  </Text>
+                )}
               </View>
+
               <TouchableOpacity
                 onPress={() => setShowPoints(prev => !prev)}
                 style={ProfileComponentStyles.iconMargin}
@@ -2124,34 +2044,32 @@ export function ProfileScreen() {
           <View style={ProfileComponentStyles.rowBox2}>
             <TouchableOpacity
               style={ProfileComponentStyles.equalDiv}
-              onPress={() => navigation.navigate('PointsPage', { mode: 'buy' })}
+              onPress={() => navigation.navigate('BuyPointsScreen')}
             >
-              <Icon name="cart" size={23} color="#f54b02" />
-              <Text style={ProfileComponentStyles.textColored}>Buy</Text>
+              <MaterialCommunityIcons
+                name="cash-plus"
+                size={25}
+                color="#f54b02"
+              />
+              <Text style={ProfileComponentStyles.textColored}>Top Up</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ProfileComponentStyles.equalDiv}
-              onPress={() =>
-                navigation.navigate('PointsPage', { mode: 'withdraw' })
-              }
+              onPress={() => navigation.navigate('WithdrawPointsScreen')}
             >
               <MaterialIcons name="account-balance" size={23} color="#f54b02" />
               <Text style={ProfileComponentStyles.textColored}>Withdraw</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ProfileComponentStyles.equalDiv}
-              onPress={() =>
-                navigation.navigate('PointsPage', { mode: 'transfer' })
-              }
+              onPress={() => navigation.navigate('TransferPointsScreen')}
             >
               <Icon name="send" size={23} color="#f54b02" />
               <Text style={ProfileComponentStyles.textColored}>Transfer</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ProfileComponentStyles.equalDiv}
-              onPress={() =>
-                navigation.navigate('PointsPage', { mode: 'receive' })
-              }
+              onPress={() => navigation.navigate('ReceivePointsScreen')}
             >
               <MaterialIcons
                 name="send-and-archive"

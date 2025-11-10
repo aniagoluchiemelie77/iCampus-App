@@ -136,11 +136,24 @@ export default function NotificationDetails() {
                   {notification?.message ?? ' '}
                 </Text>
                 <View style={NotificationDetailsStyles.totalDiv}>
-                  <Icon name="diamond-outline" size={30} color="#f54b02" />
+                  <Icon name="diamond-outline" size={23} color="#f54b02" />
                   <Text style={NotificationDetailsStyles.totalPriceText}>
-                    {purchaseDetails.totalPointsSpent}
+                    <Text style={NotificationDetailsStyles.largeText}>
+                      {Math.floor(
+                        purchaseDetails.totalPointsSpent,
+                      ).toLocaleString()}
+                    </Text>
+                    <Text style={NotificationDetailsStyles.smallText}>
+                      .
+                      {
+                        (purchaseDetails.totalPointsSpent % 1)
+                          .toFixed(2)
+                          .split('.')[1]
+                      }
+                    </Text>
                   </Text>
                 </View>
+
                 <View style={NotificationDetailsStyles.statusDiv}>
                   <MaterialIcons
                     name={icon}

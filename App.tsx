@@ -35,10 +35,18 @@ import Notifications from './src/screens/Notifications';
 import PointsPage from './src/screens/PointsPage';
 import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
+import BuyPointsScreen from './src/screens/BuyPoints';
+import WithdrawPointsScreen from './src/screens/WithdrawPoints';
+import TransferPointsScreen from './src/screens/TransferPoints';
+import ReceivePointsScreen from './src/screens/ReceivePoints';
 
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
   SignUp: undefined;
+  BuyPointsScreen: undefined;
+  WithdrawPointsScreen: undefined;
+  ReceivePointsScreen: undefined;
+  TransferPointsScreen: undefined;
   Notifications: undefined;
   Welcome: { route: string };
   Home: undefined;
@@ -59,7 +67,7 @@ export type RootStackParamList = {
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
-  PointsPage: { mode: 'buy' | 'withdraw' | 'transfer' | 'receive' };
+  PointsPage: undefined;
   Login: undefined;
 };
 
@@ -141,6 +149,26 @@ const App = () => {
             <Stack.Screen
               name="PointsPage"
               component={PointsPage}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BuyPointsScreen"
+              component={BuyPointsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="WithdrawPointsScreen"
+              component={WithdrawPointsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TransferPointsScreen"
+              component={TransferPointsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ReceivePointsScreen"
+              component={ReceivePointsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

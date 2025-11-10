@@ -231,6 +231,9 @@ badge: {
     borderRadius: '50%',
     backgroundColor: '#fff',
   },
+  activityIcons2b: {
+    borderRadius: '50%',
+  },
   storeHeaderText:{
     fontWeight: '700',
     fontSize: 17,
@@ -735,9 +738,10 @@ cartItemRightDiv: {
   },
   totalSectionD1: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    padding: 10
+    padding: 10,
+    width: '100%'
   },
   totalSectionCheckout: {
     flexDirection: 'row',
@@ -772,12 +776,20 @@ cartItemRightDiv: {
     fontSize: 18,
   },
   totalPriceSign: {
-    marginRight: 3
+    marginRight: 5
   },
   totalPriceValue: {
-    fontSize: 20,
-    fontWeight: '700'
-  }
+  flexDirection: 'row',
+},
+largeText: {
+  fontSize: 30,
+  fontWeight: 'bold',
+  color: '#000',
+},
+smallText: {
+  fontSize: 20, // same or slightly smaller than icon
+  color: '#000',
+},
 });
 export const WelcomeScreenStyles = StyleSheet.create({
   container: {
@@ -1226,11 +1238,19 @@ export const ProductDetailsStyles = StyleSheet.create({
     paddingVertical: 10,
   },
   price: {
-    fontSize: 20,
     color: '#f54b02',
     fontWeight: '700',
-    marginLeft: 2,
+    marginLeft: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
+  largeText: {
+  fontSize: 30, // larger than icon
+  fontWeight: 'bold',
+},
+smallText: {
+  fontSize: 20, // same or slightly smaller than icon
+},
   carouselContainer: { position: 'relative', borderRadius: 10 },
   counter: {
     position: 'absolute',
@@ -1290,7 +1310,7 @@ export const ProductDetailsStyles = StyleSheet.create({
   },
   titleDivRightDivSubdiv: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'flex-end',
     width: '100%',
   },
@@ -1887,9 +1907,36 @@ export const ProfileComponentStyles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'flex-start',
   },
+  baseText: {
+  flexDirection: 'row',
+  alignItems: 'flex-end',
+},
+largeText: {
+  fontSize: 32,
+  fontWeight: 'bold',
+  color: '#f54b02',
+},
+smallText: {
+  fontSize: 18,
+  color: '#f54b02',
+},
+largeTextWhite: {
+  fontSize: 32,
+  fontWeight: 'bold',
+  color: '#fff',
+},
+smallTextWhite: {
+  fontSize: 18,
+  color: '#fff',
+},
+icon: {
+  paddingTop: 5,
+  alignSelf: 'center',
+  marginRight: 4,
+},
   equalDiv: {
     width: '25%',
     padding: 7,
@@ -1897,7 +1944,8 @@ export const ProfileComponentStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconMargin: {
-    marginLeft: 5,
+    paddingTop: 5,
+    marginLeft: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2039,16 +2087,24 @@ export const NotificationDetailsStyles = StyleSheet.create({
   totalDiv: {
     marginVertical: 10,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'center',
     width: '100%'
   },
   totalPriceText: {
-    fontSize: 30,
-    fontWeight: '700',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     marginLeft: 5,
-    color: '#f54b02'
   },
+  largeText: {
+  fontSize: 34, // larger than icon
+  fontWeight: 'bold',
+  color: '#f54b02',
+},
+smallText: {
+  fontSize: 23, // same or slightly smaller than icon
+  color: '#f54b02',
+},
   statusDiv: {
     flexDirection: 'row',
     alignItems: 'center',
