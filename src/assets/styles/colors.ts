@@ -799,29 +799,28 @@ export const SignupScreenStyles = StyleSheet.create({
     flex: 1,
   },
   bkg3: {
-    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: '61%',
+    flexGrow: 1,
   },
   container: {
     alignItems: 'center',
-    width: '93%',
-    minHeight: '60%',
-    borderRadius: 10,
+    width: '100%',
     padding: 20,
     justifyContent: 'space-evenly',
     backgroundColor: '#fff',
     position: 'relative',
   },
   container2: {
-    alignItems: 'center',
-    width: '90%',
-    minHeight: '59%',
     borderRadius: 10,
+    alignItems: 'center',
+    width: '100%',
     padding: 20,
     justifyContent: 'center',
     backgroundColor: '#fff',
     position: 'relative',
+    minHeight: '60%',
   },
   activeTabText: {
     fontSize: 34,
@@ -1995,5 +1994,134 @@ export const ProfileComponentStyles = StyleSheet.create({
     color: '#5f5d5dff'
   }
 });
+export const NotificationDetailsStyles = StyleSheet.create({
+  container: { flexGrow: 1, backgroundColor: '#eee', maxWidth: '100%' },
+  content: { 
+    padding: 15,
+    width: '95%',
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginVertical: 7,
+    flexGrow: 1,
+    justifyContent: 'flex-start'
+ },
+ contentSubdiv: {
+    width: '100%',
+    height: 'auto'
+ },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  message: { marginBottom: 10, color: '#202020ff', flex: 1 },
+  message1: { paddingVertical: 10, color: '#202020ff', flex: 1, fontWeight: '700', textAlign: 'left', fontSize: 17 },
+  messageText: { 
+    paddingVertical: 8,
+    fontSize: 14,
+    width: '100%',
+    textAlign: 'center'
+ },
+  date: {  color: 'gray', alignSelf: 'flex-end', fontSize: 13, paddingVertical: 10 },
+  transactionBox: { 
+    padding: 15,
+    width: '95%',
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginVertical: 7,
+    justifyContent: 'center',
+    alignItems: 'center'
+ },
+  transactionTitle: { fontWeight: 'bold' },
+  transactionTitle2: { fontWeight: 'bold', textAlign: 'center', width: '100%', marginVertical: 10 },
+  transactionTitle3: { fontWeight: 'bold', textAlign: 'left', width: '100%', marginVertical: 10 },
+  transactionTitle2b: { fontWeight: 'bold', textAlign: 'center', width: '100%', marginVertical: 10, paddingBottom: 7 },
+  transactionTitle2c: { width: '100%', marginVertical: 10, color: 'gray', paddingTop: 10 },
+  itemBox: { paddingVertical: 5, flex: 1},
+  totalDiv: {
+    marginVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%'
+  },
+  totalPriceText: {
+    fontSize: 30,
+    fontWeight: '700',
+    marginLeft: 5,
+    color: '#f54b02'
+  },
+  statusDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingBottom: 8
+  },
+  statusDivText: {
+    fontSize: 14
+  }, 
+  transactionBoxHeader: {
+    width: '100%',
+    paddingVertical: 10,
+    justifyContent: 'flex-start'
+  },
+  notTransactionBoxHeader: {
+    width: '100%',
+    paddingVertical: 8,
+  },
+  normalText: {
+    color: '#202020ff',
+    fontSize: 14, 
+    width: '100%',
+    paddingBottom: 5
+  }, 
+  normalText2: {
+    color: '#202020ff',
+    fontSize: 13, 
+  }, 
+  normalText2b: {
+    color: 'gray',
+    fontSize: 13, 
+    textAlign: 'right', 
+    width: '100%', 
+    marginTop: 7
+  }, 
+  normalTextColored: {
+    color: '#f54b02',
+    fontSize: 14, 
+    marginLeft: 3
+  }, 
+  sideBySide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 5
+  },
+  sideBySide2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  qrDiv: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 7
+  },
+  downloadDiv: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 7
+  },
+  downloadBtn: {
+    backgroundColor: '#f54b02',
+    padding: 12,
+    borderRadius: 10,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center'
+  }
+});
+
 
 

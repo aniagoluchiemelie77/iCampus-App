@@ -107,8 +107,9 @@ const Login = () => {
   return (
     <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
       <ScrollView
-        contentContainerStyle={SignupScreenStyles.bkg3}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={SignupScreenStyles.bkg3}
+        style={{ width: '95%' }}
       >
         <View style={SignupScreenStyles.container2}>
           <View style={SignupScreenStyles.headerBtnsContainerLogin}>

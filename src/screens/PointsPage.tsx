@@ -39,6 +39,7 @@ const PointsPage: React.FC<Props> = ({ route }) => {
   return (
     <View>
       <CustomHeader title="My Points" onBack={() => navigation.goBack()} />
+      <View></View>
       <Text>PointsPage</Text>
     </View>
   );
