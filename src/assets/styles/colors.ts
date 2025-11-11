@@ -45,8 +45,20 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     fontWeight: 800,
   },
   welcomeText2: {
-    fontSize: 19,
-    fontWeight: 800,
+    fontSize: 18,
+    fontWeight: 700,
+  },
+   welcomeText2c: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#f54b02'
+  },
+  welcomeText2b: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#222',
+    width: '100%',
+    paddingBottom: 7
   },
   avatar: {
     height: 60,
@@ -330,6 +342,15 @@ badge: {
   },
   popupCenter: {
     width: '80%',
+    padding: 15,
+    backgroundColor: '#eee',
+    borderRadius: 12,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  popupCenter2: {
+    width: '85%',
+    maxHeight: '80%',
     padding: 15,
     backgroundColor: '#eee',
     borderRadius: 12,
@@ -1802,17 +1823,28 @@ export const ProfileComponentStyles = StyleSheet.create({
   },
   modalImage: {
     width: '100%',
-    height: 300,
+    height: 350,
     borderRadius: 10,
     marginBottom: 7,
     alignSelf: 'center',
     resizeMode: 'cover',
+  },
+  modalImage2: {
+    width: '100%',
+    height: 300,
+    borderRadius: 10,
+    marginBottom: 7,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
     marginVertical: 8,
+  },
+  modalButtons2: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
   },
   confirmButton: {
     backgroundColor: '#f54b02',
@@ -2111,6 +2143,12 @@ smallText: {
     justifyContent: 'center',
     width: '100%',
     paddingBottom: 8
+  },
+  statusDiv2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   statusDivText: {
     fontSize: 14

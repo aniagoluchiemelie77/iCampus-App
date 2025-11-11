@@ -43,7 +43,8 @@ export interface User {
   phone_number?: string
   purchaseHistory?: PurchaseHistory[];
   PurchaseTransactions?: UserTransactions[];
-  UserBankOrCardDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
+  deals?: Deals.dealId[];
+  userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string
 }
@@ -476,8 +477,36 @@ export interface UserBankOrCardDetails {
   isDefault: boolean;
   createdAt: string;
   updatedAt?:string;
+  bankAccNumber?: string;
   billingAddressDetails?: {UserBillingAddressDetails};
 }
+export interface TransactionMiddleState {
+  transactionId:  string;
+  sellerId: User.uid;
+  buyerId: User.uid;
+  priceInPoints: number;
+  status: {
+    type: string;
+    enum: ["pending", "completed", "rejected"];
+    default: "pending";
+  };
+  productIdArrays: Product.productId[];
+  createdAt: string;
+  updatedAt: string
+};
+export interface Deals {
+  dealId:  string;
+  sellerId: User.uid;
+  buyerId: User.uid;
+  totalPriceInPoints: number;
+  dealStatus: string;
+  items: {
+    productId: string;
+    productTitle: string;
+    priceInPoints: number;
+  };
+  dealDate: string;
+};
 
 
 
