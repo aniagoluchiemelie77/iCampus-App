@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, FC } from 'react';
+import { SvgProps } from 'react-native-svg';
 import {
   ScrollView,
   View,
@@ -11,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -32,6 +34,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import { BlurView } from '@react-native-community/blur';
+import { VERVE_SEARCH_API_KEY, FLUTTERWAVE_CLIENT_SECRET } from '@env';
+import {
+  MasterCardLogo,
+  VisaCardLogo,
+  DiscoverCardLogo,
+  AmericanExpressCardLogo,
+  VerveCardLogo,
+} from '../assets/images/Logo';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 const screenWidth = Dimensions.get('window').width;
@@ -85,22 +95,19 @@ const QRScannerPopup: React.FC<QRScannerPopupProps> = ({
     </View>
   </Modal>
 );
-export const detectCardBrand = (cardNumber: string): string => {
-  if (/^4/.test(cardNumber)) return 'Visa';
-  if (/^5[1-5]/.test(cardNumber)) return 'Mastercard';
-  if (/^6/.test(cardNumber)) return 'Verve'; // Simplified; Verve often starts with 506 or 650
-  return 'Unknown';
-};
 
-export const validateLastFourDigits = (digits: string): string | null => {
-  return /^\d{4}$/.test(digits) ? null : 'Enter exactly 4 digits';
-};
 
 export const validateExpiryMonth = (month: string): string | null => {
   const num = Number(month);
   return /^\d{1,2}$/.test(month) && num >= 1 && num <= 12
     ? null
     : 'Enter a valid month (1–12)';
+};
+export const validateExpiryYear = (year: string): string | null => {
+  const currentYear = new Date().getFullYear();
+  return /^\d{4}$/.test(year) && Number(year) >= currentYear
+    ? null
+    : `Enter a valid year (≥ ${currentYear})`;
 };
 export const formatDatePretty = (dateString: string): string => {
   const date = new Date(dateString);
@@ -125,12 +132,12 @@ export const formatDatePretty = (dateString: string): string => {
 
   return `${day}${getOrdinal(day)} ${month} ${year}`;
 };
+export const validateCVV = (cvv: string): string | null => {
+  return /^\d{3,4}$/.test(cvv) ? null : 'Enter a valid CVV (3–4 digits)';
+};
 
-export const validateExpiryYear = (year: string): string | null => {
-  const currentYear = new Date().getFullYear();
-  return /^\d{4}$/.test(year) && Number(year) >= currentYear
-    ? null
-    : `Enter a valid year (≥ ${currentYear})`;
+export const getBin = (cardNumber: string): string => {
+  return cardNumber.replace(/\D/g, '').slice(0, 6);
 };
 
 const PointsPage = () => {
@@ -146,13 +153,33 @@ const PointsPage = () => {
   const [fetchedDetails, setFetchedDetails] = useState<UserBankOrCardDetails[]>(
     [],
   );
+  const [cardError, setCardError] = useState<string | null>(null);
   const [cardNumber, setCardNumber] = useState('');
   const [cardBrand, setCardBrand] = useState('');
+  const [cardLogo, setCardLogo] = useState('');
   const [activeTab, setActiveTab] = useState<'card' | 'bank'>('card');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
   const [showAccountName, setShowAccountName] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [cvv, setCvv] = useState('');
+  const [nameOnCard, setNameOnCard] = useState('');
+  const [cvvError, setCvvError] = useState<string | null>(null);
+  const [expiryMonth, setExpiryMonth] = useState('');
+  const [expiryYear, setExpiryYear] = useState('');
+  const [yearError, setYearError] = useState<string | null>(null);
+  const [monthError, setMonthError] = useState<string | null>(null);
+  const [currencyCode, setCurrencyCode] = useState<string | null>(null);
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+
+  const cardBrandLogos: Record<string, FC<SvgProps>> = {
+    Visa: VisaCardLogo,
+    MasterCard: MasterCardLogo,
+    Verve: VerveCardLogo,
+    AmericanExpress: AmericanExpressCardLogo,
+    Discover: DiscoverCardLogo,
+  };
   const encryptPayload = (data: any): string => {
     const stringified = JSON.stringify(data);
     const masked = stringified.replace(/./g, '*');
@@ -193,6 +220,41 @@ const PointsPage = () => {
       setTimeout(() => setShowErrorPopup(false), 3000);
     }
   };
+  const fetchCardInfo = async (bin: string) => {
+    try {
+      let cardData = null;
+      // Try BinList first
+      const binlistResponse = await fetch(`https://lookup.binlist.net/${bin}`);
+      if (binlistResponse.ok) {
+        cardData = await binlistResponse.json();
+        console.log('BinList:', cardData);
+        return cardData;
+      }
+
+      // Fallback to APIVerve
+      const apiverveResponse = await fetch(
+        `https://api.apiverve.com/v1/binlookup?bin=${bin}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': VERVE_SEARCH_API_KEY, // Replace with your actual key
+          },
+        },
+      );
+
+      if (apiverveResponse.ok) {
+        cardData = await apiverveResponse.json();
+        console.log('APIVerve:', cardData);
+        return cardData;
+      }
+      return null;
+    } catch (error) {
+      console.error('BIN lookup error:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const country = user.country;
     const isValid = validateAccountNumber(accountNumber, country);
@@ -243,10 +305,132 @@ const PointsPage = () => {
       fetchDetails();
     }
   }, [accountDetails, user.uid]);
+
+  //Fetch card details (logo, brand, and check if it exists using card number)
   useEffect(() => {
-    const brand = detectCardBrand(cardNumber);
-    setCardBrand(brand);
+    const bin = getBin(cardNumber);
+    setCardBrand('');
+    setCardLogo('');
+    setCardError(null); // Add this state: const [cardError, setCardError] = useState<string | null>(null);
+
+    if (bin.length === 6) {
+      setIsLoading(true);
+      fetchCardInfo(bin)
+        .then(data => {
+          if (data) {
+            setCardBrand(data.scheme || '');
+            setCardLogo(data.brand || '');
+          } else {
+            setCardError('Card not recognized. Please check the number.');
+          }
+        })
+        .catch(() => {
+          setCardError('Unable to verify card. Try again later.');
+        });
+    }
   }, [cardNumber]);
+
+  //Validate CVV
+  useEffect(() => {
+    setCvvError(validateCVV(cvv));
+  }, [cvv]);
+
+  //Validate card expiry month
+  useEffect(() => {
+    setMonthError(validateExpiryMonth(expiryMonth));
+  }, [expiryMonth]);
+
+  //Validate card expiry year
+  useEffect(() => {
+    setYearError(validateExpiryYear(expiryYear));
+  }, [expiryYear]);
+
+  //Fetch currency eg 'NGN' using user.country
+  useEffect(() => {
+    if (!user?.country) return;
+    const fetchCurrency = async () => {
+      try {
+        const res = await fetch(
+          `https://restcountries.com/v3.1/name/${encodeURIComponent(
+            user.country,
+          )}?fullText=true`,
+        );
+        const data = await res.json();
+        const code = Object.keys(data[0].currencies)[0];
+        setCurrencyCode(code);
+      } catch (err) {
+        console.error('Country not found or invalid:', err);
+        setCurrencyError(
+          'Unable to fetch currency, country either not found or invalid',
+        );
+      }
+    };
+    fetchCurrency();
+  }, [user.country]);
+
+  //Send card details to flutterwave (gateway)
+  useEffect(() => {
+    const isCardReady = () =>
+      cardNumber.length >= 12 &&
+      cvv.length >= 3 &&
+      expiryMonth.length >= 1 &&
+      expiryYear.length >= 2 &&
+      nameOnCard.length > 2;
+
+    if (!isCardReady()) return;
+    const payload = {
+      card_number: cardNumber,
+      cvv: cvv,
+      expiry_month: expiryMonth, // from user input
+      expiry_year: expiryYear, // from user input
+      currency: currencyCode, // or 'USD', 'GHS', etc.
+      amount: '100', // test amount (can be small)
+      fullname: nameOnCard, // required
+      email: user.email, // required
+      tx_ref: 'MC-' + Date.now(), // unique transaction reference
+      authorization: {
+        mode: 'pin', // ✅ correct key
+        pin: '3310', // ✅ required for test cards
+      },
+      recurring: false,
+    };
+    const options = {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`, //
+      },
+      body: JSON.stringify(payload),
+    };
+    fetch(
+      'https://developersandbox-api.flutterwave.com/charges?type=card',
+      options,
+    )
+      .then(res => res.json())
+      .then(res => {
+        console.log('Charge response:', res);
+        // Optionally show toast or update UI
+      })
+      .catch(err => {
+        console.error('Charge error:', err);
+        Toast.show({
+          type: 'error',
+          text2: err,
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      });
+  }, [
+    cardNumber,
+    currencyCode,
+    cvv,
+    user?.email,
+    expiryMonth,
+    expiryYear,
+    nameOnCard,
+  ]);
+
   const handleSubmitDetails = async () => {
     const newDetails = {
       provider: 'Visa',
@@ -274,18 +458,6 @@ const PointsPage = () => {
       console.error('Error submitting account details:', err);
     }
   };
-  const digitsError = validateLastFourDigits(lastFourDigits);
-  const monthError = validateExpiryMonth(expiryMonth);
-  const yearError = validateExpiryYear(expiryYear);
-  if (providerError || digitsError || monthError || yearError) {
-    console.warn('Validation errors:', {
-      providerError,
-      digitsError,
-      monthError,
-      yearError,
-    });
-    return;
-  }
   const validateAccountNumber = (
     accountNumber: string,
     country: string,
@@ -312,7 +484,6 @@ const PointsPage = () => {
   const submitBankDetails = async () => {
     const payload = {
       bankName,
-      provider,
       country,
       accountNumber,
       accountHolderName,
@@ -342,6 +513,20 @@ const PointsPage = () => {
     setAccountHolderName(name);
     setShowAccountName(true);
   };
+  console.log(cardLogo);
+  const LogoComponent = cardBrandLogos[cardBrand];
+
+  const handleMonthChange = (text: string) => setExpiryMonth(text);
+  const handleYearChange = (text: string) => setExpiryYear(text);
+  // Show error
+  if (currencyError) {
+    Toast.show({
+      type: 'error',
+      text2: currencyError,
+      position: 'bottom',
+      bottomOffset: 10,
+    });
+  }
 
   return (
     <ScrollView contentContainerStyle={PointsPageStyles.container}>
@@ -710,44 +895,93 @@ const PointsPage = () => {
 
               {activeTab === 'card' ? (
                 <>
-                  <TextInput
-                    placeholder="Card Brand"
-                    value={cardBrand}
-                    editable={false}
-                    style={PointsPageStyles.input}
-                  />
-                  <TextInput
-                    placeholder="Card Number"
-                    keyboardType="numeric"
-                    value={cardNumber}
-                    onChangeText={text => setCardNumber(formatCardNumber(text))}
-                    style={PointsPageStyles.input}
-                  />
-                  {digitsError && (
-                    <Text style={PointsPageStyles.errorText}>
-                      {digitsError}
-                    </Text>
+                  <View style={PointsPageStyles.cardInputDiv}>
+                    <TextInput
+                      placeholder="Card Number"
+                      placeholderTextColor="#6b6a6aff"
+                      keyboardType="numeric"
+                      value={cardNumber}
+                      maxLength={19}
+                      onChangeText={text =>
+                        setCardNumber(formatCardNumber(text))
+                      }
+                      style={PointsPageStyles.inputCardNumber}
+                      accessibilityLabel="Card Number Input"
+                      testID="cardNumberInput"
+                    />
+                    {LogoComponent && (
+                      <LogoComponent style={PointsPageStyles.cardLogo} />
+                    )}
+                    {isLoading && (
+                      <ActivityIndicator size="small" color="#f54b02" />
+                    )}
+                  </View>
+                  {cardError && (
+                    <Text style={PointsPageStyles.errorText}>{cardError}</Text>
                   )}
-                  <TextInput
-                    placeholder="Expiry Month"
-                    keyboardType="numeric"
-                    style={PointsPageStyles.input}
-                  />
+                  <View style={PointsPageStyles.sideBySideDiv}>
+                    <View style={PointsPageStyles.sideBySideDivSubdiv}>
+                      <TextInput
+                        placeholder="123"
+                        placeholderTextColor="#6b6a6aff"
+                        keyboardType="numeric"
+                        secureTextEntry={true}
+                        style={PointsPageStyles.input2}
+                        value={cvv}
+                        onChangeText={setCvv}
+                      />
+                      <Text style={PointsPageStyles.sideBySideDivSubdivText}>
+                        CVV
+                      </Text>
+                    </View>
+                    <View style={PointsPageStyles.sideBySideDivSubdiv}>
+                      <View style={PointsPageStyles.rowDiv2}>
+                        <TextInput
+                          placeholder="Expiry Month"
+                          keyboardType="numeric"
+                          placeholderTextColor="#6b6a6aff"
+                          style={PointsPageStyles.input2}
+                          value={expiryMonth}
+                          onChangeText={handleMonthChange}
+                        />
+                        <Text style={PointsPageStyles.rowDiv2Text}>/</Text>
+                        <TextInput
+                          placeholderTextColor="#6b6a6aff"
+                          placeholder="Expiry Year"
+                          keyboardType="numeric"
+                          style={PointsPageStyles.input2}
+                          value={expiryYear}
+                          onChangeText={handleYearChange}
+                        />
+                      </View>
+                      <View style={PointsPageStyles.rowDiv}>
+                        <Text style={PointsPageStyles.sideBySideDivSubdivText}>
+                          Month
+                        </Text>
+                        <Text style={PointsPageStyles.sideBySideDivSubdivText}>
+                          Year
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  {cvvError && (
+                    <Text style={PointsPageStyles.errorText}>{cvvError}</Text>
+                  )}
                   {monthError && (
                     <Text style={PointsPageStyles.errorText}>{monthError}</Text>
                   )}
-                  <TextInput
-                    placeholder="Expiry Year"
-                    keyboardType="numeric"
-                    style={PointsPageStyles.input}
-                  />
                   {yearError && (
                     <Text style={PointsPageStyles.errorText}>{yearError}</Text>
                   )}
-                  <TextInput
-                    placeholder="Country"
-                    style={PointsPageStyles.input}
-                  />
+                  <View style={PointsPageStyles.cardNameInputDiv}>
+                    <TextInput
+                      placeholder="Name on Card"
+                      placeholderTextColor="#6b6a6aff"
+                      value={nameOnCard}
+                      onChangeText={setNameOnCard}
+                      style={PointsPageStyles.input}
+                    />
+                  </View>
                 </>
               ) : (
                 <>
@@ -913,7 +1147,13 @@ const PointsPageStyles = StyleSheet.create({
   },
   rowDiv: {
     width: '100%',
+    flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  rowDiv2: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   tabHeader: {
     flexDirection: 'row',
@@ -945,7 +1185,7 @@ const PointsPageStyles = StyleSheet.create({
     padding: 10,
   },
   input: {
-    width: '95%',
+    width: '98%',
     padding: 10,
     marginBottom: 5,
     color: '#222',
@@ -954,10 +1194,67 @@ const PointsPageStyles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#f54b02',
   },
+  inputCardNumber: {
+    flex: 1,
+    padding: 10,
+    color: '#222',
+    fontSize: 13,
+  },
+  input2: {
+    flex: 1,
+    padding: 10,
+    color: '#222',
+    fontSize: 13,
+    borderWidth: 0.5,
+    borderColor: '#f54b02',
+  },
   errorText: {
     color: 'red',
     fontSize: 11,
     fontWeight: '700',
     paddingBottom: 5,
+  },
+  cardInputDiv: {
+    width: '98%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 7,
+    alignSelf: 'center',
+    borderWidth: 0.5,
+    borderColor: '#f54b02',
+  },
+  cardLogo: {
+    marginRight: 3,
+  },
+  brandFallback: {
+    height: 25,
+    color: '#222',
+    marginRight: 3,
+  },
+  sideBySideDiv: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 7,
+  },
+  sideBySideDivSubdiv: {
+    alignItems: 'flex-start',
+    width: '40%',
+  },
+  sideBySideDivSubdivText: {
+    paddingTop: 4,
+    width: '100%',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#222',
+  },
+  rowDiv2Text: {
+    marginVertical: 3,
+    color: '#f54b02',
+  },
+  cardNameInputDiv: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -467,7 +467,7 @@ export interface UserBankOrCardDetails {
   userId: User.uid;
   paymentToken?: string;
   method: 'card' | 'bank';
-  provider: string;
+  provider?: string;
   lastFourDigits: string;
   cardBrand?: string;
   expiryMonth?: string;
