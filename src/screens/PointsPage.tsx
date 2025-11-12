@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { v4 as uuidv4 } from 'uuid';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -35,6 +36,8 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import { BlurView } from '@react-native-community/blur';
 import { VERVE_SEARCH_API_KEY, FLUTTERWAVE_CLIENT_SECRET } from '@env';
+import DropDownPicker from 'react-native-dropdown-picker';
+import axios from 'axios';
 import {
   MasterCardLogo,
   VisaCardLogo,
@@ -96,7 +99,6 @@ const QRScannerPopup: React.FC<QRScannerPopupProps> = ({
   </Modal>
 );
 
-
 export const validateExpiryMonth = (month: string): string | null => {
   const num = Number(month);
   return /^\d{1,2}$/.test(month) && num >= 1 && num <= 12
@@ -146,6 +148,8 @@ const PointsPage = () => {
   const [showPoints, setShowPoints] = useState(true);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showCardOrAccountDetailsAddPopup, setCardOrAccountDetailsAddPopup] =
+    useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState<number | null>(null);
   const [accountDetails] = useState<string[]>(user?.userAccountDetails || []);
@@ -154,24 +158,56 @@ const PointsPage = () => {
     [],
   );
   const [cardError, setCardError] = useState<string | null>(null);
+  const [bankError, setBankError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cardorBankDetailsError, setCardorBankDetailsError] = useState<
+    string | null
+  >(null);
   const [cardNumber, setCardNumber] = useState('');
   const [cardBrand, setCardBrand] = useState('');
   const [cardLogo, setCardLogo] = useState('');
   const [activeTab, setActiveTab] = useState<'card' | 'bank'>('card');
-  const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
   const [showAccountName, setShowAccountName] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [cvv, setCvv] = useState('');
   const [nameOnCard, setNameOnCard] = useState('');
+  const [address1, setAddress1] = useState('');
+  const [address2, setAddress2] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [cvvError, setCvvError] = useState<string | null>(null);
+  const [cardOrBankDetailsRes, setCardOrBankDetailsRes] = useState<
+    string | null
+  >(null);
   const [expiryMonth, setExpiryMonth] = useState('');
   const [expiryYear, setExpiryYear] = useState('');
   const [yearError, setYearError] = useState<string | null>(null);
   const [monthError, setMonthError] = useState<string | null>(null);
   const [currencyCode, setCurrencyCode] = useState<string | null>(null);
   const [currencyError, setCurrencyError] = useState<string | null>(null);
+  const [country, setCountry] = useState(null);
+  const [openCountry, setOpenCountry] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const [openCity, setOpenCity] = useState(false);
+  const [state, setState] = useState(null);
+  const [city, setCity] = useState(null);
+  const [bankCode, setBankCode] = useState<string | null>(null);
+
+  const [countryItems, setCountryItems] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [stateItems, setStateItems] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [cityItems, setCityItems] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [openBank, setOpenBank] = useState(false);
+  const [bankName, setBankName] = useState<string | null>(null);
+  const [bankItems, setBankItems] = useState<
+    { label: string; value: string }[]
+  >([]);
 
   const cardBrandLogos: Record<string, FC<SvgProps>> = {
     Visa: VisaCardLogo,
@@ -179,11 +215,6 @@ const PointsPage = () => {
     Verve: VerveCardLogo,
     AmericanExpress: AmericanExpressCardLogo,
     Discover: DiscoverCardLogo,
-  };
-  const encryptPayload = (data: any): string => {
-    const stringified = JSON.stringify(data);
-    const masked = stringified.replace(/./g, '*');
-    return masked;
   };
   const formatCardNumber = (input: string): string => {
     // Remove all non-digit characters
@@ -194,6 +225,7 @@ const PointsPage = () => {
   const completeTransaction = async (transactionId: string): Promise<void> => {
     const userUid = user?.uid;
     const token = await AsyncStorage.getItem('authToken');
+    let data;
     try {
       const res = await fetch(
         `${baseUrl}users/transactions/complete/${transactionId}`,
@@ -206,7 +238,7 @@ const PointsPage = () => {
           body: JSON.stringify({ uid: userUid }),
         },
       );
-      const data = await res.json();
+      data = await res.json();
       if (res.ok) {
         setPointsAwarded(data.transactionsTotalPriceInPoints);
         setShowSuccessPopup(true);
@@ -216,6 +248,7 @@ const PointsPage = () => {
       }
     } catch (err) {
       console.error('API error:', err);
+      setError(data.message);
       setShowErrorPopup(true);
       setTimeout(() => setShowErrorPopup(false), 3000);
     }
@@ -255,56 +288,155 @@ const PointsPage = () => {
     }
   };
 
+  //Fetch User added cards or bank accounts
   useEffect(() => {
-    const country = user.country;
-    const isValid = validateAccountNumber(accountNumber, country);
-
-    if (isValid && bankName.trim().length > 0) {
-      console.log('Auto-triggering account name lookup...');
-      lookupAccountName(accountNumber, bankName, country).then(name => {
-        setAccountHolderName(name);
-        setShowAccountName(true);
-      });
-    } else {
-      setShowAccountName(false);
-      setAccountHolderName('');
-    }
-  }, [accountNumber, bankName, user.country]);
-
-  useEffect(() => {
-    if (accountDetails.length > 0) {
-      const fetchDetails = async () => {
+    if (!user?.userAccountDetails || user.userAccountDetails.length === 0)
+      return;
+    const fetchAccountDetails = async () => {
+      try {
         const token = await AsyncStorage.getItem('authToken');
-        try {
-          const userId = user.uid;
-          const encryptedPayload = encryptPayload({ ids: accountDetails });
-          const normalPayload = { ids: accountDetails };
-          console.log(encryptedPayload);
-          const res = await fetch(`${baseUrl}user/account-details`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ payload: normalPayload, user: userId }),
-          });
-          const data = await res.json();
-          console.log('Received account details:', data);
-          setFetchedDetails(data.details);
-        } catch (err) {
-          console.error('Error fetching account details:', err);
+        const res = await fetch(`${baseUrl}user/account-details`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            payload: { ids: user.userAccountDetails },
+            user: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.details) {
+          setFetchedDetails(data.details); // ✅ Update state with filtered account details
+        } else {
+          console.error('Error fetching account details:', data.message);
           Toast.show({
             type: 'error',
-            text1: err.message,
+            text2: data.message,
             position: 'bottom',
             bottomOffset: 10,
           });
         }
-      };
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong while adding card';
+        console.error('Error fetching account details:', err);
+        Toast.show({
+          type: 'error',
+          text2: errorMessage,
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    };
+    fetchAccountDetails();
+  }, [user.uid, user.userAccountDetails]);
 
-      fetchDetails();
+  //Fetch Bank using user.country
+  useEffect(() => {
+    if (user.country) {
+      const countryCodeMap: Record<string, string> = {
+        Nigeria: 'NG',
+        Egypt: 'EG',
+        Ghana: 'GH',
+        Kenya: 'KE',
+        Rwanda: 'RW',
+        Cameroon: 'CM',
+        Ethiopia: 'ET',
+        Uganda: 'UG',
+        Zambia: 'ZM',
+        'South Africa': 'ZA',
+        Malawi: 'MW',
+        Senegal: 'SN',
+        Tanzania: 'TZ',
+        'Sierra Leone': 'SL',
+        Zimbabwe: 'ZW',
+        'United States of America': 'US',
+        // Add more mappings as needed
+      };
+      const countryCode = countryCodeMap[user.country] || user.country;
+      const options = {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`, // ✅ Required
+        },
+      };
+      fetch(
+        `https://developersandbox-api.flutterwave.com/banks?country=${countryCode}`,
+        options,
+      )
+        .then(res => res.json())
+        .then(data => {
+          const banks = data?.data?.map(
+            (bank: { name: string; code: string }) => ({
+              label: bank.name,
+              value: bank.code,
+            }),
+          );
+          setBankItems(banks || []);
+          console.log('Banks loaded:', banks);
+        })
+        .catch(err => console.error('Error fetching banks:', err));
     }
-  }, [accountDetails, user.uid]);
+  }, [user.country]);
+
+  //Save Bank Name
+  useEffect(() => {
+    const selectedBank = bankItems.find(item => item.value === bankCode);
+    if (selectedBank) {
+      setBankName(selectedBank.label);
+    }
+  }, [bankCode, bankItems]);
+
+  //Fetch account name using bank and verified account number
+  useEffect(() => {
+    const resolveAccountName = async () => {
+      if (accountNumber && bankCode && accountNumber.length >= 8) {
+        try {
+          const response = await fetch(
+            'https://developersandbox-api.flutterwave.com/v3/accounts/resolve',
+            {
+              method: 'POST',
+              headers: {
+                accept: 'application/json',
+                'content-type': 'application/json',
+                Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`, // ✅ Required
+              },
+              body: JSON.stringify({
+                account_number: accountNumber,
+                account_bank: bankCode, // bank code, not name
+              }),
+            },
+          );
+          const data = await response.json();
+          if (data.status === 'success' && data.data?.account_name) {
+            setAccountHolderName(data.data.account_name);
+            setShowAccountName(true);
+          } else {
+            setAccountHolderName('Account not found');
+            setShowAccountName(false);
+          }
+        } catch (err) {
+          const errorMessage =
+            err instanceof Error
+              ? err.message
+              : 'Something went wrong while adding card';
+          console.error('Lookup failed:', err);
+          setAccountHolderName(errorMessage);
+          setShowAccountName(false);
+        }
+      } else {
+        setAccountHolderName('Account not found 3');
+        setShowAccountName(false);
+      }
+    };
+
+    resolveAccountName();
+  }, [accountNumber, bankCode]);
 
   //Fetch card details (logo, brand, and check if it exists using card number)
   useEffect(() => {
@@ -347,12 +479,12 @@ const PointsPage = () => {
 
   //Fetch currency eg 'NGN' using user.country
   useEffect(() => {
-    if (!user?.country) return;
+    if (!country) return;
     const fetchCurrency = async () => {
       try {
         const res = await fetch(
           `https://restcountries.com/v3.1/name/${encodeURIComponent(
-            user.country,
+            country,
           )}?fullText=true`,
         );
         const data = await res.json();
@@ -366,7 +498,7 @@ const PointsPage = () => {
       }
     };
     fetchCurrency();
-  }, [user.country]);
+  }, [country]);
 
   //Send card details to flutterwave (gateway)
   useEffect(() => {
@@ -431,88 +563,202 @@ const PointsPage = () => {
     nameOnCard,
   ]);
 
-  const handleSubmitDetails = async () => {
-    const newDetails = {
-      provider: 'Visa',
-      method: 'card',
-      lastFourDigits: '1234',
-      country: 'Nigeria',
-      isDefault: true,
-      // other fields...
-    };
-
-    const encryptedPayload = encryptPayload(newDetails); // placeholder
-    console.log('Submitting encrypted card/bank details:', encryptedPayload);
-
-    try {
-      const res = await fetch(`${baseUrl}user/add-account-details`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: encryptedPayload }),
+  //Country fetch
+  useEffect(() => {
+    axios
+      .get('https://countriesnow.space/api/v0.1/countries/positions')
+      .then(response => {
+        const countries = response.data.data.map((item: any) => ({
+          label: item.name,
+          value: item.name,
+        }));
+        setCountryItems(countries);
       });
+  }, []);
 
-      const data = await res.json();
-      console.log('Add details response:', data);
-      setShowAddPopup(false);
-    } catch (err) {
-      console.error('Error submitting account details:', err);
+  //States fetch
+  useEffect(() => {
+    if (country) {
+      axios
+        .post('https://countriesnow.space/api/v0.1/countries/states', {
+          country,
+        })
+        .then(response => {
+          const states = response.data.data.states.map((item: any) => ({
+            label: item.name,
+            value: item.name,
+          }));
+          setStateItems(states);
+          setState(null); // reset state
+          setCityItems([]); // reset cities
+        });
     }
-  };
-  const validateAccountNumber = (
-    accountNumber: string,
-    country: string,
-  ): boolean => {
-    if (country === 'Nigeria') {
-      return /^\d{10}$/.test(accountNumber);
-    }
-    return true; // Add more country rules as needed
-  };
+  }, [country]);
 
-  const lookupAccountName = async (
-    accountNumber: string,
-    bankName: string,
-    country: string,
+  //City fetch
+  useEffect(() => {
+    if (country && state) {
+      axios
+        .post('https://countriesnow.space/api/v0.1/countries/state/cities', {
+          country,
+          state,
+        })
+        .then(response => {
+          const cities = response.data.data.map((name: string) => ({
+            label: name,
+            value: name,
+          }));
+          setCityItems(cities);
+          setCity(null); // reset city
+        });
+    }
+  }, [state, country]);
+
+  const saveDetailsToDatabase = async (
+    cardDetails: UserBankOrCardDetails,
+    type: string,
   ) => {
-    // Simulate API delay
-    return new Promise<string>(resolve => {
-      setTimeout(() => {
-        console.log('Simulated lookup complete');
-        resolve('Chiemelie Okafor'); // Replace with real API later
-      }, 1000);
-    });
-  };
-  const submitBankDetails = async () => {
-    const payload = {
-      bankName,
-      country,
-      accountNumber,
-      accountHolderName,
-      method: 'bank',
-      userId: user.uid,
-    };
-
-    console.log('Submitting bank details:', payload);
-
-    await fetch(`${baseUrl}/user/add-bank-details`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  };
-  const handleConfirmAccount = async () => {
-    const country = user.country;
-    const isValid = validateAccountNumber(accountNumber, country);
-
-    if (!isValid) {
-      console.warn('Invalid account number for', country);
-      return;
+    setShowAddPopup(false); //Close the add bank or card popup
+    const token = await AsyncStorage.getItem('authToken');
+    let data;
+    try {
+      const payload = {
+        ...cardDetails,
+        type: type,
+      };
+      const res = await fetch(`${baseUrl}user/addCardOrBankDetails`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      data = await res.json();
+      if (res.ok) {
+        setCardOrAccountDetailsAddPopup(true);
+        setCardOrBankDetailsRes(data.message);
+        setTimeout(() => setCardOrAccountDetailsAddPopup(false), 3000);
+      } else {
+        console.error('Server error:', data.message);
+        setShowErrorPopup(true);
+        setCardorBankDetailsError(data.message);
+        setTimeout(() => setShowErrorPopup(false), 3000);
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong while adding card';
+      console.error('API error:', err);
+      setShowErrorPopup(true);
+      setCardorBankDetailsError(errorMessage);
+      setTimeout(() => setShowErrorPopup(false), 3000);
     }
-
-    console.log('Looking up account name...');
-    const name = await lookupAccountName(accountNumber, bankName, country);
-    setAccountHolderName(name);
-    setShowAccountName(true);
   };
+  const handleSubmitDetails = async () => {
+    let type;
+    if (activeTab === 'card') {
+      if (!cardNumber || !cvv || !expiryMonth || !expiryYear || !nameOnCard) {
+        setCardError('Please fill in all required card fields');
+        return;
+      }
+      // 2. Send card data to Flutterwave for tokenization
+      try {
+        const response = await fetch(
+          'https://api.flutterwave.com/v3/tokenize-card',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              card_number: cardNumber.replace(/\s/g, ''),
+              cvv,
+              expiry_month: expiryMonth,
+              expiry_year: expiryYear,
+              currency: currencyCode,
+              amount: 100,
+              fullname: nameOnCard,
+              email: user.email,
+              tx_ref: `card-${Date.now()}`,
+            }),
+          },
+        );
+        const data = await response.json();
+        if (data.status === 'success') {
+          const cardDetails: UserBankOrCardDetails = {
+            cardOrBankDetailsId: data.data.card_token,
+            userId: user.uid,
+            paymentToken: data.data.card_token,
+            method: 'card',
+            provider: 'flutterwave',
+            lastFourDigits: data.data.card.last_4digits,
+            cardBrand: data.data.card.brand,
+            expiryMonth: data.data.card.expiry_month,
+            expiryYear: data.data.card.expiry_year,
+            country: country ?? undefined,
+            isDefault: true,
+            createdAt: new Date().toISOString(),
+            billingAddressDetails: {
+              state: state ?? undefined,
+              city: city ?? undefined,
+              street: address1 ?? undefined, // ✅ Rename 'address' to 'street' to match your interface
+              zip: postalCode ?? undefined,
+            },
+          };
+          type = 'card';
+          await saveDetailsToDatabase(cardDetails, type);
+        } else {
+          setCardError(data.message || 'Card tokenization failed');
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong while adding card';
+        console.error('Card error:', err);
+        setCardError(errorMessage);
+      }
+    } else {
+      if (
+        !accountNumber ||
+        !bankCode ||
+        !accountHolderName ||
+        accountHolderName === 'Account not found'
+      ) {
+        setBankError('Error, Please enter valid bank details');
+        return;
+      }
+      try {
+        const cardDetails: UserBankOrCardDetails = {
+          cardOrBankDetailsId: uuidv4(),
+          bankCode: bankCode,
+          userId: user.uid,
+          accountHolderName: accountHolderName,
+          method: 'bank',
+          bankAccNumber: accountNumber ?? undefined,
+          bankName: bankName ?? undefined,
+          country: country ?? undefined,
+          isDefault: true,
+          createdAt: new Date().toISOString(),
+        };
+        type = 'bank';
+        await saveDetailsToDatabase(cardDetails, type);
+      } catch (err) {
+        setShowAddPopup(false); //Close the add bank or card popup
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong while adding card';
+        console.error('Card error:', err);
+        setCardorBankDetailsError(errorMessage);
+        setTimeout(() => setShowErrorPopup(false), 3000);
+      }
+    }
+  };
+
   console.log(cardLogo);
   const LogoComponent = cardBrandLogos[cardBrand];
 
@@ -830,18 +1076,33 @@ const PointsPage = () => {
           <TouchableWithoutFeedback onPress={() => setShowErrorPopup(false)}>
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
-          <View style={HomeScreenComponentStyles.popupCenter}>
-            <View style={PointsPageStyles.errorDiv}>
-              <MaterialIcons
-                name="error"
-                size={20}
-                color="#f54b02"
-                style={{ marginRight: 5 }}
-              />
-              <Text style={HomeScreenComponentStyles.welcomeText2c}>
-                Error encountered during payment. Please retry.
-              </Text>
-            </View>
+          <View style={HomeScreenComponentStyles.popupCenterSmall}>
+            {error && (
+              <View style={NotificationDetailsStyles.totalDiv}>
+                <MaterialCommunityIcons
+                  name="error"
+                  size={28}
+                  color="#f54b02"
+                  style={{ marginRight: 5 }}
+                />
+                <Text style={NotificationDetailsStyles.largeText2}>
+                  {error}
+                </Text>
+              </View>
+            )}
+            {cardorBankDetailsError && (
+              <View style={NotificationDetailsStyles.totalDiv}>
+                <MaterialCommunityIcons
+                  name="error"
+                  size={28}
+                  color="#f54b02"
+                  style={{ marginRight: 5 }}
+                />
+                <Text style={NotificationDetailsStyles.largeText2}>
+                  {cardorBankDetailsError}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -917,7 +1178,17 @@ const PointsPage = () => {
                     )}
                   </View>
                   {cardError && (
-                    <Text style={PointsPageStyles.errorText}>{cardError}</Text>
+                    <View style={PointsPageStyles.errorDiv2}>
+                      <MaterialIcons
+                        name="error"
+                        size={15}
+                        color="#f54b02"
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={PointsPageStyles.errorText}>
+                        {cardError}
+                      </Text>
+                    </View>
                   )}
                   <View style={PointsPageStyles.sideBySideDiv}>
                     <View style={PointsPageStyles.sideBySideDivSubdiv}>
@@ -965,13 +1236,41 @@ const PointsPage = () => {
                     </View>
                   </View>
                   {cvvError && (
-                    <Text style={PointsPageStyles.errorText}>{cvvError}</Text>
+                    <View style={PointsPageStyles.errorDiv2}>
+                      <MaterialIcons
+                        name="error"
+                        size={15}
+                        color="#f54b02"
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={PointsPageStyles.errorText}>{cvvError}</Text>
+                    </View>
                   )}
                   {monthError && (
-                    <Text style={PointsPageStyles.errorText}>{monthError}</Text>
+                    <View style={PointsPageStyles.errorDiv2}>
+                      <MaterialIcons
+                        name="error"
+                        size={15}
+                        color="#f54b02"
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={PointsPageStyles.errorText}>
+                        {monthError}
+                      </Text>
+                    </View>
                   )}
                   {yearError && (
-                    <Text style={PointsPageStyles.errorText}>{yearError}</Text>
+                    <View style={PointsPageStyles.errorDiv2}>
+                      <MaterialIcons
+                        name="error"
+                        size={15}
+                        color="#f54b02"
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={PointsPageStyles.errorText}>
+                        {yearError}
+                      </Text>
+                    </View>
                   )}
                   <View style={PointsPageStyles.cardNameInputDiv}>
                     <TextInput
@@ -981,36 +1280,168 @@ const PointsPage = () => {
                       onChangeText={setNameOnCard}
                       style={PointsPageStyles.input}
                     />
+                    <TextInput
+                      placeholder="Address 1"
+                      placeholderTextColor="#6b6a6aff"
+                      value={address1}
+                      onChangeText={setAddress1}
+                      style={PointsPageStyles.input}
+                    />
+                    <TextInput
+                      placeholder="Address 2 (Optional)"
+                      placeholderTextColor="#6b6a6aff"
+                      value={address2}
+                      onChangeText={setAddress2}
+                      style={PointsPageStyles.input}
+                    />
+                    <DropDownPicker
+                      searchPlaceholderTextColor="#6b6a6aff"
+                      dropDownContainerStyle={{ borderColor: '#f54b02' }}
+                      open={openCountry}
+                      value={country}
+                      items={countryItems}
+                      setOpen={setOpenCountry}
+                      setValue={setCountry}
+                      setItems={setCountryItems}
+                      searchable={true}
+                      placeholder="Select Country"
+                      style={PointsPageStyles.input}
+                    />
+                    <DropDownPicker
+                      style={PointsPageStyles.input}
+                      open={openState}
+                      value={state}
+                      items={stateItems}
+                      setOpen={setOpenState}
+                      setValue={setState}
+                      setItems={setStateItems}
+                      searchable={true}
+                      placeholder="Select State"
+                      searchPlaceholderTextColor="#6b6a6aff"
+                      dropDownContainerStyle={{ borderColor: '#f54b02' }}
+                    />
+                    <DropDownPicker
+                      open={openCity}
+                      style={PointsPageStyles.input}
+                      value={city}
+                      items={cityItems}
+                      setOpen={setOpenCity}
+                      setValue={setCity}
+                      setItems={setCityItems}
+                      searchable={true}
+                      placeholder="Select City"
+                      searchPlaceholderTextColor="#6b6a6aff"
+                      dropDownContainerStyle={{ borderColor: '#f54b02' }}
+                    />
+                    <TextInput
+                      placeholder="Postal code"
+                      placeholderTextColor="#6b6a6aff"
+                      value={postalCode}
+                      keyboardType="numeric"
+                      onChangeText={setPostalCode}
+                      style={PointsPageStyles.input}
+                    />
                   </View>
+                  {cardError && (
+                    <View style={PointsPageStyles.errorDiv2}>
+                      <MaterialIcons
+                        name="error"
+                        size={15}
+                        color="#f54b02"
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={PointsPageStyles.errorText}>
+                        {cardError}
+                      </Text>
+                    </View>
+                  )}
                 </>
               ) : (
                 <>
-                  <TextInput
-                    placeholder="Bank Name"
-                    style={PointsPageStyles.input}
-                    value={bankName}
-                    onChangeText={setBankName}
-                  />
-                  <TextInput
-                    placeholder="Account Number"
-                    keyboardType="numeric"
-                    style={PointsPageStyles.input}
-                    value={accountNumber}
-                    onChangeText={setAccountNumber}
-                  />
+                  <View style={PointsPageStyles.cardNameInputDiv}>
+                    <DropDownPicker
+                      open={openBank}
+                      value={bankCode}
+                      items={bankItems}
+                      setOpen={setOpenBank}
+                      setValue={setBankCode} // ✅ Only one setValue allowed
+                      setItems={setBankItems}
+                      searchable={true}
+                      placeholder="Select Bank"
+                      searchPlaceholderTextColor="#6b6a6aff"
+                      style={PointsPageStyles.input}
+                    />
+                    <TextInput
+                      placeholder="Account Number"
+                      keyboardType="numeric"
+                      style={PointsPageStyles.input}
+                      value={accountNumber}
+                      onChangeText={setAccountNumber}
+                    />
+                  </View>
                   {showAccountName && (
                     <TextInput
                       value={accountHolderName}
-                      style={PointsPageStyles.input}
+                      style={[
+                        PointsPageStyles.input,
+                        accountHolderName === 'Account not found' && {
+                          color: 'red',
+                        }, // ✅ Error style
+                      ]}
                       editable={false}
                     />
+                  )}
+                  {bankError && (
+                    <View style={PointsPageStyles.errorDiv2}>
+                      <MaterialIcons
+                        name="error"
+                        size={15}
+                        color="#f54b02"
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={PointsPageStyles.errorText}>
+                        {bankError}
+                      </Text>
+                    </View>
                   )}
                 </>
               )}
               <View style={PointsPageStyles.buttonRow}>
-                <Button title="Submit" onPress={handleSubmitDetails} />
+                <TouchableOpacity
+                  onPress={handleSubmitDetails}
+                  style={PointsPageStyles.submitButton}
+                >
+                  <Text style={PointsPageStyles.submitButtonText}>Submit</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showCardOrAccountDetailsAddPopup}
+        transparent
+        animationType="fade"
+      >
+        <View style={HomeScreenComponentStyles.overlayCenter}>
+          <TouchableWithoutFeedback
+            onPress={() => setCardOrAccountDetailsAddPopup(false)}
+          >
+            <View style={HomeScreenComponentStyles.backdrop} />
+          </TouchableWithoutFeedback>
+          <View style={HomeScreenComponentStyles.popupCenterSmall}>
+            {cardOrBankDetailsRes !== null && (
+              <View style={NotificationDetailsStyles.totalDiv}>
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={28}
+                  color="#f54b02"
+                />
+                <Text style={NotificationDetailsStyles.largeText2}>
+                  {cardOrBankDetailsRes}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -1109,6 +1540,12 @@ const PointsPageStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  errorDiv2: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   cardContainer: {
     padding: 10,
     borderRadius: 10,
@@ -1185,9 +1622,9 @@ const PointsPageStyles = StyleSheet.create({
     padding: 10,
   },
   input: {
-    width: '98%',
+    width: '95%',
     padding: 10,
-    marginBottom: 5,
+    marginBottom: 8,
     color: '#222',
     fontSize: 13,
     alignSelf: 'center',
@@ -1209,16 +1646,15 @@ const PointsPageStyles = StyleSheet.create({
     borderColor: '#f54b02',
   },
   errorText: {
-    color: 'red',
+    color: '#f54b02',
     fontSize: 11,
     fontWeight: '700',
-    paddingBottom: 5,
   },
   cardInputDiv: {
-    width: '98%',
+    width: '95%',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 7,
+    marginBottom: 10,
     alignSelf: 'center',
     borderWidth: 0.5,
     borderColor: '#f54b02',
@@ -1235,7 +1671,7 @@ const PointsPageStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 7,
+    marginBottom: 10,
   },
   sideBySideDivSubdiv: {
     alignItems: 'flex-start',
@@ -1256,5 +1692,23 @@ const PointsPageStyles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  buttonRow: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '95%',
+    padding: 10,
+    marginTop: 10,
+    backgroundColor: '#f54b02',
+  },
+  submitButtonText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '700',
   },
 });

@@ -2133,6 +2133,12 @@ export const NotificationDetailsStyles = StyleSheet.create({
   fontWeight: 'bold',
   color: '#f54b02',
 },
+ largeText2: {
+  fontSize: 30, // larger than icon
+  fontWeight: 'bold',
+  color: '#f54b02',
+  marginLeft: 7,
+},
 smallText: {
   fontSize: 23, // same or slightly smaller than icon
   color: '#f54b02',

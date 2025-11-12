@@ -31,13 +31,13 @@ type NavigationProp = StackNavigationProp<
 const getStatusStyle = (status: string) => {
   switch (status) {
     case 'success':
-      return { color: '#2e7d32', icon: 'check-circle', text: 'Successful' }; // green
+      return { color: '#f54b02', icon: 'check-circle', text: 'Successful' }; // green
     case 'pending':
-      return { color: '#f9a825', icon: 'hourglass-empty', text: 'Pending' }; // amber
+      return { color: '#f54b02', icon: 'hourglass-empty', text: 'Pending' }; // amber
     case 'error':
-      return { color: '#c62828', icon: 'error', text: 'Declined' }; // red
+      return { color: '#f54b02', icon: 'error', text: 'Declined' }; // red
     default:
-      return { color: '#757575', icon: 'help-outline', text: ' ' }; // gray fallback
+      return { color: '#f54b02', icon: 'help-outline', text: ' ' }; // gray fallback
   }
 };
 const formatDateWithSuffix = (dateString: string) => {
@@ -222,7 +222,11 @@ export default function NotificationDetails() {
                     <Text style={NotificationDetailsStyles.transactionTitle2b}>
                       Scan to Complete Transaction
                     </Text>
-                    <QRCode value={notification.transactionIdMid} size={200} />
+                    <QRCode
+                      value={notification.transactionIdMid}
+                      size={200}
+                      color="#f54b02"
+                    />
                     <Text style={NotificationDetailsStyles.transactionTitle2c}>
                       This QR code should be scanned by the seller or at the
                       pick up point to complete purchase

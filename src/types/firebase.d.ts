@@ -8,16 +8,16 @@ export interface User {
   usertype: UserType;
   firstname: string;
   lastname: string;
-  isFirstLogin: boolean;
-  schoolName: string;
+  isFirstLogin?: boolean;
+  schoolName?: string;
   verificationToken?: string;
   email: string;
   communitiesId?: Community.communitiesId[];
   pointsBalance: UserPointsAccount.currentBalance;
   staffId?: string;
   accessToken: string;
-  ipAddress: string[];
-  deviceType: string[]; 
+  ipAddress?: string[];
+  deviceType?: string[]; 
   password: string;
   matricNumber?: string;
   department: string;
@@ -454,31 +454,32 @@ export interface Course {
   createdAt: string; 
 }
 export interface UserBillingAddressDetails {
-  id: string;
-  country?: string;
+  id?: string;
   state?: string;
   city?: string;
   street?: string;
   zip?: string
 }
 export interface UserBankOrCardDetails {
-  id: string;
+  id?: string;
   cardOrBankDetailsId: string;
   userId: User.uid;
   paymentToken?: string;
   method: 'card' | 'bank';
   provider?: string;
-  lastFourDigits: string;
+  lastFourDigits?: string;
   cardBrand?: string;
   expiryMonth?: string;
   expiryYear?: string;
   bankName?: string;
-  country: string;
+  country?: string;
   isDefault: boolean;
   createdAt: string;
   updatedAt?:string;
   bankAccNumber?: string;
-  billingAddressDetails?: {UserBillingAddressDetails};
+  accountHolderName?: string;
+  bankCode?: string;
+  billingAddressDetails?: UserBillingAddressDetails;
 }
 export interface TransactionMiddleState {
   transactionId:  string;
@@ -507,6 +508,16 @@ export interface Deals {
   };
   dealDate: string;
 };
-
+export interface UserRecordEntry {
+  type: string;
+  status: string;
+  message: string;
+  refDate: string; // e.g. "2025-11-12"
+  refTime: string; // e.g. "23:05"
+}
+export interface UserRecords {
+  userId: string;
+  records: UserRecordEntry[];
+}
 
 

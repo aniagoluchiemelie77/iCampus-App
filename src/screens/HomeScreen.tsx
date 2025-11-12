@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {
   ClassroomScreen,
   StoreScreen,
-  ProfileScreen,
+  RankingScreen,
   Home,
 } from '../components/HomeScreenComponents';
 import { useNavigation } from '@react-navigation/native';
@@ -46,7 +46,7 @@ const HomeScreen = () => {
           {activeIcon === 'home' && <Home />}
           {activeIcon === 'classroom' && <ClassroomScreen />}
           {activeIcon === 'store' && <StoreScreen />}
-          {activeIcon === 'profile' && <ProfileScreen />}
+          {activeIcon === 'ranking' && <RankingScreen />}
         </View>
 
         <View style={homeStyles.iconBar}>
@@ -112,7 +112,7 @@ const HomeScreen = () => {
             style={homeStyles.iconItem}
           >
             <Icon
-              name={activeIcon === 'profile' ? 'person' : 'person-outline'}
+              name={activeIcon === 'ranking' ? 'person' : 'person-outline'}
               size={28}
               color="#000"
             />
