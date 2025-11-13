@@ -758,10 +758,8 @@ const PointsPage = () => {
       }
     }
   };
-
   console.log(cardLogo);
   const LogoComponent = cardBrandLogos[cardBrand];
-
   const handleMonthChange = (text: string) => setExpiryMonth(text);
   const handleYearChange = (text: string) => setExpiryYear(text);
   // Show error
@@ -1466,7 +1464,7 @@ const PointsPage = () => {
 };
 
 export default PointsPage;
-const PointsPageStyles = StyleSheet.create({
+export const PointsPageStyles = StyleSheet.create({
   container: {
     flexGrow: 1,
     maxWidth: screenWidth,
@@ -1485,6 +1483,13 @@ const PointsPageStyles = StyleSheet.create({
     borderRadius: 22, // half of width/height for perfect circle
     borderWidth: 2,
     borderColor: '#fff',
+  },
+  profileImage2: {
+    width: 54,
+    height: 54,
+    borderRadius: 27, // half of width/height for perfect circle
+    borderWidth: 1,
+    borderColor: '#f54b02',
   },
   pointsBox: {
     paddingHorizontal: 10,

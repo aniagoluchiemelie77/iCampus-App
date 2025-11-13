@@ -33,6 +33,7 @@ import {
   NotificationPageStyles,
   homeStyles,
 } from '../assets/styles/colors';
+import { PointsPageStyles } from '../screens/PointsPage';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -367,7 +368,10 @@ const CalenderPopup = () => {
     </View>
   );
 };
+
 const SettingsPopup = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const user = useAppSelector(state => state.user);
   const [visible, setVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
@@ -388,45 +392,296 @@ const SettingsPopup = () => {
 
   return (
     <View style={HomeScreenComponentStyles.container}>
-      <TouchableOpacity
-        style={[
-          homeStyles.iconItem,
-          HomeScreenComponentStyles.activityIcons,
-          HomeScreenComponentStyles.activityIcons2,
-        ]}
-        onPress={openPopup}
-      >
-        <Icon name="settings-outline" size={28} color="#f54b02" />
+      <TouchableOpacity onPress={() => openPopup()}>
+        <Image
+          source={{
+            uri:
+              user.profilePic?.[user.profilePic.length - 1] ??
+              'https://example.com/default-profile.png',
+          }}
+          style={PointsPageStyles.profileImage}
+        />
       </TouchableOpacity>
 
-      <Modal transparent visible={visible} animationType="fade">
-        <TouchableWithoutFeedback onPress={closePopup}>
-          <View style={HomeScreenComponentStyles.overlayRight}>
-            <Animated.View
-              style={[
-                HomeScreenComponentStyles.popupRight,
-                { transform: [{ scale: scaleAnim }] },
-              ]}
+      <Modal transparent visible={visible}>
+        <View style={HomeScreenComponentStyles.overlay}>
+          <TouchableWithoutFeedback onPress={closePopup}>
+            <View style={HomeScreenComponentStyles.backdrop} />
+          </TouchableWithoutFeedback>
+
+          {/* Modal content stays interactive and scrollable */}
+          <View style={HomeScreenComponentStyles.popupRight}>
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: 10 }}
+              style={{ width: '100%' }}
             >
-              <View style={HomeScreenComponentStyles.topHeader2}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Profile')}
+                style={HomeScreenComponentStyles.settingsBtn}
+              >
+                <Image
+                  source={{
+                    uri:
+                      user.profilePic?.[user.profilePic.length - 1] ??
+                      'https://example.com/default-profile.png',
+                  }}
+                  style={PointsPageStyles.profileImage2}
+                />
+                <View style={HomeScreenComponentStyles.settingsBtnRightdiv}>
+                  <View style={HomeScreenComponentStyles.settingsBtnRowdiv}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={HomeScreenComponentStyles.settingsBtnRowdivText}
+                    >
+                      {user.firstname} {user.lastname}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={23}
+                      color="#222"
+                      style={{ marginLeft: 4 }}
+                    />
+                  </View>
+                  <Text
+                    style={HomeScreenComponentStyles.settingsBtnRowdivText2}
+                  >
+                    ID: {user.uid}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <View style={HomeScreenComponentStyles.settingsBtnDiv}>
                 <TouchableOpacity
-                  onPress={closePopup}
+                  //onPress={() => navigation.navigate('Profile')}
                   style={[
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                    HomeScreenComponentStyles.activityIcons2,
-                    HomeScreenComponentStyles.cancelIcon,
+                    HomeScreenComponentStyles.settingsBtn2,
+                    { paddingTop: 10 },
                   ]}
                 >
-                  <Icon name="close-outline" size={28} color="#f54b02" />
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="account-cog-outline"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Account Settings
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
                 </TouchableOpacity>
-                <Text style={HomeScreenComponentStyles.welcomeText2}>
-                  Settings
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="shield-check-outline"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Privacy & Security
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="bell-ring-outline"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Notification & Sounds
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="laptop"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Devices
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="translate"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Language
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+              </View>
+              <View style={HomeScreenComponentStyles.settingsBtnDiv}>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={[
+                    HomeScreenComponentStyles.settingsBtn2,
+                    { paddingTop: 10 },
+                  ]}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="assistant"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Chat with Orange
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="crown-outline"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      iCampus Premium
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="headset"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Help Center
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  //onPress={() => navigation.navigate('Profile')}
+                  style={HomeScreenComponentStyles.settingsBtn2}
+                >
+                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
+                    <MaterialCommunityIcons
+                      name="apps"
+                      size={23}
+                      color="#222"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
+                    >
+                      Other Apps by us
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={23}
+                    color="#222"
+                    style={{ marginRight: 3 }}
+                  />
+                </TouchableOpacity>
+                <Text style={HomeScreenComponentStyles.appVersionText}>
+                  App Version: {user.appVersion ? user.appVersion : 'v1.0'}
                 </Text>
               </View>
-            </Animated.View>
+            </ScrollView>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </View>
   );

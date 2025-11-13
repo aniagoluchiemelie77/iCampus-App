@@ -253,7 +253,7 @@ export function Profile() {
     const fetchCourseDetails = async () => {
       try {
         const token = await AsyncStorage.getItem('authToken');
-        const res = await fetch(`${baseUrl}users/courses-teaching`, {
+        const res = await fetch(`${baseUrl}users/lecturers/class`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

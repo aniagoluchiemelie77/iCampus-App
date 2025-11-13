@@ -32,7 +32,7 @@ export interface User {
   current_level?: string;
   coursesEnrolled?: Course.courseId[];
   isCourseRep?: boolean;
-  appVersion?: string;
+  appVersion?: iCampusAppDetails.appVersion;
   isVerified?: boolean
   userToken?: string,
   tokenCreatedAt?: string,
@@ -47,6 +47,9 @@ export interface User {
   userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string
+}
+export interface iCampusAppDetails {
+  appVersion: string;// e.g., ['tech', 'sports', 'arts']
 }
 export interface Community {
   id: string;

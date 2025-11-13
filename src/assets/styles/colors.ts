@@ -381,7 +381,7 @@ badge: {
   popupRight: {
     top: 0,
     right: 0,
-    width: '85%',
+    width: '90%',
     minHeight: '100%',
     padding: 15,
     backgroundColor: '#eee',
@@ -811,6 +811,61 @@ smallText: {
   fontSize: 20, // same or slightly smaller than icon
   color: '#000',
 },
+settingsBtn: {
+  flexDirection: 'row',
+  paddingBottom: 10,
+  flex: 1
+},
+appVersionText:{
+  paddingTop: 10,
+  flex: 1,
+  fontSize: 12,
+  color: 'gray'
+},
+settingsBtnLeftdiv:{
+  flex: 1,
+  alignItems: 'center',
+  flexDirection: 'row',
+  justifyContent: 'flex-start'
+},
+settingsBtn2: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  paddingBottom: 10,
+  flex: 1,
+  alignItems: 'center',
+},
+settingsBtnRightdiv: {
+  flex: 1,
+  marginLeft: 5,
+  alignItems: 'flex-start'
+},
+settingsBtnDiv:{
+  width: '100%',
+  borderTopWidth: 0.5,
+  borderBottomWidth: 0.5,
+  borderColor: '#f69d76ff',
+},
+settingsBtnRowdiv: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+settingsBtnRowdivText: {
+  fontSize: 14,
+  fontWeight: '700',
+  flex: 1,
+  color: '#222'
+},
+settingsBtnRowdivText2: {
+  backgroundColor: '#f4a27fff',
+  color: '#f54b02',
+  padding: 7,
+  fontSize: 13,
+},
+settingsBtnLeftdivText: {
+  fontSize: 12,
+  color: '#222'
+}
 });
 export const WelcomeScreenStyles = StyleSheet.create({
   container: {
