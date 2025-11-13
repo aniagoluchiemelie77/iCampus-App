@@ -4,9 +4,6 @@ apply plugin: "com.facebook.react"
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
-
-
-
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -58,12 +55,10 @@ react {
     /* Autolinking */
     autolinkLibrariesWithApp()
 }
-
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
 def enableProguardInReleaseBuilds = false
-
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
@@ -82,7 +77,6 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
-
     namespace "com.icampus"
     defaultConfig {
         applicationId "com.icampus"

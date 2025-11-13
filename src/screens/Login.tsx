@@ -19,6 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SignupScreenStyles } from '../assets/styles/colors';
+import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -106,6 +107,7 @@ const Login = () => {
 
   return (
     <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
+      <IconBackground />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={SignupScreenStyles.bkg3}

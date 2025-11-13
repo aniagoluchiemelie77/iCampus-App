@@ -885,6 +885,7 @@ export const SignupScreenStyles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#eee',
     flex: 1,
+    position: 'relative'
   },
   bkg3: {
     justifyContent: 'center',
@@ -909,6 +910,9 @@ export const SignupScreenStyles = StyleSheet.create({
     backgroundColor: '#fff',
     position: 'relative',
     minHeight: '60%',
+    zIndex: 5,
+    borderWidth: 0.7,
+    borderColor: '#f54b02',
   },
   activeTabText: {
     fontSize: 34,

@@ -30,7 +30,7 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from '../components/hooks';
 import { baseUrl } from '../components/HomeScreenComponents';
-import QRCodeScanner from 'react-native-qrcode-scanner';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
@@ -38,6 +38,11 @@ import { BlurView } from '@react-native-community/blur';
 import { VERVE_SEARCH_API_KEY, FLUTTERWAVE_CLIENT_SECRET } from '@env';
 import DropDownPicker from 'react-native-dropdown-picker';
 import axios from 'axios';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import { useFrameProcessor } from 'react-native-vision-camera';
+import { scanBarcodes, BarcodeFormat } from 'vision-camera-code-scanner';
+import { scheduleOnRN } from 'react-native-worklets';
+
 import {
   MasterCardLogo,
   VisaCardLogo,
@@ -61,43 +66,70 @@ const QRScannerPopup: React.FC<QRScannerPopupProps> = ({
   onClose,
   onScan,
   setScannerVisible,
-}) => (
-  <Modal visible={visible} transparent={true} animationType="slide">
-    <View style={HomeScreenComponentStyles.overlayCenter}>
-      <TouchableWithoutFeedback onPress={() => setScannerVisible(false)}>
-        <View style={HomeScreenComponentStyles.backdrop} />
-      </TouchableWithoutFeedback>
-      <View style={HomeScreenComponentStyles.popupCenter}>
-        <QRCodeScanner
-          onRead={e => {
-            onScan(e.data);
+}) => {
+  const devices = useCameraDevices();
+  const device = devices.find(d => d.position === 'back');
+  const [hasPermission, setHasPermission] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const permission = await Camera.requestCameraPermission();
+      setHasPermission(permission === 'granted');
+    })();
+  }, []);
+
+  const frameProcessor = useFrameProcessor(
+    frame => {
+      'worklet';
+      const barcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
+      if (barcodes.length > 0) {
+        scheduleOnRN(() => {
+          const value = barcodes[0].rawValue;
+          if (value) {
+            onScan(value);
             onClose();
-          }}
-          customMarker={<View style={ProfileComponentStyles.modalImage2} />}
-          reactivate={true}
-          showMarker={true}
-          topContent={
-            <View style={HomeScreenComponentStyles.topHeader2}>
-              <Text style={HomeScreenComponentStyles.welcomeText2}>
-                Scan a transaction's QR Code for payment completion
-              </Text>
-            </View>
           }
-          bottomContent={
-            <View style={ProfileComponentStyles.modalButtons}>
-              <TouchableOpacity
-                onPress={onClose}
-                style={ProfileComponentStyles.confirmButton}
-              >
-                <Text style={ProfileComponentStyles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          }
-        />
+        });
+      }
+    },
+    [onScan, onClose],
+  );
+
+  if (!device || !hasPermission) return null;
+
+  return (
+    <Modal visible={visible} transparent={true} animationType="slide">
+      <View style={HomeScreenComponentStyles.overlayCenter}>
+        <TouchableWithoutFeedback onPress={() => setScannerVisible(false)}>
+          <View style={HomeScreenComponentStyles.backdrop} />
+        </TouchableWithoutFeedback>
+        <View style={HomeScreenComponentStyles.popupCenter}>
+          <Camera
+            style={{ flex: 1 }}
+            device={device}
+            isActive={visible}
+            frameProcessor={frameProcessor}
+          />
+          <View style={ProfileComponentStyles.modalImage2} />{' '}
+          {/* Custom marker */}
+          <View style={HomeScreenComponentStyles.topHeader2}>
+            <Text style={HomeScreenComponentStyles.welcomeText2}>
+              Scan a transaction's QR Code for payment completion
+            </Text>
+          </View>
+          <View style={ProfileComponentStyles.modalButtons}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={ProfileComponentStyles.confirmButton}
+            >
+              <Text style={ProfileComponentStyles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </View>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
 export const validateExpiryMonth = (month: string): string | null => {
   const num = Number(month);
