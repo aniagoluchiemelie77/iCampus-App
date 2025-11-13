@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -179,6 +179,8 @@ export function Profile() {
     console.log(destPath);
     return `file://${destPath}`;
   };
+  const [fetchedDetails, setFetchedDetails] = useState<Course[]>([]);
+  //const [fetchedCTDetails, setCTFetchedDetails] = useState<Course[]>([]);
 
   const pickImage = async () => {
     const imageResult = await launchImageLibrary({ mediaType: 'photo' });
@@ -244,6 +246,98 @@ export function Profile() {
       setModalVisible(false);
     }
   };
+
+  //Fetch User's teaching courses
+  /*useEffect(() => {
+    if (!user?.coursesTeaching || user.coursesTeaching.length === 0) return;
+    const fetchCourseDetails = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        const res = await fetch(`${baseUrl}users/courses-teaching`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            payload: { ids: user.coursesTeaching },
+            user: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.details) {
+          setCTFetchedDetails(data.details); // ✅ Update state with filtered account details
+        } else {
+          console.error('Error fetching account details:', data.message);
+          Toast.show({
+            type: 'error',
+            text2: data.message,
+            position: 'bottom',
+            bottomOffset: 10,
+          });
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong while adding card';
+        console.error('Error fetching account details:', err);
+        Toast.show({
+          type: 'error',
+          text2: errorMessage,
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    };
+    fetchCourseDetails();
+  }, [user.uid, user.coursesTeaching]);*/
+
+  //Fetch User enrolled courses
+  useEffect(() => {
+    if (!user?.coursesEnrolled || user.coursesEnrolled.length === 0) return;
+    const fetchCourseDetails = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        const res = await fetch(`${baseUrl}users/student/class/courses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            payload: { ids: user.coursesEnrolled },
+            user: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.details) {
+          setFetchedDetails(data.details); // ✅ Update state with filtered account details
+        } else {
+          console.error('Error fetching account details:', data.message);
+          Toast.show({
+            type: 'error',
+            text2: data.message,
+            position: 'bottom',
+            bottomOffset: 10,
+          });
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong while adding card';
+        console.error('Error fetching account details:', err);
+        Toast.show({
+          type: 'error',
+          text2: errorMessage,
+          position: 'bottom',
+          bottomOffset: 10,
+        });
+      }
+    };
+    fetchCourseDetails();
+  }, [user.uid, user.coursesEnrolled]);
 
   const handleUploadCourseForm = async () => {
     try {
@@ -339,6 +433,7 @@ export function Profile() {
     () => [...(user.profilePic ?? [])].reverse(),
     [user.profilePic],
   );
+  const displayedCourses = courseData.length > 0 ? courseData : fetchedDetails;
 
   return (
     <LinearGradient
@@ -553,15 +648,16 @@ export function Profile() {
               <Text style={ProfileComponentStyles.sectionTitle}>
                 Courses Enrolled
               </Text>
-              {Array.isArray(courseData) && courseData.length > 0 ? (
+              {Array.isArray(displayedCourses) &&
+              displayedCourses.length > 0 ? (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={ProfileComponentStyles.courseCardDiv}
                 >
                   <FlatList
-                    data={[...courseData].sort((a, b) =>
-                      a.courseCode > b.courseCode ? -1 : 1,
+                    data={[...displayedCourses].sort((a, b) =>
+                      (a.courseCode ?? '') > (b.courseCode ?? '') ? -1 : 1,
                     )}
                     keyExtractor={(item, index) => `${item.courseId}-${index}`}
                     horizontal

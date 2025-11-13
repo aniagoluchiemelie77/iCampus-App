@@ -17,6 +17,7 @@ import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -111,15 +112,15 @@ const HomeScreen = () => {
             onPress={() => setActiveIcon('profile')}
             style={homeStyles.iconItem}
           >
-            <Icon
-              name={activeIcon === 'ranking' ? 'person' : 'person-outline'}
-              size={28}
-              color="#000"
+            <MaterialCommunityIcons
+              name={activeIcon === 'ranking' ? 'podium' : 'podium-outline'}
+              size={30}
+              color="#eee"
             />
             <Text
               style={[
                 homeStyles.iconLabel,
-                activeIcon === 'profile' && homeStyles.activeIconLabel,
+                activeIcon === 'ranking' && homeStyles.activeIconLabel,
               ]}
             >
               Profile

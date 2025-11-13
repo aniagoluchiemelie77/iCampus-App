@@ -442,7 +442,7 @@ export interface Transaction {
 export interface Course {
   id: string;
   courseId: string;
-  courseCode: string;
+  courseCode?: string;
   courseTitle?: string;
   department: string;
   level: string;
@@ -451,7 +451,9 @@ export interface Course {
   studentsEnrolled: User.uid[];
   credits?: number;
   semester?: string; 
+  session?: string;
   createdAt: string; 
+  isActive?: boolean;
 }
 export interface UserBillingAddressDetails {
   id?: string;

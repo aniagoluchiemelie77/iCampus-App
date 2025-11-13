@@ -913,17 +913,27 @@ const PointsPage = () => {
                     >
                       {item.method === 'card' ? (
                         <>
-                          <MaterialIcons
-                            name="credit-card-outline"
-                            size={16}
-                            color="#eee"
-                            style={{ alignSelf: 'flex-end' }}
-                          />
+                          <View style={PointsPageStyles.rowDivCenter}>
+                            {item.cardBrand &&
+                              cardBrandLogos[item.cardBrand] && (
+                                <View style={{ marginVertical: 4 }}>
+                                  {React.createElement(
+                                    cardBrandLogos[item.cardBrand],
+                                    {
+                                      width: 40,
+                                      height: 24,
+                                    },
+                                  )}
+                                </View>
+                              )}
+                            <MaterialCommunityIcons
+                              name="credit-card-outline"
+                              size={16}
+                              color="#eee"
+                            />
+                          </View>
                           <Text style={PointsPageStyles.label}>
-                            {item.cardBrand}
-                          </Text>
-                          <Text style={PointsPageStyles.label}>
-                            **** **** **** {item.lastFourDigits}
+                            {item.lastFourDigits}
                           </Text>
                           <View style={PointsPageStyles.rowDiv}>
                             <Text style={PointsPageStyles.label2}>
@@ -1073,7 +1083,12 @@ const PointsPage = () => {
       </Modal>
       <Modal visible={showErrorPopup} transparent animationType="fade">
         <View style={HomeScreenComponentStyles.overlayCenter}>
-          <TouchableWithoutFeedback onPress={() => setShowErrorPopup(false)}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setShowErrorPopup(false);
+              setCardorBankDetailsError(null);
+            }}
+          >
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
           <View style={HomeScreenComponentStyles.popupCenterSmall}>
@@ -1591,6 +1606,13 @@ const PointsPageStyles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  rowDivCenter: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
   },
   tabHeader: {
     flexDirection: 'row',
