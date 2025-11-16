@@ -111,7 +111,7 @@ const Login = () => {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={SignupScreenStyles.bkg3}
-        style={{ width: '90%' }}
+        style={{ width: '85%' }}
       >
         <View style={SignupScreenStyles.container2}>
           <View style={SignupScreenStyles.headerBtnsContainerLogin}>
@@ -122,9 +122,6 @@ const Login = () => {
               ]}
             >
               Login
-            </Text>
-            <Text style={SignupScreenStyles.welcomeText}>
-              Good to see you again, Let’s pick up where you left off.
             </Text>
           </View>
           <View style={SignupScreenStyles.inputContainerLogin}>

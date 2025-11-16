@@ -976,8 +976,8 @@ export const SignupScreenStyles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   inputHeader: {
-    fontSize: 14,
-    marginBottom: 10,
+    fontSize: 13,
+    marginBottom: 8,
     color: '#000',
   },
   input: {
@@ -987,7 +987,7 @@ export const SignupScreenStyles = StyleSheet.create({
     borderColor: '#000',
     color: '#000',
     marginBottom: 4,
-    fontSize: 14,
+    fontSize: 13,
   },
   input2: {
     padding: 10,
@@ -1056,7 +1056,7 @@ export const SignupScreenStyles = StyleSheet.create({
     fontSize: 17,
   },
   forgotPassParagraph: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#000',
   },
   forgotPassDiv: {

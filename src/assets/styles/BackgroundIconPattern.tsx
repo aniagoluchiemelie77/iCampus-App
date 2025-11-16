@@ -2,17 +2,26 @@ import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const { width, height } = Dimensions.get('window')
+const { width } = Dimensions.get('window');
 const icons = ['bookshelf', 'star', 'podium', 'cart', 'bank', 'diamond'];
+
+const NUM_COLUMNS = 8; // Number of icons per row
+const ICON_SIZE = 40;
+const ICON_SPACING = 10; // Space between icons
+
 export const IconBackground = () => {
   const iconElements = [];
 
-  for (let i = 0; i < 30; i++) {
+  const totalIcons = 150;
+
+  for (let i = 0; i < totalIcons; i++) {
     const icon = icons[i % icons.length];
     const size = i % 7 === 0 ? 40 : 30;
-    const color = i % 5 === 0 ? '#f98c5eff' : '#fba47fff';
-    const top = Math.random() * height;
-    const left = Math.random() * width;
+    const color = i % 5 === 0 ? '#fda27cff' : '#feb595ff';
+
+    const row = Math.floor(i / NUM_COLUMNS);
+    const col = i % NUM_COLUMNS;
+    console.log(row, col, ICON_SIZE);
 
     iconElements.push(
       <MaterialCommunityIcons
@@ -20,29 +29,30 @@ export const IconBackground = () => {
         name={icon}
         size={size}
         color={color}
-        style={[
-          styles.icon,
-          {
-            top,
-            left,
-          },
-        ]}
-      />
+        style={{
+          margin: ICON_SPACING / 2,
+        }}
+      />,
     );
   }
 
-  return <View style={styles.container}>{iconElements}</View>;
+  return (
+    <View style={styles.container}>
+      <View style={styles.grid}>{iconElements}</View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: -1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  icon: {
-    position: 'absolute',
-    opacity: 0.2,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: width * 0.9,
+    justifyContent: 'center',
   },
 });
-
-export default IconBackground;

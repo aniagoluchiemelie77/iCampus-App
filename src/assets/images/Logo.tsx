@@ -1,5 +1,6 @@
 import * as React from 'react';
-import Svg, { Path, G, Circle } from 'react-native-Svg';
+import Svg, { Path, G, Circle } from 'react-native-svg';
+
 
 const Logo = () => (
   <Svg
