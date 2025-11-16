@@ -38,10 +38,7 @@ import { BlurView } from '@react-native-community/blur';
 import { VERVE_SEARCH_API_KEY, FLUTTERWAVE_CLIENT_SECRET } from '@env';
 import DropDownPicker from 'react-native-dropdown-picker';
 import axios from 'axios';
-import { Camera, useCameraDevices } from 'react-native-vision-camera';
-import { useFrameProcessor } from 'react-native-vision-camera';
-import { scanBarcodes, BarcodeFormat } from 'vision-camera-code-scanner';
-import { scheduleOnRN } from 'react-native-worklets';
+import { CameraKitCameraScreen } from 'react-native-camera-kit';
 
 import {
   MasterCardLogo,
@@ -67,56 +64,39 @@ const QRScannerPopup: React.FC<QRScannerPopupProps> = ({
   onScan,
   setScannerVisible,
 }) => {
-  const devices = useCameraDevices();
-  const device = devices.find(d => d.position === 'back');
-  const [hasPermission, setHasPermission] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const permission = await Camera.requestCameraPermission();
-      setHasPermission(permission === 'granted');
-    })();
-  }, []);
-
-  const frameProcessor = useFrameProcessor(
-    frame => {
-      'worklet';
-      const barcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
-      if (barcodes.length > 0) {
-        scheduleOnRN(() => {
-          const value = barcodes[0].rawValue;
-          if (value) {
-            onScan(value);
-            onClose();
-          }
-        });
-      }
-    },
-    [onScan, onClose],
-  );
-
-  if (!device || !hasPermission) return null;
-
   return (
     <Modal visible={visible} transparent={true} animationType="slide">
       <View style={HomeScreenComponentStyles.overlayCenter}>
         <TouchableWithoutFeedback onPress={() => setScannerVisible(false)}>
           <View style={HomeScreenComponentStyles.backdrop} />
         </TouchableWithoutFeedback>
+
         <View style={HomeScreenComponentStyles.popupCenter}>
-          <Camera
-            style={{ flex: 1 }}
-            device={device}
-            isActive={visible}
-            frameProcessor={frameProcessor}
+          <CameraKitCameraScreen
+            scanBarcode={true}
+            onReadCode={(event: {
+              nativeEvent: { codeStringValue: string };
+            }) => {
+              const value = event.nativeEvent.codeStringValue;
+              if (value) {
+                onScan(value);
+                onClose();
+              }
+            }}
+            showFrame={true}
+            laserColor={'#FF0000'}
+            frameColor={'#00FF00'}
           />
-          <View style={ProfileComponentStyles.modalImage2} />{' '}
+
           {/* Custom marker */}
+          <View style={ProfileComponentStyles.modalImage2} />
+
           <View style={HomeScreenComponentStyles.topHeader2}>
             <Text style={HomeScreenComponentStyles.welcomeText2}>
               Scan a transaction's QR Code for payment completion
             </Text>
           </View>
+
           <View style={ProfileComponentStyles.modalButtons}>
             <TouchableOpacity
               onPress={onClose}
