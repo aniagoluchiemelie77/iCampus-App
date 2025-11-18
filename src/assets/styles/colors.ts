@@ -352,7 +352,7 @@ badge: {
     width: '85%',
     maxHeight: '80%',
     padding: 15,
-    backgroundColor: '#eee',
+    backgroundColor: '#fff',
     borderRadius: 12,
     elevation: 5,
     alignItems: 'center',
@@ -381,7 +381,7 @@ badge: {
   popupRight: {
     top: 0,
     right: 0,
-    width: '90%',
+    width: '80%',
     minHeight: '100%',
     padding: 15,
     backgroundColor: '#eee',
@@ -817,7 +817,7 @@ settingsBtn: {
   flex: 1
 },
 appVersionText:{
-  paddingTop: 10,
+  padding: 10,
   flex: 1,
   fontSize: 12,
   color: 'gray'
@@ -831,13 +831,13 @@ settingsBtnLeftdiv:{
 settingsBtn2: {
   flexDirection: 'row',
   justifyContent: 'space-between',
-  paddingBottom: 10,
+  paddingVertical: 15,
   flex: 1,
   alignItems: 'center',
 },
 settingsBtnRightdiv: {
   flex: 1,
-  marginLeft: 5,
+  marginLeft: 10,
   alignItems: 'flex-start'
 },
 settingsBtnDiv:{
@@ -851,16 +851,19 @@ settingsBtnRowdiv: {
   alignItems: 'center',
 },
 settingsBtnRowdivText: {
-  fontSize: 14,
+  fontSize: 15,
   fontWeight: '700',
   flex: 1,
-  color: '#222'
+  color: '#222',
+  paddingBottom: 8
 },
 settingsBtnRowdivText2: {
-  backgroundColor: '#f4a27fff',
+  backgroundColor: '#f9cbb8ff',
   color: '#f54b02',
-  padding: 7,
+  padding: 10,
   fontSize: 13,
+  fontWeight: '700',
+  borderRadius: 8
 },
 settingsBtnLeftdivText: {
   fontSize: 12,
@@ -890,7 +893,6 @@ export const SignupScreenStyles = StyleSheet.create({
   bkg3: {
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '61%',
     flexGrow: 1,
   },
   container: {
@@ -909,10 +911,8 @@ export const SignupScreenStyles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
     position: 'relative',
-    minHeight: '60%',
+    minHeight: '54%',
     zIndex: 5,
-    borderWidth: 0.7,
-    borderColor: '#f54b02',
   },
   activeTabText: {
     fontSize: 34,

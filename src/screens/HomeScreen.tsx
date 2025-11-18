@@ -113,7 +113,7 @@ const HomeScreen = () => {
             style={homeStyles.iconItem}
           >
             <MaterialCommunityIcons
-              name={activeIcon === 'ranking' ? 'podium' : 'podium-outline'}
+              name={activeIcon === 'ranking' ? 'podium' : 'podium'}
               size={30}
               color="#eee"
             />

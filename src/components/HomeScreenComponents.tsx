@@ -411,10 +411,7 @@ const SettingsPopup = () => {
 
           {/* Modal content stays interactive and scrollable */}
           <View style={HomeScreenComponentStyles.popupRight}>
-            <ScrollView
-              contentContainerStyle={{ paddingBottom: 10 }}
-              style={{ width: '100%' }}
-            >
+            <ScrollView style={{ width: '100%' }}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Profile')}
                 style={HomeScreenComponentStyles.settingsBtn}
@@ -453,17 +450,14 @@ const SettingsPopup = () => {
               <View style={HomeScreenComponentStyles.settingsBtnDiv}>
                 <TouchableOpacity
                   //onPress={() => navigation.navigate('Profile')}
-                  style={[
-                    HomeScreenComponentStyles.settingsBtn2,
-                    { paddingTop: 10 },
-                  ]}
+                  style={[HomeScreenComponentStyles.settingsBtn2]}
                 >
                   <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
                     <MaterialCommunityIcons
                       name="account-cog-outline"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -487,7 +481,7 @@ const SettingsPopup = () => {
                       name="shield-check-outline"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -511,7 +505,7 @@ const SettingsPopup = () => {
                       name="bell-ring-outline"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -535,7 +529,7 @@ const SettingsPopup = () => {
                       name="laptop"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -559,7 +553,7 @@ const SettingsPopup = () => {
                       name="translate"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -578,17 +572,14 @@ const SettingsPopup = () => {
               <View style={HomeScreenComponentStyles.settingsBtnDiv}>
                 <TouchableOpacity
                   //onPress={() => navigation.navigate('Profile')}
-                  style={[
-                    HomeScreenComponentStyles.settingsBtn2,
-                    { paddingTop: 10 },
-                  ]}
+                  style={[HomeScreenComponentStyles.settingsBtn2]}
                 >
                   <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
                     <MaterialCommunityIcons
                       name="assistant"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -612,7 +603,7 @@ const SettingsPopup = () => {
                       name="crown-outline"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -636,7 +627,7 @@ const SettingsPopup = () => {
                       name="headset"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}
@@ -660,7 +651,7 @@ const SettingsPopup = () => {
                       name="apps"
                       size={23}
                       color="#222"
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 9 }}
                     />
                     <Text
                       style={HomeScreenComponentStyles.settingsBtnLeftdivText}

@@ -7,17 +7,17 @@ const icons = ['bookshelf', 'star', 'podium', 'cart', 'bank', 'diamond'];
 
 const NUM_COLUMNS = 8; // Number of icons per row
 const ICON_SIZE = 40;
-const ICON_SPACING = 10; // Space between icons
+const ICON_SPACING = 20; // Space between icons
 
 export const IconBackground = () => {
   const iconElements = [];
 
-  const totalIcons = 150;
+  const totalIcons = 200;
 
   for (let i = 0; i < totalIcons; i++) {
     const icon = icons[i % icons.length];
-    const size = i % 7 === 0 ? 40 : 30;
-    const color = i % 5 === 0 ? '#fda27cff' : '#feb595ff';
+    const size = i % 7 === 0 ? 27 : 20;
+    const color = i % 5 === 0 ? '#fdd0bdff' : '#f9c2abff';
 
     const row = Math.floor(i / NUM_COLUMNS);
     const col = i % NUM_COLUMNS;
@@ -48,11 +48,13 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
+    width: width,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    width: width * 0.9,
-    justifyContent: 'center',
+    width: width,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FC } from 'react';
+import React, { useState, useEffect, FC, useRef } from 'react';
 import { SvgProps } from 'react-native-svg';
 import {
   ScrollView,
@@ -113,16 +113,18 @@ const QRScannerPopup: React.FC<QRScannerPopupProps> = ({
 
 export const validateExpiryMonth = (month: string): string | null => {
   const num = Number(month);
-  return /^\d{1,2}$/.test(month) && num >= 1 && num <= 12
+  return /^\d{2}$/.test(month) && num >= 1 && num <= 12
     ? null
-    : 'Enter a valid month (1–12)';
+    : 'Enter a valid month (01–12)';
 };
 export const validateExpiryYear = (year: string): string | null => {
-  const currentYear = new Date().getFullYear();
-  return /^\d{4}$/.test(year) && Number(year) >= currentYear
+  const currentYear = new Date().getFullYear() % 100; // last 2 digits
+  const num = Number(year);
+  return /^\d{2}$/.test(year) && num >= currentYear
     ? null
     : `Enter a valid year (≥ ${currentYear})`;
 };
+
 export const formatDatePretty = (dateString: string): string => {
   const date = new Date(dateString);
 
@@ -220,13 +222,14 @@ const PointsPage = () => {
   const [bankItems, setBankItems] = useState<
     { label: string; value: string }[]
   >([]);
+  const yearRef = useRef<TextInput>(null);
 
   const cardBrandLogos: Record<string, FC<SvgProps>> = {
-    Visa: VisaCardLogo,
-    MasterCard: MasterCardLogo,
-    Verve: VerveCardLogo,
-    AmericanExpress: AmericanExpressCardLogo,
-    Discover: DiscoverCardLogo,
+    VISA: VisaCardLogo,
+    MASTERCARD: MasterCardLogo,
+    MAESTRO: VerveCardLogo,
+    'AMERICAN EXPRESS': AmericanExpressCardLogo,
+    DISCOVER: DiscoverCardLogo,
   };
   const formatCardNumber = (input: string): string => {
     // Remove all non-digit characters
@@ -294,10 +297,23 @@ const PointsPage = () => {
         return cardData;
       }
       return null;
-    } catch (error) {
-      console.error('BIN lookup error:', error);
+    } catch (err) {
+      console.error('BIN lookup error:', err);
       return null;
     }
+  };
+  const handleMonthChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, ''); // only digits
+    setExpiryMonth(cleaned);
+
+    if (cleaned.length === 2) {
+      yearRef.current?.focus(); // jump to year field
+    }
+  };
+
+  const handleYearChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    setExpiryYear(cleaned);
   };
 
   //Fetch User added cards or bank accounts
@@ -456,19 +472,21 @@ const PointsPage = () => {
     setCardBrand('');
     setCardLogo('');
     setCardError(null); // Add this state: const [cardError, setCardError] = useState<string | null>(null);
-
     if (bin.length === 6) {
       setIsLoading(true);
       fetchCardInfo(bin)
-        .then(data => {
-          if (data) {
-            setCardBrand(data.scheme || '');
-            setCardLogo(data.brand || '');
+        .then(response => {
+          if (response) {
+            setIsLoading(false);
+            setCardBrand(response.data.brand || '');
+            setCardLogo(response.data.brand || '');
           } else {
+            setIsLoading(false);
             setCardError('Card not recognized. Please check the number.');
           }
         })
         .catch(() => {
+          setIsLoading(false);
           setCardError('Unable to verify card. Try again later.');
         });
     }
@@ -476,17 +494,27 @@ const PointsPage = () => {
 
   //Validate CVV
   useEffect(() => {
-    setCvvError(validateCVV(cvv));
+    if (cvv !== '') {
+      setCvvError(validateCVV(cvv));
+    } else {
+      setCvvError(null); // no error until user types
+    }
   }, [cvv]);
 
-  //Validate card expiry month
   useEffect(() => {
-    setMonthError(validateExpiryMonth(expiryMonth));
+    if (expiryMonth !== '') {
+      setMonthError(validateExpiryMonth(expiryMonth));
+    } else {
+      setMonthError(null);
+    }
   }, [expiryMonth]);
 
-  //Validate card expiry year
   useEffect(() => {
-    setYearError(validateExpiryYear(expiryYear));
+    if (expiryYear !== '') {
+      setYearError(validateExpiryYear(expiryYear));
+    } else {
+      setYearError(null);
+    }
   }, [expiryYear]);
 
   //Fetch currency eg 'NGN' using user.country
@@ -771,9 +799,7 @@ const PointsPage = () => {
     }
   };
   console.log(cardLogo);
-  const LogoComponent = cardBrandLogos[cardBrand];
-  const handleMonthChange = (text: string) => setExpiryMonth(text);
-  const handleYearChange = (text: string) => setExpiryYear(text);
+  const LogoComponent = cardBrandLogos[cardBrand.toUpperCase()];
   // Show error
   if (currencyError) {
     Toast.show({
@@ -785,12 +811,15 @@ const PointsPage = () => {
   }
 
   return (
-    <ScrollView contentContainerStyle={PointsPageStyles.container}>
+    <ScrollView
+      contentContainerStyle={PointsPageStyles.container}
+      nestedScrollEnabled={true}
+    >
       <View
         style={[
           PointsPageStyles.balanceContainer,
           {
-            height: accountDetails.length > 0 ? 350 : 200, // or any fallback height
+            minHeight: accountDetails.length > 0 ? 350 : 300, // or any fallback height
             marginBottom: 25,
           },
         ]}
@@ -1174,6 +1203,7 @@ const PointsPage = () => {
             <ScrollView
               style={{ width: '100%' }}
               contentContainerStyle={{ paddingVertical: 7 }}
+              nestedScrollEnabled={true}
             >
               <Text style={PointsPageStyles.modalTitle}>
                 {activeTab === 'card' ? 'Card' : 'Bank'} Details
@@ -1187,7 +1217,7 @@ const PointsPage = () => {
                       placeholderTextColor="#6b6a6aff"
                       keyboardType="numeric"
                       value={cardNumber}
-                      maxLength={19}
+                      maxLength={23}
                       onChangeText={text =>
                         setCardNumber(formatCardNumber(text))
                       }
@@ -1218,7 +1248,7 @@ const PointsPage = () => {
                   <View style={PointsPageStyles.sideBySideDiv}>
                     <View style={PointsPageStyles.sideBySideDivSubdiv}>
                       <TextInput
-                        placeholder="123"
+                        placeholder="CVV"
                         placeholderTextColor="#6b6a6aff"
                         keyboardType="numeric"
                         secureTextEntry={true}
@@ -1226,37 +1256,33 @@ const PointsPage = () => {
                         value={cvv}
                         onChangeText={setCvv}
                       />
-                      <Text style={PointsPageStyles.sideBySideDivSubdivText}>
-                        CVV
-                      </Text>
                     </View>
-                    <View style={PointsPageStyles.sideBySideDivSubdiv}>
+                    <View
+                      style={[
+                        PointsPageStyles.sideBySideDivSubdiv,
+                        { marginLeft: 10 },
+                      ]}
+                    >
                       <View style={PointsPageStyles.rowDiv2}>
                         <TextInput
-                          placeholder="Expiry Month"
+                          placeholder="MM"
                           keyboardType="numeric"
                           placeholderTextColor="#6b6a6aff"
                           style={PointsPageStyles.input2}
+                          maxLength={2}
                           value={expiryMonth}
                           onChangeText={handleMonthChange}
                         />
                         <Text style={PointsPageStyles.rowDiv2Text}>/</Text>
                         <TextInput
                           placeholderTextColor="#6b6a6aff"
-                          placeholder="Expiry Year"
+                          placeholder="YY"
+                          maxLength={2}
                           keyboardType="numeric"
                           style={PointsPageStyles.input2}
                           value={expiryYear}
                           onChangeText={handleYearChange}
                         />
-                      </View>
-                      <View style={PointsPageStyles.rowDiv}>
-                        <Text style={PointsPageStyles.sideBySideDivSubdivText}>
-                          Month
-                        </Text>
-                        <Text style={PointsPageStyles.sideBySideDivSubdivText}>
-                          Year
-                        </Text>
                       </View>
                     </View>
                   </View>
@@ -1321,7 +1347,11 @@ const PointsPage = () => {
                     />
                     <DropDownPicker
                       searchPlaceholderTextColor="#6b6a6aff"
-                      dropDownContainerStyle={{ borderColor: '#f54b02' }}
+                      dropDownContainerStyle={{
+                        borderColor: '#f54b02',
+                        zIndex: 2,
+                        backgroundColor: '#eee',
+                      }}
                       open={openCountry}
                       value={country}
                       items={countryItems}
@@ -1343,7 +1373,11 @@ const PointsPage = () => {
                       searchable={true}
                       placeholder="Select State"
                       searchPlaceholderTextColor="#6b6a6aff"
-                      dropDownContainerStyle={{ borderColor: '#f54b02' }}
+                      dropDownContainerStyle={{
+                        borderColor: '#f54b02',
+                        zIndex: 2,
+                        backgroundColor: '#eee',
+                      }}
                     />
                     <DropDownPicker
                       open={openCity}
@@ -1356,7 +1390,11 @@ const PointsPage = () => {
                       searchable={true}
                       placeholder="Select City"
                       searchPlaceholderTextColor="#6b6a6aff"
-                      dropDownContainerStyle={{ borderColor: '#f54b02' }}
+                      dropDownContainerStyle={{
+                        borderColor: '#f54b02',
+                        zIndex: 2,
+                        backgroundColor: '#eee',
+                      }}
                     />
                     <TextInput
                       placeholder="Postal code"
@@ -1399,6 +1437,7 @@ const PointsPage = () => {
                     <TextInput
                       placeholder="Account Number"
                       keyboardType="numeric"
+                      placeholderTextColor="#6b6a6aff"
                       style={PointsPageStyles.input}
                       value={accountNumber}
                       onChangeText={setAccountNumber}
@@ -1511,7 +1550,6 @@ export const PointsPageStyles = StyleSheet.create({
   },
   pointsBox2: {
     paddingHorizontal: 10,
-    paddingVertical: 3,
     maxWidth: screenWidth,
     justifyContent: 'flex-start',
   },
@@ -1530,6 +1568,10 @@ export const PointsPageStyles = StyleSheet.create({
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    width: 'auto',
+    marginTop: 8,
+    borderRadius: 10,
   },
   pointsBox2b: {
     width: '100%',
@@ -1539,7 +1581,7 @@ export const PointsPageStyles = StyleSheet.create({
     alignSelf: 'center',
     position: 'absolute',
     bottom: -25,
-    width: '80%',
+    width: '89%',
     justifyContent: 'space-evenly',
     flexDirection: 'row',
     alignItems: 'center',
@@ -1636,6 +1678,7 @@ export const PointsPageStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 10,
+    width: '80%',
     backgroundColor: '#fff',
   },
   tabButton: {
@@ -1662,27 +1705,33 @@ export const PointsPageStyles = StyleSheet.create({
   },
   input: {
     width: '95%',
+    backgroundColor: '#eee',
     padding: 10,
-    marginBottom: 8,
+    marginBottom: 15,
     color: '#222',
     fontSize: 13,
     alignSelf: 'center',
     borderWidth: 0.5,
+    borderRadius: 8,
     borderColor: '#f54b02',
   },
   inputCardNumber: {
     flex: 1,
+    borderRadius: 8,
     padding: 10,
     color: '#222',
     fontSize: 13,
+    backgroundColor: '#eee',
   },
   input2: {
-    flex: 1,
+    width: 49,
     padding: 10,
+    borderRadius: 5,
     color: '#222',
     fontSize: 13,
     borderWidth: 0.5,
     borderColor: '#f54b02',
+    backgroundColor: '#eee',
   },
   errorText: {
     color: '#f54b02',
@@ -1690,10 +1739,10 @@ export const PointsPageStyles = StyleSheet.create({
     fontWeight: '700',
   },
   cardInputDiv: {
-    width: '95%',
+    maxWidth: '95%',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
     alignSelf: 'center',
     borderWidth: 0.5,
     borderColor: '#f54b02',
@@ -1710,11 +1759,12 @@ export const PointsPageStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    width: '95%',
+    marginBottom: 15,
+    alignSelf: 'center',
   },
   sideBySideDivSubdiv: {
-    alignItems: 'flex-start',
-    width: '40%',
+    justifyContent: 'center',
   },
   sideBySideDivSubdivText: {
     paddingTop: 4,
@@ -1724,7 +1774,7 @@ export const PointsPageStyles = StyleSheet.create({
     color: '#222',
   },
   rowDiv2Text: {
-    marginVertical: 3,
+    marginHorizontal: 5,
     color: '#f54b02',
   },
   cardNameInputDiv: {
@@ -1741,6 +1791,7 @@ export const PointsPageStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '95%',
+    borderRadius: 10,
     padding: 10,
     marginTop: 10,
     backgroundColor: '#f54b02',
