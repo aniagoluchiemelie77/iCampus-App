@@ -1113,6 +1113,7 @@ export const EmailVerifyScreenStyles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#eee',
     flex: 1,
+    position: 'relative'
   },
   container: {
     alignItems: 'center',
@@ -1122,7 +1123,7 @@ export const EmailVerifyScreenStyles = StyleSheet.create({
     padding: 20,
     justifyContent: 'space-evenly',
     backgroundColor: '#fff',
-    position: 'relative',
+    zIndex: 5,
   },
   infoText: {
     fontSize: 20,

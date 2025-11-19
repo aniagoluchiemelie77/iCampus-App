@@ -30,7 +30,6 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from '../components/hooks';
 import { baseUrl } from '../components/HomeScreenComponents';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
@@ -39,7 +38,6 @@ import { VERVE_SEARCH_API_KEY, FLUTTERWAVE_CLIENT_SECRET } from '@env';
 import DropDownPicker from 'react-native-dropdown-picker';
 import axios from 'axios';
 import { CameraKitCameraScreen } from 'react-native-camera-kit';
-
 import {
   MasterCardLogo,
   VisaCardLogo,
@@ -151,7 +149,6 @@ export const formatDatePretty = (dateString: string): string => {
 export const validateCVV = (cvv: string): string | null => {
   return /^\d{3,4}$/.test(cvv) ? null : 'Enter a valid CVV (3–4 digits)';
 };
-
 export const getBin = (cardNumber: string): string => {
   return cardNumber.replace(/\D/g, '').slice(0, 6);
 };
@@ -232,9 +229,7 @@ const PointsPage = () => {
     DISCOVER: DiscoverCardLogo,
   };
   const formatCardNumber = (input: string): string => {
-    // Remove all non-digit characters
     const cleaned = input.replace(/\D/g, '');
-    // Insert space every 4 digits
     return cleaned.replace(/(.{4})/g, '$1 ').trim();
   };
   const completeTransaction = async (transactionId: string): Promise<void> => {
@@ -310,7 +305,6 @@ const PointsPage = () => {
       yearRef.current?.focus(); // jump to year field
     }
   };
-
   const handleYearChange = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
     setExpiryYear(cleaned);
@@ -809,7 +803,6 @@ const PointsPage = () => {
       bottomOffset: 10,
     });
   }
-
   return (
     <ScrollView
       contentContainerStyle={PointsPageStyles.container}
@@ -819,7 +812,7 @@ const PointsPage = () => {
         style={[
           PointsPageStyles.balanceContainer,
           {
-            minHeight: accountDetails.length > 0 ? 350 : 300, // or any fallback height
+            minHeight: accountDetails.length > 0 ? 350 : 290, // or any fallback height
             marginBottom: 25,
           },
         ]}
@@ -1260,7 +1253,7 @@ const PointsPage = () => {
                     <View
                       style={[
                         PointsPageStyles.sideBySideDivSubdiv,
-                        { marginLeft: 10 },
+                        { marginLeft: 15 },
                       ]}
                     >
                       <View style={PointsPageStyles.rowDiv2}>
@@ -1513,8 +1506,6 @@ const PointsPage = () => {
     </ScrollView>
   );
 };
-
-export default PointsPage;
 export const PointsPageStyles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -1802,3 +1793,4 @@ export const PointsPageStyles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+export default PointsPage;

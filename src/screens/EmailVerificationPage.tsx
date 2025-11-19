@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { EmailVerifyScreenStyles } from '../assets/styles/colors';
+import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 
 const VerifyEmail = () => {
   const route = useRoute();
@@ -60,6 +61,7 @@ const VerifyEmail = () => {
 
   return (
     <View style={EmailVerifyScreenStyles.bkg}>
+      <IconBackground />
       <View style={EmailVerifyScreenStyles.container}>
         <Text style={EmailVerifyScreenStyles.infoText}>
           {loading

@@ -15,6 +15,7 @@ import { useNavigation, useRoute, RouteProp  } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {baseUrl} from '../components/HomeScreenComponents';
+import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -76,11 +77,13 @@ export default function ChangePasswordScreen() {
 
   return (
     <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
+      <IconBackground />
       <ScrollView
         contentContainerStyle={SignupScreenStyles.bkg3}
         keyboardShouldPersistTaps="handled"
+        style={{ width: '85%' }}
       >
-        <View style={SignupScreenStyles.container}>
+        <View style={SignupScreenStyles.container2}>
           <View style={SignupScreenStyles.headerBtnsContainer}>
             <Text style={SignupScreenStyles.activeTabText}>
               Forgot Password
