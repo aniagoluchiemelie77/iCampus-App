@@ -352,7 +352,8 @@ export interface BuyRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface PurchaseHistory {
-  id: string;
+  id: string; // unique purchase record ID
+  userId?: User.uid; // reference to User.uid
   status: 'pending' | 'approved' | 'rejected';
   totalProductsPurchased: number;
   totalPointsSpent: number;
@@ -361,13 +362,14 @@ export interface PurchaseHistory {
     title: string;
     quantity: number;
     priceInPoints: number;
-    selectedSize: string;
-    selectedColor: string;
-    selectedQuantity: string;
-    fileUrl: string
-  }[]; 
-  date: string;
+    selectedSize?: string;
+    selectedColor?: string;
+    selectedQuantity?: string;
+    fileUrl?: string;
+  }[];
+  date: string; // ISO timestamp
 }
+
 
 export interface TransferPointsRequest {
   id: string;
