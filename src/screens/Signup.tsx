@@ -1,9 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, ImageBackground, TouchableOpacity } from 'react-native';
+import { View, Text, ImageBackground, TouchableOpacity } from 'react-native';
 import { SwiperFlatList } from 'react-native-swiper-flatlist';
 import LinearGradient from 'react-native-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import type { RootStackParamList } from '../../App';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { MainSignupStyles } from '../assets/styles/colors';
 
-const { width, height } = Dimensions.get('window');
+type NavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
 
 const images = [
   'https://res.cloudinary.com/dbdw3zftx/image/upload/v1769093997/WhatsApp_Image_2025-10-01_at_9.02.34_PM_mn5aox.jpg',
@@ -12,13 +16,13 @@ const images = [
 ];
 
 const SignUpScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
   return (
     <View style={{ flex: 1 }}>
-      
       {/* Background Carousel */}
       <SwiperFlatList
         autoplay
-        autoplayDelay={5}
+        autoplayDelay={9}
         autoplayLoop
         index={0}
         showPagination={false}
@@ -26,7 +30,7 @@ const SignUpScreen = () => {
         renderItem={({ item }) => (
           <ImageBackground
             source={{ uri: item }}
-            style={styles.background}
+            style={MainSignupStyles.background}
             resizeMode="cover"
           />
         )}
@@ -35,107 +39,57 @@ const SignUpScreen = () => {
       {/* Gradient Overlay */}
       <LinearGradient
         colors={['#00000000', '#000']}
-        style={styles.gradient}
+        style={MainSignupStyles.gradient}
       />
 
       {/* Foreground Content */}
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>
-          Get started with <Text style={styles.titleColored}>iCampus</Text>
+      <View style={MainSignupStyles.textContainer}>
+        <Text style={MainSignupStyles.title}>
+          Get started with{' '}
+          <Text style={MainSignupStyles.titleColored}>iCampus</Text>
         </Text>
 
-        <Text style={styles.titleText}>Please select a signup option</Text>
+        <Text style={MainSignupStyles.titleText}>
+          Please select a signup option
+        </Text>
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.buttonBoxWithBorder}>
-            <Text style={styles.buttonText}>Student</Text>
+        <View style={MainSignupStyles.buttonRow}>
+          <TouchableOpacity
+            style={MainSignupStyles.buttonBoxWithBorder}
+            onPress={() =>
+              navigation.navigate('SignupPage', { role: 'student' })
+            }
+          >
+            <Text style={MainSignupStyles.buttonText}>Student</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.buttonBoxWithBorder}>
-            <Text style={styles.buttonText}>Instructor</Text>
+          <TouchableOpacity
+            style={MainSignupStyles.buttonBoxWithBorder}
+            onPress={() =>
+              navigation.navigate('SignupPage', { role: 'teacher' })
+            }
+          >
+            <Text style={MainSignupStyles.buttonText}>Instructor</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.buttonBox}>
-            <Text style={styles.buttonText}>Other</Text>
+          <TouchableOpacity
+            style={MainSignupStyles.buttonBox}
+            onPress={() => navigation.navigate('SignupPage', { role: 'other' })}
+          >
+            <Text style={MainSignupStyles.buttonText}>Other</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={MainSignupStyles.footerDiv}>
+          <Text style={MainSignupStyles.footerDivText}>
+            Already have an account?
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={MainSignupStyles.footerDivText2}>Log In</Text>
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
 };
-
-
-const styles = StyleSheet.create({
-  background: {
-    width,
-    height,
-  },
-
-  gradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 260,
-  },
-
-  textContainer: {
-    position: 'absolute',
-    bottom: 40,
-    width: '100%',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-
-  title: {
-    fontSize: 28,
-    color: '#fff',
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-
-  titleColored: {
-    fontSize: 28,
-    color: '#f54b02',
-    fontWeight: 'bold',
-  },
-
-  titleText: {
-    fontSize: 15,
-    color: '#fff',
-    marginBottom: 10,
-  },
-
-  buttonRow: {
-    flexDirection: 'row',
-    width: '90%',
-    borderWidth: 0.8,
-    borderRadius: 10,
-    borderColor: '#f54b02',
-    marginBottom: 10,
-  },
-
-  buttonBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  buttonBoxWithBorder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRightWidth: 0.8,
-    borderRightColor: '#f54b02',
-  },
-
-  buttonText: {
-    color: '#f54b02',
-    fontSize: 15,
-    fontWeight: '700',
-    paddingVertical: 9,
-    textAlign: 'center',
-  },
-});
 
 export default SignUpScreen;

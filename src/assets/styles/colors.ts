@@ -1,6 +1,85 @@
 import { StyleSheet, Dimensions } from 'react-native';
 const screenWidth = Dimensions.get('window').width;
-
+const { width, height } = Dimensions.get('window');
+export const MainSignupStyles = StyleSheet.create({
+  background: {
+    width,
+    height,
+  },
+  gradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 260,
+  },
+  textContainer: {
+    position: 'absolute',
+    bottom: 40,
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  title: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  titleColored: {
+    fontSize: 28,
+    color: '#f54b02',
+    fontWeight: 'bold',
+  },
+  titleText: {
+    fontSize: 15,
+    color: '#fff',
+    marginBottom: 15,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    width: '90%',
+    borderWidth: 1.3,
+    borderRadius: 10,
+    borderColor: '#f54b02',
+    marginBottom: 10,
+  },
+  buttonBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonBoxWithBorder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 1.3,
+    borderRightColor: '#f54b02',
+  },
+  buttonText: {
+    color: '#f54b02',
+    fontSize: 15,
+    fontWeight: '700',
+    paddingVertical: 9,
+    textAlign: 'center',
+  },
+  footerDiv: {
+    flexDirection: 'row',
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  footerDivText: {
+    color: '#fff',
+    marginRight: 5,
+    fontSize: 15,
+  },
+  footerDivText2: {
+    color: '#f54b02',
+    fontSize: 15,
+  },
+})
 export const HomeScreenComponentStyles = StyleSheet.create({
   bckg: {
     flex: 1,

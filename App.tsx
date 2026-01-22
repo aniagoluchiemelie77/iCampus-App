@@ -21,6 +21,7 @@ import { TransitionPresets } from '@react-navigation/stack';
 // Screens
 import VerifyEmail from './src/screens/EmailVerificationPage';
 import SignUpScreen from './src/screens/Signup';
+import SignupPage from './src/screens/SignupPage';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPassword';
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   TransferPointsScreen: undefined;
   Notifications: undefined;
   Welcome: { route: string };
+  SignupPage: { role: string };
   Home: undefined;
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
@@ -191,6 +193,14 @@ const App = () => {
               name="Welcome"
               component={WelcomeScreen}
               initialParams={initialParams}
+              options={{
+                headerShown: false,
+                ...TransitionPresets.FadeFromRightAndroid,
+              }}
+            />
+            <Stack.Screen
+              name="SignupPage"
+              component={SignupPage}
               options={{
                 headerShown: false,
                 ...TransitionPresets.FadeFromRightAndroid,
