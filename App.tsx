@@ -20,7 +20,7 @@ import { TransitionPresets } from '@react-navigation/stack';
 //import { saveUserToFirestore } from './src/services/firebaseServices';
 // Screens
 import VerifyEmail from './src/screens/EmailVerificationPage';
-import SignUpScreen from './src/screens/SignUpScreen';
+import SignUpScreen from './src/screens/Signup';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPassword';
@@ -111,7 +111,7 @@ const App = () => {
           if (contentType && contentType.includes('application/json')) {
             const result = await response.json();
             setInitialRoute('Welcome');
-            setInitialParams({ route: 'Login' });
+            setInitialParams({ route: 'SignUp' });
             console.log(result);
           } else {
             const text = await response.text();

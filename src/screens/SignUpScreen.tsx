@@ -50,7 +50,7 @@ type SignupResponse = {
   // Add any other fields your backend returns
 };
 
-const SignUpScreen = () => {
+const SignUp = () => {
   const navigation = useNavigation<NavigationProp>();
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const dispatch = useDispatch();
@@ -897,4 +897,4 @@ const SignUpScreen = () => {
   );
 };
 
-export default SignUpScreen;
+export default SignUp;
