@@ -1,6 +1,9 @@
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { KeyboardAvoidingView, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
+import StudentSignup from '../components/StudentSignup';
+import InstructorSignup from '../components/InstructorSignup';
+import UserorEnterpriseSignup from '../components/UserorEnterpriseSignup';
 
 type SignupPageParams = {
   role: 'student' | 'teacher' | 'other';
@@ -8,19 +11,13 @@ type SignupPageParams = {
 
 const roleConfig = {
   student: {
-    title: 'Sign Up as Student',
-    subtitle: 'Select your country',
-    // component: <CountryPicker />  // optional future extension
+    component: <StudentSignup />,
   },
   teacher: {
-    title: 'Sign Up as Instructor',
-    subtitle: 'Enter your school name',
-    // component: <SchoolInput />
+    component: <InstructorSignup />,
   },
   other: {
-    title: 'Sign Up',
-    subtitle: 'Enter your email',
-    // component: <EmailInput />
+    component: <UserorEnterpriseSignup />,
   },
 };
 
@@ -28,17 +25,14 @@ const SignupPage = () => {
   const route = useRoute<RouteProp<{ params: SignupPageParams }, 'params'>>();
   const { role } = route.params;
 
-  const { title, subtitle } = roleConfig[role];
+  const { component } = roleConfig[role];
 
   return (
-    <KeyboardAvoidingView>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <IconBackground />
-      <Text>{title}</Text>
-      <Text>{subtitle}</Text>
-
-      {/* If you want to render specific components later:
-          {roleConfig[role].component}
-      */}
+      {component}
     </KeyboardAvoidingView>
   );
 };

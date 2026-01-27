@@ -29,6 +29,7 @@ export interface User {
   phoneNumber?: string;
   country: string;
   badges?: string[];
+  schoolCode?: string;
   current_level?: string;
   coursesEnrolled?: Course.courseId[];
   isCourseRep?: boolean;
