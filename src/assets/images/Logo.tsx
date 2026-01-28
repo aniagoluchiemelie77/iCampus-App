@@ -37,8 +37,8 @@ const Logo = () => (
 
 export const LogoBigger = () => (
   <Svg
-    width="150"
-    height="150"
+    width="200"
+    height="200"
     viewBox="0 0 900 900"
     preserveAspectRatio="xMidYMid meet"
   >

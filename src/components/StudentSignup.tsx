@@ -30,7 +30,7 @@ import {
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
-import Logo from '../assets/images/Logo.tsx';
+import LogoBigger from '../assets/images/Logo';
 
 export type ProgressBarProps = {
   step: number;
@@ -103,7 +103,7 @@ export const Footer = () => {
     <View style={styles.footerDiv}>
       <Text style={styles.footerDivText}>Already have an account?</Text>
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.footerDivText2}>Log In</Text>
+        <Text style={styles.footerDivText2}>Login</Text>
       </TouchableOpacity>
     </View>
   );
@@ -120,7 +120,11 @@ export const ProgressBar = ({
       {steps.map(s => (
         <TouchableOpacity
           key={s}
-          onPress={() => setStep(s)}
+          onPress={() => {
+            if (s < step) {
+              setStep(s);
+            }
+          }}
           style={[
             styles.progressClickable,
             { backgroundColor: s <= step ? '#f54b02' : '#ffb393' },
@@ -204,8 +208,6 @@ const StudentSignup = () => {
       );
       console.log('Raw response:', response);
       const data = await response.json();
-      const text = await response.text();
-      console.log('Response text:', text);
       console.log('Fetched institutions:', data);
 
       if (response.ok) {
@@ -518,9 +520,9 @@ const StudentSignup = () => {
     <View style={[styles.container, { height: height * 0.75 }]}>
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
-        <Logo />
+        <LogoBigger />
 
-        <Text style={styles.title}>Signup as a Student</Text>
+        <Text style={styles.title}>Student signup</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
           <>
@@ -667,6 +669,7 @@ const StudentSignup = () => {
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={20}
                   color="#929191"
+                  style={{ marginRight: 7 }}
                 />
               </TouchableOpacity>
             </View>
@@ -718,6 +721,7 @@ const StudentSignup = () => {
                   name={showConfirmPassword ? 'eye-off' : 'eye'}
                   size={20}
                   color="#929191"
+                  style={{ marginRight: 7 }}
                 />
               </TouchableOpacity>
             </View>
@@ -794,7 +798,7 @@ const StudentSignup = () => {
               maxLength={6}
               style={styles.input}
             />
-            <View style={styles.rowDiv}>
+            <View style={styles.rowDiv2}>
               <Text style={styles.rowDivText}>
                 Code expires in {formatTime(timer)}
               </Text>
@@ -823,7 +827,7 @@ const StudentSignup = () => {
               {avatar ? (
                 <Image source={{ uri: avatar }} style={styles.avatarImage} />
               ) : (
-                <Icon name="person-circle-outline" size={35} color="#f54b02" />
+                <Icon name="person-circle-outline" size={100} color="#f54b02" />
               )}
               <TouchableOpacity
                 style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
@@ -892,7 +896,7 @@ const StudentSignup = () => {
           </>
         )}
       </>
-      <Footer />
+      {step !== 7 && <Footer />}
       <SweetAlertModal
         visible={alertVisible}
         onConfirm={() => setAlertVisible(false)}
@@ -967,7 +971,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     color: '#222',
     fontWeight: '700',
-    marginVertical: 39,
+    marginVertical: 24,
     textAlign: 'center',
   },
   inputHeader: {
@@ -982,11 +986,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#222',
     marginVertical: 10,
-    width: '100%',
+    maxWidth: '100%',
+    flexWrap: 'wrap',
   },
   progressBarDiv: {
     flexDirection: 'row',
-    marginTop: 30,
+    marginVertical: 20,
     width: '90%',
   },
   selector: {
@@ -1008,7 +1013,7 @@ const styles = StyleSheet.create({
     borderColor: '#929191',
   },
   input: {
-    width: '100%',
+    minWidth: '100%',
     padding: 10,
     borderWidth: 1,
     color: '#222',
@@ -1028,6 +1033,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   nextButton: {
     width: 'auto',
@@ -1067,13 +1073,15 @@ const styles = StyleSheet.create({
   },
   footerDivText2: {
     fontSize: 15,
+    fontWeight: '700',
     color: '#f54b02',
   },
   strengthBarContainer: {
     flexDirection: 'row',
     gap: 4,
-    marginTop: 7,
-    width: '100%',
+    marginBottom: 10,
+    width: '80%',
+    alignSelf: 'flex-start',
   },
   strengthSegment: {
     flex: 1,
@@ -1084,16 +1092,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
+    marginTop: 10,
+  },
+  rowDiv2: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
     marginTop: 10,
   },
   rowDivText: {
     color: '#929191',
-    fontSize: 16,
+    fontSize: 12,
   },
   rowDivBtn: {
-    fontSize: 15,
+    fontSize: 12,
     color: '#f54b02',
+    fontWeight: '800',
   },
   avatarImage: {
     width: 70,
@@ -1112,16 +1127,18 @@ const styles = StyleSheet.create({
   },
   termsText: {
     color: '#222',
-    lineHeight: 10,
+    fontSize: 15,
+    paddingBottom: 30,
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+    alignSelf: 'flex-start',
   },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderWidth: 2,
     borderColor: '#f54b02',
     borderRadius: 4,
@@ -1132,7 +1149,8 @@ const styles = StyleSheet.create({
   },
   checkboxLabel: {
     color: '#444',
-    fontSize: 16,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 
