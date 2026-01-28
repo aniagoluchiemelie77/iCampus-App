@@ -30,6 +30,7 @@ const SignupPage = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}
     >
       <IconBackground />
       {component}

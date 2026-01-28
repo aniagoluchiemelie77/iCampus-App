@@ -47,7 +47,8 @@ export interface User {
   deals?: Deals.dealId[];
   userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,
-  firstSemesterUnits?: string
+  firstSemesterUnits?: string,
+  iScore?: string
 }
 export interface iCampusAppDetails {
   appVersion: string;// e.g., ['tech', 'sports', 'arts']

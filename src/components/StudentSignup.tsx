@@ -8,6 +8,7 @@ import {
   Modal,
   Image,
   TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
 import type { User } from '../types/firebase';
 import { CountryPicker } from 'react-native-country-codes-picker'; // if you use this library
@@ -29,6 +30,7 @@ import {
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
+import Logo from '../assets/images/Logo.tsx';
 
 export type ProgressBarProps = {
   step: number;
@@ -107,7 +109,11 @@ export const Footer = () => {
   );
 };
 
-const ProgressBar = ({ step, setStep, totalSteps }: ProgressBarProps) => {
+export const ProgressBar = ({
+  step,
+  setStep,
+  totalSteps,
+}: ProgressBarProps) => {
   const steps = Array.from({ length: totalSteps }, (_, i) => i);
   return (
     <View style={styles.progressBarDiv}>
@@ -117,7 +123,7 @@ const ProgressBar = ({ step, setStep, totalSteps }: ProgressBarProps) => {
           onPress={() => setStep(s)}
           style={[
             styles.progressClickable,
-            { backgroundColor: s <= step ? '#f54b02' : '#f89a72' },
+            { backgroundColor: s <= step ? '#f54b02' : '#ffb393' },
           ]}
         />
       ))}
@@ -135,6 +141,7 @@ const StudentSignup = () => {
 
   const [institution, setInstitution] = useState('');
   const [email, setEmail] = useState('');
+  const { height } = Dimensions.get('window');
   const [ipAddress, setIpAddress] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [verifiedEmail, setVerifiedEmail] = useState(false);
@@ -175,7 +182,7 @@ const StudentSignup = () => {
     getPasswordRequirements(password);
 
   const checkICampusOperationalInSchool = async () => {
-    const response = await fetch(`${baseUrl}institutions/validate`, {
+    const response = await fetch(`${baseUrl}users/institutions/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ schoolName: institution }),
@@ -191,10 +198,15 @@ const StudentSignup = () => {
   };
   const fetchInstitutionsByCountry = async (selectedCountry: string) => {
     try {
+      console.log(`Fetching institutions for country: ${selectedCountry}`);
       const response = await fetch(
-        `${baseUrl}institutions?country=${selectedCountry}`,
+        `${baseUrl}users/institutions?country=${selectedCountry}`,
       );
+      console.log('Raw response:', response);
       const data = await response.json();
+      const text = await response.text();
+      console.log('Response text:', text);
+      console.log('Fetched institutions:', data);
 
       if (response.ok) {
         const formatted = data.institutions.map((inst: any) => ({
@@ -261,7 +273,7 @@ const StudentSignup = () => {
   const verifyEmail = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}verifyEmail`, {
+      const response = await fetch(`${baseUrl}users/verifyEmail`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +303,7 @@ const StudentSignup = () => {
   const resendCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}verifyEmail`, {
+      const response = await fetch(`${baseUrl}users/verifyEmail`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -328,7 +340,7 @@ const StudentSignup = () => {
   const verifyCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}verifyEmailCode`, {
+      const response = await fetch(`${baseUrl}users/verifyEmailCode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -412,6 +424,7 @@ const StudentSignup = () => {
       // Build user object
       const user: User = {
         uid: userId,
+        iScore: '5',
         profilePic: [avatar || ''], // not array unless backend expects array
         usertype: userType,
         schoolCode,
@@ -502,11 +515,12 @@ const StudentSignup = () => {
   }, [timer]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: height * 0.75 }]}>
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
+        <Logo />
 
-        <Text style={styles.title}>Student Signup</Text>
+        <Text style={styles.title}>Signup as a Student</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
           <>
@@ -522,15 +536,34 @@ const StudentSignup = () => {
               <Icon name="chevron-forward" size={20} color="#838282ff" />
             </TouchableOpacity>
 
-            <CountryPicker
-              show={showCountryPicker}
-              lang="en"
-              pickerButtonOnPress={item => {
-                setCountry(item.name.en);
-                setShowCountryPicker(false);
-                fetchInstitutionsByCountry(item.name.en);
-              }}
-            />
+            <Modal
+              visible={showCountryPicker}
+              transparent
+              animationType="slide"
+            >
+              <View
+                style={{
+                  height: 400,
+                  marginTop: 'auto',
+                  backgroundColor: '#fff',
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  overflow: 'hidden',
+                }}
+              >
+                <CountryPicker
+                  show={true}
+                  lang="en"
+                  searchMessage="Search country"
+                  pickerButtonOnPress={item => {
+                    setCountry(item.name.en);
+                    setShowCountryPicker(false);
+                    fetchInstitutionsByCountry(item.name.en);
+                  }}
+                />
+              </View>
+            </Modal>
+
             <TouchableOpacity
               onPress={nextStep}
               disabled={!country}
@@ -921,6 +954,8 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     backgroundColor: '#fff',
+    margin: 20,
+    borderRadius: 10,
   },
   progressClickable: {
     flex: 1,
@@ -929,28 +964,29 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     color: '#222',
     fontWeight: '700',
-    marginBottom: 9,
+    marginVertical: 39,
     textAlign: 'center',
   },
   inputHeader: {
     fontSize: 15,
     color: '#222',
     fontWeight: '700',
-    marginBottom: 8,
+    marginVertical: 12,
     width: '100%',
+    alignSelf: 'flex-start',
   },
   inputHeader2: {
     fontSize: 15,
     color: '#222',
-    marginBottom: 8,
+    marginVertical: 10,
     width: '100%',
   },
   progressBarDiv: {
     flexDirection: 'row',
-    marginBottom: 15,
+    marginTop: 30,
     width: '90%',
   },
   selector: {
@@ -977,6 +1013,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: '#222',
     borderColor: '#929191',
+    borderRadius: 5,
   },
   input2: {
     flex: 1,
@@ -985,6 +1022,7 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     width: '100%',
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#929191',
     flexDirection: 'row',
@@ -1017,6 +1055,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 12,
+    alignSelf: 'center',
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
   },
   footerDivText: {
     fontSize: 15,
