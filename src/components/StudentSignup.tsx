@@ -37,6 +37,9 @@ export type ProgressBarProps = {
   setStep: (s: number) => void;
   totalSteps: number;
 };
+export interface Institution {
+  name: string;
+}
 
 export type VerifiedStudent = {
   firstname: string;
@@ -157,6 +160,7 @@ const StudentSignup = () => {
     useState<VerifiedStudent | null>(null);
   const [studentNotFound, setStudentNotFound] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [institutionItems, setInstitutionItems] = useState<
     { label: string; value: string }[]
   >([]);
@@ -180,12 +184,13 @@ const StudentSignup = () => {
   );
   const [alertMessage, setAlertMessage] = useState('');
 
-  const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
+  const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
   //const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
   const checkICampusOperationalInSchool = async () => {
+    console.log('Starting fetch...');
     const response = await fetch(`${baseUrl}users/institutions/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -198,6 +203,10 @@ const StudentSignup = () => {
       nextStep();
     } else {
       setVerifiedInstitution(false);
+      console.log(data?.message || 'Failed to validate institution');
+      setAlertType('error');
+      setAlertMessage(data?.message || 'Failed to validate institution');
+      setAlertVisible(true);
     }
   };
   const fetchInstitutionsByCountry = async (selectedCountry: string) => {
@@ -206,16 +215,16 @@ const StudentSignup = () => {
       const response = await fetch(
         `${baseUrl}users/institutions?country=${selectedCountry}`,
       );
-      console.log('Raw response:', response);
       const data = await response.json();
       console.log('Fetched institutions:', data);
 
       if (response.ok) {
-        const formatted = data.institutions.map((inst: any) => ({
-          label: inst.schoolName,
-          value: inst.schoolName,
+        const formatted = data.institutions.map((i: Institution) => ({
+          label: i.name,
+          value: i.name,
         }));
 
+        console.log('Formatted institution items:', formatted);
         setInstitutionItems(formatted);
       }
     } catch (error) {
@@ -359,8 +368,10 @@ const StudentSignup = () => {
           bottomOffset: 5,
           visibilityTime: 3000,
         });
-        setVerifiedEmail(true);
+        console.log('Pre next');
         nextStep();
+        setVerifiedEmail(true);
+        console.log('Post Next');
       } else {
         message = data?.message || 'Invalid or expired verification code';
         console.log('❌ ', message);
@@ -417,6 +428,7 @@ const StudentSignup = () => {
   };
   const userType = 'student';
   const handleSubmit = async () => {
+    setCreating(true);
     console.log('Submit Btn Clicked');
     try {
       await fetchIP();
@@ -471,7 +483,8 @@ const StudentSignup = () => {
       const contentType = response.headers.get('content-type');
       if (response.status === 409) {
         const result = await response.json();
-        setAlertType('info');
+        setCreating(false);
+        setAlertType('error');
         setAlertMessage(result.message || 'User already exists.');
         setAlertVisible(true);
         return;
@@ -480,6 +493,7 @@ const StudentSignup = () => {
         const result = (await response.json()) as SignupResponse;
         setAlertType('success');
         setAlertMessage('Your account has been successfully created.');
+        setCreating(false);
         // Save user locally
         await AsyncStorage.setItem('hasLaunched', 'true');
         await AsyncStorage.setItem('user', JSON.stringify(user));
@@ -496,6 +510,7 @@ const StudentSignup = () => {
         console.warn('Unexpected response:', text);
         setAlertType('error');
         setAlertMessage('Account creation failed. Please try again.');
+        setCreating(false);
       }
       setAlertVisible(true);
     } catch (error) {
@@ -503,6 +518,7 @@ const StudentSignup = () => {
       setAlertType('error');
       setAlertMessage('Network error. Please check your connection.');
       setAlertVisible(true);
+      setCreating(false);
     }
   };
 
@@ -545,7 +561,7 @@ const StudentSignup = () => {
             >
               <View
                 style={{
-                  height: 400,
+                  height: 100,
                   marginTop: 'auto',
                   backgroundColor: '#fff',
                   borderTopLeftRadius: 20,
@@ -589,16 +605,15 @@ const StudentSignup = () => {
               valueField="value"
               search
               placeholder="Select your institution"
-              searchPlaceholderTextColor="#929191"
+              searchPlaceholderTextColor="#222"
               value={institution}
               onChange={async item => {
                 setInstitution(item.value);
-                await checkICampusOperationalInSchool();
               }}
               style={styles.dropdown}
             />
             <TouchableOpacity
-              onPress={nextStep}
+              onPress={async () => await checkICampusOperationalInSchool()}
               disabled={!institution}
               style={[
                 styles.nextButton,
@@ -885,13 +900,17 @@ const StudentSignup = () => {
             {/* Next Button */}
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={!agreed}
+              disabled={!agreed || creating}
               style={[
                 styles.nextButton,
-                { backgroundColor: agreed ? '#f54b02' : '#fa9265' },
+                {
+                  backgroundColor: !agreed || creating ? '#f54b02' : '#fa9265',
+                },
               ]}
             >
-              <Text style={styles.nextButtonText}>Finish</Text>
+              <Text style={styles.nextButtonText}>
+                {creating ? 'Creating Account...' : 'Finish'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -1007,10 +1026,11 @@ const styles = StyleSheet.create({
     color: '#929191',
   },
   dropdown: {
-    width: '100%',
+    minWidth: '100%',
     padding: 10,
     borderWidth: 1,
     borderColor: '#929191',
+    color: '#222',
   },
   input: {
     minWidth: '100%',
