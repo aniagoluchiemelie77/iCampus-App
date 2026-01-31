@@ -152,7 +152,8 @@ const StudentSignup = () => {
   const [ipAddress, setIpAddress] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [verifiedEmail, setVerifiedEmail] = useState(false);
-  const [timer, setTimer] = useState(3600); // 1 hour = 3600 seconds
+  const [timer, setTimer] = useState(900); // 15 minutes = 900 seconds
+
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const [matric, setMatric] = useState('');
