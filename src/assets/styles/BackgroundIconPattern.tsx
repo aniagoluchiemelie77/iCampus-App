@@ -17,7 +17,7 @@ export const IconBackground = () => {
   for (let i = 0; i < totalIcons; i++) {
     const icon = icons[i % icons.length];
     const size = i % 7 === 0 ? 27 : 20;
-    const color = i % 5 === 0 ? '#fdd0bdff' : '#f9c2abff';
+    const color = i % 5 === 0 ? 'rgb(247, 219, 207)' : 'rgb(244, 218, 207)';
 
     const row = Math.floor(i / NUM_COLUMNS);
     const col = i % NUM_COLUMNS;

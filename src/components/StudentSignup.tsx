@@ -161,6 +161,7 @@ const StudentSignup = () => {
     useState<VerifiedStudent | null>(null);
   const [studentNotFound, setStudentNotFound] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [hasUploadedAvatar, setHasUploadedAvatar] = useState(false);
   const [creating, setCreating] = useState(false);
   const [institutionItems, setInstitutionItems] = useState<
     { label: string; value: string }[]
@@ -331,7 +332,8 @@ const StudentSignup = () => {
           bottomOffset: 5,
           visibilityTime: 3000,
         });
-        setTimer(3600);
+        setTimer(900);
+        setEmailCode('');
       } else {
         message =
           data?.message ||
@@ -409,6 +411,7 @@ const StudentSignup = () => {
     try {
       // Save the selected image as the final avatar
       setAvatar(selectedImage);
+      setHasUploadedAvatar(true);
       // Close modal
       setShowModal(false);
       Toast.show({
@@ -527,11 +530,17 @@ const StudentSignup = () => {
     if (timer <= 0) return;
 
     const interval = setInterval(() => {
-      setTimer(prev => prev - 1);
+      setTimer(prev => {
+        if (prev <= 0) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [timer]); // ← empty dependency array
 
   return (
     <View style={[styles.container, { height: height * 0.75 }]}>
@@ -555,40 +564,40 @@ const StudentSignup = () => {
               <Icon name="chevron-forward" size={20} color="#838282ff" />
             </TouchableOpacity>
 
-            <Modal
-              visible={showCountryPicker}
-              transparent
-              animationType="slide"
-            >
-              <View
-                style={{
-                  height: 100,
-                  marginTop: 'auto',
-                  backgroundColor: '#fff',
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  overflow: 'hidden',
-                }}
-              >
-                <CountryPicker
-                  show={true}
-                  lang="en"
-                  searchMessage="Search country"
-                  pickerButtonOnPress={item => {
-                    setCountry(item.name.en);
-                    setShowCountryPicker(false);
-                    fetchInstitutionsByCountry(item.name.en);
-                  }}
-                />
-              </View>
-            </Modal>
+            <CountryPicker
+              show={showCountryPicker}
+              lang="en"
+              searchMessage="Search country..."
+              enableModalAvoiding={true} // Helps with keyboard/search bar
+              onBackdropPress={() => setShowCountryPicker(false)}
+              style={{
+                // This makes it a bottom sheet at a set height
+                modal: {
+                  height: 400, // Adjust this value to your preferred height
+                },
+                // Modern styling for the search input
+                textInput: {
+                  height: 45,
+                  borderRadius: 10,
+                  paddingHorizontal: 15,
+                },
+                countryButtonStyles: {
+                  height: 50,
+                },
+              }}
+              pickerButtonOnPress={item => {
+                setCountry(item.name.en);
+                setShowCountryPicker(false);
+                fetchInstitutionsByCountry(item.name.en);
+              }}
+            />
 
             <TouchableOpacity
               onPress={nextStep}
               disabled={!country}
               style={[
                 styles.nextButton,
-                { backgroundColor: country ? '#f54b02' : '#fa9265' }, // gray when disabled
+                { backgroundColor: country ? '#f54b02' : '#fa9265' },
               ]}
             >
               <Text style={styles.nextButtonText}>Next</Text>
@@ -656,11 +665,9 @@ const StudentSignup = () => {
                 },
               ]}
             >
-              {' '}
               <Text style={styles.nextButtonText}>
-                {' '}
-                {verifying ? 'Verifying...' : 'Verify'}{' '}
-              </Text>{' '}
+                {verifying ? 'Verifying...' : 'Verify'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -838,25 +845,44 @@ const StudentSignup = () => {
         {/* STEP 6 - Avatar upload (Can skip) */}
         {step === 6 && (
           <>
-            <Text style={styles.inputHeader}>Upload Profile Photo</Text>
-            <View style={styles.rowDiv}>
-              {avatar ? (
-                <Image source={{ uri: avatar }} style={styles.avatarImage} />
-              ) : (
-                <Icon name="person-circle-outline" size={100} color="#f54b02" />
-              )}
-              <TouchableOpacity
-                style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
-                onPress={handleImageUpdate}
-              >
-                <Text style={styles.nextButtonText}>Tap to upload</Text>
+            <Text style={styles.header}>Upload Profile Photo</Text>
+
+            {/* Main Container for the Avatar and Icon Overlay */}
+            <View style={styles.avatarContainer}>
+              <TouchableOpacity onPress={handleImageUpdate} activeOpacity={0.8}>
+                <View style={styles.avatarWrapper}>
+                  {avatar ? (
+                    <Image
+                      source={{ uri: avatar }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Icon name="person-circle" size={120} color="#E0E0E0" />
+                  )}
+
+                  {/* The Camera Icon Overlay */}
+                  <View style={styles.cameraIconBadge}>
+                    <Icon name="camera" size={20} color="#FFFFFF" />
+                  </View>
+                </View>
               </TouchableOpacity>
             </View>
+
+            {/* Primary Action Button */}
             <TouchableOpacity
               style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
-              onPress={nextStep}
+              onPress={handleImageUpdate}
             >
-              <Text style={styles.nextButtonText}>Skip</Text>
+              <Text style={styles.nextButtonText}>
+                {hasUploadedAvatar ? 'Change Photo' : 'Upload Photo'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Secondary Skip Action */}
+            <TouchableOpacity style={styles.skipLink} onPress={nextStep}>
+              <Text style={styles.skipLinkText}>
+                {hasUploadedAvatar ? 'Next' : 'Skip for now'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -889,13 +915,18 @@ const StudentSignup = () => {
             <TouchableOpacity
               style={styles.checkboxContainer}
               onPress={() => setAgreed(prev => !prev)}
+              activeOpacity={0.7}
             >
+              {/* The Checkbox Box */}
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
+              </View>
+
+              {/* The Label */}
               <Text style={styles.checkboxLabel}>
-                I agree to the Terms & Conditions
+                I agree to the{' '}
+                <Text style={styles.linkText}>Terms & Conditions</Text>
               </Text>
-              <View
-                style={[styles.checkbox, agreed && styles.checkboxChecked]}
-              />
             </TouchableOpacity>
 
             {/* Next Button */}
@@ -905,7 +936,7 @@ const StudentSignup = () => {
               style={[
                 styles.nextButton,
                 {
-                  backgroundColor: !agreed || creating ? '#f54b02' : '#fa9265',
+                  backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
                 },
               ]}
             >
@@ -1002,6 +1033,14 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'flex-start',
   },
+  header: {
+    fontSize: 15,
+    color: '#222',
+    fontWeight: '700',
+    marginVertical: 12,
+    width: '100%',
+    alignSelf: 'center',
+  },
   inputHeader2: {
     fontSize: 15,
     color: '#222',
@@ -1057,18 +1096,38 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   nextButton: {
-    width: 'auto',
-    alignSelf: 'center',
+    minWidth: '100%',
     padding: 12,
     marginTop: 20,
     borderRadius: 8,
     justifyContent: 'center',
-    alignContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton2: {
+    minWidth: 'auto',
+    padding: 12,
+    marginTop: 20,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton3: {
+    minWidth: 'auto',
+    padding: 12,
+    marginTop: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
   },
   nextButtonText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
+  },
+  nextButtonText3: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f54b02',
   },
   errorText: {
     fontSize: 11,
@@ -1101,7 +1160,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
     marginBottom: 10,
-    width: '80%',
+    marginHorizontal: 5,
+    width: '90%',
     alignSelf: 'flex-start',
   },
   strengthSegment: {
@@ -1110,7 +1170,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   rowDiv: {
-    flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
     marginTop: 10,
@@ -1131,13 +1190,6 @@ const styles = StyleSheet.create({
     color: '#f54b02',
     fontWeight: '800',
   },
-  avatarImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 1,
-    borderColor: '#f54b02',
-  },
   termsBox: {
     height: 150,
     width: '100%',
@@ -1150,28 +1202,78 @@ const styles = StyleSheet.create({
     color: '#222',
     fontSize: 15,
     paddingBottom: 30,
+    lineHeight: 30,
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginVertical: 15, // Better spacing for modern UI
     alignSelf: 'flex-start',
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 22, // Slightly larger for better tap targets
+    height: 22,
     borderWidth: 2,
     borderColor: '#f54b02',
-    borderRadius: 4,
-    marginLeft: 6,
+    borderRadius: 6, // Slightly more rounded for a modern look
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10, // Space between box and text
+    backgroundColor: 'transparent',
   },
   checkboxChecked: {
     backgroundColor: '#f54b02',
   },
   checkboxLabel: {
     color: '#444',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '500', // Medium weight feels cleaner
+  },
+  linkText: {
+    color: '#f54b02',
+    textDecorationLine: 'underline',
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  avatarWrapper: {
+    position: 'relative', // Allows the camera icon to sit on top
+    borderWidth: 2,
+    borderColor: '#f54b02',
+    borderStyle: 'dashed',
+    borderRadius: 75,
+    padding: 5,
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#f54b02',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4, // Shadow for Android
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  skipLink: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  skipLinkText: {
+    color: '#f54b02',
+    fontSize: 15,
+    textDecorationLine: 'underline',
   },
 });
 

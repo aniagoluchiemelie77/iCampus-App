@@ -30,10 +30,16 @@ import {
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
-import Logo from '../assets/images/Logo.tsx';
-import { ProgressBar, Footer, SignupResponse, isValidEmail, isValidPassword, getPasswordRequirements, generateId2, generateId} from './StudentSignup'
+import LogoBigger from '../assets/images/Logo';
 
-
+export type ProgressBarProps = {
+  step: number;
+  setStep: (s: number) => void;
+  totalSteps: number;
+};
+export interface Institution {
+  name: string;
+}
 
 export type VerifiedStudent = {
   firstname: string;
@@ -45,6 +51,92 @@ export type VerifiedStudent = {
   school_name: string;
 };
 
+export type SignupResponse = {
+  verified?: boolean;
+  email?: string;
+  message?: string;
+  token?: string;
+  // Add any other fields your backend returns
+};
+
+//Universal email regex
+export const isValidEmail = (inputEmail: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(inputEmail);
+};
+
+//Universal password regex
+export const isValidPassword = (inputPassword: string) => {
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{13,}$/;
+  return passwordRegex.test(inputPassword);
+};
+
+export const getPasswordRequirements = (password: string) => ({
+  hasUppercase: /[A-Z]/.test(password),
+  hasLowercase: /[a-z]/.test(password),
+  hasNumber: /\d/.test(password),
+  hasSymbol: /[\W_]/.test(password),
+  hasMinLength: password.length >= 10,
+});
+
+//tokenId generation
+export const generateId = (length = 14) => {
+  const chars =
+    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+//Generating userId
+export const generateId2 = (length = 10) => {
+  const chars =
+    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+export const Footer = () => {
+  const navigation = useNavigation<any>();
+  return (
+    <View style={styles.footerDiv}>
+      <Text style={styles.footerDivText}>Already have an account?</Text>
+      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.footerDivText2}>Login</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+export const ProgressBar = ({
+  step,
+  setStep,
+  totalSteps,
+}: ProgressBarProps) => {
+  const steps = Array.from({ length: totalSteps }, (_, i) => i);
+  return (
+    <View style={styles.progressBarDiv}>
+      {steps.map(s => (
+        <TouchableOpacity
+          key={s}
+          onPress={() => {
+            if (s < step) {
+              setStep(s);
+            }
+          }}
+          style={[
+            styles.progressClickable,
+            { backgroundColor: s <= step ? '#f54b02' : '#ffb393' },
+          ]}
+        />
+      ))}
+    </View>
+  );
+};
 
 const InstructorSignup = () => {
   const navigation = useNavigation<any>();
@@ -60,7 +152,8 @@ const InstructorSignup = () => {
   const [ipAddress, setIpAddress] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [verifiedEmail, setVerifiedEmail] = useState(false);
-  const [timer, setTimer] = useState(3600); // 1 hour = 3600 seconds
+  const [timer, setTimer] = useState(900); // 15 minutes = 900 seconds
+
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const [matric, setMatric] = useState('');
@@ -68,6 +161,8 @@ const InstructorSignup = () => {
     useState<VerifiedStudent | null>(null);
   const [studentNotFound, setStudentNotFound] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [hasUploadedAvatar, setHasUploadedAvatar] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [institutionItems, setInstitutionItems] = useState<
     { label: string; value: string }[]
   >([]);
@@ -91,12 +186,13 @@ const InstructorSignup = () => {
   );
   const [alertMessage, setAlertMessage] = useState('');
 
-  const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
+  const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
   //const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
   const checkICampusOperationalInSchool = async () => {
+    console.log('Starting fetch...');
     const response = await fetch(`${baseUrl}users/institutions/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -109,6 +205,10 @@ const InstructorSignup = () => {
       nextStep();
     } else {
       setVerifiedInstitution(false);
+      console.log(data?.message || 'Failed to validate institution');
+      setAlertType('error');
+      setAlertMessage(data?.message || 'Failed to validate institution');
+      setAlertVisible(true);
     }
   };
   const fetchInstitutionsByCountry = async (selectedCountry: string) => {
@@ -117,18 +217,16 @@ const InstructorSignup = () => {
       const response = await fetch(
         `${baseUrl}users/institutions?country=${selectedCountry}`,
       );
-      console.log('Raw response:', response);
       const data = await response.json();
-      const text = await response.text();
-      console.log('Response text:', text);
       console.log('Fetched institutions:', data);
 
       if (response.ok) {
-        const formatted = data.institutions.map((inst: any) => ({
-          label: inst.schoolName,
-          value: inst.schoolName,
+        const formatted = data.institutions.map((i: Institution) => ({
+          label: i.name,
+          value: i.name,
         }));
 
+        console.log('Formatted institution items:', formatted);
         setInstitutionItems(formatted);
       }
     } catch (error) {
@@ -234,7 +332,8 @@ const InstructorSignup = () => {
           bottomOffset: 5,
           visibilityTime: 3000,
         });
-        setTimer(3600);
+        setTimer(900);
+        setEmailCode('');
       } else {
         message =
           data?.message ||
@@ -272,8 +371,10 @@ const InstructorSignup = () => {
           bottomOffset: 5,
           visibilityTime: 3000,
         });
-        setVerifiedEmail(true);
+        console.log('Pre next');
         nextStep();
+        setVerifiedEmail(true);
+        console.log('Post Next');
       } else {
         message = data?.message || 'Invalid or expired verification code';
         console.log('❌ ', message);
@@ -310,6 +411,7 @@ const InstructorSignup = () => {
     try {
       // Save the selected image as the final avatar
       setAvatar(selectedImage);
+      setHasUploadedAvatar(true);
       // Close modal
       setShowModal(false);
       Toast.show({
@@ -330,6 +432,7 @@ const InstructorSignup = () => {
   };
   const userType = 'student';
   const handleSubmit = async () => {
+    setCreating(true);
     console.log('Submit Btn Clicked');
     try {
       await fetchIP();
@@ -339,6 +442,7 @@ const InstructorSignup = () => {
       // Build user object
       const user: User = {
         uid: userId,
+        iScore: '5',
         profilePic: [avatar || ''], // not array unless backend expects array
         usertype: userType,
         schoolCode,
@@ -383,7 +487,8 @@ const InstructorSignup = () => {
       const contentType = response.headers.get('content-type');
       if (response.status === 409) {
         const result = await response.json();
-        setAlertType('info');
+        setCreating(false);
+        setAlertType('error');
         setAlertMessage(result.message || 'User already exists.');
         setAlertVisible(true);
         return;
@@ -392,6 +497,7 @@ const InstructorSignup = () => {
         const result = (await response.json()) as SignupResponse;
         setAlertType('success');
         setAlertMessage('Your account has been successfully created.');
+        setCreating(false);
         // Save user locally
         await AsyncStorage.setItem('hasLaunched', 'true');
         await AsyncStorage.setItem('user', JSON.stringify(user));
@@ -408,6 +514,7 @@ const InstructorSignup = () => {
         console.warn('Unexpected response:', text);
         setAlertType('error');
         setAlertMessage('Account creation failed. Please try again.');
+        setCreating(false);
       }
       setAlertVisible(true);
     } catch (error) {
@@ -415,6 +522,7 @@ const InstructorSignup = () => {
       setAlertType('error');
       setAlertMessage('Network error. Please check your connection.');
       setAlertVisible(true);
+      setCreating(false);
     }
   };
 
@@ -422,19 +530,25 @@ const InstructorSignup = () => {
     if (timer <= 0) return;
 
     const interval = setInterval(() => {
-      setTimer(prev => prev - 1);
+      setTimer(prev => {
+        if (prev <= 0) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [timer]); // ← empty dependency array
 
   return (
     <View style={[styles.container, { height: height * 0.75 }]}>
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
-        <Logo />
+        <LogoBigger />
 
-        <Text style={styles.title}>Signup as a Student</Text>
+        <Text style={styles.title}>Student signup</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
           <>
@@ -453,18 +567,37 @@ const InstructorSignup = () => {
             <CountryPicker
               show={showCountryPicker}
               lang="en"
+              searchMessage="Search country..."
+              enableModalAvoiding={true} // Helps with keyboard/search bar
+              onBackdropPress={() => setShowCountryPicker(false)}
+              style={{
+                // This makes it a bottom sheet at a set height
+                modal: {
+                  height: 400, // Adjust this value to your preferred height
+                },
+                // Modern styling for the search input
+                textInput: {
+                  height: 45,
+                  borderRadius: 10,
+                  paddingHorizontal: 15,
+                },
+                countryButtonStyles: {
+                  height: 50,
+                },
+              }}
               pickerButtonOnPress={item => {
                 setCountry(item.name.en);
                 setShowCountryPicker(false);
                 fetchInstitutionsByCountry(item.name.en);
               }}
             />
+
             <TouchableOpacity
               onPress={nextStep}
               disabled={!country}
               style={[
                 styles.nextButton,
-                { backgroundColor: country ? '#f54b02' : '#fa9265' }, // gray when disabled
+                { backgroundColor: country ? '#f54b02' : '#fa9265' },
               ]}
             >
               <Text style={styles.nextButtonText}>Next</Text>
@@ -482,16 +615,15 @@ const InstructorSignup = () => {
               valueField="value"
               search
               placeholder="Select your institution"
-              searchPlaceholderTextColor="#929191"
+              searchPlaceholderTextColor="#222"
               value={institution}
               onChange={async item => {
                 setInstitution(item.value);
-                await checkICampusOperationalInSchool();
               }}
               style={styles.dropdown}
             />
             <TouchableOpacity
-              onPress={nextStep}
+              onPress={async () => await checkICampusOperationalInSchool()}
               disabled={!institution}
               style={[
                 styles.nextButton,
@@ -533,11 +665,9 @@ const InstructorSignup = () => {
                 },
               ]}
             >
-              {' '}
               <Text style={styles.nextButtonText}>
-                {' '}
-                {verifying ? 'Verifying...' : 'Verify'}{' '}
-              </Text>{' '}
+                {verifying ? 'Verifying...' : 'Verify'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -562,6 +692,7 @@ const InstructorSignup = () => {
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={20}
                   color="#929191"
+                  style={{ marginRight: 7 }}
                 />
               </TouchableOpacity>
             </View>
@@ -613,6 +744,7 @@ const InstructorSignup = () => {
                   name={showConfirmPassword ? 'eye-off' : 'eye'}
                   size={20}
                   color="#929191"
+                  style={{ marginRight: 7 }}
                 />
               </TouchableOpacity>
             </View>
@@ -689,7 +821,7 @@ const InstructorSignup = () => {
               maxLength={6}
               style={styles.input}
             />
-            <View style={styles.rowDiv}>
+            <View style={styles.rowDiv2}>
               <Text style={styles.rowDivText}>
                 Code expires in {formatTime(timer)}
               </Text>
@@ -713,25 +845,44 @@ const InstructorSignup = () => {
         {/* STEP 6 - Avatar upload (Can skip) */}
         {step === 6 && (
           <>
-            <Text style={styles.inputHeader}>Upload Profile Photo</Text>
-            <View style={styles.rowDiv}>
-              {avatar ? (
-                <Image source={{ uri: avatar }} style={styles.avatarImage} />
-              ) : (
-                <Icon name="person-circle-outline" size={35} color="#f54b02" />
-              )}
-              <TouchableOpacity
-                style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
-                onPress={handleImageUpdate}
-              >
-                <Text style={styles.nextButtonText}>Tap to upload</Text>
+            <Text style={styles.header}>Upload Profile Photo</Text>
+
+            {/* Main Container for the Avatar and Icon Overlay */}
+            <View style={styles.avatarContainer}>
+              <TouchableOpacity onPress={handleImageUpdate} activeOpacity={0.8}>
+                <View style={styles.avatarWrapper}>
+                  {avatar ? (
+                    <Image
+                      source={{ uri: avatar }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Icon name="person-circle" size={120} color="#E0E0E0" />
+                  )}
+
+                  {/* The Camera Icon Overlay */}
+                  <View style={styles.cameraIconBadge}>
+                    <Icon name="camera" size={20} color="#FFFFFF" />
+                  </View>
+                </View>
               </TouchableOpacity>
             </View>
+
+            {/* Primary Action Button */}
             <TouchableOpacity
               style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
-              onPress={nextStep}
+              onPress={handleImageUpdate}
             >
-              <Text style={styles.nextButtonText}>Skip</Text>
+              <Text style={styles.nextButtonText}>
+                {hasUploadedAvatar ? 'Change Photo' : 'Upload Photo'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Secondary Skip Action */}
+            <TouchableOpacity style={styles.skipLink} onPress={nextStep}>
+              <Text style={styles.skipLinkText}>
+                {hasUploadedAvatar ? 'Next' : 'Skip for now'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -764,30 +915,39 @@ const InstructorSignup = () => {
             <TouchableOpacity
               style={styles.checkboxContainer}
               onPress={() => setAgreed(prev => !prev)}
+              activeOpacity={0.7}
             >
+              {/* The Checkbox Box */}
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
+              </View>
+
+              {/* The Label */}
               <Text style={styles.checkboxLabel}>
-                I agree to the Terms & Conditions
+                I agree to the{' '}
+                <Text style={styles.linkText}>Terms & Conditions</Text>
               </Text>
-              <View
-                style={[styles.checkbox, agreed && styles.checkboxChecked]}
-              />
             </TouchableOpacity>
 
             {/* Next Button */}
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={!agreed}
+              disabled={!agreed || creating}
               style={[
                 styles.nextButton,
-                { backgroundColor: agreed ? '#f54b02' : '#fa9265' },
+                {
+                  backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
+                },
               ]}
             >
-              <Text style={styles.nextButtonText}>Finish</Text>
+              <Text style={styles.nextButtonText}>
+                {creating ? 'Creating Account...' : 'Finish'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
       </>
-      <Footer />
+      {step !== 7 && <Footer />}
       <SweetAlertModal
         visible={alertVisible}
         onConfirm={() => setAlertVisible(false)}
@@ -862,7 +1022,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     color: '#222',
     fontWeight: '700',
-    marginVertical: 39,
+    marginVertical: 24,
     textAlign: 'center',
   },
   inputHeader: {
@@ -873,15 +1033,24 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'flex-start',
   },
+  header: {
+    fontSize: 15,
+    color: '#222',
+    fontWeight: '700',
+    marginVertical: 12,
+    width: '100%',
+    alignSelf: 'center',
+  },
   inputHeader2: {
     fontSize: 15,
     color: '#222',
     marginVertical: 10,
-    width: '100%',
+    maxWidth: '100%',
+    flexWrap: 'wrap',
   },
   progressBarDiv: {
     flexDirection: 'row',
-    marginTop: 30,
+    marginVertical: 20,
     width: '90%',
   },
   selector: {
@@ -897,13 +1066,14 @@ const styles = StyleSheet.create({
     color: '#929191',
   },
   dropdown: {
-    width: '100%',
+    minWidth: '100%',
     padding: 10,
     borderWidth: 1,
     borderColor: '#929191',
+    color: '#222',
   },
   input: {
-    width: '100%',
+    minWidth: '100%',
     padding: 10,
     borderWidth: 1,
     color: '#222',
@@ -923,20 +1093,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   nextButton: {
-    width: 'auto',
-    alignSelf: 'center',
+    minWidth: '100%',
     padding: 12,
     marginTop: 20,
     borderRadius: 8,
     justifyContent: 'center',
-    alignContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton2: {
+    minWidth: 'auto',
+    padding: 12,
+    marginTop: 20,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton3: {
+    minWidth: 'auto',
+    padding: 12,
+    marginTop: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
   },
   nextButtonText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
+  },
+  nextButtonText3: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f54b02',
   },
   errorText: {
     fontSize: 11,
@@ -962,13 +1153,16 @@ const styles = StyleSheet.create({
   },
   footerDivText2: {
     fontSize: 15,
+    fontWeight: '700',
     color: '#f54b02',
   },
   strengthBarContainer: {
     flexDirection: 'row',
     gap: 4,
-    marginTop: 7,
-    width: '100%',
+    marginBottom: 10,
+    marginHorizontal: 5,
+    width: '90%',
+    alignSelf: 'flex-start',
   },
   strengthSegment: {
     flex: 1,
@@ -976,26 +1170,25 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   rowDiv: {
-    flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
+    marginTop: 10,
+  },
+  rowDiv2: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
     marginTop: 10,
   },
   rowDivText: {
     color: '#929191',
-    fontSize: 16,
+    fontSize: 12,
   },
   rowDivBtn: {
-    fontSize: 15,
+    fontSize: 12,
     color: '#f54b02',
-  },
-  avatarImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 1,
-    borderColor: '#f54b02',
+    fontWeight: '800',
   },
   termsBox: {
     height: 150,
@@ -1007,27 +1200,80 @@ const styles = StyleSheet.create({
   },
   termsText: {
     color: '#222',
-    lineHeight: 10,
+    fontSize: 15,
+    paddingBottom: 30,
+    lineHeight: 30,
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginVertical: 15, // Better spacing for modern UI
+    alignSelf: 'flex-start',
   },
   checkbox: {
-    width: 22,
+    width: 22, // Slightly larger for better tap targets
     height: 22,
     borderWidth: 2,
     borderColor: '#f54b02',
-    borderRadius: 4,
-    marginLeft: 6,
+    borderRadius: 6, // Slightly more rounded for a modern look
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10, // Space between box and text
+    backgroundColor: 'transparent',
   },
   checkboxChecked: {
     backgroundColor: '#f54b02',
   },
   checkboxLabel: {
     color: '#444',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '500', // Medium weight feels cleaner
+  },
+  linkText: {
+    color: '#f54b02',
+    textDecorationLine: 'underline',
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  avatarWrapper: {
+    position: 'relative', // Allows the camera icon to sit on top
+    borderWidth: 2,
+    borderColor: '#f54b02',
+    borderStyle: 'dashed',
+    borderRadius: 75,
+    padding: 5,
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#f54b02',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4, // Shadow for Android
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  skipLink: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  skipLinkText: {
+    color: '#f54b02',
+    fontSize: 15,
+    textDecorationLine: 'underline',
   },
 });
 
