@@ -1,7 +1,6 @@
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -10,7 +9,6 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
-import type { User } from '../types/firebase';
 import { CountryPicker } from 'react-native-country-codes-picker'; // if you use this library
 import { useEffect, useState } from 'react';
 import { baseUrl } from './HomeScreenComponents';
@@ -26,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   HomeScreenComponentStyles,
   ProfileComponentStyles,
+  StudentSignupStyles,
 } from '../assets/styles/colors';
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
@@ -103,10 +102,12 @@ export const generateId2 = (length = 10) => {
 export const Footer = () => {
   const navigation = useNavigation<any>();
   return (
-    <View style={styles.footerDiv}>
-      <Text style={styles.footerDivText}>Already have an account?</Text>
+    <View style={StudentSignupStyles.footerDiv}>
+      <Text style={StudentSignupStyles.footerDivText}>
+        Already have an account?
+      </Text>
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.footerDivText2}>Login</Text>
+        <Text style={StudentSignupStyles.footerDivText2}>Login</Text>
       </TouchableOpacity>
     </View>
   );
@@ -119,7 +120,7 @@ export const ProgressBar = ({
 }: ProgressBarProps) => {
   const steps = Array.from({ length: totalSteps }, (_, i) => i);
   return (
-    <View style={styles.progressBarDiv}>
+    <View style={StudentSignupStyles.progressBarDiv}>
       {steps.map(s => (
         <TouchableOpacity
           key={s}
@@ -129,7 +130,7 @@ export const ProgressBar = ({
             }
           }}
           style={[
-            styles.progressClickable,
+            StudentSignupStyles.progressClickable,
             { backgroundColor: s <= step ? '#f54b02' : '#ffb393' },
           ]}
         />
@@ -433,42 +434,25 @@ const StudentSignup = () => {
   const userType = 'student';
   const handleSubmit = async () => {
     setCreating(true);
-    console.log('Submit Btn Clicked');
     try {
       await fetchIP();
       const deviceType = DeviceInfo.getDeviceType();
-      const tokenId = generateId();
-      const userId = generateId2();
-      // Build user object
-      const user: User = {
-        uid: userId,
+
+      // Build the registration payload
+      // Note: We REMOVED userId and tokenId generation here.
+      const registrationData = {
         iScore: '5',
-        profilePic: [avatar || ''], // not array unless backend expects array
+        profilePic: avatar || '',
         usertype: userType,
         schoolCode,
-        isFirstLogin: true,
-        firstname:
-          userType === 'student' && verifiedStudent
-            ? verifiedStudent.firstname
-            : '',
-        lastname:
-          userType === 'student' && verifiedStudent
-            ? verifiedStudent.lastname
-            : '',
+        firstname: userType === 'student' ? verifiedStudent?.firstname : '',
+        lastname: userType === 'student' ? verifiedStudent?.lastname : '',
         schoolName: institution || '',
         email,
-        ipAddress: [ipAddress],
-        deviceType: [deviceType],
-        accessToken: tokenId,
-        password, // ideally hash on backend
-        department:
-          userType === 'student' && verifiedStudent
-            ? verifiedStudent.department
-            : '',
-        pointsBalance: 0,
-        hasSubscribed: false,
-        isCourseRep: false,
-        createdAt: new Date().toISOString(),
+        ipAddress: ipAddress, // Backend handles the array push
+        deviceType: deviceType,
+        password,
+        department: userType === 'student' ? verifiedStudent?.department : '',
         country: country || '',
         ...(userType === 'student' && verifiedStudent
           ? {
@@ -478,42 +462,50 @@ const StudentSignup = () => {
             }
           : {}),
       };
-      // Send to backend
+
       const response = await fetch(`${baseUrl}users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user),
+        body: JSON.stringify(registrationData),
       });
-      const contentType = response.headers.get('content-type');
+
+      const result = await response.json();
+
       if (response.status === 409) {
-        const result = await response.json();
         setCreating(false);
         setAlertType('error');
         setAlertMessage(result.message || 'User already exists.');
         setAlertVisible(true);
         return;
       }
-      if (response.ok && contentType?.includes('application/json')) {
-        const result = (await response.json()) as SignupResponse;
+
+      if (response.ok) {
         setAlertType('success');
         setAlertMessage('Your account has been successfully created.');
-        setCreating(false);
-        // Save user locally
+
+        // result should contain: { message, user, accessToken, refreshToken }
+        const { accessToken, refreshToken, user } = result;
+
+        // Save locally
         await AsyncStorage.setItem('hasLaunched', 'true');
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
         await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('authToken', result.token ?? '');
+
         dispatch(
           setUser({
             ...user,
+            accessToken,
             tokenCreatedAt: Date.now().toString(),
           }),
         );
+
+        setCreating(false);
         navigation.navigate('Home');
       } else {
-        const text = await response.text();
-        console.warn('Unexpected response:', text);
+        console.warn('Signup failed:', result.message);
         setAlertType('error');
-        setAlertMessage('Account creation failed. Please try again.');
+        setAlertMessage(result.message || 'Account creation failed.');
         setCreating(false);
       }
       setAlertVisible(true);
@@ -543,22 +535,24 @@ const StudentSignup = () => {
   }, [timer]); // ← empty dependency array
 
   return (
-    <View style={[styles.container, { height: height * 0.75 }]}>
+    <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
         <LogoBigger />
 
-        <Text style={styles.title}>Student signup</Text>
+        <Text style={StudentSignupStyles.title}>Student signup</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
           <>
-            <Text style={styles.inputHeader}>Select your country</Text>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Select your country
+            </Text>
 
             <TouchableOpacity
               onPress={() => setShowCountryPicker(true)}
-              style={styles.selector}
+              style={StudentSignupStyles.selector}
             >
-              <Text style={styles.selectorHeader2}>
+              <Text style={StudentSignupStyles.selectorHeader2}>
                 {country || 'Select Country'}
               </Text>
               <Icon name="chevron-forward" size={20} color="#838282ff" />
@@ -596,11 +590,11 @@ const StudentSignup = () => {
               onPress={nextStep}
               disabled={!country}
               style={[
-                styles.nextButton,
+                StudentSignupStyles.nextButton,
                 { backgroundColor: country ? '#f54b02' : '#fa9265' },
               ]}
             >
-              <Text style={styles.nextButtonText}>Next</Text>
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
           </>
         )}
@@ -608,7 +602,9 @@ const StudentSignup = () => {
         {/* STEP 1 — Select Institution */}
         {step === 1 && (
           <>
-            <Text style={styles.inputHeader}>Select Institution:</Text>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Select Institution:
+            </Text>
             <Dropdown
               data={institutionItems}
               labelField="label"
@@ -620,17 +616,17 @@ const StudentSignup = () => {
               onChange={async item => {
                 setInstitution(item.value);
               }}
-              style={styles.dropdown}
+              style={StudentSignupStyles.dropdown}
             />
             <TouchableOpacity
               onPress={async () => await checkICampusOperationalInSchool()}
               disabled={!institution}
               style={[
-                styles.nextButton,
+                StudentSignupStyles.nextButton,
                 { backgroundColor: country ? '#f54b02' : '#fa9265' }, // gray when disabled
               ]}
             >
-              <Text style={styles.nextButtonText}>Next</Text>
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
           </>
         )}
@@ -638,7 +634,7 @@ const StudentSignup = () => {
         {/* STEP 2 — Matric Number */}
         {step === 2 && (
           <>
-            <Text style={styles.inputHeader}>
+            <Text style={StudentSignupStyles.inputHeader}>
               Enter your Matriculation Number:
             </Text>
             <TextInput
@@ -646,10 +642,10 @@ const StudentSignup = () => {
               placeholderTextColor="#929191"
               value={matric}
               onChangeText={setMatric}
-              style={styles.input}
+              style={StudentSignupStyles.input}
             />
             {studentNotFound && (
-              <Text style={styles.errorText}>
+              <Text style={StudentSignupStyles.errorText}>
                 Matriculation number not found.
               </Text>
             )}
@@ -658,14 +654,14 @@ const StudentSignup = () => {
               onPress={verifyStudent}
               disabled={matric.length < 3 || verifying}
               style={[
-                styles.nextButton,
+                StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
                     matric.length < 3 || verifying ? '#fa9265' : '#f54b02',
                 },
               ]}
             >
-              <Text style={styles.nextButtonText}>
+              <Text style={StudentSignupStyles.nextButtonText}>
                 {verifying ? 'Verifying...' : 'Verify'}
               </Text>
             </TouchableOpacity>
@@ -675,14 +671,14 @@ const StudentSignup = () => {
         {/* STEP 3 — Password */}
         {step === 3 && (
           <>
-            <Text style={styles.inputHeader}>
+            <Text style={StudentSignupStyles.inputHeader}>
               Welcome {verifiedStudent?.firstname}, create your password:
             </Text>
-            <View style={styles.passwordInput}>
+            <View style={StudentSignupStyles.passwordInput}>
               <TextInput
                 placeholder="Password"
                 placeholderTextColor="#929191"
-                style={styles.input2}
+                style={StudentSignupStyles.input2}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -696,43 +692,43 @@ const StudentSignup = () => {
                 />
               </TouchableOpacity>
             </View>
-            <View style={styles.strengthBarContainer}>
+            <View style={StudentSignupStyles.strengthBarContainer}>
               <View
                 style={[
-                  styles.strengthSegment,
+                  StudentSignupStyles.strengthSegment,
                   { backgroundColor: hasUppercase ? '#f54b02' : '#929191' },
                 ]}
               />
               <View
                 style={[
-                  styles.strengthSegment,
+                  StudentSignupStyles.strengthSegment,
                   { backgroundColor: hasLowercase ? '#f54b02' : '#929191' },
                 ]}
               />
               <View
                 style={[
-                  styles.strengthSegment,
+                  StudentSignupStyles.strengthSegment,
                   { backgroundColor: hasNumber ? '#f54b02' : '#929191' },
                 ]}
               />
               <View
                 style={[
-                  styles.strengthSegment,
+                  StudentSignupStyles.strengthSegment,
                   { backgroundColor: hasSymbol ? '#f54b02' : '#929191' },
                 ]}
               />
               <View
                 style={[
-                  styles.strengthSegment,
+                  StudentSignupStyles.strengthSegment,
                   { backgroundColor: hasMinLength ? '#f54b02' : '#929191' },
                 ]}
               />
             </View>
-            <View style={styles.passwordInput}>
+            <View style={StudentSignupStyles.passwordInput}>
               <TextInput
                 placeholder="Confirm Password"
                 placeholderTextColor="#929191"
-                style={styles.input2}
+                style={StudentSignupStyles.input2}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
@@ -749,7 +745,9 @@ const StudentSignup = () => {
               </TouchableOpacity>
             </View>
             {confirmPassword.length > 0 && confirmPassword !== password && (
-              <Text style={styles.errorText}>Passwords do not match.</Text>
+              <Text style={StudentSignupStyles.errorText}>
+                Passwords do not match.
+              </Text>
             )}
 
             <TouchableOpacity
@@ -758,7 +756,7 @@ const StudentSignup = () => {
                 !isValidPassword(password) || confirmPassword !== password
               }
               style={[
-                styles.nextButton,
+                StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
                     !isValidPassword(password) || confirmPassword !== password
@@ -767,7 +765,7 @@ const StudentSignup = () => {
                 },
               ]}
             >
-              <Text style={styles.nextButtonText}>Next</Text>
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
           </>
         )}
@@ -775,16 +773,18 @@ const StudentSignup = () => {
         {/* STEP 4 — Email */}
         {step === 4 && (
           <>
-            <Text style={styles.inputHeader}>Enter your email:</Text>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Enter your email:
+            </Text>
             <TextInput
               placeholder="Email"
               placeholderTextColor="#929191"
               value={email}
               onChangeText={setEmail}
-              style={styles.input}
+              style={StudentSignupStyles.input}
             />
 
-            <Text style={styles.errorText}>
+            <Text style={StudentSignupStyles.errorText}>
               {!isValidEmail(email) && email.length > 0
                 ? 'Invalid email format'
                 : ''}
@@ -794,13 +794,13 @@ const StudentSignup = () => {
               onPress={verifyEmail}
               disabled={!isValidEmail(email)}
               style={[
-                styles.nextButton,
+                StudentSignupStyles.nextButton,
                 {
                   backgroundColor: !isValidEmail(email) ? '#fa9265' : '#f54b02',
                 },
               ]}
             >
-              <Text style={styles.nextButtonText}>Next</Text>
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
           </>
         )}
@@ -808,8 +808,10 @@ const StudentSignup = () => {
         {/* STEP 5 — Confirm Email */}
         {step === 5 && (
           <>
-            <Text style={styles.inputHeader}>Confirm Your Email</Text>
-            <Text style={styles.inputHeader2}>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Confirm Your Email
+            </Text>
+            <Text style={StudentSignupStyles.inputHeader2}>
               Enter the 6‑digit verification code that has been sent to: {email}
             </Text>
             {/* Code Input */}
@@ -819,24 +821,27 @@ const StudentSignup = () => {
               value={emailCode}
               onChangeText={setEmailCode}
               maxLength={6}
-              style={styles.input}
+              style={StudentSignupStyles.input}
             />
-            <View style={styles.rowDiv2}>
-              <Text style={styles.rowDivText}>
+            <View style={StudentSignupStyles.rowDiv2}>
+              <Text style={StudentSignupStyles.rowDivText}>
                 Code expires in {formatTime(timer)}
               </Text>
               {/* Resend Code Button */}
               <TouchableOpacity onPress={resendCode}>
-                <Text style={styles.rowDivBtn}>Resend Code?</Text>
+                <Text style={StudentSignupStyles.rowDivBtn}>Resend Code?</Text>
               </TouchableOpacity>
             </View>
             {/* NEXT BUTTON — only appears when code is 6 digits */}
             {emailCode.length === 6 && (
               <TouchableOpacity
-                style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
+                style={[
+                  StudentSignupStyles.nextButton,
+                  { backgroundColor: '#f54b02' },
+                ]}
                 onPress={verifyCode}
               >
-                <Text style={styles.nextButtonText}>Next</Text>
+                <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
               </TouchableOpacity>
             )}
           </>
@@ -845,23 +850,23 @@ const StudentSignup = () => {
         {/* STEP 6 - Avatar upload (Can skip) */}
         {step === 6 && (
           <>
-            <Text style={styles.header}>Upload Profile Photo</Text>
+            <Text style={StudentSignupStyles.header}>Upload Profile Photo</Text>
 
             {/* Main Container for the Avatar and Icon Overlay */}
-            <View style={styles.avatarContainer}>
+            <View style={StudentSignupStyles.avatarContainer}>
               <TouchableOpacity onPress={handleImageUpdate} activeOpacity={0.8}>
-                <View style={styles.avatarWrapper}>
+                <View style={StudentSignupStyles.avatarWrapper}>
                   {avatar ? (
                     <Image
                       source={{ uri: avatar }}
-                      style={styles.avatarImage}
+                      style={StudentSignupStyles.avatarImage}
                     />
                   ) : (
                     <Icon name="person-circle" size={120} color="#E0E0E0" />
                   )}
 
                   {/* The Camera Icon Overlay */}
-                  <View style={styles.cameraIconBadge}>
+                  <View style={StudentSignupStyles.cameraIconBadge}>
                     <Icon name="camera" size={20} color="#FFFFFF" />
                   </View>
                 </View>
@@ -870,17 +875,23 @@ const StudentSignup = () => {
 
             {/* Primary Action Button */}
             <TouchableOpacity
-              style={[styles.nextButton, { backgroundColor: '#f54b02' }]}
+              style={[
+                StudentSignupStyles.nextButton,
+                { backgroundColor: '#f54b02' },
+              ]}
               onPress={handleImageUpdate}
             >
-              <Text style={styles.nextButtonText}>
+              <Text style={StudentSignupStyles.nextButtonText}>
                 {hasUploadedAvatar ? 'Change Photo' : 'Upload Photo'}
               </Text>
             </TouchableOpacity>
 
             {/* Secondary Skip Action */}
-            <TouchableOpacity style={styles.skipLink} onPress={nextStep}>
-              <Text style={styles.skipLinkText}>
+            <TouchableOpacity
+              style={StudentSignupStyles.skipLink}
+              onPress={nextStep}
+            >
+              <Text style={StudentSignupStyles.skipLinkText}>
                 {hasUploadedAvatar ? 'Next' : 'Skip for now'}
               </Text>
             </TouchableOpacity>
@@ -890,11 +901,13 @@ const StudentSignup = () => {
         {/*FINAL STEP - iCampus Terms and conditions*/}
         {step === 7 && (
           <>
-            <Text style={styles.inputHeader}>Terms & Conditions</Text>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Terms & Conditions
+            </Text>
 
             {/* Scrollable Terms */}
-            <ScrollView style={styles.termsBox}>
-              <Text style={styles.termsText}>
+            <ScrollView style={StudentSignupStyles.termsBox}>
+              <Text style={StudentSignupStyles.termsText}>
                 By creating an iCampus account, you agree to the following
                 terms:
                 {'\n'} 1. You confirm that all information provided is accurate.
@@ -913,19 +926,26 @@ const StudentSignup = () => {
 
             {/* Agree Checkbox */}
             <TouchableOpacity
-              style={styles.checkboxContainer}
+              style={StudentSignupStyles.checkboxContainer}
               onPress={() => setAgreed(prev => !prev)}
               activeOpacity={0.7}
             >
               {/* The Checkbox Box */}
-              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+              <View
+                style={[
+                  StudentSignupStyles.checkbox,
+                  agreed && StudentSignupStyles.checkboxChecked,
+                ]}
+              >
                 {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
               </View>
 
               {/* The Label */}
-              <Text style={styles.checkboxLabel}>
+              <Text style={StudentSignupStyles.checkboxLabel}>
                 I agree to the{' '}
-                <Text style={styles.linkText}>Terms & Conditions</Text>
+                <Text style={StudentSignupStyles.linkText}>
+                  Terms & Conditions
+                </Text>
               </Text>
             </TouchableOpacity>
 
@@ -934,13 +954,13 @@ const StudentSignup = () => {
               onPress={handleSubmit}
               disabled={!agreed || creating}
               style={[
-                styles.nextButton,
+                StudentSignupStyles.nextButton,
                 {
                   backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
                 },
               ]}
             >
-              <Text style={styles.nextButtonText}>
+              <Text style={StudentSignupStyles.nextButtonText}>
                 {creating ? 'Creating Account...' : 'Finish'}
               </Text>
             </TouchableOpacity>
@@ -1003,278 +1023,5 @@ const StudentSignup = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    margin: 20,
-    borderRadius: 10,
-  },
-  progressClickable: {
-    flex: 1,
-    height: 6,
-    marginHorizontal: 4,
-    borderRadius: 3,
-  },
-  title: {
-    fontSize: 30,
-    color: '#222',
-    fontWeight: '700',
-    marginVertical: 24,
-    textAlign: 'center',
-  },
-  inputHeader: {
-    fontSize: 15,
-    color: '#222',
-    fontWeight: '700',
-    marginVertical: 12,
-    width: '100%',
-    alignSelf: 'flex-start',
-  },
-  header: {
-    fontSize: 15,
-    color: '#222',
-    fontWeight: '700',
-    marginVertical: 12,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  inputHeader2: {
-    fontSize: 15,
-    color: '#222',
-    marginVertical: 10,
-    maxWidth: '100%',
-    flexWrap: 'wrap',
-  },
-  progressBarDiv: {
-    flexDirection: 'row',
-    marginVertical: 20,
-    width: '90%',
-  },
-  selector: {
-    width: '100%',
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#929191',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  selectorHeader2: {
-    fontSize: 15,
-    color: '#929191',
-  },
-  dropdown: {
-    minWidth: '100%',
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#929191',
-    color: '#222',
-  },
-  input: {
-    minWidth: '100%',
-    padding: 10,
-    borderWidth: 1,
-    color: '#222',
-    borderColor: '#929191',
-    borderRadius: 5,
-  },
-  input2: {
-    flex: 1,
-    padding: 10,
-    color: '#222',
-  },
-  passwordInput: {
-    width: '100%',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#929191',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  nextButton: {
-    minWidth: '100%',
-    padding: 12,
-    marginTop: 20,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButton2: {
-    minWidth: 'auto',
-    padding: 12,
-    marginTop: 20,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButton3: {
-    minWidth: 'auto',
-    padding: 12,
-    marginTop: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-  },
-  nextButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  nextButtonText3: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#f54b02',
-  },
-  errorText: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 8,
-    width: '100%',
-    color: 'red',
-  },
-  footerDiv: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    alignSelf: 'center',
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-  },
-  footerDivText: {
-    fontSize: 15,
-    color: '#222',
-    marginRight: 5,
-  },
-  footerDivText2: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#f54b02',
-  },
-  strengthBarContainer: {
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 10,
-    marginHorizontal: 5,
-    width: '90%',
-    alignSelf: 'flex-start',
-  },
-  strengthSegment: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-  },
-  rowDiv: {
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 10,
-  },
-  rowDiv2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 10,
-  },
-  rowDivText: {
-    color: '#929191',
-    fontSize: 12,
-  },
-  rowDivBtn: {
-    fontSize: 12,
-    color: '#f54b02',
-    fontWeight: '800',
-  },
-  termsBox: {
-    height: 150,
-    width: '100%',
-    padding: 10,
-    borderWidth: 0.7,
-    borderColor: '#929191',
-    marginVertical: 10,
-  },
-  termsText: {
-    color: '#222',
-    fontSize: 15,
-    paddingBottom: 30,
-    lineHeight: 30,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 15, // Better spacing for modern UI
-    alignSelf: 'flex-start',
-  },
-  checkbox: {
-    width: 22, // Slightly larger for better tap targets
-    height: 22,
-    borderWidth: 2,
-    borderColor: '#f54b02',
-    borderRadius: 6, // Slightly more rounded for a modern look
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10, // Space between box and text
-    backgroundColor: 'transparent',
-  },
-  checkboxChecked: {
-    backgroundColor: '#f54b02',
-  },
-  checkboxLabel: {
-    color: '#444',
-    fontSize: 14,
-    fontWeight: '500', // Medium weight feels cleaner
-  },
-  linkText: {
-    color: '#f54b02',
-    textDecorationLine: 'underline',
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  avatarWrapper: {
-    position: 'relative', // Allows the camera icon to sit on top
-    borderWidth: 2,
-    borderColor: '#f54b02',
-    borderStyle: 'dashed',
-    borderRadius: 75,
-    padding: 5,
-  },
-  avatarImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-  },
-  cameraIconBadge: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: '#f54b02',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4, // Shadow for Android
-    shadowColor: '#000', // Shadow for iOS
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  skipLink: {
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  skipLinkText: {
-    color: '#f54b02',
-    fontSize: 15,
-    textDecorationLine: 'underline',
-  },
-});
 
 export default StudentSignup;

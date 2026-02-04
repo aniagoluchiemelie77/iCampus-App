@@ -5,6 +5,7 @@ export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type UserRole = 'student' | 'lecturer' | 'admin';
 export interface User {
   uid: string;
+  refreshTokens?: string[];
   usertype: UserType;
   firstname: string;
   lastname: string;

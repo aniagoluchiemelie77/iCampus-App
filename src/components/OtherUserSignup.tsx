@@ -4,12 +4,13 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  StyleSheet,
   Modal,
   Image,
   TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
-import { CountryPicker } from 'react-native-country-codes-picker'; // if you use this library
+import type { User } from '../types/firebase';
 import { useEffect, useState } from 'react';
 import { baseUrl } from './HomeScreenComponents';
 import { Dropdown } from 'react-native-element-dropdown';
@@ -37,6 +38,8 @@ import {
   isValidEmail,
   isValidPassword,
   getPasswordRequirements,
+  generateId,
+  generateId2,
 } from './StudentSignup';
 
 type VerifiedInstructor = {
@@ -110,89 +113,12 @@ const InstructorSignup = () => {
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
-  const checkICampusOperationalInSchool = async () => {
-    const response = await fetch(`${baseUrl}users/institutions/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schoolName: institution }),
-    });
-    const data = await response.json();
-    if (response.ok) {
-      setVerifiedInstitution(true);
-      setSchoolCode(data.schoolCode);
-      nextStep();
-    } else {
-      setVerifiedInstitution(false);
-      console.log(data?.message || 'Failed to validate institution');
-      setAlertType('error');
-      setAlertMessage(data?.message || 'Failed to validate institution');
-      setAlertVisible(true);
-    }
-  };
-  const fetchInstitutionsByCountry = async (selectedCountry: string) => {
-    try {
-      const response = await fetch(
-        `${baseUrl}users/institutions?country=${selectedCountry}`,
-      );
-      const data = await response.json();
-
-      if (response.ok) {
-        const formatted = data.institutions.map((i: Institution) => ({
-          label: i.name,
-          value: i.name,
-        }));
-        setInstitutionItems(formatted);
-      }
-    } catch (error) {
-      console.error('Error fetching institutions:', error);
-    }
-  };
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes}:${secs < 10 ? '0' + secs : secs}`;
   };
 
-  const verifyInstructor = async () => {
-    setVerifying(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-    let message;
-    try {
-      const response = await fetch(`${baseUrl}verifyInstructor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          school_name: institution,
-          staff_id: staffId,
-        }),
-        signal: controller.signal,
-      });
-      const data = await response.json();
-      if (response.ok) {
-        console.log('✅ Instructor verified:', data);
-        setVerifiedInstructor(data);
-        setInstructorNotFound(false);
-        nextStep();
-      } else {
-        message = 'Instructor not found';
-        setInstructorNotFound(true);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
-      }
-    } catch (error) {
-      message = (error as Error).message;
-      console.error('Verification error:', message);
-      setInstructorNotFound(true);
-      setAlertType('error');
-      setAlertMessage(message);
-      setAlertVisible(true);
-    } finally {
-      clearTimeout(timeout);
-      setVerifying(false);
-    }
-  };
   const verifyEmail = async () => {
     let message;
     try {
@@ -346,75 +272,81 @@ const InstructorSignup = () => {
     try {
       await fetchIP();
       const deviceType = DeviceInfo.getDeviceType();
-
-      // Build the registration payload
-      // Note: We REMOVED userId and tokenId generation here.
-      const registrationData = {
+      const tokenId = generateId();
+      const userId = generateId2();
+      // Build user object
+      const user: User = {
+        uid: userId,
         iScore: '5',
-        profilePic: avatar || '',
+        profilePic: [avatar || ''], // not array unless backend expects array
         usertype: userType,
         schoolCode,
-        firstname: userType === 'lecturer' ? verifiedInstructor?.firstname : '',
-        lastname: userType === 'lecturer' ? verifiedInstructor?.lastname : '',
+        isFirstLogin: true,
+        firstname:
+          userType === 'lecturer' && verifiedInstructor
+            ? verifiedInstructor.firstname
+            : '',
+        lastname:
+          userType === 'lecturer' && verifiedInstructor
+            ? verifiedInstructor.lastname
+            : '',
         schoolName: institution || '',
         email,
-        ipAddress: ipAddress, // Backend handles the array push
-        deviceType: deviceType,
-        password,
+        ipAddress: [ipAddress],
+        deviceType: [deviceType],
+        accessToken: tokenId,
+        password, // ideally hash on backend
         department:
-          userType === 'lecturer' ? verifiedInstructor?.department : '',
+          userType === 'lecturer' && verifiedInstructor
+            ? verifiedInstructor.department
+            : '',
+        pointsBalance: 0,
+        hasSubscribed: false,
+        createdAt: new Date().toISOString(),
         country: country || '',
         ...(userType === 'lecturer' && verifiedInstructor
           ? {
               phone_number: verifiedInstructor.phone_number,
-              staff_id: verifiedInstructor.staff_id,
+              staffId: verifiedInstructor.staff_id,
             }
           : {}),
       };
-
+      // Send to backend
       const response = await fetch(`${baseUrl}users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registrationData),
+        body: JSON.stringify(user),
       });
-
-      const result = await response.json();
-
+      const contentType = response.headers.get('content-type');
       if (response.status === 409) {
+        const result = await response.json();
         setCreating(false);
         setAlertType('error');
         setAlertMessage(result.message || 'User already exists.');
         setAlertVisible(true);
         return;
       }
-
-      if (response.ok) {
+      if (response.ok && contentType?.includes('application/json')) {
+        const result = (await response.json()) as SignupResponse;
         setAlertType('success');
         setAlertMessage('Your account has been successfully created.');
-
-        // result should contain: { message, user, accessToken, refreshToken }
-        const { accessToken, refreshToken, user } = result;
-
-        // Save locally
+        setCreating(false);
+        // Save user locally
         await AsyncStorage.setItem('hasLaunched', 'true');
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshToken);
         await AsyncStorage.setItem('user', JSON.stringify(user));
-
+        await AsyncStorage.setItem('authToken', result.token ?? '');
         dispatch(
           setUser({
             ...user,
-            accessToken,
             tokenCreatedAt: Date.now().toString(),
           }),
         );
-
-        setCreating(false);
         navigation.navigate('Home');
       } else {
-        console.warn('Signup failed:', result.message);
+        const text = await response.text();
+        console.warn('Unexpected response:', text);
         setAlertType('error');
-        setAlertMessage(result.message || 'Account creation failed.');
+        setAlertMessage('Account creation failed. Please try again.');
         setCreating(false);
       }
       setAlertVisible(true);
@@ -446,65 +378,48 @@ const InstructorSignup = () => {
   return (
     <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
       <>
-        <ProgressBar step={step} setStep={setStep} totalSteps={8} />
+        <ProgressBar step={step} setStep={setStep} totalSteps={2} />
         <LogoBigger />
 
         <Text style={StudentSignupStyles.title}>Instructor signup</Text>
-        {/* STEP 0 — Select Country */}
+        {/* STEP 0 — Email or Password */}
         {step === 0 && (
-          <>
-            <Text style={StudentSignupStyles.inputHeader}>
-              Select your country
-            </Text>
+            <>
+                {/* The main 'Next' button from your previous flow */}
+                <TouchableOpacity
+                   onPress={nextStep}
+    style={styles.primaryButton}
+  >
+    <Text style={styles.primaryButtonText}>Next</Text>
+  </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setShowCountryPicker(true)}
-              style={StudentSignupStyles.selector}
-            >
-              <Text style={StudentSignupStyles.selectorHeader2}>
-                {country || 'Select Country'}
-              </Text>
-              <Icon name="chevron-forward" size={20} color="#838282ff" />
-            </TouchableOpacity>
+  {/* The 'OR' Divider */}
+  <View style={styles.dividerContainer}>
+    <View style={styles.dividerLine} />
+    <Text style={styles.dividerText}>or</Text>
+    <View style={styles.dividerLine} />
+  </View>
 
-            <CountryPicker
-              show={showCountryPicker}
-              lang="en"
-              searchMessage="Search country..."
-              enableModalAvoiding={true} // Helps with keyboard/search bar
-              onBackdropPress={() => setShowCountryPicker(false)}
-              style={{
-                // This makes it a bottom sheet at a set height
-                modal: {
-                  height: 400, // Adjust this value to your preferred height
-                },
-                // Modern styling for the search input
-                textInput: {
-                  height: 45,
-                  borderRadius: 10,
-                  paddingHorizontal: 15,
-                },
-                countryButtonStyles: {
-                  height: 50,
-                },
-              }}
-              pickerButtonOnPress={item => {
-                setCountry(item.name.en);
-                setShowCountryPicker(false);
-                fetchInstitutionsByCountry(item.name.en);
-              }}
-            />
+  {/* Social Buttons Section */}
+  <View style={styles.socialContainer}>
+    <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
+      <Icon name="logo-google" size={20} color="#DB4437" />
+      <Text style={styles.socialButtonText}>Continue with Google</Text>
+    </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={nextStep}
-              disabled={!country}
-              style={[
-                StudentSignupStyles.nextButton,
-                { backgroundColor: country ? '#f54b02' : '#fa9265' },
-              ]}
-            >
-              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
-            </TouchableOpacity>
+    <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Github')}>
+      <Icon name="logo-github" size={20} color="#333" />
+      <Text style={styles.socialButtonText}>Continue with Github</Text>
+    </TouchableOpacity>
+  </View>
+
+  {/* Footer Login Link */}
+  <View style={styles.footerContainer}>
+    <Text style={styles.footerText}>Already have an account? </Text>
+    <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+      <Text style={styles.footerLink}>Log in</Text>
+    </TouchableOpacity>
+  </View>
           </>
         )}
 
@@ -932,5 +847,59 @@ const InstructorSignup = () => {
     </View>
   );
 };
+const styles = StyleSheet.create({
+  // ... existing styles for primaryButton
+  
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    width: '100%',
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#888',
+    fontSize: 14,
+  },
+  socialContainer: {
+    width: '100%',
+    gap: 12, // Space between social buttons
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#444',
+    fontWeight: '500',
+  },
+  footerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 30,
+  },
+  footerText: {
+    color: '#888',
+    fontSize: 14,
+  },
+  footerLink: {
+    color: '#f54b02', // Your brand orange
+    fontWeight: '700',
+    fontSize: 14,
+  },
+});
 
 export default InstructorSignup;

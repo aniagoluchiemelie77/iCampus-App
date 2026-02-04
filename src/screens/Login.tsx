@@ -49,53 +49,50 @@ const Login = () => {
     }
 
     try {
-      // Step 1: Get public IP
+      // (Step 1 & 2: IP and Location logic remains the same...)
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
-      console.log(ip);
 
-      // Step 2: Get location from IP
       const locationRes = await fetch(
         `https://ipinfo.io/${ip}?token=0812a745a27433`,
       );
       const locationData = await locationRes.json();
-      console.log('Location data:', locationData);
-
-      // Format location string
       const location =
         [locationData.city, locationData.region, locationData.country]
           .filter(Boolean)
           .join(', ') || 'Unknown location';
 
-      console.log('Formatted location:', location);
-
-      // Step 3: Send login request with IP and location
+      // Step 3: Login Request
       const response = await fetch(`${baseUrl}users/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password, ipAddress: ip, location }),
       });
 
       const contentType = response.headers.get('content-type');
       if (response.ok && contentType?.includes('application/json')) {
         const result = await response.json();
-        const token = result.token;
 
-        await AsyncStorage.setItem('authToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(result.user));
+        // --- THE FIX STARTS HERE ---
+        const { accessToken, refreshToken, user } = result;
 
-        dispatch(
-          setUser({ ...result.user, token, tokenCreatedAt: Date.now() }),
-        );
+        // Save BOTH tokens to storage
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+
+        // Update Redux state with the accessToken
+        dispatch(setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }));
+        // --- THE FIX ENDS HERE ---
+
         navigation.navigate('Home');
       } else {
-        const errorText = await response.text();
+        const errorData = await response.json(); // Backend sends { error: "..." }
         setAlertType('error');
-        setAlertMessage('Invalid credentials. Please try again.');
+        setAlertMessage(
+          errorData.error || 'Invalid credentials. Please try again.',
+        );
         setAlertVisible(true);
-        console.warn('Login failed:', errorText);
       }
     } catch (error) {
       setAlertType('error');

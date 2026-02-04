@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   Text,
   View,
   TouchableOpacity,
@@ -12,8 +11,6 @@ import {
   Modal,
   TouchableWithoutFeedback,
   ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -23,17 +20,12 @@ import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import type {
-  ProductCategoryList,
-  CalendarEvent,
-  Product,
-} from '../types/firebase';
+import type { ProductCategoryList, Product } from '../types/firebase';
 import {
   HomeScreenComponentStyles,
   NotificationPageStyles,
   homeStyles,
 } from '../assets/styles/colors';
-import { PointsPageStyles } from '../screens/PointsPage';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -49,7 +41,6 @@ import {
   clearCart,
   selectTotalPoints,
 } from './CartProductsSlice';
-import { selectUnreadCount } from './NotificationSplice';
 import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -83,18 +74,17 @@ export const uploadImageToCloudinary = async (
   }
 };
 
-type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type NavigationPropProductDetails = StackNavigationProp<
   RootStackParamList,
   'ProductDetails'
 >;
-const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+//const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 /*const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good Morning';
   if (hour < 17) return 'Good Afternoon';
   return 'Good Evening';
-};*/
+};
 
 const CalenderPopup = () => {
   const { events, errorMessage, fetchEvents } = useAppDataContext();
@@ -233,7 +223,7 @@ const CalenderPopup = () => {
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
 
-          {/* Modal content stays interactive and scrollable */}
+          {/* Modal content stays interactive and scrollable }
           <View style={HomeScreenComponentStyles.popup}>
             <View style={HomeScreenComponentStyles.topHeader2}>
               <Text style={HomeScreenComponentStyles.welcomeText2}>Events</Text>
@@ -409,7 +399,7 @@ const SettingsPopup = () => {
             <View style={HomeScreenComponentStyles.backdrop} />
           </TouchableWithoutFeedback>
 
-          {/* Modal content stays interactive and scrollable */}
+          {/* Modal content stays interactive and scrollable }
           <View style={HomeScreenComponentStyles.popupRight}>
             <ScrollView style={{ width: '100%' }}>
               <TouchableOpacity
@@ -676,325 +666,12 @@ const SettingsPopup = () => {
       </Modal>
     </View>
   );
-};
+};*/
 //Home screen
 export function Home() {
-  const user = useAppSelector(state => state.user);
-  const unreadCount = useSelector(selectUnreadCount);
-  const [refreshing, setRefreshing] = useState(false);
-  const navigation = useNavigation<NavigationProp>();
-  const [showActivities, setShowActivities] = useState(true);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const fetchEvents = useCallback(async () => {
-    const uid = user.uid ?? '';
-    const department = user.department ?? '';
-    const level = user.current_level ?? '';
-    const url = `${baseUrl}user/events?userId=${uid}&department=${department}&level=${level}`;
-    console.log('Fetching events from:', url);
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      setEvents(data);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    }
-  }, [user.uid, user.department, user.current_level]);
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchEvents();
-    setRefreshing(false);
-  }, [fetchEvents]);
+  //const user = useAppSelector(state => state.user);
 
-  //Fetch Events
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    // Run once on mount
-    fetchEvents();
-    // Set up hourly interval
-    intervalId = setInterval(() => {
-      fetchEvents();
-    }, REFRESH_INTERVAL_MS);
-    // Cleanup on unmount
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [fetchEvents]);
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-
-    // Add ordinal suffix
-    const getOrdinal = (n: number) => {
-      if (n > 3 && n < 21) return 'th';
-      switch (n % 10) {
-        case 1:
-          return 'st';
-        case 2:
-          return 'nd';
-        case 3:
-          return 'rd';
-        default:
-          return 'th';
-      }
-    };
-    const dayWithSuffix = `${day}${getOrdinal(day)}`;
-    const formatted = new Intl.DateTimeFormat('en-GB', {
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true,
-    }).format(date);
-    return `${dayWithSuffix} ${formatted}`;
-  };
-  const isToday = (dateString: string) => {
-    const eventDate = new Date(dateString);
-    const today = new Date();
-
-    return (
-      eventDate.getDate() === today.getDate() &&
-      eventDate.getMonth() === today.getMonth() &&
-      eventDate.getFullYear() === today.getFullYear()
-    );
-  };
-  const today = new Date();
-  const sortedEvents = [...events]
-    .filter(event => new Date(event.startDate) > today)
-    .sort(
-      (a, b) =>
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
-    );
-  const latestEvents = sortedEvents.slice(0, 7);
-  console.log('Logo:', Logo);
-
-  return (
-    <LinearGradient
-      style={HomeScreenComponentStyles.bckg}
-      colors={['#eee', '#edccbdff']}
-    >
-      <View style={HomeScreenComponentStyles.topHeader}>
-        <CalenderPopup />
-        <Logo />
-        <View style={HomeScreenComponentStyles.iconSubdiv}>
-          <TouchableOpacity
-            style={[
-              homeStyles.iconItem,
-              HomeScreenComponentStyles.activityIcons,
-              HomeScreenComponentStyles.activityIcons2,
-            ]}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Icon name="notifications-outline" size={28} color="#f54b02" />
-            {unreadCount > 0 && (
-              <View style={HomeScreenComponentStyles.badge}>
-                <Text style={HomeScreenComponentStyles.badgeText}>
-                  {unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <SettingsPopup />
-        </View>
-        {/*</View>
-      <View style={HomeScreenComponentStyles.welcomeHeader}>
-        <TouchableOpacity
-          style={[homeStyles.iconItem, HomeScreenComponentStyles.activityIcons]}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          {Array.isArray(user.profilePic) && user.profilePic.length > 0 && (
-            <Image
-              source={{ uri: user.profilePic[user.profilePic.length - 1] }}
-              style={ProfileComponentStyles.image}
-            />
-          )}
-        </TouchableOpacity>
-        <Text style={HomeScreenComponentStyles.welcomeText}>
-          {getGreeting()}, {user.firstname}
-        </Text>
-      </View> */}
-      </View>
-      <ScrollView
-        contentContainerStyle={HomeScreenComponentStyles.activityDivContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <View style={HomeScreenComponentStyles.activityDiv}>
-          <View style={HomeScreenComponentStyles.activityDivHeader}>
-            <Text style={HomeScreenComponentStyles.activityDivHeaderText}>
-              Activities
-            </Text>
-            <TouchableOpacity
-              style={[
-                homeStyles.iconItem,
-                HomeScreenComponentStyles.activityIcons,
-              ]}
-              onPress={() => setShowActivities(prev => !prev)}
-            >
-              <Icon
-                name={
-                  showActivities ? 'chevron-up-outline' : 'chevron-down-outline'
-                }
-                size={30}
-                color="#000"
-              />
-            </TouchableOpacity>
-          </View>
-          {showActivities && (
-            <View style={HomeScreenComponentStyles.activityIconsDiv}>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="people-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>Communities</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="bar-chart-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>Create Poll</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="bulb-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>Smart Help</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="calculator-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>Get GPA</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="book-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>Browse Materials</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="receipt-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>Spend Wise</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-                onPress={() => navigation.navigate('PointsPage')}
-              >
-                <Icon name="wallet-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>My Wallet</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Calender')}
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon
-                  name="calendar-number-outline"
-                  size={30}
-                  color="#f54b02"
-                />
-                <Text style={homeStyles.iconLabel}>Go Plan</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                ]}
-              >
-                <Icon name="library-outline" size={30} color="#f54b02" />
-                <Text style={homeStyles.iconLabel}>eLibrary</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-        <View style={HomeScreenComponentStyles.eventsContainer2}>
-          {latestEvents.map(event => (
-            <View
-              key={event._id}
-              style={[
-                HomeScreenComponentStyles.eventCardOuterWidth,
-                isToday(event.startDate) &&
-                  HomeScreenComponentStyles.todayBorderHighlight,
-              ]}
-            >
-              <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
-                <Text
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  style={HomeScreenComponentStyles.eventDescription}
-                >
-                  {event.description}
-                </Text>
-                {isToday(event.startDate) && (
-                  <View style={HomeScreenComponentStyles.todayIndicator}>
-                    <Text style={HomeScreenComponentStyles.todayIndicatorText}>
-                      Today
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
-                <View style={HomeScreenComponentStyles.eventMetaRow}>
-                  <Icon name="location-outline" size={16} color="#f54b02" />
-                  <Text style={HomeScreenComponentStyles.eventMetaText}>
-                    {event.location}
-                  </Text>
-                </View>
-                <View style={HomeScreenComponentStyles.eventMetaRow}>
-                  <Icon name="bookmarks-outline" size={16} color="#f54b02" />
-                  <Text style={HomeScreenComponentStyles.eventMetaText}>
-                    {(event.visibility ?? 'unspecified')
-                      .charAt(0)
-                      .toUpperCase() +
-                      (event.visibility ?? 'unspecified').slice(1)}
-                  </Text>
-                </View>
-                {event.eventType === 'Lectures' &&
-                  event.lectureType === 'online' && (
-                    <Text style={HomeScreenComponentStyles.lectureType}>
-                      Online
-                    </Text>
-                  )}
-              </View>
-              <Text style={HomeScreenComponentStyles.eventDate2}>
-                {new Date(event.startDate).toLocaleDateString() ===
-                new Date(event.endDate).toLocaleDateString()
-                  ? formatDate(event.startDate)
-                  : `${formatDate(event.startDate)} - ${formatDate(
-                      event.endDate,
-                    )}`}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </LinearGradient>
-  );
+  return <Text>Welcome to Home Screen</Text>;
 }
 
 // ClassroomScreen.js

@@ -80,6 +80,278 @@ export const MainSignupStyles = StyleSheet.create({
     fontSize: 15,
   },
 })
+export const StudentSignupStyles = StyleSheet.create({
+  container: {
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    margin: 20,
+    borderRadius: 10,
+  },
+  progressClickable: {
+    flex: 1,
+    height: 6,
+    marginHorizontal: 4,
+    borderRadius: 3,
+  },
+  title: {
+    fontSize: 30,
+    color: '#222',
+    fontWeight: '700',
+    marginVertical: 24,
+    textAlign: 'center',
+  },
+  inputHeader: {
+    fontSize: 15,
+    color: '#222',
+    fontWeight: '700',
+    marginVertical: 12,
+    width: '100%',
+    alignSelf: 'flex-start',
+  },
+  header: {
+    fontSize: 15,
+    color: '#222',
+    fontWeight: '700',
+    marginVertical: 12,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  inputHeader2: {
+    fontSize: 15,
+    color: '#222',
+    marginVertical: 10,
+    maxWidth: '100%',
+    flexWrap: 'wrap',
+  },
+  progressBarDiv: {
+    flexDirection: 'row',
+    marginVertical: 20,
+    width: '90%',
+  },
+  selector: {
+    width: '100%',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#929191',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  selectorHeader2: {
+    fontSize: 15,
+    color: '#929191',
+  },
+  dropdown: {
+    minWidth: '100%',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#929191',
+    color: '#222',
+  },
+  input: {
+    minWidth: '100%',
+    padding: 10,
+    borderWidth: 1,
+    color: '#222',
+    borderColor: '#929191',
+    borderRadius: 5,
+  },
+  input2: {
+    flex: 1,
+    padding: 10,
+    color: '#222',
+  },
+  passwordInput: {
+    width: '100%',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#929191',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  nextButton: {
+    minWidth: '100%',
+    padding: 12,
+    marginTop: 20,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton2: {
+    minWidth: 'auto',
+    padding: 12,
+    marginTop: 20,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton3: {
+    minWidth: 'auto',
+    padding: 12,
+    marginTop: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  nextButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  nextButtonText3: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f54b02',
+  },
+  errorText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 8,
+    width: '100%',
+    color: 'red',
+  },
+  footerDiv: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    alignSelf: 'center',
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+  },
+  footerDivText: {
+    fontSize: 15,
+    color: '#222',
+    marginRight: 5,
+  },
+  footerDivText2: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f54b02',
+  },
+  strengthBarContainer: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 10,
+    marginHorizontal: 5,
+    width: '90%',
+    alignSelf: 'flex-start',
+  },
+  strengthSegment: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+  },
+  rowDiv: {
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 10,
+  },
+  rowDiv2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 10,
+  },
+  rowDivText: {
+    color: '#929191',
+    fontSize: 12,
+  },
+  rowDivBtn: {
+    fontSize: 12,
+    color: '#f54b02',
+    fontWeight: '800',
+  },
+  termsBox: {
+    height: 150,
+    width: '100%',
+    padding: 10,
+    borderWidth: 0.7,
+    borderColor: '#929191',
+    marginVertical: 10,
+  },
+  termsText: {
+    color: '#222',
+    fontSize: 15,
+    paddingBottom: 30,
+    lineHeight: 30,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 15, // Better spacing for modern UI
+    alignSelf: 'flex-start',
+  },
+  checkbox: {
+    width: 22, // Slightly larger for better tap targets
+    height: 22,
+    borderWidth: 2,
+    borderColor: '#f54b02',
+    borderRadius: 6, // Slightly more rounded for a modern look
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10, // Space between box and text
+    backgroundColor: 'transparent',
+  },
+  checkboxChecked: {
+    backgroundColor: '#f54b02',
+  },
+  checkboxLabel: {
+    color: '#444',
+    fontSize: 14,
+    fontWeight: '500', // Medium weight feels cleaner
+  },
+  linkText: {
+    color: '#f54b02',
+    textDecorationLine: 'underline',
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  avatarWrapper: {
+    position: 'relative', // Allows the camera icon to sit on top
+    borderWidth: 2,
+    borderColor: '#f54b02',
+    borderStyle: 'dashed',
+    borderRadius: 75,
+    padding: 5,
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#f54b02',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4, // Shadow for Android
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  skipLink: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  skipLinkText: {
+    color: '#f54b02',
+    fontSize: 15,
+    textDecorationLine: 'underline',
+  },
+});
 export const HomeScreenComponentStyles = StyleSheet.create({
   bckg: {
     flex: 1,

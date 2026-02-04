@@ -73,56 +73,50 @@ export type RootStackParamList = {
   Login: undefined;
 };
 
-type RouteName = 'SignUp' | 'Welcome' | 'Home';
+type RouteName = 'SignUp' | 'Welcome' | 'Home' | 'Login';
 const Stack = createStackNavigator<RootStackParamList>();
 
 const App = () => {
   const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
-  const [initialParams, setInitialParams] = useState<
+  const [initialParams, _setInitialParams] = useState<
     RootStackParamList['Welcome'] | undefined
   >(undefined);
 
-  const getUserId = () => {
-    const userId = 'm83Y2Blq53';
-    return userId;
-  };
-
   useEffect(() => {
     const initializeApp = async () => {
-      const storedId = getUserId();
       try {
-        const [ipResponse, hasLaunched] = await Promise.all([
-          fetch('https://api.ipify.org?format=json'),
+        const [accessToken, refreshToken, hasLaunched] = await Promise.all([
+          AsyncStorage.getItem('accessToken'),
+          AsyncStorage.getItem('refreshToken'),
           AsyncStorage.getItem('hasLaunched'),
         ]);
-        const ipData = await ipResponse.json();
-        if (hasLaunched === null) {
-          console.log(ipData);
+
+        if (!hasLaunched) {
           await AsyncStorage.setItem('hasLaunched', 'true');
-          setInitialRoute('Welcome');
-          setInitialParams({ route: 'SignUp' });
-        } else {
-          const response = await fetch(`${baseUrl}users/${storedId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ isFirstLogin: false }),
+          return setInitialRoute('Welcome'); // First time users see Welcome/Onboarding
+        }
+
+        if (accessToken) {
+          setInitialRoute('Home');
+        } else if (refreshToken) {
+          // Logic: Try to get a new Access Token using the Refresh Token
+          const response = await fetch(`${baseUrl}user/refresh-token`, {
+            method: 'POST',
+            body: JSON.stringify({ refreshToken }),
           });
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            setInitialRoute('Welcome');
-            setInitialParams({ route: 'SignUp' });
-            console.log(result);
+
+          if (response.ok) {
+            const { accessToken: newAccess } = await response.json();
+            await AsyncStorage.setItem('accessToken', newAccess);
+            setInitialRoute('Home');
           } else {
-            const text = await response.text();
-            console.warn('Unexpected response:', text);
+            setInitialRoute('Login');
           }
+        } else {
+          setInitialRoute('Login');
         }
       } catch (error) {
-        console.error('Initialization failed:', error);
-        setInitialRoute('Welcome');
+        setInitialRoute('Login');
       }
     };
     setTimeout(() => {
