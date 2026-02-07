@@ -54,7 +54,6 @@ export type SignupResponse = {
   email?: string;
   message?: string;
   token?: string;
-  // Add any other fields your backend returns
 };
 
 const InstructorSignup = () => {

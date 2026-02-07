@@ -10,10 +10,10 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
-import type { User } from '../types/firebase';
+import { CountryPicker } from 'react-native-country-codes-picker';
+import auth from '@react-native-firebase/auth';
 import { useEffect, useState } from 'react';
 import { baseUrl } from './HomeScreenComponents';
-import { Dropdown } from 'react-native-element-dropdown';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
@@ -21,6 +21,8 @@ import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
 import { uploadImageToCloudinary } from './HomeScreenComponents';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { WEB_CLIENT_ID } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   HomeScreenComponentStyles,
@@ -33,71 +35,50 @@ import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
 import {
   ProgressBar,
-  Institution,
   Footer,
   isValidEmail,
   isValidPassword,
   getPasswordRequirements,
-  generateId,
   generateId2,
 } from './StudentSignup';
 
-type VerifiedInstructor = {
-  firstname: string;
-  lastname: string;
-  department: string;
-  current_level: string;
-  phone_number: string;
-  staff_id: string;
-  school_name: string;
-};
+GoogleSignin.configure({
+  webClientId: WEB_CLIENT_ID,
+  offlineAccess: true,
+});
 
-export type SignupResponse = {
-  verified?: boolean;
-  email?: string;
-  message?: string;
-  token?: string;
-  // Add any other fields your backend returns
-};
 
-const InstructorSignup = () => {
+const OtherUserSignup = () => {
+  const [subType, setSubType] = useState<'individual' | 'enterprise' | null>(
+    null,
+  );
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
   const [step, setStep] = useState(0);
-
-  const [country, setCountry] = useState('');
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-
-  const [institution, setInstitution] = useState('');
   const [email, setEmail] = useState('');
   const { height } = Dimensions.get('window');
   const [ipAddress, setIpAddress] = useState('');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
+  const [country, setCountry] = useState('');
+  const [isSocialSignup, setIsSocialSignup] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [verifiedEmail, setVerifiedEmail] = useState(false);
+  const [orgName, setOrgName] = useState('');
+  const [website, setWebsite] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [timer, setTimer] = useState(900);
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-  const [staffId, setStaffId] = useState('');
-  const [verifiedInstructor, setVerifiedInstructor] =
-    useState<VerifiedInstructor | null>(null);
-  const [instructorNotFound, setInstructorNotFound] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [hasUploadedAvatar, setHasUploadedAvatar] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [institutionItems, setInstitutionItems] = useState<
-    { label: string; value: string }[]
-  >([]);
 
   const [emailCode, setEmailCode] = useState('');
-  const [schoolCode, setSchoolCode] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [verifiedInstitution, setVerifiedInstitution] = useState(false);
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [alertVisible, setAlertVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -118,7 +99,19 @@ const InstructorSignup = () => {
     const secs = seconds % 60;
     return `${minutes}:${secs < 10 ? '0' + secs : secs}`;
   };
+  const isProfessionalEmail = (email: string) => {
+    const forbiddenDomains = [
+      'gmail.com',
+      'yahoo.com',
+      'outlook.com',
+      'hotmail.com',
+    ];
+    const domain = email.split('@')[1]?.toLowerCase();
+    return domain && !forbiddenDomains.includes(domain);
+  };
 
+  // Use it like this:
+  const canProceed = isValidEmail(email) && isProfessionalEmail(email);
   const verifyEmail = async () => {
     let message;
     try {
@@ -207,10 +200,8 @@ const InstructorSignup = () => {
           bottomOffset: 5,
           visibilityTime: 3000,
         });
-        console.log('Pre next');
         nextStep();
         setVerifiedEmail(true);
-        console.log('Post Next');
       } else {
         message = data?.message || 'Invalid or expired verification code';
         console.log('❌ ', message);
@@ -266,87 +257,77 @@ const InstructorSignup = () => {
     const data = await res.json();
     setIpAddress(data.ip);
   };
-  const userType = 'lecturer';
   const handleSubmit = async () => {
     setCreating(true);
     try {
       await fetchIP();
       const deviceType = DeviceInfo.getDeviceType();
-      const tokenId = generateId();
-      const userId = generateId2();
-      // Build user object
-      const user: User = {
-        uid: userId,
-        iScore: '5',
-        profilePic: [avatar || ''], // not array unless backend expects array
-        usertype: userType,
-        schoolCode,
-        isFirstLogin: true,
-        firstname:
-          userType === 'lecturer' && verifiedInstructor
-            ? verifiedInstructor.firstname
-            : '',
-        lastname:
-          userType === 'lecturer' && verifiedInstructor
-            ? verifiedInstructor.lastname
-            : '',
-        schoolName: institution || '',
-        email,
-        ipAddress: [ipAddress],
+
+      // Build the user object dynamically
+      const registrationData = {
+        uid: generateId2(),
         deviceType: [deviceType],
-        accessToken: tokenId,
-        password, // ideally hash on backend
-        department:
-          userType === 'lecturer' && verifiedInstructor
-            ? verifiedInstructor.department
-            : '',
-        pointsBalance: 0,
+        iScore: subType === 'enterprise' ? '' : '5', // Enterprises start with 1000 iScore
+        ipAddress: [ipAddress],
         hasSubscribed: false,
-        createdAt: new Date().toISOString(),
+        usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
+        firstname,
+        lastname: subType === 'enterprise' ? '' : lastname, // Or use rep name
+        email,
+        password: isSocialSignup ? 'SOCIAL_AUTH' : password,
         country: country || '',
-        ...(userType === 'lecturer' && verifiedInstructor
-          ? {
-              phone_number: verifiedInstructor.phone_number,
-              staffId: verifiedInstructor.staff_id,
-            }
-          : {}),
+        organizationName: subType === 'enterprise' ? orgName : '',
+        website: subType === 'enterprise' ? website : '',
+        jobTitle: subType === 'enterprise' ? jobTitle : '',
+        createdAt: new Date().toISOString(),
+        profilePic: [avatar || ''],
       };
-      // Send to backend
+
       const response = await fetch(`${baseUrl}users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user),
+        body: JSON.stringify(registrationData),
       });
-      const contentType = response.headers.get('content-type');
+
+      const result = await response.json();
+
       if (response.status === 409) {
-        const result = await response.json();
         setCreating(false);
         setAlertType('error');
-        setAlertMessage(result.message || 'User already exists.');
+        setAlertMessage(result.message || 'User or Enterprise already exists.');
         setAlertVisible(true);
         return;
       }
-      if (response.ok && contentType?.includes('application/json')) {
-        const result = (await response.json()) as SignupResponse;
+      if (response.ok) {
         setAlertType('success');
-        setAlertMessage('Your account has been successfully created.');
-        setCreating(false);
-        // Save user locally
+        const message =
+          subType === 'enterprise'
+            ? 'Enterprise account created successfully!'
+            : 'Account created successfully!';
+        setAlertMessage(message);
+        // result should contain: { message, user, accessToken, refreshToken }
+        const { accessToken, refreshToken, user: newUser } = result;
+
+        // Save locally
         await AsyncStorage.setItem('hasLaunched', 'true');
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('authToken', result.token ?? '');
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+        await AsyncStorage.setItem('user', JSON.stringify(newUser));
+
         dispatch(
           setUser({
-            ...user,
+            ...newUser,
+            accessToken,
             tokenCreatedAt: Date.now().toString(),
           }),
         );
+
+        setCreating(false);
         navigation.navigate('Home');
       } else {
-        const text = await response.text();
-        console.warn('Unexpected response:', text);
+        console.warn('Signup failed:', result.message);
         setAlertType('error');
-        setAlertMessage('Account creation failed. Please try again.');
+        setAlertMessage(result.message || 'Account creation failed.');
         setCreating(false);
       }
       setAlertVisible(true);
@@ -357,6 +338,51 @@ const InstructorSignup = () => {
       setAlertVisible(true);
       setCreating(false);
     }
+  };
+  const handleSocialLogin = async (provider: 'Google' | 'Github') => {
+    try {
+      if (provider === 'Google') {
+        await GoogleSignin.hasPlayServices();
+        const response = await GoogleSignin.signIn();
+        const user = response.data?.user;
+
+        if (user) {
+          setFirstname(user.givenName || '');
+          setLastname(user.familyName || '');
+          setEmail(user.email || '');
+          setAvatar(user.photo || null);
+          setIsSocialSignup(true);
+          setStep(3); // Skip straight to Nationality
+        }
+      } else if (provider === 'Github') {
+        const githubProvider = auth.GithubAuthProvider;
+        const userCredential = await auth().signInWithProvider(githubProvider);
+        const user = userCredential.user;
+        if (user) {
+          const fullName = user.displayName || '';
+          const nameParts = fullName.trim().split(/\s+/);
+          setFirstname(nameParts[0] || '');
+          setLastname(nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
+          setEmail(user.email || '');
+          setAvatar(user.photoURL || null);
+          setIsSocialSignup(true);
+          setStep(3);
+        }
+      }
+    } catch (error: any) {
+      console.error(`${provider} Auth Error:`, error);
+      if (error.code === 'auth/user-cancelled') return;
+      if (error.code !== 'auth/user-cancelled') {
+        setAlertMessage(`${provider} login failed. Please try again.`);
+        setAlertType('error');
+        setAlertVisible(true);
+      }
+    }
+  };
+  // Check if website has a dot and at least two characters after it
+  const isValidWebsite = (url: string) => {
+    const websiteRegex = /\.[a-z]{2,}$/i;
+    return websiteRegex.test(url.trim());
   };
 
   useEffect(() => {
@@ -378,126 +404,60 @@ const InstructorSignup = () => {
   return (
     <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
       <>
-        <ProgressBar step={step} setStep={setStep} totalSteps={2} />
+        <ProgressBar step={step} setStep={setStep} totalSteps={6} />
         <LogoBigger />
-
-        <Text style={StudentSignupStyles.title}>Instructor signup</Text>
-        {/* STEP 0 — Email or Password */}
-        {step === 0 && (
-            <>
-                {/* The main 'Next' button from your previous flow */}
-                <TouchableOpacity
-                   onPress={nextStep}
-    style={styles.primaryButton}
-  >
-    <Text style={styles.primaryButtonText}>Next</Text>
-  </TouchableOpacity>
-
-  {/* The 'OR' Divider */}
-  <View style={styles.dividerContainer}>
-    <View style={styles.dividerLine} />
-    <Text style={styles.dividerText}>or</Text>
-    <View style={styles.dividerLine} />
-  </View>
-
-  {/* Social Buttons Section */}
-  <View style={styles.socialContainer}>
-    <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
-      <Icon name="logo-google" size={20} color="#DB4437" />
-      <Text style={styles.socialButtonText}>Continue with Google</Text>
-    </TouchableOpacity>
-
-    <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Github')}>
-      <Icon name="logo-github" size={20} color="#333" />
-      <Text style={styles.socialButtonText}>Continue with Github</Text>
-    </TouchableOpacity>
-  </View>
-
-  {/* Footer Login Link */}
-  <View style={styles.footerContainer}>
-    <Text style={styles.footerText}>Already have an account? </Text>
-    <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-      <Text style={styles.footerLink}>Log in</Text>
-    </TouchableOpacity>
-  </View>
-          </>
-        )}
-
-        {/* STEP 1 — Select Institution */}
-        {step === 1 && (
-          <>
-            <Text style={StudentSignupStyles.inputHeader}>
-              Select Institution:
-            </Text>
-            <Dropdown
-              data={institutionItems}
-              labelField="label"
-              valueField="value"
-              search
-              placeholder="Select your institution"
-              searchPlaceholderTextColor="#222"
-              value={institution}
-              onChange={async item => {
-                setInstitution(item.value);
-              }}
-              style={StudentSignupStyles.dropdown}
-            />
+        {step === 0 && !subType && (
+          <View style={styles.selectionContainer}>
+            <Text style={styles.header}>Join iCampus as...</Text>
             <TouchableOpacity
-              onPress={async () => await checkICampusOperationalInSchool()}
-              disabled={!institution}
-              style={[
-                StudentSignupStyles.nextButton,
-                { backgroundColor: country ? '#f54b02' : '#fa9265' }, // gray when disabled
-              ]}
+              style={styles.card}
+              onPress={() => {
+                setSubType('individual');
+                setStep(0); // Start the OtherUserSignup flow you already built
+              }}
             >
-              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
+              <Icon name="person-outline" size={40} color="#f54b02" />
+              <Text style={styles.cardTitle}>Individual User</Text>
+              <Text style={styles.cardSub}>
+                {' '}
+                Guest or independent learners.
+              </Text>
             </TouchableOpacity>
-          </>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => {
+                setSubType('enterprise');
+                setStep(0); // This will lead to the Organization form
+              }}
+            >
+              <Icon name="business-outline" size={40} color="#f54b02" />
+              <Text style={styles.cardTitle}>Organization</Text>
+              <Text style={styles.cardSub}>
+                Institutions, schools, or corporate partners.
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={{ color: '#f54b02', marginTop: 10 }}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
-        {/* STEP 2 — Staff ID Confirmation */}
-        {step === 2 && (
+        <Text style={StudentSignupStyles.title}>
+          {subType === 'individual' ? 'Individual' : 'Organization'} Signup
+        </Text>
+        {/* STEP 1 — Credentials (Email & Password) */}
+        {subType === 'individual' && step === 1 && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
-              Enter your Staff ID:
+              Create your account
             </Text>
             <TextInput
-              placeholder="Staff ID"
+              placeholder="Email"
               placeholderTextColor="#929191"
-              value={staffId}
-              onChangeText={setStaffId}
+              value={email}
+              onChangeText={setEmail}
               style={StudentSignupStyles.input}
             />
-            {instructorNotFound && (
-              <Text style={StudentSignupStyles.errorText}>
-                User Staff ID not found.
-              </Text>
-            )}
-
-            <TouchableOpacity
-              onPress={verifyInstructor}
-              disabled={staffId.length < 3 || verifying}
-              style={[
-                StudentSignupStyles.nextButton,
-                {
-                  backgroundColor:
-                    staffId.length < 3 || verifying ? '#fa9265' : '#f54b02',
-                },
-              ]}
-            >
-              <Text style={StudentSignupStyles.nextButtonText}>
-                {verifying ? 'Verifying...' : 'Verify'}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* STEP 3 — Password */}
-        {step === 3 && (
-          <>
-            <Text style={StudentSignupStyles.inputHeader}>
-              Welcome {verifiedInstructor?.firstname}, create your password:
-            </Text>
             <View style={StudentSignupStyles.passwordInput}>
               <TextInput
                 placeholder="Password"
@@ -548,42 +508,19 @@ const InstructorSignup = () => {
                 ]}
               />
             </View>
-            <View style={StudentSignupStyles.passwordInput}>
-              <TextInput
-                placeholder="Confirm Password"
-                placeholderTextColor="#929191"
-                style={StudentSignupStyles.input2}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(prev => !prev)}
-              >
-                <Icon
-                  name={showConfirmPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#929191"
-                  style={{ marginRight: 7 }}
-                />
-              </TouchableOpacity>
-            </View>
-            {confirmPassword.length > 0 && confirmPassword !== password && (
-              <Text style={StudentSignupStyles.errorText}>
-                Passwords do not match.
-              </Text>
-            )}
-
+            <Text style={StudentSignupStyles.errorText}>
+              {!isValidEmail(email) && email.length > 0
+                ? 'Invalid email format'
+                : ''}
+            </Text>
             <TouchableOpacity
-              onPress={nextStep}
-              disabled={
-                !isValidPassword(password) || confirmPassword !== password
-              }
+              onPress={verifyEmail}
+              disabled={!isValidEmail(email) || !isValidPassword(password)}
               style={[
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    !isValidPassword(password) || confirmPassword !== password
+                    !isValidEmail(email) || !isValidPassword(password)
                       ? '#fa9265'
                       : '#f54b02',
                 },
@@ -591,46 +528,40 @@ const InstructorSignup = () => {
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
+            {/* The "OR" Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social Buttons */}
+            <View style={styles.socialContainer}>
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleSocialLogin('Google')}
+              >
+                <Icon name="logo-google" size={20} color="#DB4437" />
+                <Text style={styles.socialButtonText}>
+                  Continue with Google
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleSocialLogin('Github')}
+              >
+                <Icon name="logo-github" size={20} color="#333" />
+                <Text style={styles.socialButtonText}>
+                  Continue with Github
+                </Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
-        {/* STEP 4 — Email */}
-        {step === 4 && (
-          <>
-            <Text style={StudentSignupStyles.inputHeader}>
-              Enter your email:
-            </Text>
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor="#929191"
-              value={email}
-              onChangeText={setEmail}
-              style={StudentSignupStyles.input}
-            />
-
-            <Text style={StudentSignupStyles.errorText}>
-              {!isValidEmail(email) && email.length > 0
-                ? 'Invalid email format'
-                : ''}
-            </Text>
-
-            <TouchableOpacity
-              onPress={verifyEmail}
-              disabled={!isValidEmail(email)}
-              style={[
-                StudentSignupStyles.nextButton,
-                {
-                  backgroundColor: !isValidEmail(email) ? '#fa9265' : '#f54b02',
-                },
-              ]}
-            >
-              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* STEP 5 — Confirm Email */}
-        {step === 5 && (
+        {/* STEP 2 — Confirm Email */}
+        {subType === 'individual' && step === 2 && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Confirm Your Email
@@ -663,16 +594,91 @@ const InstructorSignup = () => {
                   StudentSignupStyles.nextButton,
                   { backgroundColor: '#f54b02' },
                 ]}
+                disabled={verifying}
                 onPress={verifyCode}
               >
-                <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
+                <Text style={StudentSignupStyles.nextButtonText}>
+                  {verifying ? 'Verifying...' : 'Verify'}
+                </Text>
               </TouchableOpacity>
             )}
           </>
         )}
 
-        {/* STEP 6 - Avatar upload (Can skip) */}
-        {step === 6 && (
+        {/* STEP 3 — Personal Details (New Step) */}
+        {subType === 'individual' && step === 3 && (
+          <>
+            <Text style={StudentSignupStyles.inputHeader}>
+              {isSocialSignup ? 'Confirm your details' : 'Tell us your name'}
+            </Text>
+            <TextInput
+              placeholder="First Name"
+              value={firstname}
+              placeholderTextColor="#929191"
+              onChangeText={setFirstname}
+              style={StudentSignupStyles.input}
+            />
+            <TextInput
+              placeholder="Last Name"
+              value={lastname}
+              placeholderTextColor="#929191"
+              onChangeText={setLastname}
+              style={StudentSignupStyles.input}
+            />
+            <Text style={StudentSignupStyles.inputHeader}>Nationality</Text>
+            <TouchableOpacity
+              onPress={() => setShowCountryPicker(true)}
+              style={StudentSignupStyles.selector}
+            >
+              <Text style={StudentSignupStyles.selectorHeader2}>
+                {country || 'Select Country'}
+              </Text>
+              <Icon name="chevron-forward" size={20} color="#838282ff" />
+            </TouchableOpacity>
+
+            <CountryPicker
+              show={showCountryPicker}
+              lang="en"
+              searchMessage="Search country..."
+              enableModalAvoiding={true}
+              onBackdropPress={() => setShowCountryPicker(false)}
+              style={{
+                modal: {
+                  height: 400,
+                },
+                textInput: {
+                  height: 45,
+                  borderRadius: 10,
+                  paddingHorizontal: 15,
+                },
+                countryButtonStyles: {
+                  height: 50,
+                },
+              }}
+              pickerButtonOnPress={item => {
+                setCountry(item.name.en);
+                setShowCountryPicker(false);
+              }}
+            />
+
+            <TouchableOpacity
+              onPress={nextStep}
+              disabled={!country || !firstname || !lastname}
+              style={[
+                StudentSignupStyles.nextButton,
+                {
+                  backgroundColor:
+                    country && firstname && lastname ? '#f54b02' : '#fa9265',
+                },
+              ]}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* STEP 4 - Avatar upload (Can skip) */}
+        {subType === 'individual' && step === 4 && (
           <>
             <Text style={StudentSignupStyles.header}>Upload Profile Photo</Text>
 
@@ -723,7 +729,7 @@ const InstructorSignup = () => {
         )}
 
         {/*FINAL STEP - iCampus Terms and conditions*/}
-        {step === 7 && (
+        {subType === 'individual' && step === 5 && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Terms & Conditions
@@ -790,8 +796,160 @@ const InstructorSignup = () => {
             </TouchableOpacity>
           </>
         )}
+
+        {/* ENTERPRISE STEP 0: Organization Identity */}
+        {step === 0 && subType === 'enterprise' && (
+          <>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Create Organization Account
+            </Text>
+            <TextInput
+              placeholder="Legal Organization Name"
+              placeholderTextColor="#929191"
+              style={StudentSignupStyles.input}
+              value={orgName}
+              onChangeText={setOrgName}
+            />
+            <TextInput
+              placeholder="Official Website (e.g. www.school.com)"
+              placeholderTextColor="#929191"
+              style={StudentSignupStyles.input}
+              value={website}
+              onChangeText={setWebsite}
+            />
+            <TouchableOpacity
+              onPress={nextStep}
+              disabled={!orgName || isValidWebsite(website) === false}
+              style={[
+                StudentSignupStyles.nextButton,
+                { backgroundColor: orgName && website ? '#f54b02' : '#fa9265' },
+              ]}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ENTERPRISE STEP 1: Representative Identity */}
+        {step === 1 && subType === 'enterprise' && (
+          <>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Authorized Representative
+            </Text>
+            <TextInput
+              placeholder="Your Full Name"
+              placeholderTextColor="#929191"
+              style={StudentSignupStyles.input}
+              value={firstname}
+              onChangeText={setFirstname}
+            />
+            <TextInput
+              placeholder="Job Title (e.g. IT Admin, Principal)"
+              placeholderTextColor="#929191"
+              style={StudentSignupStyles.input}
+              value={jobTitle}
+              onChangeText={setJobTitle}
+            />
+            <TouchableOpacity
+              onPress={nextStep}
+              disabled={!firstname || !jobTitle}
+              style={[
+                StudentSignupStyles.nextButton,
+                {
+                  backgroundColor:
+                    firstname && jobTitle ? '#f54b02' : '#fa9265',
+                },
+              ]}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ENTERPRISE STEP 2: Account Credentials */}
+        {step === 2 && subType === 'enterprise' && (
+          <>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Login Credentials
+            </Text>
+            <TextInput
+              placeholder="Official Business Email"
+              placeholderTextColor="#929191"
+              style={StudentSignupStyles.input}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
+            {/* Use your existing Password input logic here */}
+            <TouchableOpacity
+              onPress={verifyEmail} // Use your existing verification logic
+              disabled={
+                !isValidEmail(email) ||
+                !isProfessionalEmail(email) ||
+                !canProceed
+              }
+              style={[
+                StudentSignupStyles.nextButton,
+                {
+                  backgroundColor: canProceed ? '#f54b02' : '#fa9265',
+                },
+              ]}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>
+                Verify Email
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {subType === 'enterprise' && step === 3 && (
+          <>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Verify Organization Email
+            </Text>
+            <Text style={StudentSignupStyles.inputHeader2}>
+              Sent to: {email}
+            </Text>
+            <TextInput
+              placeholder="6‑digit code"
+              value={emailCode}
+              onChangeText={setEmailCode}
+              maxLength={6}
+              style={StudentSignupStyles.input}
+            />
+            <TouchableOpacity
+              style={StudentSignupStyles.nextButton}
+              onPress={verifyCode}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>
+                Verify & Continue
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {subType === 'enterprise' && step === 4 && (
+          <>
+            <Text style={StudentSignupStyles.inputHeader}>
+              Organization Agreement
+            </Text>
+            <ScrollView style={StudentSignupStyles.termsBox}>
+              <Text style={StudentSignupStyles.termsText}>
+                By registering {orgName}, you agree to our Enterprise Service
+                Level Agreement...
+              </Text>
+            </ScrollView>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={!agreed}
+              style={StudentSignupStyles.nextButton}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>
+                Complete Registration
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </>
-      {step !== 7 && <Footer />}
+      {step !== 5 && <Footer />}
       <SweetAlertModal
         visible={alertVisible}
         onConfirm={() => setAlertVisible(false)}
@@ -848,13 +1006,57 @@ const InstructorSignup = () => {
   );
 };
 const styles = StyleSheet.create({
-  // ... existing styles for primaryButton
-  
+  selectionContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff', // Or your container background
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  card: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+    // Elevation for Android
+    elevation: 3,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  cardSelected: {
+    borderColor: '#f54b02',
+    borderWidth: 2,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 10,
+  },
+  cardSub: {
+    fontSize: 14,
+    color: '#929191',
+    textAlign: 'center',
+    marginTop: 5,
+  },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 20,
-    width: '100%',
   },
   dividerLine: {
     flex: 1,
@@ -867,8 +1069,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   socialContainer: {
-    width: '100%',
-    gap: 12, // Space between social buttons
+    gap: 12,
   },
   socialButton: {
     flexDirection: 'row',
@@ -879,6 +1080,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderRadius: 8,
     backgroundColor: '#FFF',
+    marginBottom: 10,
   },
   socialButtonText: {
     marginLeft: 10,
@@ -889,17 +1091,16 @@ const styles = StyleSheet.create({
   footerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 30,
+    marginTop: 20,
+    paddingBottom: 30,
   },
   footerText: {
     color: '#888',
-    fontSize: 14,
   },
   footerLink: {
-    color: '#f54b02', // Your brand orange
-    fontWeight: '700',
-    fontSize: 14,
+    color: '#f54b02',
+    fontWeight: 'bold',
   },
 });
 
-export default InstructorSignup;
+export default OtherUserSignup;

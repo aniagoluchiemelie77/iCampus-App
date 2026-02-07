@@ -7,4 +7,5 @@ declare module '@env' {
   export const FLUTTERWAVE_CLIENT_EKEY: string;
   export const FLUTTERWAVE_CLIENT_SECRET: string;
   export const FLUTTERWAVE_CLIENT_ID: string;
+  export const WEB_CLIENT_ID: string;
 }

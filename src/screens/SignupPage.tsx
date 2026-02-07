@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import StudentSignup from '../components/StudentSignup';
 import InstructorSignup from '../components/InstructorSignup';
-import UserorEnterpriseSignup from '../components/UserorEnterpriseSignup';
+import OtherUserSignup from '../components/OtherUserSignup';
 
 type SignupPageParams = {
   role: 'student' | 'teacher' | 'other';
@@ -17,7 +17,7 @@ const roleConfig = {
     component: <InstructorSignup />,
   },
   other: {
-    component: <UserorEnterpriseSignup />,
+    component: <OtherUserSignup />,
   },
 };
 
