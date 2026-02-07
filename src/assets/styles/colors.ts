@@ -216,10 +216,9 @@ export const StudentSignupStyles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
     alignSelf: 'center',
     position: 'absolute',
-    bottom: 30,
+    bottom: 15,
     left: 20,
   },
   footerDivText: {
@@ -350,6 +349,89 @@ export const StudentSignupStyles = StyleSheet.create({
     color: '#f54b02',
     fontSize: 15,
     textDecorationLine: 'underline',
+  },
+   selectionContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff', // Or your container background
+  },
+  nextButton4: {
+    minWidth: '100%',
+    padding: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+    // Elevation for Android
+    elevation: 3,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  cardSelected: {
+    borderColor: '#f54b02',
+    borderWidth: 2,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 10,
+  },
+  cardSub: {
+    fontSize: 14,
+    color: '#929191',
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#888',
+    fontSize: 14,
+  },
+  socialContainer: {
+    gap: 5,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderWidth: 0.7,
+    borderColor: '#f89b74',
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+    marginBottom: 10,
+    minWidth: '90%',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#444',
+    fontWeight: '500',
   },
 });
 export const HomeScreenComponentStyles = StyleSheet.create({

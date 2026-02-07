@@ -93,11 +93,14 @@ const App = () => {
 
         if (!hasLaunched) {
           await AsyncStorage.setItem('hasLaunched', 'true');
-          return setInitialRoute('Welcome'); // First time users see Welcome/Onboarding
+          setInitialRoute('Welcome');
+          _setInitialParams({ route: 'SignUp' });
+          return;
         }
 
         if (accessToken) {
           setInitialRoute('Home');
+          return;
         } else if (refreshToken) {
           // Logic: Try to get a new Access Token using the Refresh Token
           const response = await fetch(`${baseUrl}user/refresh-token`, {
@@ -110,13 +113,16 @@ const App = () => {
             await AsyncStorage.setItem('accessToken', newAccess);
             setInitialRoute('Home');
           } else {
-            setInitialRoute('Login');
+            setInitialRoute('Welcome');
+            _setInitialParams({ route: 'Login' });
           }
         } else {
-          setInitialRoute('Login');
+          setInitialRoute('Welcome');
+          _setInitialParams({ route: 'SignUp' });
         }
       } catch (error) {
-        setInitialRoute('Login');
+        setInitialRoute('Welcome');
+        _setInitialParams({ route: 'SignUp' });
       }
     };
     setTimeout(() => {

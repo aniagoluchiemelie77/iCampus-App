@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  StyleSheet,
   Modal,
   Image,
   TouchableWithoutFeedback,
@@ -407,32 +406,31 @@ const OtherUserSignup = () => {
         <ProgressBar step={step} setStep={setStep} totalSteps={6} />
         <LogoBigger />
         {step === 0 && !subType && (
-          <View style={styles.selectionContainer}>
-            <Text style={styles.header}>Join iCampus as...</Text>
+          <View style={StudentSignupStyles.selectionContainer}>
             <TouchableOpacity
-              style={styles.card}
+              style={StudentSignupStyles.card}
               onPress={() => {
                 setSubType('individual');
-                setStep(0); // Start the OtherUserSignup flow you already built
+                setStep(1); // Start the OtherUserSignup flow you already built
               }}
             >
               <Icon name="person-outline" size={40} color="#f54b02" />
-              <Text style={styles.cardTitle}>Individual User</Text>
-              <Text style={styles.cardSub}>
+              <Text style={StudentSignupStyles.cardTitle}>Individual User</Text>
+              <Text style={StudentSignupStyles.cardSub}>
                 {' '}
                 Guest or independent learners.
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.card}
+              style={StudentSignupStyles.card}
               onPress={() => {
                 setSubType('enterprise');
-                setStep(0); // This will lead to the Organization form
+                setStep(1); // This will lead to the Organization form
               }}
             >
               <Icon name="business-outline" size={40} color="#f54b02" />
-              <Text style={styles.cardTitle}>Organization</Text>
-              <Text style={styles.cardSub}>
+              <Text style={StudentSignupStyles.cardTitle}>Organization</Text>
+              <Text style={StudentSignupStyles.cardSub}>
                 Institutions, schools, or corporate partners.
               </Text>
             </TouchableOpacity>
@@ -442,9 +440,6 @@ const OtherUserSignup = () => {
           </View>
         )}
 
-        <Text style={StudentSignupStyles.title}>
-          {subType === 'individual' ? 'Individual' : 'Organization'} Signup
-        </Text>
         {/* STEP 1 — Credentials (Email & Password) */}
         {subType === 'individual' && step === 1 && (
           <>
@@ -458,7 +453,9 @@ const OtherUserSignup = () => {
               onChangeText={setEmail}
               style={StudentSignupStyles.input}
             />
-            <View style={StudentSignupStyles.passwordInput}>
+            <View
+              style={[StudentSignupStyles.passwordInput, { marginTop: 15 }]}
+            >
               <TextInput
                 placeholder="Password"
                 placeholderTextColor="#929191"
@@ -517,7 +514,7 @@ const OtherUserSignup = () => {
               onPress={verifyEmail}
               disabled={!isValidEmail(email) || !isValidPassword(password)}
               style={[
-                StudentSignupStyles.nextButton,
+                StudentSignupStyles.nextButton4,
                 {
                   backgroundColor:
                     !isValidEmail(email) || !isValidPassword(password)
@@ -529,30 +526,30 @@ const OtherUserSignup = () => {
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
             {/* The "OR" Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
+            <View style={StudentSignupStyles.dividerContainer}>
+              <View style={StudentSignupStyles.dividerLine} />
+              <Text style={StudentSignupStyles.dividerText}>or</Text>
+              <View style={StudentSignupStyles.dividerLine} />
             </View>
 
             {/* Social Buttons */}
-            <View style={styles.socialContainer}>
+            <View style={StudentSignupStyles.socialContainer}>
               <TouchableOpacity
-                style={styles.socialButton}
+                style={StudentSignupStyles.socialButton}
                 onPress={() => handleSocialLogin('Google')}
               >
                 <Icon name="logo-google" size={20} color="#DB4437" />
-                <Text style={styles.socialButtonText}>
+                <Text style={StudentSignupStyles.socialButtonText}>
                   Continue with Google
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.socialButton}
+                style={StudentSignupStyles.socialButton}
                 onPress={() => handleSocialLogin('Github')}
               >
                 <Icon name="logo-github" size={20} color="#333" />
-                <Text style={styles.socialButtonText}>
+                <Text style={StudentSignupStyles.socialButtonText}>
                   Continue with Github
                 </Text>
               </TouchableOpacity>
@@ -623,7 +620,7 @@ const OtherUserSignup = () => {
               value={lastname}
               placeholderTextColor="#929191"
               onChangeText={setLastname}
-              style={StudentSignupStyles.input}
+              style={[StudentSignupStyles.input, { marginTop: 15 }]}
             />
             <Text style={StudentSignupStyles.inputHeader}>Nationality</Text>
             <TouchableOpacity
@@ -798,7 +795,7 @@ const OtherUserSignup = () => {
         )}
 
         {/* ENTERPRISE STEP 0: Organization Identity */}
-        {step === 0 && subType === 'enterprise' && (
+        {step === 1 && subType === 'enterprise' && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Create Organization Account
@@ -806,7 +803,7 @@ const OtherUserSignup = () => {
             <TextInput
               placeholder="Legal Organization Name"
               placeholderTextColor="#929191"
-              style={StudentSignupStyles.input}
+              style={[StudentSignupStyles.input, { marginBottom: 15 }]}
               value={orgName}
               onChangeText={setOrgName}
             />
@@ -831,7 +828,7 @@ const OtherUserSignup = () => {
         )}
 
         {/* ENTERPRISE STEP 1: Representative Identity */}
-        {step === 1 && subType === 'enterprise' && (
+        {step === 2 && subType === 'enterprise' && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Authorized Representative
@@ -839,7 +836,7 @@ const OtherUserSignup = () => {
             <TextInput
               placeholder="Your Full Name"
               placeholderTextColor="#929191"
-              style={StudentSignupStyles.input}
+              style={[StudentSignupStyles.input, { marginBottom: 15 }]}
               value={firstname}
               onChangeText={setFirstname}
             />
@@ -867,7 +864,7 @@ const OtherUserSignup = () => {
         )}
 
         {/* ENTERPRISE STEP 2: Account Credentials */}
-        {step === 2 && subType === 'enterprise' && (
+        {step === 3 && subType === 'enterprise' && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Login Credentials
@@ -901,13 +898,13 @@ const OtherUserSignup = () => {
             </TouchableOpacity>
           </>
         )}
-        {subType === 'enterprise' && step === 3 && (
+        {subType === 'enterprise' && step === 4 && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Verify Organization Email
             </Text>
             <Text style={StudentSignupStyles.inputHeader2}>
-              Sent to: {email}
+              Enter the 6‑digit verification code that has been sent to: {email}
             </Text>
             <TextInput
               placeholder="6‑digit code"
@@ -916,17 +913,30 @@ const OtherUserSignup = () => {
               maxLength={6}
               style={StudentSignupStyles.input}
             />
+            <View style={StudentSignupStyles.rowDiv2}>
+                          <Text style={StudentSignupStyles.rowDivText}>
+                            Code expires in {formatTime(timer)}
+                          </Text>
+                          {/* Resend Code Button */}
+                          <TouchableOpacity onPress={resendCode}>
+                            <Text style={StudentSignupStyles.rowDivBtn}>Resend Code?</Text>
+                          </TouchableOpacity>
+                        </View>
+                        {emailCode.length === 6 && (
             <TouchableOpacity
-              style={StudentSignupStyles.nextButton}
+              style={[
+                StudentSignupStyles.nextButton,
+                { backgroundColor: '#f54b02' },
+              ]}
               onPress={verifyCode}
             >
               <Text style={StudentSignupStyles.nextButtonText}>
                 Verify & Continue
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity>)}
           </>
         )}
-        {subType === 'enterprise' && step === 4 && (
+        {subType === 'enterprise' && step === 5 && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Organization Agreement
@@ -938,12 +948,39 @@ const OtherUserSignup = () => {
               </Text>
             </ScrollView>
             <TouchableOpacity
+              style={StudentSignupStyles.checkboxContainer}
+              onPress={() => setAgreed(prev => !prev)}
+              activeOpacity={0.7}
+            >
+              {/* The Checkbox Box */}
+              <View
+                style={[
+                  StudentSignupStyles.checkbox,
+                  agreed && StudentSignupStyles.checkboxChecked,
+                ]}
+              >
+                {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
+              </View>            
+              {/* The Label */}
+              <Text style={StudentSignupStyles.checkboxLabel}>
+                I agree to the{' '}
+                <Text style={StudentSignupStyles.linkText}>
+                  Terms & Conditions
+                </Text>
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={handleSubmit}
-              disabled={!agreed}
-              style={StudentSignupStyles.nextButton}
+              disabled={!agreed || creating}
+              style={[
+                StudentSignupStyles.nextButton,
+                {
+                  backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
+                },
+              ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>
-                Complete Registration
+                {creating ? 'Creating Account...' : 'Complete Signup'}
               </Text>
             </TouchableOpacity>
           </>
@@ -1005,102 +1042,6 @@ const OtherUserSignup = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
-  selectionContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff', // Or your container background
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    alignItems: 'center',
-    // Elevation for Android
-    elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  cardSelected: {
-    borderColor: '#f54b02',
-    borderWidth: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 10,
-  },
-  cardSub: {
-    fontSize: 14,
-    color: '#929191',
-    textAlign: 'center',
-    marginTop: 5,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E0E0E0',
-  },
-  dividerText: {
-    marginHorizontal: 10,
-    color: '#888',
-    fontSize: 14,
-  },
-  socialContainer: {
-    gap: 12,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    backgroundColor: '#FFF',
-    marginBottom: 10,
-  },
-  socialButtonText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#444',
-    fontWeight: '500',
-  },
-  footerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-    paddingBottom: 30,
-  },
-  footerText: {
-    color: '#888',
-  },
-  footerLink: {
-    color: '#f54b02',
-    fontWeight: 'bold',
-  },
-});
+
 
 export default OtherUserSignup;
