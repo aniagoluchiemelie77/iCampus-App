@@ -10,7 +10,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
-import auth from '@react-native-firebase/auth';
 import { useEffect, useState } from 'react';
 import { baseUrl } from './HomeScreenComponents';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -40,12 +39,20 @@ import {
   getPasswordRequirements,
   generateId2,
 } from './StudentSignup';
+import { authorize } from 'react-native-app-auth';
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '@env';
 
 GoogleSignin.configure({
   webClientId: WEB_CLIENT_ID,
   offlineAccess: true,
 });
-
+const githubConfig = {
+  issuer: 'https://github.com',
+  clientId: GITHUB_CLIENT_ID,
+  clientSecret: GITHUB_CLIENT_SECRET, // In prod, keep this on backend!
+  redirectUrl: 'iCampus://oauth', // This MUST match your GitHub App settings
+  scopes: ['read:user', 'user:email'],
+};
 
 const OtherUserSignup = () => {
   const [subType, setSubType] = useState<'individual' | 'enterprise' | null>(
@@ -354,16 +361,30 @@ const OtherUserSignup = () => {
           setStep(3); // Skip straight to Nationality
         }
       } else if (provider === 'Github') {
-        const githubProvider = auth.GithubAuthProvider;
-        const userCredential = await auth().signInWithProvider(githubProvider);
-        const user = userCredential.user;
-        if (user) {
-          const fullName = user.displayName || '';
+        // 2. Start the OAuth flow
+        const authState = await authorize(githubConfig);
+        // 3. Fetch User Profile using the Access Token
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: { Authorization: `Bearer ${authState.accessToken}` },
+        });
+        const githubUser = await userResponse.json();
+        // 4. Fetch User Email (GitHub often returns null email in the main profile)
+        const emailResponse = await fetch(
+          'https://api.github.com/user/emails',
+          {
+            headers: { Authorization: `Bearer ${authState.accessToken}` },
+          },
+        );
+        const emails = await emailResponse.json();
+        const primaryEmail =
+          emails.find((e: any) => e.primary)?.email || emails[0]?.email;
+        if (githubUser) {
+          const fullName = githubUser.name || githubUser.login;
           const nameParts = fullName.trim().split(/\s+/);
           setFirstname(nameParts[0] || '');
           setLastname(nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
-          setEmail(user.email || '');
-          setAvatar(user.photoURL || null);
+          setEmail(primaryEmail || '');
+          setAvatar(githubUser.avatar_url || null);
           setIsSocialSignup(true);
           setStep(3);
         }
@@ -372,7 +393,7 @@ const OtherUserSignup = () => {
       console.error(`${provider} Auth Error:`, error);
       if (error.code === 'auth/user-cancelled') return;
       if (error.code !== 'auth/user-cancelled') {
-        setAlertMessage(`${provider} login failed. Please try again.`);
+        setAlertMessage(`${provider} signup failed. Please try again.`);
         setAlertType('error');
         setAlertVisible(true);
       }
@@ -914,26 +935,27 @@ const OtherUserSignup = () => {
               style={StudentSignupStyles.input}
             />
             <View style={StudentSignupStyles.rowDiv2}>
-                          <Text style={StudentSignupStyles.rowDivText}>
-                            Code expires in {formatTime(timer)}
-                          </Text>
-                          {/* Resend Code Button */}
-                          <TouchableOpacity onPress={resendCode}>
-                            <Text style={StudentSignupStyles.rowDivBtn}>Resend Code?</Text>
-                          </TouchableOpacity>
-                        </View>
-                        {emailCode.length === 6 && (
-            <TouchableOpacity
-              style={[
-                StudentSignupStyles.nextButton,
-                { backgroundColor: '#f54b02' },
-              ]}
-              onPress={verifyCode}
-            >
-              <Text style={StudentSignupStyles.nextButtonText}>
-                Verify & Continue
+              <Text style={StudentSignupStyles.rowDivText}>
+                Code expires in {formatTime(timer)}
               </Text>
-            </TouchableOpacity>)}
+              {/* Resend Code Button */}
+              <TouchableOpacity onPress={resendCode}>
+                <Text style={StudentSignupStyles.rowDivBtn}>Resend Code?</Text>
+              </TouchableOpacity>
+            </View>
+            {emailCode.length === 6 && (
+              <TouchableOpacity
+                style={[
+                  StudentSignupStyles.nextButton,
+                  { backgroundColor: '#f54b02' },
+                ]}
+                onPress={verifyCode}
+              >
+                <Text style={StudentSignupStyles.nextButtonText}>
+                  Verify & Continue
+                </Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
         {subType === 'enterprise' && step === 5 && (
@@ -960,7 +982,7 @@ const OtherUserSignup = () => {
                 ]}
               >
                 {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
-              </View>            
+              </View>
               {/* The Label */}
               <Text style={StudentSignupStyles.checkboxLabel}>
                 I agree to the{' '}
