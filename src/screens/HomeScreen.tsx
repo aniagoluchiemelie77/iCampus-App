@@ -17,7 +17,6 @@ import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -51,80 +50,76 @@ const HomeScreen = () => {
         </View>
 
         <View style={homeStyles.iconBar}>
+          {/* Home Tab */}
           <TouchableOpacity
             onPress={() => setActiveIcon('home')}
-            style={homeStyles.iconItem}
+            style={[
+              homeStyles.iconItem,
+              activeIcon === 'home' && homeStyles.activeIconItem,
+            ]}
           >
             <Icon
               name={activeIcon === 'home' ? 'home' : 'home-outline'}
-              size={28}
-              color="#000"
+              size={26}
+              color={activeIcon === 'home' ? '#fb966b' : '#032820'}
             />
-            <Text
-              style={[
-                homeStyles.iconLabel,
-                activeIcon === 'home' && homeStyles.activeIconLabel,
-              ]}
-            >
-              Home
-            </Text>
+            {activeIcon === 'home' && (
+              <Text style={homeStyles.activeIconLabel}>Home</Text>
+            )}
           </TouchableOpacity>
 
+          {/* Classroom Tab */}
           <TouchableOpacity
             onPress={() => setActiveIcon('classroom')}
-            style={homeStyles.iconItem}
+            style={[
+              homeStyles.iconItem,
+              activeIcon === 'classroom' && homeStyles.activeIconItem,
+            ]}
           >
             <Icon
-              name={activeIcon === 'classroom' ? 'school' : 'school-outline'}
-              size={28}
-              color="#000"
+              name={activeIcon === 'classroom' ? 'easel' : 'easel-outline'}
+              size={26}
+              color={activeIcon === 'classroom' ? '#fb966b' : '#032820'}
             />
-            <Text
-              style={[
-                homeStyles.iconLabel,
-                activeIcon === 'classroom' && homeStyles.activeIconLabel,
-              ]}
-            >
-              Classroom
-            </Text>
+            {activeIcon === 'classroom' && (
+              <Text style={homeStyles.activeIconLabel}>Classroom</Text>
+            )}
           </TouchableOpacity>
 
+          {/* Store Tab */}
           <TouchableOpacity
             onPress={() => setActiveIcon('store')}
-            style={homeStyles.iconItem}
+            style={[
+              homeStyles.iconItem,
+              activeIcon === 'store' && homeStyles.activeIconItem,
+            ]}
           >
             <Icon
               name={activeIcon === 'store' ? 'cart' : 'cart-outline'}
-              size={28}
-              color="#000"
+              size={26}
+              color={activeIcon === 'store' ? '#fb966b' : '#032820'}
             />
-            <Text
-              style={[
-                homeStyles.iconLabel,
-                activeIcon === 'store' && homeStyles.activeIconLabel,
-              ]}
-            >
-              Store
-            </Text>
+            {activeIcon === 'store' && (
+              <Text style={homeStyles.activeIconLabel}>Store</Text>
+            )}
           </TouchableOpacity>
 
+          {/* Ranking Tab (Corrected from 'profile' to 'ranking') */}
           <TouchableOpacity
-            onPress={() => setActiveIcon('profile')}
-            style={homeStyles.iconItem}
+            onPress={() => setActiveIcon('ranking')}
+            style={[
+              homeStyles.iconItem,
+              activeIcon === 'ranking' && homeStyles.activeIconItem,
+            ]}
           >
-            <MaterialCommunityIcons
-              name={activeIcon === 'ranking' ? 'podium' : 'podium'}
-              size={30}
-              color="#eee"
+            <Icon
+              name={activeIcon === 'ranking' ? 'trophy' : 'trophy-outline'}
+              size={26}
+              color={activeIcon === 'ranking' ? '#fb966b' : '#032820'}
             />
-            <Text
-              style={[
-                homeStyles.iconLabel,
-                activeIcon === 'ranking' && homeStyles.activeIconLabel,
-              ]}
-            >
-              Profile
-            </Text>
+            {activeIcon === 'ranking' && (
+              <Text style={homeStyles.activeIconLabel}>Ranking</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>

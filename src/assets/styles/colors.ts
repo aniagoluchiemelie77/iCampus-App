@@ -1507,31 +1507,43 @@ export const SignupScreenStyles = StyleSheet.create({
 export const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#eee',
-    justifyContent: 'space-between',
+    backgroundColor: '#fff', // Pure white for a cleaner look
   },
   centerContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex: 1,
   },
   iconBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 15,
-    backgroundColor: '#eee',
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    // Adds a soft shadow for iOS/Android
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 8,
+    marginHorizontal: 5,
+    borderRadius: 8,
+    borderWidth: .8,
+    borderColor: '#fb966bff',
+    zIndex: 1,
   },
   iconItem: {
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  activeIconItem: {
+    backgroundColor: '#eb7e4f',
   },
   activeIconLabel: {
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 12,
-  },
-  iconLabel: {
-    marginTop: 5,
-    fontSize: 11,
-    color: '#032820',
+    color: '#eb7e4f',
+    marginTop: 8, // Space between icon and text
   },
   header: {
     marginTop: 5,
