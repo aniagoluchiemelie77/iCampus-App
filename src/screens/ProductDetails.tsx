@@ -126,7 +126,7 @@ const ProductDetails = () => {
   };
   const handleAddToCart = async (cartItem: Product) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
       const res = await fetch(`${baseUrl}store/cart`, {
         method: 'POST',
         headers: {

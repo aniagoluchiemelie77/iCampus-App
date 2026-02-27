@@ -252,7 +252,7 @@ export function Profile() {
     if (!user?.coursesTeaching || user.coursesTeaching.length === 0) return;
     const fetchCourseDetails = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await AsyncStorage.getItem('accessToken');
         const res = await fetch(`${baseUrl}users/lecturers/class`, {
           method: 'POST',
           headers: {
@@ -298,7 +298,7 @@ export function Profile() {
     if (!user?.coursesEnrolled || user.coursesEnrolled.length === 0) return;
     const fetchCourseDetails = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await AsyncStorage.getItem('accessToken');
         const res = await fetch(`${baseUrl}users/student/class/courses`, {
           method: 'POST',
           headers: {
@@ -386,7 +386,7 @@ export function Profile() {
 
     try {
       setUploading(true);
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
       const response = await fetch(`${baseUrl}users/upload-profile-image`, {
         method: 'POST',
         headers: {

@@ -234,7 +234,7 @@ const PointsPage = () => {
   };
   const completeTransaction = async (transactionId: string): Promise<void> => {
     const userUid = user?.uid;
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await AsyncStorage.getItem('accessToken');
     let data;
     try {
       const res = await fetch(
@@ -316,7 +316,7 @@ const PointsPage = () => {
       return;
     const fetchAccountDetails = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await AsyncStorage.getItem('accessToken');
         const res = await fetch(`${baseUrl}user/account-details`, {
           method: 'POST',
           headers: {
@@ -653,7 +653,7 @@ const PointsPage = () => {
     type: string,
   ) => {
     setShowAddPopup(false); //Close the add bank or card popup
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await AsyncStorage.getItem('accessToken');
     let data;
     try {
       const payload = {

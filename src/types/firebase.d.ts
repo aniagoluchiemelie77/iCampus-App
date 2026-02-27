@@ -6,7 +6,7 @@ export type UserRole = 'student' | 'lecturer' | 'admin';
 export interface User {
   uid: string;
   refreshTokens?: string[];
-  usertype: UserType;
+  usertype?: UserType;
   firstname?: string;
   lastname?: string;
   isFirstLogin?: boolean;
@@ -532,5 +532,38 @@ export interface UserRecords {
   userId: string;
   records: UserRecordEntry[];
 }
-
+export interface Posts {
+  _id: string;
+  postId: string;
+  userId: {
+    uid: string;
+    firstname: string;
+    lastname: string;
+    profilePic?: string;
+  };
+  content?: string;
+  media?: {
+    mediaType: string | null;
+    url: string;
+  };
+  likes?: string[];
+  comments?: {
+    commentId: string;
+    userId: string;
+    comment: string;
+    parentId: string;
+    likes?: string[];
+    createdAt: string;
+    updatedAt?: string;
+  }[];
+  commentsCount?: number;
+  bookmarks?: string[];
+  impressions?: number;
+  shares?: string[]; 
+  isRepost: boolean;
+  originalPostId?: string; 
+  repostsCount: number;
+  sharesCount?: number;
+  createdAt: string;
+}
 

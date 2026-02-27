@@ -398,7 +398,7 @@ const AddEventTabs: React.FC = () => {
       // 2. Prepare event payload
       const basePayload: Omit<CalendarEvent, '_id' | 'id'> = {
         createdBy: user.uid,
-        creatorType: user.usertype,
+        creatorType: user.usertype ? user.usertype : '',
         title: form.title,
         description: form.description,
         courseTitle: form.courseTitle,
@@ -445,7 +445,7 @@ const AddEventTabs: React.FC = () => {
       } else {
         eventPayload = basePayload;
       }
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
       // 3. Send to backend (replace with your actual endpoint)
       const response = await fetch(`${baseUrl}user/events/add`, {
         method: 'POST',

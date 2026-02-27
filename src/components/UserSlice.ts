@@ -3,7 +3,6 @@ import { User } from '../types/firebase'; // adjust path
 
 const initialState: User = {
   uid: '',
-  usertype: '', // or 'lecturer' depending on your enum
   firstname: '',
   lastname: '',
   isFirstLogin: true,

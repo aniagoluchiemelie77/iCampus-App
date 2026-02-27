@@ -11,7 +11,9 @@ import {
   Modal,
   TouchableWithoutFeedback,
   ScrollView,
+  ViewToken,
 } from 'react-native';
+import { PostCard } from './PostCard';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
@@ -669,11 +671,65 @@ const SettingsPopup = () => {
 };*/
 //Home screen
 export function Home() {
-  //const user = useAppSelector(state => state.user);
+  const { posts, fetchPosts, incrementImpression } = useAppDataContext();
+  const [activePostId, setActivePostId] = useState<string | null>(null);
 
-  return <Text>Welcome to Home Screen</Text>;
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  /**
+   * Merged Viewability Logic
+   * 1. Handles Impression counting (via 'changed')
+   * 2. Handles Active Video tracking (via 'viewableItems')
+   */
+  const onViewableItemsChanged = useRef(
+    ({
+      viewableItems,
+      changed,
+    }: {
+      viewableItems: ViewToken[];
+      changed: ViewToken[];
+    }) => {
+      // Logic for Impressions
+      changed.forEach(viewToken => {
+        if (viewToken.isViewable && viewToken.item) {
+          incrementImpression(viewToken.item.postId);
+        }
+      });
+
+      // Logic for Active Video Autoplay
+      if (viewableItems.length > 0) {
+        // We pick the first fully visible item as the "active" one
+        setActivePostId(viewableItems[0].item.postId);
+      }
+    },
+  ).current;
+
+  // Set to 60% so that a video only plays when it's mostly on screen
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 60,
+  };
+
+  return (
+    <FlatList
+      data={posts}
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={viewabilityConfig}
+      keyExtractor={item => item.postId}
+      renderItem={({ item }) => (
+        <PostCard
+          post={item}
+          isVisible={item.postId === activePostId} // Pass the visibility prop
+        />
+      )}
+      // Optimization: Keeps list performance smooth
+      removeClippedSubviews={true}
+      initialNumToRender={5}
+      maxToRenderPerBatch={10}
+    />
+  );
 }
-
 // ClassroomScreen.js
 export function ClassroomScreen() {
   return <Text>Welcome to Classroom</Text>;
@@ -735,7 +791,7 @@ export function StoreScreen() {
   };
   const handleAddToCart = async (product: Product) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
 
       const res = await fetch(`${baseUrl}store/cart`, {
         method: 'POST',
@@ -784,7 +840,7 @@ export function StoreScreen() {
   const handleClearCart = async () => {
     console.log('Clear cart btn clicked');
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
 
       const res = await fetch(`${baseUrl}store/cart`, {
         method: 'DELETE',
@@ -821,7 +877,7 @@ export function StoreScreen() {
   };
   const handleClearFavorites = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
 
       const res = await fetch(`${baseUrl}store/favorites`, {
         method: 'DELETE',
@@ -857,7 +913,7 @@ export function StoreScreen() {
   };
   const deleteItem = async (productId: string) => {
     console.log('Removing Product');
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await AsyncStorage.getItem('accessToken');
     try {
       const res = await fetch(`${baseUrl}store/cart/remove`, {
         method: 'POST',
@@ -889,7 +945,7 @@ export function StoreScreen() {
   };
   const removeFavorite = async (productId: string) => {
     console.log('Removing Favorite');
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await AsyncStorage.getItem('accessToken');
     try {
       await fetch(`${baseUrl}store/favorites/remove`, {
         method: 'POST',

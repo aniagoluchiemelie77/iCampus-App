@@ -3,7 +3,7 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; // ✅ Correct
 import { Provider } from 'react-redux';
-import type { Product, User } from './src/types/firebase';
+import type { Posts, Product, User } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
   prefixes: ['icampus://'],
@@ -40,6 +40,7 @@ import BuyPointsScreen from './src/screens/BuyPoints';
 import WithdrawPointsScreen from './src/screens/WithdrawPoints';
 import TransferPointsScreen from './src/screens/TransferPoints';
 import ReceivePointsScreen from './src/screens/ReceivePoints';
+import PostDetailScreen from './src/screens/PostDetailsScreen';
 
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
@@ -51,6 +52,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Welcome: { route: string };
   SignupPage: { role: string };
+  PostDetailScreen: { post: Posts };
   Home: undefined;
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
@@ -254,6 +256,11 @@ const App = () => {
             <Stack.Screen
               name="ProductDetails"
               component={ProductDetails}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PostDetailScreen"
+              component={PostDetailScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
