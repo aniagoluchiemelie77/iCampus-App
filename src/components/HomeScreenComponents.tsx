@@ -22,7 +22,12 @@ import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import type { ProductCategoryList, Product, User } from '../types/firebase';
+import type {
+  ProductCategoryList,
+  Product,
+  User,
+  Posts,
+} from '../types/firebase';
 import {
   HomeScreenComponentStyles,
   NotificationPageStyles,
@@ -47,6 +52,16 @@ import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 export const baseUrl = 'http://192.168.1.98:5000/';
+import { io } from 'socket.io-client';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+};
+
+// Replace with your actual backend URL
+const socket = io(baseUrl);
 
 export const uploadImageToCloudinary = async (
   imageUri: string,
@@ -805,6 +820,48 @@ export function Home() {
   useEffect(() => {
     loadPosts(true); // Initial load
   }, [loadPosts]);
+  useEffect(() => {
+    socket.on('new_post', (newPost: Posts) => {
+      setPosts(prevPosts => {
+        if (prevPosts.find(p => p.postId === newPost.postId)) return prevPosts;
+        return [newPost, ...prevPosts];
+      });
+    });
+
+    // B. Listen for STAT updates (Likes, Reposts, Bookmarks, Impressions)
+    socket.on('post_stats_updated', (data: { postId: string; stats: any }) => {
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.postId === data.postId) {
+            // --- HAPTIC LOGIC ---
+            // 1. Check if this is a "Like" increase
+            const isNewLike =
+              data.stats.likes?.length > (post.likes?.length || 0);
+
+            // 2. Check if the logged-in user is the author of this post
+            const isMyPost = post.userId.uid === currentUser.uid;
+
+            if (isNewLike && isMyPost) {
+              // Trigger a "Impact Light" thump
+              ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
+            }
+            // --------------------
+            return {
+              ...post,
+              ...data.stats,
+            };
+          }
+          return post;
+        }),
+      );
+    });
+
+    // C. CLEANUP: Very important to prevent memory leaks and duplicate listeners
+    return () => {
+      socket.off('new_post');
+      socket.off('post_stats_updated');
+    };
+  }, [setPosts, currentUser.uid]);
 
   const onViewableItemsChanged = useRef(
     ({
