@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -22,18 +22,18 @@ import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import type { ProductCategoryList, Product } from '../types/firebase';
+import type { ProductCategoryList, Product, User } from '../types/firebase';
 import {
   HomeScreenComponentStyles,
   NotificationPageStyles,
   homeStyles,
+  modalStyles,
 } from '../assets/styles/colors';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { useSelector } from 'react-redux';
-
 import { useDispatch } from 'react-redux';
 import {
   addToCart,
@@ -670,19 +670,142 @@ const SettingsPopup = () => {
   );
 };*/
 //Home screen
+interface ProfileModalProps {
+  visible: boolean;
+  onClose: () => void;
+  currentUser: User; // Ideally use your User type here
+}
+const ProfileModal = ({ visible, onClose, currentUser }: ProfileModalProps) => (
+  <Modal
+    visible={visible}
+    transparent={true}
+    animationType="slide"
+    onRequestClose={onClose}
+  >
+    {/* Dark Overlay to close the modal */}
+    <TouchableOpacity
+      activeOpacity={1}
+      style={modalStyles.overlay}
+      onPress={onClose}
+    />
+
+    <View style={modalStyles.drawer}>
+      {/* User Header Section */}
+      <TouchableOpacity style={modalStyles.userInfo}>
+        <Image
+          source={{
+            uri:
+              currentUser?.profilePic?.[0] || 'https://via.placeholder.com/40',
+          }}
+          style={modalStyles.largeAvatar}
+        />
+        <Text style={modalStyles.userName}>
+          {currentUser?.firstname} {currentUser?.lastname}
+        </Text>
+        {currentUser?.hasSubscribed && (
+          <View style={modalStyles.badge}>
+            <Text style={modalStyles.badgeText}>PRO</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* 1. PERSONAL SECTION */}
+      <TouchableOpacity
+        style={modalStyles.item}
+        onPress={() => {
+          onClose();
+          //navigation.navigate('Bookmarks');
+        }}
+      >
+        <MaterialIcons name="bookmark-border" size={24} color="#333" />
+        <Text style={modalStyles.itemText}>Bookmarks</Text>
+      </TouchableOpacity>
+
+      {/* 2. SETTINGS SECTION */}
+      <View style={modalStyles.separator} />
+
+      <TouchableOpacity
+        style={modalStyles.item}
+        onPress={() => {
+          onClose();
+          //navigation.navigate('Subscription');
+        }}
+      >
+        <MaterialIcons name="stars" size={24} color="#f54b02" />
+        <Text style={modalStyles.itemText}>Manage Subscription</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={modalStyles.item}
+        onPress={() => {
+          onClose();
+          //navigation.navigate('Settings');
+        }}
+      >
+        <MaterialIcons name="settings" size={24} color="#333" />
+        <Text style={modalStyles.itemText}>Settings & Privacy</Text>
+      </TouchableOpacity>
+
+      {/* 3. LOGOUT */}
+      <TouchableOpacity
+        style={[modalStyles.item, { marginTop: 10 }]}
+        //onPress={handleLogout}
+      >
+        <MaterialIcons name="logout" size={24} color="#FF3B30" />
+        <Text style={[modalStyles.itemText, { color: '#FF3B30' }]}>Logout</Text>
+      </TouchableOpacity>
+    </View>
+  </Modal>
+);
 export function Home() {
-  const { posts, fetchPosts, incrementImpression } = useAppDataContext();
+  const { posts, setPosts, incrementImpression, currentUser } =
+    useAppDataContext();
   const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
+  // Use useCallback to prevent infinite re-renders since it's a dependency in useEffect
+  const loadPosts = useCallback(
+    async (isRefreshing = false) => {
+      if (loadingMore || (refreshing && !isRefreshing)) return;
+
+      // If refreshing, reset cursor. If loading more, use existing cursor.
+      const currentCursor = isRefreshing ? '' : cursor || '';
+
+      // Stop if we have no cursor and it's not a fresh load
+      if (!isRefreshing && cursor === null && posts.length > 0) return;
+
+      if (isRefreshing) setRefreshing(true);
+      else setLoadingMore(true);
+
+      try {
+        const response = await fetch(
+          `${baseUrl}posts?limit=10&cursor=${currentCursor}`,
+        );
+        const data = await response.json();
+
+        // data.posts and data.nextCursor come from your updated backend logic
+        setPosts(prev =>
+          isRefreshing ? data.posts : [...prev, ...data.posts],
+        );
+        setCursor(data.nextCursor);
+      } catch (error) {
+        console.error('Fetch error:', error);
+      } finally {
+        setLoadingMore(false);
+        setRefreshing(false);
+      }
+    },
+    [cursor, loadingMore, refreshing, posts.length, setPosts],
+  );
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    loadPosts(true); // Initial load
+  }, [loadPosts]);
 
-  /**
-   * Merged Viewability Logic
-   * 1. Handles Impression counting (via 'changed')
-   * 2. Handles Active Video tracking (via 'viewableItems')
-   */
   const onViewableItemsChanged = useRef(
     ({
       viewableItems,
@@ -691,43 +814,88 @@ export function Home() {
       viewableItems: ViewToken[];
       changed: ViewToken[];
     }) => {
-      // Logic for Impressions
-      changed.forEach(viewToken => {
+      changed.forEach((viewToken: ViewToken) => {
+        // Type defined here
         if (viewToken.isViewable && viewToken.item) {
           incrementImpression(viewToken.item.postId);
         }
       });
 
-      // Logic for Active Video Autoplay
-      if (viewableItems.length > 0) {
-        // We pick the first fully visible item as the "active" one
+      if (viewableItems.length > 0 && viewableItems[0].item) {
         setActivePostId(viewableItems[0].item.postId);
       }
     },
   ).current;
 
-  // Set to 60% so that a video only plays when it's mostly on screen
-  const viewabilityConfig = {
+  const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 60,
-  };
+  }).current;
 
   return (
-    <FlatList
-      data={posts}
-      onViewableItemsChanged={onViewableItemsChanged}
-      viewabilityConfig={viewabilityConfig}
-      keyExtractor={item => item.postId}
-      renderItem={({ item }) => (
-        <PostCard
-          post={item}
-          isVisible={item.postId === activePostId} // Pass the visibility prop
-        />
-      )}
-      // Optimization: Keeps list performance smooth
-      removeClippedSubviews={true}
-      initialNumToRender={5}
-      maxToRenderPerBatch={10}
-    />
+    <View style={homeStyles.mainWrapper}>
+      <View style={homeStyles.headerContainer}>
+        <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
+          <Image
+            source={{
+              uri:
+                currentUser?.profilePic?.[0] ||
+                'https://via.placeholder.com/40',
+            }}
+            style={homeStyles.headerProfilePic}
+          />
+        </TouchableOpacity>
+        <Logo />
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Notifications')}
+          style={[
+            homeStyles.iconItem,
+            HomeScreenComponentStyles.activityIcons,
+            HomeScreenComponentStyles.activityIcons2,
+          ]}
+        >
+          <MaterialIcons name="notifications-none" size={23} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={posts}
+        keyExtractor={item => item.postId}
+        renderItem={({ item }) => (
+          <PostCard post={item} isVisible={item.postId === activePostId} />
+        )}
+        // Interaction Props
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        // Pagination Props
+        onEndReached={() => loadPosts(false)}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator style={{ margin: 20 }} /> : null
+        }
+        // Refresh Props
+        refreshing={refreshing}
+        onRefresh={() => loadPosts(true)}
+        // Performance Optimization
+        removeClippedSubviews={true}
+        initialNumToRender={5}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+      />
+      {/* 3. FLOATING ADD POST BUTTON (Twitter Style) */}
+      <TouchableOpacity
+        style={homeStyles.fab}
+        //onPress={() => navigation.navigate('CreatePost')}
+      >
+        <MaterialIcons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
+
+      {/* 4. PROFILE POPUP (LinkedIn Style Modal) */}
+      <ProfileModal
+        visible={isProfilePopupVisible}
+        onClose={() => setProfilePopupVisible(false)}
+        currentUser={currentUser}
+      />
+    </View>
   );
 }
 // ClassroomScreen.js

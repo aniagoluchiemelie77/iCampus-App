@@ -1505,6 +1505,41 @@ export const SignupScreenStyles = StyleSheet.create({
   },
 });
 export const homeStyles = StyleSheet.create({
+  mainWrapper: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#eee',
+  },
+  headerProfilePic: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 25,
+    right: 20,
+    backgroundColor: '#f54b02', // Your brand color
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5, // Shadow for Android
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff', // Pure white for a cleaner look
@@ -2727,6 +2762,71 @@ smallText: {
     alignItems: 'center'
   }
 });
+export const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  drawer: {
+    position: 'absolute',
+    left: 0,
+    width: '60%',
+    height: '100%',
+    backgroundColor: '#fff',
+    borderBottomRightRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 10,
+    paddingHorizontal: 13,
+  },
+  userInfo: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    marginBottom: 10,
+  },
+  largeAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginBottom: 7,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+separator: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginVertical: 10,
+    width: '100%',
+  },
+  badge: {
+    backgroundColor: '#f54b02',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 5,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  userHandle: {
+    color: '#f54b02',
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  itemText: {
+    marginLeft: 6,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+})
 
 
 

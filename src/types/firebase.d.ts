@@ -19,6 +19,8 @@ export interface User {
   communitiesId?: Community.communitiesId[];
   pointsBalance?: UserPointsAccount.currentBalance;
   staffId?: string;
+  likes?: string[]; 
+  bookmarks?: string[];
   accessToken: string;
   ipAddress?: string[];
   deviceType?: string[]; 

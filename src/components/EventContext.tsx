@@ -23,6 +23,7 @@ interface AppDataContextType {
   cartProducts: Product[];
   favoriteProducts: Product[];
   posts: Posts[];
+  setPosts: React.Dispatch<React.SetStateAction<Posts[]>>;
   cart: string[];
   toggleLike: (postId: string) => Promise<void>;
   errorMessage: string | null;
@@ -544,6 +545,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         cart,
         favoriteProducts,
         posts,
+        setPosts,
         fetchEvents,
         fetchFavorites,
         fetchCartItems,

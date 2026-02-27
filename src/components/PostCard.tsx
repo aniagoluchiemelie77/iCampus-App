@@ -1,5 +1,14 @@
 import React, {useState} from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Share} from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  Share,
+  FlatList,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useAppDataContext } from './EventContext';
@@ -8,8 +17,9 @@ import { Posts } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
+const { width } = Dimensions.get('window');
 interface PostCardProps {
-  post: Posts;       // Using your existing Posts type
+  post: Posts; // Using your existing Posts type
   isVisible: boolean; // Add this line
 }
 export const formatStatCount = (count: number): string => {
@@ -21,60 +31,143 @@ export const formatStatCount = (count: number): string => {
   }
   return count.toString();
 };
-type NavigationPropProductDetails = StackNavigationProp<RootStackParamList, 'PostDetailScreen'>;
+type NavigationPropProductDetails = StackNavigationProp<
+  RootStackParamList,
+  'PostDetailScreen'
+>;
+const MediaSection = ({ post, isVisible }: PostCardProps) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const mediaUrls = Array.isArray(post.media?.url)
+    ? post.media.url
+    : [post.media?.url];
+  const isVideo = post.media?.mediaType === 'video';
+
+  if (!post.media?.url) return null;
+
+  return (
+    <View style={styles.mediaContainer}>
+      {/* CASE 1: VIDEO (Only renders the first URL) */}
+      {isVideo && mediaUrls[0] && (
+        <Video
+          source={{ uri: mediaUrls[0] }}
+          style={styles.postMedia}
+          paused={!isVisible}
+          repeat={true}
+          muted={true}
+          resizeMode="cover"
+        />
+      )}
+
+      {/* CASE 2: MULTIPLE IMAGES (Slider) */}
+      {!isVideo && mediaUrls.length > 1 && (
+        <View>
+          <FlatList
+            data={mediaUrls}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={e => {
+              const newIndex = Math.round(
+                e.nativeEvent.contentOffset.x / (width - 30),
+              );
+              setActiveIndex(newIndex);
+            }}
+            keyExtractor={(_, index) => index.toString()}
+            renderItem={({ item }) => (
+              <Image
+                source={{ uri: item }}
+                style={styles.postMediaSlider}
+                resizeMode="cover"
+              />
+            )}
+          />
+          {/* Pagination Dots */}
+          <View style={styles.pagination}>
+            {mediaUrls.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, activeIndex === i && styles.activeDot]}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* CASE 3: SINGLE IMAGE */}
+      {!isVideo && mediaUrls.length === 1 && (
+        <Image
+          source={{ uri: mediaUrls[0] }}
+          style={styles.postMedia}
+          resizeMode="cover"
+        />
+      )}
+    </View>
+  );
+};
 
 export const PostCard = ({ post, isVisible }: PostCardProps) => {
-  const user = post.userId; 
+  const user = post.userId;
   const [isExpanded, setIsExpanded] = useState(false);
   const navigation = useNavigation<NavigationPropProductDetails>();
   const TEXT_LIMIT = 150;
-  const { toggleLike, toggleBookmark, currentUser, handleRepost, incrementShareCount } = useAppDataContext();
+  const {
+    toggleLike,
+    toggleBookmark,
+    currentUser,
+    handleRepost,
+    incrementShareCount,
+  } = useAppDataContext();
   const getRelativeTime = (dateString: string | null): string => {
     if (!dateString) return '';
     return formatDistanceToNowStrict(new Date(dateString), {
-      addSuffix: false, 
-    }).replace(' minutes', 'm')
+      addSuffix: false,
+    })
+      .replace(' minutes', 'm')
       .replace(' minute', 'm')
       .replace(' hours', 'h')
       .replace(' hour', 'h')
       .replace(' days', 'd')
       .replace(' day', 'd');
   };
+
   const isLiked = post.likes?.includes(currentUser?.uid);
   const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
-  const isVideo = post.media?.mediaType === 'video';
-  const isImage = post.media?.mediaType === 'image';
   const shouldShowSeeMore = post.content && post.content.length > TEXT_LIMIT;
-  const displayText = isExpanded 
-    ? post.content 
+  const displayText = isExpanded
+    ? post.content
     : post.content?.slice(0, TEXT_LIMIT);
+
   const handleExternalShare = async (posts: Posts) => {
-  try {
-    const result = await Share.share({
-      message: `${posts.content} \n\n View more on iCampus App!`,
-      url: `https://iCampus.com/posts/${posts.postId}`, // Deep link
-    });
-    
-    if (result.action === Share.sharedAction) {
-       incrementShareCount(posts.postId);
+    try {
+      const result = await Share.share({
+        message: `${posts.content} \n\n View more on iCampus App!`,
+        url: `https://iCampus.com/posts/${posts.postId}`, // Deep link
+      });
+
+      if (result.action === Share.sharedAction) {
+        incrementShareCount(posts.postId);
+      }
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
-  }
-};
-  
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Image 
-          source={{ uri: user?.profilePic?.[0] || 'https://via.placeholder.com/40' }} 
-          style={styles.avatar} 
+        <Image
+          source={{
+            uri: user?.profilePic?.[0] || 'https://via.placeholder.com/40',
+          }}
+          style={styles.avatar}
         />
         <View style={styles.headerText}>
-          <Text style={styles.userName}>{user?.firstname} {user?.lastname}</Text>
+          <Text style={styles.userName}>
+            {user?.firstname} {user?.lastname}
+          </Text>
           <Text style={styles.timestamp}>
-          {getRelativeTime(post.createdAt)}
-        </Text>
+            {getRelativeTime(post.createdAt)}
+          </Text>
         </View>
       </View>
 
@@ -82,79 +175,88 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
       <View style={styles.contentContainer}>
         <Text style={styles.content}>
           {displayText}
-          {shouldShowSeeMore && !isExpanded && "..."}
+          {shouldShowSeeMore && !isExpanded && '...'}
         </Text>
-        
+
         {shouldShowSeeMore && (
           <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
             <Text style={styles.seeMoreText}>
-              {isExpanded ? "Show less" : "See more"}
+              {isExpanded ? 'Show less' : 'See more'}
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Media Section (Images/Video) */}
-      {post.media?.url && (
-        <View style={styles.mediaContainer}>
-          {isImage && (
-            <Image 
-              source={{ uri: post.media.url }} 
-              style={styles.postMedia} 
-              resizeMode="cover" 
-            />
-          )}
-
-          {isVideo && (
-            <Video
-              source={{ uri: post.media.url }}
-              style={styles.postMedia}
-              paused={!isVisible} // Only plays when visible in the feed
-              repeat={true}
-              muted={true}
-              resizeMode="cover"
-              // Optional: show a loading indicator while buffering
-              onBuffer={(b) => console.log("buffering", b)} 
-              onError={(e) => console.log("video error", e)}
-            />
-          )}
-        </View>
-      )}
+      {/* NEW MEDIA SECTION COMPONENT */}
+      <MediaSection post={post} isVisible={isVisible} />
 
       {/* Footer: Interactions */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.statGroup} onPress={() => navigation.navigate('PostDetailScreen', { post: post })}>
+        <TouchableOpacity
+          style={styles.statGroup}
+          onPress={() =>
+            navigation.navigate('PostDetailScreen', { post: post })
+          }
+        >
           <MaterialIcons name="chatbubble-outline" size={18} color="#666" />
           <Text style={styles.statText}>
             {formatStatCount(post.commentsCount ?? 0)}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.statGroup} 
+        <TouchableOpacity
+          style={styles.statGroup}
           onPress={() => toggleLike(post.postId)}
         >
-          <MaterialIcons name={isLiked ? "heart" : "heart-outline"} size={18} color={isLiked ? "#f54b02" : "#666"} />
-          <Text style={styles.statText}>{formatStatCount(post.likes?.length || 0)}</Text>
+          <MaterialIcons
+            name={isLiked ? 'heart' : 'heart-outline'}
+            size={18}
+            color={isLiked ? '#f54b02' : '#666'}
+          />
+          <Text style={styles.statText}>
+            {formatStatCount(post.likes?.length || 0)}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.statGroup} onPress={() => handleRepost(post.postId)}>
-          <MaterialIcons name="repeat" size={18} color={post.isRepost ? "#f54b02" : "#666"} />
-          <Text style={styles.statText}>{formatStatCount(post.repostsCount ?? 0)}</Text>
+        <TouchableOpacity
+          style={styles.statGroup}
+          onPress={() => handleRepost(post.postId)}
+        >
+          <MaterialIcons
+            name="repeat"
+            size={18}
+            color={post.isRepost ? '#f54b02' : '#666'}
+          />
+          <Text style={styles.statText}>
+            {formatStatCount(post.repostsCount ?? 0)}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.statGroup} 
+        <TouchableOpacity
+          style={styles.statGroup}
           onPress={() => toggleBookmark(post.postId)}
         >
-          <MaterialIcons name={isBookmarked ? "bookmark" : "bookmark-border"} size={18} color={isBookmarked ? "#f54b02" : "#666"} />
-          <Text style={styles.statText}>{formatStatCount(post.bookmarks?.length || 0)}</Text>
+          <MaterialIcons
+            name={isBookmarked ? 'bookmark' : 'bookmark-border'}
+            size={18}
+            color={isBookmarked ? '#f54b02' : '#666'}
+          />
+          <Text style={styles.statText}>
+            {formatStatCount(post.bookmarks?.length || 0)}
+          </Text>
         </TouchableOpacity>
-        
+
         <View style={styles.statGroup}>
           <MaterialIcons name="bar-chart" size={18} color="#666" />
-          <Text style={styles.statText}>{formatStatCount(post.impressions || 0)}</Text>
+          <Text style={styles.statText}>
+            {formatStatCount(post.impressions || 0)}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.statGroup} onPress={() => handleExternalShare(post)}>
+        <TouchableOpacity
+          style={styles.statGroup}
+          onPress={() => handleExternalShare(post)}
+        >
           <MaterialIcons name="share" size={18} color="#666" />
-          <Text style={styles.statText}>{formatStatCount(post.shares?.length || 0)}</Text>
+          <Text style={styles.statText}>
+            {formatStatCount(post.shares?.length || 0)}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -233,5 +335,31 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 12,
     color: '#666',
+  },
+  pagination: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)', // Slight dark background for visibility
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    marginHorizontal: 3,
+  },
+  activeDot: {
+    backgroundColor: '#fff',
+    width: 7,
+    height: 7,
+  },
+  postMediaSlider: {
+    width: width - 20, // Subtracting horizontal margins of the post card
+    height: 300,
   },
 });

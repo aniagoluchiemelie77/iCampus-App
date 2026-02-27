@@ -2,7 +2,7 @@ import * as React from 'react';
 import Svg, { Path, G, Circle } from 'react-native-svg';
 
 
-const Logo = () => (
+export const Logo = () => (
   <Svg
     width="70"
     height="70"
