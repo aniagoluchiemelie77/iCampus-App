@@ -22,6 +22,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 const HomeScreen = () => {
   const user = useAppSelector(state => state.user);
+  const userType = user?.usertype;
   const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
   const isTokenExpired = (createdAt: number) => {
@@ -69,22 +70,24 @@ const HomeScreen = () => {
           </TouchableOpacity>
 
           {/* Classroom Tab */}
-          <TouchableOpacity
-            onPress={() => setActiveIcon('classroom')}
-            style={[
-              homeStyles.iconItem,
-              activeIcon === 'classroom' && homeStyles.activeIconItem,
-            ]}
-          >
-            <Icon
-              name={activeIcon === 'classroom' ? 'easel' : 'easel-outline'}
-              size={26}
-              color={activeIcon === 'classroom' ? '#fb966b' : '#032820'}
-            />
-            {activeIcon === 'classroom' && (
-              <Text style={homeStyles.activeIconLabel}>Classroom</Text>
-            )}
-          </TouchableOpacity>
+          {(userType === 'student' || userType === 'lecturer') && (
+            <TouchableOpacity
+              onPress={() => setActiveIcon('classroom')}
+              style={[
+                homeStyles.iconItem,
+                activeIcon === 'classroom' && homeStyles.activeIconItem,
+              ]}
+            >
+              <Icon
+                name={activeIcon === 'classroom' ? 'easel' : 'easel-outline'}
+                size={26}
+                color={activeIcon === 'classroom' ? '#fb966b' : '#032820'}
+              />
+              {activeIcon === 'classroom' && (
+                <Text style={homeStyles.activeIconLabel}>Classroom</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Store Tab */}
           <TouchableOpacity

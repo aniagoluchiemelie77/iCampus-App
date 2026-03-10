@@ -578,4 +578,15 @@ export interface Posts {
     totalVotes: number;
   };
 }
-
+export interface Lecture {
+  courseId: Course.courseId;
+  lecturerId: User.uid; 
+  date: string;   
+  startTime?: string;
+  endTime?: string;
+  lectureType: 'physical' | 'webinar' | 'video';
+  meetingLink?: string; 
+  location?: string;   
+  uploadedVideoUrl?: string;
+  isLive?: boolean;   
+}
