@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
   ViewToken,
+  StyleSheet,
 } from 'react-native';
 import { PostCard } from './PostCard';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -54,6 +55,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 export const baseUrl = 'http://192.168.1.98:5000/';
 import { io } from 'socket.io-client';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import { BlurView } from '@react-native-community/blur';
 
 const hapticOptions = {
   enableVibrateFallback: true,
@@ -772,6 +774,83 @@ const ProfileModal = ({ visible, onClose, currentUser }: ProfileModalProps) => (
     </View>
   </Modal>
 );
+const ExpandableFAB = ({ visible, onClose, navigation }: any) => {
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      {/* 1. Blur Background */}
+      <BlurView
+        style={StyleSheet.absoluteFill}
+        blurType="dark"
+        blurAmount={10}
+        reducedTransparencyFallbackColor="white"
+      />
+
+      {/* 2. Dismiss Overlay */}
+      <TouchableOpacity
+        style={fabStyles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      />
+
+      <View style={fabStyles.fabMenuContainer}>
+        {/* Create Poll Button */}
+        <View style={fabStyles.menuItemWrapper}>
+          <Text style={fabStyles.menuLabel}>Create Poll</Text>
+          <TouchableOpacity
+            style={fabStyles.miniFab}
+            onPress={() => {
+              onClose(); // Close the modal/overlay first
+              navigation.navigate('CreatePost', { type: 'poll' });
+            }}
+          >
+            <MaterialIcons name="poll" size={24} color="#f54b02" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Search Button */}
+        <View style={fabStyles.menuItemWrapper}>
+          <Text style={fabStyles.menuLabel}>Search</Text>
+          <TouchableOpacity
+            style={fabStyles.miniFab}
+            onPress={() => {
+              onClose();
+              // Assuming you have a Search screen
+              navigation.navigate('Search');
+            }}
+          >
+            <MaterialIcons name="search" size={24} color="#f54b02" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Create Post Button */}
+        <View style={fabStyles.menuItemWrapper}>
+          <Text style={fabStyles.menuLabel}>Create Post</Text>
+          <TouchableOpacity
+            style={fabStyles.miniFab}
+            onPress={() => {
+              onClose();
+              navigation.navigate('CreatePost', { type: 'post' });
+            }}
+          >
+            <MaterialIcons name="edit" size={24} color="#f54b02" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Close Toggle */}
+        <TouchableOpacity style={fabStyles.mainFabActive} onPress={onClose}>
+          <MaterialIcons name="close" size={30} color="#222" />
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+};
 export function Home() {
   const { posts, setPosts, incrementImpression, currentUser } =
     useAppDataContext();
@@ -779,6 +858,7 @@ export function Home() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
@@ -938,13 +1018,22 @@ export function Home() {
         maxToRenderPerBatch={10}
         windowSize={5}
       />
-      {/* 3. FLOATING ADD POST BUTTON (Twitter Style) */}
-      <TouchableOpacity
-        style={homeStyles.fab}
-        //onPress={() => navigation.navigate('CreatePost')}
-      >
-        <MaterialIcons name="add" size={30} color="#fff" />
-      </TouchableOpacity>
+      {/* 3. UPDATED FAB LOGIC */}
+      {!isFabMenuVisible && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => setFabMenuVisible(true)}
+        >
+          <MaterialIcons name="add" size={30} color="#222" />
+        </TouchableOpacity>
+      )}
+
+      {/* 4. EXPANDABLE MENU MODAL */}
+      <ExpandableFAB
+        visible={isFabMenuVisible}
+        onClose={() => setFabMenuVisible(false)}
+        navigation={navigation}
+      />
 
       {/* 4. PROFILE POPUP (LinkedIn Style Modal) */}
       <ProfileModal
@@ -1828,3 +1917,54 @@ export function StoreScreen() {
 export function RankingScreen() {
   return <Text>Ranking Screen</Text>;
 }
+const fabStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.4)', // Tint to complement blur
+  },
+  fabMenuContainer: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    alignItems: 'flex-end',
+  },
+  menuItemWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  menuLabel: {
+    fontWeight: '600',
+    marginRight: 15,
+    fontSize: 16,
+    color: '#000',
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  miniFab: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  mainFabActive: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f54b02',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+  },
+});

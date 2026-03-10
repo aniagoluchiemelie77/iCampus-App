@@ -104,6 +104,79 @@ const MediaSection = ({ post, isVisible }: PostCardProps) => {
     </View>
   );
 };
+const PollView = ({
+  poll,
+  currentUserId,
+  postId,
+  onVote,
+}: {
+  poll: any;
+  currentUserId: string;
+  postId: string;
+  onVote: (postId: string, optionId: string) => void;
+}) => {
+  const hasVoted = poll.options.some((opt: any) =>
+    opt.votes.includes(currentUserId),
+  );
+
+  return (
+    <View style={styles.pollContainer}>
+      {poll.options.map((option: any) => {
+        const percentage =
+          poll.totalVotes > 0
+            ? Math.round((option.votes.length / poll.totalVotes) * 100)
+            : 0;
+
+        const isMyVote = option.votes.includes(currentUserId);
+
+        return (
+          <TouchableOpacity
+            key={option.optionId}
+            style={[
+              styles.optionButton,
+              hasVoted && styles.optionButtonDisabled,
+              isMyVote && styles.optionButtonSelected,
+            ]}
+            disabled={hasVoted}
+            onPress={() => onVote(postId, option.optionId)}
+          >
+            {/* Progress Bar background fills behind the text */}
+            {hasVoted && (
+              <View style={[styles.progressBg, { width: `${percentage}%` }]} />
+            )}
+
+            <View style={styles.optionContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.optionText, isMyVote && styles.boldText]}>
+                  {option.text}
+                </Text>
+                {isMyVote && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={14}
+                    color="#f54b02"
+                    style={{ marginLeft: 5 }}
+                  />
+                )}
+              </View>
+              {hasVoted && (
+                <Text style={styles.percentageText}>{percentage}%</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+
+      <View style={styles.pollFooter}>
+        <Text style={styles.voteCount}>{poll.totalVotes} votes</Text>
+        <Text style={styles.dotSeparator}>•</Text>
+        <Text style={styles.pollStatus}>
+          {hasVoted ? 'Final results' : '1 day left'}
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 export const PostCard = ({ post, isVisible }: PostCardProps) => {
   const user = post.userId;
@@ -116,6 +189,7 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     currentUser,
     handleRepost,
     incrementShareCount,
+    handleVote, // Ensure this exists in your Context
   } = useAppDataContext();
   const getRelativeTime = (dateString: string | null): string => {
     if (!dateString) return '';
@@ -187,8 +261,17 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
         )}
       </View>
 
-      {/* NEW MEDIA SECTION COMPONENT */}
-      <MediaSection post={post} isVisible={isVisible} />
+      {/* 3. Conditional: Show Poll OR Media */}
+      {post.poll ? (
+        <PollView
+          poll={post.poll}
+          currentUserId={currentUser?.uid}
+          postId={post.postId}
+          onVote={handleVote}
+        />
+      ) : (
+        <MediaSection post={post} isVisible={isVisible} />
+      )}
 
       {/* Footer: Interactions */}
       <View style={styles.footer}>
@@ -361,5 +444,68 @@ const styles = StyleSheet.create({
   postMediaSlider: {
     width: width - 20, // Subtracting horizontal margins of the post card
     height: 300,
+  },
+  pollContainer: {
+    marginVertical: 10,
+    width: '100%',
+  },
+  optionButton: {
+    height: 45,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f54b02',
+    justifyContent: 'center',
+    marginBottom: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  optionButtonDisabled: {
+    borderColor: '#E1E8ED',
+  },
+  optionButtonSelected: {
+    borderColor: '#f54b02',
+    borderWidth: 1.5,
+  },
+  progressBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(245, 75, 2, 0.1)', // Light brand color fill
+  },
+  optionContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    alignItems: 'center',
+    zIndex: 1, // Stay above progress bar
+  },
+  optionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  percentageText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  pollFooter: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  voteCount: {
+    fontSize: 13,
+    color: '#666',
+  },
+  dotSeparator: {
+    marginHorizontal: 5,
+    color: '#666',
+  },
+  pollStatus: {
+    fontSize: 13,
+    color: '#666',
+  },
+  boldText: {
+    fontWeight: 'bold',
   },
 });

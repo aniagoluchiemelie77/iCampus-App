@@ -534,6 +534,11 @@ export interface UserRecords {
   userId: string;
   records: UserRecordEntry[];
 }
+export interface PollOption {
+  optionId: string;
+  text: string;
+  votes: string[]; // Array of user UIDs who voted for this option
+}
 export interface Posts {
   _id: string;
   postId: string;
@@ -567,5 +572,10 @@ export interface Posts {
   repostsCount: number;
   sharesCount?: number;
   createdAt: string;
+  poll?: {
+    options: PollOption[];
+    expiresAt: string; 
+    totalVotes: number;
+  };
 }
 

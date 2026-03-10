@@ -45,6 +45,7 @@ interface AppDataContextType {
   fetchCartItems: () => Promise<void>;
   fetchNotifications: () => Promise<void>;
   toggleFavorite: (productId: string) => Promise<void>;
+  handleVote: (postId: string, optionId: string) => Promise<void>;
   incrementImpression: (postId: string) => Promise<void>;
   toggleBookmark: (postId: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
@@ -319,6 +320,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         body: JSON.stringify({ userId }),
       });
     } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Bookmark sync failed, please retry.',
+      });
       console.error('Bookmark sync failed', err);
     }
   };
@@ -342,6 +347,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     } catch (err) {
       console.log('Impression update failed', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Impression update failed, please retry.',
+      });
     }
   };
   const handleRepost = async (
@@ -381,6 +390,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         Toast.show({ type: 'success', text1: 'Reposted successfully!' });
       }
     } catch (error) {
+      Toast.show({ type: 'error', text1: 'Repost failed, please retry.' });
       console.error('Repost failed', error);
     }
   };
@@ -507,6 +517,62 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       // Rollback logic would go here if you wanted to be fancy
     }
   };
+  const handleVote = async (postId: string, optionId: string) => {
+    if (!currentUser) return;
+
+    try {
+      // 1. Using Fetch instead of Axios
+      const response = await fetch(`${baseUrl}/posts/${postId}/vote`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          optionId,
+          userId: currentUser.uid,
+        }),
+      });
+
+      if (!response.ok) {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to register vote, please retry.',
+        });
+      }
+
+      // 2. Update local state
+      setPosts((prevPosts: Posts[]) => {
+      return prevPosts.map((post): Posts => {
+        // 1. Check if this is the post we want AND that it actually has a poll
+        if (post.postId === postId && post.poll) {
+          
+          const updatedOptions = post.poll.options.map((opt: any) => {
+            if (opt.optionId === optionId) {
+              return { 
+                ...opt, 
+                votes: [...(opt.votes || []), currentUser.uid] 
+              };
+            }
+            return opt;
+          });
+
+          return {
+            ...post,
+            poll: {
+              ...post.poll, // Now safe because of the check above
+              options: updatedOptions,
+              totalVotes: (post.poll.totalVotes || 0) + 1,
+            },
+          };
+        }
+        return post;
+      });
+    });
+    } catch (error) {
+      console.error('Error voting:', error);
+      Toast.show({ type: 'error', text1: 'Could not register your vote, please retry.' });
+    }
+  };
 
   useEffect(() => {
     fetchEvents();
@@ -559,6 +625,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         incrementShareCount,
         toggleCommentLike,
         addComment,
+        handleVote,
       }}
     >
       {children}

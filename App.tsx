@@ -41,11 +41,13 @@ import WithdrawPointsScreen from './src/screens/WithdrawPoints';
 import TransferPointsScreen from './src/screens/TransferPoints';
 import ReceivePointsScreen from './src/screens/ReceivePoints';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
+import CreatePost from './src/screens/CreatePost';
 
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
   SignUp: undefined;
   BuyPointsScreen: undefined;
+  CreatePost: { type: 'post' | 'poll' };
   WithdrawPointsScreen: undefined;
   ReceivePointsScreen: undefined;
   TransferPointsScreen: undefined;
@@ -163,6 +165,11 @@ const App = () => {
             <Stack.Screen
               name="WithdrawPointsScreen"
               component={WithdrawPointsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreatePost"
+              component={CreatePost}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -1527,7 +1527,7 @@ export const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 25,
     right: 20,
-    backgroundColor: '#f54b02', // Your brand color
+    backgroundColor: '#f54b02', 
     width: 56,
     height: 56,
     borderRadius: 28,
