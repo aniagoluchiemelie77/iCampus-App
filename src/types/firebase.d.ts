@@ -458,15 +458,23 @@ export interface Course {
   courseCode?: string;
   courseTitle?: string;
   department: string;
-  level: string;
-  schoolName: string;
-  lecturerIds: User.uid[]; 
-  studentsEnrolled: User.uid[];
+  level?: string;
+  schoolName?: string;
+  lecturerIds?: string[]; 
+  studentsEnrolled: string[];
   credits?: number;
   semester?: string; 
   session?: string;
   createdAt: string; 
   isActive?: boolean;
+  // --- New Udemy/YouTube Style Fields ---
+  price?: number;            // 0 for free
+  thumbnailUrl?: string;
+  rating?: number;          // e.g., 4.5
+  totalReviews?: number;
+  isPublished?: boolean;    // For the marketplace
+  instructorName?: string;  // For quick display
+  courseDuration?: string;  // e.g., "10h 30m"
 }
 export interface UserBillingAddressDetails {
   id?: string;
