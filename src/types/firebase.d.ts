@@ -25,6 +25,7 @@ export interface User {
   ipAddress?: string[];
   deviceType?: string[]; 
   password: string;
+  plan?: 'free' | 'pro' | 'premium';
   matricNumber?: string;
   department?: string;
   profilePic?: string[];
@@ -452,30 +453,6 @@ export interface Transaction {
   amountInPoints: number;
   date: string; 
 }
-export interface Course {
-  id: string;
-  courseId: string;
-  courseCode?: string;
-  courseTitle?: string;
-  department: string;
-  level?: string;
-  schoolName?: string;
-  lecturerIds?: string[]; 
-  studentsEnrolled: string[];
-  credits?: number;
-  semester?: string; 
-  session?: string;
-  createdAt: string; 
-  isActive?: boolean;
-  // --- New Udemy/YouTube Style Fields ---
-  price?: number;            // 0 for free
-  thumbnailUrl?: string;
-  rating?: number;          // e.g., 4.5
-  totalReviews?: number;
-  isPublished?: boolean;    // For the marketplace
-  instructorName?: string;  // For quick display
-  courseDuration?: string;  // e.g., "10h 30m"
-}
 export interface UserBillingAddressDetails {
   id?: string;
   state?: string;
@@ -587,14 +564,55 @@ export interface Posts {
   };
 }
 export interface Lecture {
-  courseId: Course.courseId;
-  lecturerId: User.uid; 
-  date: string;   
-  startTime?: string;
-  endTime?: string;
-  lectureType: 'physical' | 'webinar' | 'video';
-  meetingLink?: string; 
-  location?: string;   
-  uploadedVideoUrl?: string;
-  isLive?: boolean;   
+  id: string;
+  courseId: Course['courseId'];
+  topicName: string;
+  lectureType: 'Physical' | 'Online' | 'Recorded';
+  location?: string;
+  startTime: string; 
+  endTime: string;
+  date: string;
+  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'postponed';
+  isTaught: boolean;
+  videoUrl?: string; 
+  resources?: string[];
+  attendance?: User.uid[];//Row call of attendees (students)
+  getAttendanceMode?: 'Uploaded' | 'Online'; //How the attendance roll call was obtained
+}
+export interface Course {
+  id: string;
+  courseId: string;
+  courseCode?: string;
+  courseTitle?: string;
+  department: string;
+  courseContents?: string[];
+  Lectures?: Lecture[];
+  resources?: string[];
+  assignments?: string[];
+  level?: string;
+  schoolName?: string;
+  lecturerIds?: string[]; 
+  studentsEnrolled: string[];
+  credits?: number;
+  semester?: string; 
+  session?: string;
+  createdAt: string; 
+  isActive?: boolean;
+  // --- New Udemy/YouTube Style Fields ---
+  price?: number;            // 0 for free
+  thumbnailUrl?: string;
+  rating?: number;          // e.g., 4.5
+  totalReviews?: number;
+  isPublished?: boolean;    // For the marketplace
+  instructorName?: string;  // For quick display
+  courseDuration?: string;  // e.g., "10h 30m"
+}
+export interface CourseException {
+  id: string;
+  studentId: User['uid'];
+  courseId: Course['courseId'];
+  lectureId: Lecture['id']; 
+  reason: string;
+  date: string; // Used to filter "per month"
+  status: 'pending' | 'approved' | 'rejected';
 }

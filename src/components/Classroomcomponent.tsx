@@ -29,62 +29,85 @@ const PRIMARY_COLOR_TINT = '#fc8350';
 interface CourseModalProps {
   isVisible: boolean;
   onClose: () => void;
+  id: string;
   course: Course; // Ensure Course is imported from your firebase types
-  lectures: Lecture[]; // Ensure Lecture is imported from your firebase types
+  lectures: Lecture[]; 
+  currentUser: User;
 }
-const GridItem = ({
-  label,
-  icon,
-  count,
-}: {
+interface GridItemProps {
   label: string;
-  icon: string;
+  iconName: string; // Changed from 'icon' (emoji) to 'iconName' (MCI)
   count?: number;
-}) => (
-  <TouchableOpacity style={styles.gridBtn}>
-    <View style={styles.iconCircle}>
-      <Text style={{ fontSize: 24 }}>{icon}</Text>
-      {count && (
-        <View style={styles.notifBadge}>
-          <Text style={styles.notifText}>{count}</Text>
-        </View>
-      )}
-    </View>
-    <Text style={styles.gridLabel}>{label}</Text>
-  </TouchableOpacity>
-);
+  onPress?: () => void; // Added click handler
+}
+const GridItem = ({ label, iconName, count, onPress }: GridItemProps) => {
+  const capitalize = (str: string = '') => {
+    return str
+      .toLowerCase()
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  return (
+    <TouchableOpacity
+      style={styles.gridBtn}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.iconCircle}>
+        <Icon name={iconName} size={26} color={PRIMARY_COLOR_TINT} />
+
+        {count !== undefined && count > 0 && (
+          <View style={styles.notifBadge}>
+            <Text style={styles.notifText}>{count}</Text>
+          </View>
+        )}
+      </View>
+      {/* Using your capitalize logic here too */}
+      <Text style={styles.gridLabel}>{capitalize(label)}</Text>
+    </TouchableOpacity>
+  );
+};
 
 const ProgressRing = ({ percentage }: { percentage: number }) => {
   const radius = 40;
   const stroke = 8;
-  const normalizedRadius = radius - stroke * 2;
+  const normalizedRadius = radius - stroke; // Adjusted slightly for better fit
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <View style={styles.progressContainer}>
-      <Svg height={radius * 2} width={radius * 2}>
+      <Svg
+        height={radius * 2}
+        width={radius * 2}
+        viewBox={`0 0 ${radius * 2} ${radius * 2}`}
+      >
+        {/* Track Circle */}
         <Circle
-          stroke="#e6e6e6"
+          stroke="#F0F0F0"
           fill="transparent"
           strokeWidth={stroke}
           r={normalizedRadius}
           cx={radius}
           cy={radius}
         />
+        {/* Active Progress Circle */}
         <Circle
           stroke={PRIMARY_COLOR}
           fill="transparent"
           strokeWidth={stroke}
-          strokeDasharray={`${circumference} ${circumference}`}
-          style={{ strokeDashoffset }}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           r={normalizedRadius}
           cx={radius}
           cy={radius}
+          transform={`rotate(-90, ${radius}, ${radius})`}
         />
       </Svg>
-      <Text style={styles.progressText}>{percentage}%</Text>
+      <Text style={styles.progressText}>{Math.round(percentage)}%</Text>
     </View>
   );
 };
@@ -128,81 +151,173 @@ const ForYouCard = ({ course }: { course: Course }) => {
     </TouchableOpacity>
   );
 };
+const getExceptionLimit = (plan: string) => {
+  switch (plan) {
+    case 'premium': return 8;
+    case 'pro': return 5;
+    default: return 3; // free trial
+  }
+};
 
 const CourseModal = ({
   isVisible,
   onClose,
   course,
   lectures,
+  id,
+  currentUser
 }: CourseModalProps) => {
   if (!course) return null;
+  // 1. Syllabus Progress (Instructor side)
+  const totalTopics = course.courseContents?.length || 0;
+  const taughtTopics = new Set(
+    lectures.filter(l => l.isTaught).map(l => l.topicName.toLowerCase()),
+  ).size;
+  const syllabusPercentage =
+    totalTopics > 0 ? (taughtTopics / totalTopics) * 100 : 0;
+
+  // 2. User Attendance (Student side)
+  const lecturesHeld = lectures.filter(l => l.isTaught).length;
+  const lecturesAttended = lectures.filter(l =>
+    l.attendance?.includes(id),
+  ).length;
+  const attendancePercentage =
+    lecturesHeld > 0 ? (lecturesAttended / lecturesHeld) * 100 : 0;
+  // 3. Materials
+  const totalMaterials =
+    (course.resources?.length || 0) +
+    lectures.reduce(
+      (acc, lecture) => acc + (lecture.resources?.length || 0),
+      0,
+    );
+  // 4. Assignments
+  const assignmentCount = course.assignments?.length || 0;
+  // 5. Exceptions: Business Logic (Max 3 per month)
+  const userPlan = currentUser.plan; // e.g., 'free'
+  const limit = getExceptionLimit(userPlan ?? 'fr');
+
+// Count how many exceptions the user has ALREADY requested this month
+const usedThisMonth = allExceptions.filter(ex => 
+  ex.studentId === currentUser.uid &&
+  new Date(ex.date).getMonth() === new Date().getMonth() &&
+  ex.status !== 'rejected'
+).length;
+
+const remaining = Math.max(0, limit - usedThisMonth);
+  // 4. Instructors: Count of unique IDs in the lecturerIds array
+  const instructorCount = course.lecturerIds?.length || 0;
 
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <View>
-              <Text style={styles.modalTitle}>Course Modal</Text>
-              <Text style={styles.courseSubtext}>
-                {course.courseCode} - {course.courseTitle}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Text style={{ fontSize: 22, color: '#666' }}>✕</Text>
-            </TouchableOpacity>
-          </View>
+      {/* 1. This Pressable handles the "click outside" to close */}
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        {/* 2. TouchableWithoutFeedback prevents closing when clicking INSIDE the content */}
+        <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+          <View style={styles.modalContent}>
+            {/* Grabber handle (Visual hint that user can swipe down or tap away) */}
+            <View style={styles.modalGrabber} />
 
-          <View style={styles.statsRow}>
-            <View style={styles.attendanceBox}>
-              <ProgressRing percentage={85} />
-              <View style={{ marginLeft: 15 }}>
-                <Text style={styles.statLabel}>Attendance</Text>
-                <Text style={styles.statSub}>ATTENDED / TOTAL LECTURES</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.iconGrid}>
-            <GridItem label="Contents" icon="📋" />
-            <GridItem label="Materials" icon="📚" />
-            <GridItem label="Assignments" icon="📝" count={5} />
-            <GridItem label="Exceptions" icon="🛡️" />
-            <GridItem label="Instructor" icon="🎓" />
-          </View>
-
-          <View style={styles.historyHeader}>
-            <Text style={styles.sectionTitle}>Lecture History</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Total: {lectures.length}</Text>
-            </View>
-          </View>
-
-          <FlatList
-            data={lectures}
-            keyExtractor={(_, index) => index.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.lectureItem}>
-                <View style={styles.checkCircle}>
-                  <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.topicText}>Topic Name</Text>
-                  <Text style={styles.venueText}>
-                    {item.location || 'Online'}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.typeText}>{item.lectureType}</Text>
-                  <Text style={styles.timeText}>
-                    {item.startTime || '12:00'}
+            <View style={styles.dashboardRow}>
+              {/* Syllabus Widget */}
+              <View style={styles.statCard}>
+                <ProgressRing percentage={syllabusPercentage} />
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statLabel}>Syllables</Text>
+                  <Text style={styles.statSub}>
+                    {taughtTopics}/{totalTopics} Covered
                   </Text>
                 </View>
               </View>
-            )}
-          />
-        </View>
-      </View>
+              <View style={styles.verticalDivider} />
+              {/* Attendance Widget */}
+              <View style={styles.statCard}>
+                <ProgressRing percentage={attendancePercentage} />
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statLabel}>Attendance</Text>
+                  <Text style={styles.statSub}>
+                    {lecturesAttended}/{lecturesHeld} attended
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.iconGrid}>
+              <GridItem
+                label="Contents"
+                iconName="format-list-bulleted"
+                count={course.courseContents?.length}
+                onPress={() => {}}
+              />
+              <GridItem
+                label="Materials"
+                iconName="folder-outline"
+                count={totalMaterials}
+                onPress={() => {}}
+              />
+              <GridItem
+                label="Assignments"
+                iconName="clipboard-edit-outline"
+                count={assignmentCount}
+                onPress={() => {}}
+              />
+              <GridItem
+                label="Exceptions"
+                iconName="shield-alert-outline"
+                count={remainingExceptions}
+                onPress={() => {
+                  if (remainingExceptions <= 0) {
+                    console.log(
+                      'Free trial limit reached! Upgrade for more exceptions.',
+                    );
+                  }
+                }}
+              />
+              <GridItem
+                label="Instructors"
+                iconName="account-tie"
+                count={instructorCount > 1 ? instructorCount : undefined}
+                onPress={() => {}}
+              />
+            </View>
+
+            <View style={styles.historyHeader}>
+              <Text style={styles.sectionTitle}>Lecture History</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Total: {lectures.length}</Text>
+              </View>
+            </View>
+
+            <FlatList
+              data={lectures}
+              keyExtractor={(_, index) => index.toString()}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <View style={styles.lectureItem}>
+                  <View style={styles.checkCircle}>
+                    <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.topicText}>Topic Name</Text>
+                    <Text style={styles.venueText}>
+                      {item.location || 'Online'}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.typeText}>{item.lectureType}</Text>
+                    <Text style={styles.timeText}>
+                      {item.startTime || '12:00'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -338,12 +453,14 @@ const Dashboard = ({ user }: { user: User }) => {
     </View>
   );
 
-  const filteredCourses = courses.filter(
-  c =>
-    c.courseTitle?.toLowerCase().includes(search.toLowerCase()) ||
-    c.courseCode?.toLowerCase().includes(search.toLowerCase()) ||
-    c.instructorName?.toLowerCase().includes(search.toLowerCase())
-);
+  const filteredCourses = courses.filter(c => {
+    const query = search.toLowerCase();
+    return (
+      c.courseTitle?.toLowerCase().includes(query) ||
+      c.courseCode?.toLowerCase().includes(query) ||
+      c.instructorName?.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -384,20 +501,70 @@ const Dashboard = ({ user }: { user: User }) => {
           ) : (
             <FlatList
               data={filteredCourses}
-              contentContainerStyle={{ padding: 20 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedCourse(item);
-                    setModalVisible(true);
-                  }}
-                  style={styles.courseCard}
-                >
-                  <Text style={styles.cardTitle}>{item.courseTitle}</Text>
-                  <Text style={styles.cardCode}>{item.courseCode}</Text>
-                </TouchableOpacity>
-              )}
+              contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
               keyExtractor={item => item.id}
+              renderItem={({ item }) => {
+                // UI Formatter: CAPITALIZE for display
+                const capitalize = (str: string = '') => {
+                  return str
+                    .toLowerCase()
+                    .trim()
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                };
+
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedCourse(item);
+                      setModalVisible(true);
+                    }}
+                    style={styles.courseCard}
+                  >
+                    {/* Top Section: Title and Units */}
+                    <View style={styles.cardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.cardTitle}>
+                          {capitalize(item.courseTitle)}
+                        </Text>
+                        <Text style={styles.cardCode}>
+                          {item.courseCode?.toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.creditBadge}>
+                        <Text style={styles.creditText}>
+                          {item.credits || 0} Units
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Divider */}
+                    <View style={styles.cardDivider} />
+
+                    {/* Bottom Section: Metadata */}
+                    <View style={styles.cardFooter}>
+                      <View style={styles.metaInfo}>
+                        <Icon name="human-male-board" size={23} color="#fff" />
+                        <Text style={styles.metaText}>
+                          {capitalize(item.instructorName || 'Not Asigned...')}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metaInfo}>
+                        <MaterialIcons
+                          name="people-outline"
+                          size={23}
+                          color="#fff"
+                        />
+                        <Text style={styles.metaText}>
+                          {item.studentsEnrolled?.length || 0} participants
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
           )}
 
@@ -407,6 +574,7 @@ const Dashboard = ({ user }: { user: User }) => {
             onClose={() => setModalVisible(false)}
             course={selectedCourse!}
             lectures={[]} // Fetch these based on selectedCourse.id
+            id={user.uid}
           />
         </>
       )}
@@ -515,31 +683,28 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     height: SCREEN_HEIGHT * 0.85,
     padding: 25,
+    paddingTop: 15, // Reduced to make room for grabber
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-  },
-  modalTitle: { fontSize: 20, fontWeight: 'bold' },
-  courseSubtext: { color: '#f54b02', fontWeight: '600' },
-  statsRow: { marginBottom: 25 },
-  attendanceBox: { flexDirection: 'row', alignItems: 'center' },
+  attendanceBox: { alignItems: 'center' },
   progressContainer: { alignItems: 'center', justifyContent: 'center' },
   progressText: {
     position: 'absolute',
     fontWeight: 'bold',
     color: PRIMARY_COLOR,
   },
-  statLabel: { fontWeight: 'bold', fontSize: 18 },
-  statSub: { fontSize: 10, color: '#999', letterSpacing: 1 },
+  statLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#222',
+  },
+  statSub: { fontSize: 10, color: '#222', letterSpacing: 1, fontWeight: 700 },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 15,
   },
-  gridBtn: { width: '30%', alignItems: 'center', marginBottom: 20 },
+  gridBtn: { width: '30%', alignItems: 'center', marginBottom: 15 },
   iconCircle: {
     width: 65,
     height: 65,
@@ -550,12 +715,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee',
   },
-  gridLabel: { fontSize: 12, color: '#555', marginTop: 8, fontWeight: '500' },
+  gridLabel: { fontSize: 12, color: '#222', marginTop: 8, fontWeight: '500' },
   notifBadge: {
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: PRIMARY_COLOR,
+    backgroundColor: PRIMARY_COLOR_TINT,
     borderRadius: 12,
     minWidth: 20,
     height: 20,
@@ -601,18 +766,28 @@ const styles = StyleSheet.create({
   },
   timeText: { fontWeight: 'bold', color: '#333' },
   courseCard: {
-    backgroundColor: '#fff',
+    backgroundColor: PRIMARY_COLOR,
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 18,
     marginBottom: 15,
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: '#f54b02',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  cardTitle: { fontSize: 18, fontWeight: 'bold' },
-  cardCode: { color: PRIMARY_COLOR, marginTop: 4 },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 6,
+  },
+  cardCode: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+    letterSpacing: 1,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -669,6 +844,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#222',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 10,
+  },
+  creditBadge: {
+    marginLeft: 10,
+  },
+  creditText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#f5f5f5',
+    marginVertical: 15,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metaInfo: {
+    alignItems: 'center',
+  },
+  metaIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '600',
+    marginTop: 5,
+  },
+  modalGrabber: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    alignSelf: 'center',
+  },
+  dashboardRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 20,
+    padding: 15,
+    marginVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    flexDirection: 'column',
+  },
+  statTextContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  verticalDivider: {
+    width: 1,
+    height: '70%',
+    backgroundColor: '#DDD',
   },
   // Add these for the For You section inside header
 });
