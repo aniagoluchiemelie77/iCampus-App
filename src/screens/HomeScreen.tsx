@@ -70,7 +70,9 @@ const HomeScreen = () => {
           </TouchableOpacity>
 
           {/* Classroom Tab */}
-          {(userType === 'student' || userType === 'lecturer') && (
+          {(userType === 'student' ||
+            userType === 'lecturer' ||
+            userType === 'otherUser') && (
             <TouchableOpacity
               onPress={() => setActiveIcon('classroom')}
               style={[
@@ -84,7 +86,7 @@ const HomeScreen = () => {
                 color={activeIcon === 'classroom' ? '#fb966b' : '#032820'}
               />
               {activeIcon === 'classroom' && (
-                <Text style={homeStyles.activeIconLabel}>Classroom</Text>
+                <Text style={homeStyles.activeIconLabel}>Courses</Text>
               )}
             </TouchableOpacity>
           )}

@@ -118,8 +118,12 @@ export const ClassroomScreenComponent = ({ userRole }: Props) => {
   const handleAddCourse = () => console.log("Lecturer Adding...");
 
   // 1. Safety Check: If an 'otherUser' somehow gets here
-  if (userRole !== 'student' && userRole !== 'lecturer') {
-    return null; 
+  if (
+    userRole !== 'student' &&
+    userRole !== 'lecturer' &&
+    userRole !== 'otherUser'
+  ) {
+    return null;
   }
 
   return (
