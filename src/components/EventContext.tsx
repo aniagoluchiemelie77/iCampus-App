@@ -522,7 +522,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
     try {
       // 1. Using Fetch instead of Axios
-      const response = await fetch(`${baseUrl}/posts/${postId}/vote`, {
+      const response = await fetch(`${baseUrl}posts/${postId}/vote`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,10 +17,14 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DocumentPicker from 'react-native-document-picker';
 import { Svg, Circle } from 'react-native-svg';
-import { Course, User, Lecture } from '../types/firebase';
+import { Course, User, Lecture, CourseException } from '../types/firebase';
 import { useAppSelector } from './hooks';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Logo from '../assets/images/Logo.tsx';
+import { baseUrl } from 'screens/Profile.tsx';
+import Toast from 'react-native-toast-message';
+import toastConfig from './ToastConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PRIMARY_COLOR = '#f54b02';
 const PRIMARY_COLOR_TINT = '#fc8350';
@@ -31,7 +35,7 @@ interface CourseModalProps {
   onClose: () => void;
   id: string;
   course: Course; // Ensure Course is imported from your firebase types
-  lectures: Lecture[]; 
+  lectures: Lecture[];
   currentUser: User;
 }
 interface GridItemProps {
@@ -111,6 +115,23 @@ const ProgressRing = ({ percentage }: { percentage: number }) => {
     </View>
   );
 };
+const generateSessions = () => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-11
+
+  // If we are in or after September (Month 8), the current session is 2023/2024
+  // Otherwise, we are still in the 2022/2023 session.
+  const academicYear = currentMonth >= 8 ? currentYear : currentYear - 1;
+
+  return [
+    'All',
+    `${academicYear - 1}/${academicYear}`, // Preceding
+    `${academicYear}/${academicYear + 1}`, // Default/Current
+    `${academicYear + 1}/${academicYear + 2}`, // Upcoming
+  ];
+};
+const SESSIONS = generateSessions();
 const ForYouCard = ({ course }: { course: Course }) => {
   const isFree = course.price === 0;
 
@@ -153,19 +174,37 @@ const ForYouCard = ({ course }: { course: Course }) => {
 };
 const getExceptionLimit = (plan: string) => {
   switch (plan) {
-    case 'premium': return 8;
-    case 'pro': return 5;
-    default: return 3; // free trial
+    case 'premium':
+      return 8;
+    case 'pro':
+      return 5;
+    default:
+      return 3; // free trial
   }
 };
-
+const getStatusConfig = (status: Lecture['status']) => {
+  switch (status) {
+    case 'completed':
+      return { name: 'check-circle', color: '#f54b02' };
+    case 'ongoing':
+      return { name: 'play-circle', color: '#f54b02' };
+    case 'scheduled':
+      return { name: 'clock-outline', color: '#f54b02' };
+    case 'cancelled':
+      return { name: 'close-circle', color: '#f54b02' };
+    case 'postponed':
+      return { name: 'calendar-clock', color: '#f54b02' };
+    default:
+      return { name: 'help-circle', color: '#f54b02' };
+  }
+};
 const CourseModal = ({
   isVisible,
   onClose,
   course,
   lectures,
   id,
-  currentUser
+  currentUser,
 }: CourseModalProps) => {
   if (!course) return null;
   // 1. Syllabus Progress (Instructor side)
@@ -194,17 +233,16 @@ const CourseModal = ({
   const assignmentCount = course.assignments?.length || 0;
   // 5. Exceptions: Business Logic (Max 3 per month)
   const userPlan = currentUser.plan; // e.g., 'free'
-  const limit = getExceptionLimit(userPlan ?? 'fr');
-
-// Count how many exceptions the user has ALREADY requested this month
-const usedThisMonth = allExceptions.filter(ex => 
-  ex.studentId === currentUser.uid &&
-  new Date(ex.date).getMonth() === new Date().getMonth() &&
-  ex.status !== 'rejected'
-).length;
-
-const remaining = Math.max(0, limit - usedThisMonth);
-  // 4. Instructors: Count of unique IDs in the lecturerIds array
+  const limit = getExceptionLimit(userPlan ?? 'free');
+  const allExceptions: CourseException[] = []; //For now
+  const usedThisMonth = allExceptions.filter(
+    ex =>
+      ex.studentId === currentUser.uid &&
+      new Date(ex.date).getMonth() === new Date().getMonth() &&
+      ex.status !== 'rejected',
+  ).length;
+  const remaining = Math.max(0, limit - usedThisMonth);
+  // 6. Instructors count
   const instructorCount = course.lecturerIds?.length || 0;
 
   return (
@@ -267,9 +305,9 @@ const remaining = Math.max(0, limit - usedThisMonth);
               <GridItem
                 label="Exceptions"
                 iconName="shield-alert-outline"
-                count={remainingExceptions}
+                count={remaining}
                 onPress={() => {
-                  if (remainingExceptions <= 0) {
+                  if (remaining <= 0) {
                     console.log(
                       'Free trial limit reached! Upgrade for more exceptions.',
                     );
@@ -293,27 +331,51 @@ const remaining = Math.max(0, limit - usedThisMonth);
 
             <FlatList
               data={lectures}
-              keyExtractor={(_, index) => index.toString()}
+              keyExtractor={item => item.id} // Use the actual ID instead of index for better performance
               showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <View style={styles.lectureItem}>
-                  <View style={styles.checkCircle}>
-                    <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>
+              renderItem={({ item }) => {
+                const statusConfig = getStatusConfig(item.status);
+                const isOnline = item.lectureType === 'Online';
+                return (
+                  <View style={styles.lectureItem}>
+                    {/* Dynamic Status Icon */}
+                    <View style={styles.statusIconContainer}>
+                      <Icon
+                        name={statusConfig.name}
+                        size={22}
+                        color={statusConfig.color}
+                      />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      {/* Dynamic Topic Name */}
+                      <Text style={styles.topicText}>
+                        {item.topicName || 'No Topic Assigned'}
+                      </Text>
+                      <View
+                        style={[
+                          styles.venueBadge,
+                          isOnline ? styles.onlineBadge : styles.physicalBadge,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.venueText,
+                            { color: isOnline ? '#fff' : '#222' },
+                          ]}
+                        >
+                          {isOnline ? 'Online Session' : ` ${item.location}`}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.statusBadge}>{item.status}</Text>
+                      <Text style={styles.timeText}>
+                        {item.startTime} - {item.endTime}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.topicText}>Topic Name</Text>
-                    <Text style={styles.venueText}>
-                      {item.location || 'Online'}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.typeText}>{item.lectureType}</Text>
-                    <Text style={styles.timeText}>
-                      {item.startTime || '12:00'}
-                    </Text>
-                  </View>
-                </View>
-              )}
+                );
+              }}
             />
           </View>
         </TouchableOpacity>
@@ -321,32 +383,73 @@ const remaining = Math.max(0, limit - usedThisMonth);
     </Modal>
   );
 };
+export const fetchCoursesFromDB = async (courseIds: string[]): Promise<Course[]> => {
+  if (!courseIds || courseIds.length === 0) return [];
+
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    const response = await fetch(`${baseUrl}courses/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ ids: courseIds }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.log(errorData.message || 'Failed to fetch courses');
+    }
+
+    const data = await response.json();
+    return data as Course[];
+  } catch (error) {
+    console.error("Fetch error:", error);
+    return []; // Return empty array so the UI doesn't crash
+  }
+};
 
 // --- Main Dashboard ---
 
 const Dashboard = ({ user }: { user: User }) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [search, setSearch] = useState('');
-  const [_loading, setLoading] = useState(false);
+  const [isLoading, setLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const isStudent = user.usertype === 'student';
+  const [selectedSemester, setSelectedSemester] = useState('First'); // Default or 'All'
+  const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
+  const fetchMyCourses = useCallback(async (semester: string, session: string) => {
+  setLoading(true);
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    let url = `${baseUrl}courses?studentId=${user.uid}`;
+    if (semester !== 'All') url += `&semester=${semester}`;
+    if (session !== 'All') url += `&session=${session}`;
 
-  const fetchMyCourses = async (semester: string, session: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `https://api.icampus.com/courses?semester=${semester}&session=${session}&studentId=${user.uid}`,
-        { headers: { Authorization: `Bearer ${user.accessToken}` } },
-      );
-      const data = await response.json();
-      setCourses(data);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch courses');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const response = await fetch(url, { 
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' 
+      } 
+    });
+    
+    const data = await response.json();
+    setCourses(data);
+  } catch (error) {
+    console.error(error);
+    Toast.show({
+      type: 'error',
+      text1: 'Failed to fetch courses',
+      position: 'bottom',
+      bottomOffset: 5,
+    });
+  } finally {
+    setLoading(false);
+  }
+}, [user.uid]);
 
   const handleAIPopulate = async () => {
     try {
@@ -452,21 +555,124 @@ const Dashboard = ({ user }: { user: User }) => {
       </View>
     </View>
   );
+  const renderFilterBar = () => (
+    <View style={styles.filterContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+      >
+        {SESSIONS.map(session => (
+          <TouchableOpacity
+            key={session}
+            onPress={() => setSelectedSession(session)}
+            style={[
+              styles.filterPill,
+              selectedSession === session && styles.activePill,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                selectedSession === session && styles.activeFilterText,
+              ]}
+            >
+              {session === SESSIONS[2] ? `${session} (Current)` : session}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {/* ... Semester Filter ... */}
+    </View>
+  );
+  const renderSemesterFilter = () => (
+    <View style={styles.semesterRow}>
+      {['First', 'Second'].map(sem => (
+        <TouchableOpacity
+          key={sem}
+          onPress={() => setSelectedSemester(sem)}
+          style={[
+            styles.semBtn,
+            selectedSemester === sem && styles.activeSemBtn,
+          ]}
+        >
+          <Text
+            style={[
+              styles.semBtnText,
+              selectedSemester === sem && styles.activeSemBtnText,
+            ]}
+          >
+            {sem} Semester
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
 
-  const filteredCourses = courses.filter(c => {
-    const query = search.toLowerCase();
-    return (
-      c.courseTitle?.toLowerCase().includes(query) ||
-      c.courseCode?.toLowerCase().includes(query) ||
-      c.instructorName?.toLowerCase().includes(query)
-    );
+  const displayedCourses = courses.filter(course => {
+    // 1. Check Search Query (Title, Code, or Instructor)
+    const query = search.toLowerCase().trim();
+    const matchesSearch =
+      course.courseTitle?.toLowerCase().includes(query) ||
+      course.courseCode?.toLowerCase().includes(query) ||
+      course.instructorName?.toLowerCase().includes(query);
+
+    // 2. Check Session Filter
+    const matchesSession =
+      selectedSession === 'All' || course.session === selectedSession;
+
+    // 3. Check Semester Filter
+    const matchesSemester =
+      selectedSemester === 'All' || course.semester === selectedSemester;
+
+    // ONLY return true if ALL conditions are met
+    return matchesSearch && matchesSession && matchesSemester;
   });
+  useEffect(() => {
+    const checkInitialState = async () => {
+      // 1. Check if the user object even has IDs
+      const enrolledIds = user?.coursesEnrolled || [];
+      if (enrolledIds.length === 0) {
+        // User has 0 IDs in their profile, so we know it's empty immediately
+        setCourses([]);
+        setLoading(false);
+        return;
+      }
+      // 2. If IDs exist, fetch the actual course details from Firestore/DB
+      try {
+        // Example logic: fetch courses WHERE id IN enrolledIds
+        const fetchedCourses = await fetchCoursesFromDB(enrolledIds);
+        setCourses(fetchedCourses);
+      } catch (error) {
+        console.error("Fetch failed", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (user?.uid) checkInitialState();
+  }, [user?.coursesEnrolled, user?.uid]);
+  useEffect(() => {
+    if (selectedSession && selectedSemester) {
+      fetchMyCourses(selectedSemester, selectedSession);
+    }
+  }, [selectedSession, selectedSemester, fetchMyCourses]); // 👈 Dependencies: Trigger when these change
 
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
+      {isLoading ? (
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} style={{ flex: 1 }} />
+      ) : (
+        <>
       {isStudent && (
         <>
+          {courses.length > 0 && (
+            <>
+              {renderFilterBar()}
+              {renderSemesterFilter()}
+            </>
+          )}
+
           {/* 2. Check if the course list is empty */}
           {courses.length === 0 ? (
             <View style={styles.emptyState}>
@@ -500,11 +706,10 @@ const Dashboard = ({ user }: { user: User }) => {
             </View>
           ) : (
             <FlatList
-              data={filteredCourses}
+              data={displayedCourses}
               contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
               keyExtractor={item => item.id}
               renderItem={({ item }) => {
-                // UI Formatter: CAPITALIZE for display
                 const capitalize = (str: string = '') => {
                   return str
                     .toLowerCase()
@@ -575,10 +780,14 @@ const Dashboard = ({ user }: { user: User }) => {
             course={selectedCourse!}
             lectures={[]} // Fetch these based on selectedCourse.id
             id={user.uid}
+            currentUser={user}
           />
         </>
       )}
+        </>
+      )}
       {renderForYou()}
+      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };
@@ -736,8 +945,8 @@ const styles = StyleSheet.create({
   },
   badge: {
     backgroundColor: '#FFF0EA',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 10,
   },
   badgeText: { color: PRIMARY_COLOR, fontSize: 12, fontWeight: 'bold' },
@@ -748,23 +957,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#27AE60',
-    justifyContent: 'center',
-    alignItems: 'center',
+  topicText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#222',
   },
-  topicText: { fontWeight: '700', fontSize: 15 },
-  venueText: { fontSize: 12, color: '#888' },
+  venueText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   typeText: {
     fontSize: 11,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
-  timeText: { fontWeight: 'bold', color: '#333' },
+  timeText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: 'bold',
+  },
   courseCard: {
     backgroundColor: PRIMARY_COLOR,
     padding: 20,
@@ -798,7 +1010,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222',
   },
   forYouCard: {
     width: 160,
@@ -911,6 +1123,91 @@ const styles = StyleSheet.create({
     width: 1,
     height: '70%',
     backgroundColor: '#DDD',
+  },
+  statusIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusBadge: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 0.7,
+    marginBottom: 5,
+    color: PRIMARY_COLOR,
+  },
+  venueBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  onlineBadge: {
+    backgroundColor: '#f54b02', // Very light blue
+    borderWidth: 1,
+  },
+  physicalBadge: {
+    backgroundColor: 'inherit', // Light grey for physical
+  },
+  filterContainer: {
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  filterPill: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 25,
+    backgroundColor: '#F2F2F7',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  activePill: {
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
+  },
+  filterText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  activeFilterText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  semesterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  semBtn: {
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeSemBtn: {
+    borderBottomColor: PRIMARY_COLOR,
+  },
+  semBtnText: {
+    fontSize: 13,
+    color: '#999',
+    paddingBottom: 5,
+  },
+  activeSemBtnText: {
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+  },
+  filterScroll: {
+    paddingLeft: 15, // Gives the first item some breathing room
+    marginBottom: 10,
   },
   // Add these for the For You section inside header
 });
