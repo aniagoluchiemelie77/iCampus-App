@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { clearUser } from '@components/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
@@ -11,7 +12,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { clearUser } from '../components/UserSlice';
 import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
@@ -25,27 +25,40 @@ const HomeScreen = () => {
   const userType = user?.usertype;
   const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
+
+  const [activeIcon, setActiveIcon] = useState<string>('home');
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24; // 24 hours
   };
-  const [activeIcon, setActiveIcon] = useState<string>('home'); // ✅ default to 'home'
+  // Helper to check if user is allowed in the classroom
+  const isClassroomAllowed =
+    userType === 'student' ||
+    userType === 'lecturer' ||
+    userType === 'otherUser';
+
+  // ... (keep your useEffect for token expiry)
   useEffect(() => {
-    if (
-      user?.tokenCreatedAt &&
-      isTokenExpired(new Date(user.tokenCreatedAt).getTime())
-    ) {
-      dispatch(clearUser());
-      navigation.navigate('SignUp');
+    if (user?.tokenCreatedAt) {
+      const createdAtTime = new Date(user.tokenCreatedAt).getTime();
+
+      if (isTokenExpired(createdAtTime)) {
+        dispatch(clearUser());
+        navigation.navigate('Login');
+      }
     }
-  }, [dispatch, navigation, user.tokenCreatedAt]);
+  }, [dispatch, navigation, user?.tokenCreatedAt]);
 
   return (
     <AppDataProvider user={user}>
       <View style={homeStyles.container}>
         <View style={homeStyles.centerContent}>
           {activeIcon === 'home' && <Home />}
-          {activeIcon === 'classroom' && <ClassroomScreen />}
+
+          {isClassroomAllowed && activeIcon === 'classroom' && (
+            <ClassroomScreen />
+          )}
+
           {activeIcon === 'store' && <StoreScreen />}
           {activeIcon === 'ranking' && <RankingScreen />}
         </View>
@@ -69,10 +82,8 @@ const HomeScreen = () => {
             )}
           </TouchableOpacity>
 
-          {/* Classroom Tab */}
-          {(userType === 'student' ||
-            userType === 'lecturer' ||
-            userType === 'otherUser') && (
+          {/* 2. UI Exclusion: Only render the Tab button if user is NOT enterprise */}
+          {isClassroomAllowed && (
             <TouchableOpacity
               onPress={() => setActiveIcon('classroom')}
               style={[
@@ -91,7 +102,7 @@ const HomeScreen = () => {
             </TouchableOpacity>
           )}
 
-          {/* Store Tab */}
+          {/* Store and Ranking tabs remain visible for everyone */}
           <TouchableOpacity
             onPress={() => setActiveIcon('store')}
             style={[
@@ -109,7 +120,6 @@ const HomeScreen = () => {
             )}
           </TouchableOpacity>
 
-          {/* Ranking Tab (Corrected from 'profile' to 'ranking') */}
           <TouchableOpacity
             onPress={() => setActiveIcon('ranking')}
             style={[

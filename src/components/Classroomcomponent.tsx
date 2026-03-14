@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  Alert,
   StyleSheet,
   Modal,
   Dimensions,
@@ -25,6 +24,9 @@ import { baseUrl } from 'screens/Profile.tsx';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Gem } from 'lucide-react-native';
+import * as Progress from 'react-native-progress';
+import axios from 'axios';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PRIMARY_COLOR = '#f54b02';
 const PRIMARY_COLOR_TINT = '#fc8350';
@@ -37,6 +39,27 @@ interface CourseModalProps {
   course: Course; // Ensure Course is imported from your firebase types
   lectures: Lecture[];
   currentUser: User;
+  userRole: 'student' | 'lecturer' | 'otherUser';
+}
+interface DashboardProps {
+  user: User; // Assuming User is your existing type
+  userRole: 'student' | 'lecturer' | 'otherUser'; // Add this line!
+}
+interface ClassroomProps {
+  userRole: 'student' | 'lecturer' | 'otherUser';
+}
+interface SelectionModalProps {
+  visible: boolean;
+  options: string[];
+  onSelect: (item: string) => void;
+  onClose: () => void;
+  title: string;
+  selectedValue?: string; // Added this so you know which one to highlight!
+}
+interface UploadProgressModalProps {
+  visible: boolean;
+  progress: number; // 0 to 1
+  statusText: string;
 }
 interface GridItemProps {
   label: string;
@@ -73,7 +96,29 @@ const GridItem = ({ label, iconName, count, onPress }: GridItemProps) => {
     </TouchableOpacity>
   );
 };
-
+const UploadProgressModal = ({
+  visible,
+  progress,
+  statusText,
+}: UploadProgressModalProps) => (
+  <Modal visible={visible} transparent animationType="fade">
+    <View style={styles.overlay}>
+      <View style={styles.containerModal}>
+        <Progress.Circle
+          size={80}
+          progress={progress}
+          indeterminate={progress === 0 || progress === 1}
+          color={PRIMARY_COLOR}
+          borderWidth={2}
+          thickness={4}
+          showsText={progress > 0 && progress < 1}
+          formatText={() => `${Math.round(progress * 100)}%`}
+        />
+        <Text style={styles.statusText}>{statusText}</Text>
+      </View>
+    </View>
+  </Modal>
+);
 const ProgressRing = ({ percentage }: { percentage: number }) => {
   const radius = 40;
   const stroke = 8;
@@ -131,9 +176,31 @@ const generateSessions = () => {
     `${academicYear + 1}/${academicYear + 2}`, // Upcoming
   ];
 };
+const renderStars = (rating: number | string | undefined) => {
+  const numericRating = Math.round(Number(rating || 0));
+  const stars = [];
+
+  for (let i = 1; i <= 5; i++) {
+    stars.push(
+      <Text
+        key={i}
+        style={[
+          styles.starIcon,
+          i <= numericRating ? styles.starFilled : styles.starEmpty,
+        ]}
+      >
+        ★
+      </Text>,
+    );
+  }
+  return stars;
+};
 const SESSIONS = generateSessions();
 const ForYouCard = ({ course }: { course: Course }) => {
   const isFree = course.price === 0;
+
+  // --- ADD THIS LINE HERE ---
+  const showRating = !!course.rating || (course.totalReviews ?? 0) > 0;
 
   return (
     <TouchableOpacity style={styles.forYouCard}>
@@ -144,30 +211,55 @@ const ForYouCard = ({ course }: { course: Course }) => {
           }}
           style={styles.forYouImage}
         />
-        {/* YouTube-like duration badge */}
-        <View style={styles.durationBadge}>
-          <Text style={styles.durationText}>
-            {course.courseDuration || 'Video'}
-          </Text>
-        </View>
+        {/* Only show duration badge if it exists */}
+        {course.courseDuration && (
+          <View style={styles.durationBadge}>
+            <Text style={styles.durationText}>{course.courseDuration}</Text>
+          </View>
+        )}
       </View>
+
       <View style={styles.forYouInfo}>
-        <Text style={styles.forYouCategory}>{course.department}</Text>
         <Text style={styles.forYouTitle} numberOfLines={2}>
           {course.courseTitle}
         </Text>
-        <Text style={styles.instructorName}>
-          {course.instructorName || 'iCampus Lecturer'}
-        </Text>
+        {course.department && (
+          <Text style={styles.forYouCategory}>{course.department}</Text>
+        )}
 
-        <View style={styles.ratingRow}>
-          <Text style={styles.ratingText}>{course.rating || '5.0'} ⭐</Text>
-          <Text style={styles.reviewText}>({course.totalReviews || 0})</Text>
+        {/* Conditional Instructor Name */}
+        {course.instructorName ? (
+          <Text style={styles.instructorName}>{course.instructorName}</Text>
+        ) : null}
+
+        {/* Only show Rating Row if there is a rating or reviews */}
+        {showRating && (
+          <View style={styles.ratingRow}>
+            <View style={styles.starsContainer}>
+              {renderStars(course.rating)}
+            </View>
+            {course.totalReviews !== undefined && course.totalReviews > 0 && (
+              <Text style={styles.reviewText}>({course.totalReviews})</Text>
+            )}
+          </View>
+        )}
+
+        <View style={styles.priceContainer}>
+          {!isFree && (
+            <>
+              {/* The Gem icon for iCash */}
+              <Gem
+                size={16}
+                color={PRIMARY_COLOR} // A vibrant cyan/aqua border
+                fill={PRIMARY_COLOR} // Filling it makes it look like a physical currency
+                strokeWidth={2.5}
+              />
+              <Text style={styles.priceText}>
+                {course.price?.toLocaleString()}
+              </Text>
+            </>
+          )}
         </View>
-
-        <Text style={styles.priceText}>
-          {isFree ? 'FREE' : `₦${course.price.toLocaleString()}`}
-        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -205,9 +297,37 @@ const CourseModal = ({
   lectures,
   id,
   currentUser,
+  userRole,
 }: CourseModalProps) => {
-  if (!course) return null;
+  const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
+  const [loadingExceptions, setLoadingExceptions] = useState(false);
+  useEffect(() => {
+    const fetchExceptions = async () => {
+      if (!course.courseId || !isVisible) return;
+
+      setLoadingExceptions(true);
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const response = await fetch(
+          `${baseUrl}exceptions/course/${course.courseId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        const data = await response.json();
+        setAllExceptions(data);
+      } catch (error) {
+        console.error('Error fetching exceptions:', error);
+      } finally {
+        setLoadingExceptions(false);
+      }
+    };
+    fetchExceptions();
+  }, [course.courseId, isVisible]);
   // 1. Syllabus Progress (Instructor side)
+  if (!course) return null;
+  const isLecturer = userRole === 'lecturer';
+  const isStudent = userRole === 'student';
   const totalTopics = course.courseContents?.length || 0;
   const taughtTopics = new Set(
     lectures.filter(l => l.isTaught).map(l => l.topicName.toLowerCase()),
@@ -232,9 +352,8 @@ const CourseModal = ({
   // 4. Assignments
   const assignmentCount = course.assignments?.length || 0;
   // 5. Exceptions: Business Logic (Max 3 per month)
-  const userPlan = currentUser.plan; // e.g., 'free'
-  const limit = getExceptionLimit(userPlan ?? 'free');
-  const allExceptions: CourseException[] = []; //For now
+  const userPlan = currentUser.plan || 'free';
+  const limit = getExceptionLimit(userPlan);
   const usedThisMonth = allExceptions.filter(
     ex =>
       ex.studentId === currentUser.uid &&
@@ -244,6 +363,19 @@ const CourseModal = ({
   const remaining = Math.max(0, limit - usedThisMonth);
   // 6. Instructors count
   const instructorCount = course.lecturerIds?.length || 0;
+  // LECTURER LOGIC: Participation / Coverage
+  const lecturesDelivered = lectures.filter(l => l.isTaught).length;
+  const totalExpectedLectures = course.courseContents?.length || 0;
+
+  // Calculate percentage based on syllabus coverage
+  const participationPercentage =
+    totalExpectedLectures > 0
+      ? (lecturesDelivered / totalExpectedLectures) * 100
+      : 0;
+
+  const pendingExceptionsCount = allExceptions.filter(
+    ex => ex.status === 'pending',
+  ).length;
 
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
@@ -258,76 +390,163 @@ const CourseModal = ({
           <View style={styles.modalContent}>
             {/* Grabber handle (Visual hint that user can swipe down or tap away) */}
             <View style={styles.modalGrabber} />
-
-            <View style={styles.dashboardRow}>
-              {/* Syllabus Widget */}
-              <View style={styles.statCard}>
-                <ProgressRing percentage={syllabusPercentage} />
-                <View style={styles.statTextContainer}>
-                  <Text style={styles.statLabel}>Syllables</Text>
-                  <Text style={styles.statSub}>
-                    {taughtTopics}/{totalTopics} Covered
-                  </Text>
+            {isStudent && (
+              <>
+                <View style={styles.dashboardRow}>
+                  {/* Syllabus Widget */}
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={syllabusPercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text style={styles.statLabel}>Syllables</Text>
+                      <Text style={styles.statSub}>
+                        {taughtTopics}/{totalTopics} Covered
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.verticalDivider} />
+                  {/* Attendance Widget */}
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={attendancePercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text style={styles.statLabel}>Attendance</Text>
+                      <Text style={styles.statSub}>
+                        {lecturesAttended}/{lecturesHeld} attended
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.verticalDivider} />
-              {/* Attendance Widget */}
-              <View style={styles.statCard}>
-                <ProgressRing percentage={attendancePercentage} />
-                <View style={styles.statTextContainer}>
-                  <Text style={styles.statLabel}>Attendance</Text>
-                  <Text style={styles.statSub}>
-                    {lecturesAttended}/{lecturesHeld} attended
-                  </Text>
+
+                <View style={styles.iconGrid}>
+                  <GridItem
+                    label="Course Contents"
+                    iconName="format-list-bulleted"
+                    count={course.courseContents?.length}
+                    onPress={() => {}}
+                  />
+                  <GridItem
+                    label="Course Materials"
+                    iconName="folder-outline"
+                    count={totalMaterials}
+                    onPress={() => {}}
+                  />
+                  <GridItem
+                    label="Assignments"
+                    iconName="clipboard-edit-outline"
+                    count={assignmentCount}
+                    onPress={() => {}}
+                  />
+                  <GridItem
+                    label="Exceptions"
+                    iconName="shield-alert-outline"
+                    count={remaining}
+                    onPress={() => {
+                      if (remaining <= 0) {
+                        console.log(
+                          'Free trial limit reached! Upgrade for more exceptions.',
+                        );
+                      }
+                    }}
+                  />
+                  <GridItem
+                    label="Instructors"
+                    iconName="account-tie"
+                    count={instructorCount > 1 ? instructorCount : undefined}
+                    onPress={() => {}}
+                  />
                 </View>
-              </View>
-            </View>
 
-            <View style={styles.iconGrid}>
-              <GridItem
-                label="Contents"
-                iconName="format-list-bulleted"
-                count={course.courseContents?.length}
-                onPress={() => {}}
-              />
-              <GridItem
-                label="Materials"
-                iconName="folder-outline"
-                count={totalMaterials}
-                onPress={() => {}}
-              />
-              <GridItem
-                label="Assignments"
-                iconName="clipboard-edit-outline"
-                count={assignmentCount}
-                onPress={() => {}}
-              />
-              <GridItem
-                label="Exceptions"
-                iconName="shield-alert-outline"
-                count={remaining}
-                onPress={() => {
-                  if (remaining <= 0) {
-                    console.log(
-                      'Free trial limit reached! Upgrade for more exceptions.',
-                    );
-                  }
-                }}
-              />
-              <GridItem
-                label="Instructors"
-                iconName="account-tie"
-                count={instructorCount > 1 ? instructorCount : undefined}
-                onPress={() => {}}
-              />
-            </View>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.sectionTitle}>Lecture History</Text>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      Total: {lectures.length}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+            {isLecturer && (
+              <>
+                <View style={styles.dashboardRow}>
+                  {/* Syllabus Widget */}
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={syllabusPercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text style={styles.statLabel}>Syllables</Text>
+                      <Text style={styles.statSub}>
+                        {taughtTopics}/{totalTopics} Covered
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.verticalDivider} />
+                  {/* Attendance Widget */}
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={participationPercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text style={styles.statLabel}>Participation</Text>
+                      <Text style={styles.statSub}>
+                        {lecturesDelivered}/{totalExpectedLectures} Delivered
+                      </Text>
+                    </View>
+                  </View>
+                </View>
 
-            <View style={styles.historyHeader}>
-              <Text style={styles.sectionTitle}>Lecture History</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>Total: {lectures.length}</Text>
-              </View>
-            </View>
+                <View style={styles.iconGrid}>
+                  <GridItem
+                    label="Upload Course Materials"
+                    iconName="cloud-upload-outline"
+                    onPress={() => {
+                      /* Open Material Upload Logic */
+                    }}
+                  />
+                  <GridItem
+                    label="Manage Exceptions"
+                    iconName="shield-check-outline"
+                    count={
+                      loadingExceptions
+                        ? undefined
+                        : userRole === 'lecturer'
+                        ? pendingExceptionsCount
+                        : remaining
+                    }
+                    onPress={() => {
+                      if (loadingExceptions) return; // Prevent clicks while loading
+                      // ... navigation logic
+                    }}
+                  />
+                  <GridItem
+                    label="Add Assignments"
+                    iconName="file-tray-plus-outline"
+                    onPress={() => {
+                      /* Open Assignment Creation Modal */
+                    }}
+                  />
+                  <GridItem
+                    label="Manage Lectures Schedule"
+                    iconName="calendar-clock-outline"
+                    onPress={() => {
+                      /* Open Scheduling Tool */
+                    }}
+                  />
+                  <GridItem
+                    label="Create A Test"
+                    iconName="pencil-box-multiple-outline"
+                    onPress={() => {
+                      /* Open Quiz Builder */
+                    }}
+                  />
+                </View>
+
+                <View style={styles.historyHeader}>
+                  <Text style={styles.sectionTitle}>Lecture History</Text>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      Total: {lectures.length}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
 
             <FlatList
               data={lectures}
@@ -383,7 +602,9 @@ const CourseModal = ({
     </Modal>
   );
 };
-export const fetchCoursesFromDB = async (courseIds: string[]): Promise<Course[]> => {
+export const fetchCoursesFromDB = async (
+  courseIds: string[],
+): Promise<Course[]> => {
   if (!courseIds || courseIds.length === 0) return [];
 
   try {
@@ -392,7 +613,7 @@ export const fetchCoursesFromDB = async (courseIds: string[]): Promise<Course[]>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ids: courseIds }),
     });
@@ -404,81 +625,190 @@ export const fetchCoursesFromDB = async (courseIds: string[]): Promise<Course[]>
     const data = await response.json();
     return data as Course[];
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error('Fetch error:', error);
     return []; // Return empty array so the UI doesn't crash
   }
 };
+const SelectionModal: React.FC<SelectionModalProps> = ({
+  visible,
+  options,
+  onSelect,
+  onClose,
+  title,
+}) => (
+  <Modal visible={visible} transparent animationType="slide">
+    <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
+      <View style={styles.bottomSheet}>
+        <Text style={styles.sheetTitle}>{title}</Text>
+        {options.map(item => (
+          <TouchableOpacity
+            key={item}
+            style={styles.sheetOption}
+            onPress={() => {
+              onSelect(item);
+              onClose();
+            }}
+          >
+            <Text style={styles.optionText}>{item}</Text>
+            {/* Show a checkmark if selected */}
+            <Icon name="check-circle" size={20} color={PRIMARY_COLOR} />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </TouchableOpacity>
+  </Modal>
+);
 
 // --- Main Dashboard ---
 
-const Dashboard = ({ user }: { user: User }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [suggestedCourses, setSuggestedCourses] = useState<Course[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const isStudent = user.usertype === 'student';
+  const isStudent = userRole === 'student';
+  const isInstructor = userRole === 'lecturer';
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('First'); // Default or 'All'
   const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
-  const fetchMyCourses = useCallback(async (semester: string, session: string) => {
-  setLoading(true);
-  try {
-    const token = await AsyncStorage.getItem('accessToken');
-    
-    let url = `${baseUrl}courses?studentId=${user.uid}`;
-    if (semester !== 'All') url += `&semester=${semester}`;
-    if (session !== 'All') url += `&session=${session}`;
+  const [isSessionModalVisible, setSessionModalVisible] = useState(false);
+  const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
+  const fetchMyCourses = useCallback(
+    async (semester: string, session: string) => {
+      setLoading(true);
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
 
-    const response = await fetch(url, { 
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json' 
-      } 
-    });
-    
-    const data = await response.json();
-    setCourses(data);
-  } catch (error) {
-    console.error(error);
-    Toast.show({
-      type: 'error',
-      text1: 'Failed to fetch courses',
-      position: 'bottom',
-      bottomOffset: 5,
-    });
-  } finally {
-    setLoading(false);
-  }
-}, [user.uid]);
+        let url = `${baseUrl}courses?studentId=${user.uid}`;
+        if (semester !== 'All') url += `&semester=${semester}`;
+        if (session !== 'All') url += `&session=${session}`;
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+        setCourses(data);
+      } catch (error) {
+        console.error(error);
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to fetch courses',
+          position: 'bottom',
+          bottomOffset: 5,
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user.uid],
+  );
+  const fetchLecturerCourses = useCallback(
+    async (semester: string, session: string) => {
+      setLoading(true);
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+
+        // We pass the lecturer's UID to find courses where they are listed in lecturerIds
+        let url = `${baseUrl}courses/lecturer-view?lecturerId=${user.uid}`;
+
+        if (semester !== 'All') url += `&semester=${semester}`;
+        if (session !== 'All') url += `&session=${session}`;
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+        setCourses(data);
+      } catch (error) {
+        console.error('Lecturer Fetch Error:', error);
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to fetch your assigned courses',
+          position: 'bottom',
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user.uid],
+  );
 
   const handleAIPopulate = async () => {
     try {
       const res = await DocumentPicker.pickSingle({
         type: [DocumentPicker.types.pdf, DocumentPicker.types.images],
       });
-      setLoading(true);
+
+      setUploading(true);
+      setStatus('Uploading document...');
+      setProgress(0);
+
       const formData = new FormData();
+      // @ts-ignore (Formdata types in RN can be finicky)
       formData.append('file', { uri: res.uri, type: res.type, name: res.name });
 
-      const response = await fetch(
-        'https://api.icampus.com/ai/extract-course',
+      const token = await AsyncStorage.getItem('accessToken');
+
+      const response = await axios.post(
+        `${baseUrl}ai/extract-course`,
+        formData,
         {
-          method: 'POST',
-          body: formData,
           headers: {
-            Authorization: `Bearer ${user.accessToken}`,
             'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`,
+          },
+          onUploadProgress: progressEvent => {
+            const percentCompleted =
+              progressEvent.loaded / (progressEvent.total || 1);
+            setProgress(percentCompleted);
+            if (percentCompleted === 1) {
+              setStatus('Course extraction in progress...');
+            }
           },
         },
       );
-
-      const aiData = await response.json();
-      Alert.alert('Gemini Success', `Extracted: ${aiData.courseTitle}`);
-      fetchMyCourses('1', '2025/2026');
+      const { message, courses: extractedCourses } = response.data;
+      if (extractedCourses && extractedCourses.length > 0) {
+        const { semester, session } = extractedCourses[0];
+        fetchMyCourses(String(semester), session);
+        Toast.show({
+          type: 'success',
+          text1: message,
+          position: 'bottom',
+          bottomOffset: 5,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'File processed, but no courses were detected. please retry.',
+          position: 'bottom',
+          bottomOffset: 5,
+        });
+      }
     } catch (err) {
-      if (!DocumentPicker.isCancel(err)) console.log(err);
+      if (!DocumentPicker.isCancel(err)) {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to process document, please retry.',
+          position: 'bottom',
+          bottomOffset: 5,
+        });
+      }
     } finally {
-      setLoading(false);
+      setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -555,59 +885,6 @@ const Dashboard = ({ user }: { user: User }) => {
       </View>
     </View>
   );
-  const renderFilterBar = () => (
-    <View style={styles.filterContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-      >
-        {SESSIONS.map(session => (
-          <TouchableOpacity
-            key={session}
-            onPress={() => setSelectedSession(session)}
-            style={[
-              styles.filterPill,
-              selectedSession === session && styles.activePill,
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedSession === session && styles.activeFilterText,
-              ]}
-            >
-              {session === SESSIONS[2] ? `${session} (Current)` : session}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      {/* ... Semester Filter ... */}
-    </View>
-  );
-  const renderSemesterFilter = () => (
-    <View style={styles.semesterRow}>
-      {['First', 'Second'].map(sem => (
-        <TouchableOpacity
-          key={sem}
-          onPress={() => setSelectedSemester(sem)}
-          style={[
-            styles.semBtn,
-            selectedSemester === sem && styles.activeSemBtn,
-          ]}
-        >
-          <Text
-            style={[
-              styles.semBtnText,
-              selectedSemester === sem && styles.activeSemBtnText,
-            ]}
-          >
-            {sem} Semester
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
 
   const displayedCourses = courses.filter(course => {
     // 1. Check Search Query (Title, Code, or Instructor)
@@ -629,161 +906,375 @@ const Dashboard = ({ user }: { user: User }) => {
     return matchesSearch && matchesSession && matchesSemester;
   });
   useEffect(() => {
-    const checkInitialState = async () => {
-      // 1. Check if the user object even has IDs
-      const enrolledIds = user?.coursesEnrolled || [];
-      if (enrolledIds.length === 0) {
-        // User has 0 IDs in their profile, so we know it's empty immediately
-        setCourses([]);
-        setLoading(false);
-        return;
-      }
-      // 2. If IDs exist, fetch the actual course details from Firestore/DB
-      try {
-        // Example logic: fetch courses WHERE id IN enrolledIds
-        const fetchedCourses = await fetchCoursesFromDB(enrolledIds);
-        setCourses(fetchedCourses);
-      } catch (error) {
-        console.error("Fetch failed", error);
-      } finally {
-        setLoading(false);
+    if (!user?.uid || !selectedSession || !selectedSemester) return;
+
+    const performFetch = async () => {
+      if (userRole === 'lecturer') {
+        await fetchLecturerCourses(selectedSemester, selectedSession);
+      } else {
+        const enrolledIds = user?.coursesEnrolled || [];
+        if (enrolledIds.length === 0) {
+          setCourses([]);
+          setLoading(false);
+          return;
+        }
+        await fetchMyCourses(selectedSemester, selectedSession);
       }
     };
-    if (user?.uid) checkInitialState();
-  }, [user?.coursesEnrolled, user?.uid]);
+    performFetch();
+  }, [
+    selectedSession,
+    selectedSemester,
+    userRole,
+    user?.uid,
+    fetchMyCourses,
+    fetchLecturerCourses,
+    user?.coursesEnrolled,
+  ]);
   useEffect(() => {
-    if (selectedSession && selectedSemester) {
-      fetchMyCourses(selectedSemester, selectedSession);
-    }
-  }, [selectedSession, selectedSemester, fetchMyCourses]); // 👈 Dependencies: Trigger when these change
+    const fetchDiscoverCourses = async () => {
+      try {
+        const response = await fetch(`${baseUrl}courses/discover`);
+        const data = await response.json();
+        setSuggestedCourses(data);
+      } catch (error) {
+        console.error('Error loading marketplace:', error);
+      }
+    };
+
+    fetchDiscoverCourses();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
       {isLoading ? (
-        <ActivityIndicator size="large" color={PRIMARY_COLOR} style={{ flex: 1 }} />
+        <ActivityIndicator
+          size="large"
+          color={PRIMARY_COLOR}
+          style={{ flex: 1 }}
+        />
       ) : (
         <>
-      {isStudent && (
-        <>
-          {courses.length > 0 && (
+          {isStudent && (
             <>
-              {renderFilterBar()}
-              {renderSemesterFilter()}
+              {courses.length > 0 && (
+                <>
+                  <SelectionModal
+                    title="Select Session"
+                    visible={isSessionModalVisible}
+                    options={SESSIONS}
+                    onSelect={val => setSelectedSession(val)}
+                    onClose={() => setSessionModalVisible(false)}
+                  />
+                  <SelectionModal
+                    title="Select Semester"
+                    visible={isSemesterModalVisible}
+                    options={['All', 'First', 'Second']}
+                    onSelect={val => setSelectedSemester(val)}
+                    onClose={() => setSemesterModalVisible(false)}
+                  />
+                </>
+              )}
+
+              {/* 2. Check if the course list is empty */}
+              {courses.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Image
+                    source={{
+                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1773253135/undraw_educator_6dgp_1_xzimrk.png',
+                    }}
+                    style={styles.illustration}
+                  />
+                  <Text style={styles.title}>Get Started with iCampus</Text>
+                  <Text style={styles.subtitle}>
+                    Let's populate your academic calendar.
+                  </Text>
+                  <View style={styles.actionRow}>
+                    {/* 1. Course Upload */}
+                    <TouchableOpacity
+                      style={styles.btn}
+                      onPress={handleAIPopulate}
+                    >
+                      <MaterialIcons
+                        name="cloud-upload"
+                        size={32}
+                        color="#fff"
+                      />
+                      <Text style={styles.btnText}>Upload{'\n'}Form</Text>
+                    </TouchableOpacity>
+                    {/* 2. Manual Entry */}
+                    <TouchableOpacity style={styles.btn} onPress={() => {}}>
+                      <MaterialIcons name="keyboard" size={32} color="#fff" />
+                      <Text style={styles.btnText}>Manual{'\n'}Entry</Text>
+                    </TouchableOpacity>
+                    {/* 3. Meet Instructor */}
+                    <TouchableOpacity style={styles.btn} onPress={() => {}}>
+                      <MaterialIcons
+                        name="people-outline"
+                        size={32}
+                        color="#fff"
+                      />
+                      <Text style={styles.btnText}>Meet{'\n'}Instructors</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <FlatList
+                  data={displayedCourses}
+                  contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
+                  keyExtractor={item => item.id}
+                  renderItem={({ item }) => {
+                    const capitalize = (str: string = '') => {
+                      return str
+                        .toLowerCase()
+                        .trim()
+                        .split(' ')
+                        .map(
+                          word => word.charAt(0).toUpperCase() + word.slice(1),
+                        )
+                        .join(' ');
+                    };
+
+                    return (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedCourse(item);
+                          setModalVisible(true);
+                        }}
+                        style={styles.courseCard}
+                      >
+                        {/* Top Section: Title and Units */}
+                        <View style={styles.cardHeader}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.cardTitle}>
+                              {capitalize(item.courseTitle)}
+                            </Text>
+                            <Text style={styles.cardCode}>
+                              {item.courseCode?.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.creditBadge}>
+                            <Text style={styles.creditText}>
+                              {item.credits || 0} Units
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Divider */}
+                        <View style={styles.cardDivider} />
+
+                        {/* Bottom Section: Metadata */}
+                        <View style={styles.cardFooter}>
+                          <View style={styles.metaInfo}>
+                            <Icon
+                              name="human-male-board"
+                              size={23}
+                              color="#fff"
+                            />
+                            <Text style={styles.metaText}>
+                              {capitalize(
+                                item.instructorName || 'Not Asigned...',
+                              )}
+                            </Text>
+                          </View>
+
+                          <View style={styles.metaInfo}>
+                            <MaterialIcons
+                              name="people-outline"
+                              size={23}
+                              color="#fff"
+                            />
+                            <Text style={styles.metaText}>
+                              {item.studentsEnrolled?.length || 0} participants
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              )}
+
+              {/* 3. Modal remains accessible within the student view */}
+              <CourseModal
+                isVisible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                course={selectedCourse!}
+                lectures={[]} // Fetch these based on selectedCourse.id
+                id={user.uid}
+                currentUser={user}
+                userRole={userRole}
+              />
+              <UploadProgressModal
+                visible={uploading}
+                progress={progress}
+                statusText={status}
+              />
             </>
           )}
+          {isInstructor && (
+            <>
+              {courses.length > 0 && (
+                <>
+                  <SelectionModal
+                    title="Select Session"
+                    visible={isSessionModalVisible}
+                    options={SESSIONS}
+                    onSelect={val => setSelectedSession(val)}
+                    onClose={() => setSessionModalVisible(false)}
+                  />
+                  <SelectionModal
+                    title="Select Semester"
+                    visible={isSemesterModalVisible}
+                    options={['All', 'First', 'Second']}
+                    onSelect={val => setSelectedSemester(val)}
+                    onClose={() => setSemesterModalVisible(false)}
+                  />
+                </>
+              )}
 
-          {/* 2. Check if the course list is empty */}
-          {courses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Image
-                source={{
-                  uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1773253135/undraw_educator_6dgp_1_xzimrk.png',
-                }}
-                style={styles.illustration}
-              />
-              <Text style={styles.title}>Get Started with iCampus</Text>
-              <Text style={styles.subtitle}>
-                Let's populate your academic calendar.
-              </Text>
-              <View style={styles.actionRow}>
-                {/* 1. Course Upload */}
-                <TouchableOpacity style={styles.btn} onPress={handleAIPopulate}>
-                  <MaterialIcons name="cloud-upload" size={32} color="#fff" />
-                  <Text style={styles.btnText}>Upload{'\n'}Form</Text>
-                </TouchableOpacity>
-                {/* 2. Manual Entry */}
-                <TouchableOpacity style={styles.btn} onPress={() => {}}>
-                  <MaterialIcons name="keyboard" size={32} color="#fff" />
-                  <Text style={styles.btnText}>Manual{'\n'}Entry</Text>
-                </TouchableOpacity>
-                {/* 3. Meet Instructor */}
-                <TouchableOpacity style={styles.btn} onPress={() => {}}>
-                  <MaterialIcons name="people-outline" size={32} color="#fff" />
-                  <Text style={styles.btnText}>Meet{'\n'}Instructors</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <FlatList
-              data={displayedCourses}
-              contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => {
-                const capitalize = (str: string = '') => {
-                  return str
-                    .toLowerCase()
-                    .trim()
-                    .split(' ')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
-                };
-
-                return (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSelectedCourse(item);
-                      setModalVisible(true);
+              {/* 2. Check if the course list is empty */}
+              {courses.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Image
+                    source={{
+                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1773253135/undraw_educator_6dgp_1_xzimrk.png',
                     }}
-                    style={styles.courseCard}
-                  >
-                    {/* Top Section: Title and Units */}
-                    <View style={styles.cardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.cardTitle}>
-                          {capitalize(item.courseTitle)}
-                        </Text>
-                        <Text style={styles.cardCode}>
-                          {item.courseCode?.toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={styles.creditBadge}>
-                        <Text style={styles.creditText}>
-                          {item.credits || 0} Units
-                        </Text>
-                      </View>
-                    </View>
+                    style={styles.illustration}
+                  />
+                  <Text style={styles.title}>
+                    Manage your iCampus courses effortlessly
+                  </Text>
+                  <Text style={styles.subtitle}>
+                    Prepare your syllabus and lectures
+                  </Text>
+                  <View style={styles.actionRow}>
+                    {/* 1. Course Upload */}
+                    <TouchableOpacity style={styles.btn} onPress={() => {}}>
+                      <MaterialIcons
+                        name="cloud-upload"
+                        size={32}
+                        color="#fff"
+                      />
+                      <Text style={styles.btnText}>
+                        Create New{'\n'}Course{'\n'}Syllabus
+                      </Text>
+                    </TouchableOpacity>
+                    {/* 2. Manual Entry */}
+                    <TouchableOpacity style={styles.btn} onPress={() => {}}>
+                      <MaterialIcons name="keyboard" size={32} color="#fff" />
+                      <Text style={styles.btnText}>
+                        Assign{'\n'}Grades &{'\n'}Feedback
+                      </Text>
+                    </TouchableOpacity>
+                    {/* 3. Meet Instructor */}
+                    <TouchableOpacity style={styles.btn} onPress={() => {}}>
+                      <MaterialIcons
+                        name="people-outline"
+                        size={32}
+                        color="#fff"
+                      />
+                      <Text style={styles.btnText}>
+                        Monitor{'\n'}Class{'\n'}Performance
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <FlatList
+                  data={displayedCourses}
+                  contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
+                  keyExtractor={item => item.id}
+                  renderItem={({ item }) => {
+                    const capitalize = (str: string = '') => {
+                      return str
+                        .toLowerCase()
+                        .trim()
+                        .split(' ')
+                        .map(
+                          word => word.charAt(0).toUpperCase() + word.slice(1),
+                        )
+                        .join(' ');
+                    };
 
-                    {/* Divider */}
-                    <View style={styles.cardDivider} />
+                    return (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedCourse(item);
+                          setModalVisible(true);
+                        }}
+                        style={styles.courseCard}
+                      >
+                        {/* Top Section: Title and Units */}
+                        <View style={styles.cardHeader}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.cardTitle}>
+                              {capitalize(item.courseTitle)}
+                            </Text>
+                            <Text style={styles.cardCode}>
+                              {item.courseCode?.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.creditBadge}>
+                            <Text style={styles.creditText}>
+                              {item.credits || 0} Units
+                            </Text>
+                          </View>
+                        </View>
 
-                    {/* Bottom Section: Metadata */}
-                    <View style={styles.cardFooter}>
-                      <View style={styles.metaInfo}>
-                        <Icon name="human-male-board" size={23} color="#fff" />
-                        <Text style={styles.metaText}>
-                          {capitalize(item.instructorName || 'Not Asigned...')}
-                        </Text>
-                      </View>
+                        {/* Divider */}
+                        <View style={styles.cardDivider} />
 
-                      <View style={styles.metaInfo}>
-                        <MaterialIcons
-                          name="people-outline"
-                          size={23}
-                          color="#fff"
-                        />
-                        <Text style={styles.metaText}>
-                          {item.studentsEnrolled?.length || 0} participants
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-            />
+                        {/* Bottom Section: Metadata */}
+                        <View style={styles.cardFooter}>
+                          <View style={styles.metaInfo}>
+                            <Icon
+                              name="human-male-board"
+                              size={23}
+                              color="#fff"
+                            />
+                            <Text style={styles.metaText}>
+                              {capitalize(
+                                item.instructorName || 'Not Asigned...',
+                              )}
+                            </Text>
+                          </View>
+
+                          <View style={styles.metaInfo}>
+                            <MaterialIcons
+                              name="people-outline"
+                              size={23}
+                              color="#fff"
+                            />
+                            <Text style={styles.metaText}>
+                              {item.studentsEnrolled?.length || 0} participants
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              )}
+
+              {/* 3. Modal remains accessible within the student view */}
+              <CourseModal
+                isVisible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                course={selectedCourse!}
+                lectures={[]} // Fetch these based on selectedCourse.id
+                id={user.uid}
+                currentUser={user}
+                userRole={userRole}
+              />
+              <UploadProgressModal
+                visible={uploading}
+                progress={progress}
+                statusText={status}
+              />
+            </>
           )}
-
-          {/* 3. Modal remains accessible within the student view */}
-          <CourseModal
-            isVisible={modalVisible}
-            onClose={() => setModalVisible(false)}
-            course={selectedCourse!}
-            lectures={[]} // Fetch these based on selectedCourse.id
-            id={user.uid}
-            currentUser={user}
-          />
-        </>
-      )}
         </>
       )}
       {renderForYou()}
@@ -791,7 +1282,7 @@ const Dashboard = ({ user }: { user: User }) => {
     </SafeAreaView>
   );
 };
-const ClassroomScreenComponent = () => {
+const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
   const user = useAppSelector(state => state.user);
   if (!user) {
     return (
@@ -800,7 +1291,8 @@ const ClassroomScreenComponent = () => {
       </View>
     );
   }
-  return <Dashboard user={user} />;
+  // Passing userRole here clears the "unused variable" error
+  return <Dashboard user={user} userRole={userRole} />;
 };
 
 const styles = StyleSheet.create({
@@ -1030,20 +1522,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   forYouInfo: {
-    padding: 10,
+    padding: 12,
   },
   forYouCategory: {
     fontSize: 10,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    textTransform: 'uppercase',
+    textTransform: 'capitalize',
     marginBottom: 4,
   },
   forYouTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#444',
-    lineHeight: 18,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
   },
   profileFrame: {
     width: 45,
@@ -1208,6 +1700,156 @@ const styles = StyleSheet.create({
   filterScroll: {
     paddingLeft: 15, // Gives the first item some breathing room
     marginBottom: 10,
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  durationText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  instructorName: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 6,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    alignSelf: 'flex-end',
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  reviewText: {
+    fontSize: 12,
+    color: '#aaa',
+    marginLeft: 4,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    backgroundColor: '#fff5f0', // Very light orange wash
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20, // Rounded pill shape looks more modern
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#f54b0220', // 20% opacity of your brand color
+  },
+  priceText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: PRIMARY_COLOR, // Darker shade of the cyan for readability
+    marginLeft: 6,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    marginRight: 6,
+  },
+  starIcon: {
+    fontSize: 14,
+  },
+  starFilled: {
+    color: '#FFD700', // Gold color for filled stars
+  },
+  starEmpty: {
+    color: '#E0E0E0', // Grey color for empty stars
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: -15, // Overlap the header slightly for a 3D effect
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    paddingVertical: 10,
+  },
+  pickerTrigger: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+  },
+  pickerDivider: {
+    width: 1,
+    height: '60%',
+    backgroundColor: '#eee',
+    alignSelf: 'center',
+  },
+  pickerLabel: {
+    fontSize: 10,
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pickerValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 2,
+  },
+  // Bottom Sheet Styles
+  bottomSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
+    maxHeight: '40%',
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+    color: '#333',
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f9f9f9',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#444',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  containerModal: {
+    backgroundColor: '#fff',
+    padding: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    width: '80%',
+  },
+  statusText: {
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: PRIMARY_COLOR,
   },
   // Add these for the For You section inside header
 });
