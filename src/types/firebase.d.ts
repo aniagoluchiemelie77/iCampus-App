@@ -565,6 +565,7 @@ export interface Posts {
 }
 export interface Lecture {
   id: string;
+  _id?: string;
   courseId: Course['courseId'];
   topicName: string;
   lectureType: 'Physical' | 'Online' | 'Recorded';
@@ -581,9 +582,11 @@ export interface Lecture {
 }
 export interface Course {
   id: string;
+  _id?: string;
   courseId: string;
   courseCode?: string;
   courseTitle?: string;
+  niche?: string;
   department: string;
   courseContents?: string[];
   Lectures?: Lecture[];
@@ -598,21 +601,33 @@ export interface Course {
   session?: string;
   createdAt: string; 
   isActive?: boolean;
-  // --- New Udemy/YouTube Style Fields ---
-  price?: number;            // 0 for free
+  price?: number;            
   thumbnailUrl?: string;
-  rating?: number;          // e.g., 4.5
+  rating?: number;          
   totalReviews?: number;
-  isPublished?: boolean;    // For the marketplace
-  instructorName?: string;  // For quick display
-  courseDuration?: string;  // e.g., "10h 30m"
+  isPublished?: boolean;    
+  instructorName?: string;  
+  courseDuration?: string; 
+  reviews?: Review[];
 }
 export interface CourseException {
+  _id?: string;
   id: string;
-  studentId: User['uid'];
-  courseId: Course['courseId'];
-  lectureId: Lecture['id']; 
+  studentId: string;
+  courseId: string;
+  lectureId: string;
+  reasonCategory: 'Medical' | 'Family Emergency' | 'Technical Issue' | 'Personal' | 'Other';
   reason: string;
-  date: string; // Used to filter "per month"
   status: 'pending' | 'approved' | 'rejected';
+  lecturerComment?: string;
+  date: string;
+  attachmentUrl?: string | null;
+  createdAt: string;
+}
+export interface Review {
+  username: string;
+  firstname: string;
+  comment: string;
+  rating: number;
+  createdAt: string; 
 }

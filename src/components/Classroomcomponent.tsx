@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   ScrollView,
   TextInput,
+  Pressable,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -40,6 +42,16 @@ interface CourseModalProps {
   lectures: Lecture[];
   currentUser: User;
   userRole: 'student' | 'lecturer' | 'otherUser';
+}
+interface ForYouCardProps {
+  course: Course;
+  onPress: (course: Course) => void; // Pass a generic onPress handler
+}
+interface CourseDetailModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  course: Course | null; // Change this to allow null
+  onAddToCart: (course: Course) => void;
 }
 interface DashboardProps {
   user: User; // Assuming User is your existing type
@@ -196,74 +208,7 @@ const renderStars = (rating: number | string | undefined) => {
   return stars;
 };
 const SESSIONS = generateSessions();
-const ForYouCard = ({ course }: { course: Course }) => {
-  const isFree = course.price === 0;
 
-  // --- ADD THIS LINE HERE ---
-  const showRating = !!course.rating || (course.totalReviews ?? 0) > 0;
-
-  return (
-    <TouchableOpacity style={styles.forYouCard}>
-      <View>
-        <Image
-          source={{
-            uri: course.thumbnailUrl || 'https://via.placeholder.com/150',
-          }}
-          style={styles.forYouImage}
-        />
-        {/* Only show duration badge if it exists */}
-        {course.courseDuration && (
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{course.courseDuration}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.forYouInfo}>
-        <Text style={styles.forYouTitle} numberOfLines={2}>
-          {course.courseTitle}
-        </Text>
-        {course.department && (
-          <Text style={styles.forYouCategory}>{course.department}</Text>
-        )}
-
-        {/* Conditional Instructor Name */}
-        {course.instructorName ? (
-          <Text style={styles.instructorName}>{course.instructorName}</Text>
-        ) : null}
-
-        {/* Only show Rating Row if there is a rating or reviews */}
-        {showRating && (
-          <View style={styles.ratingRow}>
-            <View style={styles.starsContainer}>
-              {renderStars(course.rating)}
-            </View>
-            {course.totalReviews !== undefined && course.totalReviews > 0 && (
-              <Text style={styles.reviewText}>({course.totalReviews})</Text>
-            )}
-          </View>
-        )}
-
-        <View style={styles.priceContainer}>
-          {!isFree && (
-            <>
-              {/* The Gem icon for iCash */}
-              <Gem
-                size={16}
-                color={PRIMARY_COLOR} // A vibrant cyan/aqua border
-                fill={PRIMARY_COLOR} // Filling it makes it look like a physical currency
-                strokeWidth={2.5}
-              />
-              <Text style={styles.priceText}>
-                {course.price?.toLocaleString()}
-              </Text>
-            </>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
 const getExceptionLimit = (plan: string) => {
   switch (plan) {
     case 'premium':
@@ -379,14 +324,8 @@ const CourseModal = ({
 
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
-      {/* 1. This Pressable handles the "click outside" to close */}
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        {/* 2. TouchableWithoutFeedback prevents closing when clicking INSIDE the content */}
-        <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             {/* Grabber handle (Visual hint that user can swipe down or tap away) */}
             <View style={styles.modalGrabber} />
@@ -597,8 +536,8 @@ const CourseModal = ({
               }}
             />
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </TouchableWithoutFeedback>
+      </Pressable>
     </Modal>
   );
 };
@@ -636,28 +575,226 @@ const SelectionModal: React.FC<SelectionModalProps> = ({
   onClose,
   title,
 }) => (
-  <Modal visible={visible} transparent animationType="slide">
-    <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
-      <View style={styles.bottomSheet}>
-        <Text style={styles.sheetTitle}>{title}</Text>
-        {options.map(item => (
-          <TouchableOpacity
-            key={item}
-            style={styles.sheetOption}
-            onPress={() => {
-              onSelect(item);
-              onClose();
-            }}
-          >
-            <Text style={styles.optionText}>{item}</Text>
-            {/* Show a checkmark if selected */}
-            <Icon name="check-circle" size={20} color={PRIMARY_COLOR} />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </TouchableOpacity>
+  <Modal
+    visible={visible}
+    transparent={true}
+    animationType="slide"
+    onRequestClose={onClose}
+  >
+    <Pressable style={styles.modalOverlay} onPress={onClose}>
+      /
+      <TouchableWithoutFeedback>
+        <View style={styles.bottomSheet}>
+          <Text style={styles.sheetTitle}>{title}</Text>
+          {options.map(item => (
+            <TouchableOpacity
+              key={item}
+              style={styles.sheetOption}
+              onPress={() => {
+                onSelect(item);
+                onClose();
+              }}
+            >
+              <Text style={styles.optionText}>{item}</Text>
+              {/* Show a checkmark if selected */}
+              <Icon name="check-circle" size={20} color={PRIMARY_COLOR} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableWithoutFeedback>
+    </Pressable>
   </Modal>
 );
+const CourseDetailModal = ({
+  isVisible,
+  onClose,
+  course,
+  onAddToCart,
+}: CourseDetailModalProps) => {
+  if (!course) return null;
+
+  return (
+    <Modal
+      visible={isVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose} // Handles Android hardware back button
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <TouchableWithoutFeedback>
+          <View style={styles.modalContentWrapper}>
+            <SafeAreaView style={styles.modalInnerContainer}>
+              <View style={styles.modalGrabber} />
+              {/* Header with Back Button */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalHeaderTitle}>Course Details</Text>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScrollContent}>
+                {/* Thumbnail & Video Preview Placeholder */}
+                <Image
+                  source={{ uri: course.thumbnailUrl }}
+                  style={styles.detailImage}
+                />
+
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailTitle}>{course.courseTitle}</Text>
+
+                  <Text style={styles.detailInstructor}>
+                    Created by {course.instructorName}
+                  </Text>
+                  {/* Price Section */}
+                  <View style={styles.detailPriceRow}>
+                    <Gem size={24} color={PRIMARY_COLOR} fill={PRIMARY_COLOR} />
+                    <Text style={styles.detailPriceText}>
+                      {course.price?.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <View style={styles.metaItem}>
+                      <Text style={styles.metaText}>
+                        {renderStars(course.rating)}
+                      </Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <MaterialIcons name="timer" size={18} color="#f3ae91" />
+                      <Text style={styles.metaText}>
+                        {course.courseDuration || 'Self-paced'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.dateText}>
+                    Published on:{' '}
+                    {new Date(course.createdAt).toLocaleDateString()}
+                  </Text>
+                  <View style={styles.badgeRow}>
+                    {course.department && (
+                      <Text style={styles.categoryBadge}>
+                        {course.department}
+                      </Text>
+                    )}
+                    {course.courseCode && (
+                      <Text style={styles.codeBadge}>{course.courseCode}</Text>
+                    )}
+                  </View>
+                  {/* Latest Reviews Section */}
+                  <View style={styles.reviewsSection}>
+                    <Text style={styles.sectionSubTitle}>Latest Reviews</Text>
+                    {course.reviews && course.reviews.length > 0 ? (
+                      [...course.reviews]
+                        .sort(
+                          (a, b) =>
+                            new Date(b.createdAt).getTime() -
+                            new Date(a.createdAt).getTime(),
+                        )
+                        .slice(0, 5) // Show only the 5 most recent
+                        .map((rev, i) => (
+                          <View key={i} style={styles.reviewItem}>
+                            <View style={styles.reviewHeader}>
+                              <Text style={styles.reviewUser}>
+                                {rev.firstname}@{rev.username}
+                              </Text>
+                              <View style={styles.starsRow}>
+                                {renderStars(rev.rating)}
+                              </View>
+                            </View>
+                            <Text style={styles.reviewComment}>
+                              "{rev.comment}"
+                            </Text>
+                          </View>
+                        ))
+                    ) : (
+                      <Text style={styles.noReviews}>No reviews yet.</Text>
+                    )}
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Fixed Footer for Add to Cart */}
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={styles.addToCartBtn}
+                  onPress={() => onAddToCart(course)}
+                >
+                  <Text style={styles.addToCartText}>Add to Cart</Text>
+                </TouchableOpacity>
+              </View>
+            </SafeAreaView>
+          </View>
+        </TouchableWithoutFeedback>
+      </Pressable>
+    </Modal>
+  );
+};
+const ForYouCard = ({ course, onPress }: ForYouCardProps) => {
+  const isFree = course.price === 0;
+
+  // --- ADD THIS LINE HERE ---
+  const showRating = !!course.rating || (course.totalReviews ?? 0) > 0;
+
+  return (
+    <TouchableOpacity style={styles.forYouCard} onPress={() => onPress(course)}>
+      <View>
+        <Image
+          source={{
+            uri: course.thumbnailUrl || 'https://via.placeholder.com/150',
+          }}
+          style={styles.forYouImage}
+        />
+        {/* Only show duration badge if it exists */}
+        {course.courseDuration && (
+          <View style={styles.durationBadge}>
+            <Text style={styles.durationText}>{course.courseDuration}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.forYouInfo}>
+        <Text style={styles.forYouTitle} numberOfLines={2}>
+          {course.courseTitle}
+        </Text>
+        {course.department && (
+          <Text style={styles.forYouCategory}>{course.department}</Text>
+        )}
+
+        {/* Conditional Instructor Name */}
+        {course.instructorName ? (
+          <Text style={styles.instructorName}>{course.instructorName}</Text>
+        ) : null}
+
+        {/* Only show Rating Row if there is a rating or reviews */}
+        {showRating && (
+          <View style={styles.ratingRow}>
+            <View style={styles.starsContainer}>
+              {renderStars(course.rating)}
+            </View>
+            {course.totalReviews !== undefined && course.totalReviews > 0 && (
+              <Text style={styles.reviewText}>({course.totalReviews})</Text>
+            )}
+          </View>
+        )}
+
+        <View style={styles.priceContainer}>
+          {!isFree && (
+            <>
+              {/* The Gem icon for iCash */}
+              <Gem
+                size={16}
+                color={PRIMARY_COLOR} // A vibrant cyan/aqua border
+                fill={PRIMARY_COLOR} // Filling it makes it look like a physical currency
+                strokeWidth={2.5}
+              />
+              <Text style={styles.priceText}>
+                {course.price?.toLocaleString()}
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 // --- Main Dashboard ---
 
@@ -677,13 +814,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
   const [isSessionModalVisible, setSessionModalVisible] = useState(false);
   const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
+  const [niches, setNiches] = useState<string[]>(['All']); // Fallback to 'All'
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+
   const fetchMyCourses = useCallback(
     async (semester: string, session: string) => {
       setLoading(true);
       try {
         const token = await AsyncStorage.getItem('accessToken');
 
-        let url = `${baseUrl}courses?studentId=${user.uid}`;
+        let url = `${baseUrl}users/student/class/courses?studentId=${user.uid}`;
         if (semester !== 'All') url += `&semester=${semester}`;
         if (session !== 'All') url += `&session=${session}`;
 
@@ -717,7 +858,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         const token = await AsyncStorage.getItem('accessToken');
 
         // We pass the lecturer's UID to find courses where they are listed in lecturerIds
-        let url = `${baseUrl}courses/lecturer-view?lecturerId=${user.uid}`;
+        let url = `${baseUrl}users/lecturers/class/courses/lecturer-view?lecturerId=${user.uid}`;
 
         if (semester !== 'All') url += `&semester=${semester}`;
         if (session !== 'All') url += `&session=${session}`;
@@ -762,7 +903,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       const token = await AsyncStorage.getItem('accessToken');
 
       const response = await axios.post(
-        `${baseUrl}ai/extract-course`,
+        `${baseUrl}users/student/class/ai/extract-course`,
         formData,
         {
           headers: {
@@ -851,7 +992,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
             style={styles.searchBarIcon}
           />
           <TextInput
-            placeholder="Search for courses..."
+            placeholder={`Search for ${niches[placeholderIndex]}...`}
             value={search}
             onChangeText={setSearch}
             style={styles.searchInput}
@@ -860,6 +1001,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       </View>
     );
   };
+
   // --- Inside your Dashboard Component ---
   const renderForYou = () => (
     <View>
@@ -876,15 +1018,110 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         contentContainerStyle={{ paddingLeft: 20, paddingBottom: 20 }}
       >
         {suggestedCourses.map(item => (
-          <ForYouCard key={item.id} course={item} />
+          <ForYouCard
+            key={item.id}
+            course={item}
+            onPress={selected => {
+              setSelectedCourse(selected); // Now this works because it's in the parent scope
+              setDetailModalVisible(true);
+            }}
+          />
         ))}
       </ScrollView>
-
-      <View style={[styles.sectionHeader, { marginTop: 10 }]}>
-        <Text style={styles.sectionTitle}>My Courses</Text>
-      </View>
     </View>
   );
+  const renderDiscover = () => {
+    const allFilters = ['All', 'Popular', ...niches.filter(n => n !== 'All')];
+    const chunkedCourses = [];
+    const chunkSize = 5;
+    for (let i = 0; i < filteredCourses.length; i += chunkSize) {
+      chunkedCourses.push(filteredCourses.slice(i, i + chunkSize));
+    }
+
+    return (
+      <View style={styles.discoverWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipScrollContent}
+        >
+          {allFilters.map(filter => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.chip,
+                (search === filter || (filter === 'All' && search === '')) &&
+                  styles.activeChip,
+              ]}
+              onPress={() => setSearch(filter === 'All' ? '' : filter)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  (search === filter || (filter === 'All' && search === '')) &&
+                    styles.activeChipText,
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* 2. The Horizontal Grid (3 Rows) */}
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={chunkedCourses}
+          keyExtractor={(_, index) => `chunk-${index}`}
+          snapToInterval={320}
+          decelerationRate="fast"
+          contentContainerStyle={{ paddingLeft: 20, paddingRight: 10 }}
+          renderItem={({ item: courseGroup }) => (
+            <View style={{ width: 300, marginRight: 15 }}>
+              {courseGroup.map(course => (
+                <TouchableOpacity
+                  key={course.id}
+                  style={styles.horizontalRowItem}
+                  onPress={() => {
+                    setSelectedCourse(course); // Set the specific course
+                    setDetailModalVisible(true); // Open the modal
+                  }}
+                >
+                  <Image
+                    source={{
+                      uri:
+                        course.thumbnailUrl || 'https://via.placeholder.com/60',
+                    }}
+                    style={styles.miniThumb}
+                  />
+                  <View style={styles.miniInfo}>
+                    <Text style={styles.miniTitle} numberOfLines={1}>
+                      {course.courseTitle}
+                    </Text>
+                    <Text style={styles.miniMeta}>
+                      {course.instructorName || 'Instructor'}
+                    </Text>
+                    <View style={styles.priceContainer}>
+                      <Gem
+                        size={16}
+                        color={PRIMARY_COLOR}
+                        fill={PRIMARY_COLOR}
+                        strokeWidth={2.5}
+                      />
+                      <Text style={styles.priceText}>
+                        {course.price?.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        />
+      </View>
+    );
+  };
 
   const displayedCourses = courses.filter(course => {
     // 1. Check Search Query (Title, Code, or Instructor)
@@ -904,6 +1141,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 
     // ONLY return true if ALL conditions are met
     return matchesSearch && matchesSession && matchesSemester;
+  });
+  const filteredCourses = (displayedCourses || []).filter(course => {
+    const query = search.toLowerCase().trim();
+    if (search === 'Popular') {
+      return (course.rating ?? 0) >= 4.5;
+    }
+
+    // 2. Default search/niche logic
+    if (!query || query === 'all') return true;
+
+    return (
+      course.courseTitle?.toLowerCase().includes(query) ||
+      course.courseCode?.toLowerCase().includes(query) ||
+      course.instructorName?.toLowerCase().includes(query) ||
+      course.department?.toLowerCase().includes(query)
+    );
   });
   useEffect(() => {
     if (!user?.uid || !selectedSession || !selectedSemester) return;
@@ -934,7 +1187,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   useEffect(() => {
     const fetchDiscoverCourses = async () => {
       try {
-        const response = await fetch(`${baseUrl}courses/discover`);
+        const response = await fetch(
+          `${baseUrl}users/student/class/courses/discover`,
+        );
         const data = await response.json();
         setSuggestedCourses(data);
       } catch (error) {
@@ -944,6 +1199,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 
     fetchDiscoverCourses();
   }, []);
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${baseUrl}users/courses/categories`);
+        const data = await response.json(); // e.g., ["FinTech", "Health", "AI"]
+        setNiches(['All', ...data]);
+      } catch (e) {
+        // If backend fails, use your hard-coded NICHES as backup
+        setNiches(['All', 'Software Engineering', 'Data Science', 'Business']);
+      }
+    };
+    fetchCategories();
+  }, []);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Calling the setter function here clears the 'never read' error
+      setPlaceholderIndex(
+        prev => (prev + 1) % (niches.length > 1 ? niches.length : 5),
+      );
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [niches]); // Add niches as dependency so it updates if they change
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1021,7 +1299,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 </View>
               ) : (
                 <FlatList
-                  data={displayedCourses}
+                  data={filteredCourses}
                   contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
                   keyExtractor={item => item.id}
                   renderItem={({ item }) => {
@@ -1133,7 +1411,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   />
                 </>
               )}
-
               {/* 2. Check if the course list is empty */}
               {courses.length === 0 ? (
                 <View style={styles.emptyState}>
@@ -1183,7 +1460,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 </View>
               ) : (
                 <FlatList
-                  data={displayedCourses}
+                  data={filteredCourses}
                   contentContainerStyle={{ padding: 20, paddingBottom: 100 }} // Extra space at bottom
                   keyExtractor={item => item.id}
                   renderItem={({ item }) => {
@@ -1257,7 +1534,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   }}
                 />
               )}
-
               {/* 3. Modal remains accessible within the student view */}
               <CourseModal
                 isVisible={modalVisible}
@@ -1277,7 +1553,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           )}
         </>
       )}
+      {renderDiscover()}
       {renderForYou()}
+      <CourseDetailModal
+        isVisible={detailModalVisible} // Ensure you have this state
+        onClose={() => setDetailModalVisible(false)}
+        course={selectedCourse}
+        onAddToCart={course => {
+          console.log('Added to cart:', course.courseTitle);
+          // Add your cart logic here
+          setDetailModalVisible(false);
+        }}
+      />
       <Toast config={toastConfig} />
     </SafeAreaView>
   );
@@ -1384,7 +1671,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     height: SCREEN_HEIGHT * 0.85,
     padding: 25,
-    paddingTop: 15, // Reduced to make room for grabber
   },
   attendanceBox: { alignItems: 'center' },
   progressContainer: { alignItems: 'center', justifyContent: 'center' },
@@ -1580,12 +1866,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginRight: 6,
   },
-  metaText: {
-    fontSize: 13,
-    color: '#fff',
-    fontWeight: '600',
-    marginTop: 5,
-  },
+  metaText: { fontSize: 14, color: '#6A6F73', marginTop: 5 },
   modalGrabber: {
     width: 40,
     height: 5,
@@ -1738,7 +2019,7 @@ const styles = StyleSheet.create({
   },
   priceContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginTop: 8,
     backgroundColor: '#fff5f0', // Very light orange wash
     paddingHorizontal: 10,
@@ -1749,8 +2030,7 @@ const styles = StyleSheet.create({
     borderColor: '#f54b0220', // 20% opacity of your brand color
   },
   priceText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 18,
     color: PRIMARY_COLOR, // Darker shade of the cyan for readability
     marginLeft: 6,
   },
@@ -1851,7 +2131,157 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: PRIMARY_COLOR,
   },
-  // Add these for the For You section inside header
+  discoverWrapper: {
+    marginVertical: 10,
+  },
+  horizontalRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#eee',
+  },
+  miniThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  miniInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  miniTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222',
+  },
+  miniMeta: {
+    fontSize: 12,
+    color: '#6A6F73',
+    marginVertical: 2,
+  },
+  chipScrollContent: {
+    paddingLeft: 20,
+    paddingRight: 10,
+    paddingBottom: 15,
+    paddingTop: 5,
+  },
+  chip: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 25,
+    backgroundColor: '#F7F9FA',
+    borderWidth: 1,
+    borderColor: '#f9e3d9',
+    marginRight: 8,
+  },
+  activeChip: {
+    backgroundColor: PRIMARY_COLOR,
+  },
+  chipText: {
+    color: '#222',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  activeChipText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  modalContainer: { flex: 1, backgroundColor: '#fff' },
+  modalHeader: {
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalHeaderTitle: { fontSize: 17, fontWeight: '700' },
+  detailImage: { width: '100%', height: 100, borderRadius: 10 },
+  detailContent: { padding: 20 },
+  detailTitle: { fontSize: 24, fontWeight: 'bold', color: '#222' },
+  badgeRow: { flexDirection: 'row', marginTop: 10, gap: 10 },
+  categoryBadge: {
+    backgroundColor: '#ECEBFF',
+    color: PRIMARY_COLOR_TINT,
+    padding: 5,
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  codeBadge: {
+    backgroundColor: '#F3F4F6',
+    color: PRIMARY_COLOR_TINT,
+    padding: 5,
+    borderRadius: 4,
+    fontSize: 12,
+  },
+  detailInstructor: { fontSize: 16, color: PRIMARY_COLOR, marginTop: 10 },
+  metaRow: { flexDirection: 'row', marginTop: 15, gap: 20 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  detailPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  detailPriceText: { fontSize: 28, fontWeight: 'bold' },
+  modalFooter: { padding: 20, borderTopWidth: 1, borderTopColor: '#eee' },
+  addToCartBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    padding: 18,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addToCartText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  reviewsSection: { marginTop: 30 },
+  sectionSubTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  reviewItem: {
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#eee',
+  },
+  reviewUser: { fontWeight: '600', fontSize: 14 },
+  reviewComment: { color: '#6A6F73', fontStyle: 'italic', marginTop: 2 },
+  modalContentWrapper: {
+    height: '85%', // Leave 10% space at top to show backdrop
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  modalInnerContainer: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: 30,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#6A6F73',
+    marginTop: 15,
+    fontStyle: 'italic',
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  noReviews: {
+    color: '#6A6F73',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 4,
+  },
 });
 
 export default ClassroomScreenComponent;
