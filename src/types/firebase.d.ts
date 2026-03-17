@@ -591,7 +591,7 @@ export interface Course {
   courseContents?: string[];
   Lectures?: Lecture[];
   resources?: string[];
-  assignments?: string[];
+  assignments?: Assignment[];
   level?: string;
   schoolName?: string;
   lecturerIds?: string[]; 
@@ -630,4 +630,19 @@ export interface Review {
   comment: string;
   rating: number;
   createdAt: string; 
+}
+export interface Assignment {
+  _id?: string;
+  title: string;
+  description?: string;
+  courseId: Course['courseId'];
+  lectureId?: Lecture['id'];
+  fileUrl?: string;
+  dueDate: string; 
+  createdAt?: string;
+  submissions?: {
+    studentId: string;
+    fileUrl?: string;
+    submittedAt: string;
+  }[];
 }

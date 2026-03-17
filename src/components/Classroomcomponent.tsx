@@ -30,15 +30,15 @@ import { Gem } from 'lucide-react-native';
 import * as Progress from 'react-native-progress';
 import axios from 'axios';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const PRIMARY_COLOR = '#f54b02';
-const PRIMARY_COLOR_TINT = '#fc8350';
+export const PRIMARY_COLOR = '#f54b02';
+export const PRIMARY_COLOR_TINT = '#fc8350';
 
 // --- Sub-Components ---
 interface CourseModalProps {
   isVisible: boolean;
   onClose: () => void;
   id: string;
-  course: Course; // Ensure Course is imported from your firebase types
+  course: Course; 
   lectures: Lecture[];
   currentUser: User;
   userRole: 'student' | 'lecturer' | 'otherUser';
@@ -1543,11 +1543,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 id={user.uid}
                 currentUser={user}
                 userRole={userRole}
-              />
-              <UploadProgressModal
-                visible={uploading}
-                progress={progress}
-                statusText={status}
               />
             </>
           )}
