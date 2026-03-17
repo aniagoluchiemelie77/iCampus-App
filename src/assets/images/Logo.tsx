@@ -4,8 +4,8 @@ import Svg, { Path, G, Circle } from 'react-native-svg';
 
 export const Logo = () => (
   <Svg
-    width="70"
-    height="70"
+    width="50"
+    height="50"
     viewBox="0 0 900 900"
     preserveAspectRatio="xMidYMid meet"
   >

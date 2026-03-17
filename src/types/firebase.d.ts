@@ -613,7 +613,15 @@ export interface Course {
 export interface CourseException {
   _id?: string;
   id: string;
-  studentId: string;
+  studentId: User['uid'];
+  studentInfo: {
+    fullname?: string;
+    matricNumber?: string;
+  };
+  courseInfo: {
+    courseTitle?: string;
+    courseCode?: string;
+  };
   courseId: string;
   lectureId: string;
   reasonCategory: 'Medical' | 'Family Emergency' | 'Technical Issue' | 'Personal' | 'Other';
@@ -640,9 +648,16 @@ export interface Assignment {
   fileUrl?: string;
   dueDate: string; 
   createdAt?: string;
+  submissionMethod: 'Online' | 'Physical'; 
   submissions?: {
     studentId: string;
-    fileUrl?: string;
+    fileUrl?: string; // Optional for Physical
     submittedAt: string;
+    venue?: string;
+    isReceived: boolean; 
   }[];
+}
+export interface LecturerExceptionView extends CourseException {
+  studentName?: string; 
+  matricNumber?: string;
 }
