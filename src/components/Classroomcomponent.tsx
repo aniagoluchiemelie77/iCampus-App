@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
   TextInput,
   Pressable,
+  Animated,
   TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -38,7 +39,7 @@ interface CourseModalProps {
   isVisible: boolean;
   onClose: () => void;
   id: string;
-  course: Course; 
+  course: Course;
   lectures: Lecture[];
   currentUser: User;
   userRole: 'student' | 'lecturer' | 'otherUser';
@@ -235,6 +236,17 @@ const getStatusConfig = (status: Lecture['status']) => {
       return { name: 'help-circle', color: '#f54b02' };
   }
 };
+const EmptyLectures = ({ isLecturer }: { isLecturer: boolean }) => (
+  <View style={styles.emptyContainer}>
+    <Icon name="calendar-blank" size={60} color="#ccc" />
+    <Text style={styles.emptyTitle}>No lectures scheduled yet</Text>
+    <Text style={styles.emptySub}>
+      {isLecturer
+        ? "Tap 'Manage Lectures' to add your first session."
+        : 'Check back later for updates from your instructor.'}
+    </Text>
+  </View>
+);
 const CourseModal = ({
   isVisible,
   onClose,
@@ -246,6 +258,33 @@ const CourseModal = ({
 }: CourseModalProps) => {
   const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
   const [loadingExceptions, setLoadingExceptions] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  // Animation value for height
+  const modalHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.7)).current;
+  const flatListRef = useRef<FlatList>(null);
+
+  // Function to toggle full screen
+  const setFullScreen = (isFull: boolean) => {
+    Animated.spring(modalHeight, {
+      toValue: isFull ? SCREEN_HEIGHT : SCREEN_HEIGHT * 0.8,
+      useNativeDriver: false,
+      friction: 8,
+    }).start();
+  };
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    // 1. If user scrolls down, expand to full screen
+    if (offsetY > 20) {
+      setFullScreen(true);
+    }
+    // 2. Show/Hide Back to Top button
+    setShowBackToTop(offsetY > 300);
+  };
+
+  const scrollToTop = () => {
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setFullScreen(false); // Return to partial view if desired
+  };
   useEffect(() => {
     const fetchExceptions = async () => {
       if (!course.courseId || !isVisible) return;
@@ -324,9 +363,15 @@ const CourseModal = ({
 
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={() => {
+          onClose();
+          setFullScreen(false);
+        }}
+      >
         <TouchableWithoutFeedback>
-          <View style={styles.modalContent}>
+          <Animated.View style={[styles.modalContent, { height: modalHeight }]}>
             {/* Grabber handle (Visual hint that user can swipe down or tap away) */}
             <View style={styles.modalGrabber} />
             {isStudent && (
@@ -488,9 +533,13 @@ const CourseModal = ({
             )}
 
             <FlatList
+              ref={flatListRef}
               data={lectures}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
               keyExtractor={item => item.id} // Use the actual ID instead of index for better performance
               showsVerticalScrollIndicator={false}
+              ListEmptyComponent={<EmptyLectures isLecturer={isLecturer} />}
               renderItem={({ item }) => {
                 const statusConfig = getStatusConfig(item.status);
                 const isOnline = item.lectureType === 'Online';
@@ -535,7 +584,15 @@ const CourseModal = ({
                 );
               }}
             />
-          </View>
+            {showBackToTop && (
+              <TouchableOpacity
+                style={styles.backToTopBtn}
+                onPress={scrollToTop}
+              >
+                <Icon name="arrow-up" size={24} color={PRIMARY_COLOR_TINT} />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
         </TouchableWithoutFeedback>
       </Pressable>
     </Modal>
@@ -1664,8 +1721,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    height: SCREEN_HEIGHT * 0.85,
     padding: 25,
+    overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+  },
+  backToTopBtn: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    backgroundColor: '#fff',
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
   attendanceBox: { alignItems: 'center' },
   progressContainer: { alignItems: 'center', justifyContent: 'center' },
@@ -2276,6 +2351,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 50, // Give it some space from the header
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: PRIMARY_COLOR_TINT,
+    marginTop: 10,
+  },
+  emptySub: {
+    fontSize: 14,
+    color: PRIMARY_COLOR_TINT,
+    textAlign: 'center',
+    marginTop: 5,
+    lineHeight: 20,
   },
 });
 

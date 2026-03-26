@@ -661,3 +661,10 @@ export interface LecturerExceptionView extends CourseException {
   studentName?: string; 
   matricNumber?: string;
 }
+// This type requires the core fields but ignores the ones the backend generates
+export type CreateLecturePayload = Omit<
+  Lecture, 
+  'id' | '_id' | 'isTaught' | 'attendance' | 'status'
+> & {
+  repeatWeeks: number; // Add the field required for bulk creation
+};
