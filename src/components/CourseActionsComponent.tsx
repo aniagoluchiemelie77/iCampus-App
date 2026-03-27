@@ -27,6 +27,7 @@ import {
   CreateTestPayload,
 } from '../types/firebase';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   SafeAreaView,
@@ -46,9 +47,21 @@ import { useAppSelector } from './hooks';
 import { Picker } from '@react-native-picker/picker';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { getUniqueId } from 'react-native-device-info';
+import { callGeminiAPI } from '../services/aiServices';
 
 // Using a type that matches your page names
-type PageType = 'Course Contents' | 'Course Materials' | 'Assignments';
+// Ensure your type looks like this:
+type PageType =
+  | 'Course Contents'
+  | 'Course Materials'
+  | 'Assignments'
+  | 'Exceptions'
+  | 'Assessments'
+  | 'Set Lecture Schedule';
+interface AIScoreResult {
+  questionId: string;
+  similarityScore: number;
+}
 interface LecturerManageProps {
   exceptions: LecturerExceptionView[];
   searchQuery: string;
@@ -101,6 +114,7 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (text: string) => void;
   placeholder?: string;
+  userRole?: 'student' | 'lecturer';
 }
 interface CreateAssignmentProps {
   visible: boolean;
@@ -110,14 +124,8 @@ interface CreateAssignmentProps {
 }
 interface StudentTestProps {
   test: CreateTestPayload;
-  user: User;
-  onSubmit: (submission: Partial<TestSubmission>) => Promise<void> | void;
-}
-interface ProctoringStats {
-  deviceId: string;
-  entrySelfieUrl: string;
-  tabSwitchCount: number;
-  lookAwayCount: number;
+  user: any;
+  onSubmit: (payload: any) => Promise<void>; // Use 'onSave' to match your JSX
 }
 const CreateAssignmentModal = ({
   visible,
@@ -423,42 +431,54 @@ export const DetailHeader = ({
   searchQuery,
   setSearchQuery,
   placeholder,
-}: HeaderProps) => (
-  <View style={styles.headerContainer}>
-    <View style={styles.headerTop}>
-      <TouchableOpacity
-        onPress={onBack}
-        style={styles.backButton}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Icon name="chevron-left" size={32} color={PRIMARY_COLOR} />
-      </TouchableOpacity>
-      <View style={styles.titleContainer}>
-        <Text style={styles.headerPageTitle}>{title}</Text>
-        <Logo />
+  userRole, // Destructure userRole
+}: HeaderProps) => {
+  // Logic: Hide search bar ONLY if it's Assessments AND user is a student
+  const shouldShowSearch = !(title === 'Assessments' && userRole === 'student');
+
+  return (
+    <View style={styles.headerContainer}>
+      <View style={styles.headerTop}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Icon name="chevron-left" size={32} color={PRIMARY_COLOR} />
+        </TouchableOpacity>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerPageTitle}>{title}</Text>
+          <Logo />
+        </View>
+        <View style={{ width: 40 }} />
       </View>
-      <View style={{ width: 40 }} />
+
+      {shouldShowSearch && (
+        <View style={styles.searchBarWrapper}>
+          <View style={styles.searchBarInner}>
+            <Icon
+              name="magnify"
+              size={20}
+              color="#888"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={placeholder || `Search ${title}...`}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
+              clearButtonMode="while-editing"
+            />
+            {/* Android Clear Button Logic */}
+            {searchQuery.length > 0 && Platform.OS === 'android' && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Icon name="close-circle" size={18} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
     </View>
-    <View style={styles.searchBarWrapper}>
-      <View style={styles.searchBarInner}>
-        <Icon name="magnify" size={20} color="#888" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={placeholder || `Search ${title}...`}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-          clearButtonMode="while-editing" // iOS native clear button
-        />
-        {searchQuery.length > 0 && Platform.OS === 'android' && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Icon name="close-circle" size={18} color="#999" />
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  </View>
-);
+  );
+};
 // 2. Course Contents View
 export const RenderContents = ({
   course,
@@ -1864,6 +1884,26 @@ export const RenderLecturerTestManage = ({
       }
     }
   };
+  const downloadAssessmentReport = async (testId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      // We target the specific testId from the array item
+      const downloadUrl = `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis?token=${token}`;
+
+      const supported = await Linking.canOpenURL(downloadUrl);
+      if (supported) {
+        await Linking.openURL(downloadUrl);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Download Error',
+          text2: 'Cannot open download link',
+        });
+      }
+    } catch (error) {
+      console.error('Download Link Error:', error);
+    }
+  };
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (testForm.title.trim().length > 0) {
@@ -1897,44 +1937,54 @@ export const RenderLecturerTestManage = ({
             No assessments found matching "{searchQuery}"
           </Text>
         }
-        renderItem={({ item }) => (
-          <View style={styles.pastTestCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.testTitle}>{item.title}</Text>
-              <Text style={styles.testMeta}>
-                {item.questions.length} Questions •{' '}
-                <Text style={{ color: PRIMARY_COLOR_TINT }}>
-                  {item.isPublished ? 'Published' : 'Draft'}
+        renderItem={({ item }) => {
+          const isPastDue = new Date() > new Date(item.dueDate);
+          return (
+            <View style={styles.pastTestCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.testTitle}>{item.title}</Text>
+                <Text style={styles.testMeta}>
+                  {item.questions.length} Questions •{' '}
+                  <Text style={{ color: PRIMARY_COLOR_TINT }}>
+                    {item.isPublished ? 'Published' : 'Draft'}
+                  </Text>
                 </Text>
-              </Text>
-            </View>
-            <TouchableOpacity
+              </View>
+              {isPastDue && item.isPublished ? (
+          <TouchableOpacity
+            style={{
+              borderWidth: 0.8,
+              borderColor: PRIMARY_COLOR_TINT,
+              paddingVertical: 12,
+              paddingHorizontal: 7,
+              borderRadius: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: PRIMARY_COLOR_TINT, // Subtle background to make it look clickable
+            }}
+            // FIXED: Changed 'test.testid' to 'item.id'
+            onPress={() => downloadAssessmentReport(item.id!)}
+          >
+            <Icon name="chart-bar" size={20} color={PRIMARY_COLOR} style={{ marginRight: 4 }} />
+            <Text
               style={{
-                borderWidth: 0.8,
-                borderColor: PRIMARY_COLOR_TINT,
-                paddingVertical: 12,
-                paddingHorizontal: 7,
-                borderRadius: 8,
-                flexDirection: 'row',
-                alignItems: 'center',
+                color: PRIMARY_COLOR,
+                fontSize: 12,
+                fontWeight: 'bold',
               }}
-              onPress={() =>
-                Linking.openURL(`https://api.iCampus.com/reports/${test}`)
-              }
             >
-              <Icon name="chart-bar" size={26} color={PRIMARY_COLOR_TINT} />
-              <Text
-                style={{
-                  color: PRIMARY_COLOR_TINT,
-                  fontSize: 13,
-                  fontWeight: 'bold',
-                }}
-              >
-                Download Performance Report
-              </Text>
-            </TouchableOpacity>
+              Analysis Report
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ opacity: 0.5, alignItems: 'flex-end' }}>
+             <Icon name="clock-outline" size={20} color="#888" />
+             <Text style={{ fontSize: 10, color: '#888' }}>Report pending</Text>
           </View>
         )}
+            </View>
+          );
+        }}
       />
 
       {/* CREATION MODAL */}
@@ -2185,11 +2235,12 @@ export const RenderLecturerTestManage = ({
     </View>
   );
 };
-export const StudentTestScreen: React.FC<StudentTestProps> = ({
+export const RenderStudentTest = ({
   test,
   user,
   onSubmit,
-}) => {
+}: StudentTestProps) => {
+  const navigation = useNavigation<any>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isStarted, setIsStarted] = useState(false);
@@ -2197,7 +2248,7 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
   const [timeLeft, setTimeLeft] = useState(test.duration * 60);
   const [cheatingCount, setCheatingCount] = useState(0);
   const [finalResult, setFinalResult] = useState({ score: 0, total: 0 });
-  // 1. To store the URL after uploading the selfie
+
   const [selfieUrl, setSelfieUrl] = useState<string>('');
 
   // 2. To store the session metadata (Device ID, Start Time, etc.)
@@ -2208,14 +2259,30 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
   } | null>(null);
 
   const appState = useRef(AppState.currentState);
-  const lookAwayTimer = useRef<NodeJS.Timeout | null>(null);
+  const lookAwayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cameraRef = useRef<Camera>(null);
   const device = useCameraDevice('front');
   const [isUploading, setIsUploading] = useState(false);
+  const gradeShortAnswersWithAI = async (shortAnswerPairs: any[]) => {
+    const prompt = `
+    You are an academic grader. Compare the Student Answer against the Correct Answer for each question.
+    Rate the semantic similarity on a scale of 0 to 1.
+    - 1.0: Perfectly synonymous or correct.
+    - 0.85+: Correct, just phrased differently.
+    - Below 0.8: Incorrect or missing key information.
+
+    Return ONLY a JSON array of objects: [{"questionId": "...", "similarityScore": 0.95}]
+    
+    Data: ${JSON.stringify(shortAnswerPairs)}
+  `;
+
+    // Call your Gemini API / Backend here
+    const response = await callGeminiAPI(prompt);
+    return JSON.parse(response);
+  };
   const uploadSelfieToStorage = async (path: string): Promise<string> => {
     setIsUploading(true);
     try {
-      console.log('Uploading photo from local path:', path);
       const uri =
         Platform.OS === 'android' ? path : path.replace('file://', '');
       /** * --- FIREBASE LOGIC (Commented Out) ---
@@ -2228,7 +2295,6 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
        * const url = await reference.getDownloadURL();
        * return url;
        */
-
       const formData = new FormData();
       formData.append('file', {
         uri: uri,
@@ -2301,7 +2367,7 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
       });
     }
   };
-  const runAutoGrade = () => {
+  const runAutoGrade = useCallback(() => {
     let totalScore = 0;
 
     const gradedAnswers = test.questions.map((q: Question) => {
@@ -2331,31 +2397,96 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
     });
 
     return { gradedAnswers, totalScore };
-  };
-  const handleFinalSubmit = async () => {
+  }, [test.questions, answers]);
+  const handleFinalSubmit = useCallback(async () => {
     const { gradedAnswers, totalScore } = runAutoGrade();
+    const shortAnswersToGrade = gradedAnswers
+      .filter(ans => {
+        const question = test.questions.find(q => q.id === ans.questionId);
+        return question?.type === 'ShortAnswer';
+      })
+      .map(ans => ({
+        questionId: ans.questionId,
+        studentAnswer: ans.studentAnswer,
+        correctAnswer: test.questions.find(q => q.id === ans.questionId)
+          ?.correctAnswer,
+      }));
+
+    let finalGradedAnswers = [...gradedAnswers];
+    let finalTotalScore = totalScore;
+    if (shortAnswersToGrade.length > 0) {
+      try {
+        const aiScores = await gradeShortAnswersWithAI(shortAnswersToGrade);
+
+        // 4. Update the scores based on AI feedback
+        finalGradedAnswers = gradedAnswers.map(ans => {
+          // Explicitly type 'res' here, or type the array itself
+          const aiResult = aiScores.find(
+            (res: AIScoreResult) => res.questionId === ans.questionId,
+          );
+
+          if (aiResult) {
+            const isCorrect = aiResult.similarityScore >= 0.85;
+            const points = isCorrect
+              ? test.questions.find(q => q.id === ans.questionId)?.points || 0
+              : 0;
+
+            // Update the running total
+            finalTotalScore = finalTotalScore - ans.pointsEarned + points;
+
+            return {
+              ...ans,
+              isCorrect,
+              pointsEarned: points,
+              aiScore: aiResult.similarityScore,
+            };
+          }
+          return ans;
+        });
+      } catch (error) {
+        console.error(
+          'AI Grading failed, falling back to literal match',
+          error,
+        );
+      }
+    }
 
     const finalPayload: Partial<TestSubmission> = {
       testId: test.id || test._id,
       studentId: user.uid,
       studentName: `${user.firstname} ${user.lastname}`,
       matricNumber: user.matricNumber || 'N/A',
-      answers: gradedAnswers,
-      score: totalScore,
+      answers: finalGradedAnswers,
+      score: finalTotalScore,
       totalPossibleScore: test.totalMarks,
       status: 'submitted',
       submittedAt: new Date().toISOString(),
       proctoringData: {
-        deviceId: 'FETCHED_DEVICE_ID', // use getUniqueId() here
-        entrySelfieUrl: selfieUrl,
+        deviceId: submissionMetadata?.deviceId || 'Unknown Device',
+        entrySelfieUrl: submissionMetadata?.entrySelfie || selfieUrl || '',
         tabSwitchCount: cheatingCount,
         ipAddress: user.ipAddress?.[0] || '',
       },
+      startTime: submissionMetadata?.startTime,
     };
-
     await onSubmit(finalPayload);
+    setFinalResult({
+      score: finalTotalScore,
+      total: test.totalMarks,
+    });
     setIsFinished(true);
-  };
+  }, [
+    submissionMetadata?.entrySelfie,
+    submissionMetadata?.deviceId,
+    submissionMetadata?.startTime,
+    test,
+    user,
+    runAutoGrade,
+    selfieUrl,
+    cheatingCount,
+    onSubmit,
+    setIsFinished,
+  ]);
   const onFaceStatusChange = (isLookingAtScreen: boolean) => {
     if (!isLookingAtScreen) {
       if (!lookAwayTimer.current) {
@@ -2366,7 +2497,7 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
             text1: 'Focus Warning',
             text2: 'Please keep your eyes on the screen.',
           });
-        }, 5000);
+        }, 7000);
       }
     } else {
       if (lookAwayTimer.current) {
@@ -2380,19 +2511,16 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
     if (percent >= 80)
       return {
         title: 'Excellent Work!',
-        msg: "You've mastered this course content.",
-        color: '#22c55e',
+        msg: "You've mastered this course!",
       };
     if (percent >= 50)
       return {
         title: 'Good Effort!',
-        msg: "You passed, but a little more review wouldn't hurt.",
-        color: '#3b82f6',
+        msg: 'You passed, but a little more practice will help.',
       };
     return {
       title: 'Keep Practicing',
       msg: 'Review the course materials and try again.',
-      color: '#ef4444',
     };
   };
 
@@ -2404,10 +2532,12 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
         nextAppState.match(/inactive|background/)
       ) {
         setCheatingCount(prev => prev + 1);
-        Alert.alert(
-          'Warning',
-          'Switching apps is recorded. 3 strikes and test auto-submits.',
-        );
+        Toast.show({
+          type: 'warning',
+          text1: 'Warning',
+          text2:
+            'No switching/minimizing during tests. 3 strikes and test auto-submits.',
+        });
       }
       appState.current = nextAppState;
     });
@@ -2423,22 +2553,21 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
 
   // 3. Timer Ticker
   useEffect(() => {
-    if (!isStarted || isFinished) return; // Don't count if not started or already done
+    if (!isStarted || isFinished) return;
     const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [isStarted, isFinished]);
-
-  const handleSelectOption = (questionId: string, option: string) => {
-    setAnswers({ ...answers, [questionId]: option });
-    // Auto-advance to next question
-    setTimeout(() => {
-      if (currentIndex < test.questions.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      }
-    }, 300);
-  };
-
-  const currentQuestion = test.questions[currentIndex];
+  useEffect(() => {
+    if (cheatingCount >= 3) {
+      Toast.show({
+        type: 'info',
+        text1: 'Test Terminated',
+        text2: 'Multiple security violations detected.',
+      });
+      handleFinalSubmit();
+      navigation.navigate('Home');
+    }
+  }, [cheatingCount, handleFinalSubmit, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -2521,41 +2650,66 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
       {/* QUESTION UI */}
       {isStarted && !isFinished && (
         <>
-          <View style={styles.header}>
-            <View style={styles.cameraMiniPreview}>
-              {/* <Camera style={StyleSheet.absoluteFill} device={device} isActive={true} /> */}
-              <Text style={styles.camLabel}>LIVE</Text>
-            </View>
-            <Text style={styles.timer}>
-              {Math.floor(timeLeft / 60)}:
-              {(timeLeft % 60).toString().padStart(2, '0')}
-            </Text>
-          </View>
-
           <View style={styles.questionCard}>
             <Text style={styles.qText}>
               {test.questions[currentIndex].questionText}
             </Text>
-            {/* ... Render MCQ Options or ShortAnswer Input ... */}
-            <TextInput
-              style={styles.input}
-              onChangeText={val =>
-                setAnswers({
-                  ...answers,
-                  [test.questions[currentIndex].id]: val,
-                })
-              }
-              placeholder="Enter answer..."
-            />
+            {/* Conditional Rendering Logic */}
+            {test.questions[currentIndex].type === 'MCQ' ||
+            test.questions[currentIndex].type === 'TrueFalse' ? (
+              <View style={styles.optionsContainer}>
+                {test.questions[currentIndex].options?.map((option, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.optionButton,
+                      answers[test.questions[currentIndex].id] === option &&
+                        styles.selectedOption,
+                    ]}
+                    onPress={() =>
+                      setAnswers({
+                        ...answers,
+                        [test.questions[currentIndex].id]: option,
+                      })
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.optionText,
+                        answers[test.questions[currentIndex].id] === option &&
+                          styles.selectedOptionText,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              /* Fallback to ShortAnswer / TextInput */
+              <TextInput
+                style={styles.input}
+                value={answers[test.questions[currentIndex].id] || ''}
+                onChangeText={val =>
+                  setAnswers({
+                    ...answers,
+                    [test.questions[currentIndex].id]: val,
+                  })
+                }
+                placeholder="Type your answer here..."
+                placeholderTextColor={'#999'}
+              />
+            )}
           </View>
 
-          <View style={styles.footer}>
+          <View style={styles.testSideBySide}>
             <TouchableOpacity
+              style={styles.submitBtn}
               onPress={() =>
                 currentIndex > 0 && setCurrentIndex(currentIndex - 1)
               }
             >
-              <Text>Prev</Text>
+              <Text style={styles.submitBtnText}>Prev</Text>
             </TouchableOpacity>
 
             {currentIndex === test.questions.length - 1 ? (
@@ -2569,7 +2723,7 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
               <TouchableOpacity
                 onPress={() => setCurrentIndex(currentIndex + 1)}
               >
-                <Text>Next</Text>
+                <Text style={styles.submitBtnText}>Next</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -2578,46 +2732,46 @@ export const StudentTestScreen: React.FC<StudentTestProps> = ({
 
       {/* FINAL SCORE MODAL */}
       <Modal visible={isFinished} transparent animationType="slide">
-        <View style={styles.modalBg}>
+        <View style={styles.modalOverlay}>
           <View style={styles.resultCard}>
-            <Icon name="trophy-outline" size={60} color="#0a66c2" />
-            <Text style={styles.scoreTitle}>
-              {getAdvice((finalResult.score / finalResult.total) * 100).title}
-            </Text>
+            <Icon name="trophy-outline" size={50} color={PRIMARY_COLOR} />
 
             <View style={styles.scoreCircle}>
               <Text style={styles.scoreBig}>{finalResult.score}</Text>
               <Text style={styles.scoreSmall}>/ {finalResult.total}</Text>
             </View>
 
+            <Text style={styles.scoreTitle}>
+              {getAdvice((finalResult.score / finalResult.total) * 100).title}
+            </Text>
+
             <Text style={styles.adviceText}>
               {getAdvice((finalResult.score / finalResult.total) * 100).msg}
             </Text>
 
             <TouchableOpacity
-              style={styles.closeBtn}
+              style={styles.startBtn}
               onPress={() => {
-                /* Navigate Home */
+                navigation.navigate('Home');
               }}
             >
-              <Text style={styles.closeBtnText}>Back to Courses</Text>
+              <Text style={styles.startBtnText}>Back to Courses</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
       {device != null && (
         <Camera
-          ref={cameraRef}
-          style={isStarted ? styles.miniCamera : styles.fullCamera}
-          device={device}
-          isActive={true} // Stays active throughout the test
-          photo={true} // Allows taking the initial selfie
-          onFacesDetected={faces => {
-            // If faces.length > 0, they are looking at the screen
-            onFaceStatusChange(faces.length > 0);
-          }}
-          // Some versions of Vision Camera use frameProcessors:
-          // frameProcessor={myFaceDetectionProcessor}
+          {...({
+            ref: cameraRef,
+            style: isStarted ? styles.miniCamera : styles.fullCamera,
+            device: device,
+            isActive: true,
+            photo: true,
+            onFacesDetected: (faces: any) => {
+              onFaceStatusChange(faces.length > 0);
+            },
+          } as any)}
         />
       )}
     </SafeAreaView>
@@ -2644,6 +2798,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     null,
   );
   const [tests, setTests] = useState<CreateTestPayload[]>([]);
+  const [activeTest, setActiveTest] = useState<CreateTestPayload | null>(null);
 
   // --- STUDENT: Submit New Exception ---
   const handleSaveException = async (
@@ -2688,6 +2843,43 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         text1: 'Submission Error',
         text2: error.message,
         position: 'bottom',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleTestSubmission = async (payload: any) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/student/class/test/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (response.ok) {
+        Toast.show({
+          type: 'success',
+          text1: 'Test Submitted!',
+          text2: 'Your grade has been recorded.',
+        });
+        fetchTests();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Submission failed');
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Submission Error',
+        text2: error.message,
       });
     } finally {
       setLoading(false);
@@ -2924,6 +3116,17 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       fetchTests(); // <--- Fetch tests when the Assessment page is active
     }
   }, [title, fetchExceptions, fetchTests]);
+  useEffect(() => {
+    // Only run this logic for students on the Assessments tab
+    if (title === 'Assessments' && userRole === 'student' && tests.length > 0) {
+      // Find the first published test from the list we just fetched
+      const publishedTest = tests.find(t => t.isPublished);
+
+      if (publishedTest) {
+        setActiveTest(publishedTest);
+      }
+    }
+  }, [tests, title, userRole]); // Trigger whenever the 'tests' array is updated from fetchTests()
 
   const goBack = () => navigation.goBack();
   return (
@@ -2934,6 +3137,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         placeholder={`Search ${title.toLowerCase()}...`}
+        userRole={userRole} // Pass the userRole here
       />
 
       <View style={styles.body}>
@@ -2985,6 +3189,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
             isLoading={loading}
           />
         )}
+
         {title === 'Assessments' &&
           (userRole === 'lecturer' ? (
             <RenderLecturerTestManage
@@ -2995,8 +3200,29 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               onSaveTest={handleCreateTest}
               searchQuery={searchQuery}
             />
+          ) : activeTest ? ( // Check if activeTest exists before rendering
+            <RenderStudentTest
+              test={activeTest}
+              user={user}
+              onSubmit={handleTestSubmission}
+            />
           ) : (
-            <></>
+            // Show this if fetching is done but no test is published
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              {loading ? (
+                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+              ) : (
+                <Text style={{ color: '#666' }}>
+                  No assessments currently available.
+                </Text>
+              )}
+            </View>
           ))}
       </View>
 
@@ -4186,6 +4412,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  testSideBySide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   addOptionBtn: {
     marginTop: 10,
     padding: 8,
@@ -4269,7 +4500,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginTop: 4,
   },
-  container: { flex: 1, backgroundColor: '#f4f4f4' },
   cameraMiniPreview: {
     width: 80,
     height: 110,
@@ -4285,17 +4515,11 @@ const styles = StyleSheet.create({
     left: 5,
     fontWeight: 'bold',
   },
-  modalBg: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   resultCard: {
     width: '85%',
     backgroundColor: '#fff',
     borderRadius: 20,
-    padding: 30,
+    padding: 20,
     alignItems: 'center',
   },
   scoreCircle: {
@@ -4303,24 +4527,22 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     marginVertical: 20,
   },
-  scoreBig: { fontSize: 48, fontWeight: 'bold', color: '#191919' },
-  scoreSmall: { fontSize: 20, color: '#666' },
-  adviceText: { textAlign: 'center', color: '#666', marginBottom: 30 },
-  primaryBtn: {
-    backgroundColor: '#0a66c2',
-    padding: 15,
-    borderRadius: 10,
-    width: '100%',
-    alignItems: 'center',
+  scoreBig: { fontSize: 40, fontWeight: 'bold', color: PRIMARY_COLOR },
+  scoreSmall: { fontSize: 20, color: PRIMARY_COLOR_TINT, fontWeight: 'bold' },
+  adviceText: {
+    textAlign: 'center',
+    color: PRIMARY_COLOR_TINT,
+    marginBottom: 30,
+    fontSize: 14,
+    fontWeight: '700',
   },
   submitBtn: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 25,
     paddingVertical: 10,
     borderRadius: 8,
   },
   submitBtnText: { color: '#fff', fontWeight: 'bold' },
-  btnText: { color: '#fff', fontWeight: 'bold' },
   //
   modalContainer: {
     width: '88%',
@@ -4393,5 +4615,56 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2222',
     overflow: 'hidden',
+  },
+  qText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2222',
+  },
+  optionsContainer: {
+    gap: 12,
+  },
+  optionButton: {
+    borderWidth: 0.8,
+    borderColor: '#2222',
+    borderRadius: 8,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectedOption: {
+    borderColor: PRIMARY_COLOR,
+    backgroundColor: PRIMARY_COLOR_TINT,
+    borderWidth: 2,
+  },
+  optionText: {
+    fontSize: 15,
+    color: '#2222',
+  },
+  selectedOptionText: {
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+  },
+  scoreTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: PRIMARY_COLOR_TINT,
+    marginBottom: 9,
+  },
+  fullCamera: {
+    flex: 1,
+    width: '100%',
+  },
+  miniCamera: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 100,
+    height: 130,
+    borderRadius: 15,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    zIndex: 999,
   },
 });

@@ -32,7 +32,7 @@ import * as Progress from 'react-native-progress';
 import axios from 'axios';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const PRIMARY_COLOR = '#f54b02';
-export const PRIMARY_COLOR_TINT = '#fc8350';
+export const PRIMARY_COLOR_TINT = '#fd8c5b';
 
 // --- Sub-Components ---
 interface CourseModalProps {

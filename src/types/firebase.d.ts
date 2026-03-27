@@ -694,11 +694,19 @@ export interface CreateTestPayload {
 
 export interface TestSubmission {
   testId: string;
+  totalPossibleScore?: number;
   studentId: string; 
   studentName: string;
   matricNumber: string; 
   answers: { questionId: string; studentAnswer: string }[];
   score: number;
-  status: 'submitted' | 'graded';
+  status: 'submitted' | 'graded' | 'pending';
   submittedAt: string;
+  proctoringData?: {
+    deviceId: string;
+    entrySelfieUrl: string;
+    tabSwitchCount: number;
+    ipAddress: string;
+  };
+  startTime?: string
 }
