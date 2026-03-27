@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -11,9 +11,11 @@ import {
   Pressable,
   Modal,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
+  TestSubmission,
   Course,
   Lecture,
   Assignment,
@@ -42,6 +44,8 @@ import { PermissionsAndroid, Platform, Linking } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import { useAppSelector } from './hooks';
 import { Picker } from '@react-native-picker/picker';
+import { Camera, useCameraDevice } from 'react-native-vision-camera';
+import { getUniqueId } from 'react-native-device-info';
 
 // Using a type that matches your page names
 type PageType = 'Course Contents' | 'Course Materials' | 'Assignments';
@@ -103,6 +107,17 @@ interface CreateAssignmentProps {
   onClose: () => void;
   onSave: (formData: FormData) => void;
   isSaving: boolean;
+}
+interface StudentTestProps {
+  test: CreateTestPayload;
+  user: User;
+  onSubmit: (submission: Partial<TestSubmission>) => Promise<void> | void;
+}
+interface ProctoringStats {
+  deviceId: string;
+  entrySelfieUrl: string;
+  tabSwitchCount: number;
+  lookAwayCount: number;
 }
 const CreateAssignmentModal = ({
   visible,
@@ -1893,8 +1908,30 @@ export const RenderLecturerTestManage = ({
                 </Text>
               </Text>
             </View>
-            <TouchableOpacity onPress={() => console.log('View Analytics')}>
+            <TouchableOpacity
+              style={{
+                borderWidth: 0.8,
+                borderColor: PRIMARY_COLOR_TINT,
+                paddingVertical: 12,
+                paddingHorizontal: 7,
+                borderRadius: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+              onPress={() =>
+                Linking.openURL(`https://api.iCampus.com/reports/${test}`)
+              }
+            >
               <Icon name="chart-bar" size={26} color={PRIMARY_COLOR_TINT} />
+              <Text
+                style={{
+                  color: PRIMARY_COLOR_TINT,
+                  fontSize: 13,
+                  fontWeight: 'bold',
+                }}
+              >
+                Download Performance Report
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -2146,6 +2183,444 @@ export const RenderLecturerTestManage = ({
         </SafeAreaView>
       </Modal>
     </View>
+  );
+};
+export const StudentTestScreen: React.FC<StudentTestProps> = ({
+  test,
+  user,
+  onSubmit,
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isStarted, setIsStarted] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(test.duration * 60);
+  const [cheatingCount, setCheatingCount] = useState(0);
+  const [finalResult, setFinalResult] = useState({ score: 0, total: 0 });
+  // 1. To store the URL after uploading the selfie
+  const [selfieUrl, setSelfieUrl] = useState<string>('');
+
+  // 2. To store the session metadata (Device ID, Start Time, etc.)
+  const [submissionMetadata, setSubmissionMetadata] = useState<{
+    deviceId: string;
+    entrySelfie: string;
+    startTime: string;
+  } | null>(null);
+
+  const appState = useRef(AppState.currentState);
+  const lookAwayTimer = useRef<NodeJS.Timeout | null>(null);
+  const cameraRef = useRef<Camera>(null);
+  const device = useCameraDevice('front');
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadSelfieToStorage = async (path: string): Promise<string> => {
+    setIsUploading(true);
+    try {
+      console.log('Uploading photo from local path:', path);
+      const uri =
+        Platform.OS === 'android' ? path : path.replace('file://', '');
+      /** * --- FIREBASE LOGIC (Commented Out) ---
+       * * // 1. Create a reference in your storage bucket
+       * const fileName = `selfies/${user.uid}_${Date.now()}.jpg`;
+       * const reference = storage().ref(fileName);
+       * * // 2. Upload the file from the local disk path
+       * await reference.putFile(path);
+       * * // 3. Get the public download URL
+       * const url = await reference.getDownloadURL();
+       * return url;
+       */
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: 'image/jpeg',
+        name: `proctor_${user.uid}_${Date.now()}.jpg`,
+      } as any);
+      formData.append('upload_preset', 'presetOne');
+      formData.append('cloud_name', 'dbdw3zftx');
+      const response = await fetch(
+        'https://api.cloudinary.com/v1_1/dbdw3zftx/image/upload',
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'multipart/form-data',
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.secure_url) {
+        return data.secure_url;
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Upload Error',
+          text2: 'Upload failed, please retry.',
+        });
+        throw new Error(data.error?.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      throw new Error('Failed to upload proctoring image.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  const startTestWithSecurity = async () => {
+    try {
+      const currentDeviceId = await getUniqueId();
+      if (!user.deviceType?.includes(currentDeviceId)) {
+        Toast.show({
+          type: 'error',
+          text1: 'Identity Verification',
+          text2:
+            'This device is not recognized. Please contact your administrator.',
+        });
+        return;
+      }
+      let finalSelfieUrl = '';
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+        finalSelfieUrl = await uploadSelfieToStorage(photo.path);
+        setSelfieUrl(finalSelfieUrl);
+      }
+      setSubmissionMetadata({
+        deviceId: currentDeviceId,
+        entrySelfie: finalSelfieUrl,
+        startTime: new Date().toISOString(),
+      });
+
+      setIsStarted(true);
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Device Verification',
+        text2: 'Could not initialize device for assessment.',
+      });
+    }
+  };
+  const runAutoGrade = () => {
+    let totalScore = 0;
+
+    const gradedAnswers = test.questions.map((q: Question) => {
+      const sAns = (answers[q.id] || '').trim();
+      let isCorrect = false;
+
+      if (q.type === 'MCQ' || q.type === 'TrueFalse') {
+        isCorrect = sAns === q.correctAnswer;
+      } else if (q.type === 'ShortAnswer') {
+        const cleanStudent = sAns.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanCorrect = q.correctAnswer
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+        isCorrect =
+          cleanStudent.includes(cleanCorrect) || cleanStudent === cleanCorrect;
+      }
+
+      const pointsEarned = isCorrect ? q.points : 0;
+      totalScore += pointsEarned;
+
+      return {
+        questionId: q.id,
+        studentAnswer: sAns,
+        isCorrect,
+        pointsEarned,
+      };
+    });
+
+    return { gradedAnswers, totalScore };
+  };
+  const handleFinalSubmit = async () => {
+    const { gradedAnswers, totalScore } = runAutoGrade();
+
+    const finalPayload: Partial<TestSubmission> = {
+      testId: test.id || test._id,
+      studentId: user.uid,
+      studentName: `${user.firstname} ${user.lastname}`,
+      matricNumber: user.matricNumber || 'N/A',
+      answers: gradedAnswers,
+      score: totalScore,
+      totalPossibleScore: test.totalMarks,
+      status: 'submitted',
+      submittedAt: new Date().toISOString(),
+      proctoringData: {
+        deviceId: 'FETCHED_DEVICE_ID', // use getUniqueId() here
+        entrySelfieUrl: selfieUrl,
+        tabSwitchCount: cheatingCount,
+        ipAddress: user.ipAddress?.[0] || '',
+      },
+    };
+
+    await onSubmit(finalPayload);
+    setIsFinished(true);
+  };
+  const onFaceStatusChange = (isLookingAtScreen: boolean) => {
+    if (!isLookingAtScreen) {
+      if (!lookAwayTimer.current) {
+        lookAwayTimer.current = setTimeout(() => {
+          setCheatingCount(prev => prev + 1);
+          Toast.show({
+            type: 'info',
+            text1: 'Focus Warning',
+            text2: 'Please keep your eyes on the screen.',
+          });
+        }, 5000);
+      }
+    } else {
+      if (lookAwayTimer.current) {
+        clearTimeout(lookAwayTimer.current);
+        lookAwayTimer.current = null;
+      }
+    }
+  };
+
+  const getAdvice = (percent: number) => {
+    if (percent >= 80)
+      return {
+        title: 'Excellent Work!',
+        msg: "You've mastered this course content.",
+        color: '#22c55e',
+      };
+    if (percent >= 50)
+      return {
+        title: 'Good Effort!',
+        msg: "You passed, but a little more review wouldn't hurt.",
+        color: '#3b82f6',
+      };
+    return {
+      title: 'Keep Practicing',
+      msg: 'Review the course materials and try again.',
+      color: '#ef4444',
+    };
+  };
+
+  // 1. Detect App Switching (Minimize/Tab-out)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current === 'active' &&
+        nextAppState.match(/inactive|background/)
+      ) {
+        setCheatingCount(prev => prev + 1);
+        Alert.alert(
+          'Warning',
+          'Switching apps is recorded. 3 strikes and test auto-submits.',
+        );
+      }
+      appState.current = nextAppState;
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // 2. Auto-Submit Watcher
+  useEffect(() => {
+    if (cheatingCount >= 3 || (isStarted && timeLeft === 0)) {
+      handleFinalSubmit();
+    }
+  }, [cheatingCount, timeLeft, handleFinalSubmit, isStarted]);
+
+  // 3. Timer Ticker
+  useEffect(() => {
+    if (!isStarted || isFinished) return; // Don't count if not started or already done
+    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [isStarted, isFinished]);
+
+  const handleSelectOption = (questionId: string, option: string) => {
+    setAnswers({ ...answers, [questionId]: option });
+    // Auto-advance to next question
+    setTimeout(() => {
+      if (currentIndex < test.questions.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      }
+    }, 300);
+  };
+
+  const currentQuestion = test.questions[currentIndex];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* INSTRUCTIONS MODAL */}
+      <Modal visible={!isStarted} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Icon
+                name="information-outline"
+                size={50}
+                color={PRIMARY_COLOR}
+                style={styles.centerIcon}
+              />
+              <Text style={styles.modalTitle}>Test Instructions</Text>
+
+              <View style={styles.instructionBox}>
+                <Text style={styles.insText}>
+                  <Text style={styles.boldText}>Identity Verification:</Text>{' '}
+                  Your front camera will stay on to make sure it's really you
+                  taking the test.
+                </Text>
+                <Text style={styles.insText}>
+                  <Text style={styles.boldText}>Stay Focused:</Text>
+                  Try not to look away from the screen for too long, as the
+                  system monitors your attention.
+                </Text>
+                <Text style={styles.insText}>
+                  No Switching Apps/minimizing:
+                  <Text style={styles.boldText}>
+                    No Switching Apps/minimization:{' '}
+                  </Text>
+                  If you leave this app or minimize it, your assessment wil
+                  auto-submit.
+                </Text>
+                <Text style={styles.insText}>
+                  <Text style={styles.boldText}>Identity Check (Selfie):</Text>
+                  We’ll take a quick photo of you now to verify your identity
+                  before the test starts.
+                </Text>
+                <Text style={styles.insText}>
+                  Goodluck and we hope you have a good test!
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.startBtn, isUploading && styles.disabledBtn]}
+                onPress={startTestWithSecurity}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.startBtnText}>
+                    Verify Identity & Start
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* QUIZ HEADER */}
+      <View style={styles.header}>
+        <Text style={[styles.timer, timeLeft < 600 && styles.timerUrgent]}>
+          <Icon name="clock-outline" size={20} color="#2222" />
+          {Math.floor(timeLeft / 60)}:{' '}
+          {(timeLeft % 60).toString().padStart(2, '0')}
+        </Text>
+
+        <Text style={styles.progress}>
+          Question {currentIndex + 1} of {test.questions.length}
+        </Text>
+      </View>
+
+      {/* QUESTION UI */}
+      {isStarted && !isFinished && (
+        <>
+          <View style={styles.header}>
+            <View style={styles.cameraMiniPreview}>
+              {/* <Camera style={StyleSheet.absoluteFill} device={device} isActive={true} /> */}
+              <Text style={styles.camLabel}>LIVE</Text>
+            </View>
+            <Text style={styles.timer}>
+              {Math.floor(timeLeft / 60)}:
+              {(timeLeft % 60).toString().padStart(2, '0')}
+            </Text>
+          </View>
+
+          <View style={styles.questionCard}>
+            <Text style={styles.qText}>
+              {test.questions[currentIndex].questionText}
+            </Text>
+            {/* ... Render MCQ Options or ShortAnswer Input ... */}
+            <TextInput
+              style={styles.input}
+              onChangeText={val =>
+                setAnswers({
+                  ...answers,
+                  [test.questions[currentIndex].id]: val,
+                })
+              }
+              placeholder="Enter answer..."
+            />
+          </View>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              onPress={() =>
+                currentIndex > 0 && setCurrentIndex(currentIndex - 1)
+              }
+            >
+              <Text>Prev</Text>
+            </TouchableOpacity>
+
+            {currentIndex === test.questions.length - 1 ? (
+              <TouchableOpacity
+                style={styles.submitBtn}
+                onPress={handleFinalSubmit}
+              >
+                <Text style={styles.submitBtnText}>Submit Test</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setCurrentIndex(currentIndex + 1)}
+              >
+                <Text>Next</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
+      )}
+
+      {/* FINAL SCORE MODAL */}
+      <Modal visible={isFinished} transparent animationType="slide">
+        <View style={styles.modalBg}>
+          <View style={styles.resultCard}>
+            <Icon name="trophy-outline" size={60} color="#0a66c2" />
+            <Text style={styles.scoreTitle}>
+              {getAdvice((finalResult.score / finalResult.total) * 100).title}
+            </Text>
+
+            <View style={styles.scoreCircle}>
+              <Text style={styles.scoreBig}>{finalResult.score}</Text>
+              <Text style={styles.scoreSmall}>/ {finalResult.total}</Text>
+            </View>
+
+            <Text style={styles.adviceText}>
+              {getAdvice((finalResult.score / finalResult.total) * 100).msg}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={() => {
+                /* Navigate Home */
+              }}
+            >
+              <Text style={styles.closeBtnText}>Back to Courses</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {device != null && (
+        <Camera
+          ref={cameraRef}
+          style={isStarted ? styles.miniCamera : styles.fullCamera}
+          device={device}
+          isActive={true} // Stays active throughout the test
+          photo={true} // Allows taking the initial selfie
+          onFacesDetected={faces => {
+            // If faces.length > 0, they are looking at the screen
+            onFaceStatusChange(faces.length > 0);
+          }}
+          // Some versions of Vision Camera use frameProcessors:
+          // frameProcessor={myFaceDetectionProcessor}
+        />
+      )}
+    </SafeAreaView>
   );
 };
 export const CourseSubPage = ({ route, navigation }: any) => {
@@ -2769,9 +3244,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 21,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#2222',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -3659,7 +4134,7 @@ const styles = StyleSheet.create({
   },
   // Style for the "disabled" state if the form is incomplete or loading
   disabledBtn: {
-    backgroundColor: PRIMARY_COLOR_TINT,
+    opacity: 0.7,
   },
   disabledBtnText: {
     color: '#999',
@@ -3793,5 +4268,130 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 4,
+  },
+  container: { flex: 1, backgroundColor: '#f4f4f4' },
+  cameraMiniPreview: {
+    width: 80,
+    height: 110,
+    backgroundColor: '#000',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  camLabel: {
+    color: 'red',
+    fontSize: 10,
+    position: 'absolute',
+    bottom: 5,
+    left: 5,
+    fontWeight: 'bold',
+  },
+  modalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resultCard: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+  },
+  scoreCircle: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginVertical: 20,
+  },
+  scoreBig: { fontSize: 48, fontWeight: 'bold', color: '#191919' },
+  scoreSmall: { fontSize: 20, color: '#666' },
+  adviceText: { textAlign: 'center', color: '#666', marginBottom: 30 },
+  primaryBtn: {
+    backgroundColor: '#0a66c2',
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  submitBtn: {
+    backgroundColor: '#f54b02',
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  submitBtnText: { color: '#fff', fontWeight: 'bold' },
+  btnText: { color: '#fff', fontWeight: 'bold' },
+  //
+  modalContainer: {
+    width: '88%',
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  scrollContent: {
+    alignItems: 'center',
+    paddingBottom: 10,
+  },
+  centerIcon: {
+    marginBottom: 15,
+  },
+  instructionBox: {
+    width: '100%',
+    backgroundColor: 'inherit',
+    padding: 8,
+    marginBottom: 20,
+  },
+  insText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#2222',
+    marginBottom: 10,
+  },
+  startBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  startBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  boldText: {
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  //
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+  },
+  timer: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2222',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timerUrgent: {
+    color: PRIMARY_COLOR,
+  },
+  progress: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2222',
+    overflow: 'hidden',
   },
 });

@@ -85,7 +85,7 @@ const CreatePost = ({ route, navigation }: Props) => {
         type: item.type === 'video' ? 'video/mp4' : 'image/jpeg',
         name: item.type === 'video' ? 'upload.mp4' : 'upload.jpg',
       } as any);
-      formData.append('upload_preset', 'your_cloudinary_preset');
+      formData.append('upload_preset', 'presetOne');
 
       const response = await axios.post(
         'https://api.cloudinary.com/v1_1/dbdw3zftx/upload',
