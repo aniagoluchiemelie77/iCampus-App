@@ -20,7 +20,9 @@ import {
   User,
   CourseException,
   LecturerExceptionView,
+  Question,
   CreateLecturePayload,
+  CreateTestPayload,
 } from '../types/firebase';
 import Clipboard from '@react-native-clipboard/clipboard';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -53,6 +55,21 @@ interface LecturerManageProps {
     status: 'approved' | 'rejected',
   ) => Promise<void>;
 }
+interface TestFormState {
+  title: string;
+  duration: string;
+  dueDate: string;
+  totalMarks: string;
+  questions: Question[]; // Uses the strict Question interface we defined
+}
+interface LecturerTestManageProps {
+  course: Course;
+  searchQuery: string;
+  refreshing: boolean;
+  onRefresh: () => void;
+  tests: CreateTestPayload[];
+  onSaveTest: (data: CreateTestPayload) => void;
+}
 interface RenderScheduleProps {
   course: Course;
   onSave: (data: CreateLecturePayload) => Promise<void>;
@@ -74,7 +91,6 @@ interface AddExceptionProps {
   onSave: (data: Partial<CourseException>) => void;
   isSaving: boolean;
 }
-
 interface HeaderProps {
   onBack: () => void;
   title: PageType;
@@ -386,7 +402,7 @@ const AddExceptionModal = ({
   );
 };
 // 1. Static Header: Shows only the current page context
-const DetailHeader = ({
+export const DetailHeader = ({
   onBack,
   title,
   searchQuery,
@@ -429,7 +445,7 @@ const DetailHeader = ({
   </View>
 );
 // 2. Course Contents View
-const RenderContents = ({
+export const RenderContents = ({
   course,
   userRole,
   searchQuery,
@@ -725,7 +741,7 @@ const RenderContents = ({
   );
 };
 // 3. Materials View
-const RenderMaterials = ({
+export const RenderMaterials = ({
   course,
   lectures,
   userRole,
@@ -960,7 +976,7 @@ const RenderMaterials = ({
   );
 };
 // 4. Assignments View
-const RenderAssignments = ({
+export const RenderAssignments = ({
   course,
   userRole,
   searchQuery,
@@ -1126,7 +1142,7 @@ const RenderAssignments = ({
     />
   );
 };
-const RenderStudentExceptions = ({
+export const RenderStudentExceptions = ({
   exceptions,
   user,
   onAddPress,
@@ -1245,7 +1261,7 @@ const RenderStudentExceptions = ({
     />
   );
 };
-const RenderLecturerExceptionsManage = ({
+export const RenderLecturerExceptionsManage = ({
   exceptions,
   onUpdateStatus,
   searchQuery,
@@ -1666,6 +1682,472 @@ export const RenderScheduleLecture = ({
     </ScrollView>
   );
 };
+export const RenderLecturerTestManage = ({
+  course,
+  refreshing,
+  onRefresh,
+  onSaveTest,
+  tests,
+  searchQuery,
+}: LecturerTestManageProps) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [pickerMode, setPickerMode] = useState<
+    'date' | 'startTime' | 'endTime' | null
+  >(null);
+  const [loading, setLoading] = useState(false);
+  const initialFormState = {
+    title: '',
+    duration: '30',
+    dueDate: '',
+    totalMarks: '0',
+    questions: [
+      {
+        id: Date.now().toString(),
+        type: 'MCQ' as const, // Strict type for literal
+        questionText: '',
+        options: ['', '', '', ''],
+        correctAnswer: '',
+        points: 5,
+      },
+    ],
+  };
+  const [testForm, setTestForm] = useState<TestFormState>(initialFormState);
+  const filteredTests = tests.filter(t =>
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const addQuestion = () => {
+    setTestForm({
+      ...testForm,
+      questions: [
+        ...testForm.questions,
+        {
+          id: (Date.now() + Math.random()).toString(), // Ensure unique ID
+          type: 'MCQ' as const, // Fixed type casting
+          questionText: '',
+          options: ['', '', '', ''],
+          correctAnswer: '',
+          points: 5,
+        },
+      ],
+    });
+  };
+  const updateQuestion = (id: string, updates: Partial<Question>) => {
+    setTestForm(prev => ({
+      ...prev,
+      questions: prev.questions.map(q =>
+        q.id === id ? { ...q, ...updates } : q,
+      ),
+    }));
+  };
+  const updateOption = (qId: string, optIdx: number, val: string) => {
+    setTestForm(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === qId) {
+          const newOpts = [...(q.options ?? ['', '', '', ''])];
+          newOpts[optIdx] = val;
+          return { ...q, options: newOpts };
+        }
+        return q;
+      }),
+    }));
+  };
+  const handleFinalize = (isPublished: boolean) => {
+    if (!testForm.title || !testForm.dueDate) {
+      Toast.show({
+        type: 'error',
+        text1: 'Required Fields',
+        text2: 'Please provide a title and a due date.',
+      });
+      return;
+    }
+    setLoading(true);
+    const currentCourse = Array.isArray(course) ? course[0] : course;
+    const finalPayload: CreateTestPayload = {
+      courseId: currentCourse.courseId,
+      title: testForm.title,
+      duration: Number(testForm.duration),
+      totalMarks: Number(testForm.totalMarks),
+      questions: testForm.questions as Question[],
+      isPublished,
+      status: isPublished ? 'published' : 'draft',
+      createdAt: new Date().toISOString(),
+      dueDate: testForm.dueDate,
+    };
+    onSaveTest(finalPayload);
+    setLoading(false);
+    setIsModalVisible(false);
+    setTestForm(initialFormState);
+  };
+  const autoSaveDraft = useCallback(async () => {
+    try {
+      const payload: CreateTestPayload = {
+        ...testForm,
+        courseId: course.courseId,
+        status: 'draft',
+        isPublished: false,
+        createdAt: new Date().toISOString(),
+        duration: Number(testForm.duration),
+        totalMarks: Number(testForm.totalMarks),
+        questions: testForm.questions as Question[],
+      };
+      onSaveTest(payload);
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Sync Failed',
+        text2: 'Draft could not be auto-saved. Check your connection.',
+      });
+    }
+  }, [testForm, course.courseId, onSaveTest]);
+  const removeQuestion = (id: string) => {
+    setTestForm(prev => ({
+      ...prev,
+      questions: prev.questions.filter(q => q.id !== id),
+    }));
+  };
+  const addOption = (qId: string) => {
+    setTestForm(prev => ({
+      ...prev,
+      questions: prev.questions.map(q =>
+        q.id === qId ? { ...q, options: [...(q.options ?? []), ''] } : q,
+      ),
+    }));
+  };
+  const removeOption = (qId: string, optIdx: number) => {
+    setTestForm(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === qId) {
+          const newOpts = (q.options ?? []).filter(
+            (_, index) => index !== optIdx,
+          );
+          return { ...q, options: newOpts };
+        }
+        return q;
+      }),
+    }));
+  };
+  const handleConfirm = (event: any, selectedDate?: Date) => {
+    setPickerMode(null);
+    if (event.type === 'set' && selectedDate) {
+      if (pickerMode === 'date') {
+        const dateString = selectedDate.toISOString().split('T')[0];
+        setTestForm(prev => ({ ...prev, dueDate: dateString }));
+        setTimeout(() => setPickerMode('startTime'), 500);
+      } else if (pickerMode === 'startTime') {
+        const timeString = selectedDate.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+        setTestForm(prev => ({
+          ...prev,
+          dueDate: `${prev.dueDate} at ${timeString}`,
+        }));
+      }
+    }
+  };
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (testForm.title.trim().length > 0) {
+        autoSaveDraft();
+      }
+    }, 2000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [testForm, autoSaveDraft]);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.sectionTitle}>Past Assessments</Text>
+        <TouchableOpacity
+          style={styles.createCard}
+          onPress={() => setIsModalVisible(true)}
+        >
+          <Icon name="plus-circle" size={24} color="#fff" />
+          <Text style={styles.createCardText}>Create New Assessment</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={filteredTests}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        keyExtractor={(item, index) => item.id || item._id || index.toString()}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            No assessments found matching "{searchQuery}"
+          </Text>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.pastTestCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.testTitle}>{item.title}</Text>
+              <Text style={styles.testMeta}>
+                {item.questions.length} Questions •{' '}
+                <Text style={{ color: PRIMARY_COLOR_TINT }}>
+                  {item.isPublished ? 'Published' : 'Draft'}
+                </Text>
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => console.log('View Analytics')}>
+              <Icon name="chart-bar" size={26} color={PRIMARY_COLOR_TINT} />
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+      {/* CREATION MODAL */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setIsModalVisible(false)}
+              style={{ width: 40, justifyContent: 'center' }}
+            >
+              <Icon name="chevron-left" size={26} color={PRIMARY_COLOR_TINT} />
+            </TouchableOpacity>
+
+            <Text style={styles.headerTitle}>Build Assessment</Text>
+
+            <TouchableOpacity
+              onPress={() => handleFinalize(true)}
+              disabled={loading}
+              style={styles.publishHeaderBtn}
+            >
+              <Text style={styles.publishHeaderText}>Publish</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.modalBody}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Settings Card */}
+            <View style={styles.settingsCard}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder="Assessment Title (e.g. Test 1)"
+                placeholderTextColor="#999999e2"
+                value={testForm.title}
+                onChangeText={t => setTestForm({ ...testForm, title: t })}
+              />
+              <View style={styles.settingsRow}>
+                <View style={styles.settingItem}>
+                  <Text style={styles.microLabel2}>Minutes</Text>
+                  <TextInput
+                    style={styles.settingInput}
+                    keyboardType="numeric"
+                    value={testForm.duration}
+                    onChangeText={val =>
+                      setTestForm({ ...testForm, duration: val })
+                    }
+                  />
+                </View>
+                <View style={styles.settingItem}>
+                  <Text style={styles.microLabel2}>Total Marks</Text>
+                  <TextInput
+                    style={styles.settingInput}
+                    keyboardType="numeric"
+                    placeholder="Score"
+                    value={testForm.totalMarks}
+                    onChangeText={val =>
+                      setTestForm({ ...testForm, totalMarks: val })
+                    }
+                  />
+                </View>
+              </View>
+            </View>
+            {testForm.questions.map((q, idx) => (
+              <View key={q.id} style={styles.questionCard}>
+                <View style={styles.qHeader}>
+                  <Text style={styles.qNumber}>Question {idx + 1}</Text>
+                  <View style={styles.sideBySide}>
+                    <TextInput
+                      style={styles.pointsInput}
+                      keyboardType="numeric"
+                      value={q.points.toString()}
+                      onChangeText={p =>
+                        updateQuestion(q.id, { points: Number(p) })
+                      }
+                    />
+                    <Text style={styles.pointsLabel}>pts</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => removeQuestion(q.id)}>
+                    <Icon
+                      name="delete-outline"
+                      size={22}
+                      color={PRIMARY_COLOR_TINT}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  style={styles.qInput}
+                  placeholder="Type your question here..."
+                  multiline
+                  value={q.questionText}
+                  onChangeText={t => updateQuestion(q.id, { questionText: t })}
+                />
+                <View style={styles.typeGroup}>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeBtn,
+                      q.type === 'MCQ' && styles.activeTypeBtn,
+                    ]}
+                    onPress={() =>
+                      updateQuestion(q.id, {
+                        type: 'MCQ',
+                        options: ['', '', '', ''],
+                      })
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.typeText,
+                        q.type === 'MCQ' && styles.activeTypeText,
+                      ]}
+                    >
+                      Multiple Choice
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeBtn,
+                      q.type === 'ShortAnswer' && styles.activeTypeBtn,
+                    ]}
+                    onPress={() =>
+                      updateQuestion(q.id, {
+                        type: 'ShortAnswer',
+                        options: [],
+                      })
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.typeText,
+                        q.type === 'ShortAnswer' && styles.activeTypeText,
+                      ]}
+                    >
+                      Text
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {q.type === 'MCQ' ? (
+                  <>
+                    {(q.options ?? []).map((opt, oIdx) => (
+                      <View key={oIdx} style={styles.optionRow}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            updateQuestion(q.id, { correctAnswer: opt })
+                          }
+                          style={[
+                            styles.radio,
+                            q.correctAnswer === opt && styles.radioActive,
+                          ]}
+                        >
+                          {q.correctAnswer === opt && (
+                            <View style={styles.radioInner} />
+                          )}
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.optInput}
+                          placeholder={`Option ${oIdx + 1}`}
+                          value={opt}
+                          onChangeText={v => updateOption(q.id, oIdx, v)}
+                        />
+                        {(q.options?.length ?? 0) > 3 && ( // Keep at least 3 options
+                          <TouchableOpacity
+                            onPress={() => removeOption(q.id, oIdx)}
+                          >
+                            <Icon
+                              name="minus-circle-outline"
+                              size={22}
+                              color={PRIMARY_COLOR_TINT}
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      onPress={() => addOption(q.id)}
+                      style={styles.addOptionBtn}
+                    >
+                      <Text style={styles.addOptionText}> Add Options</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.shortAnswerPreview}>
+                      <Text style={styles.previewLabel}>
+                        Student Response Area
+                      </Text>
+                      <View style={styles.disabledInputPlaceholder}>
+                        <Text style={styles.placeholderText}>
+                          Students will type their answer here...
+                        </Text>
+                      </View>
+                      <TextInput
+                        style={styles.correctAnswerInput}
+                        placeholder="Set correct answer/keywords (optional for auto-grade)"
+                        value={q.correctAnswer}
+                        onChangeText={t =>
+                          updateQuestion(q.id, { correctAnswer: t })
+                        }
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
+            ))}
+            <View style={styles.settingItem}>
+              <Text style={styles.labelTitle}>Deadline</Text>
+              <TouchableOpacity
+                style={styles.datePickerTrigger}
+                onPress={() => setPickerMode('date')}
+              >
+                <Text
+                  style={[
+                    styles.dateText,
+                    !testForm.dueDate && { color: PRIMARY_COLOR_TINT }, // Dim color if empty
+                  ]}
+                >
+                  {testForm.dueDate || 'Set deadline...'}
+                </Text>
+                <Icon
+                  name="calendar-clock"
+                  size={22}
+                  color={PRIMARY_COLOR_TINT}
+                />
+              </TouchableOpacity>
+            </View>
+            {pickerMode && (
+              <DateTimePicker
+                value={new Date()}
+                mode={pickerMode === 'date' ? 'date' : 'time'}
+                is24Hour={true}
+                display="default"
+                onChange={handleConfirm}
+              />
+            )}
+
+            <TouchableOpacity style={styles.addBtn} onPress={addQuestion}>
+              <Icon name="plus" size={22} color={PRIMARY_COLOR_TINT} />
+              <Text style={styles.addBtnText3}>Add Question</Text>
+            </TouchableOpacity>
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </View>
+  );
+};
 export const CourseSubPage = ({ route, navigation }: any) => {
   const user = useAppSelector(state => state.user);
   const {
@@ -1686,39 +2168,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const [scheduledLecture, setScheduledLecture] = useState<Lecture | null>(
     null,
   );
-
-  // --- LECTURER: Handle Approval/Rejection ---
-  const handleUpdateStatus = async (
-    id: string,
-    status: 'approved' | 'rejected',
-  ) => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status }),
-        },
-      );
-
-      if (response.ok) {
-        setLocalExceptions(prev =>
-          prev.map(ex => (ex.id === id ? { ...ex, status } : ex)),
-        );
-        Toast.show({ type: 'success', text1: `Exception ${status}` });
-      }
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'Failed to update status' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [tests, setTests] = useState<CreateTestPayload[]>([]);
 
   // --- STUDENT: Submit New Exception ---
   const handleSaveException = async (
@@ -1768,6 +2218,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       setLoading(false);
     }
   };
+  // --- All (Student & Lecturer)
   const fetchExceptions = useCallback(async () => {
     setLoading(true);
     try {
@@ -1805,62 +2256,199 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     }
   }, [course.courseId]);
   // --- LECTURER: Handle Creating a New Lecture ---
-  const handleCreateLecture = async (
-  lectureData: CreateLecturePayload, // One argument, matches the prop
-) => {
-  setLoading(true);
-  try {
-    const token = await AsyncStorage.getItem('accessToken');
-    
-    // Clean up payload: if it's physical, remove videoUrl, etc.
-    const finalPayload = {
-      ...lectureData,
-      courseId: course.courseId,
-      repeatWeeks: weeks,
-      // Ensure specific fields aren't undefined
-      location: lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
-      videoUrl: lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
-    };
-
-    const response = await fetch(
-      `${baseUrl}users/lecturers/class/courses/${course.courseId}/lectures/createSchedule`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+  const handleUpdateStatus = async (
+    id: string,
+    status: 'approved' | 'rejected',
+  ) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status }),
         },
-        body: JSON.stringify(finalPayload),
-      },
-    );
+      );
 
-    const result = await response.json();
+      if (response.ok) {
+        setLocalExceptions(prev =>
+          prev.map(ex => (ex.id === id ? { ...ex, status } : ex)),
+        );
+        Toast.show({ type: 'success', text1: `Exception ${status}` });
+      }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Failed to update status' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateLecture = async (
+    lectureData: CreateLecturePayload, // One argument, matches the prop
+  ) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
 
-    if (response.ok) {
-      setScheduledLecture(result.lecture);
-      setShowSuccessModal(true);
-    } else {
+      // Clean up payload: if it's physical, remove videoUrl, etc.
+      const finalPayload = {
+        ...lectureData,
+        courseId: course.courseId,
+        location:
+          lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
+        videoUrl:
+          lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
+      };
+
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${course.courseId}/lectures/createSchedule`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(finalPayload),
+        },
+      );
+      const result = await response.json();
+      if (response.ok) {
+        setScheduledLecture(result.lecture);
+        setShowSuccessModal(true);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Scheduling Failed',
+          text2: result.message || 'Check your inputs',
+        });
+      }
+    } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Scheduling Failed',
-        text2: result.message || 'Check your inputs',
+        text1: 'Network Error',
+        text2: error.message,
       });
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: error.message,
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+  const handleCreateTest = async (
+    testData: CreateTestPayload,
+    isSilent: boolean = false,
+  ) => {
+    // Only show the global loading spinner if it's NOT a silent auto-save
+    if (!isSilent) setLoading(true);
+
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+
+      // Clean the payload: Ensure numbers are numbers before sending to MongoDB
+      const finalPayload = {
+        ...testData,
+        courseId: course.courseId,
+        duration: Number(testData.duration),
+        totalMarks: Number(testData.totalMarks),
+        questions: testData.questions.map(q => ({
+          ...q,
+          points: Number(q.points),
+        })),
+      };
+
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(finalPayload),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Only show success toast for manual clicks (Publish/Save Draft)
+        if (!isSilent) {
+          Toast.show({
+            type: 'success',
+            text1: testData.isPublished
+              ? 'Assessment Published!'
+              : 'Draft Saved',
+            text2: `Successfully stored "${testData.title}"`,
+          });
+          setModalVisible(false); // Close modal on manual success
+        }
+        fetchTests();
+      } else {
+        // Always show error toast, even if silent
+        Toast.show({
+          type: 'error',
+          text1: 'Save Failed',
+          text2: result.message || 'Check your connection',
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: error.message,
+      });
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
+  const fetchTests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const result = await response.json();
+      if (response.ok) {
+        const sortedTests = result.data.sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        setTests(sortedTests);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: result.message,
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Sync Error',
+        text2: 'Could not refresh assessments.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [course.courseId]); // Dependency: Only recreate if courseId changes
   useEffect(() => {
     if (title === 'Exceptions') {
       fetchExceptions();
     }
-  }, [title, fetchExceptions]);
+    if (title === 'Assessments') {
+      fetchTests(); // <--- Fetch tests when the Assessment page is active
+    }
+  }, [title, fetchExceptions, fetchTests]);
 
   const goBack = () => navigation.goBack();
   return (
@@ -1922,6 +2510,19 @@ export const CourseSubPage = ({ route, navigation }: any) => {
             isLoading={loading}
           />
         )}
+        {title === 'Assessments' &&
+          (userRole === 'lecturer' ? (
+            <RenderLecturerTestManage
+              course={course}
+              refreshing={loading}
+              tests={tests}
+              onRefresh={fetchTests}
+              onSaveTest={handleCreateTest}
+              searchQuery={searchQuery}
+            />
+          ) : (
+            <></>
+          ))}
       </View>
 
       <AddExceptionModal
@@ -2108,6 +2709,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  addBtnText3: {
+    marginLeft: 10,
+    color: PRIMARY_COLOR_TINT,
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
   addBtnText2: {
     color: PRIMARY_COLOR_TINT,
     fontWeight: '700',
@@ -2490,6 +3097,7 @@ const styles = StyleSheet.create({
   },
   headerWrapper: {
     marginBottom: 20,
+    backgroundColor: '#f4f1f1',
   },
   tierInfoCard: {
     backgroundColor: PRIMARY_COLOR, // Dark slate
@@ -2521,7 +3129,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   addBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: 'inherit',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2686,6 +3294,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     fontWeight: '700',
     marginTop: 7,
+  },
+  labelTitle: {
+    fontSize: 15,
+    color: '#2222',
+    textTransform: 'capitalize',
+    letterSpacing: 0.5,
+    fontWeight: '700',
   },
   dateTimeText: {
     fontSize: 12,
@@ -2896,5 +3511,287 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  container: { flex: 1, padding: 15, backgroundColor: '#fff' },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#2222' },
+  draftText: { color: '#2D5A5A', fontWeight: 'bold' },
+  titleInput: {
+    fontSize: 22,
+    fontWeight: '800',
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    paddingBottom: 10,
+    marginBottom: 20,
+  },
+  questionCard: {
+    backgroundColor: 'inherit',
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  qNumber: {
+    fontSize: 12,
+    color: '#2222',
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  qInput: { fontSize: 16, color: '#2222', marginBottom: 15 },
+  optionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  radio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR_TINT,
+    marginRight: 10,
+  },
+  radioActive: { backgroundColor: PRIMARY_COLOR_TINT },
+  optInput: {
+    flex: 1,
+    borderBottomWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    padding: 5,
+  },
+  publishBtn: {
+    backgroundColor: '#2D5A5A',
+    padding: 18,
+    borderRadius: 15,
+    marginTop: 25,
+    alignItems: 'center',
+  },
+  publishBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  sectionTitle: {
+    fontSize: 19,
+    color: '#2222',
+    marginLeft: 5,
+    fontWeight: '700',
+  },
+  createCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 15,
+    marginBottom: 20,
+    marginRight: 5,
+  },
+  createCardText: {
+    marginLeft: 15,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  pastTestCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
+  testTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2222',
+    marginBottom: 10,
+  },
+  testMeta: { fontSize: 12, color: '#2222' },
+  settingsRow: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 20,
+    backgroundColor: 'inherit',
+    padding: 15,
+    borderRadius: 12,
+  },
+  settingItem: {
+    flex: 1,
+  },
+  microLabel2: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#2222',
+    textTransform: 'capitalize',
+    marginBottom: 5,
+  },
+  settingInput: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2222',
+    borderBottomWidth: 1,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  publishHeaderBtn: {
+    backgroundColor: PRIMARY_COLOR, // Your iCampus primary green
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  publishHeaderText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Style for the "disabled" state if the form is incomplete or loading
+  disabledBtn: {
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
+  disabledBtnText: {
+    color: '#999',
+  },
+  modalBody: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  settingsCard: {
+    backgroundColor: 'inherit',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  qHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  pointsInput: {
+    backgroundColor: 'inherit',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    width: 40,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginLeft: 'auto',
+    borderColor: PRIMARY_COLOR_TINT,
+    borderWidth: 0.7,
+  },
+  pointsLabel: {
+    fontSize: 12,
+    color: '#2222',
+    marginLeft: 4,
+    fontWeight: '600',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: PRIMARY_COLOR_TINT, // Matches your iCampus theme
+  },
+  sideBySide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addOptionBtn: {
+    marginTop: 10,
+    padding: 8,
+    alignItems: 'flex-start',
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
+  addOptionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  shortAnswerPreview: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: 'inherit',
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  previewLabel: {
+    fontSize: 11,
+    color: '#2222',
+    textTransform: 'capitalize',
+    marginBottom: 8,
+    fontWeight: '700',
+  },
+  disabledInputPlaceholder: {
+    height: 40,
+    backgroundColor: '#efeded',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  placeholderText: {
+    color: '#2222',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  correctAnswerInput: {
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+    paddingVertical: 5,
+    fontSize: 14,
+    color: '#2222',
+  },
+  typeGroup: {
+    flexDirection: 'row',
+    backgroundColor: 'inherit',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  typeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  activeTypeBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  typeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: PRIMARY_COLOR_TINT,
+  },
+  activeTypeText: {
+    color: '#fff', // Highlight the text of the active one
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'inherit',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
   },
 });

@@ -593,6 +593,7 @@ export interface Course {
   resources?: string[];
   assignments?: Assignment[];
   level?: string;
+  tests?: CreateTestPayload[];
   schoolName?: string;
   lecturerIds?: string[]; 
   studentsEnrolled: string[];
@@ -668,3 +669,36 @@ export type CreateLecturePayload = Omit<
 > & {
   repeatWeeks: number; // Add the field required for bulk creation
 };
+export interface Question {
+  id: string;
+  type: 'MCQ' | 'ShortAnswer' | 'TrueFalse';
+  questionText: string;
+  options?: string[];
+  correctAnswer: string; // Used for auto-grading
+  points: number;
+}
+export interface CreateTestPayload {
+  id?: string;
+  _id?: string;
+  courseId: Course['courseId'];
+  description?: string;
+  title: string;
+  duration: number; // in minutes
+  totalMarks: number; // explicitly set by lecturer
+  questions: Question[];
+  isPublished: boolean;
+  status: 'published' | 'draft';
+  createdAt: string;
+  dueDate: string;
+}
+
+export interface TestSubmission {
+  testId: string;
+  studentId: string; 
+  studentName: string;
+  matricNumber: string; 
+  answers: { questionId: string; studentAnswer: string }[];
+  score: number;
+  status: 'submitted' | 'graded';
+  submittedAt: string;
+}
