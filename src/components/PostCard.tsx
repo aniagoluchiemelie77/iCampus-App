@@ -8,6 +8,7 @@ import {
   Dimensions,
   Share,
   FlatList,
+  Linking,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -17,10 +18,16 @@ import { Posts } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { PRIMARY_COLOR } from './Classroomcomponent';
 const { width } = Dimensions.get('window');
 interface PostCardProps {
   post: Posts; // Using your existing Posts type
   isVisible: boolean; // Add this line
+}
+interface LinkedTextProps {
+  content: string;
+  onTagPress?: (tag: string) => void;
+  onMentionPress?: (mention: string) => void;
 }
 export const formatStatCount = (count: number): string => {
   if (count >= 1000000) {
@@ -177,7 +184,67 @@ const PollView = ({
     </View>
   );
 };
+const LinkedText = ({
+  content,
+  onTagPress,
+  onMentionPress,
+}: LinkedTextProps) => {
+  if (!content) return null;
 
+  const regex = /((?:https?:\/\/|www\.)[^\s]+|#\w+|@\w+)/g;
+  const parts = content.split(regex);
+
+  const handleLinkPress = async (url: string) => {
+    const fullUrl = url.startsWith('www') ? `https://${url}` : url;
+    const supported = await Linking.canOpenURL(fullUrl);
+    if (supported) await Linking.openURL(fullUrl);
+  };
+
+  return (
+    <Text style={styles.baseText}>
+      {parts.map((part, index) => {
+        // Handle Links
+        if (part.match(/^https?:\/\/|www\./)) {
+          return (
+            <Text
+              key={index}
+              style={styles.link}
+              onPress={() => handleLinkPress(part)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        // Handle Hashtags
+        if (part.startsWith('#')) {
+          return (
+            <Text
+              key={index}
+              style={styles.hashtag}
+              onPress={() => onTagPress?.(part)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        // Handle Mentions
+        if (part.startsWith('@')) {
+          return (
+            <Text
+              key={index}
+              style={styles.mention}
+              onPress={() => onMentionPress?.(part)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        // Normal Text
+        return part;
+      })}
+    </Text>
+  );
+};
 export const PostCard = ({ post, isVisible }: PostCardProps) => {
   const user = post.userId;
   const [isExpanded, setIsExpanded] = useState(false);
@@ -247,11 +314,22 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
 
       {/* Post Content */}
       <View style={styles.contentContainer}>
-        <Text style={styles.content}>
-          {displayText}
-          {shouldShowSeeMore && !isExpanded && '...'}
-        </Text>
-
+        <LinkedText
+          content={displayText ?? ''}
+          onTagPress={(tag: string) => {
+            const cleanTag = tag.replace('#', '');
+            console.log(cleanTag);
+            //navigation.navigate('SearchScreen', { query: cleanTag });
+          }}
+          onMentionPress={(mention: string) => {
+            const username = mention.replace('@', '');
+            console.log(username);
+            //navigation.navigate('ProfileScreen', { username: username });
+          }}
+        />
+        {shouldShowSeeMore && !isExpanded && (
+          <Text style={styles.content}>...</Text>
+        )}
         {shouldShowSeeMore && (
           <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
             <Text style={styles.seeMoreText}>
@@ -507,5 +585,23 @@ const styles = StyleSheet.create({
   },
   boldText: {
     fontWeight: 'bold',
+  },
+  baseText: {
+    fontSize: 14,
+    color: '#2222',
+    lineHeight: 20,
+  },
+  link: {
+    color: PRIMARY_COLOR, // LinkedIn Blue
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  hashtag: {
+    color: PRIMARY_COLOR,
+    fontWeight: '600',
+  },
+  mention: {
+    color: PRIMARY_COLOR,
+    fontWeight: '700',
   },
 });
