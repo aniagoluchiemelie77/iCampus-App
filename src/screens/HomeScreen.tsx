@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, ReactNode } from 'react';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '@components/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { io, Socket } from 'socket.io-client';
 import {
   ClassroomScreen,
   StoreScreen,
@@ -17,9 +18,57 @@ import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import { playNotificationSound } from '../services/notificationSound';
+import messaging from '@react-native-firebase/messaging';
+import { baseUrl } from '../components/HomeScreenComponents';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+export interface SocketContextType {
+  socket: Socket | null;
+  isConnected: boolean;
+}
+interface SocketProviderProps {
+  children: ReactNode;
+  userUid: string;
+}
 
+// 2. Provide the default value (null as a fallback)
+export const SocketContext = createContext<SocketContextType | null>(null);
+export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    // Replace with your actual backend URL
+    const newSocket = io(`${baseUrl}`, {
+      transports: ['websocket'],
+      query: { userId: userUid },
+    });
+
+    newSocket.on('connect', () => {
+      setIsConnected(true);
+      newSocket.emit('join_room', userUid);
+      console.log('Socket connected for user:', userUid);
+    });
+
+    newSocket.on('disconnect', () => {
+      setIsConnected(false);
+    });
+
+    setSocket(newSocket);
+
+    // Cleanup on unmount
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [userUid]);
+
+  return (
+    <SocketContext.Provider value={{ socket, isConnected }}>
+      {children}
+    </SocketContext.Provider>
+  );
+};
 const HomeScreen = () => {
   const user = useAppSelector(state => state.user);
   const userType = user?.usertype;
@@ -48,6 +97,14 @@ const HomeScreen = () => {
       }
     }
   }, [dispatch, navigation, user?.tokenCreatedAt]);
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      playNotificationSound();
+      console.log('A new FCM message arrived!', remoteMessage);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <AppDataProvider user={user}>

@@ -77,25 +77,22 @@ export interface Community {
   tags?: string[]; // e.g., ['tech', 'sports', 'arts']
 }
 export interface Notification {
-  id: string;
-  notificationId: string;
-  userId?: User.uid; // recipient UID
+  id: string; // MongoDB _id
+  notificationId: string; // Your custom logic ID (e.g., LECTURE_123)
+  userId?: string; 
   title?: string;
   message: string;
   isRead: boolean;
   createdAt: string;
-  relatedCommunityId?: Community.communityId; // if related to a community
-  relatedEventId?: CalendarEvent.id; // if related to an event
-  relatedPollId?: Poll.pollId; // if related to a poll
-  relatedClassSessionId?: ClassSession.classSessionId; // if related to a class session
+  relatedClassSessionId?: string;
   isPublic?: boolean;
-  relatedSchoolName: User.schoolName;
-  department?: string; // optional
-  level?: string; // optional
-  type?: string;
-  status?: string;
+  relatedSchoolName: string;
+  department?: string;
+  level?: string;
+  type?: string; // e.g., 'classroom', 'finance'
+  status?: string; // e.g., 'pending', 'approved'
   transactionIdMid?: string;
-  fileUrls?: string[] 
+  fileUrls?: string[];
 }
 export interface UserSettings {
   userId: User.uid;
@@ -378,8 +375,6 @@ export interface PurchaseHistory {
   }[];
   date: string; // ISO timestamp
 }
-
-
 export interface TransferPointsRequest {
   id: string;
   transferRequestId: string;

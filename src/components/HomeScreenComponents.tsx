@@ -54,17 +54,17 @@ import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 export const baseUrl = 'http://192.168.1.98:5000/';
-import { io } from 'socket.io-client';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { BlurView } from '@react-native-community/blur';
-
+import { useSocket } from './socketContext.ts';
+interface Props {
+  navigation: StackNavigationProp<any>; // Replace 'any' with your ParamList if you have one
+  initialCount?: number;
+}
 const hapticOptions = {
   enableVibrateFallback: true,
   ignoreAndroidSystemSettings: false,
 };
-
-// Replace with your actual backend URL
-const socket = io(baseUrl);
 
 export const uploadImageToCloudinary = async (
   imageUri: string,
@@ -852,9 +852,57 @@ const ExpandableFAB = ({ visible, onClose, navigation }: any) => {
     </Modal>
   );
 };
+export const NotificationBell: React.FC<Props> = ({
+  navigation,
+  initialCount = 0,
+}) => {
+  const [unreadCount, setUnreadCount] = useState(initialCount);
+  const socketContext = useSocket();
+  const socket = socketContext?.socket;
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleNotification = (_data: any) => {
+      setUnreadCount(prev => prev + 1);
+    };
+    // Listen for new notifications to bump the count
+    socket.on('new_notification', handleNotification);
+
+    return () => {
+      socket.off('new_notification', handleNotification);
+    };
+  }, [socket]);
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        setUnreadCount(0); // Clear badge locally when entering
+        navigation.navigate('Notifications');
+      }}
+      style={[
+        homeStyles.iconItem,
+        HomeScreenComponentStyles.activityIcons,
+        HomeScreenComponentStyles.activityIcons2,
+        HomeScreenComponentStyles.notificationContainer,
+      ]}
+    >
+      <MaterialIcons name="notifications-none" size={23} color="#222" />
+
+      {unreadCount > 0 && (
+        <View style={HomeScreenComponentStyles.badge}>
+          <Text style={HomeScreenComponentStyles.badgeText}>
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
 export function Home() {
   const { posts, setPosts, incrementImpression, currentUser } =
     useAppDataContext();
+  const socketContext = useSocket();
+  const socket = socketContext?.socket;
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -902,7 +950,7 @@ export function Home() {
     loadPosts(true); // Initial load
   }, [loadPosts]);
   useEffect(() => {
-    socket.on('new_post', (newPost: Posts) => {
+    socket?.on('new_post', (newPost: Posts) => {
       setPosts(prevPosts => {
         if (prevPosts.find(p => p.postId === newPost.postId)) return prevPosts;
         return [newPost, ...prevPosts];
@@ -910,7 +958,7 @@ export function Home() {
     });
 
     // B. Listen for STAT updates (Likes, Reposts, Bookmarks, Impressions)
-    socket.on('post_stats_updated', (data: { postId: string; stats: any }) => {
+    socket?.on('post_stats_updated', (data: { postId: string; stats: any }) => {
       setPosts(prevPosts =>
         prevPosts.map(post => {
           if (post.postId === data.postId) {
@@ -939,10 +987,10 @@ export function Home() {
 
     // C. CLEANUP: Very important to prevent memory leaks and duplicate listeners
     return () => {
-      socket.off('new_post');
-      socket.off('post_stats_updated');
+      socket?.off('new_post');
+      socket?.off('post_stats_updated');
     };
-  }, [setPosts, currentUser.uid]);
+  }, [setPosts, currentUser.uid, socket]);
 
   const onViewableItemsChanged = useRef(
     ({
@@ -983,16 +1031,7 @@ export function Home() {
           />
         </TouchableOpacity>
         <Logo />
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Notifications')}
-          style={[
-            homeStyles.iconItem,
-            HomeScreenComponentStyles.activityIcons,
-            HomeScreenComponentStyles.activityIcons2,
-          ]}
-        >
-          <MaterialIcons name="notifications-none" size={23} color="#000" />
-        </TouchableOpacity>
+        <NotificationBell navigation={navigation} initialCount={0} />
       </View>
 
       <FlatList
