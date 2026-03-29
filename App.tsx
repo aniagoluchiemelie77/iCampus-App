@@ -3,7 +3,13 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; // ✅ Correct
 import { Provider } from 'react-redux';
-import type { Posts, Product, User } from './src/types/firebase';
+import type {
+  Posts,
+  Product,
+  User,
+  CourseException,
+  Lecture,
+} from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
   prefixes: ['icampus://'],
@@ -42,6 +48,7 @@ import TransferPointsScreen from './src/screens/TransferPoints';
 import ReceivePointsScreen from './src/screens/ReceivePoints';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
+import { CourseSubPage } from 'screens/CourseSubPage';
 
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
@@ -53,8 +60,26 @@ export type RootStackParamList = {
   TransferPointsScreen: undefined;
   Notifications: undefined;
   Welcome: { route: string };
+  CourseSubPage: {
+    title:
+      | 'Course Contents'
+      | 'Course Materials'
+      | 'Assignments'
+      | 'Exceptions'
+      | 'Set Lecture Schedule'
+      | 'Assessments';
+    course: {
+      courseId: string;
+      courseCode: string;
+      courseTitle: string;
+      // Add other course properties here
+    };
+    userRole: 'student' | 'lecturer';
+    lectures?: Lecture[]; // Optional because not all inlets provide this
+    exceptions?: CourseException[];
+  };
   SignupPage: { role: string };
-  PostDetailScreen: { post: Posts };
+  PostDetailScreen: { post: Posts }; //PostDetail: { postId: string };
   Home: undefined;
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
@@ -62,10 +87,11 @@ export type RootStackParamList = {
   };
   NotificationDetails: {
     notificationId?: string;
+    notification?: any;
   };
   Settings: undefined;
   Calender: undefined;
-  Profile: undefined;
+  Profile: undefined; //Profile: { userId: string };
   VerifyEmail: {
     verified?: string;
     email?: string;
@@ -73,7 +99,7 @@ export type RootStackParamList = {
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
-  PointsPage: undefined;
+  PointsPage: undefined; //TransactionPage: { transactionId: string };
   Login: undefined;
 };
 
@@ -234,6 +260,14 @@ const App = () => {
               name="NotificationDetails"
               component={NotificationDetails}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CourseSubPage"
+              component={CourseSubPage}
+              options={({ route }) => ({
+                title: route.params.title,
+                headerShown: false,
+              })}
             />
             <Stack.Screen
               name="ForgotPasswordScreen"

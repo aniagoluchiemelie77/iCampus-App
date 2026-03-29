@@ -5,43 +5,50 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
 import { useSocket } from '../components/SocketContext';
-import type { Notification } from '../types/firebase'; // Your new interface
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { baseUrl } from '../components/HomeScreenComponents';
+import { PRIMARY_COLOR } from '../components/Classroomcomponent';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
 
 dayjs.extend(relativeTime);
-
-const { width: screenWidth } = Dimensions.get('window');
 
 const Notifications = () => {
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
   const { socket } = useSocket();
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'unread', 'finance'
-  const [counts, setCounts] = useState({ unread: 0, finance: 0 });
   const [loading, setLoading] = useState(false);
 
-  // 1. Fetch Notifications from Backend
+  // 1. Fetch Notifications with Filters
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const categoryParam = activeTab === 'finance' ? '&category=finance' : '';
-      const unreadParam = activeTab === 'unread' ? '&unread=true' : '';
+      // Start with the base URL and userId
+      let url = `${baseUrl}users/notifications?userId=${user.uid}`;
 
-      const response = await fetch(
-        `${baseUrl}users/notifications?userId=${user.uid}${categoryParam}${unreadParam}`,
-      );
+      // Update query params to match the backend's expected keys
+      if (activeTab === 'finance') {
+        url += '&category=finance';
+      }
+
+      if (activeTab === 'unread') {
+        url += '&unread=true'; // Changed from 'isRead=false' to 'unread=true'
+      }
+
+      const response = await fetch(url);
       const data = await response.json();
+
       setNotifications(data.notifications || []);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -49,21 +56,44 @@ const Notifications = () => {
       setLoading(false);
     }
   }, [user.uid, activeTab]);
+  // Notifications.tsx
 
-  // 2. Initial Load & Tab Switching
+  const markAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      const response = await fetch(
+        `${baseUrl}users/notifications/mark-all-read/${user.uid}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+
+      if (response.ok) {
+        Toast.show({
+          type: 'success',
+          text1: 'Notifications all marked as read',
+        });
+      } else {
+        fetchNotifications();
+      }
+    } catch (err) {
+      console.error('Mark all read error:', err);
+      fetchNotifications();
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // 3. Real-time Socket Listener
+  // 2. Real-time Socket Listener
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('new_notification', (newNotif: Notification) => {
-      // Add to list if it matches active tab criteria
+    // Listen for the event emitted by your backend createNotification function
+    socket.on('new_notification', (newNotif: any) => {
       setNotifications(prev => [newNotif, ...prev]);
-      // Update local counts
-      setCounts(prev => ({ ...prev, unread: prev.unread + 1 }));
     });
 
     return () => {
@@ -71,29 +101,120 @@ const Notifications = () => {
     };
   }, [socket]);
 
-  const handleMarkAsRead = async (id: string) => {
-    try {
-      await fetch(`${baseUrl}users/notifications/${id}/read`, {
-        method: 'PATCH',
-      });
+  // 3. Navigation "Inlet" Logic
+  const handleNotificationPress = async (item: any) => {
+    if (!item.isRead) {
+      markAsReadOnServer(item.notificationId); // Assuming MongoDB notificationId
       setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, isRead: true } : n)),
+        prev.map(n =>
+          n.notificationId === item.notificationId ? { ...n, isRead: true } : n,
+        ),
       );
-    } catch (err) {
-      console.error('Mark read error:', err);
+    }
+
+    const { actionType, payload, relatedEntity } = item;
+
+    switch (actionType) {
+      case 'TEST_CREATED':
+      case 'TEST_SUBMITTED':
+      case 'TEST_ANALYSIS_READY':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assessments',
+          course: payload.course,
+          userRole: user.usertype,
+          initialTestId: payload.testId, // Pass specific ID to auto-open
+          autoCheckSubmission: true, // Tell the page to check if already submitted
+        });
+        break;
+      case 'LECTURE_SCHEDULED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Set Lecture Schedule',
+          course: payload.course,
+          userRole: user.usertype,
+        });
+        break;
+      case 'MATERIAL_UPLOADED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Course Materials',
+          course: payload.course,
+          userRole: user.usertype,
+        });
+        break;
+      case 'ASSIGNMENT_CREATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assignments',
+          course: payload.course,
+          userRole: user.usertype,
+        });
+        break;
+      case 'CONTENT_UPDATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Course Contents',
+          course: payload.course,
+          userRole: user.usertype,
+        });
+        break;
+
+      // INLET: Social/Profile
+      case 'NEW_FOLLOWER':
+        navigation.navigate('Profile', { userId: payload.followerId });
+        break;
+
+      // INLET: Posts
+      case 'POST_MENTIONS':
+        navigation.navigate('PostDetail', { postId: relatedEntity?.entityId });
+        break;
+
+      // INLET: Finance
+      case 'TRANSACTIONS':
+      case 'PURCHASE_DEBIT':
+        navigation.navigate('TransactionPage', {
+          transactionId: relatedEntity?.entityId,
+          showItemsList: true,
+          //viewMode: user.usertype === 'seller' ? 'sales_record' : 'receipt',
+        });
+        break;
+
+      // DEFAULT: Notification Detail Page
+      default:
+        navigation.navigate('NotificationDetails', { notification: item });
+        break;
     }
   };
 
-  const renderNotificationItem = ({ item }: { item: Notification }) => {
-    // Determine Icon based on type
+  const markAsReadOnServer = async (id: string) => {
+    try {
+      await fetch(`${baseUrl}users/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (err) {
+      console.error('Read error:', err);
+    }
+  };
+
+  const renderNotificationItem = ({ item }: { item: any }) => {
     const getIcon = () => {
-      switch (item.type) {
+      // Use PRIMARY_COLOR for everything to keep UI consistent
+      const iconColor = PRIMARY_COLOR;
+
+      switch (item.category) {
         case 'finance':
-          return { name: 'account-balance-wallet', color: '#2ecc71' };
+          return { name: 'account-balance-wallet', color: iconColor };
         case 'security':
-          return { name: 'security', color: '#e74c3c' };
+          return { name: 'security', color: iconColor };
+        case 'academic':
+        case 'course':
+          return { name: 'school', color: iconColor };
+        case 'social':
+          return { name: 'people', color: iconColor };
+        case 'announcement':
+          return { name: 'campaign', color: iconColor };
         default:
-          return { name: 'school', color: '#3498db' };
+          // Fallback for any other categories
+          return { name: 'notifications', color: iconColor };
       }
     };
 
@@ -101,16 +222,13 @@ const Notifications = () => {
 
     return (
       <TouchableOpacity
-        onPress={() => {
-          handleMarkAsRead(item.id);
-          navigation.navigate('NotificationDetails', { notification: item });
-        }}
+        onPress={() => handleNotificationPress(item)}
         style={[styles.card, !item.isRead && styles.unreadCard]}
       >
         <View style={styles.iconContainer}>
           <MaterialIcons
             name={iconConfig.name}
-            size={24}
+            size={22}
             color={iconConfig.color}
           />
           {!item.isRead && <View style={styles.unreadDot} />}
@@ -118,8 +236,8 @@ const Notifications = () => {
 
         <View style={styles.content}>
           <View style={styles.row}>
-            <Text style={styles.title} numberOfLines={1}>
-              {item.title || 'Notification'}
+            <Text style={styles.title} numberOfLines={2}>
+              {item.title}
             </Text>
             <Text style={styles.time}>{dayjs(item.createdAt).fromNow()}</Text>
           </View>
@@ -133,15 +251,20 @@ const Notifications = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={25} color="#f54b02" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Icon name="chevon-left" size={25} color={PRIMARY_COLOR} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+        </View>
+
+        {/* Mark All Button */}
+        <TouchableOpacity onPress={markAllAsRead} style={styles.markAllBtn}>
+          <Text style={styles.markAllText}>Mark all as read</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabBar}>
         {['all', 'unread', 'finance'].map(tab => (
           <TouchableOpacity
@@ -161,17 +284,26 @@ const Notifications = () => {
         ))}
       </View>
 
-      <FlatList
-        data={notifications}
-        keyExtractor={item => item.id}
-        renderItem={renderNotificationItem}
-        refreshing={loading}
-        onRefresh={fetchNotifications}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No notifications yet.</Text>
-        }
-        contentContainerStyle={styles.listContent}
-      />
+      {loading && notifications.length === 0 ? (
+        <ActivityIndicator
+          size="large"
+          color={PRIMARY_COLOR}
+          style={{ marginTop: 50 }}
+        />
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={item => item.notificationId || item.id}
+          renderItem={renderNotificationItem}
+          refreshing={loading}
+          onRefresh={fetchNotifications}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No notifications yet.</Text>
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+      <Toast config={toastConfig} />
     </View>
   );
 };
@@ -190,7 +322,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 16,
-    color: '#222',
+    color: '#2222',
   },
   tabBar: {
     flexDirection: 'row',
@@ -203,9 +335,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  activeTab: { borderBottomColor: '#f54b02' },
+  activeTab: { borderBottomColor: PRIMARY_COLOR },
   tabText: { fontSize: 13, color: '#888', fontWeight: '600' },
-  activeTabText: { color: '#f54b02' },
+  activeTabText: { color: PRIMARY_COLOR },
   listContent: { padding: 12 },
   card: {
     flexDirection: 'row',
@@ -214,14 +346,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
     elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
   },
   unreadCard: {
     backgroundColor: '#fff5f2',
     borderLeftWidth: 4,
-    borderLeftColor: '#f54b02',
+    borderLeftColor: PRIMARY_COLOR,
   },
   iconContainer: { marginRight: 15, justifyContent: 'center' },
   unreadDot: {
@@ -231,7 +360,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
   },
   content: { flex: 1 },
   row: {
@@ -239,10 +368,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  title: { fontWeight: 'bold', fontSize: 15, color: '#333', flex: 1 },
+  title: { fontWeight: 'bold', fontSize: 15, color: '#2222', flex: 1 },
   time: { fontSize: 11, color: '#999' },
   message: { fontSize: 13, color: '#666', lineHeight: 18 },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
+  markAllBtn: {
+    borderColor: PRIMARY_COLOR,
+    borderRadius: 7,
+    borderWidth: 0.8,
+    padding: 8,
+  },
+  markAllText: {
+    fontSize: 12,
+    color: PRIMARY_COLOR,
+    fontWeight: '600',
+  },
 });
 
 export default Notifications;

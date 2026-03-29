@@ -1,0 +1,533 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  ActivityIndicator,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {
+  Lecture,
+  CourseException,
+  CreateLecturePayload,
+  CreateTestPayload,
+} from '../types/firebase';
+import Clipboard from '@react-native-clipboard/clipboard';
+import {
+  SafeAreaView,
+} from 'react-native-safe-area-context';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../components/Classroomcomponent';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
+import { baseUrl } from '../components/HomeScreenComponents';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAppSelector } from '../components/hooks';
+import {DetailHeader, AddExceptionModal, RenderStudentTest, RenderContents, RenderMaterials, RenderAssignments, RenderStudentExceptions, RenderLecturerExceptionsManage, RenderScheduleLecture, RenderLecturerTestManage, CourseActionStyles} from '../components/CourseActionsComponent';
+
+export const CourseSubPage = ({ route, navigation }: any) => {
+  const user = useAppSelector(state => state.user);
+  const {
+    title,
+    course,
+    lectures,
+    userRole,
+    exceptions: initialExceptions,
+  } = route.params;
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false); // Added missing loading state
+  const [localExceptions, setLocalExceptions] = useState<CourseException[]>(
+    initialExceptions || [],
+  );
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [scheduledLecture, setScheduledLecture] = useState<Lecture | null>(
+    null,
+  );
+  const [tests, setTests] = useState<CreateTestPayload[]>([]);
+  const [activeTest, setActiveTest] = useState<CreateTestPayload | null>(null);
+
+  // --- STUDENT: Submit New Exception ---
+  const handleSaveException = async (
+    newException: Partial<CourseException>,
+  ) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/student/class/exceptions/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(newException),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        Toast.show({
+          type: 'success',
+          text1: 'Exception submitted successfully',
+          position: 'bottom',
+        });
+        setLocalExceptions([result.exception, ...localExceptions]);
+        setModalVisible(false);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Error',
+          text2: result.message,
+          position: 'bottom',
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Submission Error',
+        text2: error.message,
+        position: 'bottom',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleTestSubmission = async (payload: any) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/student/class/test/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (response.ok) {
+        Toast.show({
+          type: 'success',
+          text1: 'Test Submitted!',
+          text2: 'Your grade has been recorded.',
+        });
+        fetchTests();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Submission failed');
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Submission Error',
+        text2: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  // --- All (Student & Lecturer)
+  const fetchExceptions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+
+      const response = await fetch(
+        `${baseUrl}users/exceptions?courseId=${course.courseId}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const result: { success: boolean; exceptions: CourseException[] } =
+        await response.json();
+      if (response.ok) {
+        setLocalExceptions(result.exceptions);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: 'Failed to fetch exceptions',
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [course.courseId]);
+  // --- LECTURER: Handle Creating a New Lecture ---
+  const handleUpdateStatus = async (
+    id: string,
+    status: 'approved' | 'rejected',
+  ) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status }),
+        },
+      );
+
+      if (response.ok) {
+        setLocalExceptions(prev =>
+          prev.map(ex => (ex.id === id ? { ...ex, status } : ex)),
+        );
+        Toast.show({ type: 'success', text1: `Exception ${status}` });
+      }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Failed to update status' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateLecture = async (
+    lectureData: CreateLecturePayload, // One argument, matches the prop
+  ) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+
+      // Clean up payload: if it's physical, remove videoUrl, etc.
+      const finalPayload = {
+        ...lectureData,
+        courseId: course.courseId,
+        location:
+          lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
+        videoUrl:
+          lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
+      };
+
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${course.courseId}/lectures/createSchedule`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(finalPayload),
+        },
+      );
+      const result = await response.json();
+      if (response.ok) {
+        setScheduledLecture(result.lecture);
+        setShowSuccessModal(true);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Scheduling Failed',
+          text2: result.message || 'Check your inputs',
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateTest = async (
+    testData: CreateTestPayload,
+    isSilent: boolean = false,
+  ) => {
+    // Only show the global loading spinner if it's NOT a silent auto-save
+    if (!isSilent) setLoading(true);
+
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+
+      // Clean the payload: Ensure numbers are numbers before sending to MongoDB
+      const finalPayload = {
+        ...testData,
+        courseId: course.courseId,
+        duration: Number(testData.duration),
+        totalMarks: Number(testData.totalMarks),
+        questions: testData.questions.map(q => ({
+          ...q,
+          points: Number(q.points),
+        })),
+      };
+
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(finalPayload),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Only show success toast for manual clicks (Publish/Save Draft)
+        if (!isSilent) {
+          Toast.show({
+            type: 'success',
+            text1: testData.isPublished
+              ? 'Assessment Published!'
+              : 'Draft Saved',
+            text2: `Successfully stored "${testData.title}"`,
+          });
+          setModalVisible(false); // Close modal on manual success
+        }
+        fetchTests();
+      } else {
+        // Always show error toast, even if silent
+        Toast.show({
+          type: 'error',
+          text1: 'Save Failed',
+          text2: result.message || 'Check your connection',
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: error.message,
+      });
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
+  const fetchTests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const result = await response.json();
+      if (response.ok) {
+        const sortedTests = result.data.sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        setTests(sortedTests);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: result.message,
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Sync Error',
+        text2: 'Could not refresh assessments.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [course.courseId]); // Dependency: Only recreate if courseId changes
+  useEffect(() => {
+    if (title === 'Exceptions') {
+      fetchExceptions();
+    }
+    if (title === 'Assessments') {
+      fetchTests(); // <--- Fetch tests when the Assessment page is active
+    }
+  }, [title, fetchExceptions, fetchTests]);
+  useEffect(() => {
+    if (title === 'Assessments' && userRole === 'student' && tests.length > 0) {
+      const publishedTest = tests.find(t => t.isPublished);
+      if (publishedTest) {
+        setActiveTest(publishedTest);
+      }
+    }
+  }, [tests, title, userRole]); // Trigger whenever the 'tests' array is updated from fetchTests()
+
+  const goBack = () => navigation.goBack();
+  return (
+    <SafeAreaView style={CourseActionStyles.safeArea} edges={['top', 'left', 'right']}>
+      <DetailHeader
+        title={title}
+        onBack={goBack}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        placeholder={`Search ${title.toLowerCase()}...`}
+        userRole={userRole} // Pass the userRole here
+      />
+
+      <View style={CourseActionStyles.body}>
+        {title === 'Course Contents' && (
+          <RenderContents
+            course={course}
+            userRole={userRole}
+            searchQuery={searchQuery}
+          />
+        )}
+        {title === 'Course Materials' && (
+          <RenderMaterials
+            course={course}
+            lectures={lectures}
+            userRole={userRole}
+            searchQuery={searchQuery}
+          />
+        )}
+        {title === 'Assignments' && (
+          <RenderAssignments
+            course={course}
+            userRole={userRole}
+            searchQuery={searchQuery}
+          />
+        )}
+        {title === 'Exceptions' &&
+          (userRole === 'lecturer' ? (
+            <RenderLecturerExceptionsManage
+              exceptions={localExceptions}
+              onUpdateStatus={handleUpdateStatus}
+              searchQuery={searchQuery}
+              refreshing={loading}
+              onRefresh={fetchExceptions}
+            />
+          ) : (
+            <RenderStudentExceptions
+              exceptions={localExceptions}
+              user={user}
+              refreshing={loading}
+              onRefresh={fetchExceptions}
+              onAddPress={() => setModalVisible(true)}
+              searchQuery={searchQuery}
+            />
+          ))}
+        {title === 'Set Lecture Schedule' && (
+          <RenderScheduleLecture
+            course={course}
+            onSave={handleCreateLecture}
+            isLoading={loading}
+          />
+        )}
+
+        {title === 'Assessments' &&
+          (userRole === 'lecturer' ? (
+            <RenderLecturerTestManage
+              course={course}
+              refreshing={loading}
+              tests={tests}
+              onRefresh={fetchTests}
+              onSaveTest={handleCreateTest}
+              searchQuery={searchQuery}
+            />
+          ) : activeTest ? ( // Check if activeTest exists before rendering
+            <RenderStudentTest
+              test={activeTest}
+              user={user}
+              onSubmit={handleTestSubmission}
+            />
+          ) : (
+            // Show this if fetching is done but no test is published
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              {loading ? (
+                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+              ) : (
+                <Text style={{ color: '#666' }}>
+                  No assessments currently available.
+                </Text>
+              )}
+            </View>
+          ))}
+      </View>
+
+      <AddExceptionModal
+        visible={isModalVisible}
+        onClose={() => setModalVisible(false)}
+        course={course}
+        user={user}
+        onSave={handleSaveException}
+        isSaving={loading}
+      />
+      <Modal visible={showSuccessModal} transparent animationType="slide">
+        <View style={CourseActionStyles.successOverlay}>
+          <View style={CourseActionStyles.successBox}>
+            <Icon
+              name="check-circle-outline"
+              size={70}
+              color={PRIMARY_COLOR_TINT}
+            />
+            <Text style={CourseActionStyles.successTitle}>Lecture Scheduled Set!</Text>
+            <Text style={CourseActionStyles.successText}>
+              {scheduledLecture?.topicName} has been successfully added to the
+              schedule.
+            </Text>
+            {scheduledLecture?.lectureType === 'Online' && (
+              <View style={CourseActionStyles.linkShareBox}>
+                <Text style={CourseActionStyles.linkSubtitle}>Share Meeting Link</Text>
+                <View style={CourseActionStyles.linkRow}>
+                  <Text numberOfLines={1} style={CourseActionStyles.linkText}>
+                    {scheduledLecture.location}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Clipboard.setString(scheduledLecture.location || '');
+                      Toast.show({ type: 'success', text1: 'Link copied!' });
+                    }}
+                  >
+                    <Icon
+                      name="content-copy"
+                      size={20}
+                      color={PRIMARY_COLOR_TINT}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            <TouchableOpacity
+              style={CourseActionStyles.doneButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                navigation.goBack(); // Return to the main course page
+              }}
+            >
+              <Text style={CourseActionStyles.doneButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Toast config={toastConfig} />
+    </SafeAreaView>
+  );
+};

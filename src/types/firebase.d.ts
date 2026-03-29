@@ -82,6 +82,7 @@ export interface Notification {
   userId?: string; 
   title?: string;
   message: string;
+  category: 'finance' | 'security' | 'academic' | 'course' | 'social' | 'announcement';
   isRead: boolean;
   createdAt: string;
   relatedClassSessionId?: string;

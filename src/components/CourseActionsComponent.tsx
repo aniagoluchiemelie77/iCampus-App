@@ -26,7 +26,6 @@ import {
   CreateLecturePayload,
   CreateTestPayload,
 } from '../types/firebase';
-import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
@@ -36,7 +35,6 @@ import {
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import Logo from '../assets/images/Logo';
 import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import { baseUrl } from './HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DocumentPicker from 'react-native-document-picker';
@@ -181,12 +179,14 @@ const CreateAssignmentModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.assignmentModalContent}>
-          <Text style={styles.modalTitle}>Create New Assignment</Text>
+      <View style={CourseActionStyles.modalOverlay}>
+        <View style={CourseActionStyles.assignmentModalContent}>
+          <Text style={CourseActionStyles.modalTitle}>
+            Create New Assignment
+          </Text>
 
           <TextInput
-            style={styles.input}
+            style={CourseActionStyles.input}
             placeholder="Assignment Title (e.g. Mid-term Project)"
             value={title}
             multiline
@@ -194,7 +194,7 @@ const CreateAssignmentModal = ({
           />
 
           <TextInput
-            style={[styles.input, { height: 80 }]}
+            style={[CourseActionStyles.input, { height: 80 }]}
             placeholder="Instructions / Description (Optional)"
             multiline
             value={description}
@@ -202,11 +202,13 @@ const CreateAssignmentModal = ({
           />
 
           <TouchableOpacity
-            style={styles.dateSelector}
+            style={CourseActionStyles.dateSelector}
             onPress={() => setOpen(true)}
           >
             <Icon name="calendar-clock" size={20} color={PRIMARY_COLOR} />
-            <Text style={styles.dateText}>Due: {date.toDateString()}</Text>
+            <Text style={CourseActionStyles.dateText}>
+              Due: {date.toDateString()}
+            </Text>
           </TouchableOpacity>
 
           <DatePicker
@@ -221,20 +223,21 @@ const CreateAssignmentModal = ({
             }}
             onCancel={() => setOpen(false)}
           />
-          <Text style={styles.label}>Submission Method:</Text>
-          <View style={styles.methodRow}>
+          <Text style={CourseActionStyles.label}>Submission Method:</Text>
+          <View style={CourseActionStyles.methodRow}>
             {['Online', 'Physical', 'Both'].map(method => (
               <TouchableOpacity
                 key={method}
                 style={[
-                  styles.methodBtn,
-                  submissionMethod === method && styles.methodBtnActive,
+                  CourseActionStyles.methodBtn,
+                  submissionMethod === method &&
+                    CourseActionStyles.methodBtnActive,
                 ]}
                 onPress={() => setSubmissionMethod(method as any)}
               >
                 <Text
                   style={[
-                    styles.methodBtnText,
+                    CourseActionStyles.methodBtnText,
                     submissionMethod === method && { color: '#fff' },
                   ]}
                 >
@@ -244,27 +247,33 @@ const CreateAssignmentModal = ({
             ))}
           </View>
           <TouchableOpacity
-            style={styles.filePickerBtn}
+            style={CourseActionStyles.filePickerBtn}
             onPress={handlePickFile}
           >
             <Icon name="paperclip" size={20} color={PRIMARY_COLOR_TINT} />
-            <Text style={styles.filePickerText}>
+            <Text style={CourseActionStyles.filePickerText}>
               {selectedFile
                 ? selectedFile.name
                 : 'Attach Brief (Optional PDF/Doc)'}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+          <View style={CourseActionStyles.modalActions}>
+            <TouchableOpacity
+              style={CourseActionStyles.cancelBtn}
+              onPress={onClose}
+            >
+              <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: PRIMARY_COLOR }]}
+              style={[
+                CourseActionStyles.saveBtn,
+                { backgroundColor: PRIMARY_COLOR },
+              ]}
               onPress={handleCreate}
               disabled={isSaving}
             >
-              <Text style={styles.saveBtnText}>
+              <Text style={CourseActionStyles.saveBtnText}>
                 {isSaving ? 'Creating...' : 'Add Assignment'}
               </Text>
             </TouchableOpacity>
@@ -274,7 +283,7 @@ const CreateAssignmentModal = ({
     </Modal>
   );
 };
-const AddExceptionModal = ({
+export const AddExceptionModal = ({
   visible,
   onClose,
   course,
@@ -326,15 +335,19 @@ const AddExceptionModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
+      <Pressable style={CourseActionStyles.modalOverlay} onPress={onClose}>
         <TouchableWithoutFeedback>
-          <View style={styles.exceptionModalContent}>
-            <Text style={styles.modalTitle}>Request Exception</Text>
-            <Text style={styles.modalSubtitle}>{course.courseTitle}</Text>
+          <View style={CourseActionStyles.exceptionModalContent}>
+            <Text style={CourseActionStyles.modalTitle}>Request Exception</Text>
+            <Text style={CourseActionStyles.modalSubtitle}>
+              {course.courseTitle}
+            </Text>
 
             {/* Lecture Selector */}
-            <Text style={styles.label}>Which lecture will you be missing?</Text>
-            <View style={styles.pickerContainer}>
+            <Text style={CourseActionStyles.label}>
+              Which lecture will you be missing?
+            </Text>
+            <View style={CourseActionStyles.pickerContainer}>
               <Picker
                 selectedValue={lectureId}
                 onValueChange={itemValue => setLectureId(itemValue)}
@@ -353,8 +366,8 @@ const AddExceptionModal = ({
             </View>
 
             {/* Category Selector */}
-            <Text style={styles.label}>Reason Category</Text>
-            <View style={styles.categoryGrid}>
+            <Text style={CourseActionStyles.label}>Reason Category</Text>
+            <View style={CourseActionStyles.categoryGrid}>
               {(
                 [
                   'Medical',
@@ -367,14 +380,14 @@ const AddExceptionModal = ({
                 <TouchableOpacity
                   key={cat}
                   style={[
-                    styles.catBtn,
-                    category === cat && styles.catBtnActive,
+                    CourseActionStyles.catBtn,
+                    category === cat && CourseActionStyles.catBtnActive,
                   ]}
                   onPress={() => setCategory(cat)}
                 >
                   <Text
                     style={[
-                      styles.catBtnText,
+                      CourseActionStyles.catBtnText,
                       category === cat && { color: '#fff' },
                     ]}
                   >
@@ -385,7 +398,7 @@ const AddExceptionModal = ({
             </View>
 
             <TextInput
-              style={styles.textArea}
+              style={CourseActionStyles.textArea}
               placeholder="Explain your reason in detail..."
               multiline
               numberOfLines={5}
@@ -393,27 +406,33 @@ const AddExceptionModal = ({
               onChangeText={setReason}
             />
 
-            <View style={styles.costWarning}>
+            <View style={CourseActionStyles.costWarning}>
               <Icon
                 name="information-outline"
                 size={16}
                 color={PRIMARY_COLOR_TINT}
               />
-              <Text style={styles.costText}>
+              <Text style={CourseActionStyles.costText}>
                 1 iCash will be deducted upon submission.
               </Text>
             </View>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+            <View style={CourseActionStyles.modalActions}>
+              <TouchableOpacity
+                style={CourseActionStyles.cancelBtn}
+                onPress={onClose}
+              >
+                <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: PRIMARY_COLOR }]}
+                style={[
+                  CourseActionStyles.saveBtn,
+                  { backgroundColor: PRIMARY_COLOR },
+                ]}
                 onPress={handleSubmit}
                 disabled={isSaving}
               >
-                <Text style={styles.saveBtnText}>
+                <Text style={CourseActionStyles.saveBtnText}>
                   {isSaving ? 'Submitting...' : 'Submit Request'}
                 </Text>
               </TouchableOpacity>
@@ -437,30 +456,33 @@ export const DetailHeader = ({
   const shouldShowSearch = !(title === 'Assessments' && userRole === 'student');
 
   return (
-    <View style={styles.headerContainer}>
-      <View style={styles.headerTop}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+    <View style={CourseActionStyles.headerContainer}>
+      <View style={CourseActionStyles.headerTop}>
+        <TouchableOpacity
+          onPress={onBack}
+          style={CourseActionStyles.backButton}
+        >
           <Icon name="chevron-left" size={32} color={PRIMARY_COLOR} />
         </TouchableOpacity>
 
-        <View style={styles.titleContainer}>
-          <Text style={styles.headerPageTitle}>{title}</Text>
+        <View style={CourseActionStyles.titleContainer}>
+          <Text style={CourseActionStyles.headerPageTitle}>{title}</Text>
           <Logo />
         </View>
         <View style={{ width: 40 }} />
       </View>
 
       {shouldShowSearch && (
-        <View style={styles.searchBarWrapper}>
-          <View style={styles.searchBarInner}>
+        <View style={CourseActionStyles.searchBarWrapper}>
+          <View style={CourseActionStyles.searchBarInner}>
             <Icon
               name="magnify"
               size={20}
               color="#888"
-              style={styles.searchIcon}
+              style={CourseActionStyles.searchIcon}
             />
             <TextInput
-              style={styles.searchInput}
+              style={CourseActionStyles.searchInput}
               placeholder={placeholder || `Search ${title}...`}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -607,11 +629,11 @@ export const RenderContents = ({
         data={filteredData}
         keyExtractor={(_, i) => i.toString()}
         contentContainerStyle={[
-          styles.listPadding,
+          CourseActionStyles.listPadding,
           { paddingBottom: insets.bottom + 20 },
         ]}
         ListHeaderComponent={
-          <Text style={styles.sectionSubtitle}>
+          <Text style={CourseActionStyles.sectionSubtitle}>
             {userRole === 'lecturer'
               ? 'Curriculum Management'
               : 'Syllabus Overview'}
@@ -620,24 +642,26 @@ export const RenderContents = ({
         renderItem={({ item, index }) => {
           const completed = isTopicCompleted(item);
           return (
-            <View style={styles.contentRow}>
-              <View style={styles.numberCircle}>
-                <Text style={styles.numberText}>Wk {index + 1}</Text>
+            <View style={CourseActionStyles.contentRow}>
+              <View style={CourseActionStyles.numberCircle}>
+                <Text style={CourseActionStyles.numberText}>
+                  Wk {index + 1}
+                </Text>
               </View>
               <Text
                 style={[
-                  styles.topicText,
-                  completed && styles.completedTopicText,
+                  CourseActionStyles.topicText,
+                  completed && CourseActionStyles.completedTopicText,
                 ]}
               >
                 {item}
               </Text>
 
               {userRole === 'lecturer' && (
-                <View style={styles.actionRow}>
+                <View style={CourseActionStyles.actionRow}>
                   <TouchableOpacity
                     onPress={() => openModal(index)}
-                    style={styles.iconBtn}
+                    style={CourseActionStyles.iconBtn}
                   >
                     <Icon
                       name="pencil-outline"
@@ -647,7 +671,7 @@ export const RenderContents = ({
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => confirmDelete(index)}
-                    style={styles.iconBtn}
+                    style={CourseActionStyles.iconBtn}
                   >
                     <Icon
                       name="trash-can-outline"
@@ -663,19 +687,23 @@ export const RenderContents = ({
         ListFooterComponent={
           userRole === 'lecturer' ? (
             <TouchableOpacity
-              style={styles.addContentBtn}
+              style={CourseActionStyles.addContentBtn}
               onPress={() => openModal()}
             >
               <Icon name="plus" size={20} color={PRIMARY_COLOR} />
-              <Text style={styles.addContentText}>Add New Topic</Text>
+              <Text style={CourseActionStyles.addContentText}>
+                Add New Topic
+              </Text>
             </TouchableOpacity>
           ) : null
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
+          <View style={CourseActionStyles.emptyContainer}>
             <Icon name="file-search-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyTitle}>Course Contents Not Found</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={CourseActionStyles.emptyTitle}>
+              Course Contents Not Found
+            </Text>
+            <Text style={CourseActionStyles.emptySubtitle}>
               {userRole === 'lecturer'
                 ? "You haven't uploaded any course content yet."
                 : "Your Instructor hasn't uploaded any course content for this course yet."}
@@ -686,39 +714,44 @@ export const RenderContents = ({
 
       <Modal visible={isModalVisible} transparent animationType="fade">
         <Pressable
-          style={styles.modalOverlay}
+          style={CourseActionStyles.modalOverlay}
           onPress={() => setModalVisible(false)}
         >
           <TouchableWithoutFeedback>
-            <View style={styles.centeredView}>
-              <View style={styles.editModalContent}>
-                <Text style={styles.modalTitle}>
+            <View style={CourseActionStyles.centeredView}>
+              <View style={CourseActionStyles.editModalContent}>
+                <Text style={CourseActionStyles.modalTitle}>
                   {editingIndex !== null
                     ? 'Edit Existing Topic'
                     : 'Add New Topic'}
                 </Text>
 
                 <TextInput
-                  style={styles.input}
+                  style={CourseActionStyles.input}
                   value={currentText}
                   onChangeText={setCurrentText}
                   placeholder="Enter topic name..."
                   autoFocus
                 />
 
-                <View style={styles.modalActions}>
+                <View style={CourseActionStyles.modalActions}>
                   <TouchableOpacity
-                    style={styles.cancelBtn}
+                    style={CourseActionStyles.cancelBtn}
                     onPress={() => setModalVisible(false)}
                   >
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                    <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.saveBtn, { backgroundColor: PRIMARY_COLOR }]}
+                    style={[
+                      CourseActionStyles.saveBtn,
+                      { backgroundColor: PRIMARY_COLOR },
+                    ]}
                     onPress={handleSave}
                   >
-                    <Text style={styles.saveBtnText}>Save Changes</Text>
+                    <Text style={CourseActionStyles.saveBtnText}>
+                      Save Changes
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -728,21 +761,21 @@ export const RenderContents = ({
       </Modal>
       <Modal visible={isDeleteModalVisible} transparent animationType="fade">
         <Pressable
-          style={styles.modalOverlay}
+          style={CourseActionStyles.modalOverlay}
           onPress={() => setDeleteModalVisible(false)}
         >
           <TouchableWithoutFeedback>
-            <View style={styles.centeredView}>
-              <View style={styles.deleteModalContent}>
-                <View style={styles.warningIconCircle}>
+            <View style={CourseActionStyles.centeredView}>
+              <View style={CourseActionStyles.deleteModalContent}>
+                <View style={CourseActionStyles.warningIconCircle}>
                   <Icon
                     name="alert-outline"
                     size={40}
                     color={PRIMARY_COLOR_TINT}
                   />
                 </View>
-                <Text style={styles.modalTitle}>Delete Topic?</Text>
-                <Text style={styles.modalSubText}>
+                <Text style={CourseActionStyles.modalTitle}>Delete Topic?</Text>
+                <Text style={CourseActionStyles.modalSubText}>
                   Are you sure you want to remove{' '}
                   <Text style={{ fontWeight: '700' }}>
                     "{indexToDelete !== null ? contents[indexToDelete] : ''}"
@@ -753,18 +786,18 @@ export const RenderContents = ({
                   </Text>
                   ? This action cannot be undone.
                 </Text>
-                <View style={styles.modalActions}>
+                <View style={CourseActionStyles.modalActions}>
                   <TouchableOpacity
-                    style={styles.cancelBtn}
+                    style={CourseActionStyles.cancelBtn}
                     onPress={() => setDeleteModalVisible(false)}
                   >
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                    <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.deleteConfirmBtn}
+                    style={CourseActionStyles.deleteConfirmBtn}
                     onPress={executeDelete}
                   >
-                    <Text style={styles.saveBtnText}>Delete</Text>
+                    <Text style={CourseActionStyles.saveBtnText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -947,21 +980,21 @@ export const RenderMaterials = ({
       refreshing={refreshing}
       onRefresh={onRefresh}
       contentContainerStyle={[
-        styles.listPadding,
+        CourseActionStyles.listPadding,
         { paddingBottom: insets.bottom + 20 },
       ]}
       ListHeaderComponent={
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionSubtitle}>
+        <View style={CourseActionStyles.rowBetween}>
+          <Text style={CourseActionStyles.sectionSubtitle}>
             Downloadable Course Materials
           </Text>
           {userRole === 'lecturer' && (
             <TouchableOpacity
-              style={styles.addButton}
+              style={CourseActionStyles.addButton}
               onPress={handleAddMaterial}
               disabled={isUploading}
             >
-              <Text style={styles.addBtnText}>
+              <Text style={CourseActionStyles.addBtnText}>
                 {isUploading ? 'Uploading...' : 'Add Material'}
               </Text>
             </TouchableOpacity>
@@ -971,16 +1004,16 @@ export const RenderMaterials = ({
       renderItem={({ item }) => {
         const fileName = item.url.split('/').pop() || 'document.pdf';
         return (
-          <View style={styles.materialCard}>
+          <View style={CourseActionStyles.materialCard}>
             <Icon name="file-pdf-box" size={32} color={PRIMARY_COLOR} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.materialTitle}>{item.title}</Text>
-              <Text style={styles.materialSub} numberOfLines={1}>
+              <Text style={CourseActionStyles.materialTitle}>{item.title}</Text>
+              <Text style={CourseActionStyles.materialSub} numberOfLines={1}>
                 {item.url.split('/').pop()}
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.downloadCircle}
+              style={CourseActionStyles.downloadCircle}
               onPress={() => handleDownload(item.url, fileName)}
             >
               <Icon
@@ -993,14 +1026,14 @@ export const RenderMaterials = ({
         );
       }}
       ListEmptyComponent={
-        <View style={styles.emptyContainer}>
+        <View style={CourseActionStyles.emptyContainer}>
           <Icon
             name="file-search-outline"
             size={60}
             color={PRIMARY_COLOR_TINT}
           />
-          <Text style={styles.emptyTitle}>No Materials Found</Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={CourseActionStyles.emptyTitle}>No Materials Found</Text>
+          <Text style={CourseActionStyles.emptySubtitle}>
             {userRole === 'lecturer'
               ? "You haven't uploaded any resources yet."
               : "Your Instructor hasn't uploaded any materials for this course yet."}
@@ -1105,18 +1138,20 @@ export const RenderAssignments = ({
       onRefresh={onRefresh}
       keyExtractor={(item, i) => item._id || i.toString()}
       contentContainerStyle={[
-        styles.listPadding,
+        CourseActionStyles.listPadding,
         { paddingBottom: insets.bottom + 20 },
       ]}
       ListHeaderComponent={
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionSubtitle}>Assignments & Tasks</Text>
+        <View style={CourseActionStyles.rowBetween}>
+          <Text style={CourseActionStyles.sectionSubtitle}>
+            Assignments & Tasks
+          </Text>
           {userRole === 'lecturer' && (
             <TouchableOpacity
-              style={styles.addButton}
+              style={CourseActionStyles.addButton}
               onPress={() => setModalVisible(true)}
             >
-              <Text style={styles.addBtnText}>Create</Text>
+              <Text style={CourseActionStyles.addBtnText}>Create</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1128,27 +1163,34 @@ export const RenderAssignments = ({
         );
 
         return (
-          <View style={styles.assignmentCard}>
+          <View style={CourseActionStyles.assignmentCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.assignmentName}>{item.title}</Text>
-              <Text style={styles.methodText}>
+              <Text style={CourseActionStyles.assignmentName}>
+                {item.title}
+              </Text>
+              <Text style={CourseActionStyles.methodText}>
                 Method: {item.submissionMethod}
               </Text>
-              <Text style={[styles.dueDate, overdue && { color: '#ff4d4d' }]}>
+              <Text
+                style={[
+                  CourseActionStyles.dueDate,
+                  overdue && { color: '#ff4d4d' },
+                ]}
+              >
                 {overdue ? 'Past Due: ' : 'Due: '} {formatDate(item.dueDate)}
               </Text>
             </View>
             <View
               style={[
-                styles.statusTag,
+                CourseActionStyles.statusTag,
                 userRole === 'lecturer'
-                  ? styles.lecturerStatus
+                  ? CourseActionStyles.lecturerStatus
                   : hasSubmitted
-                  ? styles.successTag
-                  : styles.pendingTag,
+                  ? CourseActionStyles.successTag
+                  : CourseActionStyles.pendingTag,
               ]}
             >
-              <Text style={styles.statusText}>
+              <Text style={CourseActionStyles.statusText}>
                 {userRole === 'lecturer'
                   ? `${item.submissions?.length || 0} Records`
                   : hasSubmitted
@@ -1170,8 +1212,10 @@ export const RenderAssignments = ({
         );
       }}
       ListEmptyComponent={
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptySubtitle}>No assignments posted yet.</Text>
+        <View style={CourseActionStyles.emptyContainer}>
+          <Text style={CourseActionStyles.emptySubtitle}>
+            No assignments posted yet.
+          </Text>
         </View>
       }
     />
@@ -1222,51 +1266,58 @@ export const RenderStudentExceptions = ({
       refreshing={refreshing}
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
-      contentContainerStyle={styles.listPadding}
+      contentContainerStyle={CourseActionStyles.listPadding}
       ListHeaderComponent={
-        <View style={styles.headerWrapper}>
-          <View style={styles.tierInfoCard}>
-            <View style={styles.usageHeader}>
-              <Text style={styles.tierLabel}>
+        <View style={CourseActionStyles.headerWrapper}>
+          <View style={CourseActionStyles.tierInfoCard}>
+            <View style={CourseActionStyles.usageHeader}>
+              <Text style={CourseActionStyles.tierLabel}>
                 {currentPlan.toUpperCase()} plan
               </Text>
-              <Text style={styles.usageText}>
+              <Text style={CourseActionStyles.usageText}>
                 {usedThisMonth} / {planLimit} used
               </Text>
             </View>
-            <Text style={styles.resetText}>
+            <Text style={CourseActionStyles.resetText}>
               Resets on the 1st of next month
             </Text>
           </View>
           {!isDisabled && (
-            <TouchableOpacity style={styles.addBtn} onPress={onAddPress}>
+            <TouchableOpacity
+              style={CourseActionStyles.addBtn}
+              onPress={onAddPress}
+            >
               <Icon name="plus-circle" size={20} color={PRIMARY_COLOR_TINT} />
-              <Text style={styles.addBtnText2}>Request Exception</Text>
+              <Text style={CourseActionStyles.addBtnText2}>
+                Request Exception
+              </Text>
             </TouchableOpacity>
           )}
           {isDisabled && (
-            <View style={styles.errorContainer}>
+            <View style={CourseActionStyles.errorContainer}>
               <Icon name="alert-circle-outline" size={14} color="#fff" />
-              <Text style={styles.errorText}>{getDisabledReason()}</Text>
+              <Text style={CourseActionStyles.errorText}>
+                {getDisabledReason()}
+              </Text>
             </View>
           )}
         </View>
       }
       renderItem={({ item }) => (
-        <View style={styles.exceptionCard}>
+        <View style={CourseActionStyles.exceptionCard}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.courseIdText}>
+            <Text style={CourseActionStyles.courseIdText}>
               {item.courseInfo.courseCode}: {item.courseInfo.courseTitle}
             </Text>
-            <Text style={styles.reasonText} numberOfLines={2}>
+            <Text style={CourseActionStyles.reasonText} numberOfLines={2}>
               <Text style={{ fontWeight: '700' }}>{item.reasonCategory}: </Text>
               {item.reason}
             </Text>
-            <Text style={styles.dateText2}>
+            <Text style={CourseActionStyles.dateText2}>
               {new Date(item.date).toLocaleDateString()}
             </Text>
           </View>
-          <View style={styles.statusBadge}>
+          <View style={CourseActionStyles.statusBadge}>
             <Icon
               name={
                 item.status === 'approved'
@@ -1279,18 +1330,18 @@ export const RenderStudentExceptions = ({
               color={PRIMARY_COLOR_TINT}
               style={{ marginRight: 4 }}
             />
-            <Text style={styles.statusLabel}>{item.status}</Text>
+            <Text style={CourseActionStyles.statusLabel}>{item.status}</Text>
           </View>
         </View>
       )}
       ListEmptyComponent={
-        <View style={styles.emptyContainer}>
+        <View style={CourseActionStyles.emptyContainer}>
           <Icon
             name="file-search-outline"
             size={60}
             color={PRIMARY_COLOR_TINT}
           />
-          <Text style={styles.emptyTitle}>No Exceptions Found</Text>
+          <Text style={CourseActionStyles.emptyTitle}>No Exceptions Found</Text>
         </View>
       }
     />
@@ -1319,45 +1370,51 @@ export const RenderLecturerExceptionsManage = ({
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
       renderItem={({ item }) => (
-        <View style={styles.manageCard}>
-          <View style={styles.rowBetween}>
+        <View style={CourseActionStyles.manageCard}>
+          <View style={CourseActionStyles.rowBetween}>
             <View>
-              <Text style={styles.studentName}>
+              <Text style={CourseActionStyles.studentName}>
                 {item.studentName || 'Unknown Student'}
               </Text>
-              <Text style={styles.matricText}>{item.matricNumber}</Text>
+              <Text style={CourseActionStyles.matricText}>
+                {item.matricNumber}
+              </Text>
             </View>
             {item.status === 'pending' && (
-              <View style={styles.pendingIndicator} />
+              <View style={CourseActionStyles.pendingIndicator} />
             )}
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.exceptionDetails}>{item.courseId}</Text>
-            <View style={styles.dot} />
-            <Text style={styles.categoryLabel}>{item.reasonCategory}</Text>
+          <View style={CourseActionStyles.infoRow}>
+            <Text style={CourseActionStyles.exceptionDetails}>
+              {item.courseId}
+            </Text>
+            <View style={CourseActionStyles.dot} />
+            <Text style={CourseActionStyles.categoryLabel}>
+              {item.reasonCategory}
+            </Text>
           </View>
 
-          <Text style={styles.reasonBody}>{item.reason}</Text>
+          <Text style={CourseActionStyles.reasonBody}>{item.reason}</Text>
 
           {item.status === 'pending' ? (
-            <View style={styles.actionRow2}>
+            <View style={CourseActionStyles.actionRow2}>
               <TouchableOpacity
-                style={styles.approveBtn}
+                style={CourseActionStyles.approveBtn}
                 onPress={() => onUpdateStatus(item.id, 'approved')}
               >
-                <Text style={styles.btnText}>Approve</Text>
+                <Text style={CourseActionStyles.btnText}>Approve</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.rejectBtn}
+                style={CourseActionStyles.rejectBtn}
                 onPress={() => onUpdateStatus(item.id, 'rejected')}
               >
-                <Text style={styles.btnText}>Reject</Text>
+                <Text style={CourseActionStyles.btnText}>Reject</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.finalStatusContainer}>
+            <View style={CourseActionStyles.finalStatusContainer}>
               <Icon
                 name={
                   item.status === 'approved' ? 'check-circle' : 'close-circle'
@@ -1366,7 +1423,7 @@ export const RenderLecturerExceptionsManage = ({
                 color={PRIMARY_COLOR_TINT}
                 style={{ marginRight: 8 }}
               />
-              <Text style={styles.finalStatusText}>
+              <Text style={CourseActionStyles.finalStatusText}>
                 {item.status === 'approved' ? 'Approved' : 'Rejected'}
               </Text>
             </View>
@@ -1520,10 +1577,10 @@ export const RenderScheduleLecture = ({
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.labelMain}>Set Lecture Schedule</Text>
-      <Text style={styles.inputLabel}>Select Lecture Topic</Text>
+      <Text style={CourseActionStyles.labelMain}>Set Lecture Schedule</Text>
+      <Text style={CourseActionStyles.inputLabel}>Select Lecture Topic</Text>
       <TouchableOpacity
-        style={styles.textInput}
+        style={CourseActionStyles.textInput}
         onPress={() => setShowTopicPicker(true)}
       >
         <Text style={{ color: form.topicName ? PRIMARY_COLOR_TINT : '#999' }}>
@@ -1532,21 +1589,22 @@ export const RenderScheduleLecture = ({
         <Icon name="chevron-down" size={20} color="#666" />
       </TouchableOpacity>
 
-      <Text style={styles.inputLabel}>Lecture Type</Text>
-      <View style={styles.typeToggleContainer}>
+      <Text style={CourseActionStyles.inputLabel}>Lecture Type</Text>
+      <View style={CourseActionStyles.typeToggleContainer}>
         {(['Physical', 'Online', 'Recorded'] as const).map(type => (
           <TouchableOpacity
             key={type}
             style={[
-              styles.typeOption,
-              form.lectureType === type && styles.typeOptionActive,
+              CourseActionStyles.typeOption,
+              form.lectureType === type && CourseActionStyles.typeOptionActive,
             ]}
             onPress={() => setForm({ ...form, lectureType: type })}
           >
             <Text
               style={[
-                styles.typeOptionText,
-                form.lectureType === type && styles.typeOptionTextActive,
+                CourseActionStyles.typeOptionText,
+                form.lectureType === type &&
+                  CourseActionStyles.typeOptionTextActive,
               ]}
             >
               {type}
@@ -1555,11 +1613,11 @@ export const RenderScheduleLecture = ({
         ))}
       </View>
       {/* 2. Dynamic Input Field */}
-      <Text style={styles.inputLabel}>{getLabel()}</Text>
-      <View style={styles.inputContainer}>
+      <Text style={CourseActionStyles.inputLabel}>{getLabel()}</Text>
+      <View style={CourseActionStyles.inputContainer}>
         <TextInput
           style={[
-            styles.textInput,
+            CourseActionStyles.textInput,
             form.lectureType === 'Online' && {
               backgroundColor: '#E0EAEA',
               color: PRIMARY_COLOR_TINT,
@@ -1580,39 +1638,45 @@ export const RenderScheduleLecture = ({
         />
       </View>
 
-      <View style={styles.dateTimeRow}>
+      <View style={CourseActionStyles.dateTimeRow}>
         <TouchableOpacity
-          style={styles.dateTimeBox}
+          style={CourseActionStyles.dateTimeBox}
           onPress={() => setPickerMode('date')}
         >
           <Icon name="calendar-month" size={22} color="#fff" />
           <View>
-            <Text style={styles.microLabel}>Date</Text>
-            <Text style={styles.dateTimeText}>{form.date || 'Select'}</Text>
+            <Text style={CourseActionStyles.microLabel}>Date</Text>
+            <Text style={CourseActionStyles.dateTimeText}>
+              {form.date || 'Select'}
+            </Text>
           </View>
         </TouchableOpacity>
 
         {/* START TIME */}
         <TouchableOpacity
-          style={styles.dateTimeBox}
+          style={CourseActionStyles.dateTimeBox}
           onPress={() => setPickerMode('startTime')}
         >
           <Icon name="clock-start" size={22} color="#fff" />
           <View>
-            <Text style={styles.microLabel}>Starts</Text>
-            <Text style={styles.dateTimeText}>{form.startTime || '00:00'}</Text>
+            <Text style={CourseActionStyles.microLabel}>Starts</Text>
+            <Text style={CourseActionStyles.dateTimeText}>
+              {form.startTime || '00:00'}
+            </Text>
           </View>
         </TouchableOpacity>
 
         {/* END TIME */}
         <TouchableOpacity
-          style={styles.dateTimeBox}
+          style={CourseActionStyles.dateTimeBox}
           onPress={() => setPickerMode('endTime')}
         >
           <Icon name="clock-end" size={22} color="#fff" />
           <View>
-            <Text style={styles.microLabel}>Ends</Text>
-            <Text style={styles.dateTimeText}>{form.endTime || '00:00'}</Text>
+            <Text style={CourseActionStyles.microLabel}>Ends</Text>
+            <Text style={CourseActionStyles.dateTimeText}>
+              {form.endTime || '00:00'}
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -1626,9 +1690,9 @@ export const RenderScheduleLecture = ({
           onChange={handleConfirm}
         />
       )}
-      <View style={styles.repeatContainer}>
-        <Text style={styles.inputLabel}>Set Recursion?</Text>
-        <View style={styles.repeatCounter}>
+      <View style={CourseActionStyles.repeatContainer}>
+        <Text style={CourseActionStyles.inputLabel}>Set Recursion?</Text>
+        <View style={CourseActionStyles.repeatCounter}>
           <TouchableOpacity
             onPress={() => setRepeatWeeks(Math.max(1, repeatWeeks - 1))}
           >
@@ -1638,7 +1702,7 @@ export const RenderScheduleLecture = ({
               color={PRIMARY_COLOR_TINT}
             />
           </TouchableOpacity>
-          <Text style={styles.repeatValue}>
+          <Text style={CourseActionStyles.repeatValue}>
             {repeatWeeks} {repeatWeeks > 1 ? 'Weeks' : 'Week'}
           </Text>
           <TouchableOpacity
@@ -1654,35 +1718,38 @@ export const RenderScheduleLecture = ({
       </View>
       {/* Main Confirm Button */}
       <TouchableOpacity
-        style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+        style={[
+          CourseActionStyles.submitButton,
+          isLoading && CourseActionStyles.submitButtonDisabled,
+        ]}
         onPress={validateAndSave} // Trigger the validation first
         disabled={isLoading}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitText}>Confirm Schedule</Text>
+          <Text style={CourseActionStyles.submitText}>Confirm Schedule</Text>
         )}
       </TouchableOpacity>
       <Modal visible={showTopicPicker} transparent animationType="fade">
         <Pressable
-          style={styles.modalOverlayEnd}
+          style={CourseActionStyles.modalOverlayEnd}
           onPress={() => setShowTopicPicker(false)}
         >
-          <View style={styles.pickerContainer2}>
-            <Text style={styles.pickerTitle}>Course Syllabus</Text>
+          <View style={CourseActionStyles.pickerContainer2}>
+            <Text style={CourseActionStyles.pickerTitle}>Course Syllabus</Text>
             <FlatList
               data={course.courseContents || []}
               keyExtractor={(item, index) => index.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.pickerItem}
+                  style={CourseActionStyles.pickerItem}
                   onPress={() => {
                     setForm({ ...form, topicName: item });
                     setShowTopicPicker(false);
                   }}
                 >
-                  <Text style={styles.pickerItemText}>{item}</Text>
+                  <Text style={CourseActionStyles.pickerItemText}>{item}</Text>
                   {form.topicName === item && (
                     <Icon
                       name="check-circle"
@@ -1693,23 +1760,27 @@ export const RenderScheduleLecture = ({
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <Text style={styles.emptyText}>No syllabus topics found.</Text>
+                <Text style={CourseActionStyles.emptyText}>
+                  No syllabus topics found.
+                </Text>
               }
             />
           </View>
         </Pressable>
       </Modal>
       <Modal visible={showErrorModal} transparent animationType="fade">
-        <View style={styles.alertOverlay}>
-          <View style={styles.alertBox}>
+        <View style={CourseActionStyles.alertOverlay}>
+          <View style={CourseActionStyles.alertBox}>
             <Icon name="alert-circle-outline" size={50} color={PRIMARY_COLOR} />
-            <Text style={styles.alertTitle}>Missing Information</Text>
-            <Text style={styles.alertText}>{errorMessage}</Text>
+            <Text style={CourseActionStyles.alertTitle}>
+              Missing Information
+            </Text>
+            <Text style={CourseActionStyles.alertText}>{errorMessage}</Text>
             <TouchableOpacity
-              style={styles.alertButton}
+              style={CourseActionStyles.alertButton}
               onPress={() => setShowErrorModal(false)}
             >
-              <Text style={styles.alertButtonText}>Got it</Text>
+              <Text style={CourseActionStyles.alertButtonText}>Got it</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1915,15 +1986,17 @@ export const RenderLecturerTestManage = ({
   }, [testForm, autoSaveDraft]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.sectionTitle}>Past Assessments</Text>
+    <View style={CourseActionStyles.container}>
+      <View style={CourseActionStyles.rowBetween}>
+        <Text style={CourseActionStyles.sectionTitle}>Past Assessments</Text>
         <TouchableOpacity
-          style={styles.createCard}
+          style={CourseActionStyles.createCard}
           onPress={() => setIsModalVisible(true)}
         >
           <Icon name="plus-circle" size={24} color="#fff" />
-          <Text style={styles.createCardText}>Create New Assessment</Text>
+          <Text style={CourseActionStyles.createCardText}>
+            Create New Assessment
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -1933,17 +2006,17 @@ export const RenderLecturerTestManage = ({
         onRefresh={onRefresh}
         keyExtractor={(item, index) => item.id || item._id || index.toString()}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
+          <Text style={CourseActionStyles.emptyText}>
             No assessments found matching "{searchQuery}"
           </Text>
         }
         renderItem={({ item }) => {
           const isPastDue = new Date() > new Date(item.dueDate);
           return (
-            <View style={styles.pastTestCard}>
+            <View style={CourseActionStyles.pastTestCard}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.testTitle}>{item.title}</Text>
-                <Text style={styles.testMeta}>
+                <Text style={CourseActionStyles.testTitle}>{item.title}</Text>
+                <Text style={CourseActionStyles.testMeta}>
                   {item.questions.length} Questions •{' '}
                   <Text style={{ color: PRIMARY_COLOR_TINT }}>
                     {item.isPublished ? 'Published' : 'Draft'}
@@ -1951,37 +2024,44 @@ export const RenderLecturerTestManage = ({
                 </Text>
               </View>
               {isPastDue && item.isPublished ? (
-          <TouchableOpacity
-            style={{
-              borderWidth: 0.8,
-              borderColor: PRIMARY_COLOR_TINT,
-              paddingVertical: 12,
-              paddingHorizontal: 7,
-              borderRadius: 8,
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: PRIMARY_COLOR_TINT, // Subtle background to make it look clickable
-            }}
-            // FIXED: Changed 'test.testid' to 'item.id'
-            onPress={() => downloadAssessmentReport(item.id!)}
-          >
-            <Icon name="chart-bar" size={20} color={PRIMARY_COLOR} style={{ marginRight: 4 }} />
-            <Text
-              style={{
-                color: PRIMARY_COLOR,
-                fontSize: 12,
-                fontWeight: 'bold',
-              }}
-            >
-              Analysis Report
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ opacity: 0.5, alignItems: 'flex-end' }}>
-             <Icon name="clock-outline" size={20} color="#888" />
-             <Text style={{ fontSize: 10, color: '#888' }}>Report pending</Text>
-          </View>
-        )}
+                <TouchableOpacity
+                  style={{
+                    borderWidth: 0.8,
+                    borderColor: PRIMARY_COLOR_TINT,
+                    paddingVertical: 12,
+                    paddingHorizontal: 7,
+                    borderRadius: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: PRIMARY_COLOR_TINT, // Subtle background to make it look clickable
+                  }}
+                  // FIXED: Changed 'test.testid' to 'item.id'
+                  onPress={() => downloadAssessmentReport(item.id!)}
+                >
+                  <Icon
+                    name="chart-bar"
+                    size={20}
+                    color={PRIMARY_COLOR}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={{
+                      color: PRIMARY_COLOR,
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    Analysis Report
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{ opacity: 0.5, alignItems: 'flex-end' }}>
+                  <Icon name="clock-outline" size={20} color="#888" />
+                  <Text style={{ fontSize: 10, color: '#888' }}>
+                    Report pending
+                  </Text>
+                </View>
+              )}
             </View>
           );
         }}
@@ -1994,7 +2074,7 @@ export const RenderLecturerTestManage = ({
         presentationStyle="fullScreen"
       >
         <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.modalHeader}>
+          <View style={CourseActionStyles.modalHeader}>
             <TouchableOpacity
               onPress={() => setIsModalVisible(false)}
               style={{ width: 40, justifyContent: 'center' }}
@@ -2002,35 +2082,35 @@ export const RenderLecturerTestManage = ({
               <Icon name="chevron-left" size={26} color={PRIMARY_COLOR_TINT} />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>Build Assessment</Text>
+            <Text style={CourseActionStyles.headerTitle}>Build Assessment</Text>
 
             <TouchableOpacity
               onPress={() => handleFinalize(true)}
               disabled={loading}
-              style={styles.publishHeaderBtn}
+              style={CourseActionStyles.publishHeaderBtn}
             >
-              <Text style={styles.publishHeaderText}>Publish</Text>
+              <Text style={CourseActionStyles.publishHeaderText}>Publish</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView
-            style={styles.modalBody}
+            style={CourseActionStyles.modalBody}
             showsVerticalScrollIndicator={false}
           >
             {/* Settings Card */}
-            <View style={styles.settingsCard}>
+            <View style={CourseActionStyles.settingsCard}>
               <TextInput
-                style={styles.titleInput}
+                style={CourseActionStyles.titleInput}
                 placeholder="Assessment Title (e.g. Test 1)"
                 placeholderTextColor="#999999e2"
                 value={testForm.title}
                 onChangeText={t => setTestForm({ ...testForm, title: t })}
               />
-              <View style={styles.settingsRow}>
-                <View style={styles.settingItem}>
-                  <Text style={styles.microLabel2}>Minutes</Text>
+              <View style={CourseActionStyles.settingsRow}>
+                <View style={CourseActionStyles.settingItem}>
+                  <Text style={CourseActionStyles.microLabel2}>Minutes</Text>
                   <TextInput
-                    style={styles.settingInput}
+                    style={CourseActionStyles.settingInput}
                     keyboardType="numeric"
                     value={testForm.duration}
                     onChangeText={val =>
@@ -2038,10 +2118,12 @@ export const RenderLecturerTestManage = ({
                     }
                   />
                 </View>
-                <View style={styles.settingItem}>
-                  <Text style={styles.microLabel2}>Total Marks</Text>
+                <View style={CourseActionStyles.settingItem}>
+                  <Text style={CourseActionStyles.microLabel2}>
+                    Total Marks
+                  </Text>
                   <TextInput
-                    style={styles.settingInput}
+                    style={CourseActionStyles.settingInput}
                     keyboardType="numeric"
                     placeholder="Score"
                     value={testForm.totalMarks}
@@ -2053,19 +2135,21 @@ export const RenderLecturerTestManage = ({
               </View>
             </View>
             {testForm.questions.map((q, idx) => (
-              <View key={q.id} style={styles.questionCard}>
-                <View style={styles.qHeader}>
-                  <Text style={styles.qNumber}>Question {idx + 1}</Text>
-                  <View style={styles.sideBySide}>
+              <View key={q.id} style={CourseActionStyles.questionCard}>
+                <View style={CourseActionStyles.qHeader}>
+                  <Text style={CourseActionStyles.qNumber}>
+                    Question {idx + 1}
+                  </Text>
+                  <View style={CourseActionStyles.sideBySide}>
                     <TextInput
-                      style={styles.pointsInput}
+                      style={CourseActionStyles.pointsInput}
                       keyboardType="numeric"
                       value={q.points.toString()}
                       onChangeText={p =>
                         updateQuestion(q.id, { points: Number(p) })
                       }
                     />
-                    <Text style={styles.pointsLabel}>pts</Text>
+                    <Text style={CourseActionStyles.pointsLabel}>pts</Text>
                   </View>
                   <TouchableOpacity onPress={() => removeQuestion(q.id)}>
                     <Icon
@@ -2076,17 +2160,17 @@ export const RenderLecturerTestManage = ({
                   </TouchableOpacity>
                 </View>
                 <TextInput
-                  style={styles.qInput}
+                  style={CourseActionStyles.qInput}
                   placeholder="Type your question here..."
                   multiline
                   value={q.questionText}
                   onChangeText={t => updateQuestion(q.id, { questionText: t })}
                 />
-                <View style={styles.typeGroup}>
+                <View style={CourseActionStyles.typeGroup}>
                   <TouchableOpacity
                     style={[
-                      styles.typeBtn,
-                      q.type === 'MCQ' && styles.activeTypeBtn,
+                      CourseActionStyles.typeBtn,
+                      q.type === 'MCQ' && CourseActionStyles.activeTypeBtn,
                     ]}
                     onPress={() =>
                       updateQuestion(q.id, {
@@ -2097,8 +2181,8 @@ export const RenderLecturerTestManage = ({
                   >
                     <Text
                       style={[
-                        styles.typeText,
-                        q.type === 'MCQ' && styles.activeTypeText,
+                        CourseActionStyles.typeText,
+                        q.type === 'MCQ' && CourseActionStyles.activeTypeText,
                       ]}
                     >
                       Multiple Choice
@@ -2106,8 +2190,9 @@ export const RenderLecturerTestManage = ({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
-                      styles.typeBtn,
-                      q.type === 'ShortAnswer' && styles.activeTypeBtn,
+                      CourseActionStyles.typeBtn,
+                      q.type === 'ShortAnswer' &&
+                        CourseActionStyles.activeTypeBtn,
                     ]}
                     onPress={() =>
                       updateQuestion(q.id, {
@@ -2118,8 +2203,9 @@ export const RenderLecturerTestManage = ({
                   >
                     <Text
                       style={[
-                        styles.typeText,
-                        q.type === 'ShortAnswer' && styles.activeTypeText,
+                        CourseActionStyles.typeText,
+                        q.type === 'ShortAnswer' &&
+                          CourseActionStyles.activeTypeText,
                       ]}
                     >
                       Text
@@ -2129,22 +2215,23 @@ export const RenderLecturerTestManage = ({
                 {q.type === 'MCQ' ? (
                   <>
                     {(q.options ?? []).map((opt, oIdx) => (
-                      <View key={oIdx} style={styles.optionRow}>
+                      <View key={oIdx} style={CourseActionStyles.optionRow}>
                         <TouchableOpacity
                           onPress={() =>
                             updateQuestion(q.id, { correctAnswer: opt })
                           }
                           style={[
-                            styles.radio,
-                            q.correctAnswer === opt && styles.radioActive,
+                            CourseActionStyles.radio,
+                            q.correctAnswer === opt &&
+                              CourseActionStyles.radioActive,
                           ]}
                         >
                           {q.correctAnswer === opt && (
-                            <View style={styles.radioInner} />
+                            <View style={CourseActionStyles.radioInner} />
                           )}
                         </TouchableOpacity>
                         <TextInput
-                          style={styles.optInput}
+                          style={CourseActionStyles.optInput}
                           placeholder={`Option ${oIdx + 1}`}
                           value={opt}
                           onChangeText={v => updateOption(q.id, oIdx, v)}
@@ -2164,24 +2251,27 @@ export const RenderLecturerTestManage = ({
                     ))}
                     <TouchableOpacity
                       onPress={() => addOption(q.id)}
-                      style={styles.addOptionBtn}
+                      style={CourseActionStyles.addOptionBtn}
                     >
-                      <Text style={styles.addOptionText}> Add Options</Text>
+                      <Text style={CourseActionStyles.addOptionText}>
+                        {' '}
+                        Add Options
+                      </Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
-                    <View style={styles.shortAnswerPreview}>
-                      <Text style={styles.previewLabel}>
+                    <View style={CourseActionStyles.shortAnswerPreview}>
+                      <Text style={CourseActionStyles.previewLabel}>
                         Student Response Area
                       </Text>
-                      <View style={styles.disabledInputPlaceholder}>
-                        <Text style={styles.placeholderText}>
+                      <View style={CourseActionStyles.disabledInputPlaceholder}>
+                        <Text style={CourseActionStyles.placeholderText}>
                           Students will type their answer here...
                         </Text>
                       </View>
                       <TextInput
-                        style={styles.correctAnswerInput}
+                        style={CourseActionStyles.correctAnswerInput}
                         placeholder="Set correct answer/keywords (optional for auto-grade)"
                         value={q.correctAnswer}
                         onChangeText={t =>
@@ -2193,15 +2283,15 @@ export const RenderLecturerTestManage = ({
                 )}
               </View>
             ))}
-            <View style={styles.settingItem}>
-              <Text style={styles.labelTitle}>Deadline</Text>
+            <View style={CourseActionStyles.settingItem}>
+              <Text style={CourseActionStyles.labelTitle}>Deadline</Text>
               <TouchableOpacity
-                style={styles.datePickerTrigger}
+                style={CourseActionStyles.datePickerTrigger}
                 onPress={() => setPickerMode('date')}
               >
                 <Text
                   style={[
-                    styles.dateText,
+                    CourseActionStyles.dateText,
                     !testForm.dueDate && { color: PRIMARY_COLOR_TINT }, // Dim color if empty
                   ]}
                 >
@@ -2224,9 +2314,12 @@ export const RenderLecturerTestManage = ({
               />
             )}
 
-            <TouchableOpacity style={styles.addBtn} onPress={addQuestion}>
+            <TouchableOpacity
+              style={CourseActionStyles.addBtn}
+              onPress={addQuestion}
+            >
               <Icon name="plus" size={22} color={PRIMARY_COLOR_TINT} />
-              <Text style={styles.addBtnText3}>Add Question</Text>
+              <Text style={CourseActionStyles.addBtnText3}>Add Question</Text>
             </TouchableOpacity>
             <View style={{ height: 100 }} />
           </ScrollView>
@@ -2570,61 +2663,70 @@ export const RenderStudentTest = ({
   }, [cheatingCount, handleFinalSubmit, navigation]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={CourseActionStyles.container}>
       {/* INSTRUCTIONS MODAL */}
       <Modal visible={!isStarted} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <View style={CourseActionStyles.modalOverlay}>
+          <View style={CourseActionStyles.modalContainer}>
             <ScrollView
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={CourseActionStyles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
               <Icon
                 name="information-outline"
                 size={50}
                 color={PRIMARY_COLOR}
-                style={styles.centerIcon}
+                style={CourseActionStyles.centerIcon}
               />
-              <Text style={styles.modalTitle}>Test Instructions</Text>
+              <Text style={CourseActionStyles.modalTitle}>
+                Test Instructions
+              </Text>
 
-              <View style={styles.instructionBox}>
-                <Text style={styles.insText}>
-                  <Text style={styles.boldText}>Identity Verification:</Text>{' '}
+              <View style={CourseActionStyles.instructionBox}>
+                <Text style={CourseActionStyles.insText}>
+                  <Text style={CourseActionStyles.boldText}>
+                    Identity Verification:
+                  </Text>{' '}
                   Your front camera will stay on to make sure it's really you
                   taking the test.
                 </Text>
-                <Text style={styles.insText}>
-                  <Text style={styles.boldText}>Stay Focused:</Text>
+                <Text style={CourseActionStyles.insText}>
+                  <Text style={CourseActionStyles.boldText}>Stay Focused:</Text>
                   Try not to look away from the screen for too long, as the
                   system monitors your attention.
                 </Text>
-                <Text style={styles.insText}>
+                <Text style={CourseActionStyles.insText}>
                   No Switching Apps/minimizing:
-                  <Text style={styles.boldText}>
+                  <Text style={CourseActionStyles.boldText}>
                     No Switching Apps/minimization:{' '}
                   </Text>
                   If you leave this app or minimize it, your assessment wil
                   auto-submit.
                 </Text>
-                <Text style={styles.insText}>
-                  <Text style={styles.boldText}>Identity Check (Selfie):</Text>
+                <Text style={CourseActionStyles.insText}>
+                  <Text style={CourseActionStyles.boldText}>
+                    Identity Check (Selfie):
+                  </Text>
                   We’ll take a quick photo of you now to verify your identity
                   before the test starts.
                 </Text>
-                <Text style={styles.insText}>
+                <Text style={CourseActionStyles.insText}>
                   Goodluck and we hope you have a good test!
                 </Text>
               </View>
 
               <TouchableOpacity
-                style={[styles.startBtn, isUploading && styles.disabledBtn]}
+                style={[
+                  CourseActionStyles.startBtn,
+                  isUploading && CourseActionStyles.disabledBtn,
+                ]}
                 onPress={startTestWithSecurity}
                 disabled={isUploading}
               >
                 {isUploading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.startBtnText}>
+                  <Text style={CourseActionStyles.startBtnText}>
                     Verify Identity & Start
                   </Text>
                 )}
@@ -2635,14 +2737,19 @@ export const RenderStudentTest = ({
       </Modal>
 
       {/* QUIZ HEADER */}
-      <View style={styles.header}>
-        <Text style={[styles.timer, timeLeft < 600 && styles.timerUrgent]}>
+      <View style={CourseActionStyles.header}>
+        <Text
+          style={[
+            CourseActionStyles.timer,
+            timeLeft < 600 && CourseActionStyles.timerUrgent,
+          ]}
+        >
           <Icon name="clock-outline" size={20} color="#2222" />
           {Math.floor(timeLeft / 60)}:{' '}
           {(timeLeft % 60).toString().padStart(2, '0')}
         </Text>
 
-        <Text style={styles.progress}>
+        <Text style={CourseActionStyles.progress}>
           Question {currentIndex + 1} of {test.questions.length}
         </Text>
       </View>
@@ -2650,21 +2757,21 @@ export const RenderStudentTest = ({
       {/* QUESTION UI */}
       {isStarted && !isFinished && (
         <>
-          <View style={styles.questionCard}>
-            <Text style={styles.qText}>
+          <View style={CourseActionStyles.questionCard}>
+            <Text style={CourseActionStyles.qText}>
               {test.questions[currentIndex].questionText}
             </Text>
             {/* Conditional Rendering Logic */}
             {test.questions[currentIndex].type === 'MCQ' ||
             test.questions[currentIndex].type === 'TrueFalse' ? (
-              <View style={styles.optionsContainer}>
+              <View style={CourseActionStyles.optionsContainer}>
                 {test.questions[currentIndex].options?.map((option, index) => (
                   <TouchableOpacity
                     key={index}
                     style={[
-                      styles.optionButton,
+                      CourseActionStyles.optionButton,
                       answers[test.questions[currentIndex].id] === option &&
-                        styles.selectedOption,
+                        CourseActionStyles.selectedOption,
                     ]}
                     onPress={() =>
                       setAnswers({
@@ -2675,9 +2782,9 @@ export const RenderStudentTest = ({
                   >
                     <Text
                       style={[
-                        styles.optionText,
+                        CourseActionStyles.optionText,
                         answers[test.questions[currentIndex].id] === option &&
-                          styles.selectedOptionText,
+                          CourseActionStyles.selectedOptionText,
                       ]}
                     >
                       {option}
@@ -2688,7 +2795,7 @@ export const RenderStudentTest = ({
             ) : (
               /* Fallback to ShortAnswer / TextInput */
               <TextInput
-                style={styles.input}
+                style={CourseActionStyles.input}
                 value={answers[test.questions[currentIndex].id] || ''}
                 onChangeText={val =>
                   setAnswers({
@@ -2702,28 +2809,30 @@ export const RenderStudentTest = ({
             )}
           </View>
 
-          <View style={styles.testSideBySide}>
+          <View style={CourseActionStyles.testSideBySide}>
             <TouchableOpacity
-              style={styles.submitBtn}
+              style={CourseActionStyles.submitBtn}
               onPress={() =>
                 currentIndex > 0 && setCurrentIndex(currentIndex - 1)
               }
             >
-              <Text style={styles.submitBtnText}>Prev</Text>
+              <Text style={CourseActionStyles.submitBtnText}>Prev</Text>
             </TouchableOpacity>
 
             {currentIndex === test.questions.length - 1 ? (
               <TouchableOpacity
-                style={styles.submitBtn}
+                style={CourseActionStyles.submitBtn}
                 onPress={handleFinalSubmit}
               >
-                <Text style={styles.submitBtnText}>Submit Test</Text>
+                <Text style={CourseActionStyles.submitBtnText}>
+                  Submit Test
+                </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 onPress={() => setCurrentIndex(currentIndex + 1)}
               >
-                <Text style={styles.submitBtnText}>Next</Text>
+                <Text style={CourseActionStyles.submitBtnText}>Next</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -2732,30 +2841,36 @@ export const RenderStudentTest = ({
 
       {/* FINAL SCORE MODAL */}
       <Modal visible={isFinished} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.resultCard}>
+        <View style={CourseActionStyles.modalOverlay}>
+          <View style={CourseActionStyles.resultCard}>
             <Icon name="trophy-outline" size={50} color={PRIMARY_COLOR} />
 
-            <View style={styles.scoreCircle}>
-              <Text style={styles.scoreBig}>{finalResult.score}</Text>
-              <Text style={styles.scoreSmall}>/ {finalResult.total}</Text>
+            <View style={CourseActionStyles.scoreCircle}>
+              <Text style={CourseActionStyles.scoreBig}>
+                {finalResult.score}
+              </Text>
+              <Text style={CourseActionStyles.scoreSmall}>
+                / {finalResult.total}
+              </Text>
             </View>
 
-            <Text style={styles.scoreTitle}>
+            <Text style={CourseActionStyles.scoreTitle}>
               {getAdvice((finalResult.score / finalResult.total) * 100).title}
             </Text>
 
-            <Text style={styles.adviceText}>
+            <Text style={CourseActionStyles.adviceText}>
               {getAdvice((finalResult.score / finalResult.total) * 100).msg}
             </Text>
 
             <TouchableOpacity
-              style={styles.startBtn}
+              style={CourseActionStyles.startBtn}
               onPress={() => {
                 navigation.navigate('Home');
               }}
             >
-              <Text style={styles.startBtnText}>Back to Courses</Text>
+              <Text style={CourseActionStyles.startBtnText}>
+                Back to Courses
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2764,7 +2879,9 @@ export const RenderStudentTest = ({
         <Camera
           {...({
             ref: cameraRef,
-            style: isStarted ? styles.miniCamera : styles.fullCamera,
+            style: isStarted
+              ? CourseActionStyles.miniCamera
+              : CourseActionStyles.fullCamera,
             device: device,
             isActive: true,
             photo: true,
@@ -2777,516 +2894,7 @@ export const RenderStudentTest = ({
     </SafeAreaView>
   );
 };
-export const CourseSubPage = ({ route, navigation }: any) => {
-  const user = useAppSelector(state => state.user);
-  const {
-    title,
-    course,
-    lectures,
-    userRole,
-    exceptions: initialExceptions,
-  } = route.params;
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false); // Added missing loading state
-  const [localExceptions, setLocalExceptions] = useState<CourseException[]>(
-    initialExceptions || [],
-  );
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [scheduledLecture, setScheduledLecture] = useState<Lecture | null>(
-    null,
-  );
-  const [tests, setTests] = useState<CreateTestPayload[]>([]);
-  const [activeTest, setActiveTest] = useState<CreateTestPayload | null>(null);
-
-  // --- STUDENT: Submit New Exception ---
-  const handleSaveException = async (
-    newException: Partial<CourseException>,
-  ) => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/student/class/exceptions/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(newException),
-        },
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
-        Toast.show({
-          type: 'success',
-          text1: 'Exception submitted successfully',
-          position: 'bottom',
-        });
-        setLocalExceptions([result.exception, ...localExceptions]);
-        setModalVisible(false);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Submission Error',
-          text2: result.message,
-          position: 'bottom',
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Submission Error',
-        text2: error.message,
-        position: 'bottom',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleTestSubmission = async (payload: any) => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/student/class/test/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (response.ok) {
-        Toast.show({
-          type: 'success',
-          text1: 'Test Submitted!',
-          text2: 'Your grade has been recorded.',
-        });
-        fetchTests();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Submission failed');
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Submission Error',
-        text2: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  // --- All (Student & Lecturer)
-  const fetchExceptions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      const response = await fetch(
-        `${baseUrl}users/exceptions?courseId=${course.courseId}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      const result: { success: boolean; exceptions: CourseException[] } =
-        await response.json();
-      if (response.ok) {
-        setLocalExceptions(result.exceptions);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: 'Failed to fetch exceptions',
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [course.courseId]);
-  // --- LECTURER: Handle Creating a New Lecture ---
-  const handleUpdateStatus = async (
-    id: string,
-    status: 'approved' | 'rejected',
-  ) => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status }),
-        },
-      );
-
-      if (response.ok) {
-        setLocalExceptions(prev =>
-          prev.map(ex => (ex.id === id ? { ...ex, status } : ex)),
-        );
-        Toast.show({ type: 'success', text1: `Exception ${status}` });
-      }
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'Failed to update status' });
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleCreateLecture = async (
-    lectureData: CreateLecturePayload, // One argument, matches the prop
-  ) => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      // Clean up payload: if it's physical, remove videoUrl, etc.
-      const finalPayload = {
-        ...lectureData,
-        courseId: course.courseId,
-        location:
-          lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
-        videoUrl:
-          lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
-      };
-
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/lectures/createSchedule`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(finalPayload),
-        },
-      );
-      const result = await response.json();
-      if (response.ok) {
-        setScheduledLecture(result.lecture);
-        setShowSuccessModal(true);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Scheduling Failed',
-          text2: result.message || 'Check your inputs',
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleCreateTest = async (
-    testData: CreateTestPayload,
-    isSilent: boolean = false,
-  ) => {
-    // Only show the global loading spinner if it's NOT a silent auto-save
-    if (!isSilent) setLoading(true);
-
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      // Clean the payload: Ensure numbers are numbers before sending to MongoDB
-      const finalPayload = {
-        ...testData,
-        courseId: course.courseId,
-        duration: Number(testData.duration),
-        totalMarks: Number(testData.totalMarks),
-        questions: testData.questions.map(q => ({
-          ...q,
-          points: Number(q.points),
-        })),
-      };
-
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(finalPayload),
-        },
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // Only show success toast for manual clicks (Publish/Save Draft)
-        if (!isSilent) {
-          Toast.show({
-            type: 'success',
-            text1: testData.isPublished
-              ? 'Assessment Published!'
-              : 'Draft Saved',
-            text2: `Successfully stored "${testData.title}"`,
-          });
-          setModalVisible(false); // Close modal on manual success
-        }
-        fetchTests();
-      } else {
-        // Always show error toast, even if silent
-        Toast.show({
-          type: 'error',
-          text1: 'Save Failed',
-          text2: result.message || 'Check your connection',
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: error.message,
-      });
-    } finally {
-      if (!isSilent) setLoading(false);
-    }
-  };
-  const fetchTests = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      const result = await response.json();
-      if (response.ok) {
-        const sortedTests = result.data.sort(
-          (a: any, b: any) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setTests(sortedTests);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: result.message,
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Sync Error',
-        text2: 'Could not refresh assessments.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [course.courseId]); // Dependency: Only recreate if courseId changes
-  useEffect(() => {
-    if (title === 'Exceptions') {
-      fetchExceptions();
-    }
-    if (title === 'Assessments') {
-      fetchTests(); // <--- Fetch tests when the Assessment page is active
-    }
-  }, [title, fetchExceptions, fetchTests]);
-  useEffect(() => {
-    // Only run this logic for students on the Assessments tab
-    if (title === 'Assessments' && userRole === 'student' && tests.length > 0) {
-      // Find the first published test from the list we just fetched
-      const publishedTest = tests.find(t => t.isPublished);
-
-      if (publishedTest) {
-        setActiveTest(publishedTest);
-      }
-    }
-  }, [tests, title, userRole]); // Trigger whenever the 'tests' array is updated from fetchTests()
-
-  const goBack = () => navigation.goBack();
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <DetailHeader
-        title={title}
-        onBack={goBack}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        placeholder={`Search ${title.toLowerCase()}...`}
-        userRole={userRole} // Pass the userRole here
-      />
-
-      <View style={styles.body}>
-        {title === 'Course Contents' && (
-          <RenderContents
-            course={course}
-            userRole={userRole}
-            searchQuery={searchQuery}
-          />
-        )}
-        {title === 'Course Materials' && (
-          <RenderMaterials
-            course={course}
-            lectures={lectures}
-            userRole={userRole}
-            searchQuery={searchQuery}
-          />
-        )}
-        {title === 'Assignments' && (
-          <RenderAssignments
-            course={course}
-            userRole={userRole}
-            searchQuery={searchQuery}
-          />
-        )}
-        {title === 'Exceptions' &&
-          (userRole === 'lecturer' ? (
-            <RenderLecturerExceptionsManage
-              exceptions={localExceptions}
-              onUpdateStatus={handleUpdateStatus}
-              searchQuery={searchQuery}
-              refreshing={loading}
-              onRefresh={fetchExceptions}
-            />
-          ) : (
-            <RenderStudentExceptions
-              exceptions={localExceptions}
-              user={user}
-              refreshing={loading}
-              onRefresh={fetchExceptions}
-              onAddPress={() => setModalVisible(true)}
-              searchQuery={searchQuery}
-            />
-          ))}
-        {title === 'Set Lecture Schedule' && (
-          <RenderScheduleLecture
-            course={course}
-            onSave={handleCreateLecture}
-            isLoading={loading}
-          />
-        )}
-
-        {title === 'Assessments' &&
-          (userRole === 'lecturer' ? (
-            <RenderLecturerTestManage
-              course={course}
-              refreshing={loading}
-              tests={tests}
-              onRefresh={fetchTests}
-              onSaveTest={handleCreateTest}
-              searchQuery={searchQuery}
-            />
-          ) : activeTest ? ( // Check if activeTest exists before rendering
-            <RenderStudentTest
-              test={activeTest}
-              user={user}
-              onSubmit={handleTestSubmission}
-            />
-          ) : (
-            // Show this if fetching is done but no test is published
-            <View
-              style={{
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              {loading ? (
-                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-              ) : (
-                <Text style={{ color: '#666' }}>
-                  No assessments currently available.
-                </Text>
-              )}
-            </View>
-          ))}
-      </View>
-
-      <AddExceptionModal
-        visible={isModalVisible}
-        onClose={() => setModalVisible(false)}
-        course={course}
-        user={user}
-        onSave={handleSaveException}
-        isSaving={loading}
-      />
-      <Modal visible={showSuccessModal} transparent animationType="slide">
-        <View style={styles.successOverlay}>
-          <View style={styles.successBox}>
-            <Icon
-              name="check-circle-outline"
-              size={70}
-              color={PRIMARY_COLOR_TINT}
-            />
-            <Text style={styles.successTitle}>Lecture Scheduled Set!</Text>
-            <Text style={styles.successText}>
-              {scheduledLecture?.topicName} has been successfully added to the
-              schedule.
-            </Text>
-            {scheduledLecture?.lectureType === 'Online' && (
-              <View style={styles.linkShareBox}>
-                <Text style={styles.linkSubtitle}>Share Meeting Link</Text>
-                <View style={styles.linkRow}>
-                  <Text numberOfLines={1} style={styles.linkText}>
-                    {scheduledLecture.location}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      Clipboard.setString(scheduledLecture.location || '');
-                      Toast.show({ type: 'success', text1: 'Link copied!' });
-                    }}
-                  >
-                    <Icon
-                      name="content-copy"
-                      size={20}
-                      color={PRIMARY_COLOR_TINT}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => {
-                setShowSuccessModal(false);
-                navigation.goBack(); // Return to the main course page
-              }}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Toast config={toastConfig} />
-    </SafeAreaView>
-  );
-};
-const styles = StyleSheet.create({
+export const CourseActionStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
   headerContainer: {
     backgroundColor: '#fff',

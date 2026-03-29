@@ -1,4 +1,8 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '../../components/Classroomcomponent';
 const screenWidth = Dimensions.get('window').width;
 const { width, height } = Dimensions.get('window');
 export const MainSignupStyles = StyleSheet.create({
@@ -28,7 +32,7 @@ export const MainSignupStyles = StyleSheet.create({
   },
   titleColored: {
     fontSize: 28,
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontWeight: 'bold',
   },
   titleText: {
@@ -41,7 +45,7 @@ export const MainSignupStyles = StyleSheet.create({
     width: '90%',
     borderWidth: 1.3,
     borderRadius: 10,
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
     marginBottom: 10,
   },
   buttonBox: {
@@ -54,10 +58,10 @@ export const MainSignupStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRightWidth: 1.3,
-    borderRightColor: '#f54b02',
+    borderRightColor: PRIMARY_COLOR,
   },
   buttonText: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontSize: 15,
     fontWeight: '700',
     paddingVertical: 9,
@@ -76,7 +80,7 @@ export const MainSignupStyles = StyleSheet.create({
     fontSize: 15,
   },
   footerDivText2: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontSize: 15,
   },
 })
@@ -203,7 +207,7 @@ export const StudentSignupStyles = StyleSheet.create({
   nextButtonText3: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   errorText: {
     fontSize: 11,
@@ -229,7 +233,7 @@ export const StudentSignupStyles = StyleSheet.create({
   footerDivText2: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   strengthBarContainer: {
     flexDirection: 'row',
@@ -262,7 +266,7 @@ export const StudentSignupStyles = StyleSheet.create({
   },
   rowDivBtn: {
     fontSize: 12,
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontWeight: '800',
   },
   termsBox: {
@@ -289,7 +293,7 @@ export const StudentSignupStyles = StyleSheet.create({
     width: 22, // Slightly larger for better tap targets
     height: 22,
     borderWidth: 2,
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
     borderRadius: 6, // Slightly more rounded for a modern look
     justifyContent: 'center',
     alignItems: 'center',
@@ -297,7 +301,7 @@ export const StudentSignupStyles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   checkboxChecked: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
   },
   checkboxLabel: {
     color: '#444',
@@ -305,7 +309,7 @@ export const StudentSignupStyles = StyleSheet.create({
     fontWeight: '500', // Medium weight feels cleaner
   },
   linkText: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     textDecorationLine: 'underline',
   },
   avatarContainer: {
@@ -315,7 +319,7 @@ export const StudentSignupStyles = StyleSheet.create({
   avatarWrapper: {
     position: 'relative', // Allows the camera icon to sit on top
     borderWidth: 2,
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
     borderStyle: 'dashed',
     borderRadius: 75,
     padding: 5,
@@ -329,7 +333,7 @@ export const StudentSignupStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     right: 5,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -346,7 +350,7 @@ export const StudentSignupStyles = StyleSheet.create({
     alignItems: 'center',
   },
   skipLinkText: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontSize: 15,
     textDecorationLine: 'underline',
   },
@@ -382,7 +386,7 @@ export const StudentSignupStyles = StyleSheet.create({
     shadowRadius: 4,
   },
   cardSelected: {
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
     borderWidth: 2,
   },
   cardTitle: {
@@ -484,7 +488,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
    welcomeText2c: {
     fontSize: 18,
     fontWeight: 700,
-    color: '#f54b02'
+    color: PRIMARY_COLOR
   },
   welcomeText2b: {
     fontSize: 18,
@@ -497,7 +501,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     height: 60,
     width: 60,
     borderRadius: 30,
-    borderColor: '#f54b02', // Your preferred border color
+    borderColor: PRIMARY_COLOR, // Your preferred border color
     backgroundColor: '#fff',
     borderWidth: 2,
     shadowColor: '#000',
@@ -590,7 +594,7 @@ badge: {
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     width: 18,
     height: 18,
     borderRadius: 9,
@@ -635,7 +639,7 @@ badge: {
     justifyContent: 'flex-end',
   },
   clearCartBtn: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 10,
     padding: 10,
     flexDirection: 'row',
@@ -892,7 +896,7 @@ badge: {
   },
   todayBorderHighlight: {
   borderWidth: 1,
-  borderColor: '#f54b02', // bright orange
+  borderColor: PRIMARY_COLOR, // bright orange
 },
   eventMetaRow: {
   flexDirection: 'row',
@@ -905,7 +909,7 @@ eventMetaText: {
   color: '#333',
 },
 todayIndicator: {
-  backgroundColor: '#f54b02',
+  backgroundColor: PRIMARY_COLOR,
   paddingHorizontal: 8,
   paddingVertical: 4,
   borderRadius: 6,
@@ -1005,7 +1009,7 @@ todayIndicatorText: {
   lectureType: {
     fontSize: 10,
     fontWeight: '800',
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     color: '#fff',
     padding: 3,
     borderRadius: 5,
@@ -1066,7 +1070,7 @@ todayIndicatorText: {
     position: 'absolute',
     bottom: 5,
     right: 5,
-    backgroundColor: '#f54b02'
+    backgroundColor: PRIMARY_COLOR
   },
   productPriceDiv2: {
     padding: 8,
@@ -1099,7 +1103,7 @@ todayIndicatorText: {
   },
   paginationMainText: {
     fontWeight: '700',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontSize: 17
   },
   paginationText: {
@@ -1128,7 +1132,7 @@ cartItemRightDiv: {
   flex: 1,
 },
  hiddenRow: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     padding: 10,
     alignItems: 'center',
     width: '100%', 
@@ -1225,7 +1229,7 @@ cartItemRightDiv: {
   },
   checkoutBtn: {
     width: '100%',
-    backgroundColor: "#f54b02",
+    backgroundColor: PRIMARY_COLOR,
     padding: 20,
     borderRadius: 10,
   },
@@ -1301,7 +1305,7 @@ settingsBtnRowdivText: {
 },
 settingsBtnRowdivText2: {
   backgroundColor: '#f9cbb8ff',
-  color: '#f54b02',
+  color: PRIMARY_COLOR,
   padding: 10,
   fontSize: 13,
   fontWeight: '700',
@@ -1317,7 +1321,7 @@ export const WelcomeScreenStyles = StyleSheet.create({
     flex: 1, // or any color you want
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
   },
   gif: {
     width: '100%',
@@ -1359,7 +1363,7 @@ export const SignupScreenStyles = StyleSheet.create({
   activeTabText: {
     fontSize: 34,
     fontWeight: 'bold',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   disabledBtn: {
     backgroundColor: '#222',
@@ -1474,7 +1478,7 @@ export const SignupScreenStyles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
   },
   selector: {
     padding: 15,
@@ -1536,7 +1540,7 @@ export const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 25,
     right: 20,
-    backgroundColor: '#f54b02', 
+    backgroundColor: PRIMARY_COLOR, 
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -1656,8 +1660,7 @@ export const CalendarScreenStyles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    color: '#f54b02',
-    marginLeft: 8,
+    color: PRIMARY_COLOR,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -1675,7 +1678,7 @@ export const CalendarScreenStyles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabTextActive: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontWeight: '700',
   },
   tabTextInactive: {
@@ -1723,7 +1726,7 @@ export const CalendarScreenStyles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: 13,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
   }
 
 });
@@ -1808,7 +1811,7 @@ export const ProductDetailsStyles = StyleSheet.create({
     paddingVertical: 10,
   },
   price: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontWeight: '700',
     marginLeft: 4,
     flexDirection: 'row',
@@ -1827,7 +1830,7 @@ smallText: {
     bottom: 15,
     right: 15,
     backgroundColor: '#fff',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     padding: 15,
     borderRadius: 20,
     fontSize: 14,
@@ -1935,7 +1938,7 @@ smallText: {
   },
   selectedOption: {
     borderWidth: 2,
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
   },
   sellerCard: {
     marginVertical: 5,
@@ -1972,7 +1975,7 @@ smallText: {
     alignItems: 'center',
     padding: 6,
     borderRadius: 10,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     position: 'absolute',
     zIndex: 1,
     bottom: 5,
@@ -2034,7 +2037,7 @@ smallText: {
   },
   footerBtn: {
     padding: 10,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 10,
     width: '100%',
     justifyContent: 'center',
@@ -2153,7 +2156,7 @@ export const NotificationPageStyles = StyleSheet.create({
   },
   notificationsDate2: {
     fontSize: 12,
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   notificationsDateDiv: {
     paddingVertical: 5,
@@ -2256,7 +2259,7 @@ export const CheckoutPageStyles = StyleSheet.create({
   priceText: {
     fontWeight: '700',
     marginLeft: 5,
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontSize: 13,
   },
   colorRow: {
@@ -2271,7 +2274,7 @@ export const CheckoutPageStyles = StyleSheet.create({
     marginLeft: 8,
   },
   payButton: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -2291,7 +2294,7 @@ export const ProfileComponentStyles = StyleSheet.create({
     width: '79%',
   },
   pointsBal: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     fontSize: 21,
     fontWeight: '700',
     marginLeft: 7,
@@ -2306,7 +2309,7 @@ export const ProfileComponentStyles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 3,
   },
   text: {
@@ -2316,7 +2319,7 @@ export const ProfileComponentStyles = StyleSheet.create({
   textColored: {
     paddingTop: 3,
     fontSize: 14,
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   textRight: {
     fontSize: 14,
@@ -2339,7 +2342,7 @@ export const ProfileComponentStyles = StyleSheet.create({
     borderRadius: 10,
   },
   button: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     position: 'absolute',
     bottom: -25,
     right: 10,
@@ -2396,7 +2399,7 @@ export const ProfileComponentStyles = StyleSheet.create({
     width: '100%',
   },
   confirmButton: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     padding: 10,
     borderRadius: 10,
     width: '40%',
@@ -2404,7 +2407,7 @@ export const ProfileComponentStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     padding: 10,
     borderRadius: 10,
     width: '40%',
@@ -2445,7 +2448,7 @@ export const ProfileComponentStyles = StyleSheet.create({
     width: '95%',
     borderRadius: 10,
     borderWidth: 0.5,
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
   },
   rowBox: {
     flexDirection: 'row',
@@ -2498,11 +2501,11 @@ export const ProfileComponentStyles = StyleSheet.create({
 largeText: {
   fontSize: 32,
   fontWeight: 'bold',
-  color: '#f54b02',
+  color: PRIMARY_COLOR,
 },
 smallText: {
   fontSize: 18,
-  color: '#f54b02',
+  color: PRIMARY_COLOR,
 },
 largeTextWhite: {
   fontSize: 32,
@@ -2552,7 +2555,7 @@ icon: {
   topBarText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   sectionTitle: {
     padding: 10,
@@ -2585,7 +2588,7 @@ icon: {
   },
   uploadButton: {
     padding: 8,
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 10,
     marginVertical: 10,
     justifyContent: 'center',
@@ -2604,7 +2607,7 @@ icon: {
   courseDetailMain: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
     width: '100%',
     textAlign: 'center'
   },
@@ -2624,7 +2627,7 @@ icon: {
   }
 });
 export const NotificationDetailsStyles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#eee', maxWidth: '100%' },
+  container: { flex: 1, backgroundColor: '#eee', maxWidth: '100%' },
   content: { 
     padding: 15,
     width: '95%',
@@ -2632,144 +2635,30 @@ export const NotificationDetailsStyles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     marginVertical: 7,
-    flexGrow: 1,
     justifyContent: 'flex-start'
- },
- contentSubdiv: {
-    width: '100%',
-    height: 'auto'
  },
   title: { fontSize: 20, fontWeight: 'bold' },
-  message: { marginBottom: 10, color: '#202020ff', flex: 1 },
-  message1: { paddingVertical: 10, color: '#202020ff', flex: 1, fontWeight: '700', textAlign: 'left', fontSize: 17 },
-  messageText: { 
-    paddingVertical: 8,
-    fontSize: 14,
-    width: '100%',
-    textAlign: 'center'
- },
-  date: {  color: 'gray', alignSelf: 'flex-end', fontSize: 13, paddingVertical: 10 },
-  transactionBox: { 
-    padding: 15,
-    width: '95%',
-    alignSelf: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginVertical: 7,
-    justifyContent: 'center',
-    alignItems: 'center'
- },
-  transactionTitle: { fontWeight: 'bold' },
-  transactionTitle2: { fontWeight: 'bold', textAlign: 'center', width: '100%', marginVertical: 10 },
-  transactionTitle3: { fontWeight: 'bold', textAlign: 'left', width: '100%', marginVertical: 10 },
-  transactionTitle2b: { fontWeight: 'bold', textAlign: 'center', width: '100%', marginVertical: 10, paddingBottom: 7 },
-  transactionTitle2c: { width: '100%', marginVertical: 10, color: 'gray', paddingTop: 10 },
-  itemBox: { paddingVertical: 5, flex: 1},
-  totalDiv: {
-    marginVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    width: '100%'
-  },
-  totalPriceText: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginLeft: 5,
-  },
-  largeText: {
-  fontSize: 34, // larger than icon
-  fontWeight: 'bold',
-  color: '#f54b02',
-},
- largeText2: {
-  fontSize: 30, // larger than icon
-  fontWeight: 'bold',
-  color: '#f54b02',
-  marginLeft: 7,
-},
-smallText: {
-  fontSize: 23, // same or slightly smaller than icon
-  color: '#f54b02',
-},
-  statusDiv: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingBottom: 8
-  },
-  statusDiv2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  statusDivText: {
-    fontSize: 14
-  }, 
-  transactionBoxHeader: {
-    width: '100%',
-    paddingVertical: 10,
-    justifyContent: 'flex-start'
-  },
-  notTransactionBoxHeader: {
-    width: '100%',
-    paddingVertical: 8,
-  },
-  normalText: {
-    color: '#202020ff',
-    fontSize: 14, 
-    width: '100%',
-    paddingBottom: 5
-  }, 
-  normalText2: {
-    color: '#202020ff',
-    fontSize: 13, 
-  }, 
-  normalText2b: {
-    color: 'gray',
-    fontSize: 13, 
-    textAlign: 'right', 
-    width: '100%', 
-    marginTop: 7
-  }, 
-  normalTextColored: {
-    color: '#f54b02',
-    fontSize: 14, 
-    marginLeft: 3
-  }, 
-  sideBySide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 5
-  },
-  sideBySide2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  qrDiv: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 7
-  },
-  downloadDiv: {
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginBottom: 7
-  },
-  downloadBtn: {
-    backgroundColor: '#f54b02',
-    padding: 12,
-    borderRadius: 10,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center'
-  }
+  message: { marginBottom: 10, color: '#2222', fontSize: 14 },
+  message1: { paddingVertical: 10, color: '#2222', fontWeight: '700', alignSelf: 'center', fontSize: 17 },
+  securityWarningBox: {
+      marginTop: 6,
+      padding: 15,
+      backgroundColor: '#fff5f5',
+      borderRadius: 8,
+      borderWidth: 0.8,
+      borderColor: PRIMARY_COLOR_TINT,
+    },
+    securityWarningText: {
+      flex: 1,
+      fontSize: 13,
+      color: PRIMARY_COLOR_TINT,
+      lineHeight: 18,
+    },
+    date:{
+      color: '#888',
+      alignSelf: 'flex-end',
+      marginVertical: 7
+    }
 });
 export const modalStyles = StyleSheet.create({
   overlay: {
@@ -2811,7 +2700,7 @@ separator: {
     width: '100%',
   },
   badge: {
-    backgroundColor: '#f54b02',
+    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -2823,7 +2712,7 @@ separator: {
     fontWeight: '900',
   },
   userHandle: {
-    color: '#f54b02',
+    color: PRIMARY_COLOR,
   },
   item: {
     flexDirection: 'row',
