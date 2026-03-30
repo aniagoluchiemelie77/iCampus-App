@@ -53,9 +53,8 @@ import { Picker } from '@react-native-picker/picker';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
+import { BarChart } from 'react-native-chart-kit';
 
-// Using a type that matches your page names
-// Ensure your type looks like this:
 type PageType =
   | 'Course Contents'
   | 'Course Materials'
@@ -63,7 +62,7 @@ type PageType =
   | 'Exceptions'
   | 'Assessments'
   | 'Set Lecture Schedule'
-  | 'View Lecture Schedule' //Student
+  | 'View Lecture Schedule'
   | 'View Assessment Report'
   | 'AI Assisted Learning'
   | 'Library';
@@ -136,6 +135,20 @@ interface StudentTestProps {
   user: any;
   onSubmit: (payload: any) => Promise<void>; // Use 'onSave' to match your JSX
 }
+export const chartConfig = {
+  backgroundGradientFrom: '#FFFFFF',
+  backgroundGradientTo: '#eee',
+  decimalPlaces: 0,
+  color: (opacity = 1) => `rgba(44, 62, 80, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(52, 73, 94, ${opacity})`,
+  style: {
+    borderRadius: 16,
+  },
+  propsForBackgroundLines: {
+    strokeDasharray: '', // solid background lines
+    stroke: '#ECEFF1',
+  },
+};
 const CreateAssignmentModal = ({
   visible,
   onClose,
@@ -2960,11 +2973,7 @@ export const RenderViewLectureSchedule = ({
         <View style={CourseActionStyles.lectureInfoColumn}>
           <View style={CourseActionStyles.rowBetween}>
             <Text style={CourseActionStyles.topicText}>{item.topicName}</Text>
-            <View
-              style={[
-                CourseActionStyles.badge,
-              ]}
-            >
+            <View style={[CourseActionStyles.badge]}>
               <Text style={CourseActionStyles.badgeText}>
                 {item.lectureType}
               </Text>
@@ -3014,6 +3023,396 @@ export const RenderViewLectureSchedule = ({
         <Icon name="calendar-today" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
+  );
+};
+export const LecturerLectureScheduleView = ({
+  lectures,
+  onUpdateLecture, // Callback to refresh data in parent
+  onDeleteLecture,
+}: {
+  lectures: Lecture[];
+  onUpdateLecture: (updated: Lecture) => void;
+  onDeleteLecture: (id: string) => void;
+}) => {
+  const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [showPostponeModal, setShowPostponeModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [newDate, setNewDate] = useState(new Date());
+  const sectionListRef = useRef<SectionList>(null);
+  const today = new Date().toISOString().split('T')[0];
+
+  // Memoized sections remain the same as your student view
+  const sections = useMemo(() => {
+    const groups = lectures.reduce((acc, lecture) => {
+      const date = lecture.date;
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(lecture);
+      return acc;
+    }, {} as Record<string, Lecture[]>);
+
+    return Object.keys(groups)
+      .sort()
+      .map(date => ({
+        title: date,
+        data: groups[date],
+      }));
+  }, [lectures]);
+
+  const handlePostponeSave = async () => {
+    if (!selectedLecture) return;
+
+    const formattedDate = newDate.toISOString().split('T')[0];
+    const formattedTime = newDate.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false, // Ensure 24hr format if your DB expects it
+    });
+
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/courses/${selectedLecture.courseId}/lectures/${selectedLecture.id}/postpone`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            newDate: formattedDate,
+            newStartTime: formattedTime,
+            topicName: selectedLecture.topicName,
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Lecture postponed and students notified!',
+        });
+        onUpdateLecture(result.updatedLecture);
+        setShowPostponeModal(false);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: result.message,
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to connect to server',
+      });
+    }
+  };
+  const renderLecturerItem = ({ item }: { item: Lecture }) => {
+    const isOngoing = item.status === 'ongoing';
+    const isPostponed = item.status === 'postponed';
+    return (
+      <View
+        style={[
+          CourseActionStyles.lectureCard2,
+          isOngoing && { borderColor: PRIMARY_COLOR, borderWidth: 2 },
+          isPostponed && { opacity: 0.6, backgroundColor: '#f8f9fa' },
+        ]}
+      >
+        <View style={CourseActionStyles.lectureInfoColumn}>
+          <View style={CourseActionStyles.rowBetween}>
+            <Text
+              style={[
+                CourseActionStyles.topicText,
+                isPostponed && { textDecorationLine: 'line-through' },
+              ]}
+            >
+              {item.topicName}
+            </Text>
+            {/* ACTION MENU: The key difference for lecturers */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <TouchableOpacity
+                style={[CourseActionStyles.startBtn]}
+                onPress={() => {
+                  setSelectedLecture(item);
+                  setShowPostponeModal(true);
+                }}
+              >
+                <Icon name="calendar-clock" size={22} color="#fff" />
+                <Text style={CourseActionStyles.startBtnText2}>Postpone</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[CourseActionStyles.startBtn, { marginLeft: 10 }]}
+                onPress={() => {
+                  setSelectedLecture(item);
+                  setShowDeleteModal(true);
+                }}
+              >
+                <Icon name="trash-can-outline" size={22} color="#fff" />
+                <Text style={CourseActionStyles.startBtnText2}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
+          >
+            <View
+              style={[CourseActionStyles.badge, { backgroundColor: '#eee' }]}
+            >
+              <Text style={CourseActionStyles.badgeText} numberOfLines={2}>
+                {item.lectureType}
+              </Text>
+            </View>
+            {isPostponed && (
+              <Text
+                style={{
+                  color: PRIMARY_COLOR,
+                  fontSize: 12,
+                  marginLeft: 8,
+                  fontWeight: 'bold',
+                }}
+              >
+                POSTPONED
+              </Text>
+            )}
+          </View>
+
+          <Text style={CourseActionStyles.locationText}>
+            {item.lectureType === 'Physical'
+              ? ` ${item.location}`
+              : ` Online Class Session`}
+          </Text>
+        </View>
+
+        <View style={CourseActionStyles.lectureTimeColumn}>
+          <Text style={CourseActionStyles.timeText}>{item.startTime}</Text>
+          <View style={CourseActionStyles.timeLine} />
+          <Text style={CourseActionStyles.timeTextSmall}>{item.endTime}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <SectionList
+        ref={sectionListRef}
+        sections={sections}
+        keyExtractor={item => item.id}
+        renderItem={renderLecturerItem}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={CourseActionStyles.sectionHeader}>
+            <Text style={CourseActionStyles.sectionHeaderText}>
+              {title === today ? 'Teaching Today' : title}
+            </Text>
+          </View>
+        )}
+        stickySectionHeadersEnabled
+      />
+      <Modal visible={showPostponeModal} transparent animationType="slide">
+        <Pressable
+          style={CourseActionStyles.modalOverlay}
+          onPress={() => setShowPostponeModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={CourseActionStyles.modalContent}>
+              <Text style={CourseActionStyles.modalTitle}>
+                Postpone: {selectedLecture?.topicName}
+              </Text>
+
+              <Text style={CourseActionStyles.modalText}>
+                Select New Date & Time:
+              </Text>
+              <DateTimePicker
+                value={newDate}
+                mode="datetime"
+                display="default"
+                onChange={(event, date) => date && setNewDate(date)}
+              />
+
+              <View style={CourseActionStyles.modalActions}>
+                <TouchableOpacity
+                  onPress={handlePostponeSave}
+                  style={CourseActionStyles.approveBtn}
+                >
+                  <Text style={CourseActionStyles.btnText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Pressable>
+      </Modal>
+
+      {/* DELETE MODAL */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <Pressable
+          style={CourseActionStyles.modalOverlay}
+          onPress={() => setShowDeleteModal(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={CourseActionStyles.modalContent}>
+              <Text style={CourseActionStyles.modalTitle}>Delete Lecture?</Text>
+              <Text style={CourseActionStyles.modalText}>
+                Are you sure you want to delete "{selectedLecture?.topicName}
+                "? This action cannot be undone.
+              </Text>
+              <View style={CourseActionStyles.modalActions}>
+                <TouchableOpacity
+                  onPress={() => setShowDeleteModal(false)}
+                  style={CourseActionStyles.rejectBtn}
+                >
+                  <Text style={CourseActionStyles.btnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    onDeleteLecture(selectedLecture!.id);
+                    setShowDeleteModal(false);
+                  }}
+                  style={CourseActionStyles.approveBtn}
+                >
+                  <Text style={CourseActionStyles.btnText}>Confirm Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+};
+export const AssessmentReportScreen = ({ route }: any) => {
+  const { testId } = route.params;
+  const [reportData, setReportData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchReportData = useCallback(async () => {
+    setLoading(true); // Ensure loading state is set when called manually
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/tests/${testId}/analysis-data`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const result = await response.json();
+      setReportData(result);
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Could not load report data' });
+    } finally {
+      setLoading(false);
+    }
+  }, [testId]); // Memoizes the function
+
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
+  const handleDownloadPDF = async () => {
+    const token = await AsyncStorage.getItem('accessToken');
+    const downloadUrl = `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis?token=${token}`;
+    Linking.openURL(downloadUrl);
+  };
+
+  if (loading)
+    return (
+      <ActivityIndicator
+        size="large"
+        style={{ flex: 1 }}
+        color={PRIMARY_COLOR}
+      />
+    );
+
+  return (
+    <ScrollView style={CourseActionStyles.container}>
+      <View style={CourseActionStyles.header}>
+        <TouchableOpacity>
+          <Icon name="chevron-left" color={PRIMARY_COLOR} size={23} />
+        </TouchableOpacity>
+        <View style={CourseActionStyles.sideBySide}>
+          <Text style={CourseActionStyles.title}>{reportData.test.title}</Text>
+          <TouchableOpacity
+            style={CourseActionStyles.downloadBtn}
+            onPress={handleDownloadPDF}
+          >
+            <Icon name="file-pdf-box" size={24} color="#fff" />
+            <Text style={CourseActionStyles.downloadText}>Download PDF</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Summary Cards */}
+      <View style={CourseActionStyles.row}>
+        <View style={CourseActionStyles.card}>
+          <Text style={CourseActionStyles.cardLabel}>Pass Rate</Text>
+          <Text style={[CourseActionStyles.cardValue, { color: '#27ae60' }]}>
+            {reportData.passRate}%
+          </Text>
+        </View>
+        <View style={CourseActionStyles.card}>
+          <Text style={CourseActionStyles.cardLabel}>Submissions</Text>
+          <Text style={CourseActionStyles.cardValue}>
+            {reportData.submissions.length}
+          </Text>
+        </View>
+      </View>
+
+      {/* Performance Chart */}
+      <Text style={CourseActionStyles.sectionTitle2}>Performance Overview</Text>
+      <BarChart
+        data={{
+          labels: ['Passed', 'Failed'],
+          datasets: [
+            { data: [reportData.passedCount, reportData.failedCount] },
+          ],
+        }}
+        width={350}
+        height={250}
+        yAxisLabel=""
+        yAxisSuffix=""
+        chartConfig={chartConfig}
+        verticalLabelRotation={0}
+      />
+
+      {/* Top Performers */}
+      <Text style={CourseActionStyles.sectionTitle2}>Top Performers</Text>
+      {reportData.topPerformers.map((s: any, i: number) => (
+        <View key={i} style={CourseActionStyles.listItem}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* Trophy Icons for Top 3 */}
+            <Icon
+              name={
+                i === 0
+                  ? 'trophy'
+                  : i === 1
+                  ? 'trophy-outline'
+                  : 'medal-outline'
+              }
+              size={22}
+              color={i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : '#CD7F32'} // Gold, Silver, Bronze
+              style={{ marginRight: 8 }}
+            />
+            <Text style={CourseActionStyles.sectionText}>{s.studentName}</Text>
+          </View>
+
+          <View style={CourseActionStyles.scoreBadge}>
+            <Text style={CourseActionStyles.scoreText}>
+              {s.score}/{reportData.test.totalMarks}
+            </Text>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
   );
 };
 export const CourseActionStyles = StyleSheet.create({
@@ -3205,8 +3604,14 @@ export const CourseActionStyles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  modalText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2222',
+    marginBottom: 16,
+  },
   modalTitle: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#2222',
     marginBottom: 16,
@@ -3274,7 +3679,7 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#ff4d4d', // Bold red for danger
+    backgroundColor: PRIMARY_COLOR, // Bold red for danger
   },
   completedTopicText: {
     color: PRIMARY_COLOR,
@@ -3470,7 +3875,7 @@ export const CourseActionStyles = StyleSheet.create({
     gap: 12,
   },
   approveBtn: {
-    flex: 2,
+    flex: 1,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     paddingVertical: 12,
@@ -4314,13 +4719,18 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 10,
-    width: '100%',
     alignItems: 'center',
   },
   startBtnText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  startBtnText2: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginTop: 5,
   },
   boldText: {
     fontWeight: 'bold',
@@ -4432,7 +4842,21 @@ export const CourseActionStyles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
-    borderLeftWidth: 4, // Dynamic color based on type
+    borderLeftWidth: 4,
+    width: '95%',
+  },
+  lectureCard2: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+    borderLeftWidth: 4,
+    width: '95%',
   },
   lectureTimeColumn: {
     width: 60,
@@ -4519,5 +4943,101 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  modalContent: {
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    width: '80%',
+  },
+  //Start
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2C3E50',
+    flex: 1,
+    marginRight: 10,
+  },
+  downloadBtn: {
+    backgroundColor: PRIMARY_COLOR, // Professional Red for PDF/Action
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginLeft: 8,
+  },
+  downloadText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginLeft: 6,
+    fontSize: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    width: (width - 48) / 2,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 5, // The color-coded accent
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+  },
+  cardLabel: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  cardValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  sectionTitle2: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2222',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  sectionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#2222',
+  },
+  scoreBadge: {
+    backgroundColor: '#F0F3F4',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  scoreText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2222',
   },
 });

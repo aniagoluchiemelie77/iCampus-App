@@ -31,6 +31,7 @@ import {
   RenderScheduleLecture,
   RenderLecturerTestManage,
   CourseActionStyles,
+  LecturerLectureScheduleView,
 } from '../components/CourseActionsComponent';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -222,7 +223,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     },
     [course.courseId],
   );
-
   // --- All (Student & Lecturer)
   const fetchExceptions = useCallback(async () => {
     setLoading(true);
@@ -446,6 +446,40 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       setLoading(false);
     }
   }, [course.courseId]);
+  const handleDeleteLecture = async (lectureId: string) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/lecturers/class/lectures/${lectureId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (response.ok) {
+        // Remove from local state immediately
+        setAllLectures(prev => prev.filter(lec => lec.id !== lectureId));
+        Toast.show({ type: 'success', text1: 'Lecture Deleted' });
+      } else {
+        const result = await response.json();
+        throw new Error(result.message || 'Failed to delete');
+      }
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handlePostponeLecture = async (updatedLecture: Lecture) => {
+    if (!updatedLecture) return;
+    setAllLectures(prev =>
+      prev.map(lec => (lec.id === updatedLecture.id ? updatedLecture : lec)),
+    );
+  };
   const displayLectures = useMemo(() => {
     return lectures && lectures.length > 0 ? lectures : allLectures;
   }, [lectures, allLectures]);
@@ -597,12 +631,19 @@ export const CourseSubPage = ({ route, navigation }: any) => {
             <EmptyState message="No assessments currently available." />
           ))}
 
-        {title === 'View Lecture Schedule' && (
-          <RenderViewLectureSchedule
-            lectures={filteredLectures} // Use the filtered list here
-            onPress={handleLecturePress}
-          />
-        )}
+        {title === 'View Lecture Schedule' &&
+          (userRole === 'lecturer' ? (
+            <LecturerLectureScheduleView
+              lectures={filteredLectures}
+              onUpdateLecture={handlePostponeLecture}
+              onDeleteLecture={handleDeleteLecture}
+            />
+          ) : (
+            <RenderViewLectureSchedule
+              lectures={filteredLectures}
+              onPress={handleLecturePress}
+            />
+          ))}
       </View>
 
       <AddExceptionModal
