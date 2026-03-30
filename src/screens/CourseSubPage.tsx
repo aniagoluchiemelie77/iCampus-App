@@ -1,11 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   Lecture,
@@ -14,17 +8,42 @@ import {
   CreateTestPayload,
 } from '../types/firebase';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  SafeAreaView,
-} from 'react-native-safe-area-context';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../components/Classroomcomponent';
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '../components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import { baseUrl } from '../components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
-import {DetailHeader, AddExceptionModal, RenderStudentTest, RenderContents, RenderMaterials, RenderAssignments, RenderStudentExceptions, RenderLecturerExceptionsManage, RenderScheduleLecture, RenderLecturerTestManage, CourseActionStyles} from '../components/CourseActionsComponent';
+import {
+  RenderViewLectureSchedule,
+  DetailHeader,
+  AddExceptionModal,
+  RenderStudentTest,
+  RenderContents,
+  RenderMaterials,
+  RenderAssignments,
+  RenderStudentExceptions,
+  RenderLecturerExceptionsManage,
+  RenderScheduleLecture,
+  RenderLecturerTestManage,
+  CourseActionStyles,
+} from '../components/CourseActionsComponent';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
+const EmptyState = ({ message }: { message: string }) => (
+  <View style={CourseActionStyles.emptyDivContainer}>
+    <MaterialCommunityIcons
+      name="clipboard-text-off-outline"
+      size={60}
+      color={PRIMARY_COLOR_TINT}
+    />
+    <Text style={CourseActionStyles.emptyDivContainerText}>{message}</Text>
+  </View>
+);
 export const CourseSubPage = ({ route, navigation }: any) => {
   const user = useAppSelector(state => state.user);
   const {
@@ -47,6 +66,8 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   );
   const [tests, setTests] = useState<CreateTestPayload[]>([]);
   const [activeTest, setActiveTest] = useState<CreateTestPayload | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [allLectures, setAllLectures] = useState<Lecture[]>([]);
 
   // --- STUDENT: Submit New Exception ---
   const handleSaveException = async (
@@ -133,6 +154,75 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       setLoading(false);
     }
   };
+  const fetchTimeline = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/student/class/lectures/timeline`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const result = await response.json();
+      if (response.ok) setAllLectures(result.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  const handleLecturePress = (item: Lecture) => {
+    if (item.lectureType === 'Online') {
+      navigation.navigate('LiveSessionScreen', {
+        lectureId: item.id,
+        courseId: item.courseId,
+        topic: item.topicName,
+        streamUrl: item.location, // The generated link
+      });
+    } else if (item.lectureType === 'Recorded') {
+      navigation.navigate('VideoPlayerScreen', {
+        url: item.videoUrl,
+        title: item.topicName,
+      });
+    }
+  };
+  const fetchStudentTest = useCallback(
+    async (assessmentId: string) => {
+      setLoading(true);
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const response = await fetch(
+          `${baseUrl}users/student/class/courses/${course.courseId}/assessments/${assessmentId}/check-status`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+
+        const result = await response.json();
+
+        if (response.ok) {
+          if (result.hasSubmitted) {
+            setHasSubmitted(true);
+          } else {
+            setActiveTest(result.test);
+          }
+        } else {
+          throw new Error(result.message);
+        }
+      } catch (error: any) {
+        Toast.show({ type: 'error', text1: 'Error', text2: error.message });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [course.courseId],
+  );
+
   // --- All (Student & Lecturer)
   const fetchExceptions = useCallback(async () => {
     setLoading(true);
@@ -355,7 +445,19 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     } finally {
       setLoading(false);
     }
-  }, [course.courseId]); // Dependency: Only recreate if courseId changes
+  }, [course.courseId]);
+  const displayLectures = useMemo(() => {
+    return lectures && lectures.length > 0 ? lectures : allLectures;
+  }, [lectures, allLectures]);
+  const filteredLectures = useMemo(() => {
+    if (!searchQuery) return displayLectures;
+
+    return displayLectures.filter(
+      (lecture: Lecture) =>
+        lecture.topicName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lecture.courseId.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [searchQuery, displayLectures]);
   useEffect(() => {
     if (title === 'Exceptions') {
       fetchExceptions();
@@ -372,10 +474,31 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       }
     }
   }, [tests, title, userRole]); // Trigger whenever the 'tests' array is updated from fetchTests()
+  useEffect(() => {
+    const specificId = (route.params as any)?.assessmentId;
+
+    if (title === 'Assessments' && userRole === 'student') {
+      if (specificId) {
+        fetchStudentTest(specificId);
+      } else {
+        fetchTests();
+      }
+    }
+  }, [title, userRole, route.params, fetchStudentTest, fetchTests]);
+  useEffect(() => {
+    if (title === 'View Lecture Schedule') {
+      if (!lectures || lectures.length === 0) {
+        fetchTimeline();
+      }
+    }
+  }, [title, lectures, fetchTimeline]);
 
   const goBack = () => navigation.goBack();
   return (
-    <SafeAreaView style={CourseActionStyles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={CourseActionStyles.safeArea}
+      edges={['top', 'left', 'right']}
+    >
       <DetailHeader
         title={title}
         onBack={goBack}
@@ -445,30 +568,41 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               onSaveTest={handleCreateTest}
               searchQuery={searchQuery}
             />
-          ) : activeTest ? ( // Check if activeTest exists before rendering
+          ) : hasSubmitted ? (
+            <View style={CourseActionStyles.centered}>
+              <Icon name="check-circle" size={80} color={PRIMARY_COLOR} />
+              <Text style={CourseActionStyles.successTitle}>
+                Assessment Completed
+              </Text>
+              <Text style={CourseActionStyles.successText}>
+                You have already submitted this assessment. Multiple attempts
+                are not allowed.
+              </Text>
+              <TouchableOpacity
+                style={CourseActionStyles.doneButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={CourseActionStyles.doneButtonText}>
+                  Back to Course
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : activeTest ? (
             <RenderStudentTest
               test={activeTest}
               user={user}
               onSubmit={handleTestSubmission}
             />
           ) : (
-            // Show this if fetching is done but no test is published
-            <View
-              style={{
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              {loading ? (
-                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-              ) : (
-                <Text style={{ color: '#666' }}>
-                  No assessments currently available.
-                </Text>
-              )}
-            </View>
+            <EmptyState message="No assessments currently available." />
           ))}
+
+        {title === 'View Lecture Schedule' && (
+          <RenderViewLectureSchedule
+            lectures={filteredLectures} // Use the filtered list here
+            onPress={handleLecturePress}
+          />
+        )}
       </View>
 
       <AddExceptionModal
@@ -487,14 +621,18 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               size={70}
               color={PRIMARY_COLOR_TINT}
             />
-            <Text style={CourseActionStyles.successTitle}>Lecture Scheduled Set!</Text>
+            <Text style={CourseActionStyles.successTitle}>
+              Lecture Scheduled Set!
+            </Text>
             <Text style={CourseActionStyles.successText}>
               {scheduledLecture?.topicName} has been successfully added to the
               schedule.
             </Text>
             {scheduledLecture?.lectureType === 'Online' && (
               <View style={CourseActionStyles.linkShareBox}>
-                <Text style={CourseActionStyles.linkSubtitle}>Share Meeting Link</Text>
+                <Text style={CourseActionStyles.linkSubtitle}>
+                  Share Meeting Link
+                </Text>
                 <View style={CourseActionStyles.linkRow}>
                   <Text numberOfLines={1} style={CourseActionStyles.linkText}>
                     {scheduledLecture.location}

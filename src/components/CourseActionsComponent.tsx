@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import {
   View,
   TextInput,
@@ -12,6 +18,7 @@ import {
   Modal,
   ActivityIndicator,
   AppState,
+  SectionList,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
@@ -55,7 +62,11 @@ type PageType =
   | 'Assignments'
   | 'Exceptions'
   | 'Assessments'
-  | 'Set Lecture Schedule';
+  | 'Set Lecture Schedule'
+  | 'View Lecture Schedule' //Student
+  | 'View Assessment Report'
+  | 'AI Assisted Learning'
+  | 'Library';
 interface AIScoreResult {
   questionId: string;
   similarityScore: number;
@@ -2894,6 +2905,117 @@ export const RenderStudentTest = ({
     </SafeAreaView>
   );
 };
+export const RenderViewLectureSchedule = ({
+  lectures,
+  onPress,
+}: {
+  lectures: Lecture[];
+  onPress: (item: Lecture) => void;
+}) => {
+  const sectionListRef = useRef<SectionList>(null);
+  const today = new Date().toISOString().split('T')[0];
+
+  const sections = useMemo(() => {
+    const groups = lectures.reduce((acc, lecture) => {
+      const date = lecture.date;
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(lecture);
+      return acc;
+    }, {} as Record<string, Lecture[]>);
+    return Object.keys(groups)
+      .sort()
+      .map(date => ({
+        title: date,
+        data: groups[date],
+      }));
+  }, [lectures]);
+
+  const jumpToToday = () => {
+    const todayIndex = sections.findIndex(s => s.title === today);
+    if (todayIndex !== -1) {
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex: todayIndex,
+        itemIndex: 0,
+        animated: true,
+      });
+    }
+  };
+
+  const renderLectureItem = ({ item }: { item: Lecture }) => {
+    const isOngoing = item.status === 'ongoing';
+    const isClickable =
+      item.lectureType === 'Online' || item.lectureType === 'Recorded';
+
+    return (
+      <TouchableOpacity
+        disabled={!isClickable}
+        onPress={() => onPress(item)}
+        style={[
+          CourseActionStyles.lectureCard,
+          isOngoing && { borderColor: PRIMARY_COLOR, borderWidth: 2 },
+        ]}
+      >
+        <View style={CourseActionStyles.lectureInfoColumn}>
+          <View style={CourseActionStyles.rowBetween}>
+            <Text style={CourseActionStyles.topicText}>{item.topicName}</Text>
+            <View
+              style={[
+                CourseActionStyles.badge,
+              ]}
+            >
+              <Text style={CourseActionStyles.badgeText}>
+                {item.lectureType}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={CourseActionStyles.locationText}>
+            {item.lectureType === 'Physical'
+              ? ` ${item.location}`
+              : ` ${item.lectureType} Class Session`}
+          </Text>
+
+          {isOngoing && (
+            <View style={CourseActionStyles.ongoingIndicator}>
+              <View style={CourseActionStyles.pulseDot} />
+              <Text style={CourseActionStyles.ongoingText}>Happening Now</Text>
+            </View>
+          )}
+        </View>
+        <View style={CourseActionStyles.lectureTimeColumn}>
+          <Text style={CourseActionStyles.timeText}>{item.startTime}</Text>
+          <View style={CourseActionStyles.timeLine} />
+          <Text style={CourseActionStyles.timeTextSmall}>{item.endTime}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <SectionList
+        ref={sectionListRef}
+        sections={sections}
+        keyExtractor={item => item.id}
+        renderItem={renderLectureItem}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={CourseActionStyles.sectionHeader}>
+            <Text style={CourseActionStyles.sectionHeaderText}>
+              {title === today ? "Today's Lectures" : title}
+            </Text>
+          </View>
+        )}
+        stickySectionHeadersEnabled
+      />
+
+      <TouchableOpacity style={CourseActionStyles.fab} onPress={jumpToToday}>
+        <Icon name="calendar-today" size={24} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+};
 export const CourseActionStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
   headerContainer: {
@@ -2935,7 +3057,7 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   contentRow: {
     flexDirection: 'row',
@@ -2955,7 +3077,13 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 12,
   },
   numberText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  topicText: { flex: 1, fontSize: 15, fontWeight: '500' },
+  topicText: { flex: 1, fontSize: 15, fontWeight: '500', color: '#2222' },
+  topicText2: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PRIMARY_COLOR_TINT,
+    marginBottom: 4,
+  },
   materialCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3772,14 +3900,14 @@ export const CourseActionStyles = StyleSheet.create({
   successTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 10,
+    color: PRIMARY_COLOR,
+    marginVertical: 15,
   },
   successText: {
     fontSize: 15,
-    color: PRIMARY_COLOR_TINT,
+    color: PRIMARY_COLOR,
     textAlign: 'center',
-    marginVertical: 10,
+    marginBottom: 15,
   },
   linkShareBox: {
     width: '100%',
@@ -3810,10 +3938,8 @@ export const CourseActionStyles = StyleSheet.create({
   },
   doneButton: {
     backgroundColor: PRIMARY_COLOR,
-    width: '100%',
     padding: 16,
-    borderRadius: 15,
-    marginTop: 25,
+    borderRadius: 14,
     alignItems: 'center',
   },
   doneButtonText: {
@@ -4274,5 +4400,124 @@ export const CourseActionStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
     zIndex: 999,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+    backgroundColor: '#fff',
+  },
+  emptyDivContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyDivContainerText: {
+    color: PRIMARY_COLOR_TINT,
+    marginTop: 10,
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  // Add these to your CourseActionStyles object
+  lectureCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+    borderLeftWidth: 4, // Dynamic color based on type
+  },
+  lectureTimeColumn: {
+    width: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: PRIMARY_COLOR_TINT,
+    marginLeft: 15,
+  },
+  timeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2222',
+  },
+  timeTextSmall: {
+    fontSize: 11,
+    color: '#999',
+  },
+  timeLine: {
+    height: 20,
+    width: 1,
+    backgroundColor: PRIMARY_COLOR_TINT,
+    marginVertical: 4,
+  },
+  lectureInfoColumn: {
+    flex: 1,
+  },
+  locationText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  sectionHeader: {
+    backgroundColor: '#F8F9FA',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  sectionHeaderText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#888',
+    textTransform: 'capitalize',
+    letterSpacing: 1,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+  },
+  ongoingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: PRIMARY_COLOR,
+    marginRight: 6,
+  },
+  ongoingText: {
+    fontSize: 12,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginLeft: 8,
+  },
+  badgeText: {
+    color: PRIMARY_COLOR,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
 });

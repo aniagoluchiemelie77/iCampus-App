@@ -62,12 +62,16 @@ export type RootStackParamList = {
   Welcome: { route: string };
   CourseSubPage: {
     title:
-      | 'Course Contents'
-      | 'Course Materials'
-      | 'Assignments'
-      | 'Exceptions'
-      | 'Set Lecture Schedule'
-      | 'Assessments';
+      | 'Course Contents' //Both
+      | 'Course Materials' //Both
+      | 'Assignments' //Both
+      | 'Exceptions' //Both
+      | 'Set Lecture Schedule' //Lecturer
+      | 'Assessments' //Both
+      | 'View Lecture Schedule' //Student
+      | 'View Assessment Report'
+      | 'AI Assisted Learning'
+      | 'Library'; //Student
     course: {
       courseId: string;
       courseCode: string;

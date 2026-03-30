@@ -116,6 +116,12 @@ const Notifications = () => {
 
     switch (actionType) {
       case 'TEST_CREATED':
+  navigation.navigate('CourseSubPage', {
+    title: 'Assessments',
+    course: { courseId: payload.courseId }, // You'll need to fetch full course details or pass minimal
+    userRole: 'student',
+  });
+  break;
       case 'TEST_SUBMITTED':
       case 'TEST_ANALYSIS_READY':
         navigation.navigate('CourseSubPage', {
