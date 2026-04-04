@@ -31,6 +31,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gem } from 'lucide-react-native';
 import * as Progress from 'react-native-progress';
 import axios from 'axios';
+import ExpandableFAB from './ExpandableFAB.tsx';
+import { homeStyles } from '../assets/styles/colors.ts';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const PRIMARY_COLOR = '#f54b02';
 export const PRIMARY_COLOR_TINT = '#fd8c5b';
@@ -224,17 +226,17 @@ const getExceptionLimit = (plan: string) => {
 const getStatusConfig = (status: Lecture['status']) => {
   switch (status) {
     case 'completed':
-      return { name: 'check-circle', color: '#f54b02' };
+      return { name: 'check-circle', color: PRIMARY_COLOR };
     case 'ongoing':
-      return { name: 'play-circle', color: '#f54b02' };
+      return { name: 'play-circle', color: PRIMARY_COLOR };
     case 'scheduled':
-      return { name: 'clock-outline', color: '#f54b02' };
+      return { name: 'clock-outline', color: PRIMARY_COLOR };
     case 'cancelled':
-      return { name: 'close-circle', color: '#f54b02' };
+      return { name: 'close-circle', color: PRIMARY_COLOR };
     case 'postponed':
-      return { name: 'calendar-clock', color: '#f54b02' };
+      return { name: 'calendar-clock', color: PRIMARY_COLOR };
     default:
-      return { name: 'help-circle', color: '#f54b02' };
+      return { name: 'help-circle', color: PRIMARY_COLOR };
   }
 };
 const EmptyLectures = ({ isLecturer }: { isLecturer: boolean }) => (
@@ -922,6 +924,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [niches, setNiches] = useState<string[]>(['All']); // Fallback to 'All'
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
+  const [lectures, setLectures] = useState<Lecture[]>([]);
+  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
 
   const fetchMyCourses = useCallback(
     async (semester: string, session: string) => {
@@ -1424,6 +1429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         onPress={() => {
                           setSelectedCourse(item);
                           setModalVisible(true);
+                          setLectures(item.Lectures || []);
                         }}
                         style={styles.courseCard}
                       >
@@ -1585,6 +1591,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         onPress={() => {
                           setSelectedCourse(item);
                           setModalVisible(true);
+                          setLectures(item.Lectures || []);
                         }}
                         style={styles.courseCard}
                       >
@@ -1655,6 +1662,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       )}
       {renderDiscover()}
       {renderForYou()}
+      {!isFabMenuVisible && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => setFabMenuVisible(true)}
+        >
+          <MaterialIcons name="widgets" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+      <ExpandableFAB
+        isVisible={isFabMenuVisible}
+        onClose={toggleFab}
+        actions={['View Lectures', 'Create Course']}
+        userRole={user.usertype} // From your Redux state
+        lectures={lectures}
+      />
       <CourseDetailModal
         isVisible={detailModalVisible} // Ensure you have this state
         onClose={() => setDetailModalVisible(false)}
@@ -1879,7 +1901,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginBottom: 15,
     elevation: 3,
-    shadowColor: '#f54b02',
+    shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -2037,7 +2059,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   onlineBadge: {
-    backgroundColor: '#f54b02', // Very light blue
+    backgroundColor: PRIMARY_COLOR, // Very light blue
     borderWidth: 1,
   },
   physicalBadge: {

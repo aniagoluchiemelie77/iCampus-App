@@ -104,84 +104,64 @@ const Notifications = () => {
   // 3. Navigation "Inlet" Logic
   const handleNotificationPress = async (item: any) => {
     if (!item.isRead) {
-      markAsReadOnServer(item.notificationId); // Assuming MongoDB notificationId
+      markAsReadOnServer(item.notificationId);
       setNotifications(prev =>
         prev.map(n =>
           n.notificationId === item.notificationId ? { ...n, isRead: true } : n,
         ),
       );
     }
-
     const { actionType, payload, relatedEntity } = item;
+    // Use the ID from relatedEntity (set by backend) or fallback to payload
+    const entityId =
+      relatedEntity?.entityId || payload?.postId || payload?.lectureId;
 
     switch (actionType) {
-      case 'TEST_CREATED':
-  navigation.navigate('CourseSubPage', {
-    title: 'Assessments',
-    course: { courseId: payload.courseId }, // You'll need to fetch full course details or pass minimal
-    userRole: 'student',
-  });
-  break;
-      case 'TEST_SUBMITTED':
-      case 'TEST_ANALYSIS_READY':
-        navigation.navigate('CourseSubPage', {
-          title: 'Assessments',
-          course: payload.course,
-          userRole: user.usertype,
-          initialTestId: payload.testId, // Pass specific ID to auto-open
-          autoCheckSubmission: true, // Tell the page to check if already submitted
-        });
+      // --- POST GROUP (PostDetails) ---
+      case 'POST_MENTION': // Fixed typo (removed 'S')
+      case 'POST_LIKED':
+      case 'POST_COMMENTED':
+      case 'POST_REPOSTED':
+        navigation.navigate('PostDetail', { postId: entityId });
         break;
+
+      // --- LECTURE GROUP (LectureView) ---
+      case 'LECTURE_CANCELLED':
+      case 'LECTURE_POSTPONED':
       case 'LECTURE_SCHEDULED':
         navigation.navigate('CourseSubPage', {
-          title: 'Set Lecture Schedule',
-          course: payload.course,
-          userRole: user.usertype,
-        });
-        break;
-      case 'MATERIAL_UPLOADED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Course Materials',
-          course: payload.course,
-          userRole: user.usertype,
-        });
-        break;
-      case 'ASSIGNMENT_CREATED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Assignments',
-          course: payload.course,
-          userRole: user.usertype,
-        });
-        break;
-      case 'CONTENT_UPDATED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Course Contents',
-          course: payload.course,
-          userRole: user.usertype,
+          title: 'View Lecture Schedule', // Matches your conditional title check
+          course: { courseId: payload.courseId }, // Ensure backend sends courseId
+          userRole: user.usertype, // 'lecturer' or 'student'
+          initialLectureId: entityId, // Useful if you want to highlight the specific lecture
         });
         break;
 
-      // INLET: Social/Profile
+      // --- ACADEMIC/COURSE UPDATES (NotificationDetails) ---
+      case 'CONTENT_UPDATED':
+      case 'LECTURE_REMINDER':
+        navigation.navigate('NotificationDetails', { notification: item });
+        break;
+
+      // --- OTHER SPECIALIZED PAGES ---
       case 'NEW_FOLLOWER':
         navigation.navigate('Profile', { userId: payload.followerId });
         break;
 
-      // INLET: Posts
-      case 'POST_MENTIONS':
-        navigation.navigate('PostDetail', { postId: relatedEntity?.entityId });
-        break;
-
-      // INLET: Finance
-      case 'TRANSACTIONS':
-      case 'PURCHASE_DEBIT':
-        navigation.navigate('TransactionPage', {
-          transactionId: relatedEntity?.entityId,
-          showItemsList: true,
-          //viewMode: user.usertype === 'seller' ? 'sales_record' : 'receipt',
+      case 'TEST_CREATED':
+      case 'TEST_ANALYSIS_READY':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assessments',
+          course: { courseId: payload.courseId },
+          userRole: user.usertype,
+          initialTestId: payload.testId,
         });
         break;
 
-      // DEFAULT: Notification Detail Page
+      case 'PURCHASE_DEBIT':
+        navigation.navigate('TransactionPage', { transactionId: entityId });
+        break;
+
       default:
         navigation.navigate('NotificationDetails', { notification: item });
         break;

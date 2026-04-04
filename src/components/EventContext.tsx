@@ -49,6 +49,7 @@ interface AppDataContextType {
   incrementImpression: (postId: string) => Promise<void>;
   toggleBookmark: (postId: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
+  fetchPostById: (postId: string) => Promise<Posts | null>;
 }
 
 interface AppDataProviderProps {
@@ -542,35 +543,73 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
       // 2. Update local state
       setPosts((prevPosts: Posts[]) => {
-      return prevPosts.map((post): Posts => {
-        // 1. Check if this is the post we want AND that it actually has a poll
-        if (post.postId === postId && post.poll) {
-          
-          const updatedOptions = post.poll.options.map((opt: any) => {
-            if (opt.optionId === optionId) {
-              return { 
-                ...opt, 
-                votes: [...(opt.votes || []), currentUser.uid] 
-              };
-            }
-            return opt;
-          });
+        return prevPosts.map((post): Posts => {
+          // 1. Check if this is the post we want AND that it actually has a poll
+          if (post.postId === postId && post.poll) {
+            const updatedOptions = post.poll.options.map((opt: any) => {
+              if (opt.optionId === optionId) {
+                return {
+                  ...opt,
+                  votes: [...(opt.votes || []), currentUser.uid],
+                };
+              }
+              return opt;
+            });
 
-          return {
-            ...post,
-            poll: {
-              ...post.poll, // Now safe because of the check above
-              options: updatedOptions,
-              totalVotes: (post.poll.totalVotes || 0) + 1,
-            },
-          };
-        }
-        return post;
+            return {
+              ...post,
+              poll: {
+                ...post.poll, // Now safe because of the check above
+                options: updatedOptions,
+                totalVotes: (post.poll.totalVotes || 0) + 1,
+              },
+            };
+          }
+          return post;
+        });
       });
-    });
     } catch (error) {
       console.error('Error voting:', error);
-      Toast.show({ type: 'error', text1: 'Could not register your vote, please retry.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Could not register your vote, please retry.',
+      });
+    }
+  };
+  const fetchPostById = async (postId: string): Promise<Posts | null> => {
+    const localPost = posts.find((p: Posts) => p.postId === postId);
+    if (localPost) return localPost;
+
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(`${baseUrl}posts/${postId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Post not found on server');
+      }
+
+      const data = await response.json();
+
+      setPosts(prev => {
+        const exists = prev.find(p => p.postId === data.postId);
+
+        if (exists) {
+          return prev.map(p => (p.postId === data.postId ? data : p));
+        } else {
+          return [data, ...prev];
+        }
+      });
+
+      return data as Posts;
+    } catch (error) {
+      console.error('Error fetching post from MongoDB:', error);
+      return null;
     }
   };
 
@@ -626,6 +665,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         toggleCommentLike,
         addComment,
         handleVote,
+        fetchPostById,
       }}
     >
       {children}

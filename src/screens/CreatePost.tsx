@@ -143,7 +143,7 @@ const CreatePost = ({ route, navigation }: Props) => {
 
     // 3. SEND TO DATABASE
     // Current MongoDB call:
-    await axios.post(`${baseUrl}/posts/create`, postData);
+    await axios.post(`${baseUrl}posts/create`, postData);
 
     // Future Firebase call:
     // await firestore().collection('Posts').add(postData);

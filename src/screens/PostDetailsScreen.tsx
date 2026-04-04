@@ -1,76 +1,131 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { 
-  View, FlatList, TextInput, KeyboardAvoidingView, 
-  Platform, StyleSheet, Text, TouchableOpacity 
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import {
+  View,
+  FlatList,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { PostCard } from '../components/PostCard';
 import { CommentItem } from '../components/CommentSection';
 import { useAppDataContext } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
- 
+import { Posts } from 'types/firebase';
+import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+
 export const PostDetailScreen = ({ route }: any) => {
-  const { post } = route.params;
-  const { addComment, toggleCommentLike } = useAppDataContext();
+  const { post: initialPost, postId } = route.params;
+  const [post, setPost] = useState<Posts | null>(initialPost || null);
+  const [loading, setLoading] = useState(!initialPost);
   const [commentText, setCommentText] = useState('');
-  const [replyingTo, setReplyingTo] = useState<{id: string, name: string} | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const inputRef = useRef<TextInput>(null);
 
+  // Destructure fetchPostById from context (Ensure this is defined in your EventContext)
+  const { addComment, toggleCommentLike, fetchPostById } = useAppDataContext();
+
+  // Fetch post if we only have the ID (from Notifications)
+  useEffect(() => {
+    let isMounted = true;
+    if (!post && postId) {
+      const getPostData = async () => {
+        try {
+          setLoading(true);
+          const data = await fetchPostById(postId);
+          if (isMounted) setPost(data);
+        } catch (error) {
+          Toast.show({ type: 'error', text1: 'Could not load post' });
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      };
+      getPostData();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [postId, fetchPostById, post]);
+
   const threadedComments = useMemo(() => {
+    if (!post || !post.comments) return [];
     const map = new Map();
     const roots: any[] = [];
-    post.comments.forEach((c: any) => map.set(c.commentId, { ...c, replies: [] }));
+
+    post.comments.forEach((c: any) =>
+      map.set(c.commentId, { ...c, replies: [] }),
+    );
     map.forEach((c: any) => {
-      if (c.parentId) {
-        map.get(c.parentId)?.replies.push(c);
+      if (c.parentId && map.has(c.parentId)) {
+        map.get(c.parentId).replies.push(c);
       } else {
         roots.push(c);
       }
     });
     return roots;
-  }, [post.comments]);
+  }, [post]);
 
   const handleSend = async () => {
-  if (!commentText.trim()) return;
+    if (!commentText.trim() || !post) return;
 
-  try {
-    // We wait for the addComment function to finish
-    await addComment(post.postId, commentText, replyingTo?.id || null);
-
-    // Show Success Toast
-    Toast.show({
-      type: 'success',
-      text1: 'Comment posted!',
-      position: 'bottom',
-      bottomOffset: 100,
-    });
-
-    // Reset UI
-    setCommentText('');
-    setReplyingTo(null);
-    inputRef.current?.blur();
-  } catch (error) {
-    Toast.show({
-      type: 'error',
-      text1: 'Failed to post comment',
-      text2: 'Please try again later.',
-    });
+    try {
+      await addComment(post.postId, commentText, replyingTo?.id || null);
+      Toast.show({
+        type: 'success',
+        text1: 'Comment posted!',
+        position: 'bottom',
+        bottomOffset: 100,
+      });
+      setCommentText('');
+      setReplyingTo(null);
+      inputRef.current?.blur();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to post comment',
+      });
+    }
+  };
+  // 1. Loading State
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+      </View>
+    );
   }
-};
+
+  // 2. Not Found State
+  if (!post) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.centeredText}>
+          Post not found or has been deleted.
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#fff' }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90} 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <FlatList
         data={threadedComments}
-        keyExtractor={(item) => item.commentId}
+        keyExtractor={item => item.commentId}
         ListHeaderComponent={<PostCard post={post} isVisible={true} />}
         renderItem={({ item }) => (
-          <CommentItem 
-            comment={item} 
+          <CommentItem
+            comment={item}
             onLike={(id: string) => toggleCommentLike(post.postId, id)}
             onReply={(id: string, name: string) => {
               setReplyingTo({ id, name });
@@ -81,7 +136,6 @@ export const PostDetailScreen = ({ route }: any) => {
         contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      {/* STICKY INPUT BAR */}
       <View style={styles.inputWrapper}>
         {replyingTo && (
           <View style={styles.replyBar}>
@@ -101,7 +155,11 @@ export const PostDetailScreen = ({ route }: any) => {
             multiline
           />
           <TouchableOpacity onPress={handleSend} disabled={!commentText.trim()}>
-            <Text style={[styles.sendBtn, !commentText.trim() && { opacity: 0.5 }]}>Post</Text>
+            <Text
+              style={[styles.sendBtn, !commentText.trim() && { opacity: 0.5 }]}
+            >
+              Post
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -115,7 +173,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     backgroundColor: '#fff',
+    paddingHorizontal: 15,
     paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+    paddingTop: 10,
   },
   replyBar: {
     flexDirection: 'row',
@@ -130,7 +190,7 @@ const styles = StyleSheet.create({
   },
   cancelReply: {
     fontSize: 12,
-    color: '#fb6a02',
+    color: PRIMARY_COLOR,
     fontWeight: 'bold',
   },
   inputContainer: {
@@ -149,9 +209,20 @@ const styles = StyleSheet.create({
     maxHeight: 100,
   },
   sendBtn: {
-    color: '#fb6a02',
+    color: PRIMARY_COLOR,
     fontWeight: 'bold',
     fontSize: 16,
-  }
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  centeredText: {
+    fontSize: 16,
+    color: '#2222',
+    marginVertical: 20,
+  },
 });
 export default PostDetailScreen;

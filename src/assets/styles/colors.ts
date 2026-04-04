@@ -1546,12 +1546,12 @@ export const homeStyles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5, // Shadow for Android
+    elevation: 5, 
     shadowColor: '#000', // Shadow for iOS
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    zIndex: 1,
+    zIndex: 100,
   },
   container: {
     flex: 1,

@@ -83,7 +83,10 @@ export type RootStackParamList = {
     exceptions?: CourseException[];
   };
   SignupPage: { role: string };
-  PostDetailScreen: { post: Posts }; //PostDetail: { postId: string };
+  PostDetailScreen: {
+    post: Posts;
+    postId: string;
+  }; //PostDetail: { postId: string };
   Home: undefined;
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
