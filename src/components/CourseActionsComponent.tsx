@@ -1654,7 +1654,7 @@ export const RenderScheduleLecture = ({
   useEffect(() => {
     if (form.lectureType === 'Online') {
       const randomHash = Math.random().toString(36).substring(7);
-      const generatedLink = `https://live.iCampus.com/${course.courseId}/${randomHash}`;
+      const generatedLink = `https://live.icampus.com/${course.courseId}/${randomHash}`;
       setForm(prev => ({
         ...prev,
         location: generatedLink,

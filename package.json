@@ -80,7 +80,8 @@
     "react-native-worklets-core": "^1.6.3",
     "react-redux": "^9.2.0",
     "reselect": "^5.1.1",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "vision-camera-face-detector": "^0.1.8"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

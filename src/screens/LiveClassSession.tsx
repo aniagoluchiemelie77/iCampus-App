@@ -1,0 +1,147 @@
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback
+} from 'react';
+import {
+  View,
+} from 'react-native';
+
+import {useLiveSession} from '../hooks/useLiveSession';
+import {baseUrl} from '../components/HomeScreenComponents';
+import {LecturerLiveClassSession} from '../components/LecturerLiveClassSession';
+import {StudentLiveClassSession} from '../components/StudentLiveClassSession';
+import {AccessDeniedScreen} from '../components/AccessDeniedScreen';
+import { Camera, useCameraDevice } from 'react-native-vision-camera';
+import { 
+  useFrameProcessor
+} from 'react-native-vision-camera';
+import { runOnJS } from 'react-native-reanimated';
+import { scanFaces } from 'vision-camera-face-detector';
+
+export const LiveClassSessions = ({ route }: any) => {
+  const { lectureId, courseId } = route.params;
+  const [faceDetected, setFaceDetected] = useState<boolean>(false);
+  const device = useCameraDevice('front'); // Use the front camera for students
+  const [attendanceChecks, setAttendanceChecks] = useState<boolean[]>(new Array(7).fill(false));
+  const { user, course, lecture, exceptions } = useLiveSession(lectureId, courseId);
+  // Guard: Check if user is Enrolled or a Lecturer
+  const isLecturer = course?.lecturerIds?.includes(user?.uid);
+  const isStudent = course?.studentsEnrolled?.includes(user?.uid);
+  const canJoin = useMemo(() => {
+    const isEnrolled = course?.studentsEnrolled?.includes(user.uid);
+    const hasStarted = lecture?.status === 'ongoing' || lecture?.status === 'scheduled';
+    // Add a base check: if course/lecture don't exist yet, they can't join
+    if (!course || !lecture) return false;
+    return (isLecturer || isEnrolled) && hasStarted;
+  }, [course, lecture, user, isLecturer]);
+    const isEligibleForAttendance = useMemo(() => {
+        const hasApprovedException = exceptions.some(
+            ex => ex.studentId === user?.uid && ex.lectureId === lectureId && ex.status === 'approved'
+        );
+        if (hasApprovedException) return true;
+        const totalPassed = attendanceChecks.filter(c => c).length;
+        const endCheck = attendanceChecks[6];
+        return totalPassed >= 5 && endCheck;
+    }, [attendanceChecks, exceptions, lectureId, user?.uid]);
+    const updateFaceStatus = (status: boolean) => {
+  if (faceDetected !== status) {
+    setFaceDetected(status);
+  }
+};
+const frameProcessor = useFrameProcessor((frame) => {
+  'worklet';
+  const faces = scanFaces(frame);
+  // @ts-ignore
+  runOnJS(updateFaceStatus)(faces.length > 0);
+}, [faceDetected]);
+const saveAttendance = useCallback(async () => {
+  try {
+    if (!isStudent || !user?.uid || !lectureId) return;
+
+    await fetch(`${baseUrl}users/student/class/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: user.uid,
+        lectureId: lectureId,
+        courseId: courseId,
+        status: isEligibleForAttendance ? 'Present' : 'Absent',
+        checkData: attendanceChecks, 
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.error("iCampus: Failed to save attendance:", err);
+  }
+}, [isStudent, user?.uid, lectureId, courseId, isEligibleForAttendance, attendanceChecks]);
+useEffect(() => {
+  if (!lecture || isLecturer || lecture.lectureType !== 'Online' || lecture.status !== 'ongoing') {
+    return;
+  }
+  const startTime = new Date(lecture.startTime).getTime();
+  const endTime = new Date(lecture.endTime).getTime();
+  const duration = endTime - startTime;
+  const intervalTime = duration / 6; 
+
+  
+  const runCheck = () => {
+  const now = Date.now();
+  const currentIndex = Math.floor((now - startTime) / intervalTime);
+
+  if (currentIndex >= 0 && currentIndex < 7) {
+    setAttendanceChecks(prev => {
+      const newChecks = [...prev];
+      if (!newChecks[currentIndex] && faceDetected) { 
+        newChecks[currentIndex] = true;
+        // Optional: Toast.show({ text1: `Attendance Point ${currentIndex + 1} Verified!` });
+      }
+      
+      return newChecks;
+    });
+  }
+};
+
+  runCheck();
+  const pulse = setInterval(runCheck, 30000); 
+
+  return () => clearInterval(pulse);
+}, [lecture, isLecturer, faceDetected]);
+ useEffect(() => {
+  if (lecture?.status === 'completed' && isStudent) {
+    saveAttendance();
+  }
+  // Only trigger when the lecture status actually flips to 'completed'
+}, [lecture?.status, isStudent, saveAttendance]);
+if (!canJoin) return <AccessDeniedScreen />;
+  if (!isLecturer && !isStudent) {
+    return <AccessDeniedScreen reason="You are not enrolled in this course." />;
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      {isLecturer ? (
+        <LecturerLiveClassSession 
+          lecture={lecture} 
+          exceptions={exceptions} 
+          course={course}
+        />
+      ) : (
+        <StudentLiveClassSession 
+          lecture={lecture} 
+          checks={attendanceChecks}
+          hasException={exceptions.some(e => e.studentId === user.uid && e.status === 'approved')}
+        />
+      )}
+      {isStudent && device && (
+          <Camera 
+            style={{ height: 1, width: 1, opacity: 0 }} // Hidden background tracker
+            device={device} 
+            isActive={true} 
+            frameProcessor={frameProcessor} 
+          />
+       )}
+    </View>
+  );
+};
