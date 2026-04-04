@@ -686,6 +686,7 @@ export interface CreateTestPayload {
   status: 'published' | 'draft';
   createdAt: string;
   dueDate: string;
+  scheduledStart?: string; // optional field for scheduling
 }
 
 export interface TestSubmission {

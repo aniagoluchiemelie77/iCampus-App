@@ -350,8 +350,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
 
     try {
       const token = await AsyncStorage.getItem('accessToken');
-
-      // Clean the payload: Ensure numbers are numbers before sending to MongoDB
       const finalPayload = {
         ...testData,
         courseId: course.courseId,
@@ -374,11 +372,9 @@ export const CourseSubPage = ({ route, navigation }: any) => {
           body: JSON.stringify(finalPayload),
         },
       );
-
       const result = await response.json();
 
       if (response.ok) {
-        // Only show success toast for manual clicks (Publish/Save Draft)
         if (!isSilent) {
           Toast.show({
             type: 'success',
@@ -387,11 +383,10 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               : 'Draft Saved',
             text2: `Successfully stored "${testData.title}"`,
           });
-          setModalVisible(false); // Close modal on manual success
+          setModalVisible(false);
         }
         fetchTests();
       } else {
-        // Always show error toast, even if silent
         Toast.show({
           type: 'error',
           text1: 'Save Failed',
@@ -526,6 +521,26 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       }
     }
   }, [title, lectures, fetchTimeline]);
+  useEffect(() => {
+    if (
+      title === 'Assessments' &&
+      activeTest?.scheduledStart &&
+      userRole === 'student'
+    ) {
+      const startTime = new Date(activeTest.scheduledStart).getTime();
+      const now = Date.now();
+      const buffer = 30000; // 30s network buffer
+      const delay = startTime - buffer - now;
+      if (delay > 0) {
+        const timer = setTimeout(() => {
+          fetchTests();
+        }, delay);
+        return () => clearTimeout(timer);
+      } else {
+        fetchTests();
+      }
+    }
+  }, [activeTest, fetchTests, userRole, title]);
 
   const goBack = () => navigation.goBack();
   return (
@@ -622,11 +637,56 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               </TouchableOpacity>
             </View>
           ) : activeTest ? (
-            <RenderStudentTest
-              test={activeTest}
-              user={user}
-              onSubmit={handleTestSubmission}
-            />
+            (() => {
+              if (!activeTest.scheduledStart) {
+                return <EmptyState message="Assessment start time not set." />;
+              }
+              const now = Date.now();
+              const startTime = new Date(activeTest.scheduledStart).getTime();
+              const buffer = 30000; // 30-second buffer for network/clock sync
+
+              const isTimeReady = now >= startTime - buffer;
+
+              if (isTimeReady) {
+                return (
+                  <RenderStudentTest
+                    test={activeTest}
+                    user={user}
+                    onSubmit={handleTestSubmission}
+                  />
+                );
+              } else {
+                return (
+                  <View style={CourseActionStyles.centered}>
+                    <Icon
+                      name="timer-sand"
+                      size={80}
+                      color={PRIMARY_COLOR_TINT}
+                    />
+                    <Text style={CourseActionStyles.successTitle}>
+                      Wait a Moment
+                    </Text>
+                    <Text style={CourseActionStyles.successText}>
+                      This assessment is scheduled to start at {'\n'}
+                      <Text style={{ fontWeight: 'bold' }}>
+                        {new Date(
+                          activeTest.scheduledStart,
+                        ).toLocaleTimeString()}
+                      </Text>
+                      .
+                    </Text>
+                    <TouchableOpacity
+                      style={CourseActionStyles.doneButton}
+                      onPress={fetchTests} // Allow them to manual refresh
+                    >
+                      <Text style={CourseActionStyles.doneButtonText}>
+                        Refresh Status
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+            })()
           ) : (
             <EmptyState message="No assessments currently available." />
           ))}

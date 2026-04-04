@@ -18,6 +18,7 @@ import {
   Modal,
   ActivityIndicator,
   AppState,
+  Dimensions,
   SectionList,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -39,6 +40,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { create, all } from 'mathjs';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import Logo from '../assets/images/Logo';
 import Toast from 'react-native-toast-message';
@@ -54,6 +56,8 @@ import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
 import { BarChart } from 'react-native-chart-kit';
+const { width } = Dimensions.get('window');
+const math = create(all);
 
 type PageType =
   | 'Course Contents'
@@ -84,6 +88,7 @@ interface TestFormState {
   title: string;
   duration: string;
   dueDate: string;
+  scheduledStart: string;
   totalMarks: string;
   questions: Question[]; // Uses the strict Question interface we defined
 }
@@ -135,6 +140,68 @@ interface StudentTestProps {
   user: any;
   onSubmit: (payload: any) => Promise<void>; // Use 'onSave' to match your JSX
 }
+export const FloatingCalculator = ({
+  visible,
+  onClose,
+  expression,
+  result,
+  handlePress,
+  buttons,
+}: any) => {
+  if (!visible) return null;
+
+  return (
+    <View style={CourseActionStyles.miniCalculator}>
+      <View style={CourseActionStyles.miniCalculatorHeader}>
+        <Text style={CourseActionStyles.miniCalculatorHeaderText}>Calc</Text>
+        <TouchableOpacity onPress={onClose}>
+          <Icon name="close-circle" size={16} color={PRIMARY_COLOR} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={CourseActionStyles.miniCalcDisplay}>
+        <Text
+          numberOfLines={1}
+          style={CourseActionStyles.miniCalcDisplayExpressionText}
+        >
+          {expression || '0'}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={CourseActionStyles.miniCalcDisplayResultsText}
+        >
+          {result || ''}
+        </Text>
+      </View>
+
+      <View>
+        {buttons.map((row: string[], i: number) => (
+          <View key={i} style={{ flexDirection: 'row' }}>
+            {row.map(btn => (
+              <TouchableOpacity
+                key={btn}
+                style={[
+                  CourseActionStyles.miniButton,
+                  btn === '=' && { backgroundColor: PRIMARY_COLOR },
+                ]}
+                onPress={() => handlePress(btn)}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.miniBtnText,
+                    btn === '=' && { color: '#fff' },
+                  ]}
+                >
+                  {btn}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
 export const chartConfig = {
   backgroundGradientFrom: '#FFFFFF',
   backgroundGradientTo: '#eee',
@@ -323,7 +390,7 @@ export const AddExceptionModal = ({
     course.Lectures?.filter(l => {
       const lectureDate = new Date(l.date);
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+      today.setHours(0, 0, 0, 0);
       return lectureDate >= today;
     }) || [];
 
@@ -1253,7 +1320,7 @@ export const RenderStudentExceptions = ({
   refreshing,
   onRefresh,
 }: StudentExceptionsProps) => {
-  const limits = { free: 3, pro: 5, premium: 7 };
+  const limits = { free: 2, pro: 4, premium: 6 };
   const currentPlan = user.plan || 'free';
   const planLimit = limits[currentPlan];
   const filteredData = exceptions.filter(item => {
@@ -1276,11 +1343,10 @@ export const RenderStudentExceptions = ({
   const hasExceededLimit = usedThisMonth >= planLimit;
   const hasInsufficientPoints = (user.pointsBalance || 0) < 1.0;
   const isDisabled = hasExceededLimit || hasInsufficientPoints;
-  // Determine the reason for the disabled state
   const getDisabledReason = () => {
     if (hasExceededLimit)
       return `Monthly ${currentPlan} tier limit reached (${planLimit}/${planLimit})`;
-    if (hasInsufficientPoints) return 'Insufficient iCash (1 pts required)';
+    if (hasInsufficientPoints) return 'Insufficient iCash (0.5 iCash required)';
     return '';
   };
 
@@ -1829,6 +1895,7 @@ export const RenderLecturerTestManage = ({
     title: '',
     duration: '30',
     dueDate: '',
+    scheduledStart: '',
     totalMarks: '0',
     questions: [
       {
@@ -1842,10 +1909,22 @@ export const RenderLecturerTestManage = ({
     ],
   };
   const [testForm, setTestForm] = useState<TestFormState>(initialFormState);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const filteredTests = tests.filter(t =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-
+  const openEditModal = (test: CreateTestPayload) => {
+    setTestForm({
+      title: test.title,
+      duration: (test.duration ?? 0).toString(), // Safety for duration
+      dueDate: test.dueDate ?? '', // Fallback to empty string
+      totalMarks: (test.totalMarks ?? 0).toString(),
+      questions: test.questions ?? [], // Fallback to empty array
+      scheduledStart: test.scheduledStart ?? '', // FIX: Fallback to empty string
+    });
+    setEditingId(test.id ?? null);
+    setIsModalVisible(true);
+  };
   const addQuestion = () => {
     setTestForm({
       ...testForm,
@@ -1895,6 +1974,7 @@ export const RenderLecturerTestManage = ({
     setLoading(true);
     const currentCourse = Array.isArray(course) ? course[0] : course;
     const finalPayload: CreateTestPayload = {
+      id: editingId || undefined,
       courseId: currentCourse.courseId,
       title: testForm.title,
       duration: Number(testForm.duration),
@@ -1903,12 +1983,14 @@ export const RenderLecturerTestManage = ({
       isPublished,
       status: isPublished ? 'published' : 'draft',
       createdAt: new Date().toISOString(),
+      scheduledStart: testForm.scheduledStart,
       dueDate: testForm.dueDate,
     };
     onSaveTest(finalPayload);
     setLoading(false);
     setIsModalVisible(false);
     setTestForm(initialFormState);
+    setEditingId(null);
   };
   const autoSaveDraft = useCallback(async () => {
     try {
@@ -1964,18 +2046,19 @@ export const RenderLecturerTestManage = ({
     if (event.type === 'set' && selectedDate) {
       if (pickerMode === 'date') {
         const dateString = selectedDate.toISOString().split('T')[0];
-        setTestForm(prev => ({ ...prev, dueDate: dateString }));
+        // Set date for both
+        setTestForm(prev => ({ ...prev, date: dateString }));
         setTimeout(() => setPickerMode('startTime'), 500);
       } else if (pickerMode === 'startTime') {
-        const timeString = selectedDate.toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
+        // Set Start Time
         setTestForm(prev => ({
           ...prev,
-          dueDate: `${prev.dueDate} at ${timeString}`,
+          scheduledStart: selectedDate.toISOString(),
         }));
+        setTimeout(() => setPickerMode('endTime'), 500);
+      } else if (pickerMode === 'endTime') {
+        // Set Deadline
+        setTestForm(prev => ({ ...prev, dueDate: selectedDate.toISOString() }));
       }
     }
   };
@@ -2015,7 +2098,18 @@ export const RenderLecturerTestManage = ({
         <Text style={CourseActionStyles.sectionTitle}>Past Assessments</Text>
         <TouchableOpacity
           style={CourseActionStyles.createCard}
-          onPress={() => setIsModalVisible(true)}
+          onPress={() => {
+            setEditingId(null);
+            setTestForm({
+              title: '',
+              duration: '',
+              dueDate: '',
+              totalMarks: '',
+              questions: [],
+              scheduledStart: '',
+            });
+            setIsModalVisible(true);
+          }}
         >
           <Icon name="plus-circle" size={24} color="#fff" />
           <Text style={CourseActionStyles.createCardText}>
@@ -2038,7 +2132,11 @@ export const RenderLecturerTestManage = ({
           const isPastDue = new Date() > new Date(item.dueDate);
           return (
             <View style={CourseActionStyles.pastTestCard}>
-              <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => !isPastDue && openEditModal(item)}
+                activeOpacity={isPastDue ? 1 : 0.7} // Visual feedback: no "tap" look if past due
+              >
                 <Text style={CourseActionStyles.testTitle}>{item.title}</Text>
                 <Text style={CourseActionStyles.testMeta}>
                   {item.questions.length} Questions •{' '}
@@ -2046,7 +2144,17 @@ export const RenderLecturerTestManage = ({
                     {item.isPublished ? 'Published' : 'Draft'}
                   </Text>
                 </Text>
-              </View>
+                {isPastDue && (
+                  <Text
+                    style={[
+                      CourseActionStyles.testMeta,
+                      { color: PRIMARY_COLOR_TINT },
+                    ]}
+                  >
+                    Locked (Past Due)
+                  </Text>
+                )}
+              </TouchableOpacity>
               {isPastDue && item.isPublished ? (
                 <TouchableOpacity
                   style={{
@@ -2365,6 +2473,10 @@ export const RenderStudentTest = ({
   const [timeLeft, setTimeLeft] = useState(test.duration * 60);
   const [cheatingCount, setCheatingCount] = useState(0);
   const [finalResult, setFinalResult] = useState({ score: 0, total: 0 });
+  const [isCalcVisible, setIsCalcVisible] = useState(false);
+  const [expression, setExpression] = useState('');
+  const [result, setResult] = useState('');
+  const MAX_GRACES = 3;
 
   const [selfieUrl, setSelfieUrl] = useState<string>('');
 
@@ -2397,6 +2509,33 @@ export const RenderStudentTest = ({
     const response = await callGeminiAPI(prompt);
     return JSON.parse(response);
   };
+  const handlePress = (val: string) => {
+    if (val === '=') {
+      try {
+        const evalResult = math.evaluate(expression);
+        setResult(String(evalResult));
+      } catch (e) {
+        setResult('Error');
+      }
+    } else if (val === 'AC') {
+      setExpression('');
+      setResult('');
+    } else if (val === '⌫') {
+      setExpression(prev => prev.slice(0, -1));
+    } else {
+      setExpression(prev => prev + val);
+    }
+  };
+
+  // Engineering-focused button layout
+  const buttons = [
+    ['sin(', 'cos(', 'log(', '^'],
+    ['7', '8', '9', '/'],
+    ['4', '5', '6', '*'],
+    ['1', '2', '3', '-'],
+    ['0', '.', 'AC', '+'],
+    ['pi', 'e', '⌫', '='],
+  ];
   const uploadSelfieToStorage = async (path: string): Promise<string> => {
     setIsUploading(true);
     try {
@@ -2640,7 +2779,6 @@ export const RenderStudentTest = ({
       msg: 'Review the course materials and try again.',
     };
   };
-
   // 1. Detect App Switching (Minimize/Tab-out)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
@@ -2772,10 +2910,36 @@ export const RenderStudentTest = ({
           {Math.floor(timeLeft / 60)}:{' '}
           {(timeLeft % 60).toString().padStart(2, '0')}
         </Text>
-
+        <View
+          style={{
+            flexDirection: 'row',
+            marginHorizontal: 5,
+            alignItems: 'center',
+          }}
+        >
+          {[...Array(MAX_GRACES)].map((_, i) => (
+            <Icon
+              key={i}
+              name={
+                i < MAX_GRACES - cheatingCount ? 'shield-check' : 'shield-off'
+              }
+              size={18}
+              color={
+                i < MAX_GRACES - cheatingCount
+                  ? PRIMARY_COLOR_TINT
+                  : PRIMARY_COLOR
+              }
+              style={{ marginRight: 2 }}
+            />
+          ))}
+          <Text style={{ fontSize: 10, color: '#2222' }}>Security Status</Text>
+        </View>
         <Text style={CourseActionStyles.progress}>
           Question {currentIndex + 1} of {test.questions.length}
         </Text>
+        <TouchableOpacity onPress={() => setIsCalcVisible(true)}>
+          <Icon name="calculator" size={20} color={PRIMARY_COLOR} />
+        </TouchableOpacity>
       </View>
 
       {/* QUESTION UI */}
@@ -2899,6 +3063,15 @@ export const RenderStudentTest = ({
           </View>
         </View>
       </Modal>
+      {/* SCIENTIFIC CALCULATOR MODAL */}
+      <FloatingCalculator
+        visible={isCalcVisible}
+        onClose={() => setIsCalcVisible(false)}
+        expression={expression}
+        result={result}
+        handlePress={handlePress}
+        buttons={buttons}
+      />
       {device != null && (
         <Camera
           {...({
@@ -4801,7 +4974,7 @@ export const CourseActionStyles = StyleSheet.create({
   },
   miniCamera: {
     position: 'absolute',
-    top: 20,
+    bottom: 20,
     right: 20,
     width: 100,
     height: 130,
@@ -5039,5 +5212,64 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#2222',
+  },
+  //
+  miniCalculator: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    width: 160,
+    padding: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    zIndex: 900,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  miniCalculatorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    paddingHorizontal: 5,
+  },
+  miniCalculatorHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2222',
+  },
+  miniCalcDisplay: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 5,
+    padding: 4,
+    marginBottom: 8,
+    alignItems: 'flex-end',
+  },
+  miniCalcDisplayExpressionText: {
+    fontSize: 10,
+    color: '#6c6c6c22',
+  },
+  miniCalcDisplayResultsText: {
+    fontSize: 14,
+    color: '#2222',
+    fontWeight: 'bold',
+  },
+  miniBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2222',
+  },
+  miniButton: {
+    flex: 1,
+    height: 30,
+    margin: 1,
+    backgroundColor: '#eeeeee',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
   },
 });

@@ -15,6 +15,7 @@ import {
   Animated,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DocumentPicker from 'react-native-document-picker';
@@ -256,13 +257,13 @@ const CourseModal = ({
   currentUser,
   userRole,
 }: CourseModalProps) => {
+  const navigation = useNavigation<any>();
   const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
   const [loadingExceptions, setLoadingExceptions] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   // Animation value for height
   const modalHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.7)).current;
   const flatListRef = useRef<FlatList>(null);
-
   // Function to toggle full screen
   const setFullScreen = (isFull: boolean) => {
     Animated.spring(modalHeight, {
@@ -405,19 +406,38 @@ const CourseModal = ({
                     label="Course Contents"
                     iconName="format-list-bulleted"
                     count={course.courseContents?.length}
-                    onPress={() => {}}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Contents',
+                        course: course,
+                        userRole: 'student',
+                      })
+                    }
                   />
                   <GridItem
                     label="Course Materials"
                     iconName="folder-outline"
                     count={totalMaterials}
-                    onPress={() => {}}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Materials',
+                        course: course,
+                        lectures: lectures,
+                        userRole: 'student',
+                      })
+                    }
                   />
                   <GridItem
                     label="Assignments"
                     iconName="clipboard-edit-outline"
                     count={assignmentCount}
-                    onPress={() => {}}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Assignments', // Note: Your CourseSubPage uses 'Assignments' or 'Assessments'?
+                        course: course, // If you mean the test section, use 'Assessments'
+                        userRole: 'student',
+                      })
+                    }
                   />
                   <GridItem
                     label="Exceptions"
@@ -425,10 +445,19 @@ const CourseModal = ({
                     count={remaining}
                     onPress={() => {
                       if (remaining <= 0) {
-                        console.log(
-                          'Free trial limit reached! Upgrade for more exceptions.',
-                        );
+                        Toast.show({
+                          type: 'info',
+                          text1: 'Limit Reached',
+                          text2: 'Upgrade for more exceptions.',
+                        });
+                        return;
                       }
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Exceptions',
+                        course: course,
+                        userRole: 'student',
+                        exceptions: allExceptions, // Pass initial if available, else useEffect will fetch
+                      });
                     }}
                   />
                   <GridItem
@@ -452,7 +481,6 @@ const CourseModal = ({
             {isLecturer && (
               <>
                 <View style={styles.dashboardRow}>
-                  {/* Syllabus Widget */}
                   <View style={styles.statCard}>
                     <ProgressRing percentage={syllabusPercentage} />
                     <View style={styles.statTextContainer}>
@@ -479,9 +507,13 @@ const CourseModal = ({
                   <GridItem
                     label="Upload Course Materials"
                     iconName="cloud-upload-outline"
-                    onPress={() => {
-                      /* Open Material Upload Logic */
-                    }}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Materials', // Opens RenderMaterials with lecturer permissions
+                        course,
+                        userRole: 'lecturer',
+                      })
+                    }
                   />
                   <GridItem
                     label="Manage Exceptions"
@@ -494,30 +526,46 @@ const CourseModal = ({
                         : remaining
                     }
                     onPress={() => {
-                      if (loadingExceptions) return; // Prevent clicks while loading
-                      // ... navigation logic
+                      if (loadingExceptions) return;
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Exceptions', // Opens RenderLecturerExceptionsManage
+                        course,
+                        userRole: 'lecturer',
+                      });
                     }}
                   />
                   <GridItem
                     label="Add Assignments"
                     iconName="file-tray-plus-outline"
-                    onPress={() => {
-                      /* Open Assignment Creation Modal */
-                    }}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Assignments',
+                        course,
+                        userRole: 'lecturer',
+                      })
+                    }
                   />
                   <GridItem
                     label="Manage Lectures Schedule"
                     iconName="calendar-clock-outline"
-                    onPress={() => {
-                      /* Open Scheduling Tool */
-                    }}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'View Lecture Schedule',
+                        course,
+                        userRole: 'lecturer',
+                      })
+                    }
                   />
                   <GridItem
                     label="Create A Test"
                     iconName="pencil-box-multiple-outline"
-                    onPress={() => {
-                      /* Open Quiz Builder */
-                    }}
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Assessments', // Triggers fetchTests() in useEffect
+                        course,
+                        userRole: 'lecturer',
+                      })
+                    }
                   />
                 </View>
 
