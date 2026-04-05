@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Course, Lecture, CourseException } from '../types/firebase';
 import { useAppSelector } from '../components/hooks';
 import { baseUrl } from '../components/HomeScreenComponents';
+import { io, Socket } from 'socket.io-client';
 
 export const useLiveSession = (lectureId: string, courseId: string) => {
   const user = useAppSelector(state => state.user);
@@ -9,6 +10,7 @@ export const useLiveSession = (lectureId: string, courseId: string) => {
   const [course, setCourse] = useState<Course | null>(null);
   const [exceptions, setExceptions] = useState<CourseException[]>([]);
   const [loading, setLoading] = useState(true);
+  const socketRef = useRef<Socket | null>(null);
   const fetchLiveSessionData = useCallback(async () => {
     try {
       setLoading(true);
@@ -31,7 +33,29 @@ export const useLiveSession = (lectureId: string, courseId: string) => {
   useEffect(() => {
     fetchLiveSessionData();
   }, [fetchLiveSessionData]);
+  useEffect(() => {
+    if (!user?.uid || !lectureId) return;
+
+    const socket = io(baseUrl, { 
+      transports: ['websocket'],
+      query: { userId: user.uid } 
+    });
+    socketRef.current = socket;
+
+    // 2. Join Rooms
+    socket.emit('join_user_room', user.uid);
+    socket.emit('join_lecture', { 
+      lectureId, 
+      firstName: user.firstname 
+    });
+
+    // 3. Cleanup on unmount
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [user?.uid, lectureId, user?.firstname]);
 
   // Removed fetchPostById from return to satisfy ESLint
-  return { user, course, lecture, exceptions, fetchLiveSessionData, loading };
+  return { user, course, lecture, exceptions, fetchLiveSessionData, loading, socket: socketRef.current };
 };

@@ -25,6 +25,7 @@ import { User, ChatMessage } from 'types/firebase';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
+import LiveAudioStream from 'react-native-live-audio-stream';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -57,6 +58,42 @@ export const WavingToast = ({
       style={[styles.waveToast, { transform: [{ translateY: slideAnim }] }]}
     >
       <Text style={styles.waveText}>👋 {firstName} is waving</Text>
+    </Animated.View>
+  );
+};
+export const SpeakerToast = ({
+  firstName,
+  onHide,
+}: {
+  firstName: string;
+  onHide: () => void;
+}) => {
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 20,
+      useNativeDriver: true,
+    }).start();
+
+    // Keep it visible as long as they are speaking, or auto-hide after 5s
+    const timer = setTimeout(() => {
+      Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => onHide());
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [onHide, slideAnim]);
+
+  return (
+    <Animated.View
+      style={[styles.speakerToast, { transform: [{ translateY: slideAnim }] }]}
+    >
+      <View style={styles.liveIndicator} />
+      <Text style={styles.speakerText}> {firstName} is speaking...</Text>
     </Animated.View>
   );
 };
@@ -115,13 +152,27 @@ export const StudentLiveClassSession = ({
   const [fabVisible, setFabVisible] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isMicAllowed, setIsMicAllowed] = useState(false);
+  const [isLocalMuted, setIsLocalMuted] = useState(true);
+  const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const triggerWaveToast = (name: string) => {
     setWaverName(name);
   };
   useEffect(() => {
-    if (!socket) return;
-    socket.emit('join_lecture', { lectureId: lecture.id });
+    if (!socket || !lecture?.id || !user?.uid) return;
+    socket.emit('join_lecture', {
+      lectureId: lecture.id,
+      userUid: user.uid,
+      firstName: user.firstname,
+    });
+    socket.on('mic_permission_granted', (data: { targetUid: string }) => {
+      if (data.targetUid === user.uid) {
+        setIsMicAllowed(true);
+        setIsLocalMuted(false); // Auto-unmute when granted
+        // Optional: Toast.show({ text1: "You are now live!" });
+      }
+    });
     socket.on('transcription_update', (data: { text: string }) => {
       setTranscription(prev => (prev + ' ' + data.text).slice(-150));
     });
@@ -134,13 +185,74 @@ export const StudentLiveClassSession = ({
         setUnreadCount(prev => prev + 1);
       }
     });
+    socket.on('mic_permission_revoked', () => {
+      setIsMicAllowed(false);
+      setIsLocalMuted(true);
+    });
     return () => {
+      socket.off('mic_permission_granted');
+      socket.off('mic_permission_revoked');
       socket.emit('leave_lecture', { lectureId: lecture.id });
       socket.off('transcription_update');
       socket.off('student_waved');
       socket.off('receive_message');
     };
-  }, [socket, chatVisible, lecture.id]); // Dependencies ensure logic stays fresh
+  }, [socket, chatVisible, lecture.id, user?.uid, user?.firstname]);
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit('toggle_student_audio', {
+      lectureId: lecture.id,
+      uid: user.uid,
+      isMuted: isLocalMuted,
+    });
+  }, [isLocalMuted, socket, lecture.id, user.uid]);
+  useEffect(() => {
+    if (!socket) return;
+    socket.on(
+      'active_speaker_changed',
+      (data: { firstName: string; uid: string }) => {
+        if (data.uid !== user.uid) {
+          setActiveSpeaker(data.firstName);
+        } else {
+          setActiveSpeaker(null);
+        }
+      },
+    );
+
+    return () => {
+      socket.off('active_speaker_changed');
+    };
+  }, [socket, user.uid]);
+  useEffect(() => {
+    if (isMicAllowed && !isLocalMuted) {
+      LiveAudioStream.init({
+        sampleRate: 16000,
+        channels: 1,
+        bitsPerSample: 16,
+        bufferSize: 4096,
+        wavFile: 'temp_audio.wav',
+      });
+
+      LiveAudioStream.on('data', (data: string) => {
+        socket.emit('student_audio_chunk', {
+          lectureId: lecture.id,
+          audio: data,
+        });
+      });
+
+      LiveAudioStream.start();
+    } else {
+      // Calling it here is fine, but the cleanup (return) is the issue
+      LiveAudioStream.stop();
+    }
+
+    // FIXED CLEANUP: Synchronous wrapper for the async stop
+    return () => {
+      LiveAudioStream.stop();
+      // If stop() returns a promise, just call it.
+      // Don't 'return' it and don't use 'await' here.
+    };
+  }, [isMicAllowed, isLocalMuted, socket, lecture.id]);
   const sendMessage = () => {
     if (inputText.trim().length === 0) return;
     socket.emit('send_message', {
@@ -220,7 +332,22 @@ export const StudentLiveClassSession = ({
             {transcription || 'Listening to lecturer...'}
           </Text>
         </View>
-
+        {/* Inside your bottomSection or near the FAB */}
+        {isMicAllowed && (
+          <TouchableOpacity
+            style={styles.micButton}
+            onPress={() => setIsLocalMuted(!isLocalMuted)}
+          >
+            <MaterialIcons
+              name={isLocalMuted ? 'mic-off' : 'mic'}
+              size={24}
+              color={PRIMARY_COLOR}
+            />
+            <Text style={styles.micStatusText}>
+              {isLocalMuted ? 'Muted' : 'You are Live'}
+            </Text>
+          </TouchableOpacity>
+        )}
         {/* Floating Action Button (FAB) Area */}
         {!fabVisible && (
           <TouchableOpacity
@@ -251,11 +378,18 @@ export const StudentLiveClassSession = ({
       </View>
       <View style={styles.progressFooter}>
         <ProgressBar
-          progress={hasException ? 1 : passedChecks / 7} // If exception, show 100%
-          color={PRIMARY_COLOR} // Green for exceptions
+          progress={hasException ? 1 : passedChecks / 7}
+          color={hasException ? '#4CAF50' : PRIMARY_COLOR} // Use Green (#4CAF50) for verified exceptions
         />
-        <Text style={styles.progressLabel}>
-          {passedChecks}/7 Checks Verified
+        <Text
+          style={[
+            styles.progressLabel,
+            hasException && { color: '#4CAF50', fontWeight: 'bold' },
+          ]}
+        >
+          {hasException
+            ? 'Attendance Verified via Exception '
+            : `${passedChecks}/7 Checks Verified`}
         </Text>
       </View>
 
@@ -318,6 +452,12 @@ export const StudentLiveClassSession = ({
       </Portal>
       {waverName && (
         <WavingToast firstName={waverName} onHide={() => setWaverName(null)} />
+      )}
+      {activeSpeaker && (
+        <SpeakerToast
+          firstName={activeSpeaker}
+          onHide={() => setActiveSpeaker(null)}
+        />
       )}
     </View>
   );
@@ -551,5 +691,50 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR_TINT,
     marginTop: 20,
     fontSize: 12,
+  },
+  micButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    elevation: 4,
+    backgroundColor: '#fff',
+  },
+  micStatusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 5,
+  },
+  speakerToast: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR,
+    maxWidth: '40%',
+    zIndex: 100,
+  },
+  liveIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: PRIMARY_COLOR,
+    marginRight: 8,
+  },
+  speakerText: {
+    fontSize: 13,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
   },
 });

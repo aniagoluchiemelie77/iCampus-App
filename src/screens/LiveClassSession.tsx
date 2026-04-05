@@ -7,16 +7,14 @@ import React, {
 import {
   View,
 } from 'react-native';
-
-import {useLiveSession} from '../hooks/useLiveSession';
-import {baseUrl} from '../components/HomeScreenComponents';
-import {LecturerLiveClassSession} from '../components/LecturerLiveClassSession';
-import {StudentLiveClassSession} from '../components/StudentLiveClassSession';
-import {AccessDeniedScreen} from '../components/AccessDeniedScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLiveSession } from '../hooks/useLiveSession';
+import { baseUrl } from '../components/HomeScreenComponents';
+import { LecturerLiveClassSession } from '../components/LecturerLiveClassSession';
+import { StudentLiveClassSession } from '../components/StudentLiveClassSession';
+import { AccessDeniedScreen } from '../components/AccessDeniedScreen';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
-import { 
-  useFrameProcessor
-} from 'react-native-vision-camera';
+import { useFrameProcessor } from 'react-native-vision-camera';
 import { runOnJS } from 'react-native-reanimated';
 import { scanFaces } from 'vision-camera-face-detector';
 import { User } from 'types/firebase';
@@ -29,7 +27,7 @@ export const LiveClassSessions = ({ route }: any) => {
   const [attendanceChecks, setAttendanceChecks] = useState<boolean[]>(
     new Array(7).fill(false),
   );
-  const { user, course, lecture, exceptions } = useLiveSession(
+  const { user, course, lecture, exceptions, socket } = useLiveSession(
     lectureId,
     courseId,
   );
@@ -45,7 +43,9 @@ export const LiveClassSessions = ({ route }: any) => {
   const canJoin = useMemo(() => {
     const isEnrolled = course?.studentsEnrolled?.includes(user.uid);
     const hasStarted =
-      lecture?.status === 'ongoing' || lecture?.status === 'scheduled';
+      lecture?.status === 'ongoing' ||
+      lecture?.status === 'scheduled' ||
+      lecture?.status === 'completed'; // Allow the 'save' phase to finish
     // Add a base check: if course/lecture don't exist yet, they can't join
     if (!course || !lecture) return false;
     return (isLecturer || isEnrolled) && hasStarted;
@@ -83,8 +83,16 @@ export const LiveClassSessions = ({ route }: any) => {
   );
   const saveAttendance = useCallback(async () => {
     try {
-      if (!isStudent || !user?.uid || !lectureId) return;
+      // 1. Guard: Only proceed if student is enrolled AND NOT an exception holder
+      // (Because the backend handles approved exceptions automatically)
+      const hasApprovedException = exceptions.some(
+        ex => ex.studentId === user?.uid && ex.status === 'approved',
+      );
 
+      if (!isStudent || !user?.uid || !lectureId || hasApprovedException)
+        return;
+
+      // 2. Only submit for students who actually attended the live stream
       await fetch(`${baseUrl}users/student/class/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,6 +115,7 @@ export const LiveClassSessions = ({ route }: any) => {
     courseId,
     isEligibleForAttendance,
     attendanceChecks,
+    exceptions, // Added to dependencies
   ]);
   useEffect(() => {
     if (
@@ -155,11 +164,12 @@ export const LiveClassSessions = ({ route }: any) => {
       const lecturerId = course?.lecturerIds?.[0];
       if (!lecturerId) return;
       try {
+        const token = await AsyncStorage.getItem('accessToken');
         const response = await fetch(`${baseUrl}users/${lecturerId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${user.accessToken}`, // Use the token from your User interface
+            Authorization: `Bearer ${token}`, // Use the token from your User interface
           },
         });
 
@@ -171,7 +181,7 @@ export const LiveClassSessions = ({ route }: any) => {
     };
 
     fetchLecturer();
-  }, [course, user.accessToken]);
+  }, [course?.lecturerIds]);
 
   if (!canJoin) return <AccessDeniedScreen />;
   if (!isLecturer && !isStudent) {
@@ -185,6 +195,7 @@ export const LiveClassSessions = ({ route }: any) => {
           lecture={lecture}
           exceptions={exceptions}
           course={course}
+          socket={socket}
         />
       ) : (
         <StudentLiveClassSession
@@ -194,6 +205,7 @@ export const LiveClassSessions = ({ route }: any) => {
             e => e.studentId === user.uid && e.status === 'approved',
           )}
           lecturerData={lecturerData}
+          socket={socket}
         />
       )}
       {isStudent && device && (
