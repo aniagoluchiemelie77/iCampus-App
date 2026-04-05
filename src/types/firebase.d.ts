@@ -574,7 +574,10 @@ export interface Lecture {
   videoUrl?: string; 
   resources?: string[];
   attendance?: User.uid[];//Row call of attendees (students)
-  getAttendanceMode?: 'Uploaded' | 'Online'; //How the attendance roll call was obtained
+  getAttendanceMode?: 'Uploaded' | 'Online'; 
+  isLecturerMuted?: boolean;    // Add this
+  isLecturerCameraOn?: boolean; // Add this
+  lecturerCameraUrl?: string;   // Add this
 }
 export interface Course {
   id: string;
@@ -706,4 +709,13 @@ export interface TestSubmission {
     ipAddress: string;
   };
   startTime?: string
+}
+export interface ChatMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  firstName: string;
+  lastName?: string;
+  timestamp: string;
+  profilePic?: string; // Optional: to show small avatar in chat bubble
 }

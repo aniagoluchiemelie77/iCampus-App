@@ -1,130 +1,555 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import {
+  ProgressBar,
+  Avatar,
+  IconButton,
+  Portal,
+  Modal,
+  TextInput,
+} from 'react-native-paper';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Video from 'react-native-video';
-import { ProgressBar } from 'react-native-paper';
-//import {useLiveSession} from '../hooks/useLiveSession';
-//import {baseUrl} from '../components/HomeScreenComponents';
-export const LiveVideoPlayer = ({ url }: { url: string }) => {
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { User, ChatMessage } from 'types/firebase';
+import ExpandableFAB from './ExpandableFAB';
+import { homeStyles } from '../assets/styles/colors';
+import { useAppSelector } from './hooks';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+export const WavingToast = ({
+  firstName,
+  onHide,
+}: {
+  firstName: string;
+  onHide: () => void;
+}) => {
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 20,
+      useNativeDriver: true,
+    }).start();
+    const timer = setTimeout(() => {
+      Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => onHide());
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [onHide, slideAnim]);
+
   return (
-    <View style={styles.container}>
-      <Video
-        source={{ uri: url }} 
-        style={styles.fullScreen}
-        controls={true}
-        resizeMode="contain"
-        paused={false}
-        playInBackground={false}
-        onError={(e) => console.log("Streaming Error:", e)}
-      />
-    </View>
+    <Animated.View
+      style={[styles.waveToast, { transform: [{ translateY: slideAnim }] }]}
+    >
+      <Text style={styles.waveText}>👋 {firstName} is waving</Text>
+    </Animated.View>
   );
 };
-const AttendanceIndicator = ({ checks }: { checks: boolean[] }) => (
-  <View style={styles.checkRow}>
-    {checks.map((passed, index) => (
-      <View 
-        key={index} 
-        style={[styles.dot, passed ? styles.passed : styles.pending]} 
-      />
-    ))}
-    <Text style={styles.dotCount}>{checks.filter(c => c).length}/7</Text>
-  </View>
-);
-export const StudentLiveClassSession = ({ lecture, checks, hasException }: any) => {
-  const passedChecks = checks.filter((c: boolean) => c).length;
-  // Logic: Requirement is now 5/7 + being there at the very end
-  const isEndCheckPassed = checks[6];
-  const isAttendanceValid = hasException || (passedChecks >= 5 && isEndCheckPassed);
-
+export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
   return (
-    <View style={styles.container}>
-      <LiveVideoPlayer url={lecture.location} />
-      
-      {/* Attendance Status Bar */}
-      <View style={styles.attendanceTracker}>
-        <Text style={styles.statusText}>
-          {hasException 
-            ? "✅ Attendance Excused" 
-            : `Attendance Progress: ${passedChecks}/7`}
-        </Text>
-        
-        {/* Visual Dot Indicator */}
-        <AttendanceIndicator checks={checks} />
+    <View style={styles.lecturerTab}>
+      <View style={styles.mediaContainer}>
+        {isCameraOn && streamUrl ? (
+          /* 1. Video Mode: Using react-native-video or your RTC View */
+          <Video
+            source={{ uri: streamUrl }}
+            style={styles.lecturerVideo}
+            resizeMode="cover"
+            muted={true}
+            repeat={true}
+          />
+        ) : (
+          /* 2. Audio/Fallback Mode: Show Profile Picture */
+          <Avatar.Image
+            size={80}
+            source={{
+              uri:
+                lecturer?.profilePic?.[0] || 'https://via.placeholder.com/80',
+            }}
+            style={styles.avatarBorder}
+          />
+        )}
+      </View>
 
-        <ProgressBar 
-          progress={passedChecks / 7} 
-          color={isAttendanceValid ? '#4CAF50' : '#FF9800'} 
+      {/* 3. Mic Status Indicator (Visual Feedback) */}
+      <View style={styles.micIndicator}>
+        <IconButton
+          icon={lecturer?.isMuted ? 'microphone-off' : 'microphone'}
+          size={12}
+          iconColor={PRIMARY_COLOR}
         />
-
-        {/* Dynamic Warning Label */}
-        {!isEndCheckPassed && !hasException && (
-          <Text style={styles.warning}>
-            ⚠️ You must be present for the final check to qualify.
-          </Text>
-        )}
-        
-        {isAttendanceValid && !hasException && (
-          <Text style={styles.success}>
-            🎉 Attendance threshold met! Stay tuned.
-          </Text>
-        )}
       </View>
     </View>
   );
 };
+export const StudentLiveClassSession = ({
+  lecture,
+  checks,
+  hasException,
+  attendeeList = [],
+  lecturerData,
+  socket,
+}: any) => {
+  const user = useAppSelector(state => state.user);
+  const [chatVisible, setChatVisible] = useState(false);
+  const passedChecks = checks.filter((c: boolean) => c).length;
+  const [waverName, setWaverName] = useState<string | null>(null);
+  const [transcription, setTranscription] = useState<string>(
+    'Waiting for audio...',
+  );
+  const [fabVisible, setFabVisible] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const triggerWaveToast = (name: string) => {
+    setWaverName(name);
+  };
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit('join_lecture', { lectureId: lecture.id });
+    socket.on('transcription_update', (data: { text: string }) => {
+      setTranscription(prev => (prev + ' ' + data.text).slice(-150));
+    });
+    socket.on('student_waved', (data: { firstName: string }) => {
+      triggerWaveToast(data.firstName);
+    });
+    socket.on('receive_message', (newMessage: ChatMessage) => {
+      setMessages(prev => [...prev, newMessage]);
+      if (!chatVisible) {
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+    return () => {
+      socket.emit('leave_lecture', { lectureId: lecture.id });
+      socket.off('transcription_update');
+      socket.off('student_waved');
+      socket.off('receive_message');
+    };
+  }, [socket, chatVisible, lecture.id]); // Dependencies ensure logic stays fresh
+  const sendMessage = () => {
+    if (inputText.trim().length === 0) return;
+    socket.emit('send_message', {
+      text: inputText,
+      senderId: user.uid,
+      lectureId: lecture.id,
+      firstName: user.firstname,
+      profilePic: user.profilePic?.[0] || '',
+    });
+    setInputText('');
+  };
+  return (
+    <View style={styles.mainContainer}>
+      <View style={styles.header}>
+        <Text style={styles.liveText}>● LIVE</Text>
+      </View>
+
+      {/* 2. Shared Screen Area */}
+      <View style={styles.sharedScreen}>
+        <Video
+          source={{ uri: lecture.sharedScreenStreamUrl }}
+          style={styles.fullScreenVideo}
+          resizeMode="contain"
+        />
+        <LecturerTab
+          lecturer={lecturerData}
+          isCameraOn={lecturerData?.isCameraOn}
+          streamUrl={lecturerData?.cameraStreamUrl}
+        />
+      </View>
+
+      {/* 3. Course & Attendance Info */}
+      <View style={styles.infoSection}>
+        <View style={styles.row}>
+          <View>
+            <Text style={styles.courseTitle}>
+              {lecture.courseTitle || 'Course Title'}
+            </Text>
+            <Text style={styles.lectureSubtitle}>
+              {lecture.title || 'Lecture Title'}
+            </Text>
+          </View>
+          <View style={styles.durationBox}>
+            <Text style={styles.durationText}>
+              Duration: {lecture.duration || '00:00'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Attendee Horizontal List */}
+        <View style={styles.attendeeContainer}>
+          {attendeeList.slice(0, 4).map((student: User, i: number) => (
+            <Avatar.Image
+              key={student.uid || i}
+              size={40}
+              source={{
+                uri:
+                  student.profilePic?.[0] || 'https://via.placeholder.com/40',
+              }}
+              style={styles.attendeeCircle}
+            />
+          ))}
+          <View style={styles.attendeeCount}>
+            <Text style={styles.attendeeCountText}>+{attendeeList.length}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 4. Transcription & Interaction */}
+      <View style={styles.bottomSection}>
+        <View style={styles.transcriptionBox}>
+          <View style={styles.aiHeader}>
+            <IconButton icon="auto-fix" size={14} iconColor={PRIMARY_COLOR} />
+            <Text style={styles.aiLabel}>AI LIVE TRANSCRIPTION</Text>
+          </View>
+          <Text style={styles.transcriptionText} numberOfLines={3}>
+            {transcription || 'Listening to lecturer...'}
+          </Text>
+        </View>
+
+        {/* Floating Action Button (FAB) Area */}
+        {!fabVisible && (
+          <TouchableOpacity
+            style={homeStyles.fab}
+            onPress={() => {
+              setFabVisible(true);
+              setUnreadCount(0);
+            }}
+          >
+            <MaterialIcons name="widgets" size={28} color="#fff" />
+            {unreadCount > 0 && <View style={styles.smallBadge} />}
+          </TouchableOpacity>
+        )}
+        <ExpandableFAB
+          isVisible={fabVisible}
+          onClose={() => setFabVisible(false)}
+          actions={['Live Chat', 'Hand Wave', 'View Lectures']}
+          unreadCount={unreadCount}
+          onChatOpen={() => setChatVisible(true)}
+          onWave={() => {
+            socket.emit('send_wave', {
+              lectureId: lecture.id,
+              firstName: user.firstname,
+            });
+            setFabVisible(false);
+          }}
+        />
+      </View>
+      <View style={styles.progressFooter}>
+        <ProgressBar
+          progress={hasException ? 1 : passedChecks / 7} // If exception, show 100%
+          color={PRIMARY_COLOR} // Green for exceptions
+        />
+        <Text style={styles.progressLabel}>
+          {passedChecks}/7 Checks Verified
+        </Text>
+      </View>
+
+      {/* Chat Modal (60% Height) */}
+      <Portal>
+        <Modal
+          visible={chatVisible}
+          onDismiss={() => setChatVisible(false)}
+          contentContainerStyle={styles.chatModal}
+        >
+          <Text style={styles.chatHeader}>Live Class Chat</Text>
+          <ScrollView
+            style={styles.messageList}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ref={ref => ref?.scrollToEnd({ animated: true })} // Auto-scroll to bottom
+          >
+            {messages.map((msg, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.messageBubble,
+                  msg.senderId === user.uid
+                    ? styles.myMessage
+                    : styles.theirMessage,
+                ]}
+              >
+                <Text style={styles.senderName}>{msg.firstName}</Text>
+                <Text style={styles.messageText}>{msg.text}</Text>
+              </View>
+            ))}
+            {messages.length === 0 && (
+              <Text style={styles.emptyChat}>
+                No messages yet. Start the conversation!
+              </Text>
+            )}
+          </ScrollView>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.chatInputRow}>
+              <TextInput
+                mode="outlined"
+                placeholder="Type a message..."
+                value={inputText}
+                onChangeText={setInputText}
+                style={styles.chatInput}
+                outlineColor={PRIMARY_COLOR_TINT}
+                activeOutlineColor={PRIMARY_COLOR}
+                onSubmitEditing={sendMessage}
+              />
+              <IconButton
+                icon="send"
+                iconColor={PRIMARY_COLOR}
+                onPress={sendMessage}
+                disabled={!inputText.trim()}
+              />
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
+      {waverName && (
+        <WavingToast firstName={waverName} onHide={() => setWaverName(null)} />
+      )}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  checkRow: {
+  mainContainer: { flex: 1, backgroundColor: '#F5F5F5' },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  liveText: { color: PRIMARY_COLOR, fontWeight: 'bold', fontSize: 12 },
+  waveNotification: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+  },
+  waveText: { fontSize: 12, color: PRIMARY_COLOR, fontWeight: 'bold' },
+  sharedScreen: {
+    height: 250,
+    backgroundColor: '#2222',
+    position: 'relative', // CRITICAL: Allows absolute children to stay inside
+    margin: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  fullScreenVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  infoSection: { padding: 15 },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  courseTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2222',
+    paddingBottom: 7,
+  },
+  lectureSubtitle: { fontSize: 14, color: '#666' },
+  durationBox: { alignItems: 'flex-end' },
+  durationText: { fontSize: 11, color: '#2222' },
+  attendeeContainer: {
+    flexDirection: 'row',
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  attendeeCircle: { marginRight: -10, borderWidth: 2, borderColor: '#fff' },
+  attendeeCount: {
+    marginLeft: 15,
+    fontWeight: 'bold',
+    backgroundColor: PRIMARY_COLOR_TINT,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attendeeCountText: { color: PRIMARY_COLOR, fontSize: 12, fontWeight: 'bold' },
+  bottomSection: { flexDirection: 'row', padding: 15, flex: 1 },
+  transcriptionBox: {
+    flex: 1,
+    backgroundColor: '#F0F2FF', // Soft blue-ish tint for AI feel
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: PRIMARY_COLOR_TINT, // Visual accent
+    marginRight: 10,
+    height: 100,
+    justifyContent: 'center',
+  },
+  aiHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 10,
-    paddingHorizontal: 5,
+    marginBottom: 4,
+    marginLeft: -8, // Align icon with text
   },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  aiLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: PRIMARY_COLOR_TINT,
+    letterSpacing: 0.5,
+  },
+  transcriptionText: {
+    fontSize: 13,
+    color: '#2222',
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  fabContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+  },
+  chatModal: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginHorizontal: 10, // Margin ensures the "press outside" area is visible
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: SCREEN_HEIGHT * 0.75,
+    position: 'absolute',
+    bottom: 0,
+  },
+  chatHeader: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 10,
+    color: '#2222',
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 10,
+    alignSelf: 'flex-end',
+  },
+  chatInput: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#fff',
+    marginRight: 10,
+    color: '#666',
+  },
+  progressFooter: { padding: 10, backgroundColor: '#fff' },
+  progressLabel: {
+    textAlign: 'center',
+    fontSize: 10,
+    marginTop: 4,
+    color: '#2222',
+  },
+  waveToast: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 25,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    zIndex: 999,
+  },
+  //
+  lecturerTab: {
+    position: 'absolute',
+    right: 15,
+    top: 15,
+    width: 90,
+    height: 90,
+    borderRadius: 45, // Makes the whole tab circular
     borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  passed: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  pending: {
-    backgroundColor: '#f0f0f0',
-  },
-  warning: {
-    color: '#D32F2F',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  success: {
-    color: '#2E7D32',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  container: {
-    width: '100%',
-    height: 250,
+    borderColor: PRIMARY_COLOR_TINT,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     backgroundColor: '#000',
   },
-  fullScreen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
+  mediaContainer: {
+    flex: 1,
+    borderRadius: 45,
+    overflow: 'hidden', // CRITICAL: Clips the video into a circle
   },
-  attendanceTracker: { padding: 20, backgroundColor: '#fff' },
-  statusText: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-  dotCount: { marginLeft: 10, fontSize: 12, color: '#666' },
+  lecturerVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarBorder: {
+    backgroundColor: '#E1E1E1',
+  },
+  micIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  smallBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    zIndex: 10,
+    borderColor: PRIMARY_COLOR,
+  },
+  chatHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 10,
+  },
+  messageList: { flex: 1, marginVertical: 10 },
+  messageBubble: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+    maxWidth: '80%',
+  },
+  myMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: PRIMARY_COLOR,
+  },
+  theirMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
+  senderName: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 2,
+    color: '#fff',
+  },
+  messageText: { fontSize: 14, color: '#fff' },
+  emptyChat: {
+    textAlign: 'center',
+    color: PRIMARY_COLOR_TINT,
+    marginTop: 20,
+    fontSize: 12,
+  },
 });

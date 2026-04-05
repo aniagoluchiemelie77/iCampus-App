@@ -11,54 +11,88 @@ interface FABProps {
   isVisible: boolean;
   onClose: () => void;
   actions: string[];
-  userRole?: string ;
-  lectures?: Lecture[]; // Optional because not every page has a course context
+  userRole?: string;
+  lectures?: Lecture[];
+  unreadCount?: number;
+  onChatOpen?: () => void;
+  onWave?: () => void;
 }
 // 1. Define the configuration mapping
-const ACTION_CONFIG: Record<string, { icon: string; route: string; params: any; category?: string }> = {
+const ACTION_CONFIG: Record<
+  string,
+  { icon: string; route: string; params?: any; category?: string }
+> = {
   // --- Social / General ---
-  'Create Poll': { icon: 'poll', route: 'CreatePost', params: { type: 'poll' } },
-  'Create Post': { icon: 'edit', route: 'CreatePost', params: { type: 'post' } },
+  'Create Poll': {
+    icon: 'poll',
+    route: 'CreatePost',
+    params: { type: 'poll' },
+  },
+  'Create Post': {
+    icon: 'edit',
+    route: 'CreatePost',
+    params: { type: 'post' },
+  },
 
   // --- Classroom Page ---
-  'View Lectures': { icon: 'menu-book', route: 'CourseSubPage', params: { title: 'View Lecture Schedule' } },
-  'Create Course': { icon: 'add-business', route: 'CreateCourse', params: {}, category: 'premium' },
+  'View Lectures': {
+    icon: 'menu-book',
+    route: 'CourseSubPage',
+    params: { title: 'View Lecture Schedule' },
+  },
+  'Create Course': {
+    icon: 'add-business',
+    route: 'CreateCourse',
+    params: {},
+    category: 'premium',
+  },
+  'Live Chat': { icon: 'chat', route: 'Modal' },
+  'Hand Wave': { icon: 'front-hand', route: 'Socket' },
 
   // --- Store Page ---
   'View Favorites': { icon: 'favorite', route: 'StoreWishlist', params: {} },
   'View Cart': { icon: 'shopping-cart', route: 'StoreCart', params: {} },
-  
+
   // --- Additional ---
 };
 
-
-const ExpandableFAB = ({ isVisible, onClose, actions, userRole, lectures }: FABProps) => {
+const ExpandableFAB = ({
+  isVisible,
+  onClose,
+  actions,
+  userRole,
+  lectures,
+  unreadCount,
+  onChatOpen,
+  onWave,
+}: FABProps) => {
   const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user);
 
   if (!isVisible) return null;
 
   // Inside ExpandableFAB component
-const handleAction = (label: string) => {
-  const config = ACTION_CONFIG[label];
-  if (!config) return;
-
-  // 1. Check for subscription restriction
-  if (label === 'Create Course' && !user?.hasSubscribed) {
+  const handleAction = (label: string) => {
+    const config = ACTION_CONFIG[label];
+    if (!config) return;
+    if (label === 'Create Course' && !user?.hasSubscribed) {
+      onClose();
+      navigation.navigate('SubscriptionScreen');
+      return;
+    } else if (label === 'Live Chat') {
+      onChatOpen?.();
+    } else if (label === 'Hand Wave') {
+      onWave?.();
+    } else {
+      if (config?.route) navigation.navigate(config.route, config.params);
+    }
     onClose();
-    navigation.navigate('SubscriptionScreen'); 
-    return;
-  }
-
-  // 2. Normal navigation for subscribed students/lecturers
-  onClose();
-  navigation.navigate(config.route, {
-    ...config.params,
-    lectures, // Passing the lectures you have in state
-    userRole,
-  });
-};
-
+    navigation.navigate(config.route, {
+      ...config.params,
+      lectures, // Passing the lectures you have in state
+      userRole,
+    });
+  };
   return (
     <Modal
       transparent
@@ -66,39 +100,51 @@ const handleAction = (label: string) => {
       animationType="fade"
       onRequestClose={onClose}
     >
-      <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={10} />
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
+      <BlurView
+        style={StyleSheet.absoluteFill}
+        blurType="dark"
+        blurAmount={10}
+      />
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      />
 
       <View style={styles.fabMenuContainer}>
         {actions.map((label: string, index: number) => {
-  const config = ACTION_CONFIG[label];
-  
-  // Logic: If user is not 'lecturer' (unsubscribed/student), show a lock or redirect
- const isRestricted = label === 'Create Course' && !user?.hasSubscribed;
+          const config = ACTION_CONFIG[label];
 
-  return (
-    <View key={index} style={styles.menuItemWrapper}>
-      <Text style={styles.menuLabel}>{label}</Text>
-      <TouchableOpacity 
-        style={styles.miniFab} 
-        onPress={() => {
-            if (isRestricted) {
-                onClose();
-                navigation.navigate('SubscriptionScreen'); // Redirect to upgrade
-            } else {
-                handleAction(label);
-            }
-        }}
-      >
-        <MaterialIcons 
-          name={config.icon} 
-          size={24} 
-          color={'#fff'} 
-        />
-      </TouchableOpacity>
-    </View>
-  );
-})}
+          // Logic: If user is not 'lecturer' (unsubscribed/student), show a lock or redirect
+          const isRestricted =
+            label === 'Create Course' && !user?.hasSubscribed;
+
+          return (
+            <View key={index} style={styles.menuItemWrapper}>
+              <Text style={styles.menuLabel}>{label}</Text>
+              <TouchableOpacity
+                style={styles.miniFab}
+                onPress={() => {
+                  if (isRestricted) {
+                    onClose();
+                    navigation.navigate('SubscriptionScreen'); // Redirect to upgrade
+                  } else {
+                    handleAction(label);
+                  }
+                }}
+              >
+                <MaterialIcons name={config.icon} size={24} color={'#fff'} />
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+        {unreadCount && unreadCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity style={styles.mainFabActive} onPress={onClose}>
           <MaterialIcons name="close" size={30} color={PRIMARY_COLOR} />
@@ -110,7 +156,7 @@ const handleAction = (label: string) => {
 
 export default ExpandableFAB;
 
-const styles = StyleSheet.create({ 
+const styles = StyleSheet.create({
   mainFabActive: {
     width: 56,
     height: 56,
@@ -124,7 +170,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(19, 18, 18, 0.4)', 
+    backgroundColor: 'rgba(19, 18, 18, 0.4)',
   },
   fabMenuContainer: {
     position: 'absolute',
@@ -160,5 +206,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#fff',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    zIndex: 10,
+  },
+  badgeText: {
+    color: PRIMARY_COLOR,
+    fontSize: 10,
+    fontWeight: 'bold',
+    paddingHorizontal: 4,
   },
 });
