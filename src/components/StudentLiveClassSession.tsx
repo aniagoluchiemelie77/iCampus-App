@@ -21,14 +21,30 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Video from 'react-native-video';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
-import { User, ChatMessage } from 'types/firebase';
+import { User, ChatMessage, Lecture } from 'types/firebase';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import LiveAudioStream from 'react-native-live-audio-stream';
+import Toast from 'react-native-toast-message';
+import toastConfig from './ToastConfig';
+import { useNavigation } from '@react-navigation/native';
+import { RTCView } from 'react-native-webrtc';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
+interface StudentLiveSessionProps {
+  lecture: Lecture;
+  checks: boolean[];
+  hasException: boolean;
+  socket: any; // Socket.io types are complex, 'any' is okay here, or use 'Socket' from socket.io-client
+  attendeeList: User[];
+  lecturerData: LiveLecturer | null;
+}
+export type LiveLecturer = User & {
+  isCameraOn?: boolean;
+  cameraStreamUrl?: string;
+  isMuted?: boolean;
+};
 export const WavingToast = ({
   firstName,
   onHide,
@@ -114,12 +130,13 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
       <View style={LiveClassSessionStyles.mediaContainer}>
         {isCameraOn && streamUrl ? (
           /* 1. Video Mode: Using react-native-video or your RTC View */
-          <Video
-            source={{ uri: streamUrl }}
+          <RTCView
+            streamURL={
+              typeof streamUrl === 'string' ? streamUrl : streamUrl.toURL()
+            }
             style={LiveClassSessionStyles.lecturerVideo}
-            resizeMode="cover"
-            muted={true}
-            repeat={true}
+            objectFit="cover"
+            mirror={false}
           />
         ) : (
           /* 2. Audio/Fallback Mode: Show Profile Picture */
@@ -152,8 +169,9 @@ export const StudentLiveClassSession = ({
   attendeeList = [],
   lecturerData,
   socket,
-}: any) => {
+}: StudentLiveSessionProps) => {
   const user = useAppSelector(state => state.user);
+  const navigation = useNavigation<any>();
   const [chatVisible, setChatVisible] = useState(false);
   const passedChecks = checks.filter((c: boolean) => c).length;
   const [waverName, setWaverName] = useState<string | null>(null);
@@ -167,73 +185,12 @@ export const StudentLiveClassSession = ({
   const [isLocalMuted, setIsLocalMuted] = useState(true);
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
+  const [elapsedTime, setElapsedTime] = useState('00:00');
+  const [currentAttendees, setCurrentAttendees] =
+    useState<User[]>(attendeeList);
   const triggerWaveToast = (name: string) => {
     setWaverName(name);
   };
-  useEffect(() => {
-    if (!socket || !lecture?.id || !user?.uid) return;
-    socket.emit('join_lecture', {
-      lectureId: lecture.id,
-      userUid: user.uid,
-      firstName: user.firstname,
-    });
-    socket.on('mic_permission_granted', (data: { targetUid: string }) => {
-      if (data.targetUid === user.uid) {
-        setIsMicAllowed(true);
-        setIsLocalMuted(false); // Auto-unmute when granted
-        // Optional: Toast.show({ text1: "You are now live!" });
-      }
-    });
-    socket.on('transcription_update', (data: { text: string }) => {
-      setTranscription(prev => (prev + ' ' + data.text).slice(-150));
-    });
-    socket.on('student_waved', (data: { firstName: string }) => {
-      triggerWaveToast(data.firstName);
-    });
-    socket.on('receive_message', (newMessage: ChatMessage) => {
-      setMessages(prev => [...prev, newMessage]);
-      if (!chatVisible) {
-        setUnreadCount(prev => prev + 1);
-      }
-    });
-    socket.on('mic_permission_revoked', () => {
-      setIsMicAllowed(false);
-      setIsLocalMuted(true);
-    });
-    return () => {
-      socket.off('mic_permission_granted');
-      socket.off('mic_permission_revoked');
-      socket.emit('leave_lecture', { lectureId: lecture.id });
-      socket.off('transcription_update');
-      socket.off('student_waved');
-      socket.off('receive_message');
-    };
-  }, [socket, chatVisible, lecture.id, user?.uid, user?.firstname]);
-  useEffect(() => {
-    if (!socket) return;
-    socket.emit('toggle_student_audio', {
-      lectureId: lecture.id,
-      uid: user.uid,
-      isMuted: isLocalMuted,
-    });
-  }, [isLocalMuted, socket, lecture.id, user.uid]);
-  useEffect(() => {
-    if (!socket) return;
-    socket.on(
-      'active_speaker_changed',
-      (data: { firstName: string; uid: string }) => {
-        if (data.uid !== user.uid) {
-          setActiveSpeaker(data.firstName);
-        } else {
-          setActiveSpeaker(null);
-        }
-      },
-    );
-
-    return () => {
-      socket.off('active_speaker_changed');
-    };
-  }, [socket, user.uid]);
   useEffect(() => {
     if (isMicAllowed && !isLocalMuted) {
       LiveAudioStream.init({
@@ -256,14 +213,100 @@ export const StudentLiveClassSession = ({
       // Calling it here is fine, but the cleanup (return) is the issue
       LiveAudioStream.stop();
     }
-
-    // FIXED CLEANUP: Synchronous wrapper for the async stop
     return () => {
       LiveAudioStream.stop();
       // If stop() returns a promise, just call it.
       // Don't 'return' it and don't use 'await' here.
     };
   }, [isMicAllowed, isLocalMuted, socket, lecture.id]);
+  useEffect(() => {
+    const start = new Date(lecture.startTime).getTime();
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const diff = Math.floor((now - start) / 1000);
+      const mins = Math.floor(diff / 60)
+        .toString()
+        .padStart(2, '0');
+      const secs = (diff % 60).toString().padStart(2, '0');
+      setElapsedTime(`${mins}:${secs}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lecture.startTime]);
+  useEffect(() => {
+    if (!socket || !lecture?.id || !user?.uid) return;
+
+    // 1. Join Room
+    socket.emit('join_lecture', {
+      lectureId: lecture.id,
+      user: {
+        uid: user.uid,
+        firstname: user.firstname,
+        profilePic: user.profilePic?.[0] || '',
+      },
+    });
+    socket.on('transcription_update', (data: { text: string }) => {
+      setTranscription(prev => (prev + ' ' + data.text).slice(-150));
+    });
+    socket.emit('toggle_student_audio', {
+      lectureId: lecture.id,
+      uid: user.uid,
+      isMuted: isLocalMuted,
+    });
+
+    // 2. Consolidated Listeners
+    const handlers = {
+      mic_permission_granted: (data: { targetUid: string }) => {
+        if (data.targetUid === user.uid) {
+          setIsMicAllowed(true);
+          setIsLocalMuted(false);
+        }
+      },
+      mic_permission_revoked: (data: { targetUid: string }) => {
+        if (data.targetUid === user.uid) {
+          setIsMicAllowed(false);
+          setIsLocalMuted(true);
+        }
+      },
+      student_waved: (data: { firstName: string }) => {
+        triggerWaveToast(data.firstName);
+        setWaverName(data.firstName);
+      },
+      active_speaker_changed: (data: { firstName: string; uid: string }) => {
+        setActiveSpeaker(data.uid !== user.uid ? data.firstName : null);
+      },
+      receive_message: (newMessage: ChatMessage) => {
+        setMessages(prev => [...prev, newMessage]);
+        if (!chatVisible) setUnreadCount(prev => prev + 1);
+      },
+      update_attendee_list: (newList: User[]) => {
+        setCurrentAttendees(newList);
+      },
+      lecture_ended: () => {
+        Toast.show({ text1: 'Lecture Ended', type: 'info' });
+        setTimeout(() => navigation.navigate('Home'), 2000);
+      },
+    };
+
+    // Attach all
+    Object.entries(handlers).forEach(([evt, fn]) => socket.on(evt, fn));
+
+    // 3. Cleanup
+    return () => {
+      Object.entries(handlers).forEach(([evt, fn]) => socket.off(evt, fn));
+      socket.off('toggle_student_audio');
+      socket.off('transcription_update');
+      socket.emit('leave_lecture', { lectureId: lecture.id, uid: user.uid });
+    };
+  }, [
+    socket,
+    lecture.id,
+    user.uid,
+    user.firstname,
+    user.profilePic,
+    chatVisible,
+    navigation,
+    isLocalMuted,
+  ]);
   const sendMessage = () => {
     if (inputText.trim().length === 0) return;
     socket.emit('send_message', {
@@ -300,22 +343,19 @@ export const StudentLiveClassSession = ({
         <View style={LiveClassSessionStyles.row}>
           <View>
             <Text style={LiveClassSessionStyles.courseTitle}>
-              {lecture.courseTitle || 'Course Title'}
-            </Text>
-            <Text style={LiveClassSessionStyles.lectureSubtitle}>
-              {lecture.title || 'Lecture Title'}
+              {lecture.topicName || 'Lecture Title'}
             </Text>
           </View>
           <View style={LiveClassSessionStyles.durationBox}>
             <Text style={LiveClassSessionStyles.durationText}>
-              Duration: {lecture.duration || '00:00'}
+              Duration: {elapsedTime}
             </Text>
           </View>
         </View>
 
         {/* Attendee Horizontal List */}
         <View style={LiveClassSessionStyles.attendeeContainer}>
-          {attendeeList.slice(0, 4).map((student: User, i: number) => (
+          {currentAttendees.slice(0, 4).map((student: User, i: number) => (
             <Avatar.Image
               key={student.uid || i}
               size={40}
@@ -328,7 +368,7 @@ export const StudentLiveClassSession = ({
           ))}
           <View style={LiveClassSessionStyles.attendeeCount}>
             <Text style={LiveClassSessionStyles.attendeeCountText}>
-              +{attendeeList.length}
+              +{currentAttendees.length}
             </Text>
           </View>
         </View>
@@ -480,21 +520,31 @@ export const StudentLiveClassSession = ({
           onHide={() => setActiveSpeaker(null)}
         />
       )}
+      <Toast config={toastConfig} />
     </View>
   );
 };
 
 export const LiveClassSessionStyles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#fff' },
+  mainContainer: { flex: 1, backgroundColor: '#fff', position: 'relative' },
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
+    width: '100%',
     paddingHorizontal: 10,
     paddingVertical: 16,
     backgroundColor: '#fff',
     alignItems: 'center',
   },
   liveText: { color: PRIMARY_COLOR, fontWeight: 'bold', fontSize: 12 },
+  endButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 13,
+  },
+  endButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
   waveNotification: {
     backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 20,
@@ -771,10 +821,10 @@ export const LiveClassSessionStyles = StyleSheet.create({
     padding: 20,
   },
   statusText: {
-    color: PRIMARY_COLOR_TINT,
-    fontSize: 18,
+    color: PRIMARY_COLOR,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginTop: 10,
+    marginLeft: 5,
   },
   hintText: {
     color: PRIMARY_COLOR_TINT,
@@ -826,15 +876,28 @@ export const LiveClassSessionStyles = StyleSheet.create({
   },
   //
   controlWrapper: {
-    width: 280, // Fixed width instead of 100%
-    height: 160,
-    backgroundColor: '#2222',
-    borderRadius: 15,
-    overflow: 'hidden',
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 15,
   },
   previewVideo: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    width: 70,
+    height: 90,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fff',
+    backgroundColor: PRIMARY_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewVideoText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   overlayBar: {
     position: 'absolute',
@@ -850,10 +913,7 @@ export const LiveClassSessionStyles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    marginRight: 8,
   },
   dot: {
     width: 8,
@@ -861,33 +921,48 @@ export const LiveClassSessionStyles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 6,
   },
-  dotLive: { backgroundColor: '#4CAF50' },
-  dotOffline: { backgroundColor: '#757575' },
+  dotLive: { backgroundColor: PRIMARY_COLOR },
+  dotOffline: { backgroundColor: '#fff' },
   controlsOverlay: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
+    alignItems: 'center',
     flexDirection: 'row',
+  },
+  muteAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  muteAllText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
   buttonRow: { flexDirection: 'row' },
   monitoringSection: {
     marginVertical: 15,
     paddingLeft: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  speakerNote: {
+    paddingVertical: 10,
+    fontSize: 12,
+    color: '#2222',
+    marginRight: 15,
   },
   horizontalMonitorContainer: {
     paddingRight: 20,
-    gap: 12, // Space between monitor cards
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   monitorCard: {
-    width: 140,
-    height: 160,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 15,
-    padding: 15,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   monitorTitle: {
     fontSize: 12,
@@ -897,6 +972,48 @@ export const LiveClassSessionStyles = StyleSheet.create({
   monitorValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    marginLeft: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: PRIMARY_COLOR,
+  },
+  modalSubText: {
+    fontSize: 13,
+    color: PRIMARY_COLOR,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalButtonRowBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 15,
+  },
+  modalButtonRowBtnText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });

@@ -187,16 +187,14 @@ export const LiveClassSessions = ({ route }: any) => {
   if (!isLecturer && !isStudent) {
     return <AccessDeniedScreen reason="You are not enrolled in this course." />;
   }
+  if (!lecture || !course || !user) {
+    return <LoadingScreen />; // Create or use a simple View with an ActivityIndicator
+  }
 
   return (
     <View style={{ flex: 1 }}>
       {isLecturer ? (
-        <LecturerLiveClassSession
-          lecture={lecture}
-          exceptions={exceptions}
-          course={course}
-          socket={socket}
-        />
+        <LecturerLiveClassSession lecture={lecture} socket={socket} />
       ) : (
         <StudentLiveClassSession
           lecture={lecture}

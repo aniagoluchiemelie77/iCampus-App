@@ -567,8 +567,11 @@ export interface Lecture {
   lectureType: 'Physical' | 'Online' | 'Recorded';
   location?: string;
   startTime: string; 
+  streamUrl?: string;
+  sharedScreenStreamUrl?: string;
   endTime: string;
   date: string;
+  isLive?: boolean;
   status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'postponed';
   isTaught: boolean;
   videoUrl?: string; 
