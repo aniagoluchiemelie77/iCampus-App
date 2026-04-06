@@ -14,7 +14,6 @@ import {
   PRIMARY_COLOR_TINT,
 } from '../components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { baseUrl } from '../components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
@@ -34,6 +33,7 @@ import {
   LecturerLectureScheduleView,
 } from '../components/CourseActionsComponent';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import toastConfig from '../components/ToastConfig';
 
 const EmptyState = ({ message }: { message: string }) => (
   <View style={CourseActionStyles.emptyDivContainer}>

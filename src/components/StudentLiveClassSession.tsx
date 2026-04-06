@@ -55,9 +55,14 @@ export const WavingToast = ({
 
   return (
     <Animated.View
-      style={[styles.waveToast, { transform: [{ translateY: slideAnim }] }]}
+      style={[
+        LiveClassSessionStyles.waveToast,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
     >
-      <Text style={styles.waveText}>👋 {firstName} is waving</Text>
+      <Text style={LiveClassSessionStyles.waveText}>
+        👋 {firstName} is waving
+      </Text>
     </Animated.View>
   );
 };
@@ -90,22 +95,28 @@ export const SpeakerToast = ({
 
   return (
     <Animated.View
-      style={[styles.speakerToast, { transform: [{ translateY: slideAnim }] }]}
+      style={[
+        LiveClassSessionStyles.speakerToast,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
     >
-      <View style={styles.liveIndicator} />
-      <Text style={styles.speakerText}> {firstName} is speaking...</Text>
+      <View style={LiveClassSessionStyles.liveIndicator} />
+      <Text style={LiveClassSessionStyles.speakerText}>
+        {' '}
+        {firstName} is speaking...
+      </Text>
     </Animated.View>
   );
 };
 export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
   return (
-    <View style={styles.lecturerTab}>
-      <View style={styles.mediaContainer}>
+    <View style={LiveClassSessionStyles.lecturerTab}>
+      <View style={LiveClassSessionStyles.mediaContainer}>
         {isCameraOn && streamUrl ? (
           /* 1. Video Mode: Using react-native-video or your RTC View */
           <Video
             source={{ uri: streamUrl }}
-            style={styles.lecturerVideo}
+            style={LiveClassSessionStyles.lecturerVideo}
             resizeMode="cover"
             muted={true}
             repeat={true}
@@ -118,13 +129,13 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
               uri:
                 lecturer?.profilePic?.[0] || 'https://via.placeholder.com/80',
             }}
-            style={styles.avatarBorder}
+            style={LiveClassSessionStyles.avatarBorder}
           />
         )}
       </View>
 
       {/* 3. Mic Status Indicator (Visual Feedback) */}
-      <View style={styles.micIndicator}>
+      <View style={LiveClassSessionStyles.micIndicator}>
         <IconButton
           icon={lecturer?.isMuted ? 'microphone-off' : 'microphone'}
           size={12}
@@ -265,16 +276,16 @@ export const StudentLiveClassSession = ({
     setInputText('');
   };
   return (
-    <View style={styles.mainContainer}>
-      <View style={styles.header}>
-        <Text style={styles.liveText}>● LIVE</Text>
+    <View style={LiveClassSessionStyles.mainContainer}>
+      <View style={LiveClassSessionStyles.header}>
+        <Text style={LiveClassSessionStyles.liveText}>● LIVE</Text>
       </View>
 
       {/* 2. Shared Screen Area */}
-      <View style={styles.sharedScreen}>
+      <View style={LiveClassSessionStyles.sharedScreen}>
         <Video
           source={{ uri: lecture.sharedScreenStreamUrl }}
-          style={styles.fullScreenVideo}
+          style={LiveClassSessionStyles.fullScreenVideo}
           resizeMode="contain"
         />
         <LecturerTab
@@ -285,25 +296,25 @@ export const StudentLiveClassSession = ({
       </View>
 
       {/* 3. Course & Attendance Info */}
-      <View style={styles.infoSection}>
-        <View style={styles.row}>
+      <View style={LiveClassSessionStyles.infoSection}>
+        <View style={LiveClassSessionStyles.row}>
           <View>
-            <Text style={styles.courseTitle}>
+            <Text style={LiveClassSessionStyles.courseTitle}>
               {lecture.courseTitle || 'Course Title'}
             </Text>
-            <Text style={styles.lectureSubtitle}>
+            <Text style={LiveClassSessionStyles.lectureSubtitle}>
               {lecture.title || 'Lecture Title'}
             </Text>
           </View>
-          <View style={styles.durationBox}>
-            <Text style={styles.durationText}>
+          <View style={LiveClassSessionStyles.durationBox}>
+            <Text style={LiveClassSessionStyles.durationText}>
               Duration: {lecture.duration || '00:00'}
             </Text>
           </View>
         </View>
 
         {/* Attendee Horizontal List */}
-        <View style={styles.attendeeContainer}>
+        <View style={LiveClassSessionStyles.attendeeContainer}>
           {attendeeList.slice(0, 4).map((student: User, i: number) => (
             <Avatar.Image
               key={student.uid || i}
@@ -312,30 +323,37 @@ export const StudentLiveClassSession = ({
                 uri:
                   student.profilePic?.[0] || 'https://via.placeholder.com/40',
               }}
-              style={styles.attendeeCircle}
+              style={LiveClassSessionStyles.attendeeCircle}
             />
           ))}
-          <View style={styles.attendeeCount}>
-            <Text style={styles.attendeeCountText}>+{attendeeList.length}</Text>
+          <View style={LiveClassSessionStyles.attendeeCount}>
+            <Text style={LiveClassSessionStyles.attendeeCountText}>
+              +{attendeeList.length}
+            </Text>
           </View>
         </View>
       </View>
 
       {/* 4. Transcription & Interaction */}
-      <View style={styles.bottomSection}>
-        <View style={styles.transcriptionBox}>
-          <View style={styles.aiHeader}>
+      <View style={LiveClassSessionStyles.bottomSection}>
+        <View style={LiveClassSessionStyles.transcriptionBox}>
+          <View style={LiveClassSessionStyles.aiHeader}>
             <IconButton icon="auto-fix" size={14} iconColor={PRIMARY_COLOR} />
-            <Text style={styles.aiLabel}>AI LIVE TRANSCRIPTION</Text>
+            <Text style={LiveClassSessionStyles.aiLabel}>
+              AI LIVE TRANSCRIPTION
+            </Text>
           </View>
-          <Text style={styles.transcriptionText} numberOfLines={3}>
+          <Text
+            style={LiveClassSessionStyles.transcriptionText}
+            numberOfLines={3}
+          >
             {transcription || 'Listening to lecturer...'}
           </Text>
         </View>
         {/* Inside your bottomSection or near the FAB */}
         {isMicAllowed && (
           <TouchableOpacity
-            style={styles.micButton}
+            style={LiveClassSessionStyles.micButton}
             onPress={() => setIsLocalMuted(!isLocalMuted)}
           >
             <MaterialIcons
@@ -343,7 +361,7 @@ export const StudentLiveClassSession = ({
               size={24}
               color={PRIMARY_COLOR}
             />
-            <Text style={styles.micStatusText}>
+            <Text style={LiveClassSessionStyles.micStatusText}>
               {isLocalMuted ? 'Muted' : 'You are Live'}
             </Text>
           </TouchableOpacity>
@@ -358,7 +376,6 @@ export const StudentLiveClassSession = ({
             }}
           >
             <MaterialIcons name="widgets" size={28} color="#fff" />
-            {unreadCount > 0 && <View style={styles.smallBadge} />}
           </TouchableOpacity>
         )}
         <ExpandableFAB
@@ -376,14 +393,14 @@ export const StudentLiveClassSession = ({
           }}
         />
       </View>
-      <View style={styles.progressFooter}>
+      <View style={LiveClassSessionStyles.progressFooter}>
         <ProgressBar
           progress={hasException ? 1 : passedChecks / 7}
           color={hasException ? '#4CAF50' : PRIMARY_COLOR} // Use Green (#4CAF50) for verified exceptions
         />
         <Text
           style={[
-            styles.progressLabel,
+            LiveClassSessionStyles.progressLabel,
             hasException && { color: '#4CAF50', fontWeight: 'bold' },
           ]}
         >
@@ -398,11 +415,11 @@ export const StudentLiveClassSession = ({
         <Modal
           visible={chatVisible}
           onDismiss={() => setChatVisible(false)}
-          contentContainerStyle={styles.chatModal}
+          contentContainerStyle={LiveClassSessionStyles.chatModal}
         >
-          <Text style={styles.chatHeader}>Live Class Chat</Text>
+          <Text style={LiveClassSessionStyles.chatHeader}>Live Class Chat</Text>
           <ScrollView
-            style={styles.messageList}
+            style={LiveClassSessionStyles.messageList}
             contentContainerStyle={{ paddingBottom: 20 }}
             ref={ref => ref?.scrollToEnd({ animated: true })} // Auto-scroll to bottom
           >
@@ -410,18 +427,22 @@ export const StudentLiveClassSession = ({
               <View
                 key={index}
                 style={[
-                  styles.messageBubble,
+                  LiveClassSessionStyles.messageBubble,
                   msg.senderId === user.uid
-                    ? styles.myMessage
-                    : styles.theirMessage,
+                    ? LiveClassSessionStyles.myMessage
+                    : LiveClassSessionStyles.theirMessage,
                 ]}
               >
-                <Text style={styles.senderName}>{msg.firstName}</Text>
-                <Text style={styles.messageText}>{msg.text}</Text>
+                <Text style={LiveClassSessionStyles.senderName}>
+                  {msg.firstName}
+                </Text>
+                <Text style={LiveClassSessionStyles.messageText}>
+                  {msg.text}
+                </Text>
               </View>
             ))}
             {messages.length === 0 && (
-              <Text style={styles.emptyChat}>
+              <Text style={LiveClassSessionStyles.emptyChat}>
                 No messages yet. Start the conversation!
               </Text>
             )}
@@ -429,13 +450,13 @@ export const StudentLiveClassSession = ({
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-            <View style={styles.chatInputRow}>
+            <View style={LiveClassSessionStyles.chatInputRow}>
               <TextInput
                 mode="outlined"
                 placeholder="Type a message..."
                 value={inputText}
                 onChangeText={setInputText}
-                style={styles.chatInput}
+                style={LiveClassSessionStyles.chatInput}
                 outlineColor={PRIMARY_COLOR_TINT}
                 activeOutlineColor={PRIMARY_COLOR}
                 onSubmitEditing={sendMessage}
@@ -463,8 +484,8 @@ export const StudentLiveClassSession = ({
   );
 };
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F5F5F5' },
+export const LiveClassSessionStyles = StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -481,12 +502,15 @@ const styles = StyleSheet.create({
   },
   waveText: { fontSize: 12, color: PRIMARY_COLOR, fontWeight: 'bold' },
   sharedScreen: {
-    height: 250,
+    width: '100%',
+    height: 250, // Standard aspect ratio height
     backgroundColor: '#2222',
-    position: 'relative', // CRITICAL: Allows absolute children to stay inside
-    margin: 10,
     borderRadius: 12,
     overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative', // Critical for PiP positioning
+    elevation: 5,
   },
   fullScreenVideo: {
     width: '100%',
@@ -736,5 +760,143 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
+  },
+  //
+  sharingActive: {
+    borderColor: PRIMARY_COLOR,
+    borderWidth: 2,
+  },
+  sharingOverlay: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  statusText: {
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  hintText: {
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  stopShareButton: {
+    backgroundColor: PRIMARY_COLOR,
+    padding: 15,
+    borderRadius: 13,
+  },
+  stopShareText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  startSharePlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    padding: 13,
+    borderRadius: 14,
+  },
+  startSharePlaceholderText: {
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  // PiP (Picture-in-Picture) Styles
+  lecturerCameraPreview: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    width: 80,
+    height: 110,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+    backgroundColor: '#000',
+    overflow: 'hidden',
+    elevation: 10, // Sits on top of the shared screen
+    zIndex: 10,
+  },
+  miniPreview: {
+    flex: 1,
+  },
+  //
+  controlWrapper: {
+    width: 280, // Fixed width instead of 100%
+    height: 160,
+    backgroundColor: '#2222',
+    borderRadius: 15,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  previewVideo: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)', // Semi-transparent black
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  dotLive: { backgroundColor: '#4CAF50' },
+  dotOffline: { backgroundColor: '#757575' },
+  controlsOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    flexDirection: 'row',
+  },
+  buttonRow: { flexDirection: 'row' },
+  monitoringSection: {
+    marginVertical: 15,
+    paddingLeft: 15,
+  },
+  horizontalMonitorContainer: {
+    paddingRight: 20,
+    gap: 12, // Space between monitor cards
+  },
+  monitorCard: {
+    width: 140,
+    height: 160,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    padding: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  monitorTitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+  },
+  monitorValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
   },
 });
