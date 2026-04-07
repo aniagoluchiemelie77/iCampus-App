@@ -179,7 +179,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         lectureId: item.id,
         courseId: item.courseId,
         topic: item.topicName,
-        streamUrl: item.location, // The generated link
+        streamUrl: item.location,
       });
     } else if (item.lectureType === 'Recorded') {
       navigation.navigate('VideoPlayerScreen', {

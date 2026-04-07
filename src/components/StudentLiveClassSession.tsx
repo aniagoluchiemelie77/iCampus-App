@@ -19,7 +19,6 @@ import {
   TextInput,
 } from 'react-native-paper';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Video from 'react-native-video';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { User, ChatMessage, Lecture } from 'types/firebase';
 import ExpandableFAB from './ExpandableFAB';
@@ -30,6 +29,7 @@ import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { useNavigation } from '@react-navigation/native';
 import { RTCView } from 'react-native-webrtc';
+import { ReviewModal } from './ReviewsModal';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface StudentLiveSessionProps {
@@ -37,7 +37,7 @@ interface StudentLiveSessionProps {
   checks: boolean[];
   hasException: boolean;
   socket: any; // Socket.io types are complex, 'any' is okay here, or use 'Socket' from socket.io-client
-  attendeeList: User[];
+  attendeeList?: User[];
   lecturerData: LiveLecturer | null;
 }
 export type LiveLecturer = User & {
@@ -186,6 +186,8 @@ export const StudentLiveClassSession = ({
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [elapsedTime, setElapsedTime] = useState('00:00');
+  const [reviewVisible, setReviewVisible] = useState(false);
+  const [remoteStreamUrl, setRemoteStreamUrl] = useState<string | null>(null);
   const [currentAttendees, setCurrentAttendees] =
     useState<User[]>(attendeeList);
   const triggerWaveToast = (name: string) => {
@@ -252,6 +254,10 @@ export const StudentLiveClassSession = ({
       uid: user.uid,
       isMuted: isLocalMuted,
     });
+    socket.on('stream_received', ({ streamUrl }: { streamUrl: string }) => {
+      console.log('Received Lecturer Stream URL:', streamUrl);
+      setRemoteStreamUrl(streamUrl);
+    });
 
     // 2. Consolidated Listeners
     const handlers = {
@@ -282,8 +288,7 @@ export const StudentLiveClassSession = ({
         setCurrentAttendees(newList);
       },
       lecture_ended: () => {
-        Toast.show({ text1: 'Lecture Ended', type: 'info' });
-        setTimeout(() => navigation.navigate('Home'), 2000);
+        setReviewVisible(true);
       },
     };
 
@@ -326,11 +331,13 @@ export const StudentLiveClassSession = ({
 
       {/* 2. Shared Screen Area */}
       <View style={LiveClassSessionStyles.sharedScreen}>
-        <Video
-          source={{ uri: lecture.sharedScreenStreamUrl }}
-          style={LiveClassSessionStyles.fullScreenVideo}
-          resizeMode="contain"
-        />
+        {remoteStreamUrl && (
+          <RTCView
+            streamURL={remoteStreamUrl}
+            style={LiveClassSessionStyles.fullScreenVideo}
+            objectFit="cover"
+          />
+        )}
         <LecturerTab
           lecturer={lecturerData}
           isCameraOn={lecturerData?.isCameraOn}
@@ -521,6 +528,13 @@ export const StudentLiveClassSession = ({
         />
       )}
       <Toast config={toastConfig} />
+      {/* Review Modal for Post-Lecture Feedback */}
+      <ReviewModal
+        visible={reviewVisible}
+        lectureData={lecture}
+        user={user}
+        lecturerUid={lecturerData?.uid ?? ''}
+      />
     </View>
   );
 };
@@ -979,6 +993,30 @@ export const LiveClassSessionStyles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  reviewModalInput: {
+    width: '100%',
+    backgroundColor: '#fff',
+    marginBottom: 15,
+    color: '#2222',
+    fontSize: 14,
+  },
+  reviewModalBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  reviewModalBtnText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalReviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    marginVertical: 20,
   },
   modalContainer: {
     backgroundColor: '#fff',

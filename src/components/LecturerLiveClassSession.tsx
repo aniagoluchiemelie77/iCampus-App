@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -175,23 +175,39 @@ export const LecturerLiveClassSession = ({
     color: '#2222',
   });
   const [localStream, setLocalStream] = useState<any>(null);
-  const initializeWebRTC = async () => {
+  const initializeWebRTC = useCallback(async () => {
     try {
-      const stream = (await mediaDevices.getUserMedia({
+      const stream = await mediaDevices.getUserMedia({
         video: true,
         audio: true,
-      })) as MediaStream;
+      });
 
       setLocalStream(stream);
 
+      // Simple Relay
+      socket.emit('stream_ready', {
+        lectureId: lecture.id,
+        streamUrl: (stream as any).toURL(),
+      });
+
+      // SDP Handshake Logic
       if (pc.current) {
-        // Option A: The most reliable way in React Native WebRTC
-        (pc.current as any).addStream(stream);
+        stream.getTracks().forEach(track => {
+          pc.current?.addTrack(track, stream);
+        });
+
+        const offer = await pc.current.createOffer();
+        await pc.current.setLocalDescription(offer);
+
+        socket.emit('webrtc_signal', {
+          lectureId: lecture.id,
+          signal: offer,
+        });
       }
     } catch (err) {
       console.error('WebRTC Setup Error:', err);
     }
-  };
+  }, [lecture.id, socket]);
 
   const startScreenShare = async () => {
     try {
@@ -385,7 +401,7 @@ export const LecturerLiveClassSession = ({
       await initializeWebRTC();
     };
     init();
-  }, [refreshKey]); // Restarts if refreshKey changes
+  }, [refreshKey, initializeWebRTC]); // Restarts if refreshKey changes
   const handleEndLecture = () => {
     socket.emit('end_lecture', { lectureId: lecture.id });
     setEndModalVisible(false);
@@ -514,7 +530,6 @@ export const LecturerLiveClassSession = ({
           </View>
         </ScrollView>
       </View>
-
       {/* 3. Course & Attendance Info */}
       <View style={LiveClassSessionStyles.infoSection}>
         <View style={LiveClassSessionStyles.row}>

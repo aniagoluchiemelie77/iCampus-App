@@ -1,4 +1,10 @@
-import React, { useState, useEffect, createContext, ReactNode } from 'react';
+import React, {
+  useState,
+  useEffect,
+  createContext,
+  ReactNode,
+  useContext,
+} from 'react';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '@components/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
@@ -21,8 +27,10 @@ import toastConfig from '../components/ToastConfig';
 import { playNotificationSound } from '../services/notificationSound';
 import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
+import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
+import { Lecture } from 'types/firebase';
 
-type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 export interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -74,8 +82,11 @@ const HomeScreen = () => {
   const userType = user?.usertype;
   const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
+  const socketContext = useContext(SocketContext);
+  const socket = socketContext?.socket;
 
   const [activeIcon, setActiveIcon] = useState<string>('home');
+  const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24; // 24 hours
@@ -106,6 +117,44 @@ const HomeScreen = () => {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    if (!socket || !user?.uid) return;
+
+    const handleLectureStarted = (lecture: Lecture) => {
+      setOngoingLecture(lecture);
+    };
+
+    socket.on('lecture_started', handleLectureStarted);
+
+    const checkOngoing = async () => {
+      try {
+        const res = await fetch(`${baseUrl}users/lectures/ongoing/${user.uid}`);
+        const data = await res.json();
+        if (data.ongoing) {
+          setOngoingLecture(data.lecture);
+        }
+      } catch (err) {
+        console.error('iCampus: Failed to check ongoing status', err);
+      }
+    };
+
+    checkOngoing();
+
+    // Explicitly return a function that returns void
+    return () => {
+      socket.off('lecture_started', handleLectureStarted);
+    };
+  }, [socket, user?.uid]);
+
+  const handleJoinLecture = () => {
+    if (ongoingLecture) {
+      navigation.navigate('LiveClassSessions', {
+        lectureId: ongoingLecture.id,
+        courseId: ongoingLecture.courseId,
+      });
+      setOngoingLecture(null);
+    }
+  };
   return (
     <AppDataProvider user={user}>
       <View style={homeStyles.container}>
@@ -196,6 +245,12 @@ const HomeScreen = () => {
         </View>
       </View>
       <Toast config={toastConfig} />
+      <OngoingLectureModal
+        visible={!!ongoingLecture}
+        lecture={ongoingLecture}
+        onJoin={handleJoinLecture}
+        onDismiss={() => setOngoingLecture(null)}
+      />
     </AppDataProvider>
   );
 };

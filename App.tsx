@@ -49,6 +49,7 @@ import ReceivePointsScreen from './src/screens/ReceivePoints';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
 import { CourseSubPage } from 'screens/CourseSubPage';
+import { LiveClassSessions } from './src/screens/LiveClassSession.tsx';
 
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
@@ -88,6 +89,7 @@ export type RootStackParamList = {
     postId: string;
   }; //PostDetail: { postId: string };
   Home: undefined;
+  LiveClassSessions: { lectureId: string; courseId: string };
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
     email?: string;
@@ -203,6 +205,11 @@ const App = () => {
             <Stack.Screen
               name="CreatePost"
               component={CreatePost}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LiveClassSessions"
+              component={LiveClassSessions}
               options={{ headerShown: false }}
             />
             <Stack.Screen

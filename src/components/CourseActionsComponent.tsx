@@ -21,6 +21,7 @@ import {
   Dimensions,
   SectionList,
 } from 'react-native';
+
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   TestSubmission,
@@ -3093,11 +3094,11 @@ export const RenderStudentTest = ({
 };
 export const RenderViewLectureSchedule = ({
   lectures,
-  onPress,
 }: {
   lectures: Lecture[];
   onPress: (item: Lecture) => void;
 }) => {
+  const navigation = useNavigation<any>();
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
 
@@ -3133,11 +3134,20 @@ export const RenderViewLectureSchedule = ({
     const isOngoing = item.status === 'ongoing';
     const isClickable =
       item.lectureType === 'Online' || item.lectureType === 'Recorded';
-
+    const handlePress = () => {
+      if (isOngoing && item.lectureType === 'Online') {
+        navigation.navigate('LiveClassSessions', {
+          lectureId: item.id,
+          courseId: item.courseId,
+        });
+      } else if (item.lectureType === 'Recorded') {
+        navigation.navigate('VideoPlayer', { url: item.videoUrl });
+      }
+    };
     return (
       <TouchableOpacity
         disabled={!isClickable}
-        onPress={() => onPress(item)}
+        onPress={handlePress}
         style={[
           CourseActionStyles.lectureCard,
           isOngoing && { borderColor: PRIMARY_COLOR, borderWidth: 2 },

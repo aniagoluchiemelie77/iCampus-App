@@ -4,20 +4,39 @@ import React, {
   useMemo,
   useCallback
 } from 'react';
-import {
-  View,
-} from 'react-native';
+import { View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLiveSession } from '../hooks/useLiveSession';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { LecturerLiveClassSession } from '../components/LecturerLiveClassSession';
-import { StudentLiveClassSession } from '../components/StudentLiveClassSession';
+import {
+  LiveLecturer,
+  StudentLiveClassSession,
+} from '../components/StudentLiveClassSession';
 import { AccessDeniedScreen } from '../components/AccessDeniedScreen';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { useFrameProcessor } from 'react-native-vision-camera';
 import { runOnJS } from 'react-native-reanimated';
 import { scanFaces } from 'vision-camera-face-detector';
 import { User } from 'types/firebase';
+import { ActivityIndicator } from 'react-native-paper';
+import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+
+const LoadingScreen = () => (
+  <View
+    style={{
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#fff',
+    }}
+  >
+    <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+    <Text style={{ marginTop: 10, color: '#666' }}>
+      Initializing Class Session...
+    </Text>
+  </View>
+);
 
 export const LiveClassSessions = ({ route }: any) => {
   const { lectureId, courseId } = route.params;
@@ -31,12 +50,15 @@ export const LiveClassSessions = ({ route }: any) => {
     lectureId,
     courseId,
   );
-  const lecturerData = {
-    profilePic: lecturerUser?.profilePic || [],
-    isMuted: lecture?.isLecturerMuted || false,
-    isCameraOn: lecture?.isLecturerCameraOn || false,
-    cameraStreamUrl: lecture?.location || lecture?.videoUrl,
-  };
+  const lecturerData: LiveLecturer | null = lecturerUser
+    ? {
+        ...lecturerUser, // This provides uid, email, etc.
+        profilePic: lecturerUser?.profilePic || [],
+        isMuted: lecture?.isLecturerMuted || false,
+        isCameraOn: lecture?.isLecturerCameraOn || false,
+        cameraStreamUrl: lecture?.location || lecture?.videoUrl,
+      }
+    : null;
   // Guard: Check if user is Enrolled or a Lecturer
   const isLecturer = course?.lecturerIds?.includes(user?.uid);
   const isStudent = course?.studentsEnrolled?.includes(user?.uid);
@@ -50,6 +72,7 @@ export const LiveClassSessions = ({ route }: any) => {
     if (!course || !lecture) return false;
     return (isLecturer || isEnrolled) && hasStarted;
   }, [course, lecture, user, isLecturer]);
+
   const isEligibleForAttendance = useMemo(() => {
     // 1. Check for a specific approved exception for THIS student and THIS lecture
     const hasApprovedException = exceptions.some(
