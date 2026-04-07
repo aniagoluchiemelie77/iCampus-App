@@ -21,7 +21,6 @@ import {
   Dimensions,
   SectionList,
 } from 'react-native';
-
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   TestSubmission,
@@ -3099,6 +3098,7 @@ export const RenderViewLectureSchedule = ({
   onPress: (item: Lecture) => void;
 }) => {
   const navigation = useNavigation<any>();
+  const user = useAppSelector(state => state.user);
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
 
@@ -3141,7 +3141,12 @@ export const RenderViewLectureSchedule = ({
           courseId: item.courseId,
         });
       } else if (item.lectureType === 'Recorded') {
-        navigation.navigate('VideoPlayer', { url: item.videoUrl });
+        navigation.navigate('VideoPlayer', {
+          lectureId: item.id,
+          url: item.videoUrl,
+          title: item.topicName,
+          userRole: user.usertype,
+        });
       }
     };
     return (

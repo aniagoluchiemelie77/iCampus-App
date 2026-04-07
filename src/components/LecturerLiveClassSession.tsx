@@ -15,6 +15,7 @@ import {
   TextInput,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
+import VIForegroundService from '@voximplant/react-native-foreground-service';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { LiveClassSessionStyles } from './StudentLiveClassSession';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -26,6 +27,7 @@ import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { SpeakerToast, WavingToast } from './StudentLiveClassSession';
 import { User, Lecture } from 'types/firebase';
+import { baseUrl } from './HomeScreenComponents';
 interface LecturerControlsProps {
   localStream: any;
   isLive: boolean;
@@ -169,6 +171,7 @@ export const LecturerLiveClassSession = ({
   const [currentSpeakerName, setCurrentSpeakerName] = useState<string | null>(
     null,
   );
+  const [attendeeModalVisible, setAttendeeModalVisible] = useState(false);
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [streamStats, setStreamStats] = useState({
     label: 'Checking...',
@@ -210,7 +213,29 @@ export const LecturerLiveClassSession = ({
   }, [lecture.id, socket]);
 
   const startScreenShare = async () => {
+    const channelConfig = {
+      id: 'liveness_channel',
+      name: 'iCampus Live Session',
+      description: 'Keeps the lecture alive while screen sharing',
+      enableVibration: false,
+      importance: 4, // High importance
+    };
     try {
+      // 1. Create the channel (Android requirement)
+      await VIForegroundService.getInstance().createNotificationChannel(
+        channelConfig,
+      );
+
+      // 2. Start the service
+      await VIForegroundService.getInstance().startService({
+        channelId: 'liveness_channel',
+        id: 1234,
+        title: 'iCampus Live',
+        text: `Sharing screen for ${lecture.topicName}`,
+        icon: 'icampus_logo',
+        button: 'Stop Sharing',
+        priority: 2,
+      });
       // @ts-ignore
       const stream = await mediaDevices.getDisplayMedia({
         video: true,
@@ -235,6 +260,7 @@ export const LecturerLiveClassSession = ({
     } catch (e) {
       console.log('User denied screen capture');
       setIsSharingScreen(false);
+      await VIForegroundService.getInstance().stopService();
     }
   };
 
@@ -397,11 +423,32 @@ export const LecturerLiveClassSession = ({
     return () => clearInterval(timer);
   }, [lecture.startTime]);
   useEffect(() => {
-    const init = async () => {
-      await initializeWebRTC();
+    let isMounted = true;
+    const startClassSession = async () => {
+      if (lecture.status === 'ongoing') return;
+      try {
+        const response = await fetch(`${baseUrl}users/lectures/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lectureId: lecture.id,
+            courseId: lecture.courseId,
+          }),
+        });
+
+        if (response.ok && isMounted) {
+          await initializeWebRTC();
+          Toast.show({ text1: 'Class is now LIVE!' });
+        }
+      } catch (error) {
+        console.error('iCampus: Failed to start lecture:', error);
+      }
     };
-    init();
-  }, [refreshKey, initializeWebRTC]); // Restarts if refreshKey changes
+    startClassSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [lecture.id, initializeWebRTC, lecture.courseId, lecture.status]); // Use ID instead of the whole object to prevent loops// Restarts if refreshKey changes
   const handleEndLecture = () => {
     socket.emit('end_lecture', { lectureId: lecture.id });
     setEndModalVisible(false);
@@ -558,11 +605,14 @@ export const LecturerLiveClassSession = ({
               style={LiveClassSessionStyles.attendeeCircle}
             />
           ))}
-          <View style={LiveClassSessionStyles.attendeeCount}>
+          <TouchableOpacity
+            style={LiveClassSessionStyles.attendeeCount}
+            onPress={() => setAttendeeModalVisible(true)}
+          >
             <Text style={LiveClassSessionStyles.attendeeCountText}>
               +{currentAttendees.length}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
       {/* 4. Transcription & Interaction */}
@@ -690,6 +740,63 @@ export const LecturerLiveClassSession = ({
               />
             </View>
           </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
+      {/* Attendees list modal */}
+      <Portal>
+        <Modal
+          visible={attendeeModalVisible}
+          onDismiss={() => setAttendeeModalVisible(false)}
+          style={LiveClassSessionStyles.modalOverlay}
+        >
+          <View style={LiveClassSessionStyles.bottomModalContainer}>
+            <View style={LiveClassSessionStyles.modalHandle} />
+            <View style={LiveClassSessionStyles.attendeeListHeader}>
+              <Text style={LiveClassSessionStyles.attendeeListTitle}>
+                Class Attendance ({currentAttendees.length})
+              </Text>
+            </View>
+
+            <ScrollView style={LiveClassSessionStyles.attendeeScrollList}>
+              {currentAttendees.map((student, index) => (
+                <View
+                  key={student.uid || index}
+                  style={LiveClassSessionStyles.studentRow}
+                >
+                  <Avatar.Image
+                    size={45}
+                    source={{
+                      uri:
+                        student.profilePic?.[0] ||
+                        'https://via.placeholder.com/45',
+                    }}
+                  />
+                  <View style={LiveClassSessionStyles.studentInfo}>
+                    <Text style={LiveClassSessionStyles.studentName}>
+                      {student.firstname} {student.lastname}
+                    </Text>
+                  </View>
+                  {/* Visual indicator if they are the one waving */}
+                  {wavers.find(w => w.uid === student.uid) && (
+                    <MaterialIcons
+                      name="front-hand"
+                      size={20}
+                      color={PRIMARY_COLOR}
+                    />
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={LiveClassSessionStyles.closeModalButton}
+              onPress={() => setAttendeeModalVisible(false)}
+            >
+              <Text style={LiveClassSessionStyles.closeModalButtonText}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
         </Modal>
       </Portal>
       {/* End Live Session Confirmation Modal */}

@@ -40,6 +40,12 @@ interface StudentLiveSessionProps {
   attendeeList?: User[];
   lecturerData: LiveLecturer | null;
 }
+interface LecturerDataProps {
+  firstname: string;
+  profilePic: string[];
+  isCameraOn: boolean;
+  cameraStreamUrl: string | null; // Allow both types
+}
 export type LiveLecturer = User & {
   isCameraOn?: boolean;
   cameraStreamUrl?: string;
@@ -129,7 +135,6 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
     <View style={LiveClassSessionStyles.lecturerTab}>
       <View style={LiveClassSessionStyles.mediaContainer}>
         {isCameraOn && streamUrl ? (
-          /* 1. Video Mode: Using react-native-video or your RTC View */
           <RTCView
             streamURL={
               typeof streamUrl === 'string' ? streamUrl : streamUrl.toURL()
@@ -146,18 +151,20 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
               uri:
                 lecturer?.profilePic?.[0] || 'https://via.placeholder.com/80',
             }}
-            style={LiveClassSessionStyles.avatarBorder}
           />
         )}
       </View>
-
-      {/* 3. Mic Status Indicator (Visual Feedback) */}
-      <View style={LiveClassSessionStyles.micIndicator}>
-        <IconButton
-          icon={lecturer?.isMuted ? 'microphone-off' : 'microphone'}
-          size={12}
-          iconColor={PRIMARY_COLOR}
-        />
+      <View style={LiveClassSessionStyles.otherSection}>
+      <View style={LiveClassSessionStyles.nameBadge}>
+        <Text style={LiveClassSessionStyles.nameText} numberOfLines={1}>
+          {lecturer?.firstname || 'Lecturer'}
+        </Text>
+      </View>
+      <IconButton
+        icon={lecturer?.isMuted ? 'microphone-off' : 'microphone'}
+        size={12}
+        iconColor={PRIMARY_COLOR}
+      />
       </View>
     </View>
   );
@@ -188,11 +195,18 @@ export const StudentLiveClassSession = ({
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [reviewVisible, setReviewVisible] = useState(false);
   const [remoteStreamUrl, setRemoteStreamUrl] = useState<string | null>(null);
+  const [attendeeModalVisible, setAttendeeModalVisible] = useState(false);
   const [currentAttendees, setCurrentAttendees] =
     useState<User[]>(attendeeList);
   const triggerWaveToast = (name: string) => {
     setWaverName(name);
   };
+  const [lecturerLiveData, setLecturerData] = useState<LecturerDataProps>({
+    firstname: '',
+    profilePic: [],
+    isCameraOn: true,
+    cameraStreamUrl: null,
+  });
   useEffect(() => {
     if (isMicAllowed && !isLocalMuted) {
       LiveAudioStream.init({
@@ -257,6 +271,10 @@ export const StudentLiveClassSession = ({
     socket.on('stream_received', ({ streamUrl }: { streamUrl: string }) => {
       console.log('Received Lecturer Stream URL:', streamUrl);
       setRemoteStreamUrl(streamUrl);
+      setLecturerData(prev => ({ ...prev, cameraStreamUrl: streamUrl }));
+    });
+    socket.on('lecturer_camera_toggled', ({ isCameraOn }: {isCameraOn: boolean}) => {
+      setLecturerData(prev => ({ ...prev, isCameraOn }));
     });
 
     // 2. Consolidated Listeners
@@ -339,9 +357,9 @@ export const StudentLiveClassSession = ({
           />
         )}
         <LecturerTab
-          lecturer={lecturerData}
-          isCameraOn={lecturerData?.isCameraOn}
-          streamUrl={lecturerData?.cameraStreamUrl}
+          lecturer={lecturerLiveData}
+          isCameraOn={lecturerLiveData?.isCameraOn}
+          streamUrl={lecturerLiveData?.cameraStreamUrl}
         />
       </View>
 
@@ -516,6 +534,63 @@ export const StudentLiveClassSession = ({
               />
             </View>
           </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
+      {/* Attendees list modal */}
+      <Portal>
+        <Modal
+          visible={attendeeModalVisible}
+          onDismiss={() => setAttendeeModalVisible(false)}
+          style={LiveClassSessionStyles.modalOverlay}
+        >
+          <View style={LiveClassSessionStyles.bottomModalContainer}>
+            <View style={LiveClassSessionStyles.modalHandle} />
+            <View style={LiveClassSessionStyles.attendeeListHeader}>
+              <Text style={LiveClassSessionStyles.attendeeListTitle}>
+                Class Attendance ({currentAttendees.length})
+              </Text>
+            </View>
+
+            <ScrollView style={LiveClassSessionStyles.attendeeScrollList}>
+              {currentAttendees.map((student, index) => (
+                <View
+                  key={student.uid || index}
+                  style={LiveClassSessionStyles.studentRow}
+                >
+                  <Avatar.Image
+                    size={45}
+                    source={{
+                      uri:
+                        student.profilePic?.[0] ||
+                        'https://via.placeholder.com/45',
+                    }}
+                  />
+                  <View style={LiveClassSessionStyles.studentInfo}>
+                    <Text style={LiveClassSessionStyles.studentName}>
+                      {student.firstname} {student.lastname}
+                    </Text>
+                  </View>
+                  {/* Visual indicator if they are the one waving */}
+                  {waverName === student.firstname && (
+                    <MaterialIcons
+                      name="front-hand"
+                      size={20}
+                      color={PRIMARY_COLOR}
+                    />
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={LiveClassSessionStyles.closeModalButton}
+              onPress={() => setAttendeeModalVisible(false)}
+            >
+              <Text style={LiveClassSessionStyles.closeModalButtonText}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
         </Modal>
       </Portal>
       {waverName && (
@@ -697,10 +772,10 @@ export const LiveClassSessionStyles = StyleSheet.create({
   lecturerTab: {
     position: 'absolute',
     right: 15,
-    top: 15,
+    bottom: 15,
     width: 90,
     height: 90,
-    borderRadius: 45, // Makes the whole tab circular
+    borderRadius: 45, 
     borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     elevation: 8,
@@ -708,29 +783,21 @@ export const LiveClassSessionStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   mediaContainer: {
     flex: 1,
-    borderRadius: 45,
-    overflow: 'hidden', // CRITICAL: Clips the video into a circle
+    overflow: 'hidden',
   },
   lecturerVideo: {
     width: '100%',
     height: '100%',
   },
-  avatarBorder: {
-    backgroundColor: '#E1E1E1',
-  },
-  micIndicator: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+  otherSection:{
+    alignSelf: 'flex-end',
+    width: '100%'
   },
   smallBadge: {
     position: 'absolute',
@@ -1053,5 +1120,84 @@ export const LiveClassSessionStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  bottomModalContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    maxHeight: '70%',
+    paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#eee',
+    borderRadius: 10,
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+  attendeeListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '100%',
+  },
+  attendeeListTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2222',
+  },
+  studentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  attendeeScrollList: {
+    paddingBottom: 20,
+  },
+  studentInfo: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2222',
+  },
+  closeModalButton: {
+    marginTop: 20,
+    backgroundColor: PRIMARY_COLOR,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeModalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  nameBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  nameText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 4
   },
 });
