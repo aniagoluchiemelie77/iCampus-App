@@ -9,6 +9,7 @@ export interface User {
   usertype?: UserType;
   firstname?: string;
   lastname?: string;
+  username?: string;
   isFirstLogin?: boolean;
   schoolName?: string;
   organizationName?: string;
@@ -559,6 +560,17 @@ export interface Posts {
     totalVotes: number;
   };
 }
+export interface Comment {
+  id: string;
+  userId: string;
+  firstName: string;
+  userName: string;
+  profilePic?: string;
+  text: string;
+  timestamp: string | number;
+  likes: number;
+  replies: Comment[]; 
+}
 export interface Lecture {
   id: string;
   _id?: string;
@@ -576,11 +588,14 @@ export interface Lecture {
   isTaught: boolean;
   videoUrl?: string; 
   resources?: string[];
-  attendance?: User.uid[];//Row call of attendees (students)
+  attendance?: User.uid[];
   getAttendanceMode?: 'Uploaded' | 'Online'; 
-  isLecturerMuted?: boolean;    // Add this
-  isLecturerCameraOn?: boolean; // Add this
-  lecturerCameraUrl?: string;   // Add this
+  isLecturerMuted?: boolean;   
+  isLecturerCameraOn?: boolean;
+  lecturerCameraUrl?: string; 
+  views?: number;
+  likes?: number 
+  comments?: Comment[];
 }
 export interface Course {
   id: string;
