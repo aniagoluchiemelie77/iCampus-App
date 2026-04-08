@@ -137,10 +137,7 @@ const HomeScreen = () => {
         console.error('iCampus: Failed to check ongoing status', err);
       }
     };
-
     checkOngoing();
-
-    // Explicitly return a function that returns void
     return () => {
       socket.off('lecture_started', handleLectureStarted);
     };

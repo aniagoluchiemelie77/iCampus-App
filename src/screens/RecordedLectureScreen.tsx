@@ -37,8 +37,7 @@ export const VideoPlayerScreen = ({ route }: any) => {
         admin={isAdmin}
         extraDetails={lectureDetails}
       />
-
-      {loading && <ActivityIndicator size="small" color={PRIMARY_COLOR} />}
+      {loading && <ActivityIndicator size="large" color={PRIMARY_COLOR} />}
     </View>
   );
 };

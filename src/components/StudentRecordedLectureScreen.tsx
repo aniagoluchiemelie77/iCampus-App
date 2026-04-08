@@ -18,7 +18,8 @@ import { io, Socket } from 'socket.io-client';
 import { baseUrl } from './HomeScreenComponents';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { Lecture, Comment } from 'types/firebase';
-
+import YoutubePlayer from 'react-native-youtube-iframe';
+import { WebView } from 'react-native-webview';
 interface StudentRecordedLecturesProps {
   lectureTitle: string;
   lectureVideoUrl: string;
@@ -59,8 +60,8 @@ export const StudentRecordedLecturesScreen: React.FC<
     });
     socketRef.current = socket;
 
-    socket.emit('join_lecture', lectureId); //
-    socket.emit('increment_view', lectureId); //
+    socket.emit('join_r_lecture', lectureId);
+    socket.emit('increment_view', lectureId, user.uid);
 
     socket.on('stats_updated', data => {
       if (data.lectureId === lectureId) {
@@ -74,7 +75,7 @@ export const StudentRecordedLecturesScreen: React.FC<
     });
 
     return () => {
-      socket.emit('leave_lecture', lectureId);
+      socket.emit('leave_r_lecture', lectureId);
       socket.disconnect();
     };
   }, [lectureId, user.uid]);
@@ -297,28 +298,96 @@ export const StudentRecordedLecturesScreen: React.FC<
       </View>
     </View>
   );
+  const getVideoSourceType = (url: string) => {
+    if (url.includes('youtube.com') || url.includes('youtu.be'))
+      return 'youtube';
+    if (url.includes('vimeo.com')) return 'vimeo';
+    if (url.includes('.mp4') || url.includes('.m3u8')) return 'native';
+    return 'webview';
+  };
+  const getYoutubeId = (url: string) => {
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  // Helper to get Vimeo ID
+  const getVimeoId = (url: string) => {
+    const match = url.match(
+      /(?:www\.|player\.)?vimeo.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/,
+    );
+    return match ? match[1] : null;
+  };
+  const renderVideoPlayer = () => {
+    const type = getVideoSourceType(lectureVideoUrl);
+    if (type === 'youtube') {
+      const videoId = getYoutubeId(lectureVideoUrl);
+      return (
+        <YoutubePlayer
+          height={250}
+          play={true}
+          videoId={videoId || ''}
+          onChangeState={(state: string) => {
+            if (state === 'ended' && !hasAttended) {
+              setHasAttended(true);
+              markAttendanceOnBackend();
+            }
+          }}
+        />
+      );
+    }
+    if (type === 'vimeo') {
+      const vimeoId = getVimeoId(lectureVideoUrl);
+      return (
+        <View style={{ height: 250 }}>
+          <WebView
+            allowsFullscreenVideo
+            scrollEnabled={false}
+            automaticallyAdjustContentInsets={false}
+            source={{
+              html: `
+              <html>
+                <body style="margin:0;padding:0;background-color:black;">
+                  <iframe src="https://player.vimeo.com/video/${vimeoId}" 
+                    width="100%" height="100%" frameborder="0" 
+                    webkitallowfullscreen mozallowfullscreen allowfullscreen>
+                  </iframe>
+                </body>
+              </html>`,
+            }}
+          />
+        </View>
+      );
+    }
+
+    // Default Native Player (MP4/HLS)
+    return (
+      <Video
+        ref={videoRef}
+        source={{ uri: lectureVideoUrl }}
+        style={styles.video}
+        resizeMode={ResizeMode.CONTAIN}
+        controls={true}
+        paused={false}
+        onLoad={onLoad}
+        onProgress={onProgress}
+      />
+    );
+  };
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {renderVideoPlayer()}
       <FlatList
         data={comments}
         keyExtractor={item => item.id}
         renderItem={renderComment}
         ListHeaderComponent={
           <>
-            <Video
-              ref={videoRef}
-              source={{ uri: lectureVideoUrl }}
-              style={styles.video}
-              resizeMode={ResizeMode.CONTAIN}
-              controls={true}
-              paused={false}
-              onLoad={onLoad}
-              onProgress={onProgress}
-            />
             <View style={styles.interactionBar}>
               <View style={styles.statItem}>
                 <Icon name="eye-outline" size={20} color="#666" />
@@ -359,7 +428,21 @@ export const StudentRecordedLecturesScreen: React.FC<
             </View>
           </>
         }
-        stickyHeaderIndices={[0]} // Optional: keep video at top
+        ListEmptyComponent={
+          <View style={styles.emptyCommentsContainer}>
+            <Icon
+              name="comment-question-outline"
+              size={40}
+              color={PRIMARY_COLOR_TINT}
+            />
+            <Text style={styles.emptyCommentsText}>No comments yet</Text>
+            <Text style={styles.emptyCommentsSubtext}>
+              Be the first to start the conversation!
+            </Text>
+          </View>
+        }
+        ListFooterComponent={<View style={{ height: 20 }} />}
+        stickyHeaderIndices={[0]}
       />
       <View style={styles.inputWrapper}>
         <Image
@@ -530,5 +613,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingVertical: 5,
     color: '#2222',
+  },
+  emptyCommentsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+  },
+  emptyCommentsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PRIMARY_COLOR_TINT,
+    marginTop: 10,
+  },
+  emptyCommentsSubtext: {
+    fontSize: 13,
+    color: PRIMARY_COLOR_TINT,
+    marginTop: 5,
   },
 });

@@ -1573,8 +1573,6 @@ export const RenderScheduleLecture = ({
       endTime,
       lectureType,
     } = form;
-
-    // 1. Validation Logic
     const isRecorded = lectureType === 'Recorded';
     const venueValue = isRecorded ? videoUrl : location;
 
@@ -1605,7 +1603,7 @@ export const RenderScheduleLecture = ({
       startTime: form.startTime!,
       endTime: form.endTime!,
       date: form.date!,
-      repeatWeeks: repeatWeeks, // Match the new type definition
+      repeatWeeks: repeatWeeks,
     };
     onSave(payload);
   };
@@ -1661,7 +1659,7 @@ export const RenderScheduleLecture = ({
         videoUrl: '',
       }));
     } else if (form.lectureType === 'Recorded') {
-      setForm(prev => ({ ...prev, location: '' }));
+      setForm(prev => ({ ...prev, location: 'iCampus Video Player' }));
     }
   }, [form.lectureType, course.courseId]);
 
@@ -1726,6 +1724,18 @@ export const RenderScheduleLecture = ({
             }
           }}
         />
+        {form.lectureType === 'Recorded' &&
+          form.videoUrl.includes('icampus.com') && (
+            <View
+              style={{
+                backgroundColor: PRIMARY_COLOR,
+                padding: 10,
+                borderRadius: 10,
+              }}
+            >
+              <Icon name="medal" size={16} color="#fff" />
+            </View>
+          )}
       </View>
 
       <View style={CourseActionStyles.dateTimeRow}>
@@ -3141,7 +3151,7 @@ export const RenderViewLectureSchedule = ({
           courseId: item.courseId,
         });
       } else if (item.lectureType === 'Recorded') {
-        navigation.navigate('VideoPlayer', {
+        navigation.navigate('VideoPlayerScreen', {
           lectureId: item.id,
           url: item.videoUrl,
           title: item.topicName,
@@ -3215,13 +3225,15 @@ export const RenderViewLectureSchedule = ({
 };
 export const LecturerLectureScheduleView = ({
   lectures,
-  onUpdateLecture, // Callback to refresh data in parent
+  onUpdateLecture,
   onDeleteLecture,
 }: {
   lectures: Lecture[];
   onUpdateLecture: (updated: Lecture) => void;
   onDeleteLecture: (id: string) => void;
 }) => {
+  const navigation = useNavigation<any>();
+  const user = useAppSelector(state => state.user);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -3302,8 +3314,27 @@ export const LecturerLectureScheduleView = ({
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
     const isPostponed = item.status === 'postponed';
+    const isClickable =
+      item.lectureType === 'Online' || item.lectureType === 'Recorded';
+    const handlePress = () => {
+      if (isOngoing && item.lectureType === 'Online') {
+        navigation.navigate('LiveClassSessions', {
+          lectureId: item.id,
+          courseId: item.courseId,
+        });
+      } else if (item.lectureType === 'Recorded') {
+        navigation.navigate('VideoPlayerScreen', {
+          lectureId: item.id,
+          url: item.videoUrl,
+          title: item.topicName,
+          userRole: user.usertype,
+        });
+      }
+    };
     return (
-      <View
+      <TouchableOpacity
+        disabled={!isClickable}
+        onPress={handlePress}
         style={[
           CourseActionStyles.lectureCard2,
           isOngoing && { borderColor: PRIMARY_COLOR, borderWidth: 2 },
@@ -3387,7 +3418,7 @@ export const LecturerLectureScheduleView = ({
           <View style={CourseActionStyles.timeLine} />
           <Text style={CourseActionStyles.timeTextSmall}>{item.endTime}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -3407,6 +3438,7 @@ export const LecturerLectureScheduleView = ({
         )}
         stickySectionHeadersEnabled
       />
+      {/* Postpone Modal */}
       <Modal visible={showPostponeModal} transparent animationType="slide">
         <Pressable
           style={CourseActionStyles.modalOverlay}
@@ -4349,6 +4381,7 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
+    justifyContent: 'space-between',
   },
   textInput: {
     backgroundColor: '#999',
@@ -4359,8 +4392,6 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E5E5',
   },
 
   // Type Toggle (Physical | Online | Recorded)

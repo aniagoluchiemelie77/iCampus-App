@@ -636,6 +636,7 @@ export interface CourseException {
     fullname?: string;
     matricNumber?: string;
   };
+  department?: string;
   courseInfo: {
     courseTitle?: string;
     courseCode?: string;

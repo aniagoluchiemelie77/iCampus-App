@@ -50,6 +50,8 @@ import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
 import { CourseSubPage } from 'screens/CourseSubPage';
 import { LiveClassSessions } from './src/screens/LiveClassSession.tsx';
+import { VideoPlayerScreen } from './src/screens/RecordedLectureScreen.tsx';
+import BleManager from 'react-native-ble-manager';
 
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
@@ -90,6 +92,12 @@ export type RootStackParamList = {
   }; //PostDetail: { postId: string };
   Home: undefined;
   LiveClassSessions: { lectureId: string; courseId: string };
+  VideoPlayerScreen: {
+    lectureId: string;
+    url: string;
+    title: string;
+    userRole: 'student' | 'lecturer';
+  };
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
     email?: string;
@@ -120,7 +128,11 @@ const App = () => {
   const [initialParams, _setInitialParams] = useState<
     RootStackParamList['Welcome'] | undefined
   >(undefined);
-
+  useEffect(() => {
+    BleManager.start({ showAlert: false })
+      .then(() => console.log('BleManager Initialized'))
+      .catch(error => console.error('BleManager init error', error));
+  }, []);
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -250,6 +262,14 @@ const App = () => {
             <Stack.Screen
               name="SignupPage"
               component={SignupPage}
+              options={{
+                headerShown: false,
+                ...TransitionPresets.FadeFromRightAndroid,
+              }}
+            />
+            <Stack.Screen
+              name="VideoPlayerScreen"
+              component={VideoPlayerScreen}
               options={{
                 headerShown: false,
                 ...TransitionPresets.FadeFromRightAndroid,
