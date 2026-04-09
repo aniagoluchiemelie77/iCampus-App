@@ -9,6 +9,7 @@ import type {
   User,
   CourseException,
   Lecture,
+  Course,
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
@@ -52,7 +53,8 @@ import { CourseSubPage } from 'screens/CourseSubPage';
 import { LiveClassSessions } from './src/screens/LiveClassSession.tsx';
 import { VideoPlayerScreen } from './src/screens/RecordedLectureScreen.tsx';
 import BleManager from 'react-native-ble-manager';
-
+import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttendanceScreen.tsx';
+import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanner.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 export type RootStackParamList = {
   SignUp: undefined;
@@ -89,7 +91,16 @@ export type RootStackParamList = {
   PostDetailScreen: {
     post: Posts;
     postId: string;
-  }; //PostDetail: { postId: string };
+  };
+  PhysicalAttendanceManager: {
+    lecture: Lecture;
+    course: Course;
+    exceptions: CourseException[];
+  };
+  StudentAttendanceScanner: {
+    lecture: Lecture;
+    onSuccess: () => void;
+  };
   Home: undefined;
   LiveClassSessions: { lectureId: string; courseId: string };
   VideoPlayerScreen: {
@@ -232,6 +243,16 @@ const App = () => {
             <Stack.Screen
               name="ReceivePointsScreen"
               component={ReceivePointsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PhysicalAttendanceManager"
+              component={PhysicalAttendanceManager}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="StudentAttendanceScanner"
+              component={StudentAttendanceScanner}
               options={{ headerShown: false }}
             />
             <Stack.Screen

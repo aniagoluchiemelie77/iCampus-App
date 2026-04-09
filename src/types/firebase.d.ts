@@ -2,7 +2,6 @@
 export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
-export type UserRole = 'student' | 'lecturer' | 'admin';
 export interface User {
   uid: string;
   refreshTokens?: string[];
@@ -135,7 +134,7 @@ export interface Poll {
   pollId: string;
   title: string;
   creatorId: string;
-  allowedRolesToCreate?: UserRole[]; // restrict creation by role
+  allowedRolesToCreate?: UserType[]; // restrict creation by role
   candidates: PollCandidate[];
   invitedUserIds: string[];
   startDate: string;
@@ -144,7 +143,7 @@ export interface Poll {
   department?: string; // if visibility is 'department'
   restriction?: string; // optional
   level?: string; // optional
-  createdByRole: UserRole;
+  createdByRole: UserType;
   pollStartTime: string;
   pollEndTime: string;
   isLive: boolean;
@@ -184,31 +183,6 @@ export interface ClassSession {
   classHistory?: string[];
   attendeesCount: number; 
   classSessionType?: 'lecture' | 'tutorial' | 'lab' | 'seminar' | 'workshop' | 'other';
-}
-export interface RollCall {
-  id: string;
-  rollCallId: string;
-  classSessionId: ClassSession.classSessionId;
-  createdBy: User.uid; // lecturer UID
-  attendeeIds: string[];
-  exceptions?: string[]; // subscriber UIDs allowed without joining
-  createdAt: string;
-  rollCallStartTime: string;
-  rollCallEndTime: string;
-  rollCallMethod?: 'manual' | 'auto';
-  manualScanDetails?: {
-    imageUrls: string[];
-    scannedAt: string;
-  }
-}
-export interface ClassExceptions {
-  id: string;
-  userId: User.uid;
-  classSessionId: ClassSession.classSessionId;
-  isAccepted?: boolean;
-  requestedAt: string;
-  reviewedAt?: string;
-  exceptionReason?: string;
 }
 export interface AttendanceRecordClassSession {
   rollCallId: RollCall.rollCallId;

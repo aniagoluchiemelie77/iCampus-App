@@ -56,6 +56,7 @@ import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
 import { BarChart } from 'react-native-chart-kit';
+import { OngoingLectureModal } from './OngoingLiveLecturesModal';
 const { width } = Dimensions.get('window');
 const math = create(all);
 
@@ -3108,6 +3109,7 @@ export const RenderViewLectureSchedule = ({
   onPress: (item: Lecture) => void;
 }) => {
   const navigation = useNavigation<any>();
+  const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const user = useAppSelector(state => state.user);
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
@@ -3139,17 +3141,54 @@ export const RenderViewLectureSchedule = ({
       });
     }
   };
+  const handleJoinLecture = async () => {
+    if (!ongoingLecture) return;
+    if (ongoingLecture.lectureType !== 'Physical') {
+      navigation.navigate('LiveClassSessions', {
+        lectureId: ongoingLecture.id,
+        courseId: ongoingLecture.courseId,
+      });
+      setOngoingLecture(null);
+      return;
+    }
+    try {
+      if (user.usertype === 'lecturer') {
+        const [courseRes, exceptionsRes] = await Promise.all([
+          fetch(`${baseUrl}users/courses/${ongoingLecture.courseId}`),
+          fetch(`${baseUrl}users/exceptions/lectures/${ongoingLecture.id}`),
+        ]);
+        const courseData = await courseRes.json();
+        const exceptionsData = await exceptionsRes.json();
+
+        navigation.navigate('PhysicalAttendanceManager', {
+          lecture: ongoingLecture,
+          course: courseData,
+          exceptions: exceptionsData,
+        });
+      } else if (user.usertype === 'student') {
+        navigation.navigate('StudentAttendanceScanner', {
+          lecture: ongoingLecture,
+          onSuccess: () => navigation.navigate('Home'),
+        });
+      }
+      setOngoingLecture(null);
+    } catch (err) {
+      console.error('Failed to fetch attendance requirements', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Connection Error',
+        text2: 'Could not load lecture details.',
+      });
+    }
+  };
 
   const renderLectureItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
     const isClickable =
       item.lectureType === 'Online' || item.lectureType === 'Recorded';
-    const handlePress = () => {
-      if (isOngoing && item.lectureType === 'Online') {
-        navigation.navigate('LiveClassSessions', {
-          lectureId: item.id,
-          courseId: item.courseId,
-        });
+    const handlePress = async () => {
+      if (isOngoing) {
+        setOngoingLecture(item);
       } else if (item.lectureType === 'Recorded') {
         navigation.navigate('VideoPlayerScreen', {
           lectureId: item.id,
@@ -3220,6 +3259,12 @@ export const RenderViewLectureSchedule = ({
       <TouchableOpacity style={CourseActionStyles.fab} onPress={jumpToToday}>
         <Icon name="calendar-today" size={24} color="#fff" />
       </TouchableOpacity>
+      <OngoingLectureModal
+        visible={!!ongoingLecture}
+        lecture={ongoingLecture}
+        onJoin={handleJoinLecture}
+        onDismiss={() => setOngoingLecture(null)}
+      />
     </View>
   );
 };
@@ -3233,6 +3278,7 @@ export const LecturerLectureScheduleView = ({
   onDeleteLecture: (id: string) => void;
 }) => {
   const navigation = useNavigation<any>();
+  const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const user = useAppSelector(state => state.user);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
@@ -3311,6 +3357,46 @@ export const LecturerLectureScheduleView = ({
       });
     }
   };
+  const handleJoinLecture = async () => {
+    if (!ongoingLecture) return;
+    if (ongoingLecture.lectureType !== 'Physical') {
+      navigation.navigate('LiveClassSessions', {
+        lectureId: ongoingLecture.id,
+        courseId: ongoingLecture.courseId,
+      });
+      setOngoingLecture(null);
+      return;
+    }
+    try {
+      if (user.usertype === 'lecturer') {
+        const [courseRes, exceptionsRes] = await Promise.all([
+          fetch(`${baseUrl}users/courses/${ongoingLecture.courseId}`),
+          fetch(`${baseUrl}users/exceptions/lectures/${ongoingLecture.id}`),
+        ]);
+        const courseData = await courseRes.json();
+        const exceptionsData = await exceptionsRes.json();
+
+        navigation.navigate('PhysicalAttendanceManager', {
+          lecture: ongoingLecture,
+          course: courseData,
+          exceptions: exceptionsData,
+        });
+      } else if (user.usertype === 'student') {
+        navigation.navigate('StudentAttendanceScanner', {
+          lecture: ongoingLecture,
+          onSuccess: () => navigation.navigate('Home'),
+        });
+      }
+      setOngoingLecture(null);
+    } catch (err) {
+      console.error('Failed to fetch attendance requirements', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Connection Error',
+        text2: 'Could not load lecture details.',
+      });
+    }
+  };
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
     const isPostponed = item.status === 'postponed';
@@ -3318,10 +3404,7 @@ export const LecturerLectureScheduleView = ({
       item.lectureType === 'Online' || item.lectureType === 'Recorded';
     const handlePress = () => {
       if (isOngoing && item.lectureType === 'Online') {
-        navigation.navigate('LiveClassSessions', {
-          lectureId: item.id,
-          courseId: item.courseId,
-        });
+        setOngoingLecture(item);
       } else if (item.lectureType === 'Recorded') {
         navigation.navigate('VideoPlayerScreen', {
           lectureId: item.id,
@@ -3507,6 +3590,12 @@ export const LecturerLectureScheduleView = ({
           </TouchableWithoutFeedback>
         </Pressable>
       </Modal>
+      <OngoingLectureModal
+        visible={!!ongoingLecture}
+        lecture={ongoingLecture}
+        onJoin={handleJoinLecture}
+        onDismiss={() => setOngoingLecture(null)}
+      />
     </View>
   );
 };

@@ -143,13 +143,44 @@ const HomeScreen = () => {
     };
   }, [socket, user?.uid]);
 
-  const handleJoinLecture = () => {
-    if (ongoingLecture) {
+  const handleJoinLecture = async () => {
+    if (!ongoingLecture) return;
+    if (ongoingLecture.lectureType !== 'Physical') {
       navigation.navigate('LiveClassSessions', {
         lectureId: ongoingLecture.id,
         courseId: ongoingLecture.courseId,
       });
       setOngoingLecture(null);
+      return;
+    }
+    try {
+      if (userType === 'lecturer') {
+        const [courseRes, exceptionsRes] = await Promise.all([
+          fetch(`${baseUrl}users/courses/${ongoingLecture.courseId}`),
+          fetch(`${baseUrl}users/exceptions/lectures/${ongoingLecture.id}`),
+        ]);
+        const courseData = await courseRes.json();
+        const exceptionsData = await exceptionsRes.json();
+
+        navigation.navigate('PhysicalAttendanceManager', {
+          lecture: ongoingLecture,
+          course: courseData,
+          exceptions: exceptionsData,
+        });
+      } else if (userType === 'student') {
+        navigation.navigate('StudentAttendanceScanner', {
+          lecture: ongoingLecture,
+          onSuccess: () => navigation.navigate('Home'),
+        });
+      }
+      setOngoingLecture(null);
+    } catch (err) {
+      console.error('Failed to fetch attendance requirements', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Connection Error',
+        text2: 'Could not load lecture details.',
+      });
     }
   };
   return (
