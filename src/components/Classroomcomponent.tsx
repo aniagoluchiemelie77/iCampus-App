@@ -35,7 +35,7 @@ import ExpandableFAB from './ExpandableFAB.tsx';
 import { homeStyles } from '../assets/styles/colors.ts';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const PRIMARY_COLOR = '#f54b02';
-export const PRIMARY_COLOR_TINT = '#fd8c5b';
+export const PRIMARY_COLOR_TINT = '#f5743d';
 
 // --- Sub-Components ---
 interface CourseModalProps {

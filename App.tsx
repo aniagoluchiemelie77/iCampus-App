@@ -55,7 +55,9 @@ import { VideoPlayerScreen } from './src/screens/RecordedLectureScreen.tsx';
 import BleManager from 'react-native-ble-manager';
 import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttendanceScreen.tsx';
 import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanner.tsx';
+import { Assistant } from './src/screens/iAssistantScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
+
 export type RootStackParamList = {
   SignUp: undefined;
   BuyPointsScreen: undefined;
@@ -86,6 +88,17 @@ export type RootStackParamList = {
     userRole: 'student' | 'lecturer';
     lectures?: Lecture[]; // Optional because not all inlets provide this
     exceptions?: CourseException[];
+  };
+  Assistant: {
+    contextType:
+      | 'course'
+      | 'lecture'
+      | 'iScore'
+      | 'iCash'
+      | 'store'
+      | 'general';
+    contextData: Course | Lecture | any;
+    initialMessage?: string;
   };
   SignupPage: { role: string };
   PostDetailScreen: {
@@ -263,6 +276,11 @@ const App = () => {
             <Stack.Screen
               name="Notifications"
               component={Notifications}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Assistant"
+              component={Assistant}
               options={{ headerShown: false }}
             />
 
