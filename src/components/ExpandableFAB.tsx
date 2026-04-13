@@ -28,6 +28,15 @@ const ACTION_CONFIG: Record<
     route: 'CreatePost',
     params: { type: 'poll' },
   },
+  iAssistant: {
+    icon: 'smart-toy',
+    route: 'Assistant',
+    params: {
+      contextType: 'general',
+      contextData: {},
+      initialMessage: "Hi! I'm your iAssistant. How can I help you today?",
+    },
+  },
   'Create Post': {
     icon: 'edit',
     route: 'CreatePost',
@@ -68,10 +77,7 @@ const ExpandableFAB = ({
 }: FABProps) => {
   const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user);
-
   if (!isVisible) return null;
-
-  // Inside ExpandableFAB component
   const handleAction = (label: string) => {
     const config = ACTION_CONFIG[label];
     if (!config) return;
@@ -81,8 +87,24 @@ const ExpandableFAB = ({
       return;
     } else if (label === 'Live Chat') {
       onChatOpen?.();
+      onClose();
+      return;
     } else if (label === 'Hand Wave') {
       onWave?.();
+    } else if (label === 'iAssistant') {
+      navigation.navigate('Assistant', {
+        contextType: lectures && lectures.length > 0 ? 'lecture' : 'general',
+        contextData: {
+          lectures: lectures,
+          course: config.params?.course, // Passed from parent if available
+          topicName: lectures?.[0]?.topicName || 'General Support',
+        },
+        initialMessage:
+          lectures && lectures.length > 0
+            ? `I see you're looking at lectures for ${lectures[0].topicName}. How can I help?`
+            : undefined,
+      });
+      return;
     } else {
       if (config?.route) navigation.navigate(config.route, config.params);
     }

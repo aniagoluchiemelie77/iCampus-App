@@ -1673,8 +1673,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['View Lectures', 'Create Course']}
-        userRole={user.usertype} // From your Redux state
+        actions={['iAssistant', 'View Lectures', 'Create Course']}
+        userRole={user.usertype}
         lectures={lectures}
       />
       <CourseDetailModal
@@ -1700,7 +1700,6 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
       </View>
     );
   }
-  // Passing userRole here clears the "unused variable" error
   return <Dashboard user={user} userRole={userRole} />;
 };
 

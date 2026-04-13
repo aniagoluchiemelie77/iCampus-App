@@ -11,98 +11,101 @@ type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 export const Assistant = ({ route }: Props) => {
   const { contextType, contextData, initialMessage } = route.params;
   const flatListRef = useRef<FlatList>(null);
-  const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([
-  { 
-    role: 'model', 
-    content: initialMessage || `Hi! I'm your iAssistant. I'm here to help. What would you like to know?`
-  }
-]);
+  const [messages, setMessages] = useState<
+    { role: 'user' | 'model'; content: string }[]
+  >([
+    {
+      role: 'model',
+      content:
+        initialMessage ||
+        `Hi! I'm your iAssistant. I'm here to help. What would you like to know?`,
+    },
+  ]);
   const [input, setInput] = useState('');
   const handleSendMessage = async () => {
-  if (!input.trim()) return;
+    if (!input.trim()) return;
+    const newMessage = { role: 'user' as const, content: input };
+    setMessages(prev => [...prev, newMessage]);
+    setInput('');
+    try {
+      const response = await fetch(`${baseUrl}users/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: input,
+          context: { type: contextType, data: contextData },
+        }),
+      });
 
-  // Use 'as const' to lock the type to the literal value
-  const newMessage = { role: 'user' as const, content: input };
-  
-  // Or explicitly type it
-  // const newMessage: { role: 'user' | 'model'; content: string } = { role: 'user', content: input };
-
-  setMessages(prev => [...prev, newMessage]);
-  setInput('');
-
-  try {
-    const response = await fetch(`${baseUrl}users/ai/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: input,
-        context: { type: contextType, data: contextData }
-      }),
-    });
-
-    const data = await response.json();
-    
-    // Ensure the response role is also cast correctly
-    setMessages(prev => [...prev, { role: 'model' as const, content: data.reply }]);
-  } catch (err) {
-    console.error("AI Chat failed", err);
-  }
-};
+      const data = await response.json();
+      setMessages(prev => [
+        ...prev,
+        { role: 'model' as const, content: data.reply },
+      ]);
+    } catch (err) {
+      console.error('AI Chat failed', err);
+    }
+  };
   return (
-  <KeyboardAvoidingView 
-    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    style={styles.container}
-    keyboardVerticalOffset={90} 
-  >
-    <View style={styles.headerContainer}>
-      <Text style={styles.headerTitle}>iAssistant</Text>
-      <Logo />
-      <Text style={styles.headerSubtitle}>
-        {contextType === 'lecture' ? route.params.contextData.topicName : 'General Help'}
-      </Text>
-    </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+      keyboardVerticalOffset={90}
+    >
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>iAssistant</Text>
+        <Logo />
+        <Text style={styles.headerSubtitle}>
+          {contextType === 'lecture'
+            ? route.params.contextData.topicName
+            : 'General Help'}
+        </Text>
+      </View>
 
-    <FlatList 
-      data={messages}
-      contentContainerStyle={styles.listContent}
-      onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      renderItem={({ item }) =>{ 
-        const isUser = item.role === 'user';
-        return (
-        <View style={[
-          styles.bubble, 
-          item.role === 'user' ? styles.userBubble : styles.aiBubble
-        ]}>
-          <Text style={item.role === 'user' ? styles.userText : styles.aiText}>
-            {item.content}
-          </Text>
-          <View 
-            style={[
-                styles.tail,
-                isUser ? styles.userTail : styles.aiTail
-            ]} 
-            />
-        </View>
-      )
-    }}
-      keyExtractor={(_, index) => index.toString()}
-    />
-
-    <View style={styles.inputWrapper}>
-      <TextInput
-        style={styles.input}
-        placeholder="Ask a question..."
-        value={input}
-        onChangeText={setInput}
-        multiline
+      <FlatList
+        data={messages}
+        contentContainerStyle={styles.listContent}
+        onContentSizeChange={() =>
+          flatListRef.current?.scrollToEnd({ animated: true })
+        }
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        renderItem={({ item }) => {
+          const isUser = item.role === 'user';
+          return (
+            <View
+              style={[
+                styles.bubble,
+                item.role === 'user' ? styles.userBubble : styles.aiBubble,
+              ]}
+            >
+              <Text
+                style={item.role === 'user' ? styles.userText : styles.aiText}
+              >
+                {item.content}
+              </Text>
+              <View
+                style={[styles.tail, isUser ? styles.userTail : styles.aiTail]}
+              />
+            </View>
+          );
+        }}
+        keyExtractor={(_, index) => index.toString()}
       />
-      <TouchableOpacity style={styles.sendBtn} onPress={handleSendMessage}>
-        <Icon name="send" size={24} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  </KeyboardAvoidingView>
-);
+
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.input}
+          placeholder="Ask a question..."
+          value={input}
+          onChangeText={setInput}
+          multiline
+        />
+        <TouchableOpacity style={styles.sendBtn} onPress={handleSendMessage}>
+          <Icon name="send" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
 };
 const styles = StyleSheet.create({
   container: {
@@ -116,7 +119,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 18,
@@ -133,7 +136,7 @@ const styles = StyleSheet.create({
   bubble: {
     padding: 12,
     borderRadius: 18,
-    marginBottom: 10,
+    marginVertical: 10,
     maxWidth: '80%',
   },
   userBubble: {
@@ -146,7 +149,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 2,
     elevation: 1,
-    shadowColor: '#000', 
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
   },
@@ -160,7 +163,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 10,
     alignItems: 'center',
-    borderTopWidth: .8,
+    borderTopWidth: 0.8,
     borderTopColor: PRIMARY_COLOR_TINT,
   },
   input: {
@@ -182,20 +185,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tail: {
-  position: 'absolute',
-  width: 10,
-  height: 10,
-  bottom: 0,
-  transform: [{ rotate: '45deg' }],
-},
-userTail: {
-  right: -4,
-  bottom: 5,
-  backgroundColor: PRIMARY_COLOR, 
-},
-aiTail: {
-  left: -4,
-  bottom: 5,
-  backgroundColor: PRIMARY_COLOR_TINT,
-},
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    bottom: 0,
+    transform: [{ rotate: '45deg' }],
+  },
+  userTail: {
+    right: -4,
+    bottom: 5,
+    backgroundColor: PRIMARY_COLOR,
+  },
+  aiTail: {
+    left: -4,
+    bottom: 5,
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
 });
