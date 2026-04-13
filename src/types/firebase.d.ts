@@ -418,12 +418,35 @@ export interface UserTransactions {
   transactions: Transaction[];
 }
 export interface Transaction {
-  id: string; // unique DB ID
+  id: string; 
   transactionId: string; // external or internal reference
   type: PurchaseTransactionType;
   amountInPoints: number;
   date: string; 
 }
+export interface Transactions {
+  transactionId: string; 
+  userId: User['uid'];
+  type:
+      "buy" |
+      "withdraw" |
+      "p2p_sent" |
+      "p2p_received" |
+      "payment" |
+      "exceptionsDividend"
+  ;
+  payType: 'in' | 'out';
+  title: string;
+  amountICash: number;
+  amountLocal?: number;
+  status?: "pending" | "success" | "failed";
+  reference?: string,
+  metadata?: {
+    recipientId:  string;
+    bankName: string;
+  },
+  createdAt?: string
+};
 export interface UserBillingAddressDetails {
   id?: string;
   state?: string;

@@ -41,7 +41,6 @@ interface PresentStudent {
   timestamp: string;
   isException?: boolean;
 }
-
 interface GroupedSection {
   title: string;
   data: any[];
@@ -70,7 +69,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       console.error('Bluetooth start failed', error);
     }
   };
-
   const handleStartFetching = async () => {
     setStatus('fetching');
     setSecondsLeft(300);
@@ -88,7 +86,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
   };
-
   const handleStopFetching = async () => {
     setIsFetching(false);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -98,7 +95,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     });
     setStatus('completed');
   };
-
   const handleDownload = async () => {
     try {
       const courseCode = course?.courseCode || 'Unknown_Course';
@@ -212,7 +208,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       );
     }
   };
-
   useEffect(() => {
     if (!user?.uid) return;
     socketRef.current = io(baseUrl, {
@@ -241,7 +236,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       });
     }
   }, []);
-
   const getGroupedData = (): GroupedSection[] => {
     const allDepartments = new Set([
       ...presentStudents.map(s => s.department),
