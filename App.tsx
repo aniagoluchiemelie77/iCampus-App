@@ -56,6 +56,7 @@ import BleManager from 'react-native-ble-manager';
 import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttendanceScreen.tsx';
 import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanner.tsx';
 import { Assistant } from './src/screens/iAssistantScreen.tsx';
+import { LibraryScreen } from './src/screens/LibraryScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -114,6 +115,7 @@ export type RootStackParamList = {
     lecture: Lecture;
     onSuccess: () => void;
   };
+  LibraryScreen: undefined;
   Home: undefined;
   LiveClassSessions: { lectureId: string; courseId: string };
   VideoPlayerScreen: {
@@ -317,6 +319,11 @@ const App = () => {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LibraryScreen"
+              component={LibraryScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

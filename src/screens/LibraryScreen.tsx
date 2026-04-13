@@ -1,13 +1,13 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Alert,
   Text,
   PermissionsAndroid,
   Platform,
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import {
   View,
@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import toastConfig from '@components/ToastConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   PRIMARY_COLOR,
@@ -50,7 +51,11 @@ export const LibraryScreen: React.FC = () => {
       const data = await response.json();
       setBooks(data);
     } catch (error) {
-      Alert.alert('Search Error', 'Could not connect to the library.');
+      Toast.show({
+        type: 'error',
+        text1: 'Search Error',
+        text2: 'Could not connect to the library.',
+      });
     } finally {
       setIsSearching(false);
     }
@@ -81,7 +86,13 @@ export const LibraryScreen: React.FC = () => {
       .then(res => {
         console.log('Success:', res.path());
       })
-      .catch(err => Alert.alert('Download Failed', err.message));
+      .catch(err =>
+        Toast.show({
+          type: 'error',
+          text1: 'Download Failed',
+          text2: err.message,
+        }),
+      );
   };
   const fetchFeaturedBooks = useCallback(async () => {
     setLoading(true);
@@ -95,7 +106,11 @@ export const LibraryScreen: React.FC = () => {
       const data = await response.json();
       setBooks(data);
     } catch (error) {
-      console.error('Library Fetch Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Library Fetch Error',
+        text2: 'Could not connect to the library.',
+      });
     } finally {
       setLoading(false);
     }
@@ -191,6 +206,7 @@ export const LibraryScreen: React.FC = () => {
           }
         />
       )}
+      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };

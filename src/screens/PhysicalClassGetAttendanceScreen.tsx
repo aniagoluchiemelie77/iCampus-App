@@ -1,17 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SectionList, TouchableOpacity, Alert, Linking, Platform} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  SectionList,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  Platform,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import NativeProperty from 'react-native-ble-peripheral';
 import { useAppSelector } from '../components/hooks';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { SERVICE_UUID } from '@env';
-import {PRIMARY_COLOR_TINT, PRIMARY_COLOR} from '../components/Classroomcomponent';
+import {
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR,
+} from '../components/Classroomcomponent';
 import { LogoBigger } from 'assets/images/Logo';
 import BleManager from 'react-native-ble-manager';
 import { requestMultiple, PERMISSIONS } from 'react-native-permissions';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import * as RNHTMLtoPDF from 'react-native-html-to-pdf';
+import Toast from 'react-native-toast-message';
+import toastConfig from '@components/ToastConfig';
 
 type AttendanceStatus = 'idle' | 'fetching' | 'completed';
 type Props = StackScreenProps<RootStackParamList, 'PhysicalAttendanceManager'>;
@@ -82,8 +99,94 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     setStatus('completed');
   };
 
-  const handleDownload = () => {
-    console.log('Downloading attendance list...');
+  const handleDownload = async () => {
+    try {
+      const courseCode = course?.courseCode || 'Unknown_Course';
+      const courseTitle = course?.courseTitle || 'Untitled Course';
+      const lectureTitle = lecture?.topicName || 'General Session';
+      const timestamp = new Date().toLocaleString();
+      const dateStr = new Date().toISOString().split('T')[0];
+      const tableRows = groupedData
+        .flatMap(section =>
+          section.data.map(
+            student => `
+        <tr>
+          <td>${student.firstname} ${student.lastname}</td>
+          <td>${student.matricNumber || 'N/A'}</td>
+          <td>${section.title}</td>
+          <td>${student.isException ? 'Exception' : ' '}</td>
+        </tr>
+      `,
+          ),
+        )
+        .join('');
+
+      const htmlContent = `
+      <html>
+        <style>
+          body { font-family: Helvetica; padding: 20px; color: #222; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .logo { width: 80px; margin-bottom: 10px; }
+          .meta-box { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ecf0f1; }
+          .meta-box p{ margin-bottom: 10px}
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { padding: 10px; text-align: left; font-size: 12px; }
+          td { border-bottom: 1px solid #eee; padding: 10px; font-size: 11px; }
+          tr:nth-child(even) { background-color: #f2f2f2; }
+        </style>
+        <body>
+          <div class="header">
+            <img src="https://yourdomain.com/assets/logo.png" class="logo" />
+            <h1>iCampus Attendance Report</h1>
+          </div>
+          <div class="meta-box">
+            <p><strong>Course:</strong> ${courseCode} - ${courseTitle}</p>
+            <p><strong>Lecture:</strong> ${lectureTitle}</p>
+            <p><strong>Date/Time:</strong> ${timestamp}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Matric Number</th>
+                <th>Department</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+      // 3. Generate PDF
+      const options = {
+        html: htmlContent,
+        fileName: `Attendance_${courseCode.replace(/\s+/g, '_')}_${dateStr}`,
+        directory: 'Documents',
+      };
+
+      const file = await (RNHTMLtoPDF as any).convert(options);
+
+      // 4. Move to Downloads for User Access (Fixes createFile error)
+      const { fs } = ReactNativeBlobUtil;
+      const destPath = `${fs.dirs.DownloadDir}/${options.fileName}.pdf`;
+
+      // Use fs.cp (copy) or fs.mv (move) from the temporary path to Downloads
+      await fs.cp(file.filePath!, destPath);
+      Toast.show({
+        type: 'success',
+        text1: 'Attendance PDF report saved to Downloads.',
+      });
+    } catch (error) {
+      console.error('PDF Export Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to generate the attendance report.',
+      });
+    }
   };
   const checkBluetoothAndStart = async () => {
     try {
@@ -301,6 +404,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
           </View>
         </>
       )}
+      <Toast config={toastConfig} />
     </View>
   );
 };

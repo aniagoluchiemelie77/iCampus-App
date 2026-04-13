@@ -5,6 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import {
   View,
   TextInput,
@@ -2035,24 +2036,70 @@ export const RenderLecturerTestManage = ({
       }
     }
   };
-  const downloadAssessmentReport = async (testId: string) => {
+  const downloadAssessmentReport = async (
+    testId: string,
+    testTitle: string,
+  ) => {
     try {
       const token = await AsyncStorage.getItem('accessToken');
-      // We target the specific testId from the array item
-      const downloadUrl = `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis?token=${token}`;
+      const { config, fs } = ReactNativeBlobUtil;
 
-      const supported = await Linking.canOpenURL(downloadUrl);
-      if (supported) {
-        await Linking.openURL(downloadUrl);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Download Error',
-          text2: 'Cannot open download link',
-        });
+      if (Platform.OS === 'android' && Platform.Version < 29) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Toast.show({
+            type: 'info',
+            text1: 'Permission Denied',
+            text2: 'Cannot save PDF without storage access.',
+          });
+          return;
+        }
       }
+      const dateStr = new Date().toISOString().split('T')[0];
+      const fileName = `Analysis_${testTitle.replace(
+        /\s+/g,
+        '_',
+      )}_${dateStr}.pdf`;
+      const path = `${fs.dirs.DownloadDir}/${fileName}`;
+
+      // 3. Trigger Download
+      config({
+        fileCache: true,
+        addAndroidDownloads: {
+          useDownloadManager: true, // Shows download progress in system UI
+          notification: true,
+          path: path,
+          description: 'Generating Academic Analysis Report',
+          mime: 'application/pdf',
+          mediaScannable: true,
+        },
+      })
+        .fetch(
+          'GET',
+          `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis`,
+          {
+            Authorization: `Bearer ${token}`, // Cleaner than putting token in query string
+          },
+        )
+        .then(() => {
+          Toast.show({
+            type: 'success',
+            text1: 'Download Error',
+            text2: 'Assessment Report saved to Downloads:',
+          });
+        })
+        .catch(err => {
+          console.error(err);
+          Toast.show({
+            type: 'error',
+            text1: 'Download Error',
+            text2: 'Could not download the analysis report.',
+          });
+        });
     } catch (error) {
-      console.error('Download Link Error:', error);
+      console.error('Download Logic Error:', error);
     }
   };
   useEffect(() => {
@@ -2145,7 +2192,9 @@ export const RenderLecturerTestManage = ({
                     backgroundColor: PRIMARY_COLOR_TINT, // Subtle background to make it look clickable
                   }}
                   // FIXED: Changed 'test.testid' to 'item.id'
-                  onPress={() => downloadAssessmentReport(item.id!)}
+                  onPress={() =>
+                    downloadAssessmentReport(item.id!, item.title!)
+                  }
                 >
                   <Icon
                     name="chart-bar"

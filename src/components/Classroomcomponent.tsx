@@ -1673,7 +1673,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['iAssistant', 'View Lectures', 'Create Course']}
+        actions={['iAssistant', 'View Lectures', 'Create Course', 'Library']}
         userRole={user.usertype}
         lectures={lectures}
       />

@@ -42,7 +42,6 @@ const ACTION_CONFIG: Record<
     route: 'CreatePost',
     params: { type: 'post' },
   },
-
   // --- Classroom Page ---
   'View Lectures': {
     icon: 'menu-book',
@@ -57,6 +56,11 @@ const ACTION_CONFIG: Record<
   },
   'Live Chat': { icon: 'chat', route: 'Modal' },
   'Hand Wave': { icon: 'front-hand', route: 'Socket' },
+  Library: {
+    icon: 'local-library',
+    route: 'LibraryScreen',
+    params: {},
+  },
 
   // --- Store Page ---
   'View Favorites': { icon: 'favorite', route: 'StoreWishlist', params: {} },
@@ -105,15 +109,15 @@ const ExpandableFAB = ({
             : undefined,
       });
       return;
-    } else {
-      if (config?.route) navigation.navigate(config.route, config.params);
     }
     onClose();
-    navigation.navigate(config.route, {
-      ...config.params,
-      lectures, // Passing the lectures you have in state
-      userRole,
-    });
+    if (config.route) {
+      navigation.navigate(config.route, {
+        ...config.params,
+        lectures,
+        userRole,
+      });
+    }
   };
   return (
     <Modal
