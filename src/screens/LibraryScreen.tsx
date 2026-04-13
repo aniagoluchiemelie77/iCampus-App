@@ -1,69 +1,299 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Alert,
+  Text,
+  PermissionsAndroid,
+  Platform,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
+import {
+  View,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '../components/Classroomcomponent';
+import Logo from '../assets/images/Logo';
+import { baseUrl } from '../components/HomeScreenComponents';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { BookCard } from '../components/BookCard';
+import { Book } from 'types/firebase';
+import { useAppSelector } from '../components/hooks';
+import { useNavigation } from '@react-navigation/native';
+const PLACEHOLDERS = ['book titles...', 'authors...', 'ISBN...', 'fields...'];
 
-const handleDownload = (url: string, fileName: string) => {
-  const { config, fs } = ReactNativeBlobUtil;
-  const date = new Date();
-  const fileDir = fs.dirs.DownloadDir; 
-
-  config({
-    fileCache: true,
-    addAndroidDownloads: {
-      useDownloadManager: true,
-      notification: true,
-      path: `${fileDir}/${fileName}.pdf`,
-      description: 'Downloading book from iCampus Library.',
-    },
-  })
-    .fetch('GET', url)
-    .then((res) => {
-      console.log('File saved to ', res.path());
-    });
-};
 export const LibraryScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [query, setQuery] = useState('');
+  const user = useAppSelector(state => state.user);
   const [books, setBooks] = useState<Book[]>([]);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const handleSearch = async () => {
     if (!query) return;
     setIsSearching(true);
     try {
-      // Assuming you've built a proxy endpoint on your baseUrl
-      const response = await fetch(`${baseUrl}library/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `${baseUrl}users/library/search?q=${encodeURIComponent(query)}`,
+      );
       const data = await response.json();
       setBooks(data);
     } catch (error) {
-      Alert.alert("Search Error", "Could not connect to the library.");
+      Alert.alert('Search Error', 'Could not connect to the library.');
     } finally {
       setIsSearching(false);
     }
   };
+  const handleDownload = async (url: string, fileName: string) => {
+    if (Platform.OS === 'android' && Platform.Version < 29) {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) return;
+    }
 
+    const { config, fs } = ReactNativeBlobUtil;
+    const fileDir = fs.dirs.DownloadDir;
+    const cleanFileName = fileName.replace(/[/\\?%*:|"<>]/g, '-');
+
+    config({
+      fileCache: true,
+      addAndroidDownloads: {
+        useDownloadManager: true,
+        notification: true,
+        path: `${fileDir}/${cleanFileName}.pdf`,
+        description: 'Downloading from iCampus Library',
+        mime: 'application/pdf',
+      },
+    })
+      .fetch('GET', url)
+      .then(res => {
+        console.log('Success:', res.path());
+      })
+      .catch(err => Alert.alert('Download Failed', err.message));
+  };
+  const fetchFeaturedBooks = useCallback(async () => {
+    setLoading(true);
+    const userDept = user?.department || '';
+    try {
+      const response = await fetch(
+        `${baseUrl}users/library/featured?department=${encodeURIComponent(
+          userDept,
+        )}`,
+      );
+      const data = await response.json();
+      setBooks(data);
+    } catch (error) {
+      console.error('Library Fetch Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.department]);
+  useEffect(() => {
+    fetchFeaturedBooks();
+  }, [fetchFeaturedBooks]);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        setPlaceholderIndex(prev => (prev + 1) % PLACEHOLDERS.length);
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [fadeAnim]);
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Re-use your Dashboard search bar style */}
-      <View style={styles.searchBar}>
-        <TextInput 
-          placeholder="Search books, authors, ISBN..." 
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={handleSearch}
-        />
+    <SafeAreaView style={LibraryScreenStyles.container}>
+      <View style={LibraryScreenStyles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={LibraryScreenStyles.backButton}
+        >
+          <MaterialIcons name="chevron-left" size={32} color={PRIMARY_COLOR} />
+        </TouchableOpacity>
+
+        <View style={LibraryScreenStyles.titleContainer}>
+          <Logo />
+          <Text style={LibraryScreenStyles.headerTitle}>iCampus Library</Text>
+        </View>
+
+        {/* Empty view for flex balance to keep title centered */}
+        <View style={{ width: 32 }} />
+      </View>
+      <View style={LibraryScreenStyles.searchBar}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          {query.length === 0 && (
+            <Animated.Text
+              style={[
+                LibraryScreenStyles.placeholderOverlay,
+                { opacity: fadeAnim },
+              ]}
+            >
+              Search {PLACEHOLDERS[placeholderIndex]}
+            </Animated.Text>
+          )}
+          <TextInput
+            placeholder=""
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={handleSearch}
+            style={LibraryScreenStyles.input}
+          />
+        </View>
         <TouchableOpacity onPress={handleSearch}>
-           <MaterialIcons name="search" size={24} color={PRIMARY_COLOR} />
+          <MaterialIcons name="search" size={24} color={PRIMARY_COLOR} />
         </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={books}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <BookCard 
-            book={item} 
-            onDownload={() => handleDownload(item.downloadUrl)} 
-          />
-        )}
-      />
+      {loading || isSearching ? (
+        <View style={LibraryScreenStyles.loaderContainer}>
+          <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+          <Text style={LibraryScreenStyles.loadingText}>
+            Searching iCampus Library...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={books}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <BookCard
+              book={item}
+              onDownload={() => handleDownload(item.downloadUrl, item.title)}
+            />
+          )}
+          ListEmptyComponent={
+            <EmptyState
+              iconName="book-open-variant"
+              title="No Books Found"
+              subtitle="We couldn't find any results for your search. Try adjusting your keywords."
+              buttonText="Refresh Library"
+              onPress={fetchFeaturedBooks}
+            />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
+export const LibraryScreenStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    margin: 15,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 2,
+    alignItems: 'center',
+  },
+  cover: { width: 100, height: 140 },
+  infoContainer: { flex: 1, padding: 12 },
+  title: { fontSize: 16, fontWeight: '700', color: PRIMARY_COLOR },
+  author: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginTop: 4 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
+  badge: {
+    backgroundColor: '#E9ECEF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  badgeText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY_COLOR },
+  sizeText: { fontSize: 12, color: '#999' },
+  downloadBtn: {
+    flexDirection: 'row',
+    backgroundColor: PRIMARY_COLOR,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  downloadText: { color: '#FFF', fontWeight: '600', marginLeft: 6 },
+  header: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+    borderBottomWidth: 0.8,
+    borderBlockColor: PRIMARY_COLOR_TINT,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+  },
+  backButton: {
+    padding: 5,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: PRIMARY_COLOR,
+  },
+  placeholderOverlay: {
+    position: 'absolute',
+    left: 4, // Align with TextInput padding
+    fontSize: 15,
+    color: '#999',
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    backgroundColor: 'transparent',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 15,
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 14,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    color: '#999',
+    fontSize: 16,
+  },
+});

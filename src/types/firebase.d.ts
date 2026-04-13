@@ -712,3 +712,13 @@ export interface ChatMessage {
   timestamp: string;
   profilePic?: string; // Optional: to show small avatar in chat bubble
 }
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  thumbnail: string;
+  extension: string; 
+  size: string;
+  downloadUrl: string;
+  year?: string;
+}

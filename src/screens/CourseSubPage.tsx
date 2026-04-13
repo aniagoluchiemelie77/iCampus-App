@@ -61,6 +61,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const [localExceptions, setLocalExceptions] = useState<CourseException[]>(
     initialExceptions || [],
   );
+  const [currentCourse, setCurrentCourse] = useState(course);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [scheduledLecture, setScheduledLecture] = useState<Lecture | null>(
     null,
@@ -224,6 +225,35 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     [course.courseId],
   );
   // --- All (Student & Lecturer)
+  const fetchCourseDetails = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}users/courses/${course.courseId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const result = await response.json();
+      if (response.ok) {
+        setCurrentCourse(result.data || result.course);
+      } else {
+        throw new Error(result.message || 'Failed to refresh course');
+      }
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Refresh Failed',
+        text2: err.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [course.courseId]);
   const fetchExceptions = useCallback(async () => {
     setLoading(true);
     try {
@@ -560,22 +590,24 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       <View style={CourseActionStyles.body}>
         {title === 'Course Contents' && (
           <RenderContents
-            course={course}
+            course={currentCourse}
             userRole={userRole}
             searchQuery={searchQuery}
+            onRefresh={fetchCourseDetails}
           />
         )}
         {title === 'Course Materials' && (
           <RenderMaterials
-            course={course}
+            course={currentCourse}
             lectures={lectures}
             userRole={userRole}
             searchQuery={searchQuery}
+            onRefresh={fetchCourseDetails}
           />
         )}
         {title === 'Assignments' && (
           <RenderAssignments
-            course={course}
+            course={currentCourse}
             userRole={userRole}
             searchQuery={searchQuery}
           />
@@ -616,6 +648,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               onRefresh={fetchTests}
               onSaveTest={handleCreateTest}
               searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
             />
           ) : hasSubmitted ? (
             <View style={CourseActionStyles.centered}>

@@ -53,6 +53,7 @@ import DatePicker from 'react-native-date-picker';
 import { useAppSelector } from './hooks';
 import { Picker } from '@react-native-picker/picker';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
+import { EmptyState } from './EmptyFlatlistComponent';
 import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
 import { BarChart } from 'react-native-chart-kit';
@@ -100,6 +101,7 @@ interface LecturerTestManageProps {
   onRefresh: () => void;
   tests: CreateTestPayload[];
   onSaveTest: (data: CreateTestPayload) => void;
+  setSearchQuery: (query: string) => void;
 }
 interface RenderScheduleProps {
   course: Course;
@@ -598,10 +600,12 @@ export const RenderContents = ({
   course,
   userRole,
   searchQuery,
+  onRefresh,
 }: {
   course: Course;
   userRole: string;
   searchQuery: string;
+  onRefresh: () => void;
 }) => {
   const insets = useSafeAreaInsets();
   const [contents, setContents] = useState<string[]>(
@@ -790,17 +794,17 @@ export const RenderContents = ({
           ) : null
         }
         ListEmptyComponent={
-          <View style={CourseActionStyles.emptyContainer}>
-            <Icon name="file-search-outline" size={60} color="#ccc" />
-            <Text style={CourseActionStyles.emptyTitle}>
-              Course Contents Not Found
-            </Text>
-            <Text style={CourseActionStyles.emptySubtitle}>
-              {userRole === 'lecturer'
+          <EmptyState
+            iconName="book-open-variant"
+            title="Course Contents Not Found"
+            subtitle={
+              userRole === 'lecturer'
                 ? "You haven't uploaded any course content yet."
-                : "Your Instructor hasn't uploaded any course content for this course yet."}
-            </Text>
-          </View>
+                : "Your Instructor hasn't uploaded any course content for this course yet."
+            }
+            buttonText={userRole === 'lecturer' ? 'Add First Topic' : 'Refresh'}
+            onPress={userRole === 'lecturer' ? () => openModal() : onRefresh}
+          />
         }
       />
 
@@ -906,15 +910,17 @@ export const RenderMaterials = ({
   lectures,
   userRole,
   searchQuery,
+  onRefresh,
 }: {
   course: Course;
   searchQuery: string;
   lectures: Lecture[];
   userRole: string;
+  onRefresh: () => void;
 }) => {
   const insets = useSafeAreaInsets();
   const [isUploading, setIsUploading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, _setRefreshing] = useState(false);
   const allResources = [
     ...(course.resources || []).map(res => ({
       title: 'General Reference',
@@ -1015,46 +1021,6 @@ export const RenderMaterials = ({
       setIsUploading(false);
     }
   };
-  const fetchCourseData = async () => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/courses/${course.courseId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      if (response.ok) {
-        const updatedCourse: Course = await response.json();
-
-        const newResources = [
-          ...(updatedCourse.resources || []).map(res => ({
-            title: 'General Material',
-            url: res,
-            type: 'Course',
-          })),
-          // Accessing the nested Lectures array directly
-          ...(updatedCourse.Lectures || []).flatMap(lecture =>
-            (lecture.resources || []).map(res => ({
-              title: lecture.topicName,
-              url: res,
-              type: 'Lecture',
-            })),
-          ),
-        ];
-
-        setLocalResources(newResources);
-      }
-    } catch (error) {
-      console.error('Refresh failed:', error);
-    }
-  };
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchCourseData();
-    setRefreshing(false);
-  };
   const filteredData = localResources.filter(
     (item: any) =>
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1118,19 +1084,17 @@ export const RenderMaterials = ({
         );
       }}
       ListEmptyComponent={
-        <View style={CourseActionStyles.emptyContainer}>
-          <Icon
-            name="file-search-outline"
-            size={60}
-            color={PRIMARY_COLOR_TINT}
-          />
-          <Text style={CourseActionStyles.emptyTitle}>No Materials Found</Text>
-          <Text style={CourseActionStyles.emptySubtitle}>
-            {userRole === 'lecturer'
+        <EmptyState
+          iconName="file-pdf-box"
+          title="No Materials Found"
+          subtitle={
+            userRole === 'lecturer'
               ? "You haven't uploaded any resources yet."
-              : "Your Instructor hasn't uploaded any materials for this course yet."}
-          </Text>
-        </View>
+              : "Your Instructor hasn't uploaded any materials for this course yet."
+          }
+          buttonText={userRole === 'lecturer' ? 'Upload PDF' : undefined}
+          onPress={handleAddMaterial}
+        />
       }
     />
   );
@@ -1304,11 +1268,13 @@ export const RenderAssignments = ({
         );
       }}
       ListEmptyComponent={
-        <View style={CourseActionStyles.emptyContainer}>
-          <Text style={CourseActionStyles.emptySubtitle}>
-            No assignments posted yet.
-          </Text>
-        </View>
+        <EmptyState
+          iconName="clipboard-text-outline"
+          title="No Assignments Posted"
+          subtitle="Check back later for upcoming tasks and deadlines."
+          buttonText={userRole === 'lecturer' ? 'Create Assignment' : undefined}
+          onPress={() => setModalVisible(true)}
+        />
       }
     />
   );
@@ -1426,14 +1392,11 @@ export const RenderStudentExceptions = ({
         </View>
       )}
       ListEmptyComponent={
-        <View style={CourseActionStyles.emptyContainer}>
-          <Icon
-            name="file-search-outline"
-            size={60}
-            color={PRIMARY_COLOR_TINT}
-          />
-          <Text style={CourseActionStyles.emptyTitle}>No Exceptions Found</Text>
-        </View>
+        <EmptyState
+          iconName="alert-circle-check-outline"
+          title="No Exceptions Found"
+          subtitle="All your course registrations are currently within normal limits."
+        />
       }
     />
   );
@@ -1522,16 +1485,12 @@ export const RenderLecturerExceptionsManage = ({
         </View>
       )}
       ListEmptyComponent={
-        <View style={{ alignItems: 'center', marginTop: 50 }}>
-          <Icon
-            name="check-decagram-outline"
-            size={60}
-            color={PRIMARY_COLOR_TINT}
-          />
-          <Text style={{ color: PRIMARY_COLOR_TINT, marginTop: 10 }}>
-            No pending exceptions.
-          </Text>
-        </View>
+        <EmptyState
+          iconName="check-decagram-outline"
+          title="All Caught Up!"
+          subtitle="There are no pending student exceptions requiring your approval right now."
+          style={{ marginTop: 80 }}
+        />
       }
     />
   );
@@ -1861,9 +1820,11 @@ export const RenderScheduleLecture = ({
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <Text style={CourseActionStyles.emptyText}>
-                  No syllabus topics found.
-                </Text>
+                <EmptyState
+                  iconName="book-alert-outline"
+                  title="No syllabus topics found."
+                  subtitle={`Please add topics to the course curriculum first.`}
+                />
               }
             />
           </View>
@@ -1896,6 +1857,7 @@ export const RenderLecturerTestManage = ({
   onSaveTest,
   tests,
   searchQuery,
+  setSearchQuery,
 }: LecturerTestManageProps) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [pickerMode, setPickerMode] = useState<
@@ -2135,9 +2097,13 @@ export const RenderLecturerTestManage = ({
         onRefresh={onRefresh}
         keyExtractor={(item, index) => item.id || item._id || index.toString()}
         ListEmptyComponent={
-          <Text style={CourseActionStyles.emptyText}>
-            No assessments found matching "{searchQuery}"
-          </Text>
+          <EmptyState
+            iconName="text-box-search-outline"
+            title="No Assessments Found"
+            subtitle={`No results found matching "${searchQuery}". Try a different search term.`}
+            buttonText="Clear Search"
+            onPress={() => setSearchQuery('')}
+          />
         }
         renderItem={({ item }) => {
           const isPastDue = new Date() > new Date(item.dueDate);
