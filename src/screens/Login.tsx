@@ -84,7 +84,12 @@ const Login = () => {
         // Update Redux state with the accessToken
         dispatch(setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }));
         // --- THE FIX ENDS HERE ---
-
+        if (user.isSuspended) {
+          navigation.replace('SuspendedScreen', {
+            reason: 'This account has been flagged for security violations.',
+          });
+          return;
+        }
         navigation.navigate('Home');
       } else {
         const errorData = await response.json(); // Backend sends { error: "..." }

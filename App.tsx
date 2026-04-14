@@ -58,7 +58,9 @@ import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanne
 import { Assistant } from './src/screens/iAssistantScreen.tsx';
 import { LibraryScreen } from './src/screens/LibraryScreen.tsx';
 import { ICashDashboard } from './src/screens/iCashScreen.tsx';
+import { ICashResetPin } from './src/screens/ICashResetPin.tsx';
 import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
+import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -145,10 +147,12 @@ export type RootStackParamList = {
   SuspendedScreen: { reason: string };
   iCashSecurity: { isRegistration: boolean };
   ICashDashboard: undefined;
+  ICashResetPin: undefined;
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
-  PointsPage: undefined; //TransactionPage: { transactionId: string };
+  PointsPage: undefined;
+  //TransactionPage: { transactionId: string };
   Login: undefined;
 };
 
@@ -298,8 +302,18 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="SuspendedScreen"
+              component={SuspendedScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="iCashSecurity"
               component={ICashSecurityGateway}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ICashResetPin"
+              component={ICashResetPin}
               options={{ headerShown: false }}
             />
             <Stack.Screen

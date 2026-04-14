@@ -47,7 +47,7 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
 
     if (response.ok) {
       Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Check your email for the reset code.' });
-      //navigation.navigate('ICashResetPin', { email: user.email });
+      navigation.navigate('ICashResetPin');
     }
   } catch (err) {
     Toast.show({ type: 'error', text1: 'Error', text2: 'Could not request reset.' });

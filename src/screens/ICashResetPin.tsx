@@ -1,0 +1,112 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import { StackScreenProps } from '@react-navigation/stack';
+import { RootStackParamList } from '../../App';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import { baseUrl } from '../components/HomeScreenComponents';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+type Props = StackScreenProps<RootStackParamList, 'ICashResetPin'>;
+
+export const ICashResetPin = ({ navigation }: Props) => {
+  const [otp, setOtp] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [step, setStep] = useState<'otp' | 'pin'>('otp');
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [step]);
+
+  const handleTextChange = async (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '');
+    
+    if (step === 'otp') {
+      setOtp(cleaned);
+      if (cleaned.length === 6) {
+        setStep('pin'); 
+      }
+    } else {
+      setNewPin(cleaned);
+      if (cleaned.length === 6) {
+        submitReset(cleaned);
+      }
+    }
+  };
+  const submitReset = async (finalPin: string) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(`${baseUrl}user/reset-icash-pin`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ otp, newPin: finalPin }),
+      });
+
+      const json = await response.json();
+
+      if (response.ok) {
+        Toast.show({ type: 'success', text1: 'Success', text2: 'PIN updated.' });
+        navigation.replace('ICashDashboard');
+      } else {
+        Toast.show({ type: 'error', text1: 'Failed', text2: json.message });
+        setOtp('');
+        setNewPin('');
+        setStep('otp'); // Reset to beginning on error
+      }
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Connection failed' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Icon name="lock-reset" size={60} color={PRIMARY_COLOR} />
+      <Text style={styles.title}>{step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}</Text>
+      <Text style={styles.subtitle}>
+        {step === 'otp' 
+          ? 'Enter the 6-digit code sent to your email.' 
+          : 'Create a new iCash security PIN'}
+      </Text>
+
+      <TextInput
+        ref={inputRef}
+        value={step === 'otp' ? otp : newPin}
+        onChangeText={handleTextChange}
+        maxLength={6}
+        keyboardType="number-pad"
+        style={styles.hiddenInput}
+      />
+
+      <Pressable style={styles.pinRow} onPress={() => inputRef.current?.focus()}>
+        {[...Array(6)].map((_, i) => (
+          <View key={i} style={[
+            styles.dot, 
+            (step === 'otp' ? otp.length : newPin.length) > i && styles.dotFilled
+          ]} />
+        ))}
+      </Pressable>
+
+      {loading && <ActivityIndicator color={PRIMARY_COLOR} style={{ marginTop: 20 }} />}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', color: PRIMARY_COLOR, marginTop: 20 },
+  subtitle: { fontSize: 14, color: PRIMARY_COLOR_TINT, textAlign: 'center', marginVertical: 10 },
+  hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+  pinRow: { flexDirection: 'row', marginTop: 40, gap: 10 },
+  dot: { width: 40, height: 50, borderRadius: 8, borderWidth: 2, borderColor: PRIMARY_COLOR_TINT,
+    backgroundColor: '#eee7e4' },
+  dotFilled: { backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR },
+});
