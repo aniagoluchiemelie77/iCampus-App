@@ -58,6 +58,7 @@ import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanne
 import { Assistant } from './src/screens/iAssistantScreen.tsx';
 import { LibraryScreen } from './src/screens/LibraryScreen.tsx';
 import { ICashDashboard } from './src/screens/iCashScreen.tsx';
+import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -140,6 +141,9 @@ export type RootStackParamList = {
     verified?: string;
     email?: string;
   };
+  //
+  SuspendedScreen: { reason: string };
+  iCashSecurity: { isRegistration: boolean };
   ICashDashboard: undefined;
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
@@ -291,6 +295,11 @@ const App = () => {
             <Stack.Screen
               name="Checkout"
               component={Checkout}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="iCashSecurity"
+              component={ICashSecurityGateway}
               options={{ headerShown: false }}
             />
             <Stack.Screen

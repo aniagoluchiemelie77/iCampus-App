@@ -44,6 +44,7 @@
     "react-native": "0.81.0",
     "react-native-action-sheet": "^2.2.0",
     "react-native-app-auth": "^8.1.0",
+    "react-native-biometrics": "^3.0.1",
     "react-native-ble-manager": "^12.4.5",
     "react-native-ble-peripheral": "^2.0.1",
     "react-native-blob-util": "^0.24.7",

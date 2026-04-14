@@ -173,7 +173,7 @@ export const ICashDashboard = () => {
   const handleP2P = () => navigation.navigate('Transfer iCash');
   useEffect(() => {
     if (!user.twoFactorEnabled) {
-      navigation.navigate('Create iCash Biometrics');
+      navigation.navigate('iCash Biometrics');
     }
   }, [navigation, user.twoFactorEnabled]);
 
