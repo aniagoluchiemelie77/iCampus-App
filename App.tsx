@@ -43,7 +43,7 @@ import Notifications from './src/screens/Notifications';
 import PointsPage from './src/screens/PointsPage';
 import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
-import BuyPointsScreen from './src/screens/BuyPoints';
+import { ICashBuyPage } from './src/screens/BuyiCashScreen.tsx';
 import WithdrawPointsScreen from './src/screens/WithdrawPoints';
 import TransferPointsScreen from './src/screens/TransferPoints';
 import ReceivePointsScreen from './src/screens/ReceivePoints';
@@ -65,7 +65,18 @@ export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
-  BuyPointsScreen: undefined;
+  //
+  AddPaymentMethod: {
+    onSuccess: () => void;
+  };
+  FlutterwavePayment: {
+    amount: number;
+    iCashToCredit: number;
+    currency: string;
+    email: string;
+    firstname: string;
+  };
+  ICashBuyPage: undefined;
   CreatePost: { type: 'post' | 'poll' };
   WithdrawPointsScreen: undefined;
   ReceivePointsScreen: undefined;
@@ -143,7 +154,6 @@ export type RootStackParamList = {
     verified?: string;
     email?: string;
   };
-  //
   SuspendedScreen: { reason: string };
   iCashSecurity: { isRegistration: boolean };
   ICashDashboard: undefined;
@@ -241,8 +251,8 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="BuyPointsScreen"
-              component={BuyPointsScreen}
+              name="ICashBuyPage"
+              component={ICashBuyPage}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -311,6 +321,18 @@ const App = () => {
               component={ICashSecurityGateway}
               options={{ headerShown: false }}
             />
+            {/*
+            <Stack.Screen
+              name="AddPaymentMethod"
+              component={AddPaymentMethod}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="FlutterwavePayment"
+              component={FlutterwavePayment}
+              options={{ headerShown: false }}
+            />
+            */}
             <Stack.Screen
               name="ICashResetPin"
               component={ICashResetPin}
