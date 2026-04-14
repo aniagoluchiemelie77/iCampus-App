@@ -57,6 +57,7 @@ import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttenda
 import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanner.tsx';
 import { Assistant } from './src/screens/iAssistantScreen.tsx';
 import { LibraryScreen } from './src/screens/LibraryScreen.tsx';
+import { ICashDashboard } from './src/screens/iCashScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -139,6 +140,7 @@ export type RootStackParamList = {
     verified?: string;
     email?: string;
   };
+  ICashDashboard: undefined;
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
@@ -319,6 +321,11 @@ const App = () => {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ICashDashboard"
+              component={ICashDashboard}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -1,78 +1,162 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '@components/Classroomcomponent';
 import { baseUrl } from '@components/HomeScreenComponents';
 import { User, Transactions } from 'types/firebase';
+import moment from 'moment';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
 
-const ActionButton = ({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) => (
-  <TouchableOpacity style={styles.actionButton} onPress={onPress}>
-    <View style={styles.actionIconContainer}>
+const ActionButton = ({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity style={iCashScreenStyles.actionButton} onPress={onPress}>
+    <View style={iCashScreenStyles.actionIconContainer}>
       <Icon name={icon} size={24} color={PRIMARY_COLOR} />
     </View>
-    <Text style={styles.actionLabel}>{label}</Text>
+    <Text style={iCashScreenStyles.actionLabel}>{label}</Text>
   </TouchableOpacity>
 );
-const TransactionHistory = ({ limit, user }: { limit: number, user: User }) => {
+export const TransactionHistory = ({ user }: { user: User }) => {
   const navigation = useNavigation<any>();
   const [history, setHistory] = useState<Transactions[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-  const fetchICashData = async () => {
-    try {
-      setLoading(true); 
-      const token = await AsyncStorage.getItem('accessToken');
-        const response = await fetch(
-            `${baseUrl}user/my-transactions/${user.uid}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-      const json = await response.json();
-      if (json.success) {
-        setHistory(json.data);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchICashData();
-}, [ user.uid]);
 
+  useEffect(() => {
+    const fetchICashData = async () => {
+      try {
+        setLoading(true);
+        const token = await AsyncStorage.getItem('accessToken');
+        const response = await fetch(
+          `${baseUrl}user/my-transactions/${user.uid}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        const json = await response.json();
+        if (json.success) {
+          setHistory(json.data);
+        }
+      } catch (err: any) {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: err?.message || 'Could not load transaction details.',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchICashData();
+  }, [user.uid]);
+
+  const groupTransactions = (transactions: Transactions[]) => {
+    const groups: { [key: string]: Transactions[] } = {};
+
+    transactions.forEach(item => {
+      const date = moment(item.createdAt);
+      let dateLabel = '';
+
+      if (date.isSame(moment(), 'day')) {
+        dateLabel = 'Today';
+      } else if (date.isSame(moment().subtract(1, 'day'), 'day')) {
+        dateLabel = 'Yesterday';
+      } else {
+        dateLabel = date.format('MMMM D, YYYY');
+      }
+
+      if (!groups[dateLabel]) groups[dateLabel] = [];
+      groups[dateLabel].push(item);
+    });
+
+    return groups;
+  };
+
+  const groupedData = groupTransactions(history);
+  if (loading) {
+    return (
+      <View style={{ padding: 20, alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+        <Text
+          style={{ marginTop: 10, color: PRIMARY_COLOR_TINT, fontSize: 12 }}
+        >
+          Fetching transactions...
+        </Text>
+      </View>
+    );
+  }
   return (
-    <View style={styles.historyContainer}>
-      <View style={styles.historyHeader}>
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('All Transactions')}>
-          <Text style={{ color: '#f54b02', fontWeight: 'bold' }}>View All</Text>
+    <View style={iCashScreenStyles.historyContainer}>
+      <View style={iCashScreenStyles.historyHeader}>
+        <Text style={iCashScreenStyles.sectionTitle}>Recent Transactions</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('All Transactions')}
+        >
+          <Text style={{ color: PRIMARY_COLOR, fontWeight: 'bold' }}>
+            View All
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {history.map((item) => (
-        <View key={item.transactionId} style={styles.transactionItem}>
-          <View style={styles.iconBackground}>
-            <Icon 
-              name={item.payType === 'in' ? 'arrow-bottom-left' : 'arrow-top-right'} 
-              size={20} 
-              color={item.payType === 'in' ? '#10b981' : '#ef4444'} 
-            />
-          </View>
-          <View style={{ flex: 1, marginLeft: 15 }}>
-            <Text style={styles.transactionTitle}>{item.title}</Text>
-            <Text style={styles.transactionDate}>{item.createdAt}</Text>
-          </View>
-          <Text style={[
-            styles.transactionAmount, 
-            { color: item.payType === 'in' ? '#10b981' : '#1e293b' }
-          ]}>
-            {item.amountICash}
-          </Text>
+      {Object.keys(groupedData).map(date => (
+        <View key={date} style={iCashScreenStyles.transactionItemContainer}>
+          <Text style={iCashScreenStyles.dateGroupTitle}>{date}</Text>
+          {groupedData[date].map(item => (
+            <View
+              key={item.transactionId}
+              style={iCashScreenStyles.transactionItem}
+            >
+              <View style={iCashScreenStyles.iconBackground}>
+                <Icon
+                  name={
+                    item.payType === 'in'
+                      ? 'arrow-bottom-left'
+                      : 'arrow-top-right'
+                  }
+                  size={22}
+                  color={PRIMARY_COLOR}
+                />
+              </View>
+
+              <View style={{ flex: 1, marginLeft: 15 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={iCashScreenStyles.transactionTitle}>
+                    {item.title}
+                  </Text>
+                  <Text style={iCashScreenStyles.transactionTime}>
+                    {moment(item.createdAt).format('hh:mm A')}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={iCashScreenStyles.transactionAmount}>
+                {item.payType === 'in' ? '+' : '-'}
+                {item.amountICash}
+              </Text>
+            </View>
+          ))}
         </View>
       ))}
     </View>
@@ -92,42 +176,56 @@ export const ICashDashboard = () => {
       navigation.navigate('Create iCash Biometrics');
     }
   }, [navigation, user.twoFactorEnabled]);
-  
+
   return (
-    <ScrollView style={styles.container}>
-        <LinearGradient
-            colors={['#3b2115', '#5a3c2e', '#e05515']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.iCashCard}
-        >
-            <View style={styles.cardHeader}>
-                <View>
-                    <Text style={styles.cardLabel}>iCash Balance</Text>
-                    <Text style={styles.userName}>
-                        {user.firstname?.toUpperCase()} {user.lastname?.toUpperCase()}
-                    </Text>
-                </View>
-                <Icon name="chip" size={38} color="#e0c8bd" />
-            </View>
-            <View style={styles.balanceContainer}>
-                <Icon name="diamond" size={32} color="#fff" style={styles.diamondShadow} />
-                <Text style={styles.balanceValue}>
-                    {integer}
-                    <Text style={styles.decimalValue}>.{decimal}</Text>
-                </Text>
-            </View>
-        </LinearGradient>
-        <View style={styles.actionRow}>
-            <ActionButton icon="plus-circle" label="Buy iCash" onPress={handleBuy} />
-            <ActionButton icon="bank-transfer-out" label="Withdraw" onPress={handleWithdraw} />
-            <ActionButton icon="send" label="Transfer" onPress={handleP2P} />
+    <ScrollView style={iCashScreenStyles.container}>
+      <LinearGradient
+        colors={['#3b2115', '#5a3c2e', '#e05515']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={iCashScreenStyles.iCashCard}
+      >
+        <View style={iCashScreenStyles.cardHeader}>
+          <View>
+            <Text style={iCashScreenStyles.cardLabel}>iCash Balance</Text>
+            <Text style={iCashScreenStyles.userName}>
+              {user.firstname?.toUpperCase()} {user.lastname?.toUpperCase()}
+            </Text>
+          </View>
+          <Icon name="chip" size={38} color="#e0c8bd" />
         </View>
-        <TransactionHistory limit={10} user={user} />
+        <View style={iCashScreenStyles.balanceContainer}>
+          <Icon
+            name="diamond"
+            size={32}
+            color="#fff"
+            style={iCashScreenStyles.diamondShadow}
+          />
+          <Text style={iCashScreenStyles.balanceValue}>
+            {integer}
+            <Text style={iCashScreenStyles.decimalValue}>.{decimal}</Text>
+          </Text>
+        </View>
+      </LinearGradient>
+      <View style={iCashScreenStyles.actionRow}>
+        <ActionButton
+          icon="plus-circle"
+          label="Buy iCash"
+          onPress={handleBuy}
+        />
+        <ActionButton
+          icon="bank-transfer-out"
+          label="Withdraw"
+          onPress={handleWithdraw}
+        />
+        <ActionButton icon="send" label="Transfer" onPress={handleP2P} />
+      </View>
+      <TransactionHistory user={user} />
+      <Toast config={toastConfig} />
     </ScrollView>
   );
 };
-const styles = StyleSheet.create({
+export const iCashScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -149,7 +247,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    width: '100%'
+    width: '100%',
   },
   cardLabel: {
     color: '#e0c8bd',
@@ -206,7 +304,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionIconContainer: {
-    backgroundColor: PRIMARY_COLOR_TINT, 
+    backgroundColor: PRIMARY_COLOR_TINT,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
@@ -219,8 +317,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 15,
+    color: '#321e15',
   },
   historyContainer: {
     paddingHorizontal: 20,
@@ -231,39 +328,53 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#f9f2ef',
   },
   iconBackground: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#e1c4b8',
     padding: 10,
     borderRadius: 12,
   },
   transactionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: PRIMARY_COLOR,
   },
   transactionDate: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: PRIMARY_COLOR_TINT,
     marginTop: 2,
   },
   transactionAmount: {
     fontSize: 15,
     fontWeight: '700',
+    color: PRIMARY_COLOR,
   },
   // Statistics Styling (for the "In vs Out" section)
-  statsContainer: {
-    padding: 20,
-    marginHorizontal: 20,
-    backgroundColor: '#f8fafc',
-    borderRadius: 20,
-    marginBottom: 25,
+  dateGroupTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: PRIMARY_COLOR,
+    textTransform: 'capitalize',
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginTop: 5,
+  },
+  transactionTime: {
+    fontSize: 11,
+    color: '#cb8d6e',
+    marginLeft: 8,
+    fontWeight: '400',
+  },
+  transactionItemContainer: {
+    marginBottom: 10,
   },
 });
