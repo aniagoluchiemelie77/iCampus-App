@@ -40,7 +40,6 @@ import ProductDetails from './src/screens/ProductDetails';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
-import PointsPage from './src/screens/PointsPage';
 import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
 import { ICashBuyPage } from './src/screens/BuyiCashScreen.tsx';
@@ -61,6 +60,7 @@ import { ICashDashboard } from './src/screens/iCashScreen.tsx';
 import { ICashResetPin } from './src/screens/ICashResetPin.tsx';
 import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
+import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -76,12 +76,16 @@ export type RootStackParamList = {
     email: string;
     firstname: string;
   };
-  ICashBuyPage: undefined;
+  ICashBuyPage: { refresh?: boolean } | undefined;
   CreatePost: { type: 'post' | 'poll' };
   WithdrawPointsScreen: undefined;
   ReceivePointsScreen: undefined;
   TransferPointsScreen: undefined;
   Notifications: undefined;
+  VerifyOTP: {
+    flw_ref: string;
+    type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
+  };
   Welcome: { route: string };
   CourseSubPage: {
     title:
@@ -161,7 +165,6 @@ export type RootStackParamList = {
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
-  PointsPage: undefined;
   //TransactionPage: { transactionId: string };
   Login: undefined;
 };
@@ -246,11 +249,6 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="PointsPage"
-              component={PointsPage}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="ICashBuyPage"
               component={ICashBuyPage}
               options={{ headerShown: false }}
@@ -283,6 +281,11 @@ const App = () => {
             <Stack.Screen
               name="PhysicalAttendanceManager"
               component={PhysicalAttendanceManager}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="VerifyOTP"
+              component={VerifyOTP}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { baseUrl } from '../components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,14 +16,14 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
 import { SvgProps } from 'react-native-svg';
-export const PRIMARY_COLOR2 = '#fadccc';
 import DropDownPicker from 'react-native-dropdown-picker';
-import { FLUTTERWAVE_CLIENT_SECRET } from '@env';
+import { FLUTTERWAVE_CLIENT_SECRET, FLUTTERWAVE_CLIENT_EKEY } from '@env';
 import {
   MasterCardLogo,
   VisaCardLogo,
@@ -30,9 +31,10 @@ import {
   AmericanExpressCardLogo,
   VerveCardLogo,
 } from '../assets/images/Logo';
-
+import { useRoute } from '@react-navigation/native';
 import {
   validateExpiryYear,
+  encryptCardDetails,
   //formatDatePretty,
   validateExpiryMonth,
   validateCVV,
@@ -41,6 +43,9 @@ import {
   formatCardNumber,
   fetchLiveRate,
 } from '../utils/UserTransactionsHelpers.tsx';
+import { User } from 'types/firebase';
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.75;
 
 interface CardFormProps {
   cardData: {
@@ -59,6 +64,11 @@ interface CardFormProps {
 interface AddPaymentModalProps {
   visible: boolean;
   onClose: () => void;
+  currencyData: {
+    rate: number;
+    code: string;
+  };
+  user: User;
 }
 interface BankFormProps {
   bankData: {
@@ -80,6 +90,32 @@ const COUNTRY_CODE_MAP: Record<string, string> = {
   Uganda: 'UG',
   'South Africa': 'ZA',
   'United States of America': 'US',
+};
+const PaymentMethodCard = ({ item, isSelected, onSelect }: any) => {
+  const isCard = item.type === 'card';
+  return (
+    <TouchableOpacity
+      onPress={onSelect}
+      style={[styles.card, isSelected && styles.selectedCard]}
+    >
+      <View style={styles.iconContainer}>
+        <Icon
+          name={isCard ? 'card-outline' : 'business-outline'}
+          size={24}
+          color={isSelected ? '#FFF' : PRIMARY_COLOR}
+        />
+      </View>
+      <View style={styles.details}>
+        <Text style={[styles.title, isSelected && styles.whiteText]}>
+          {isCard ? `${item.card_type} **** ${item.last4}` : item.bank_name}
+        </Text>
+        <Text style={[styles.subtitle, isSelected && styles.lightText]}>
+          {isCard ? `Expires ${item.expiry}` : item.account_number}
+        </Text>
+      </View>
+      {isSelected && <Icon name="checkmark-circle" size={20} color="#FFF" />}
+    </TouchableOpacity>
+  );
 };
 const BankForm = ({ bankData, setBankData, bankItems }: BankFormProps) => {
   const [openBank, setOpenBank] = useState(false);
@@ -193,10 +229,15 @@ const CardForm = ({
     </View>
   </>
 );
-export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
+export const AddPaymentModal = ({
+  visible,
+  onClose,
+  currencyData,
+  user,
+}: AddPaymentModalProps) => {
+  const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'card' | 'bank'>('card');
   const [isLoading, setIsLoading] = useState(false);
-  const user = useAppSelector(state => state.user);
   const [requiresPin, setRequiresPin] = useState(false);
   const [cardData, setCardData] = useState({
     number: '',
@@ -205,6 +246,7 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
     year: '',
     cvv: '',
     name: '',
+    pin: '',
   });
   const [bankData, setBankData] = useState({
     bankCode: '',
@@ -215,46 +257,127 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
     { label: string; value: string }[]
   >([]);
   const handleLinkCard = async () => {
-    const { number, month, year, cvv, name } = cardData;
-
-    // 1. Validation (Keep your existing logic)
+    const { number, month, year, cvv, name, pin } = cardData;
     const monthErr = validateExpiryMonth(month);
     const yearErr = validateExpiryYear(year);
     const cvvErr = validateCVV(cvv);
-
     if (monthErr || yearErr || cvvErr) {
       Toast.show({
         type: 'error',
         text1: 'Validation Error',
-        text2: monthErr || yearErr || cvvErr,
+        text2: (monthErr || yearErr || cvvErr) ?? undefined,
       });
       return;
     }
-
     setIsLoading(true);
-
+    const cardObject = JSON.stringify({
+      card_number: number.replace(/\s/g, ''),
+      cvv: cvv,
+      expiry_month: month,
+      expiry_year: year,
+    });
+    const encryptedData = encryptCardDetails(
+      FLUTTERWAVE_CLIENT_EKEY,
+      cardObject,
+    );
     try {
-      // 2. Prepare Flutterwave Payload
       const payload = {
-        card_number: number.replace(/\s/g, ''),
-        cvv: cvv,
-        expiry_month: month,
-        expiry_year: year,
+        client: encryptedData,
         currency: currencyData.code || 'NGN',
         amount: '50',
-        fullname: name || user?.fullName,
+        fullname:
+          name ||
+          `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim() ||
+          'Guest User',
         email: user?.email,
         tx_ref: `link-card-${Date.now()}`,
-        enckey: FLUTTERWAVE_ENCRYPTION_KEY, // You need this for card data
-        // If it's Verve, include the PIN
+        meta: {
+          userId: user.uid,
+          purpose: 'linking_card',
+        },
         ...(requiresPin && {
-          authorization: { mode: 'pin', pin: cardData.pin },
+          authorization: { mode: 'pin', pin },
         }),
       };
-
-      // 3. Initiate Charge
       const response = await fetch(
         'https://api.flutterwave.com/v3/charges?type=card',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      const result = await response.json();
+      if (result.status === 'success') {
+        if (result.meta?.authorization?.mode === 'otp') {
+          navigation.navigate('VerifyOTP', {
+            flw_ref: result.data.flw_ref,
+            type: 'card_linking',
+          });
+        } else if (result.meta?.authorization?.mode === 'redirect') {
+          navigation.navigate('FlutterwaveWebview', {
+            url: result.meta.authorization.redirect,
+          });
+        }
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Linking Failed',
+          text2: result.message,
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Linking Failed',
+        text2: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const handleLinkBank = async () => {
+    const { bankCode, accountNumber } = bankData;
+    const countryCode = COUNTRY_CODE_MAP[user?.country || 'Nigeria'] || 'NG';
+    let isValidAccount = false;
+    if (countryCode === 'NG') {
+      isValidAccount = accountNumber.length === 10;
+    } else if (countryCode === 'GH' || countryCode === 'KE') {
+      isValidAccount = accountNumber.length >= 8 && accountNumber.length <= 15;
+    } else {
+      isValidAccount = accountNumber.length > 5;
+    }
+    if (!bankCode || !isValidAccount) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Details',
+        text2: `Please enter a valid account number for ${
+          user?.country || 'your country'
+        }.`,
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const payload = {
+        account_bank: bankCode,
+        account_number: accountNumber,
+        amount: 50,
+        currency: 'NGN',
+        email: user?.email,
+        fullname: `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim(),
+        tx_ref: `iCampus-BANK-LINK-${Date.now()}`,
+        type: 'account',
+        meta: {
+          userId: user.uid,
+          purpose: 'linking_bank',
+        },
+      };
+      const response = await fetch(
+        'https://api.flutterwave.com/v3/charges?type=account',
         {
           method: 'POST',
           headers: {
@@ -268,26 +391,27 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
       const result = await response.json();
 
       if (result.status === 'success') {
-        // 4. Handle Authorization (OTP/Web/Pin)
         if (result.meta?.authorization?.mode === 'otp') {
-          // Navigate to a small OTP modal or screen
-          navigation.navigate('OTPVerification', {
+          navigation.navigate('VerifyOTP', {
             flw_ref: result.data.flw_ref,
-            type: 'card_linking',
+            type: 'bank_linking',
           });
         } else if (result.meta?.authorization?.mode === 'redirect') {
-          // Open webview for 3D Secure
-          navigation.navigate('FlutterwaveWebview', {
+          navigation.navigate('PaymentWebview', {
             url: result.meta.authorization.redirect,
           });
         }
       } else {
-        throw new Error(result.message);
+        Toast.show({
+          type: 'error',
+          text1: 'Bank Linking Failed',
+          text2: result.message,
+        });
       }
     } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Linking Failed',
+        text1: 'Bank Linking Failed',
         text2: error.message,
       });
     } finally {
@@ -322,9 +446,7 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
   useEffect(() => {
     const fetchBanks = async () => {
       if (!user?.country) return;
-
-      const countryCode = COUNTRY_CODE_MAP[user.country] || 'NG'; // Default to NG
-
+      const countryCode = COUNTRY_CODE_MAP[user.country] || 'NG';
       try {
         const res = await fetch(
           `https://api.flutterwave.com/v3/banks/${countryCode}`,
@@ -344,7 +466,6 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
         console.error('Bank fetch failed:', err);
       }
     };
-
     fetchBanks();
   }, [user?.country]);
   const BrandIcon = cardData.brand ? cardBrandLogos[cardData.brand] : null;
@@ -413,6 +534,8 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
             onPress={() => {
               if (activeTab === 'card') {
                 handleLinkCard();
+              } else {
+                handleLinkBank();
               }
             }}
             disabled={isLoading}
@@ -429,6 +552,7 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
   );
 };
 export const ICashBuyPage = ({ navigation }: any) => {
+  const route = useRoute();
   const user = useAppSelector(state => state.user);
   const [amount, setAmount] = useState('');
   const [iCashEquivalent, setICashEquivalent] = useState('0.00');
@@ -438,6 +562,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
     rate: 1550,
     code: 'NGN',
   });
+  const [selectedMethod, setSelectedMethod] = useState(null);
   const hasPaymentMethod = (user?.userAccountDetails?.length ?? 0) > 0;
   const EXCHANGE_RATE_USD = 0.74;
   useEffect(() => {
@@ -469,6 +594,13 @@ export const ICashBuyPage = ({ navigation }: any) => {
     };
     getCurrency();
   }, [user?.country]);
+  useEffect(() => {
+    // Check if we arrived here from a successful verification
+    if (route.params?.refresh) {
+      fetchUserBalance();
+      navigation.setParams({ refresh: undefined });
+    }
+  }, [route.params?.refresh, navigation]);
   const handleProceed = async () => {
     const numericAmount = parseFloat(amount);
     if (!numericAmount) return;
@@ -542,6 +674,22 @@ export const ICashBuyPage = ({ navigation }: any) => {
             </Text>
           </View>
         )}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalScrollPadding}
+          snapToInterval={CARD_WIDTH + 15} // Card width + margin
+          decelerationRate="fast"
+        >
+          {savedMethods.map(method => (
+            <PaymentMethodCard
+              key={method.id}
+              item={method}
+              isSelected={selectedMethod?.id === method.id}
+              onSelect={() => setSelectedMethod(method)}
+            />
+          ))}
+        </ScrollView>
         <TouchableOpacity
           style={[
             styles.buyBtn,
@@ -559,6 +707,8 @@ export const ICashBuyPage = ({ navigation }: any) => {
       <AddPaymentModal
         visible={showAddCardModal}
         onClose={() => setShowAddCardModal(false)}
+        currencyData={currencyData}
+        user={user}
       />
     </ScrollView>
   );
@@ -768,4 +918,39 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
+  card: {
+    width: CARD_WIDTH,
+    marginRight: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#fadccc',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    marginBottom: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  selectedCard: {
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
+  },
+  iconContainer: {
+    width: 45,
+    height: 45,
+    borderRadius: 10,
+    backgroundColor: PRIMARY_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  details: { flex: 1 },
+  title: { fontSize: 16, fontWeight: '600', color: PRIMARY_COLOR },
+  subtitle: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginTop: 2 },
+  whiteText: { color: '#FFF' },
+  lightText: { color: 'rgba(255, 255, 255, 0.8)' },
 });

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import CryptoJS from 'crypto-js';
 import { EXCHANGERATE_API_KEY, VERVE_SEARCH_API_KEY } from '@env';
 
 const API_KEY = EXCHANGERATE_API_KEY;
@@ -46,6 +47,17 @@ export const fetchLiveRate = async (country: string) => {
     console.error("Rate fetch failed", error);
     return { rate: 1550, symbol, code }; // Default fallback
   }
+};
+export const encryptCardDetails = (key: string, text: string): string => {
+  const cipher = CryptoJS.TripleDES.encrypt(
+    text,
+    CryptoJS.enc.Utf8.parse(key),
+    {
+      mode: CryptoJS.mode.ECB,
+      padding: CryptoJS.pad.Pkcs7,
+    }
+  );
+  return cipher.toString();
 };
 export const formatCardNumber = (input: string): string => {
   const cleaned = input.replace(/\D/g, '');
