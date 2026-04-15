@@ -2,7 +2,7 @@ import axios from 'axios';
 import { EXCHANGERATE_API_KEY, VERVE_SEARCH_API_KEY } from '@env';
 
 const API_KEY = EXCHANGERATE_API_KEY;
-const BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
+const EXCHANGERATE_API_BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
 
 export const fetchLiveRate = async (country: string) => {
   const currencyMap: Record<string, { code: string; symbol: string }> = {
@@ -34,11 +34,11 @@ export const fetchLiveRate = async (country: string) => {
   const { code, symbol } = currencyMap[country] || currencyMap['Nigeria'];
 
   try {
-    const response = await axios.get(BASE_URL);
+    const response = await axios.get(EXCHANGERATE_API_BASE_URL);
     const rate = response.data.conversion_rates[code];
     
     return {
-      rate: rate || 1550, // Fallback if API fails
+      rate: rate || 1550, 
       symbol,
       code
     };

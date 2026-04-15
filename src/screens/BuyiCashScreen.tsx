@@ -11,13 +11,18 @@ import {
 import { baseUrl } from '../components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '@components/Classroomcomponent';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
 import { SvgProps } from 'react-native-svg';
-//import DropDownPicker from 'react-native-dropdown-picker';
+export const PRIMARY_COLOR2 = '#fadccc';
+import DropDownPicker from 'react-native-dropdown-picker';
+import { FLUTTERWAVE_CLIENT_SECRET } from '@env';
 import {
   MasterCardLogo,
   VisaCardLogo,
@@ -55,7 +60,71 @@ interface AddPaymentModalProps {
   visible: boolean;
   onClose: () => void;
 }
-
+interface BankFormProps {
+  bankData: {
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+  };
+  setBankData: React.Dispatch<React.SetStateAction<any>>;
+  bankItems: { label: string; value: string }[];
+}
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  Nigeria: 'NG',
+  Egypt: 'EG',
+  Ghana: 'GH',
+  Kenya: 'KE',
+  Rwanda: 'RW',
+  Cameroon: 'CM',
+  Ethiopia: 'ET',
+  Uganda: 'UG',
+  'South Africa': 'ZA',
+  'United States of America': 'US',
+};
+const BankForm = ({ bankData, setBankData, bankItems }: BankFormProps) => {
+  const [openBank, setOpenBank] = useState(false);
+  return (
+    <>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Select Bank</Text>
+        <DropDownPicker
+          open={openBank}
+          value={bankData.bankCode}
+          items={bankItems}
+          setOpen={setOpenBank}
+          setValue={callback => {
+            const value = callback(bankData.bankCode);
+            setBankData((prev: any) => ({ ...prev, bankCode: value }));
+          }}
+          placeholder="Select your bank"
+          style={styles.dropdown}
+          dropDownContainerStyle={styles.dropdownContainer}
+          searchable={true}
+          zIndex={3000}
+        />
+      </View>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Account Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="0123456789"
+          keyboardType="numeric"
+          maxLength={10}
+          value={bankData.accountNumber}
+          onChangeText={text =>
+            setBankData((prev: any) => ({ ...prev, accountNumber: text }))
+          }
+        />
+      </View>
+      {bankData.accountName ? (
+        <View style={styles.accountVerifiedBox}>
+          <Icon name="check-circle" size={16} color={PRIMARY_COLOR} />
+          <Text style={styles.accountNameText}>{bankData.accountName}</Text>
+        </View>
+      ) : null}
+    </>
+  );
+};
 const CardForm = ({
   cardData,
   setCardData,
@@ -63,12 +132,13 @@ const CardForm = ({
   BrandIcon,
   requiresPin,
 }: CardFormProps) => (
-  <View>
+  <>
     <View style={styles.inputGroup}>
       <Text style={styles.label}>Card Number</Text>
       <View style={styles.cardInputWrapper}>
         <TextInput
           style={styles.flexInput}
+          placeholderTextColor={PRIMARY_COLOR_TINT}
           placeholder="0000 0000 0000 0000"
           keyboardType="numeric"
           value={cardData.number}
@@ -77,7 +147,6 @@ const CardForm = ({
         {BrandIcon && <BrandIcon width={32} height={20} />}
       </View>
     </View>
-
     <View style={styles.row}>
       <View style={[styles.inputGroup, { flex: 2, marginRight: 10 }]}>
         <Text style={styles.label}>Expiry Date</Text>
@@ -102,6 +171,7 @@ const CardForm = ({
         <TextInput
           style={styles.input}
           placeholder="123"
+          placeholderTextColor={PRIMARY_COLOR_TINT}
           secureTextEntry
           keyboardType="numeric"
           onChangeText={v => setCardData({ ...cardData, cvv: v })}
@@ -112,6 +182,7 @@ const CardForm = ({
           <Text style={styles.label}>Card PIN</Text>
           <TextInput
             style={styles.input}
+            placeholderTextColor={PRIMARY_COLOR_TINT}
             placeholder="****"
             secureTextEntry
             maxLength={4}
@@ -120,15 +191,13 @@ const CardForm = ({
         </View>
       )}
     </View>
-  </View>
+  </>
 );
 export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
   const [activeTab, setActiveTab] = useState<'card' | 'bank'>('card');
   const [isLoading, setIsLoading] = useState(false);
   const user = useAppSelector(state => state.user);
   const [requiresPin, setRequiresPin] = useState(false);
-
-  // Grouped States
   const [cardData, setCardData] = useState({
     number: '',
     brand: '',
@@ -142,10 +211,13 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
     accountNumber: '',
     accountName: '',
   });
+  const [bankItems, setBankItems] = useState<
+    { label: string; value: string }[]
+  >([]);
   const handleLinkCard = async () => {
     const { number, month, year, cvv, name } = cardData;
 
-    // 1. Run Validations
+    // 1. Validation (Keep your existing logic)
     const monthErr = validateExpiryMonth(month);
     const yearErr = validateExpiryYear(year);
     const cvvErr = validateCVV(cvv);
@@ -153,22 +225,71 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
     if (monthErr || yearErr || cvvErr) {
       Toast.show({
         type: 'error',
-        text1: 'Invalid Details',
-        text2: monthErr || yearErr || cvvErr || 'Please check card details',
+        text1: 'Validation Error',
+        text2: monthErr || yearErr || cvvErr,
       });
       return;
     }
 
-    // 2. Process the Payment/Linking
     setIsLoading(true);
-    try {
-      // Call your backend or Flutterwave logic here
-      // Example: await completeTransaction(number, month, year, cvv);
 
-      Toast.show({ type: 'success', text1: 'Card Linked Successfully' });
-      onClose();
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'Linking Failed' });
+    try {
+      // 2. Prepare Flutterwave Payload
+      const payload = {
+        card_number: number.replace(/\s/g, ''),
+        cvv: cvv,
+        expiry_month: month,
+        expiry_year: year,
+        currency: currencyData.code || 'NGN',
+        amount: '50',
+        fullname: name || user?.fullName,
+        email: user?.email,
+        tx_ref: `link-card-${Date.now()}`,
+        enckey: FLUTTERWAVE_ENCRYPTION_KEY, // You need this for card data
+        // If it's Verve, include the PIN
+        ...(requiresPin && {
+          authorization: { mode: 'pin', pin: cardData.pin },
+        }),
+      };
+
+      // 3. Initiate Charge
+      const response = await fetch(
+        'https://api.flutterwave.com/v3/charges?type=card',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        // 4. Handle Authorization (OTP/Web/Pin)
+        if (result.meta?.authorization?.mode === 'otp') {
+          // Navigate to a small OTP modal or screen
+          navigation.navigate('OTPVerification', {
+            flw_ref: result.data.flw_ref,
+            type: 'card_linking',
+          });
+        } else if (result.meta?.authorization?.mode === 'redirect') {
+          // Open webview for 3D Secure
+          navigation.navigate('FlutterwaveWebview', {
+            url: result.meta.authorization.redirect,
+          });
+        }
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Linking Failed',
+        text2: error.message,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +297,6 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
   const handleCardChange = async (text: string) => {
     const formatted = formatCardNumber(text);
     setCardData(prev => ({ ...prev, number: formatted }));
-
     const cleanNumber = formatted.replace(/\s/g, '');
     if (cleanNumber.length === 6) {
       const bin = getBin(cleanNumber);
@@ -185,8 +305,6 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
       if (data) {
         const detectedBrand = data.scheme?.toUpperCase();
         setCardData(prev => ({ ...prev, brand: detectedBrand }));
-
-        // logic: Verve cards usually need a PIN for the charge payload
         if (detectedBrand === 'VERVE' || detectedBrand === 'MAESTRO') {
           setRequiresPin(true);
         }
@@ -201,13 +319,40 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
     'AMERICAN EXPRESS': AmericanExpressCardLogo,
     DISCOVER: DiscoverCardLogo,
   };
-  const BrandIcon = cardData.brand ? cardBrandLogos[cardData.brand] : null;
+  useEffect(() => {
+    const fetchBanks = async () => {
+      if (!user?.country) return;
 
+      const countryCode = COUNTRY_CODE_MAP[user.country] || 'NG'; // Default to NG
+
+      try {
+        const res = await fetch(
+          `https://api.flutterwave.com/v3/banks/${countryCode}`,
+          {
+            headers: { Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}` },
+          },
+        );
+        const json = await res.json();
+        if (json.status === 'success') {
+          const formattedBanks = json.data.map((bank: any) => ({
+            label: bank.name,
+            value: bank.code,
+          }));
+          setBankItems(formattedBanks);
+        }
+      } catch (err) {
+        console.error('Bank fetch failed:', err);
+      }
+    };
+
+    fetchBanks();
+  }, [user?.country]);
+  const BrandIcon = cardData.brand ? cardBrandLogos[cardData.brand] : null;
   return (
     <Modal visible={visible} animationType="slide">
       <View style={styles.container}>
         <PageHeader
-          title="Payment Method"
+          title="Add Payment Method"
           showBackButton={false}
           rightElement={
             <Icon
@@ -218,8 +363,6 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
             />
           }
         />
-
-        {/* Custom Tab Switcher */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'card' && styles.activeTab]}
@@ -248,7 +391,6 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
             </Text>
           </TouchableOpacity>
         </View>
-
         <ScrollView contentContainerStyle={styles.formContent}>
           {activeTab === 'card' ? (
             <CardForm
@@ -262,7 +404,7 @@ export const AddPaymentModal = ({ visible, onClose }: AddPaymentModalProps) => {
             <BankForm
               bankData={bankData}
               setBankData={setBankData}
-              bankItems={bankItems} // Derived from your existing useEffect
+              bankItems={bankItems}
             />
           )}
 
@@ -297,9 +439,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
     code: 'NGN',
   });
   const hasPaymentMethod = (user?.userAccountDetails?.length ?? 0) > 0;
-
   const EXCHANGE_RATE_USD = 0.74;
-  const USD_TO_LOCAL = 1550;
   useEffect(() => {
     const getLiveRate = async () => {
       try {
@@ -312,7 +452,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
         console.error('Failed to update rates:', error);
       }
     };
-
     getLiveRate();
   }, [user?.country]);
   useEffect(() => {
@@ -351,7 +490,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
           },
           body: JSON.stringify({
             amount: numericAmount,
-            currency: code, // Dynamically set from localization
+            currency: currencyData.code,
             userId: user.uid,
           }),
         },
@@ -367,55 +506,55 @@ export const ICashBuyPage = ({ navigation }: any) => {
   return (
     <ScrollView style={styles.container}>
       <PageHeader title="Buy iCash" />
-      <Text style={styles.label}>Enter Amount to Buy</Text>
-      <View style={styles.inputContainer}>
-        <Text style={styles.currencyPrefix}>{localCurrency}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="0.00"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-        />
-      </View>
-
-      <View style={styles.exchangeCard}>
-        <View style={styles.exchangeRow}>
-          <Text style={styles.exchangeText}>Exchange Rate</Text>
-          <Text style={styles.exchangeValue}>
-            1 iCash ≈ {localCurrency}
-            {(EXCHANGE_RATE_USD * USD_TO_LOCAL).toFixed(2)}
-          </Text>
+      <View style={styles.bodyContainer}>
+        <Text style={styles.label}>Enter Amount to Buy</Text>
+        <View style={styles.inputContainer}>
+          <Text style={styles.currencyPrefix}>{localCurrency}</Text>
+          <TextInput
+            style={styles.inputBorderless}
+            placeholder="0.00"
+            keyboardType="numeric"
+            value={amount}
+            onChangeText={setAmount}
+          />
         </View>
-        <View style={styles.divider} />
-        <View style={styles.resultRow}>
+        <View style={styles.exchangeCard}>
+          <View style={styles.exchangeRow}>
+            <Text style={styles.exchangeText}>Exchange Rate</Text>
+            <Text style={styles.exchangeValue}>
+              1 iCash ≈ {localCurrency}
+              {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
+            </Text>
+          </View>
+          <View style={styles.divider} />
           <Text style={styles.resultLabel}>You will receive:</Text>
-          <Text style={styles.resultValue}>{iCashEquivalent} iCash</Text>
+          <View style={styles.resultDiv}>
+            <Icon name="diamond" size={26} color={PRIMARY_COLOR} />
+          </View>
+          <Text style={styles.resultValue}>{iCashEquivalent}</Text>
         </View>
-      </View>
-
-      {!hasPaymentMethod && (
-        <View style={styles.warningBox}>
-          <Icon name="alert-circle" size={20} color="#b45309" />
-          <Text style={styles.warningText}>
-            You haven't added a payment method. Please add a bank account or
-            card to continue.
+        {!hasPaymentMethod && (
+          <View style={styles.warningBox}>
+            <Icon name="alert-circle" size={20} color={PRIMARY_COLOR} />
+            <Text style={styles.warningText}>
+              You haven't added a payment method. Please add a bank account or
+              card to continue.
+            </Text>
+          </View>
+        )}
+        <TouchableOpacity
+          style={[
+            styles.buyBtn,
+            (!amount || parseFloat(amount) <= 0) && { opacity: 0.5 },
+          ]}
+          onPress={handleProceed}
+          disabled={!amount || parseFloat(amount) <= 0}
+        >
+          <Text style={styles.buyBtnText}>
+            {hasPaymentMethod ? 'Complete Purchase' : 'Add Payment Method'}
           </Text>
-        </View>
-      )}
-
-      <TouchableOpacity
-        style={[
-          styles.buyBtn,
-          (!amount || parseFloat(amount) <= 0) && { opacity: 0.5 },
-        ]}
-        onPress={handleProceed}
-        disabled={!amount || parseFloat(amount) <= 0}
-      >
-        <Text style={styles.buyBtnText}>
-          {hasPaymentMethod ? 'Pay with Flutterwave' : 'Add Payment Method'}
-        </Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
       <Toast config={toastConfig} />
       <AddPaymentModal
         visible={showAddCardModal}
@@ -430,35 +569,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 8,
-    marginTop: 20,
+    color: '#2222',
+    marginVertical: 10,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#fadccc',
     borderRadius: 16,
     paddingHorizontal: 20,
     height: 70,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
   currencyPrefix: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#332117',
     marginRight: 10,
   },
   exchangeCard: {
-    backgroundColor: '#fff7f2', // Tint of your primary color
+    backgroundColor: '#f9e7dd',
     borderRadius: 20,
     padding: 20,
     marginTop: 30,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderWidth: 0.8,
+    borderColor: '#fdd5bf',
   },
   exchangeRow: {
     flexDirection: 'row',
@@ -468,58 +606,56 @@ const styles = StyleSheet.create({
   },
   exchangeText: {
     fontSize: 13,
-    color: '#9a3412',
+    color: '#332117',
     fontWeight: '500',
   },
   exchangeValue: {
     fontSize: 13,
-    color: '#9a3412',
+    color: PRIMARY_COLOR,
     fontWeight: '700',
   },
   divider: {
     height: 1,
-    backgroundColor: '#fed7aa',
+    backgroundColor: '#fadccc',
     marginVertical: 10,
     opacity: 0.5,
   },
-  resultRow: {
-    marginTop: 5,
-  },
   resultLabel: {
     fontSize: 14,
-    color: '#475569',
-    marginBottom: 4,
+    color: '#332117',
+    marginBottom: 6,
   },
   resultValue: {
     fontSize: 32,
     fontWeight: '800',
     color: PRIMARY_COLOR,
+    marginLeft: 7,
   },
   warningBox: {
     flexDirection: 'row',
-    backgroundColor: '#fffbeb',
+    backgroundColor: '#fadccc',
     padding: 15,
     borderRadius: 12,
     marginTop: 25,
-    borderWidth: 1,
-    borderColor: '#fde68a',
+    borderLeftWidth: 1,
+    borderLeftColor: PRIMARY_COLOR,
     alignItems: 'center',
   },
   warningText: {
     flex: 1,
     fontSize: 13,
-    color: '#92400e',
+    color: PRIMARY_COLOR,
     marginLeft: 10,
     lineHeight: 18,
   },
   buyBtn: {
-    backgroundColor: '#0f172a', // Dark navy for contrast
+    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 40,
     marginBottom: 30,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -533,29 +669,41 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     margin: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#fadccc',
     borderRadius: 12,
     padding: 4,
   },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 },
-  activeTab: { backgroundColor: '#FFFFFF', elevation: 2, shadowOpacity: 0.1 },
-  tabText: { fontWeight: '700', color: '#64748B', fontSize: 12 },
+  activeTab: {
+    backgroundColor: PRIMARY_COLOR_TINT,
+    elevation: 2,
+    shadowOpacity: 0.1,
+  },
+  tabText: { fontWeight: '700', color: '#2222', fontSize: 12 },
   activeTabText: { color: PRIMARY_COLOR },
   formContent: { paddingHorizontal: 20 },
   inputGroup: { marginBottom: 20 },
   cardInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
   },
-  flexInput: { flex: 1, fontSize: 16, fontWeight: '600', color: '#0F172A' },
+  flexInput: { flex: 1, fontSize: 16, fontWeight: '600', color: '#2222' },
   input: {
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 55,
+    fontSize: 16,
+    color: '#2222',
+    fontWeight: '600',
+  },
+  inputBorderless: {
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
@@ -566,13 +714,19 @@ const styles = StyleSheet.create({
   expiryWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 12,
     paddingHorizontal: 10,
     height: 55,
   },
-  smallInput: { textAlign: 'center', flex: 1, fontSize: 16, fontWeight: '600' },
+  smallInput: {
+    textAlign: 'center',
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2222',
+  },
   submitBtn: {
     backgroundColor: PRIMARY_COLOR,
     paddingVertical: 18,
@@ -582,4 +736,36 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  bodyContainer: {
+    paddingHorizontal: 16,
+  },
+  resultDiv: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  dropdown: {
+    borderColor: '#fadccc',
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  dropdownContainer: {
+    borderColor: '#fadccc',
+  },
+  accountVerifiedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fadccc',
+    borderLeftColor: PRIMARY_COLOR,
+    borderTopLeftRadius: 1,
+    padding: 12,
+    borderRadius: 10,
+    marginTop: -10,
+    marginBottom: 20,
+  },
+  accountNameText: {
+    color: PRIMARY_COLOR,
+    fontWeight: '700',
+    marginLeft: 8,
+    fontSize: 14,
+  },
 });
