@@ -9,7 +9,7 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import toastConfig from '@components/ToastConfig';
-export const PRIMARY_COLOR2 = '#eee7e4';
+
 
 type Props = StackScreenProps<RootStackParamList, 'iCashSecurity'>;
 const rnBiometrics = new ReactNativeBiometrics();

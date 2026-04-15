@@ -4,7 +4,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import baseUrl, { PRIMARY_COLOR_TINT, PRIMARY_COLOR} from '../components/Classroomcomponent'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {Logo} from '../assets/images/Logo'
+import { PageHeader } from '../components/PageHeader.tsx';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -52,15 +52,14 @@ export const Assistant = ({ route }: Props) => {
       style={styles.container}
       keyboardVerticalOffset={90}
     >
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>iAssistant</Text>
-        <Logo />
-        <Text style={styles.headerSubtitle}>
-          {contextType === 'lecture'
+      <PageHeader
+        title="iAssistant"
+        subtitle={
+          contextType === 'lecture'
             ? route.params.contextData.topicName
-            : 'General Help'}
-        </Text>
-      </View>
+            : 'General Help'
+        }
+      />
 
       <FlatList
         data={messages}
@@ -111,24 +110,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  headerContainer: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: PRIMARY_COLOR_TINT,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
   },
   listContent: {
     padding: 20,

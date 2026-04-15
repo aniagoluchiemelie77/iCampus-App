@@ -20,6 +20,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { Lecture, Comment } from 'types/firebase';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { WebView } from 'react-native-webview';
+import { PageHeader } from '../components/PageHeader';
 interface StudentRecordedLecturesProps {
   lectureTitle: string;
   lectureVideoUrl: string;
@@ -381,6 +382,7 @@ export const StudentRecordedLecturesScreen: React.FC<
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <PageHeader title="Saved Video Lecture" />
       {renderVideoPlayer()}
       <FlatList
         data={comments}

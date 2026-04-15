@@ -22,17 +22,15 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '../components/Classroomcomponent';
-import Logo from '../assets/images/Logo';
 import { baseUrl } from '../components/HomeScreenComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { BookCard } from '../components/BookCard';
 import { Book } from 'types/firebase';
 import { useAppSelector } from '../components/hooks';
-import { useNavigation } from '@react-navigation/native';
+import { PageHeader } from '../components/PageHeader.tsx';
 const PLACEHOLDERS = ['book titles...', 'authors...', 'ISBN...', 'fields...'];
 
 export const LibraryScreen: React.FC = () => {
-  const navigation = useNavigation();
   const [query, setQuery] = useState('');
   const user = useAppSelector(state => state.user);
   const [books, setBooks] = useState<Book[]>([]);
@@ -138,22 +136,7 @@ export const LibraryScreen: React.FC = () => {
   }, [fadeAnim]);
   return (
     <SafeAreaView style={LibraryScreenStyles.container}>
-      <View style={LibraryScreenStyles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={LibraryScreenStyles.backButton}
-        >
-          <MaterialIcons name="chevron-left" size={32} color={PRIMARY_COLOR} />
-        </TouchableOpacity>
-
-        <View style={LibraryScreenStyles.titleContainer}>
-          <Logo />
-          <Text style={LibraryScreenStyles.headerTitle}>iCampus Library</Text>
-        </View>
-
-        {/* Empty view for flex balance to keep title centered */}
-        <View style={{ width: 32 }} />
-      </View>
+      <PageHeader title="iCampus Library" />
       <View style={LibraryScreenStyles.searchBar}>
         <View style={{ flex: 1, justifyContent: 'center' }}>
           {query.length === 0 && (
@@ -257,33 +240,6 @@ export const LibraryScreenStyles = StyleSheet.create({
     borderRadius: 10,
   },
   downloadText: { color: '#FFF', fontWeight: '600', marginLeft: 6 },
-  header: {
-    flexDirection: 'row',
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 15,
-    borderBottomWidth: 0.8,
-    borderBlockColor: PRIMARY_COLOR_TINT,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-  },
-  backButton: {
-    padding: 5,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: PRIMARY_COLOR,
-  },
   placeholderOverlay: {
     position: 'absolute',
     left: 4, // Align with TextInput padding

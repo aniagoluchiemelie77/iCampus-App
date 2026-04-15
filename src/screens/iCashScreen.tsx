@@ -165,10 +165,11 @@ export const TransactionHistory = ({ user }: { user: User }) => {
 export const ICashDashboard = () => {
   const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user);
+  const [showBalance, setShowBalance] = useState(true);
   const balance = user.pointsBalance || 0;
   const [integer, decimal] = balance.toFixed(2).split('.');
 
-  const handleBuy = () => navigation.navigate('Buy iCash');
+  const handleBuy = () => navigation.navigate('ICashBuyPage');
   const handleWithdraw = () => navigation.navigate('Withdraw iCash');
   const handleP2P = () => navigation.navigate('Transfer iCash');
   useEffect(() => {
@@ -194,17 +195,35 @@ export const ICashDashboard = () => {
           </View>
           <Icon name="chip" size={38} color="#e0c8bd" />
         </View>
-        <View style={iCashScreenStyles.balanceContainer}>
-          <Icon
-            name="diamond"
-            size={32}
-            color="#fff"
-            style={iCashScreenStyles.diamondShadow}
-          />
-          <Text style={iCashScreenStyles.balanceValue}>
-            {integer}
-            <Text style={iCashScreenStyles.decimalValue}>.{decimal}</Text>
-          </Text>
+        <View style={iCashScreenStyles.balance}>
+          <View style={iCashScreenStyles.balanceContainer}>
+            <Icon
+              name="diamond"
+              size={32}
+              color="#fff"
+              style={iCashScreenStyles.diamondShadow}
+            />
+            {showBalance ? (
+              <Text style={iCashScreenStyles.balanceValue}>
+                {integer}
+                <Text style={iCashScreenStyles.decimalValue}>.{decimal}</Text>
+              </Text>
+            ) : (
+              <Text
+                style={[iCashScreenStyles.balanceValue, { letterSpacing: 2 }]}
+              >
+                ****
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
+            <Icon
+              name={showBalance ? 'eye-outline' : 'eye-off-outline'}
+              size={24}
+              color="#fff"
+              style={iCashScreenStyles.balanceHideBtn}
+            />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
       <View style={iCashScreenStyles.actionRow}>
@@ -264,7 +283,12 @@ export const iCashScreenStyles = StyleSheet.create({
   balanceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
+  },
+  balance: {
     marginVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
   },
   balanceValue: {
     color: '#fff',
@@ -272,6 +296,9 @@ export const iCashScreenStyles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 10,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  balanceHideBtn: {
+    marginLeft: 7,
   },
   decimalValue: {
     fontSize: 22,
