@@ -448,32 +448,29 @@ export interface Transactions {
   createdAt?: string
 };
 export interface UserBillingAddressDetails {
-  id?: string;
   state?: string;
   city?: string;
   street?: string;
   zip?: string
 }
 export interface UserBankOrCardDetails {
-  id?: string;
-  cardOrBankDetailsId: string;
-  userId: User.uid;
-  paymentToken?: string;
+  id?: string; 
+  userId: string; 
   method: 'card' | 'bank';
-  provider?: string;
+  paymentToken: string; 
   lastFourDigits?: string;
   cardBrand?: string;
-  expiryMonth?: string;
-  expiryYear?: string;
   bankName?: string;
+  bankAccNumber?: string;
+  bankCode?: string;
+  accountHolderName?: string;
   country?: string;
   isDefault: boolean;
-  createdAt: string;
-  updatedAt?:string;
-  bankAccNumber?: string;
-  accountHolderName?: string;
-  bankCode?: string;
+  expiryMonth?: string;
+  expiryYear?: string;
   billingAddressDetails?: UserBillingAddressDetails;
+  createdAt: string;
+  updatedAt?: string;
 }
 export interface TransactionMiddleState {
   transactionId:  string;

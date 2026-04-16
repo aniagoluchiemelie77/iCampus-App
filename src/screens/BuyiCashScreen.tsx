@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FC } from 'react';
+import React, { useState, useEffect, FC, useCallback } from 'react';
 import {
   View,
   Text,
@@ -43,10 +43,15 @@ import {
   formatCardNumber,
   fetchLiveRate,
 } from '../utils/UserTransactionsHelpers.tsx';
-import { User } from 'types/firebase';
+import { User, UserBankOrCardDetails } from 'types/firebase';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
 
+interface PaymentMethodCardProps {
+  item: UserBankOrCardDetails;
+  isSelected: boolean;
+  onSelect: () => void;
+}
 interface CardFormProps {
   cardData: {
     number: string;
@@ -55,11 +60,18 @@ interface CardFormProps {
     year: string;
     cvv: string;
     name: string;
+    pin?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipcode?: string;
+    country?: string;
   };
   setCardData: React.Dispatch<React.SetStateAction<any>>;
   handleCardChange: (text: string) => Promise<void>;
   BrandIcon: React.FC<any> | null;
   requiresPin: boolean;
+  isInternational: boolean;
 }
 interface AddPaymentModalProps {
   visible: boolean;
@@ -91,8 +103,12 @@ const COUNTRY_CODE_MAP: Record<string, string> = {
   'South Africa': 'ZA',
   'United States of America': 'US',
 };
-const PaymentMethodCard = ({ item, isSelected, onSelect }: any) => {
-  const isCard = item.type === 'card';
+const PaymentMethodCard = ({
+  item,
+  isSelected,
+  onSelect,
+}: PaymentMethodCardProps) => {
+  const isCard = item.method === 'card';
   return (
     <TouchableOpacity
       onPress={onSelect}
@@ -107,10 +123,14 @@ const PaymentMethodCard = ({ item, isSelected, onSelect }: any) => {
       </View>
       <View style={styles.details}>
         <Text style={[styles.title, isSelected && styles.whiteText]}>
-          {isCard ? `${item.card_type} **** ${item.last4}` : item.bank_name}
+          {isCard
+            ? `${item.cardBrand} **** ${item.lastFourDigits}`
+            : item.bankName}
         </Text>
         <Text style={[styles.subtitle, isSelected && styles.lightText]}>
-          {isCard ? `Expires ${item.expiry}` : item.account_number}
+          {isCard
+            ? `Expires ${item.expiryMonth} / ${item.expiryYear}`
+            : item.bankAccNumber}
         </Text>
       </View>
       {isSelected && <Icon name="checkmark-circle" size={20} color="#FFF" />}
@@ -167,6 +187,7 @@ const CardForm = ({
   handleCardChange,
   BrandIcon,
   requiresPin,
+  isInternational,
 }: CardFormProps) => (
   <>
     <View style={styles.inputGroup}>
@@ -227,6 +248,57 @@ const CardForm = ({
         </View>
       )}
     </View>
+    {isInternational && (
+      <View style={{ marginTop: 20 }}>
+        <Text
+          style={[
+            styles.label,
+            { marginBottom: 10, color: PRIMARY_COLOR_TINT },
+          ]}
+        >
+          Billing Address (Required for International Cards)
+        </Text>
+        <View style={styles.inputGroup}>
+          <TextInput
+            style={styles.input}
+            placeholder="Street Address"
+            placeholderTextColor={PRIMARY_COLOR_TINT}
+            value={cardData.address}
+            onChangeText={v => setCardData({ ...cardData, address: v })}
+          />
+        </View>
+        <View style={styles.row}>
+          <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+            <TextInput
+              style={styles.input}
+              placeholder="City"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              value={cardData.city}
+              onChangeText={v => setCardData({ ...cardData, city: v })}
+            />
+          </View>
+          <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+            <TextInput
+              style={styles.input}
+              placeholder="State/Province"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              value={cardData.state}
+              onChangeText={v => setCardData({ ...cardData, state: v })}
+            />
+          </View>
+          <View style={[styles.inputGroup, { flex: 1 }]}>
+            <TextInput
+              style={styles.input}
+              placeholder="Zip Code"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              keyboardType="numeric"
+              value={cardData.zipcode}
+              onChangeText={v => setCardData({ ...cardData, zipcode: v })}
+            />
+          </View>
+        </View>
+      </View>
+    )}
   </>
 );
 export const AddPaymentModal = ({
@@ -247,6 +319,11 @@ export const AddPaymentModal = ({
     cvv: '',
     name: '',
     pin: '',
+    address: '',
+    city: '',
+    state: '',
+    zipcode: '',
+    country: '',
   });
   const [bankData, setBankData] = useState({
     bankCode: '',
@@ -275,6 +352,12 @@ export const AddPaymentModal = ({
       cvv: cvv,
       expiry_month: month,
       expiry_year: year,
+      pin: pin,
+      billing_address: cardData.address,
+      billing_city: cardData.city,
+      billing_state: cardData.state,
+      billing_zip: cardData.zipcode,
+      billing_country: cardData.country || 'US',
     });
     const encryptedData = encryptCardDetails(
       FLUTTERWAVE_CLIENT_EKEY,
@@ -295,9 +378,9 @@ export const AddPaymentModal = ({
           userId: user.uid,
           purpose: 'linking_card',
         },
-        ...(requiresPin && {
-          authorization: { mode: 'pin', pin },
-        }),
+        authorization: {
+          mode: isInternational ? 'avs_noauth' : 'pin',
+        },
       };
       const response = await fetch(
         'https://api.flutterwave.com/v3/charges?type=card',
@@ -366,7 +449,7 @@ export const AddPaymentModal = ({
         account_bank: bankCode,
         account_number: accountNumber,
         amount: 50,
-        currency: 'NGN',
+        currency: currencyData.code || 'NGN',
         email: user?.email,
         fullname: `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim(),
         tx_ref: `iCampus-BANK-LINK-${Date.now()}`,
@@ -397,7 +480,7 @@ export const AddPaymentModal = ({
             type: 'bank_linking',
           });
         } else if (result.meta?.authorization?.mode === 'redirect') {
-          navigation.navigate('PaymentWebview', {
+          navigation.navigate('FlutterwaveWebview', {
             url: result.meta.authorization.redirect,
           });
         }
@@ -469,6 +552,7 @@ export const AddPaymentModal = ({
     fetchBanks();
   }, [user?.country]);
   const BrandIcon = cardData.brand ? cardBrandLogos[cardData.brand] : null;
+  const isInternational = user?.country !== 'Nigeria';
   return (
     <Modal visible={visible} animationType="slide">
       <View style={styles.container}>
@@ -520,6 +604,7 @@ export const AddPaymentModal = ({
               handleCardChange={handleCardChange}
               BrandIcon={BrandIcon}
               requiresPin={requiresPin}
+              isInternational={isInternational}
             />
           ) : (
             <BankForm
@@ -562,9 +647,35 @@ export const ICashBuyPage = ({ navigation }: any) => {
     rate: 1550,
     code: 'NGN',
   });
-  const [selectedMethod, setSelectedMethod] = useState(null);
-  const hasPaymentMethod = (user?.userAccountDetails?.length ?? 0) > 0;
+  // Use your interface here
+  const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
+  const [selectedMethod, setSelectedMethod] =
+    useState<UserBankOrCardDetails | null>(null);
+  const hasPaymentMethod = savedMethods.length > 0;
   const EXCHANGE_RATE_USD = 0.74;
+  const fetchPaymentMethods = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}user/payment-methods/${user?.uid}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const result = await response.json();
+
+      const methods = Array.isArray(result) ? result : result.data;
+      if (Array.isArray(methods)) {
+        setSavedMethods(methods);
+      }
+    } catch (error) {
+      console.error('Error fetching methods:', error);
+    }
+  }, [user?.uid]);
   useEffect(() => {
     const getLiveRate = async () => {
       try {
@@ -594,22 +705,28 @@ export const ICashBuyPage = ({ navigation }: any) => {
     };
     getCurrency();
   }, [user?.country]);
+  const needsRefresh = (route.params as any)?.refresh;
   useEffect(() => {
-    // Check if we arrived here from a successful verification
-    if (route.params?.refresh) {
-      fetchUserBalance();
-      navigation.setParams({ refresh: undefined });
+    fetchPaymentMethods();
+    if (needsRefresh) {
+      const timer = setTimeout(() => {
+        fetchPaymentMethods();
+      }, 2000);
+      navigation.setParams({ refresh: undefined } as any);
+      return () => clearTimeout(timer);
     }
-  }, [route.params?.refresh, navigation]);
+  }, [needsRefresh, navigation, fetchPaymentMethods]);
   const handleProceed = async () => {
     const numericAmount = parseFloat(amount);
     if (!numericAmount) return;
-
     if (!hasPaymentMethod) {
       setShowAddCardModal(true);
       return;
     }
-
+    if (!selectedMethod) {
+      Toast.show({ type: 'info', text1: 'Please select a payment method' });
+      return;
+    }
     try {
       const token = await AsyncStorage.getItem('accessToken');
       const response = await fetch(
@@ -624,15 +741,33 @@ export const ICashBuyPage = ({ navigation }: any) => {
             amount: numericAmount,
             currency: currencyData.code,
             userId: user.uid,
+            paymentToken: selectedMethod.paymentToken,
+            methodType: selectedMethod.method, // 'card' or 'bank'
           }),
         },
       );
       const data = await response.json();
-      navigation.navigate('FlutterwaveWebview', {
-        url: data.authorization_url,
+      if (data.status === 'success') {
+        if (data.authorization_url) {
+          navigation.navigate('FlutterwaveWebview', {
+            url: data.authorization_url,
+          });
+        } else {
+          navigation.navigate('SuccessScreen');
+        }
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Payment Initialization Failed',
+          text2: data.message,
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Payment Initialization Failed',
+        text2: error.message,
       });
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'Payment Initialization Failed' });
     }
   };
   return (
@@ -699,7 +834,11 @@ export const ICashBuyPage = ({ navigation }: any) => {
           disabled={!amount || parseFloat(amount) <= 0}
         >
           <Text style={styles.buyBtnText}>
-            {hasPaymentMethod ? 'Complete Purchase' : 'Add Payment Method'}
+            {!hasPaymentMethod
+              ? 'Add Payment Method'
+              : !selectedMethod
+              ? 'Select a Method'
+              : 'Complete Purchase'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -953,4 +1092,9 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginTop: 2 },
   whiteText: { color: '#FFF' },
   lightText: { color: 'rgba(255, 255, 255, 0.8)' },
+  horizontalScrollPadding: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 15,
+  },
 });

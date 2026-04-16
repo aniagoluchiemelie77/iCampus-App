@@ -61,6 +61,7 @@ import { ICashResetPin } from './src/screens/ICashResetPin.tsx';
 import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
+import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -76,7 +77,7 @@ export type RootStackParamList = {
     email: string;
     firstname: string;
   };
-  ICashBuyPage: { refresh?: boolean } | undefined;
+  ICashBuyPage: { refresh?: boolean };
   CreatePost: { type: 'post' | 'poll' };
   WithdrawPointsScreen: undefined;
   ReceivePointsScreen: undefined;
@@ -108,6 +109,15 @@ export type RootStackParamList = {
     userRole: 'student' | 'lecturer';
     lectures?: Lecture[]; // Optional because not all inlets provide this
     exceptions?: CourseException[];
+  };
+  FlutterwaveWebview: {
+    url: string;
+  };
+  iCashPurchaseSuccessScreen: {
+    refresh: boolean;
+    amountPurchased: number;
+    amountPaid: number; // e.g., 10
+    currency: string;
   };
   Assistant: {
     contextType:
@@ -317,6 +327,11 @@ const App = () => {
             <Stack.Screen
               name="SuspendedScreen"
               component={SuspendedScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="FlutterwaveWebview"
+              component={FlutterwaveWebview}
               options={{ headerShown: false }}
             />
             <Stack.Screen
