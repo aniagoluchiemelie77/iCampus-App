@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,9 @@ import moment from 'moment';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import { useDispatch } from 'react-redux';
+import { useRoute } from '@react-navigation/native';
+import { setUser } from '../components/userSlice';
 
 const ActionButton = ({
   icon,
@@ -39,38 +42,44 @@ const ActionButton = ({
     <Text style={iCashScreenStyles.actionLabel}>{label}</Text>
   </TouchableOpacity>
 );
-export const TransactionHistory = ({ user }: { user: User }) => {
+export const TransactionHistory = ({
+  user,
+  refresh,
+}: {
+  user: User;
+  refresh: boolean;
+}) => {
   const navigation = useNavigation<any>();
   const [history, setHistory] = useState<Transactions[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchICashData = async () => {
-      try {
-        setLoading(true);
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await fetch(
-          `${baseUrl}user/my-transactions/${user.uid}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        const json = await response.json();
-        if (json.success) {
-          setHistory(json.data);
-        }
-      } catch (err: any) {
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: err?.message || 'Could not load transaction details.',
-        });
-      } finally {
-        setLoading(false);
+  const fetchICashData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}user/my-transactions/${user.uid}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const json = await response.json();
+      if (json.success) {
+        setHistory(json.data);
       }
-    };
-    fetchICashData();
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: err?.message || 'Could not load transaction details.',
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [user.uid]);
+  useEffect(() => {
+    fetchICashData();
+  }, [fetchICashData, refresh]);
 
   const groupTransactions = (transactions: Transactions[]) => {
     const groups: { [key: string]: Transactions[] } = {};
@@ -164,6 +173,8 @@ export const TransactionHistory = ({ user }: { user: User }) => {
 };
 export const ICashDashboard = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute();
+  const dispatch = useDispatch();
   const user = useAppSelector(state => state.user);
   const [showBalance, setShowBalance] = useState(true);
   const balance = user.pointsBalance || 0;
@@ -172,6 +183,33 @@ export const ICashDashboard = () => {
   const handleBuy = () => navigation.navigate('ICashBuyPage');
   const handleWithdraw = () => navigation.navigate('Withdraw iCash');
   const handleP2P = () => navigation.navigate('Transfer iCash');
+  const needsRefresh = (route.params as any)?.refresh;
+
+  const refreshUserData = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(`${baseUrl}user/my-profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        dispatch(setUser(data.user));
+      }
+    } catch (e) {
+      console.log('Refresh failed', e);
+    }
+  }, [dispatch]);
+
+  // 2. Now the effect is stable
+  useEffect(() => {
+    if (needsRefresh) {
+      const timer = setTimeout(() => {
+        refreshUserData();
+        navigation.setParams({ refresh: undefined } as any);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [needsRefresh, refreshUserData, navigation]);
   useEffect(() => {
     if (!user.twoFactorEnabled) {
       navigation.navigate('iCash Biometrics');
@@ -239,7 +277,7 @@ export const ICashDashboard = () => {
         />
         <ActionButton icon="send" label="Transfer" onPress={handleP2P} />
       </View>
-      <TransactionHistory user={user} />
+      <TransactionHistory user={user} refresh={!!needsRefresh} />
       <Toast config={toastConfig} />
     </ScrollView>
   );

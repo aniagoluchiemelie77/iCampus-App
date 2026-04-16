@@ -742,7 +742,9 @@ export const ICashBuyPage = ({ navigation }: any) => {
             currency: currencyData.code,
             userId: user.uid,
             paymentToken: selectedMethod.paymentToken,
-            methodType: selectedMethod.method, // 'card' or 'bank'
+            methodType: selectedMethod.method,
+            iCashAmount: iCashEquivalent,
+            country: user.country,
           }),
         },
       );
@@ -753,7 +755,11 @@ export const ICashBuyPage = ({ navigation }: any) => {
             url: data.authorization_url,
           });
         } else {
-          navigation.navigate('SuccessScreen');
+          navigation.navigate('iCashPurchaseSuccessScreen', {
+            amountPurchased: iCashEquivalent,
+            amountPaid: numericAmount,
+            currency: currencyData.code,
+          });
         }
       } else {
         Toast.show({

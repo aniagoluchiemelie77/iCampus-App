@@ -62,7 +62,9 @@ import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
+import { iCashBuySuccessScreen } from './src/screens/iCashPurchaseSuccessScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
+
 
 export type RootStackParamList = {
   SignUp: undefined;
@@ -170,7 +172,7 @@ export type RootStackParamList = {
   };
   SuspendedScreen: { reason: string };
   iCashSecurity: { isRegistration: boolean };
-  ICashDashboard: undefined;
+  ICashDashboard: { refresh?: boolean };
   ICashResetPin: undefined;
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
@@ -339,21 +341,14 @@ const App = () => {
               component={ICashSecurityGateway}
               options={{ headerShown: false }}
             />
-            {/*
-            <Stack.Screen
-              name="AddPaymentMethod"
-              component={AddPaymentMethod}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FlutterwavePayment"
-              component={FlutterwavePayment}
-              options={{ headerShown: false }}
-            />
-            */}
             <Stack.Screen
               name="ICashResetPin"
               component={ICashResetPin}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="iCashPurchaseSuccessScreen"
+              component={iCashBuySuccessScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
