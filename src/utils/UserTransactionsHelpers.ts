@@ -140,3 +140,13 @@ export const validateCVV = (cvv: string): string | null => {
 export const getBin = (cardNumber: string): string => {
   return cardNumber.replace(/\D/g, '').slice(0, 6);
 };
+export const getP2PPrivileges = (plan: 'free' | 'pro' | 'premium') => {
+  return {
+    canSend: true, // Everyone can send
+    canReceive: plan !== 'free',
+    hasQRScanner: true, // Everyone gets the scanner
+    hasQRGenerator: plan === 'pro' || plan === 'premium',
+    hasITags: plan === 'pro' || plan === 'premium',
+    hasNFC: plan === 'premium',
+  };
+};
