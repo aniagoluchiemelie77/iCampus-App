@@ -1,9 +1,8 @@
-import React, { useState, useEffect, FC, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -16,94 +15,24 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
-import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
-import { SvgProps } from 'react-native-svg';
-import DropDownPicker from 'react-native-dropdown-picker';
-import { FLUTTERWAVE_CLIENT_SECRET, FLUTTERWAVE_CLIENT_EKEY } from '@env';
-import {
-  MasterCardLogo,
-  VisaCardLogo,
-  DiscoverCardLogo,
-  AmericanExpressCardLogo,
-  VerveCardLogo,
-} from '../assets/images/Logo';
 import { useRoute } from '@react-navigation/native';
-import {
-  validateExpiryYear,
-  encryptCardDetails,
-  //formatDatePretty,
-  validateExpiryMonth,
-  validateCVV,
-  getBin,
-  fetchCardInfo,
-  formatCardNumber,
-  fetchLiveRate,
-} from '../utils/UserTransactionsHelpers.tsx';
-import { User, UserBankOrCardDetails } from 'types/firebase';
+import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
+import { UserBankOrCardDetails } from 'types/firebase';
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.75;
+import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
+export const CARD_WIDTH = width * 0.75;
 
 interface PaymentMethodCardProps {
   item: UserBankOrCardDetails;
   isSelected: boolean;
   onSelect: () => void;
 }
-interface CardFormProps {
-  cardData: {
-    number: string;
-    brand: string;
-    month: string;
-    year: string;
-    cvv: string;
-    name: string;
-    pin?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    zipcode?: string;
-    country?: string;
-  };
-  setCardData: React.Dispatch<React.SetStateAction<any>>;
-  handleCardChange: (text: string) => Promise<void>;
-  BrandIcon: React.FC<any> | null;
-  requiresPin: boolean;
-  isInternational: boolean;
-}
-interface AddPaymentModalProps {
-  visible: boolean;
-  onClose: () => void;
-  currencyData: {
-    rate: number;
-    code: string;
-  };
-  user: User;
-}
-interface BankFormProps {
-  bankData: {
-    bankCode: string;
-    accountNumber: string;
-    accountName: string;
-  };
-  setBankData: React.Dispatch<React.SetStateAction<any>>;
-  bankItems: { label: string; value: string }[];
-}
-const COUNTRY_CODE_MAP: Record<string, string> = {
-  Nigeria: 'NG',
-  Egypt: 'EG',
-  Ghana: 'GH',
-  Kenya: 'KE',
-  Rwanda: 'RW',
-  Cameroon: 'CM',
-  Ethiopia: 'ET',
-  Uganda: 'UG',
-  'South Africa': 'ZA',
-  'United States of America': 'US',
-};
-const PaymentMethodCard = ({
+
+export const PaymentMethodCard = ({
   item,
   isSelected,
   onSelect,
@@ -112,22 +41,35 @@ const PaymentMethodCard = ({
   return (
     <TouchableOpacity
       onPress={onSelect}
-      style={[styles.card, isSelected && styles.selectedCard]}
+      style={[
+        iCashActionsStyles.card,
+        isSelected && iCashActionsStyles.selectedCard,
+      ]}
     >
-      <View style={styles.iconContainer}>
+      <View style={iCashActionsStyles.iconContainer}>
         <Icon
           name={isCard ? 'card-outline' : 'business-outline'}
           size={24}
           color={isSelected ? '#FFF' : PRIMARY_COLOR}
         />
       </View>
-      <View style={styles.details}>
-        <Text style={[styles.title, isSelected && styles.whiteText]}>
+      <View style={iCashActionsStyles.details}>
+        <Text
+          style={[
+            iCashActionsStyles.title,
+            isSelected && iCashActionsStyles.whiteText,
+          ]}
+        >
           {isCard
             ? `${item.cardBrand} **** ${item.lastFourDigits}`
             : item.bankName}
         </Text>
-        <Text style={[styles.subtitle, isSelected && styles.lightText]}>
+        <Text
+          style={[
+            iCashActionsStyles.subtitle,
+            isSelected && iCashActionsStyles.lightText,
+          ]}
+        >
           {isCard
             ? `Expires ${item.expiryMonth} / ${item.expiryYear}`
             : item.bankAccNumber}
@@ -135,505 +77,6 @@ const PaymentMethodCard = ({
       </View>
       {isSelected && <Icon name="checkmark-circle" size={20} color="#FFF" />}
     </TouchableOpacity>
-  );
-};
-const BankForm = ({ bankData, setBankData, bankItems }: BankFormProps) => {
-  const [openBank, setOpenBank] = useState(false);
-  return (
-    <>
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Select Bank</Text>
-        <DropDownPicker
-          open={openBank}
-          value={bankData.bankCode}
-          items={bankItems}
-          setOpen={setOpenBank}
-          setValue={callback => {
-            const value = callback(bankData.bankCode);
-            setBankData((prev: any) => ({ ...prev, bankCode: value }));
-          }}
-          placeholder="Select your bank"
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-          searchable={true}
-          zIndex={3000}
-        />
-      </View>
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Account Number</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="0123456789"
-          keyboardType="numeric"
-          maxLength={10}
-          value={bankData.accountNumber}
-          onChangeText={text =>
-            setBankData((prev: any) => ({ ...prev, accountNumber: text }))
-          }
-        />
-      </View>
-      {bankData.accountName ? (
-        <View style={styles.accountVerifiedBox}>
-          <Icon name="check-circle" size={16} color={PRIMARY_COLOR} />
-          <Text style={styles.accountNameText}>{bankData.accountName}</Text>
-        </View>
-      ) : null}
-    </>
-  );
-};
-const CardForm = ({
-  cardData,
-  setCardData,
-  handleCardChange,
-  BrandIcon,
-  requiresPin,
-  isInternational,
-}: CardFormProps) => (
-  <>
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>Card Number</Text>
-      <View style={styles.cardInputWrapper}>
-        <TextInput
-          style={styles.flexInput}
-          placeholderTextColor={PRIMARY_COLOR_TINT}
-          placeholder="0000 0000 0000 0000"
-          keyboardType="numeric"
-          value={cardData.number}
-          onChangeText={handleCardChange}
-        />
-        {BrandIcon && <BrandIcon width={32} height={20} />}
-      </View>
-    </View>
-    <View style={styles.row}>
-      <View style={[styles.inputGroup, { flex: 2, marginRight: 10 }]}>
-        <Text style={styles.label}>Expiry Date</Text>
-        <View style={styles.expiryWrapper}>
-          <TextInput
-            style={styles.smallInput}
-            placeholder="MM"
-            keyboardType="numeric"
-            onChangeText={v => setCardData({ ...cardData, month: v })}
-          />
-          <Text style={styles.divider}>/</Text>
-          <TextInput
-            style={styles.smallInput}
-            placeholder="YY"
-            keyboardType="numeric"
-            onChangeText={v => setCardData({ ...cardData, year: v })}
-          />
-        </View>
-      </View>
-      <View style={[styles.inputGroup, { flex: 1 }]}>
-        <Text style={styles.label}>CVV</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="123"
-          placeholderTextColor={PRIMARY_COLOR_TINT}
-          secureTextEntry
-          keyboardType="numeric"
-          onChangeText={v => setCardData({ ...cardData, cvv: v })}
-        />
-      </View>
-      {requiresPin && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Card PIN</Text>
-          <TextInput
-            style={styles.input}
-            placeholderTextColor={PRIMARY_COLOR_TINT}
-            placeholder="****"
-            secureTextEntry
-            maxLength={4}
-            keyboardType="numeric"
-          />
-        </View>
-      )}
-    </View>
-    {isInternational && (
-      <View style={{ marginTop: 20 }}>
-        <Text
-          style={[
-            styles.label,
-            { marginBottom: 10, color: PRIMARY_COLOR_TINT },
-          ]}
-        >
-          Billing Address (Required for International Cards)
-        </Text>
-        <View style={styles.inputGroup}>
-          <TextInput
-            style={styles.input}
-            placeholder="Street Address"
-            placeholderTextColor={PRIMARY_COLOR_TINT}
-            value={cardData.address}
-            onChangeText={v => setCardData({ ...cardData, address: v })}
-          />
-        </View>
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-            <TextInput
-              style={styles.input}
-              placeholder="City"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              value={cardData.city}
-              onChangeText={v => setCardData({ ...cardData, city: v })}
-            />
-          </View>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-            <TextInput
-              style={styles.input}
-              placeholder="State/Province"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              value={cardData.state}
-              onChangeText={v => setCardData({ ...cardData, state: v })}
-            />
-          </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <TextInput
-              style={styles.input}
-              placeholder="Zip Code"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              keyboardType="numeric"
-              value={cardData.zipcode}
-              onChangeText={v => setCardData({ ...cardData, zipcode: v })}
-            />
-          </View>
-        </View>
-      </View>
-    )}
-  </>
-);
-export const AddPaymentModal = ({
-  visible,
-  onClose,
-  currencyData,
-  user,
-}: AddPaymentModalProps) => {
-  const navigation = useNavigation<any>();
-  const [activeTab, setActiveTab] = useState<'card' | 'bank'>('card');
-  const [isLoading, setIsLoading] = useState(false);
-  const [requiresPin, setRequiresPin] = useState(false);
-  const [cardData, setCardData] = useState({
-    number: '',
-    brand: '',
-    month: '',
-    year: '',
-    cvv: '',
-    name: '',
-    pin: '',
-    address: '',
-    city: '',
-    state: '',
-    zipcode: '',
-    country: '',
-  });
-  const [bankData, setBankData] = useState({
-    bankCode: '',
-    accountNumber: '',
-    accountName: '',
-  });
-  const [bankItems, setBankItems] = useState<
-    { label: string; value: string }[]
-  >([]);
-  const handleLinkCard = async () => {
-    const { number, month, year, cvv, name, pin } = cardData;
-    const monthErr = validateExpiryMonth(month);
-    const yearErr = validateExpiryYear(year);
-    const cvvErr = validateCVV(cvv);
-    if (monthErr || yearErr || cvvErr) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: (monthErr || yearErr || cvvErr) ?? undefined,
-      });
-      return;
-    }
-    setIsLoading(true);
-    const cardObject = JSON.stringify({
-      card_number: number.replace(/\s/g, ''),
-      cvv: cvv,
-      expiry_month: month,
-      expiry_year: year,
-      pin: pin,
-      billing_address: cardData.address,
-      billing_city: cardData.city,
-      billing_state: cardData.state,
-      billing_zip: cardData.zipcode,
-      billing_country: cardData.country || 'US',
-    });
-    const encryptedData = encryptCardDetails(
-      FLUTTERWAVE_CLIENT_EKEY,
-      cardObject,
-    );
-    try {
-      const payload = {
-        client: encryptedData,
-        currency: currencyData.code || 'NGN',
-        amount: '50',
-        fullname:
-          name ||
-          `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim() ||
-          'Guest User',
-        email: user?.email,
-        tx_ref: `link-card-${Date.now()}`,
-        meta: {
-          userId: user.uid,
-          purpose: 'linking_card',
-        },
-        authorization: {
-          mode: isInternational ? 'avs_noauth' : 'pin',
-        },
-      };
-      const response = await fetch(
-        'https://api.flutterwave.com/v3/charges?type=card',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-      const result = await response.json();
-      if (result.status === 'success') {
-        if (result.meta?.authorization?.mode === 'otp') {
-          navigation.navigate('VerifyOTP', {
-            flw_ref: result.data.flw_ref,
-            type: 'card_linking',
-          });
-        } else if (result.meta?.authorization?.mode === 'redirect') {
-          navigation.navigate('FlutterwaveWebview', {
-            url: result.meta.authorization.redirect,
-          });
-        }
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Linking Failed',
-          text2: result.message,
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Linking Failed',
-        text2: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const handleLinkBank = async () => {
-    const { bankCode, accountNumber } = bankData;
-    const countryCode = COUNTRY_CODE_MAP[user?.country || 'Nigeria'] || 'NG';
-    let isValidAccount = false;
-    if (countryCode === 'NG') {
-      isValidAccount = accountNumber.length === 10;
-    } else if (countryCode === 'GH' || countryCode === 'KE') {
-      isValidAccount = accountNumber.length >= 8 && accountNumber.length <= 15;
-    } else {
-      isValidAccount = accountNumber.length > 5;
-    }
-    if (!bankCode || !isValidAccount) {
-      Toast.show({
-        type: 'error',
-        text1: 'Invalid Details',
-        text2: `Please enter a valid account number for ${
-          user?.country || 'your country'
-        }.`,
-      });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const payload = {
-        account_bank: bankCode,
-        account_number: accountNumber,
-        amount: 50,
-        currency: currencyData.code || 'NGN',
-        email: user?.email,
-        fullname: `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim(),
-        tx_ref: `iCampus-BANK-LINK-${Date.now()}`,
-        type: 'account',
-        meta: {
-          userId: user.uid,
-          purpose: 'linking_bank',
-        },
-      };
-      const response = await fetch(
-        'https://api.flutterwave.com/v3/charges?type=account',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const result = await response.json();
-
-      if (result.status === 'success') {
-        if (result.meta?.authorization?.mode === 'otp') {
-          navigation.navigate('VerifyOTP', {
-            flw_ref: result.data.flw_ref,
-            type: 'bank_linking',
-          });
-        } else if (result.meta?.authorization?.mode === 'redirect') {
-          navigation.navigate('FlutterwaveWebview', {
-            url: result.meta.authorization.redirect,
-          });
-        }
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Bank Linking Failed',
-          text2: result.message,
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Bank Linking Failed',
-        text2: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const handleCardChange = async (text: string) => {
-    const formatted = formatCardNumber(text);
-    setCardData(prev => ({ ...prev, number: formatted }));
-    const cleanNumber = formatted.replace(/\s/g, '');
-    if (cleanNumber.length === 6) {
-      const bin = getBin(cleanNumber);
-      const data = await fetchCardInfo(bin);
-
-      if (data) {
-        const detectedBrand = data.scheme?.toUpperCase();
-        setCardData(prev => ({ ...prev, brand: detectedBrand }));
-        if (detectedBrand === 'VERVE' || detectedBrand === 'MAESTRO') {
-          setRequiresPin(true);
-        }
-      }
-    }
-  };
-  const cardBrandLogos: Record<string, FC<SvgProps>> = {
-    VISA: VisaCardLogo,
-    MASTERCARD: MasterCardLogo,
-    VERVE: VerveCardLogo,
-    MAESTRO: VerveCardLogo,
-    'AMERICAN EXPRESS': AmericanExpressCardLogo,
-    DISCOVER: DiscoverCardLogo,
-  };
-  useEffect(() => {
-    const fetchBanks = async () => {
-      if (!user?.country) return;
-      const countryCode = COUNTRY_CODE_MAP[user.country] || 'NG';
-      try {
-        const res = await fetch(
-          `https://api.flutterwave.com/v3/banks/${countryCode}`,
-          {
-            headers: { Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}` },
-          },
-        );
-        const json = await res.json();
-        if (json.status === 'success') {
-          const formattedBanks = json.data.map((bank: any) => ({
-            label: bank.name,
-            value: bank.code,
-          }));
-          setBankItems(formattedBanks);
-        }
-      } catch (err) {
-        console.error('Bank fetch failed:', err);
-      }
-    };
-    fetchBanks();
-  }, [user?.country]);
-  const BrandIcon = cardData.brand ? cardBrandLogos[cardData.brand] : null;
-  const isInternational = user?.country !== 'Nigeria';
-  return (
-    <Modal visible={visible} animationType="slide">
-      <View style={styles.container}>
-        <PageHeader
-          title="Add Payment Method"
-          showBackButton={false}
-          rightElement={
-            <Icon
-              name="close"
-              size={28}
-              onPress={onClose}
-              color={PRIMARY_COLOR}
-            />
-          }
-        />
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'card' && styles.activeTab]}
-            onPress={() => setActiveTab('card')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'card' && styles.activeTabText,
-              ]}
-            >
-              CARD
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'bank' && styles.activeTab]}
-            onPress={() => setActiveTab('bank')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'bank' && styles.activeTabText,
-              ]}
-            >
-              BANK
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView contentContainerStyle={styles.formContent}>
-          {activeTab === 'card' ? (
-            <CardForm
-              cardData={cardData}
-              setCardData={setCardData}
-              handleCardChange={handleCardChange}
-              BrandIcon={BrandIcon}
-              requiresPin={requiresPin}
-              isInternational={isInternational}
-            />
-          ) : (
-            <BankForm
-              bankData={bankData}
-              setBankData={setBankData}
-              bankItems={bankItems}
-            />
-          )}
-
-          <TouchableOpacity
-            style={[styles.submitBtn, isLoading && { opacity: 0.7 }]}
-            onPress={() => {
-              if (activeTab === 'card') {
-                handleLinkCard();
-              } else {
-                handleLinkBank();
-              }
-            }}
-            disabled={isLoading}
-          >
-            <Text style={styles.submitBtnText}>
-              {isLoading
-                ? 'Processing...'
-                : `Link ${activeTab === 'card' ? 'Card' : 'Account'}`}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    </Modal>
   );
 };
 export const ICashBuyPage = ({ navigation }: any) => {
@@ -777,39 +220,39 @@ export const ICashBuyPage = ({ navigation }: any) => {
     }
   };
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={iCashActionsStyles.container}>
       <PageHeader title="Buy iCash" />
-      <View style={styles.bodyContainer}>
-        <Text style={styles.label}>Enter Amount to Buy</Text>
-        <View style={styles.inputContainer}>
-          <Text style={styles.currencyPrefix}>{localCurrency}</Text>
+      <View style={iCashActionsStyles.bodyContainer}>
+        <Text style={iCashActionsStyles.label}>Enter Amount to Buy</Text>
+        <View style={iCashActionsStyles.inputContainer}>
+          <Text style={iCashActionsStyles.currencyPrefix}>{localCurrency}</Text>
           <TextInput
-            style={styles.inputBorderless}
+            style={iCashActionsStyles.inputBorderless}
             placeholder="0.00"
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
           />
         </View>
-        <View style={styles.exchangeCard}>
-          <View style={styles.exchangeRow}>
-            <Text style={styles.exchangeText}>Exchange Rate</Text>
-            <Text style={styles.exchangeValue}>
+        <View style={iCashActionsStyles.exchangeCard}>
+          <View style={iCashActionsStyles.exchangeRow}>
+            <Text style={iCashActionsStyles.exchangeText}>Exchange Rate</Text>
+            <Text style={iCashActionsStyles.exchangeValue}>
               1 iCash ≈ {localCurrency}
               {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
             </Text>
           </View>
-          <View style={styles.divider} />
-          <Text style={styles.resultLabel}>You will receive:</Text>
-          <View style={styles.resultDiv}>
+          <View style={iCashActionsStyles.divider} />
+          <Text style={iCashActionsStyles.resultLabel}>You will receive:</Text>
+          <View style={iCashActionsStyles.resultDiv}>
             <Icon name="diamond" size={26} color={PRIMARY_COLOR} />
           </View>
-          <Text style={styles.resultValue}>{iCashEquivalent}</Text>
+          <Text style={iCashActionsStyles.resultValue}>{iCashEquivalent}</Text>
         </View>
         {!hasPaymentMethod && (
-          <View style={styles.warningBox}>
+          <View style={iCashActionsStyles.warningBox}>
             <Icon name="alert-circle" size={20} color={PRIMARY_COLOR} />
-            <Text style={styles.warningText}>
+            <Text style={iCashActionsStyles.warningText}>
               You haven't added a payment method. Please add a bank account or
               card to continue.
             </Text>
@@ -818,7 +261,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScrollPadding}
+          contentContainerStyle={iCashActionsStyles.horizontalScrollPadding}
           snapToInterval={CARD_WIDTH + 15} // Card width + margin
           decelerationRate="fast"
         >
@@ -833,13 +276,13 @@ export const ICashBuyPage = ({ navigation }: any) => {
         </ScrollView>
         <TouchableOpacity
           style={[
-            styles.buyBtn,
+            iCashActionsStyles.buyBtn,
             (!amount || parseFloat(amount) <= 0) && { opacity: 0.5 },
           ]}
           onPress={handleProceed}
           disabled={!amount || parseFloat(amount) <= 0}
         >
-          <Text style={styles.buyBtnText}>
+          <Text style={iCashActionsStyles.buyBtnText}>
             {!hasPaymentMethod
               ? 'Add Payment Method'
               : !selectedMethod
@@ -858,7 +301,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
     </ScrollView>
   );
 };
-const styles = StyleSheet.create({
+export const iCashActionsStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -961,43 +404,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    margin: 20,
-    backgroundColor: '#fadccc',
-    borderRadius: 12,
-    padding: 4,
-  },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 },
-  activeTab: {
-    backgroundColor: PRIMARY_COLOR_TINT,
-    elevation: 2,
-    shadowOpacity: 0.1,
-  },
-  tabText: { fontWeight: '700', color: '#2222', fontSize: 12 },
-  activeTabText: { color: PRIMARY_COLOR },
-  formContent: { paddingHorizontal: 20 },
-  inputGroup: { marginBottom: 20 },
-  cardInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 55,
-  },
   flexInput: { flex: 1, fontSize: 16, fontWeight: '600', color: '#2222' },
-  input: {
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 55,
-    fontSize: 16,
-    color: '#2222',
-    fontWeight: '600',
-  },
   inputBorderless: {
     borderRadius: 12,
     paddingHorizontal: 15,
@@ -1006,30 +413,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   row: { flexDirection: 'row' },
-  expiryWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    height: 55,
-  },
-  smallInput: {
-    textAlign: 'center',
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2222',
-  },
-  submitBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 40,
-  },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   bodyContainer: {
     paddingHorizontal: 16,
@@ -1037,31 +420,6 @@ const styles = StyleSheet.create({
   resultDiv: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-  },
-  dropdown: {
-    borderColor: '#fadccc',
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  dropdownContainer: {
-    borderColor: '#fadccc',
-  },
-  accountVerifiedBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fadccc',
-    borderLeftColor: PRIMARY_COLOR,
-    borderTopLeftRadius: 1,
-    padding: 12,
-    borderRadius: 10,
-    marginTop: -10,
-    marginBottom: 20,
-  },
-  accountNameText: {
-    color: PRIMARY_COLOR,
-    fontWeight: '700',
-    marginLeft: 8,
-    fontSize: 14,
   },
   card: {
     width: CARD_WIDTH,
@@ -1102,5 +460,125 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    color: PRIMARY_COLOR_TINT,
+    fontWeight: 'bold',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
+  detailRowText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2222',
+  },
+  detailRowSubrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  totalRow: { borderBottomWidth: 0, marginTop: 10 },
+  totalText: { fontWeight: 'bold', fontSize: 15, color: PRIMARY_COLOR },
+  payBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+    width: '100%',
+  },
+  payBtnText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  pinInput: {
+    letterSpacing: 20,
+    fontSize: 24,
+    textAlign: 'center',
+    padding: 20,
+  },
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+  pressableArea: {
+    width: '100%',
+    alignItems: 'center',
+    marginVertical: 15,
+  },
+  pinRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 15,
+  },
+  dot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR_TINT,
+    backgroundColor: 'transparent',
+  },
+  dotFilled: {
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
+  },
+  dotActive: {
+    borderColor: PRIMARY_COLOR,
+  },
+  pinActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  iconBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconBtnText: {
+    color: PRIMARY_COLOR,
+    fontWeight: '600',
+  },
+  forgotText: {
+    color: PRIMARY_COLOR,
+    fontSize: 14,
+  },
+  pinContainer: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
+  pinSubtitle: {
+    fontSize: 14,
+    color: PRIMARY_COLOR_TINT,
+    marginBottom: 10,
+    textAlign: 'center',
   },
 });

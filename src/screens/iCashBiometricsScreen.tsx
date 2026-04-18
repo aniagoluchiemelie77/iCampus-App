@@ -55,27 +55,26 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
 };
 
   const handleBiometricAuth = useCallback(async () => {
-  const { available, biometryType } = await rnBiometrics.isSensorAvailable();
-  const isHardwareReady = 
-    available && (
-      biometryType === BiometryTypes.FaceID || 
-      biometryType === BiometryTypes.TouchID || 
-      biometryType === BiometryTypes.Biometrics
-    );
+    const { available, biometryType } = await rnBiometrics.isSensorAvailable();
+    const isHardwareReady =
+      available &&
+      (biometryType === BiometryTypes.FaceID ||
+        biometryType === BiometryTypes.TouchID ||
+        biometryType === BiometryTypes.Biometrics);
 
-  if (isHardwareReady) {
-    try {
-      const { success } = await rnBiometrics.simplePrompt({
-        promptMessage: 'Confirm identity to unlock iCash',
-      });
-      if (success) navigation.replace('ICashDashboard');
-    } catch (error) {
-      console.log('Biometric cancelled');
+    if (isHardwareReady) {
+      try {
+        const { success } = await rnBiometrics.simplePrompt({
+          promptMessage: 'Confirm identity to unlock iCash',
+        });
+        if (success) navigation.replace('ICashDashboard', { refresh: true });
+      } catch (error) {
+        console.log('Biometric cancelled');
+      }
+    } else {
+      console.log('Biometrics not supported or not enrolled');
     }
-  } else {
-    console.log('Biometrics not supported or not enrolled');
-  }
-}, [navigation]);
+  }, [navigation]);
 
   const handleRegistrationFlow = (finalPin: string) => {
     if (!isConfirming) {
@@ -90,7 +89,11 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       } else {
         triggerShake();
         setPin('');
-        Toast.show({ type: 'error', text1: 'Mismatch', text2: 'PINs do not match. Try again.' });
+        Toast.show({
+          type: 'error',
+          text1: 'Mismatch',
+          text2: 'PINs do not match. Try again.',
+        });
         setIsConfirming(false);
         setConfirmPin('');
       }
@@ -101,16 +104,20 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       const token = await AsyncStorage.getItem('accessToken');
       const response = await fetch(`${baseUrl}user/setup-icash-pin`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ pin: finalPin }),
       });
 
       if (response.ok) {
-        Toast.show({ type: 'success', text1: 'Secure', text2: 'iCash PIN created successfully!' });
-        navigation.replace('ICashDashboard');
+        Toast.show({
+          type: 'success',
+          text1: 'Secure',
+          text2: 'iCash PIN created successfully!',
+        });
+        navigation.replace('ICashDashboard', { refresh: true });
       }
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to set PIN' });
@@ -118,57 +125,80 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   };
   const getHeaderTitle = () => {
     if (!isRegistration) return 'iCash Security PIN';
-    return isConfirming ? 'Confirm your iCash Security PIN' : 'Create iCash Security PIN';
+    return isConfirming
+      ? 'Confirm your iCash Security PIN'
+      : 'Create iCash Security PIN';
   };
 
   const getSubtitle = () => {
-    if (isRegistration) return isConfirming ? 'Please re-enter your PIN to confirm' : 'Create 6-Digit login PIN for your iCash transactions';
-    return attempts > 0 ? `${5 - attempts} attempts remaining` : 'Enter 6-Digit iCash Security PIN';
+    if (isRegistration)
+      return isConfirming
+        ? 'Please re-enter your PIN to confirm'
+        : 'Create 6-Digit login PIN for your iCash transactions';
+    return attempts > 0
+      ? `${5 - attempts} attempts remaining`
+      : 'Enter 6-Digit iCash Security PIN';
   };
 
   const triggerShake = () => {
     Animated.sequence([
-      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: -10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 0,
+        duration: 50,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
   const handleSuspension = () => {
-     navigation.navigate('SuspendedScreen', { reason: 'Too many PIN attempts' });
+    navigation.navigate('SuspendedScreen', { reason: 'Too many PIN attempts' });
   };
   const verifyPin = async (finalPin: string) => {
-  try {
-    const token = await AsyncStorage.getItem('accessToken');
-    const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
-      body: JSON.stringify({ pin: finalPin }),
-    });
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pin: finalPin }),
+      });
 
-    const json = await response.json();
+      const json = await response.json();
 
-    if (response.ok) {
-      navigation.replace('ICashDashboard');
-    } else {
-      triggerShake();
-      setShowResetPin(true)
-      setPin('');      
-      if (json.attemptsRemaining !== undefined) {
-        setAttempts(MAX_ATTEMPTS - json.attemptsRemaining);
+      if (response.ok) {
+        navigation.replace('ICashDashboard', { refresh: true });
+      } else {
+        triggerShake();
+        setShowResetPin(true);
+        setPin('');
+        if (json.attemptsRemaining !== undefined) {
+          setAttempts(MAX_ATTEMPTS - json.attemptsRemaining);
+        }
+        Toast.show({ type: 'error', text1: 'Security', text2: json.message });
+        if (json.isSuspended || response.status === 403) {
+          handleSuspension();
+        }
       }
-      Toast.show({ type: 'error', text1: 'Security', text2: json.message });
-      if (json.isSuspended || response.status === 403) {
-        handleSuspension();
-      }
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Connection failed' });
     }
-  } catch (err) {
-    Toast.show({ type: 'error', text1: 'Error', text2: 'Connection failed' });
-  }
-};
+  };
   useEffect(() => {
     if (!isRegistration) {
       handleBiometricAuth();
