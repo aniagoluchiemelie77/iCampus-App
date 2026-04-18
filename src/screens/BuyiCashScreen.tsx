@@ -198,10 +198,11 @@ export const ICashBuyPage = ({ navigation }: any) => {
             url: data.authorization_url,
           });
         } else {
-          navigation.navigate('iCashPurchaseSuccessScreen', {
+          navigation.navigate('iCashSuccessScreen', {
             amountPurchased: iCashEquivalent,
             amountPaid: numericAmount,
             currency: currencyData.code,
+            type: 'buy',
           });
         }
       } else {

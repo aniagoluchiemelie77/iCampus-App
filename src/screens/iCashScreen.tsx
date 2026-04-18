@@ -181,7 +181,7 @@ export const ICashDashboard = () => {
   const [integer, decimal] = balance.toFixed(2).split('.');
 
   const handleBuy = () => navigation.navigate('ICashBuyPage');
-  const handleWithdraw = () => navigation.navigate('Withdraw iCash');
+  const handleWithdraw = () => navigation.navigate('ICashWithdrawPage');
   const handleP2P = () => navigation.navigate('Transfer iCash');
   const needsRefresh = (route.params as any)?.refresh;
 

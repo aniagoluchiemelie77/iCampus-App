@@ -6,16 +6,28 @@ import {
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
 
-export const iCashBuySuccessScreen = ({ route, navigation }: any) => {
-  const { amountPurchased, amountPaid, currency } = route.params;
+export const iCashSuccessScreen = ({ route, navigation }: any) => {
+  const { amountPurchased, amountPaid, currency, type, amount, payout } =
+    route.params;
+  const isWithdraw = type === 'withdraw';
+  const successTitle = isWithdraw
+    ? 'Withdrawal Initialized!'
+    : 'Purchase Successful!';
+  const mainLabel = isWithdraw ? 'iCash Debited' : 'iCash Credited';
+  const subLabel = isWithdraw ? 'Amount to Receive' : 'Amount Paid';
   return (
     <View style={styles.container}>
       <View style={styles.iconCircle}>
-        <Icon name="checkmark" size={85} color="#FFF" />
+        <Icon
+          name={isWithdraw ? 'paper-plane-outline' : 'checkmark'}
+          size={85}
+          color="#FFF"
+        />
       </View>
 
-      <Text style={styles.title}>Purchase Successful!</Text>
+      <Text style={styles.title}>{successTitle}</Text>
       <View style={styles.amountContainer}>
+        <Text style={styles.miniLabel}>{mainLabel}</Text>
         <View style={styles.diamondRow}>
           <Icon
             name="diamond"
@@ -24,15 +36,19 @@ export const iCashBuySuccessScreen = ({ route, navigation }: any) => {
             style={{ marginRight: 8 }}
           />
           <Text style={styles.amountValue}>
-            {amountPurchased.toLocaleString()}
+            {isWithdraw ? '-' : ''}
+            {isWithdraw
+              ? amount.toLocaleString()
+              : amountPurchased.toLocalString()}
           </Text>
         </View>
       </View>
       <View style={styles.receiptContainer}>
         <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Amount Paid</Text>
+          <Text style={styles.receiptLabel}>{subLabel}</Text>
           <Text style={styles.receiptValue}>
-            {currency} {amountPaid}
+            {currency}
+            {isWithdraw ? payout.toLocaleString() : amountPaid}
           </Text>
         </View>
       </View>
@@ -76,8 +92,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: '100%',
     alignItems: 'center',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     marginBottom: 20,
   },
   diamondRow: { flexDirection: 'row', alignItems: 'center' },
@@ -104,6 +118,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   buttonText: { color: '#FFF', fontSize: 18, fontWeight: '600' },
+  miniLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    color: PRIMARY_COLOR,
+    marginBottom: 5,
+  },
 });
 
-export default iCashBuySuccessScreen;

@@ -43,7 +43,7 @@ import Notifications from './src/screens/Notifications';
 import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
 import { ICashBuyPage } from './src/screens/BuyiCashScreen.tsx';
-import WithdrawPointsScreen from './src/screens/WithdrawPoints';
+import { ICashWithdrawPage } from './src/screens/WithdrawiCashScreen.tsx';
 import TransferPointsScreen from './src/screens/TransferPoints';
 import ReceivePointsScreen from './src/screens/ReceivePoints';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
@@ -62,7 +62,7 @@ import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
-import { iCashBuySuccessScreen } from './src/screens/iCashPurchaseSuccessScreen.tsx';
+import { iCashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -81,7 +81,7 @@ export type RootStackParamList = {
   };
   ICashBuyPage: { refresh?: boolean };
   CreatePost: { type: 'post' | 'poll' };
-  WithdrawPointsScreen: undefined;
+  ICashWithdrawPage: undefined;
   ReceivePointsScreen: undefined;
   TransferPointsScreen: undefined;
   Notifications: undefined;
@@ -115,11 +115,14 @@ export type RootStackParamList = {
   FlutterwaveWebview: {
     url: string;
   };
-  iCashPurchaseSuccessScreen: {
+  iCashSuccessScreen: {
     refresh: boolean;
     amountPurchased: number;
-    amountPaid: number; // e.g., 10
+    amountPaid: number;
     currency: string;
+    type: 'withdraw' | 'buy';
+    amount: number;
+    payout: number;
   };
   Assistant: {
     contextType:
@@ -266,8 +269,8 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="WithdrawPointsScreen"
-              component={WithdrawPointsScreen}
+              name="ICashWithdrawPage"
+              component={ICashWithdrawPage}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -347,8 +350,8 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="iCashPurchaseSuccessScreen"
-              component={iCashBuySuccessScreen}
+              name="iCashSuccessScreen"
+              component={iCashSuccessScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
