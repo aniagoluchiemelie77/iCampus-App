@@ -22,16 +22,18 @@ import {
 import {
   PRIMARY_COLOR,
 } from '@components/Classroomcomponent';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 //import Toast from 'react-native-toast-message';
 //import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
 //import ReactNativeBiometrics from 'react-native-biometrics';
-import {getP2PPrivileges} from '../utils/UserTransactionsHelpers';
+import { getP2PPrivileges } from '../utils/UserTransactionsHelpers';
 
 export const IcashP2PScreen = ({ user }: { user: any }) => {
   const privileges = getP2PPrivileges(user.plan);
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
+  const navigation = useNavigation<any>();
 
   return (
     <View style={styles.container}>
@@ -90,37 +92,29 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
             {/* 1. SCANNER (Visible to all) */}
             <FeatureCard
               title="Scan QR Code"
-              icon="qr-code-outline"
+              sub="Scan to pay instantly"
+              icon="qrcode-scan"
               onPress={() => navigation.navigate('Scanner')}
             />
 
-            {/* 2. ITAGS (Locked for Free) */}
             <FeatureCard
               title="Send via iTag"
-              icon="at-outline"
+              sub="Search @username"
+              icon="at"
               locked={!privileges.hasITags}
-              onPress={() => navigation.navigate('ITagSearch')}
+              onPress={() => {
+                if (privileges.hasITags) {
+                  navigation.navigate('ITagSearch');
+                } else {
+                  setUpgradeModalVisible(true); // Open your pricing modal
+                }
+              }}
             />
           </View>
         ) : (
-          <View>
-            {/* 4. NFC (Premium Only) */}
-            {privileges.hasNFC && (
-              <View style={styles.nfcSection}>
-                <Text style={styles.label}>NFC iTag Pairing</Text>
-                <TouchableOpacity style={styles.nfcButton}>
-                  <Icon
-                    name="infinite-outline"
-                    size={30}
-                    color={PRIMARY_COLOR}
-                  />
-                  <Text>Tap to pair personalized NFC iTag</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            {/* 3. QR GENERATOR (Pro/Premium) */}
+          <>
             <MyQRCodeSection user={user} />
-          </View>
+          </>
         )}
       </ScrollView>
     </View>

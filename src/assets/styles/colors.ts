@@ -1555,7 +1555,8 @@ export const homeStyles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff', // Pure white for a cleaner look
+    backgroundColor: '#fff', 
+    position: 'relative'
   },
   centerContent: {
     flex: 1,
@@ -1565,19 +1566,21 @@ export const homeStyles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 10,
-    backgroundColor: '#fff',
-    // Adds a soft shadow for iOS/Android
+    backgroundColor: '#fadccc',
+    position: 'absolute',
+    bottom: 8,
+    left: 2,
+    right: 2,
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    marginBottom: 8,
-    marginHorizontal: 5,
+    marginTop: 6,
     borderRadius: 8,
     borderWidth: .8,
-    borderColor: '#fb966bff',
-    zIndex: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    zIndex: 2,
   },
   iconItem: {
     alignItems: 'center',
@@ -1585,13 +1588,13 @@ export const homeStyles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   activeIconItem: {
-    backgroundColor: '#eb7e4f',
+    backgroundColor: PRIMARY_COLOR_TINT,
   },
   activeIconLabel: {
     fontWeight: '700',
-    fontSize: 12,
-    color: '#eb7e4f',
-    marginTop: 8, // Space between icon and text
+    fontSize: 11,
+    color: PRIMARY_COLOR,
+    marginTop: 4, 
   },
   header: {
     marginTop: 5,

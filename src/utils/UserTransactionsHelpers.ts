@@ -150,3 +150,4 @@ export const getP2PPrivileges = (plan: 'free' | 'pro' | 'premium') => {
     hasNFC: plan === 'premium',
   };
 };
+

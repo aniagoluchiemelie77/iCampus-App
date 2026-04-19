@@ -775,7 +775,7 @@ export const LiveClassSessionStyles = StyleSheet.create({
     bottom: 15,
     width: 90,
     height: 90,
-    borderRadius: 45, 
+    borderRadius: 45,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     elevation: 8,
@@ -795,9 +795,9 @@ export const LiveClassSessionStyles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  otherSection:{
+  otherSection: {
     alignSelf: 'flex-end',
-    width: '100%'
+    width: '100%',
   },
   smallBadge: {
     position: 'absolute',
@@ -1091,6 +1091,7 @@ export const LiveClassSessionStyles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     width: '80%',
+    zIndex: 10,
   },
   modalTitle: {
     fontSize: 18,
@@ -1198,6 +1199,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
-    marginBottom: 4
+    marginBottom: 4,
   },
 });

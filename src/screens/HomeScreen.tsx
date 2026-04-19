@@ -29,6 +29,7 @@ import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from 'types/firebase';
+import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 export interface SocketContextType {
@@ -209,7 +210,7 @@ const HomeScreen = () => {
             <Icon
               name={activeIcon === 'home' ? 'home' : 'home-outline'}
               size={26}
-              color={activeIcon === 'home' ? '#fb966b' : '#032820'}
+              color={activeIcon === 'home' ? PRIMARY_COLOR : '#2222'}
             />
             {activeIcon === 'home' && (
               <Text style={homeStyles.activeIconLabel}>Home</Text>

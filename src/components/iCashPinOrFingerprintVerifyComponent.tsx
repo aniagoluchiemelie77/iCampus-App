@@ -104,15 +104,12 @@ export const IcashPinOrFingerprintVerifyModal = ({navigation, isVisible, onSucce
       });
     }
   };
-
   useEffect(() => {
     if (isVisible) {
-        setPin('');
-        handleBiometricAuth();
+      setPin('');
+      handleBiometricAuth();
     }
   }, [isVisible, handleBiometricAuth]);
-
-  // Render your existing JSX here...
   return (
     <Modal
         visible={isVisible}

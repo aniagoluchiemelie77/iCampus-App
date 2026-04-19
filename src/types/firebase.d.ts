@@ -742,3 +742,21 @@ export interface Book {
   downloadUrl: string;
   year?: string;
 }
+export interface ITag {
+  userId: string;
+  username: string;
+  cardHolderName: string;
+  cardNumber: string; // Masked or full: "3021 **** **** ****"
+  expiryDate: string; // "04/28"
+  layoutType: 'modern';
+  tier: 'pro' | 'premium' | 'free';
+  designOptions: {
+    backgroundColor: string; 
+    backgroundImage?: string; 
+    glassmorphismOpacity: number; 
+    accentColor: string; 
+  };
+  cardBrand: 'mastercard' | 'visa' | 'verve' | 'discover' | 'american express';
+  isDefault: boolean;
+  createdAt: Date;
+}
