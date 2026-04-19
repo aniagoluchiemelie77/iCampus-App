@@ -10,13 +10,15 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import {
-  Camera,
-  useCameraDevices,
-  useFrameProcessor,
-} from 'react-native-vision-camera';
+import { useNavigation } from '@react-navigation/native';
+import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
+import { Camera, useFrameProcessor } from 'react-native-vision-camera';
+import { useCameraDevice } from 'react-native-vision-camera';
 import { scanBarcodes, BarcodeFormat } from 'vision-camera-code-scanner';
-import Animated, { ScaleInCenter, FadeOutDown } from 'react-native-reanimated';
+import { useAppSelector } from '../components/hooks';
+import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
+// @ts-ignore: runOnJS is deprecated in Reanimated but stable for Vision Camera
+import { runOnJS } from 'react-native-reanimated';
 import { baseUrl } from '../components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -24,14 +26,27 @@ import {
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-//import Toast from 'react-native-toast-message';
-//import toastConfig from '@components/ToastConfig';
+import Toast from 'react-native-toast-message';
+import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
-import { getP2PPrivileges } from '../utils/UserTransactionsHelpers';
 import { ITagCard } from '../components/iTag';
 import { MyQRCodeSection } from '../components/MyQRCodeSection';
-import {FeatureCard} from '../components/P2PFeatureCardComponent';
+import { FeatureCard } from '../components/P2PFeatureCardComponent';
 
+interface ITagSearchResult {
+  userId: string;
+  username: string;
+  isUser: boolean;
+  isPremium: boolean;
+  cardHolderName: string;
+  cardNumber: string;
+  tier: string;
+  designOptions: {
+    backgroundColor: string;
+    backgroundImage: string;
+    glassmorphismOpacity: number;
+  };
+}
 export const AnimatedCardWrapper = ({
   children,
 }: {
@@ -39,9 +54,9 @@ export const AnimatedCardWrapper = ({
 }) => {
   return (
     <Animated.View
-      entering={ScaleInCenter.springify().duration(400)}
+      entering={ZoomIn.duration(400)}
       exiting={FadeOutDown}
-      style={{ width: '100%', alignItems: 'center' }}
+      style={{ width: '100%', alignItems: 'center', overflow: 'hidden' }}
     >
       <ScrollView
         horizontal
@@ -53,19 +68,41 @@ export const AnimatedCardWrapper = ({
     </Animated.View>
   );
 };
-export const IcashP2PScreen = ({ user }: { user: any }) => {
-  const privileges = getP2PPrivileges(user.plan);
+export const IcashP2PScreen = () => {
+  const user = useAppSelector(state => state.user);
+  const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
   const [step, setStep] = useState<'selection' | 'tagInput'>('selection');
   const [scannerVisible, setScannerVisible] = useState(false);
-  const [upgradeVisible, setUpgradeVisible] = useState(false);
-  //Search States
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasPermission, setHasPermission] = React.useState(false);
+  const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResult, setSearchResult] = useState<any>(null);
+  const [searchResult, setSearchResult] = useState<ITagSearchResult | null>(
+    null,
+  );
 
   // Form States
   const [recipientTag, setRecipientTag] = useState('');
   const [amount, setAmount] = useState('');
+  // Inside your IcashP2PScreen component
+  const numericAmount = parseFloat(amount) || 0;
+  const hasSufficientFunds = user.pointsBalance >= numericAmount;
+  const isInputValid =
+    numericAmount > 0 && recipientTag.length > 0 && searchResult;
+  const isSendingToSelf = searchResult?.isUser === true; // Check the new backend flag
+
+  // The button is only enabled if all these are true
+  const canContinue = isInputValid && hasSufficientFunds && !isSendingToSelf;
+
+  // Determine the button label dynamically
+  const getButtonText = () => {
+    if (isSendingToSelf) return 'Cannot send to yourself';
+    if (isLoading) return 'Processing...';
+    if (numericAmount > (user.pointsBalance ?? 0))
+      return 'Insufficient Balance';
+    return 'Continue';
+  };
   const handleSearch = async (tag: string) => {
     setIsSearching(true);
     setSearchResult(null);
@@ -79,7 +116,7 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
         },
       });
       const data = await response.json();
-      if (data.ok) {
+      if (response.ok) {
         setSearchResult(data);
       } else {
         console.log('Search error:', data.message);
@@ -95,6 +132,86 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
     } finally {
       setIsSearching(false);
     }
+  };
+  const handleScanSuccess = async (data: string) => {
+    setScannerVisible(false);
+
+    // 1. Extract username (assuming QR value is just the username or 'icampus:username')
+    const tag = data.includes(':') ? data.split(':').pop() : data;
+    if (tag) {
+      setRecipientTag(tag);
+      setActiveTab('send');
+      await handleSearch(tag);
+    }
+  };
+  const device = useCameraDevice('back');
+  React.useEffect(() => {
+    (async () => {
+      const status = await Camera.requestCameraPermission();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
+  // 3. Define the Frame Processor to scan barcodes
+  const frameProcessor = useFrameProcessor(
+    frame => {
+      'worklet'; // Required for Reanimated/VisionCamera worklets
+      const detectedBarcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
+
+      if (detectedBarcodes.length > 0) {
+        const data = detectedBarcodes[0].displayValue;
+        if (data) {
+          console.log('Scanned QR:', data);
+          runOnJS(handleScanSuccess)(data);
+        }
+      }
+    },
+    [handleScanSuccess],
+  );
+  const processFinalTransaction = async () => {
+    setIsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${baseUrl}user/transactions/p2p-transfer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipientId: searchResult!.userId, // From your search result
+          amount: parseFloat(amount),
+          description: `Transfer to ${searchResult!.username}`,
+        }),
+      });
+
+      if (response.ok) {
+        navigation.navigate('TransactionSuccess', {
+          amount,
+          recipient: searchResult!.username,
+        });
+      } else {
+        const errorData = await response.json();
+        Toast.show({
+          type: 'error',
+          text1: errorData.message || 'Transfer Failed',
+        });
+      }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Network Error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleContinue = () => {
+    if (canContinue) {
+      setIsPinModalVisible(true);
+    }
+  };
+  const handlePinSuccess = () => {
+    setIsPinModalVisible(false);
+    processFinalTransaction();
   };
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -134,8 +251,8 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
                 sub="Scan to pay instantly"
                 icon="qrcode-scan"
                 onPress={() => setScannerVisible(true)}
-              />\
-
+              />
+              \
               <FeatureCard
                 title="Send via iTag"
                 sub="Search @username"
@@ -160,7 +277,7 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
               {isSearching && (
                 <ActivityIndicator size="small" color={PRIMARY_COLOR} />
               )}
-              {searchResult > 0 && (
+              {searchResult && (
                 <AnimatedCardWrapper>
                   <ITagCard
                     iTagData={searchResult}
@@ -173,7 +290,12 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
                 <>
                   <Text style={styles.sectionLabel}>Amount (iCash)</Text>
                   <View style={styles.inputWrapper}>
-                    <Icon name="diamond" size={20} color={PRIMARY_COLOR} />
+                    <Icon
+                      name="diamond"
+                      size={24}
+                      color={PRIMARY_COLOR}
+                      style={{ marginRight: 5 }}
+                    />
                     <TextInput
                       style={styles.textInput}
                       placeholder="0.00"
@@ -183,42 +305,46 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
                     />
                   </View>
                   <TouchableOpacity
-                    style={styles.sendButton}
-                    onPress={() => {
-                      // This is where you'd trigger your Pin modal
-                      console.log('Sending to', recipientTag);
-                    }}
+                    style={[
+                      styles.sendButton,
+                      !canContinue && styles.disabledButton,
+                    ]}
+                    onPress={handleContinue}
+                    disabled={!canContinue}
                   >
-                    <Text style={styles.sendButtonText}>Continue</Text>
+                    <Text style={styles.sendButtonText}>{getButtonText()}</Text>
                   </TouchableOpacity>
                 </>
               )}
             </View>
           )}
-          <View style={styles.cameraPlaceholder}>
-            {device != null && hasPermission ? (
-              <Camera
-                style={StyleSheet.absoluteFill}
-                device={device}
-                isActive={scannerVisible}
-                frameProcessor={frameProcessor}
-                frameProcessorFps={5}
-              />
-            ) : (
-              <Text style={{ color: 'white' }}>No Camera Access</Text>
-            )}
-          </View>
         </>
       ) : (
         <>
-          <MyQRCodeSection itagusername={user.itagusername} />
+          <MyQRCodeSection itagusername={user.itagusername ?? ''} />
         </>
       )}
-
-      {/* The Visual Frame Overlay */}
-      <View style={styles.scanFrame} />
       <Modal visible={scannerVisible} animationType="slide">
         <View style={styles.fullScreenModal}>
+          <View style={styles.cameraPlaceholder}>
+            {device != null && hasPermission ? (
+              <>
+                <Camera
+                  style={StyleSheet.absoluteFill}
+                  device={device}
+                  isActive={scannerVisible}
+                  frameProcessor={frameProcessor}
+                />
+                {/* Visual Frame Overlay */}
+                <View style={styles.scanFrame} />
+              </>
+            ) : (
+              <Text style={{ color: 'white' }}>
+                {hasPermission ? 'Initializing Camera...' : 'No Camera Access'}
+              </Text>
+            )}
+          </View>
+
           <TouchableOpacity
             style={styles.closeScanner}
             onPress={() => setScannerVisible(false)}
@@ -226,20 +352,26 @@ export const IcashP2PScreen = ({ user }: { user: any }) => {
             <Icon name="close" size={30} color="#FFF" />
           </TouchableOpacity>
 
-          <Text style={{ color: '#FFF', position: 'absolute', top: 100 }}>
+          <Text
+            style={{
+              color: '#FFF',
+              position: 'absolute',
+              bottom: 100,
+              textAlign: 'center',
+            }}
+          >
             Align QR code within the frame
           </Text>
-
-          {/* Replace this View with your <Camera /> or <QRCodeScanner /> */}
-          <View style={styles.cameraPlaceholder}>
-            <View style={styles.scanFrame} />
-          </View>
         </View>
       </Modal>
-      <UpgradeModal
-        visible={upgradeVisible}
-        onClose={() => setUpgradeVisible(false)}
+      <IcashPinOrFingerprintVerifyModal
+        isVisible={isPinModalVisible}
+        onClose={() => setIsPinModalVisible(false)}
+        onSuccess={handlePinSuccess} // Runs the final transaction
+        title="Confirm Transaction"
+        navigation={navigation}
       />
+      <Toast config={toastConfig} />
     </ScrollView>
   );
 };
@@ -383,11 +515,11 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#fadccc',
     borderRadius: 12,
     paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
   resultContainer: {
     marginVertical: 20,
@@ -406,22 +538,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   sectionLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#222',
     marginBottom: 8,
-    marginTop: 15,
-    marginHorizontal: 20,
+    marginTop: 10,
   },
   fullScreenModal: {
     flex: 1,
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   closeScanner: {
     position: 'absolute',
-    top: 50,
+    top: 20,
     right: 20,
     zIndex: 10,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -429,12 +561,14 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   cameraPlaceholder: {
+    flex: 1,
     width: '100%',
-    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#000',
   },
   atSymbol: {
-    fontSize: 18,
+    fontSize: 14,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
     marginRight: 5,
@@ -443,19 +577,31 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: '#1E293B',
+    color: '#2222',
   },
   sendButton: {
     backgroundColor: PRIMARY_COLOR,
     borderRadius: 12,
-    height: 55,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 30,
+    marginTop: 20,
   },
   sendButtonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  scanFrame: {
+    width: 250,
+    height: 250,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    position: 'absolute',
   },
 });
