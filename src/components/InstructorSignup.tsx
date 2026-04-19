@@ -363,6 +363,7 @@ const InstructorSignup = () => {
         department:
           userType === 'lecturer' ? verifiedInstructor?.department : '',
         country: country || '',
+        itagusername: verifiedInstructor?.firstname,
         ...(userType === 'lecturer' && verifiedInstructor
           ? {
               phone_number: verifiedInstructor.phone_number,

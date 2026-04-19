@@ -95,6 +95,7 @@
     "react-redux": "^9.2.0",
     "reselect": "^5.1.1",
     "socket.io-client": "^4.8.3",
+    "vision-camera-code-scanner": "^0.2.0",
     "vision-camera-face-detector": "^0.1.8"
   },
   "devDependencies": {

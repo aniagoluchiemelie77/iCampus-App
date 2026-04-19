@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ImageBackground,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LogoSizeable } from '../assets/images/Logo';
@@ -7,7 +13,6 @@ import { getContrastColor } from '../utils/colorHelper';
 import { PRIMARY_COLOR_TINT } from './Classroomcomponent';
 
 const { width } = Dimensions.get('window');
-
 const DEFAULT_GRADIENT = ['#3b2115', '#5a3c2e', '#e05515'];
 
 export const ITagCard = ({
@@ -19,73 +24,89 @@ export const ITagCard = ({
   isPremium: boolean;
   isOwner: boolean;
 }) => {
-  const bgColor =
-    isPremium && iTagData.customColors
-      ? iTagData.customColors[0]
-      : DEFAULT_GRADIENT[0];
-  const textColor = getContrastColor(bgColor);
+  const design = iTagData.designOptions;
+  const backgroundColor = design?.backgroundColor || '#3b2115';
+  const backgroundImage = isPremium ? design?.backgroundImage : null;
+  const isValidImage =
+    isPremium &&
+    typeof backgroundImage === 'string' &&
+    backgroundImage.includes('https://');
 
-  return (
-    <LinearGradient
-      colors={
-        isPremium && iTagData.customColors
-          ? iTagData.customColors
-          : DEFAULT_GRADIENT
-      }
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.iTagCardContainer}
+  const cardColors =
+    isPremium && design ? [backgroundColor, backgroundColor] : DEFAULT_GRADIENT;
+
+  const textColor = getContrastColor(cardColors[0]);
+  const CardContent = (
+    <View
+      style={[
+        styles.glassOverlay,
+        isPremium && {
+          backgroundColor: `rgba(255,255,255, ${
+            design?.glassmorphismOpacity || 0.05
+          })`,
+        },
+      ]}
     >
-      <View style={styles.glassOverlay}>
-        {/* Header: Logo and Card Brand */}
-        <View style={styles.cardHeader}>
-          <LogoSizeable width={50} height={50} />
-        </View>
-
-        {/* Chip Section */}
-        <View style={styles.chipSection}>
-          <Icon name="integrated-circuit-chip" size={45} color="#D4AF37" />
+      <View style={styles.cardHeader}>
+        <LogoSizeable width={50} height={50} />
+      </View>
+      <View style={styles.chipSection}>
+        <Icon name="integrated-circuit-chip" size={45} color="#D4AF37" />
+        {isPremium && (
           <Icon
-            name="wifi-rotate_right"
+            name="wifi"
             size={24}
             color={textColor}
             style={styles.contactless}
           />
-        </View>
-
-        {/* Card Number (Only if Owner) */}
-        <View style={styles.numberContainer}>
-          {isOwner ? (
-            <Text style={[styles.cardNumber, { color: textColor }]}>
-              {iTagData.cardNumber || '8021 2135 **** ****'}
-            </Text>
-          ) : (
-            <Text
-              style={[
-                styles.cardNumber,
-                { color: textColor, letterSpacing: 4 },
-              ]}
-            >
-              **** **** **** ****
-            </Text>
-          )}
-        </View>
-
-        {/* Footer: Username and iCampus Brand */}
-        <View style={styles.cardFooter}>
-          <View>
-            <Text style={[styles.label, { color: textColor }]}>
-              iTAG USERNAME
-            </Text>
-            <Text style={[styles.cardUsername, { color: textColor }]}>
-              @{iTagData.username}
-            </Text>
-          </View>
-          <View style={styles.brandContainer}>
-            <Text style={[styles.brandText, { color: textColor }]}>iCash</Text>
-          </View>
-        </View>
+        )}
       </View>
+      <View style={styles.numberContainer}>
+        <Text
+          style={[
+            styles.cardNumber,
+            { color: textColor, letterSpacing: isOwner ? 2 : 4 },
+          ]}
+        >
+          {isOwner
+            ? iTagData.cardNumber || '**** **** **** ****'
+            : '**** **** **** ****'}
+        </Text>
+      </View>
+      <View style={styles.cardFooter}>
+        {isPremium && (
+          <Text style={[styles.tierBadge, { color: textColor }]}>
+            {iTagData.tier}
+          </Text>
+        )}
+        <Text style={[styles.cardUsername, { color: textColor }]}>
+          @{iTagData.username}
+        </Text>
+      </View>
+    </View>
+  );
+  if (backgroundImage && isValidImage) {
+    return (
+      <View style={styles.iTagCardContainer}>
+        <ImageBackground
+          source={{ uri: backgroundImage }}
+          style={StyleSheet.absoluteFill}
+          imageStyle={{ borderRadius: 20 }}
+        >
+          {CardContent}
+        </ImageBackground>
+      </View>
+    );
+  }
+
+  return (
+    <LinearGradient
+      colors={cardColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.iTagCardContainer}
+    >
+      {CardContent}
     </LinearGradient>
   );
 };
@@ -111,8 +132,9 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    width: '100%',
   },
   chipSection: {
     flexDirection: 'row',
@@ -130,19 +152,13 @@ const styles = StyleSheet.create({
   cardNumber: {
     fontSize: 20,
     fontWeight: '700',
-    fontFamily: 'Courier', // Gives it that card-embossed feel
+    fontFamily: 'Courier',
     letterSpacing: 2,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-  },
-  label: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    opacity: 0.7,
-    marginBottom: 2,
   },
   cardUsername: {
     fontSize: 18,
@@ -152,10 +168,15 @@ const styles = StyleSheet.create({
   brandContainer: {
     alignItems: 'flex-end',
   },
-  brandText: {
-    fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    opacity: 0.9,
+  tierBadge: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    opacity: 0.8,
   },
 });

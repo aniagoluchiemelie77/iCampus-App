@@ -278,6 +278,7 @@ const OtherUserSignup = () => {
         hasSubscribed: false,
         usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
         firstname,
+        itagusername: firstname,
         lastname: subType === 'enterprise' ? '' : lastname, // Or use rep name
         email,
         password: isSocialSignup ? 'SOCIAL_AUTH' : password,

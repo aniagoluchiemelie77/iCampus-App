@@ -449,11 +449,12 @@ const StudentSignup = () => {
         lastname: userType === 'student' ? verifiedStudent?.lastname : '',
         schoolName: institution || '',
         email,
-        ipAddress: ipAddress, // Backend handles the array push
+        ipAddress: ipAddress,
         deviceType: deviceType,
         password,
         department: userType === 'student' ? verifiedStudent?.department : '',
         country: country || '',
+        itagusername: verifiedStudent?.firstname,
         ...(userType === 'student' && verifiedStudent
           ? {
               current_level: verifiedStudent.current_level,
