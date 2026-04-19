@@ -1,18 +1,16 @@
 import {iCashActionsStyles, PaymentMethodCard, CARD_WIDTH} from './BuyiCashScreen';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent.tsx';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
-  ActivityIndicator,
   Modal,
   TouchableOpacity,
   ScrollView,
-  Animated,
-  Pressable
 } from 'react-native';
 import { baseUrl } from '../components/HomeScreenComponents';
-import {AddPaymentModal} from '../components/AddPaymentMethodModal.tsx';
+import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
 import {
@@ -24,17 +22,12 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
-import ReactNativeBiometrics from 'react-native-biometrics';
-import {
-  fetchLiveRate,
-} from '../utils/UserTransactionsHelpers.tsx';
+import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
 import { UserBankOrCardDetails } from 'types/firebase';
-const rnBiometrics = new ReactNativeBiometrics();
 
 export const ICashWithdrawPage = ({ navigation }: any) => {
   const route = useRoute();
   const user = useAppSelector(state => state.user);
-  const inputRef = useRef<TextInput>(null);
   const [iCashAmount, setICashAmount] = useState('');
   const [localCurrencyEquivalent, setLocalCurrencyEquivalent] =
     useState('0.00');
@@ -45,15 +38,13 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
     code: 'NGN',
   });
   const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
-  const shakeAnimation = useRef(new Animated.Value(0)).current;
   const [selectedMethod, setSelectedMethod] =
     useState<UserBankOrCardDetails | null>(null);
   const hasPaymentMethod = savedMethods.length > 0;
   const EXCHANGE_RATE_USD = 0.74;
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [step, setStep] = useState<'details' | 'pin'>('details');
-  const [pin, setPin] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [_isProcessing, setIsProcessing] = useState(false);
   const WITHDRAWAL_FEE_PERCENT = 0.01;
   const rawAmount =
     parseFloat(iCashAmount) * EXCHANGE_RATE_USD * currencyData.rate;
@@ -138,34 +129,10 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
     setStep('details');
     setShowConfirmModal(true);
   };
-  const handleTextChange = (text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    setPin(cleaned);
-    if (cleaned.length === 6) {
-      verifyPin(cleaned);
-    }
-  };
   const finalExecution = useCallback(async () => {
     setIsProcessing(true);
     try {
       const token = await AsyncStorage.getItem('accessToken');
-      const pinRes = await fetch(`${baseUrl}user/verify-icash-pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ pin }),
-      });
-      const pinData = await pinRes.json();
-      if (!pinRes.ok) {
-        Toast.show({
-          type: 'error',
-          text1: 'Verification Failed',
-          text2: pinData.message,
-        });
-        return;
-      }
       const response = await fetch(
         `${baseUrl}user/transactions/initialize-withdraw`,
         {
@@ -205,7 +172,6 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
       setIsProcessing(false);
     }
   }, [
-    pin,
     iCashAmount,
     finalPayout,
     fee,
@@ -214,106 +180,6 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
     selectedMethod,
     navigation,
   ]);
-  const verifyPin = async (code: string) => {
-    setIsProcessing(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ pin: code }),
-      });
-      if (response.ok) {
-        finalExecution();
-      } else {
-        setPin(''); // Clear PIN on failure
-        Animated.sequence([
-          Animated.timing(shakeAnimation, {
-            toValue: 10,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: -10,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: 10,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: 0,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-        ]).start();
-        const data = await response.json();
-        Toast.show({
-          type: 'error',
-          text1: 'Invalid PIN',
-          text2: data.message,
-        });
-      }
-    } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: 'Security Error',
-        text2: 'Connection failed',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  const handleRequestReset = async () => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/request-pin-reset`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        Toast.show({
-          type: 'success',
-          text1: 'OTP Sent',
-          text2: 'Check your email for the reset code.',
-        });
-        navigation.navigate('ICashResetPin');
-      }
-    } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Could not request reset.',
-      });
-    }
-  };
-  const handleBiometricAuth = useCallback(async () => {
-    const { available } = await rnBiometrics.isSensorAvailable();
-    if (available) {
-      try {
-        const { success } = await rnBiometrics.simplePrompt({
-          promptMessage: 'Confirm identity to withdraw iCash',
-        });
-        if (success) {
-          finalExecution();
-        }
-      } catch (error) {
-        console.log('Biometric prompt failed or was cancelled');
-      }
-    } else {
-      console.log('Biometrics not available on this device');
-    }
-  }, [finalExecution]);
-  useEffect(() => {
-    if (step === 'pin') {
-      handleBiometricAuth();
-    }
-  }, [step, handleBiometricAuth]);
 
   const withdrawalMethods = savedMethods.filter(type => type.method === 'bank');
   return (
@@ -405,25 +271,24 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
         user={user}
         mode="withdraw"
       />
-      <Modal
-        visible={showConfirmModal}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={iCashActionsStyles.modalOverlay}>
-          <View style={iCashActionsStyles.bottomSheet}>
-            <View style={iCashActionsStyles.modalHeader}>
-              <Text style={iCashActionsStyles.modalTitle}>
-                {step === 'details'
-                  ? 'Confirm Withdrawal'
-                  : 'Enter your iCash PIN'}
-              </Text>
-              <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
-                <Icon name="close" size={24} color={PRIMARY_COLOR_TINT} />
-              </TouchableOpacity>
-            </View>
-            {step === 'details' ? (
-              <>
+      {/* Withdraw details or pay verification modal */}
+      {step === 'details' ? (
+        <>
+          <Modal
+            visible={showConfirmModal}
+            animationType="slide"
+            transparent={true}
+          >
+            <View style={iCashActionsStyles.modalOverlay}>
+              <View style={iCashActionsStyles.bottomSheet}>
+                <View style={iCashActionsStyles.modalHeader}>
+                  <Text style={iCashActionsStyles.modalTitle}>
+                    Confirm Withdrawal
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
+                    <Icon name="close" size={24} color={PRIMARY_COLOR_TINT} />
+                  </TouchableOpacity>
+                </View>
                 <View style={iCashActionsStyles.detailRow}>
                   <Text style={iCashActionsStyles.detailRowText}>
                     Withdraw Amount:
@@ -470,79 +335,20 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
                 >
                   <Text style={iCashActionsStyles.payBtnText}>Pay</Text>
                 </TouchableOpacity>
-              </>
-            ) : (
-              <View>
-                {step === 'pin' && (
-                  <View style={iCashActionsStyles.pinContainer}>
-                    <Text style={iCashActionsStyles.pinSubtitle}>
-                      Enter your 6-digit iCash PIN
-                    </Text>
-                    <TextInput
-                      ref={inputRef}
-                      value={pin}
-                      onChangeText={handleTextChange}
-                      maxLength={6}
-                      keyboardType="number-pad"
-                      secureTextEntry
-                      style={iCashActionsStyles.hiddenInput}
-                      autoFocus={true}
-                    />
-                    <Pressable
-                      onPress={() => inputRef.current?.focus()}
-                      style={iCashActionsStyles.pressableArea}
-                    >
-                      <Animated.View
-                        style={[
-                          iCashActionsStyles.pinRow,
-                          { transform: [{ translateX: shakeAnimation }] },
-                        ]}
-                      >
-                        {[...Array(6)].map((_, i) => (
-                          <View
-                            key={i}
-                            style={[
-                              iCashActionsStyles.dot,
-                              pin.length > i && iCashActionsStyles.dotFilled,
-                              pin.length === i && iCashActionsStyles.dotActive,
-                            ]}
-                          />
-                        ))}
-                      </Animated.View>
-                    </Pressable>
-                    <View style={iCashActionsStyles.pinActionRow}>
-                      <TouchableOpacity
-                        onPress={handleBiometricAuth}
-                        style={iCashActionsStyles.iconBtn}
-                      >
-                        <Icon
-                          name="fingerprint"
-                          size={28}
-                          color={PRIMARY_COLOR}
-                        />
-                        <Text style={iCashActionsStyles.iconBtnText}>
-                          Use Fingerprint
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={handleRequestReset}>
-                        <Text style={iCashActionsStyles.forgotText}>
-                          Forgot PIN?
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    {isProcessing && (
-                      <ActivityIndicator
-                        style={{ marginTop: 20 }}
-                        color={PRIMARY_COLOR}
-                      />
-                    )}
-                  </View>
-                )}
               </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+            </View>
+          </Modal>
+        </>
+      ) : (
+        <>
+          <IcashPinOrFingerprintVerifyModal
+            isVisible={showConfirmModal}
+            onClose={() => setShowConfirmModal(false)}
+            onSuccess={finalExecution}
+            navigation={navigation}
+          />
+        </>
+      )}
     </ScrollView>
   );
 };

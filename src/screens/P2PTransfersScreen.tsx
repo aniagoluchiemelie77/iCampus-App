@@ -29,37 +29,38 @@ import { PageHeader } from '../components/PageHeader';
 //import ReactNativeBiometrics from 'react-native-biometrics';
 import {getP2PPrivileges} from '../utils/UserTransactionsHelpers';
 
-export const iCashP2PScreen = ({ user }: { user: any }) => {
+export const IcashP2PScreen = ({ user }: { user: any }) => {
   const privileges = getP2PPrivileges(user.plan);
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
 
   return (
     <View style={styles.container}>
-      <PageHeader title="iCash P2P" />
-
+      <PageHeader title="iCash P2P Transfers" />
       {/* TIERED TAB SELECTOR */}
       <View style={styles.tabWrapper}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'send' && styles.activeTab]}
           onPress={() => setActiveTab('send')}
         >
           <Text style={styles.tabText}>Send</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-  style={[styles.card, !privileges.hasITags && styles.lockedCard]}
-  disabled={!privileges.hasITags}
->
-  <View style={styles.iconContainer}>
-    <Icon name="at-circle" size={24} color={PRIMARY_COLOR} />
-  </View>
-  <View style={styles.cardContent}>
-    <Text style={styles.cardTitle}>Send to iTag</Text>
-    <Text style={styles.cardSub}>Transfer using @username</Text>
-  </View>
-  {!privileges.hasITags && <Icon name="lock-closed" size={18} color="#64748B" />}
-</TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.card, !privileges.hasITags && styles.lockedCard]}
+          disabled={!privileges.hasITags}
+        >
+          <View style={styles.iconContainer}>
+            <Icon name="at-circle" size={24} color={PRIMARY_COLOR} />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Send to iTag</Text>
+            <Text style={styles.cardSub}>Transfer using @username</Text>
+          </View>
+          {!privileges.hasITags && (
+            <Icon name="lock-closed" size={18} color="#64748B" />
+          )}
+        </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'receive' && styles.activeTab]}
           onPress={() => {
             if (privileges.canReceive) {
@@ -69,8 +70,15 @@ export const iCashP2PScreen = ({ user }: { user: any }) => {
             }
           }}
         >
-          {!privileges.canReceive && <Icon name="lock-closed" size={14} color="#999" />}
-          <Text style={[styles.tabText, !privileges.canReceive && { color: '#999' }]}>
+          {!privileges.canReceive && (
+            <Icon name="lock-closed" size={14} color="#999" />
+          )}
+          <Text
+            style={[
+              styles.tabText,
+              !privileges.canReceive && { color: '#999' },
+            ]}
+          >
             Receive
           </Text>
         </TouchableOpacity>
@@ -79,37 +87,39 @@ export const iCashP2PScreen = ({ user }: { user: any }) => {
       <ScrollView>
         {activeTab === 'send' ? (
           <View>
-             {/* 1. SCANNER (Visible to all) */}
-             <FeatureCard 
-                title="Scan QR Code" 
-                icon="qr-code-outline" 
-                onPress={() => navigation.navigate('Scanner')} 
-             />
+            {/* 1. SCANNER (Visible to all) */}
+            <FeatureCard
+              title="Scan QR Code"
+              icon="qr-code-outline"
+              onPress={() => navigation.navigate('Scanner')}
+            />
 
-             {/* 2. ITAGS (Locked for Free) */}
-             <FeatureCard 
-                title="Send via iTag" 
-                icon="at-outline" 
-                locked={!privileges.hasITags}
-                onPress={() => navigation.navigate('ITagSearch')} 
-             />
-             
+            {/* 2. ITAGS (Locked for Free) */}
+            <FeatureCard
+              title="Send via iTag"
+              icon="at-outline"
+              locked={!privileges.hasITags}
+              onPress={() => navigation.navigate('ITagSearch')}
+            />
           </View>
         ) : (
           <View>
-             {/* 4. NFC (Premium Only) */}
-             {privileges.hasNFC && (
-               <View style={styles.nfcSection}>
-                 <Text style={styles.label}>NFC iTag Pairing</Text>
-                 <TouchableOpacity style={styles.nfcButton}>
-                    <Icon name="infinite-outline" size={30} color={PRIMARY_COLOR} />
-                    <Text>Tap to pair personalized NFC iTag</Text>
-                 </TouchableOpacity>
-               </View>
-             )}
-             {/* 3. QR GENERATOR (Pro/Premium) */}
-             <MyQRCodeSection user={user} />
-             
+            {/* 4. NFC (Premium Only) */}
+            {privileges.hasNFC && (
+              <View style={styles.nfcSection}>
+                <Text style={styles.label}>NFC iTag Pairing</Text>
+                <TouchableOpacity style={styles.nfcButton}>
+                  <Icon
+                    name="infinite-outline"
+                    size={30}
+                    color={PRIMARY_COLOR}
+                  />
+                  <Text>Tap to pair personalized NFC iTag</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {/* 3. QR GENERATOR (Pro/Premium) */}
+            <MyQRCodeSection user={user} />
           </View>
         )}
       </ScrollView>
