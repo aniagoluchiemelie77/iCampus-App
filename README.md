@@ -1,97 +1,100 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# iCash Mobile – Fintech and EdTech Solutions
 
-# Getting Started
+> iCash is a modern mobile financial hub designed for seamless P2P transfers, iCash purchasing, and automated transaction management. It features a robust dashboard with real-time statistics and a paginated financial history system.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Key Features
 
-## Step 1: Start Metro
+1. Financial Dashboard: Real-time balance updates and quick action shortcuts for buying and withdrawing iCash.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+2. P2P Transfers: Secure peer-to-peer transfers using unique user tags (iTags).
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+3. Transaction Hub: Advanced history with infinite scrolling, server-side search, and date filtering.
 
+4. Analytics & Statistics: Visualized data insights using Pie Charts for income vs. expenditure tracking.
+
+5. Statement Export: Generate and email professional PDF transaction statements.
+
+6. Security First: JWT-based authentication and secure PIN resets for financial operations.
+   
+7. Online Class sessions: Online class sessions for student, lecturers (instructors) and guest users.
+
+8. Attendance Tracking: Using Bluetooth Low Energy (BLE) for physical lectures attendance tracking.
+
+9. Recorded Lecture Session: Includes pre recorded video lectures capabilities for enhanced learning.
+    
+11. Lectures create/edit/maintain/tracking: Included capabilities for Lecturers (instuctors) to manage lectures and students enrolled.
+
+12. Create Paid Lectures: Pro and Premium tier students, instructors or guestusers can create paid courses and tracking analysis on iCampus.
+
+13. Posts create/delete/edit/view/comment/like: Provided users with the listed post capabilities.
+
+14. Store purchases: Users can sell softwares, courses, and physical goods on the app, with free shipping for premium users.
+
+15. Ranking: Users (students, lecturers, guestusers) are ranked/graded fairly based on given app procedures and activities.
+
+## Tech Stack
+Frontend:
+
+1. React Native (TypeScript)
+
+2. React Navigation (Stack & Tabs)
+
+3. Redux Toolkit (State Management)
+
+4. React Native Paper / Vector Icons (UI Components)
+
+Backend:
+
+1. Node.js & Express.js
+
+2. MongoDB & Mongoose (Aggregation Pipelines for Stats) and dev database.
+
+3. Socket.io (for real time front end and backend communtication).
+
+4. AsyncStorage (Local Session Management).
+
+5. Nodemailer & PDFKit (For Statement Generation and emails).
+
+6. Firebase and firestore (production database)
+
+## Installation & Setup
+
+1. Clone the repository
+   
+```sh
+git clone https://github.com/aniagoluchiemelie77/iCampus-App.git
+cd iCampus-App
+```
+2. Install Dependencies
+   
+```sh
+cd frontend && npm install
+
+# For Backend
+cd backend && npm install
+```
+3. Environment Variables
+   Create a .env file:
+```sh
+#Frontend
+PORT=5000
+EXCHANGERATE_API_KEY=your_exchangerate_api_key
+SERVICE_UUID=your_service_uuid_key
+FLUTTERWAVE_CLIENT_EKEY=your_flutterwave_ekey
+WEB_CLIENT_ID=your_webclient_id
+WEB_CLIENT_SECRET=your_webclient_secret_key
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secretkey
+GEMINI_API_KEY=your_germini_api_key
+VERVE_SEARCH_API_KEY=your_verve_search_key
+FLUTTERWAVE_CLIENT_ID=your_flutterwave_client_id
+ANDROID_HOME=your_androidsdk_local_urlroute
+```
+
+4. Run the Project
 ```sh
 # Using npm
-npm start
-
-# OR using Yarn
-yarn start
+npx react-native run-android # or run-ios
 ```
 
-## Step 2: Build and run your app
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
