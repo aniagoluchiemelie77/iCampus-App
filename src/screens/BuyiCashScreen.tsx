@@ -203,6 +203,9 @@ export const ICashBuyPage = ({ navigation }: any) => {
             amountPaid: numericAmount,
             currency: currencyData.code,
             type: 'buy',
+            amount: 0,
+            payout: 0,
+            recipientUsername: '',
           });
         }
       } else {

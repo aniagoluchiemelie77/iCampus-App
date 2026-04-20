@@ -63,6 +63,7 @@ import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 import { iCashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
+import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -116,13 +117,13 @@ export type RootStackParamList = {
     url: string;
   };
   iCashSuccessScreen: {
-    refresh: boolean;
     amountPurchased: number;
     amountPaid: number;
     currency: string;
-    type: 'withdraw' | 'buy';
+    type: 'withdraw' | 'buy' | 'p2p';
     amount: number;
     payout: number;
+    recipientUsername: string;
   };
   Assistant: {
     contextType:
@@ -180,6 +181,7 @@ export type RootStackParamList = {
   ProductDetails: { product: Product };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
+  IcashP2PScreen: undefined;
   //TransactionPage: { transactionId: string };
   Login: undefined;
 };
@@ -306,6 +308,11 @@ const App = () => {
             <Stack.Screen
               name="StudentAttendanceScanner"
               component={StudentAttendanceScanner}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="IcashP2PScreen"
+              component={IcashP2PScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -7,22 +7,37 @@ import {
 } from '@components/Classroomcomponent';
 
 export const iCashSuccessScreen = ({ route, navigation }: any) => {
-  const { amountPurchased, amountPaid, currency, type, amount, payout } =
-    route.params;
+  const {
+    type,
+    amount,
+    amountPurchased,
+    amountPaid,
+    currency,
+    payout,
+    recipientUsername,
+  } = route.params;
   const isWithdraw = type === 'withdraw';
-  const successTitle = isWithdraw
+  const isP2P = type === 'p2p';
+  const successTitle = isP2P
+    ? 'Transfer Successful!'
+    : isWithdraw
     ? 'Withdrawal Initialized!'
     : 'Purchase Successful!';
-  const mainLabel = isWithdraw ? 'iCash Debited' : 'iCash Credited';
-  const subLabel = isWithdraw ? 'Amount to Receive' : 'Amount Paid';
+  const mainLabel = isWithdraw || isP2P ? 'iCash Debited' : 'iCash Credited';
+  const subLabel = isP2P
+    ? 'Sent To'
+    : isWithdraw
+    ? 'Amount to Receive'
+    : 'Amount Paid';
+  const iconName = isP2P
+    ? 'swap-horizontal' // or 'send'
+    : isWithdraw
+    ? 'paper-plane-outline'
+    : 'checkmark';
   return (
     <View style={styles.container}>
       <View style={styles.iconCircle}>
-        <Icon
-          name={isWithdraw ? 'paper-plane-outline' : 'checkmark'}
-          size={85}
-          color="#FFF"
-        />
+        <Icon name={iconName} size={85} color="#FFF" />
       </View>
 
       <Text style={styles.title}>{successTitle}</Text>
@@ -36,10 +51,11 @@ export const iCashSuccessScreen = ({ route, navigation }: any) => {
             style={{ marginRight: 8 }}
           />
           <Text style={styles.amountValue}>
-            {isWithdraw ? '-' : ''}
-            {isWithdraw
-              ? amount.toLocaleString()
-              : amountPurchased.toLocalString()}
+            {isWithdraw || isP2P ? '-' : ''}
+            {/* Logic to choose which number to show */}
+            {isWithdraw || isP2P
+              ? amount?.toLocaleString()
+              : amountPurchased?.toLocaleString()}
           </Text>
         </View>
       </View>
@@ -47,8 +63,11 @@ export const iCashSuccessScreen = ({ route, navigation }: any) => {
         <View style={styles.receiptRow}>
           <Text style={styles.receiptLabel}>{subLabel}</Text>
           <Text style={styles.receiptValue}>
-            {currency}
-            {isWithdraw ? payout.toLocaleString() : amountPaid}
+            {isP2P
+              ? `@${recipientUsername}`
+              : `${currency} ${
+                  isWithdraw ? payout.toLocaleString() : amountPaid
+                }`}
           </Text>
         </View>
       </View>

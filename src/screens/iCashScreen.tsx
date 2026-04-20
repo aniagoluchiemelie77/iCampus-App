@@ -182,7 +182,7 @@ export const ICashDashboard = () => {
 
   const handleBuy = () => navigation.navigate('ICashBuyPage');
   const handleWithdraw = () => navigation.navigate('ICashWithdrawPage');
-  const handleP2P = () => navigation.navigate('Transfer iCash');
+  const handleP2P = () => navigation.navigate('IcashP2PScreen');
   const needsRefresh = (route.params as any)?.refresh;
 
   const refreshUserData = useCallback(async () => {

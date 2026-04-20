@@ -160,6 +160,9 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
           type: 'withdraw',
           payout: finalPayout,
           currency: currencyData.code,
+          amountPurchased: 0,
+          amountPaid: 0,
+          recipientUsername: '',
         });
       }
     } catch (error: any) {
@@ -249,13 +252,25 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
         <TouchableOpacity
           style={[
             iCashActionsStyles.buyBtn,
-            (!iCashAmount || parseFloat(iCashAmount) <= 0) && { opacity: 0.5 },
+            (!iCashAmount ||
+              parseFloat(iCashAmount) <= 0 ||
+              parseFloat(iCashAmount) > (user?.pointsBalance || 0)) && {
+              opacity: 0.5,
+            },
           ]}
           onPress={handleWithdrawTrigger}
-          disabled={!iCashAmount || parseFloat(iCashAmount) <= 0}
+          disabled={
+            !iCashAmount ||
+            parseFloat(iCashAmount) <= 0 ||
+            parseFloat(iCashAmount) > (user?.pointsBalance || 0)
+          }
         >
           <Text style={iCashActionsStyles.buyBtnText}>
-            {!hasPaymentMethod
+            {!iCashAmount || parseFloat(iCashAmount) <= 0
+              ? 'Enter Amount'
+              : parseFloat(iCashAmount) > (user?.pointsBalance || 0)
+              ? 'Insufficient Balance'
+              : !hasPaymentMethod
               ? 'Add Bank Account'
               : !selectedMethod
               ? 'Select a Bank Account'

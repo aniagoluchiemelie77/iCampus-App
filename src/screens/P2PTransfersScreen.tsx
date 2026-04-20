@@ -179,16 +179,22 @@ export const IcashP2PScreen = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          recipientId: searchResult!.userId, // From your search result
+          recipientId: searchResult!.userId,
+          recipientiTagName: searchResult!.username,
           amount: parseFloat(amount),
           description: `Transfer to ${searchResult!.username}`,
         }),
       });
 
       if (response.ok) {
-        navigation.navigate('TransactionSuccess', {
-          amount,
-          recipient: searchResult!.username,
+        navigation.navigate('iCashSuccessScreen', {
+          amount: parseFloat(amount),
+          recipientUsername: searchResult!.username,
+          type: 'p2p',
+          amountPurchased: 0,
+          amountPaid: 0,
+          currency: 'iCash',
+          payout: 0,
         });
       } else {
         const errorData = await response.json();
