@@ -128,11 +128,12 @@ export const AllTransactionsScreen = ({ route }: any) => {
         <View style={iCashScreenStyles.tabContainer}>
           <View style={iCashScreenStyles.searchSection}>
             <View style={iCashScreenStyles.searchContainer}>
-              <Icon name="magnify" size={20} color="#888" />
+              <Icon name="magnify" size={20} color={PRIMARY_COLOR_TINT} />
               <TextInput
                 placeholder="Search history..."
                 style={iCashScreenStyles.searchInput}
                 value={searchQuery}
+                placeholderTextColor={PRIMARY_COLOR_TINT}
                 onChangeText={setSearchQuery}
               />
             </View>
@@ -140,6 +141,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
               style={iCashScreenStyles.filterBtn}
               onPress={() => setModalVisible(true)}
             >
+              <Text style={iCashScreenStyles.filterBtnText}>Export to PDF</Text>
               <Icon
                 name="file-export-outline"
                 size={22}
@@ -195,13 +197,12 @@ export const AllTransactionsScreen = ({ route }: any) => {
 
             <View style={{ flexDirection: 'row', marginTop: 20 }}>
               <TouchableOpacity
-                style={[
-                  iCashScreenStyles.modalBtn,
-                  { backgroundColor: '#EEE' },
-                ]}
+                style={iCashScreenStyles.modalBtn}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={{ color: '#333', fontWeight: '600' }}>Cancel</Text>
+                <Text style={{ color: PRIMARY_COLOR, fontWeight: '600' }}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -291,15 +292,14 @@ export const iCashScreenStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    backgroundColor: '#fadccc',
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F3F5',
     borderRadius: 10,
     paddingHorizontal: 10,
     height: 45,
@@ -313,8 +313,16 @@ export const iCashScreenStyles = StyleSheet.create({
   filterBtn: {
     marginLeft: 15,
     padding: 8,
-    backgroundColor: '#F1F3F5',
     borderRadius: 10,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterBtnText: {
+    color: PRIMARY_COLOR,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   customTabBar: {
     flexDirection: 'row',
@@ -353,21 +361,20 @@ export const iCashScreenStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#2222',
     marginBottom: 5,
   },
-  modalSub: { fontSize: 13, color: '#666', marginBottom: 20 },
+  modalSub: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginBottom: 20 },
   dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
-    backgroundColor: '#F8F9FA',
     borderRadius: 12,
     marginBottom: 10,
   },
-  dateLabel: { fontSize: 11, color: '#888' },
-  dateValue: { fontSize: 15, fontWeight: '600', color: '#333' },
+  dateLabel: { fontSize: 11, color: '#2222' },
+  dateValue: { fontSize: 15, fontWeight: '600', color: PRIMARY_COLOR_TINT },
   modalBtn: {
     flex: 1,
     height: 50,
