@@ -7,14 +7,9 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { baseUrl } from './/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatsData } from '../types/firebase';
 
-const screenWidth = Dimensions.get("window").width;
-interface StatsData {
-  flow: Array<{ _id: 'in' | 'out'; total: number }>;
-  topRecipients: Array<{ _id: string; count: number; total: number, name: string }>;
-  monthly: Array<{ _id: number; total: number }>;
-  currency: string;
-}
+const screenWidth = Dimensions.get('window').width;
 interface transactionStats {
     data: StatsData | null,
     userId: string

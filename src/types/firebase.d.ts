@@ -761,3 +761,9 @@ export interface ITag {
   isDefault: boolean;
   createdAt: Date;
 }
+export interface StatsData {
+  flow: Array<{ _id: 'in' | 'out'; total: number }>;
+  topRecipients: Array<{ _id: string; count: number; total: number, name: string }>;
+  monthly: Array<{ _id: number; total: number }>;
+  currency: string;
+}

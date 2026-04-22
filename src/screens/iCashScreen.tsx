@@ -23,6 +23,7 @@ import { useDispatch } from 'react-redux';
 import { useRoute } from '@react-navigation/native';
 import { setUser } from '../components/userSlice';
 import { TransactionList } from '../components/TransactionHistory';
+import { StatsData } from '../types/firebase';
 
 const ActionButton = ({
   icon,
@@ -46,6 +47,7 @@ export const ICashDashboard = () => {
   const dispatch = useDispatch();
   const user = useAppSelector(state => state.user);
   const [showBalance, setShowBalance] = useState(true);
+  const [stats, setStats] = useState<StatsData | null>();
   const balance = user.pointsBalance || 0;
   const [integer, decimal] = balance.toFixed(2).split('.');
 
@@ -68,7 +70,27 @@ export const ICashDashboard = () => {
       console.log('Refresh failed', e);
     }
   }, [dispatch]);
+  const fetchStats = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(
+        `${baseUrl}user/transactions/stats?userId=${user.uid}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const data = await response.json();
+      if (data.success) {
+        setStats(data.stats);
+      }
+    } catch (e) {
+      console.log('Failed to fetch stats', e);
+    }
+  }, [user.uid]);
 
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
   // 2. Now the effect is stable
   useEffect(() => {
     if (needsRefresh) {
@@ -81,7 +103,7 @@ export const ICashDashboard = () => {
   }, [needsRefresh, refreshUserData, navigation]);
   useEffect(() => {
     if (!user.twoFactorEnabled) {
-      navigation.navigate('iCash Biometrics');
+      navigation.navigate('iCashSecurity');
     }
   }, [navigation, user.twoFactorEnabled]);
 
@@ -150,7 +172,12 @@ export const ICashDashboard = () => {
         user={user}
         variant="compact"
         limit={5}
-        onViewAll={() => navigation.navigate('All Transactions')}
+        onViewAll={() =>
+          navigation.navigate('AllTransactions', {
+            user,
+            stats,
+          })
+        }
       />
       <Toast config={toastConfig} />
     </ScrollView>
@@ -169,7 +196,7 @@ export const iCashScreenStyles = StyleSheet.create({
     height: 220,
     justifyContent: 'space-between',
     elevation: 10,
-    shadowColor: '#e05515',
+    shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 15,
@@ -217,7 +244,7 @@ export const iCashScreenStyles = StyleSheet.create({
     color: '#fff',
   },
   diamondShadow: {
-    textShadowColor: '#e05515',
+    textShadowColor: PRIMARY_COLOR,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
   },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { store } from './src/components/store'; // ✅ Correct
+import { store } from './src/components/store'; 
 import { Provider } from 'react-redux';
 import type {
   Posts,
@@ -44,8 +44,6 @@ import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
 import { ICashBuyPage } from './src/screens/BuyiCashScreen.tsx';
 import { ICashWithdrawPage } from './src/screens/WithdrawiCashScreen.tsx';
-import TransferPointsScreen from './src/screens/TransferPoints';
-import ReceivePointsScreen from './src/screens/ReceivePoints';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
 import { CourseSubPage } from 'screens/CourseSubPage';
@@ -64,15 +62,12 @@ import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 import { iCashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
 import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
+import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
 export type RootStackParamList = {
   SignUp: undefined;
-  //
-  AddPaymentMethod: {
-    onSuccess: () => void;
-  };
   FlutterwavePayment: {
     amount: number;
     iCashToCredit: number;
@@ -80,11 +75,23 @@ export type RootStackParamList = {
     email: string;
     firstname: string;
   };
+  AllTransactionsScreen: {
+    user: User;
+    stats: {
+      flow: Array<{ _id: 'in' | 'out'; total: number }>;
+      topRecipients: Array<{
+        _id: string;
+        count: number;
+        total: number;
+        name: string;
+      }>;
+      monthly: Array<{ _id: number; total: number }>;
+      currency: string;
+    } | null;
+  };
   ICashBuyPage: { refresh?: boolean };
   CreatePost: { type: 'post' | 'poll' };
   ICashWithdrawPage: undefined;
-  ReceivePointsScreen: undefined;
-  TransferPointsScreen: undefined;
   Notifications: undefined;
   VerifyOTP: {
     flw_ref: string;
@@ -286,16 +293,6 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="TransferPointsScreen"
-              component={TransferPointsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ReceivePointsScreen"
-              component={ReceivePointsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="PhysicalAttendanceManager"
               component={PhysicalAttendanceManager}
               options={{ headerShown: false }}
@@ -323,6 +320,11 @@ const App = () => {
             <Stack.Screen
               name="Notifications"
               component={Notifications}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AllTransactionsScreen"
+              component={AllTransactionsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
