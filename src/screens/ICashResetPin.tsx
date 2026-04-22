@@ -53,7 +53,7 @@ export const ICashResetPin = ({ navigation }: Props) => {
 
       if (response.ok) {
         Toast.show({ type: 'success', text1: 'Success', text2: 'PIN updated.' });
-        navigation.replace('ICashDashboard');
+        navigation.replace('ICashDashboard', { refresh: true });
       } else {
         Toast.show({ type: 'error', text1: 'Failed', text2: json.message });
         setOtp('');
