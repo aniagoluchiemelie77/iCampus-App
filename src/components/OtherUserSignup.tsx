@@ -37,7 +37,6 @@ import {
   isValidEmail,
   isValidPassword,
   getPasswordRequirements,
-  generateId2,
 } from './StudentSignup';
 import { authorize } from 'react-native-app-auth';
 import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '@env';
@@ -271,11 +270,9 @@ const OtherUserSignup = () => {
 
       // Build the user object dynamically
       const registrationData = {
-        uid: generateId2(),
+        currentIScore: 5,
         deviceType: [deviceType],
-        iScore: subType === 'enterprise' ? '' : '5', // Enterprises start with 1000 iScore
         ipAddress: [ipAddress],
-        hasSubscribed: false,
         usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
         firstname,
         itagusername: firstname,

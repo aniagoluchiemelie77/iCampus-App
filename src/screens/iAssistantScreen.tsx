@@ -5,11 +5,13 @@ import { RootStackParamList } from '../../App';
 import baseUrl, { PRIMARY_COLOR_TINT, PRIMARY_COLOR} from '../components/Classroomcomponent'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { PageHeader } from '../components/PageHeader.tsx';
+import { useAppSelector } from '../components/hooks';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
 export const Assistant = ({ route }: Props) => {
   const { contextType, contextData, initialMessage } = route.params;
+  const user = useAppSelector(state => state.user);
   const flatListRef = useRef<FlatList>(null);
   const [messages, setMessages] = useState<
     { role: 'user' | 'model'; content: string }[]
@@ -34,6 +36,8 @@ export const Assistant = ({ route }: Props) => {
         body: JSON.stringify({
           message: input,
           context: { type: contextType, data: contextData },
+          history: messages,
+          userId: user.uid,
         }),
       });
 

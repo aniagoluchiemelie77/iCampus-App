@@ -44,7 +44,9 @@ export const LibraryScreen: React.FC = () => {
     setIsSearching(true);
     try {
       const response = await fetch(
-        `${baseUrl}users/library/search?q=${encodeURIComponent(query)}`,
+        `${baseUrl}users/library/search?q=${encodeURIComponent(query)}&userId=${
+          user.uid
+        }`,
       );
       const data = await response.json();
       setBooks(data);

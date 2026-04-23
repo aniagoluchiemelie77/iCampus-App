@@ -349,7 +349,8 @@ const InstructorSignup = () => {
       // Build the registration payload
       // Note: We REMOVED userId and tokenId generation here.
       const registrationData = {
-        iScore: '5',
+        currentIScore: 5,
+        isVerified: true,
         profilePic: avatar || '',
         usertype: userType,
         schoolCode,

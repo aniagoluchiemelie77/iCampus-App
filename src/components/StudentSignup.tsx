@@ -78,27 +78,6 @@ export const getPasswordRequirements = (password: string) => ({
   hasMinLength: password.length >= 10,
 });
 
-//tokenId generation
-export const generateId = (length = 14) => {
-  const chars =
-    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-};
-//Generating userId
-export const generateId2 = (length = 10) => {
-  const chars =
-    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-};
-
 export const Footer = () => {
   const navigation = useNavigation<any>();
   return (
@@ -441,7 +420,8 @@ const StudentSignup = () => {
       // Build the registration payload
       // Note: We REMOVED userId and tokenId generation here.
       const registrationData = {
-        iScore: '5',
+        currentIScore: 5,
+        isVerified: true,
         profilePic: avatar || '',
         usertype: userType,
         schoolCode,
