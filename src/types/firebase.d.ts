@@ -55,9 +55,10 @@ export interface User {
   userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string,
-  iScore?: string,
+  currentIScore?: number,
+  previousIScore?: number,
   itagusername?: string
-}
+};
 export interface iCampusAppDetails {
   appVersion: string;// e.g., ['tech', 'sports', 'arts']
 }
