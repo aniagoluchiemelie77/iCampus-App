@@ -5,6 +5,7 @@ export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export interface User {
   uid: string;
+  bio?: string;
   refreshTokens?: string[];
   usertype?: UserType;
   firstname?: string;

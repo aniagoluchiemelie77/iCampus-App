@@ -1,8 +1,13 @@
 import { StyleSheet, Dimensions } from 'react-native';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '../../components/Classroomcomponent';
+
+export const PRIMARY_COLOR = '#f54b02';
+export const PRIMARY_COLOR_TINT = '#f5743d';
+export const PRIMARY_COLOR_TINT_MAIN = '#f9dccf';
+
+export const PREMIUM_BADGE_COLOR = '#93370f';
+export const PRO_BADGE_COLOR = '#f54b02';
+export const ENTERPRISE_BADGE_COLOR = '#f5770a';
+
 const screenWidth = Dimensions.get('window').width;
 const { width, height } = Dimensions.get('window');
 export const DEFAULT_GRADIENT = ['#3b2115', '#5a3c2e', '#e05515'];

@@ -1,6 +1,5 @@
 declare module '@env' {
   export const VERVE_SEARCH_API_KEY: string;
-  export const CLOUDINARY_APISECRET: string;
   export const CLOUDINARY_APIKEY: string;
   export const CLOUDINARY_APICLOUDNAME: string;
   export const CLOUDINARY_UPLOAD_PRESET: string;
