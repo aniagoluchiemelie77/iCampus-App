@@ -339,7 +339,7 @@ const CourseModal = ({
   // 4. Assignments
   const assignmentCount = course.assignments?.length || 0;
   // 5. Exceptions: Business Logic (Max 3 per month)
-  const userPlan = currentUser.plan || 'free';
+  const userPlan = currentUser.tier || 'free';
   const limit = getExceptionLimit(userPlan);
   const usedThisMonth = allExceptions.filter(
     ex =>

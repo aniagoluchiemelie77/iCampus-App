@@ -1,3 +1,4 @@
+import { NavigationProp } from '@react-navigation/native';
 
 export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
@@ -25,7 +26,7 @@ export interface User {
   ipAddress?: string[];
   deviceType?: string[]; 
   password: string;
-  plan?: 'free' | 'pro' | 'premium';
+  tier?: 'free' | 'pro' | 'premium';
   matricNumber?: string;
   department?: string;
   profilePic?: string[];
@@ -767,4 +768,11 @@ export interface StatsData {
   topRecipients: Array<{ _id: string; count: number; total: number, name: string }>;
   monthly: Array<{ _id: number; total: number }>;
   currency: string;
+}
+export interface RankCardProps {
+  item: User;
+  rank: number; // Pass index + 1 from the list
+  userRole: UserType;
+  navigation: NavigationProp<any>;
+  data: User[];
 }

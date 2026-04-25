@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,24 @@ import {
   ScrollView,
   FlatList,
   TextInput,
+  Animated,
+  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { PRIMARY_COLOR } from '../components/Classroomcomponent';
-import { User } from 'types/firebase';
+import { User, RankCardProps } from 'types/firebase';
 import { NavigationProp } from '@react-navigation/native';
 import { RankCard } from '../components/IscoreRankCard';
+import { useNavigation } from '@react-navigation/native';
+import { useAppSelector } from '../components/hooks';
+import { baseUrl } from '../components/HomeScreenComponents';
 import moment from 'moment';
+import axios from 'axios';
+
+const { width } = Dimensions.get('window');
+const ITEM_WIDTH = 160; // Card width
+const ITEM_SPACING = (width - ITEM_WIDTH) / 2;
 
 interface IInstitution {
   id?: string;
@@ -43,6 +54,90 @@ interface InstitutionItemProps {
   item: IInstitution;
   index: number;
 }
+
+export const EliteCarousel: React.FC<RankCardProps> = ({
+  data,
+  userRole,
+  navigation,
+}) => {
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
+  const [index, setIndex] = useState(0);
+
+  // --- Auto-Scroll Logic ---
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (data && data.length > 0) {
+        let nextIndex = index + 1;
+        if (nextIndex >= data.length) nextIndex = 0;
+        setIndex(nextIndex);
+        flatListRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+      }
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [index, data]);
+
+  return (
+    <View style={styles.carouselContainer}>
+      <Animated.FlatList
+        ref={flatListRef}
+        data={data}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={ITEM_WIDTH}
+        decelerationRate="fast"
+        contentContainerStyle={{
+          paddingHorizontal: ITEM_SPACING, //
+        }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: true },
+        )}
+        keyExtractor={item => item.uid}
+        renderItem={({ item, index: i }) => {
+          // --- Animation Logic ---
+          const inputRange = [
+            (i - 1) * ITEM_WIDTH,
+            i * ITEM_WIDTH,
+            (i + 1) * ITEM_WIDTH,
+          ];
+
+          const scale = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.85, 1.05, 0.85], // Center is 105% size, sides are 85%
+            extrapolate: 'clamp',
+          });
+
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.6, 1, 0.6], // Dim the side cards
+            extrapolate: 'clamp',
+          });
+
+          return (
+            <Animated.View
+              style={{
+                width: ITEM_WIDTH,
+                transform: [{ scale }],
+                opacity,
+              }}
+            >
+              <RankCard
+                item={item}
+                rank={i + 1}
+                userRole={userRole}
+                navigation={navigation}
+              />
+            </Animated.View>
+          );
+        }}
+      />
+    </View>
+  );
+};
 const SearchBar = ({ value, onChange }: any) => (
   <View style={[styles.searchContainer]}>
     <Icon name="magnify" size={20} color="#888" />
@@ -157,60 +252,70 @@ const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => (
     </View>
   </View>
 );
-const Section = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => (
-  <View style={styles.sectionWrapper}>
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <TouchableOpacity>
-        <Text style={styles.viewAllText}>View All</Text>
-      </TouchableOpacity>
-    </View>
-    {children}
-  </View>
-);
-export const RankingScreen: React.FC<RankingScreenProps> = ({
-  navigation,
-  topStudents,
-  topLecturers,
-  topInstitutions,
-  user,
-  userRole,
-}) => {
+export const RankingScreen: React.FC<RankingScreenProps> = () => {
+  const user = useAppSelector(state => state.user);
+  const userRole = user.usertype;
+  const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [leaderboard, setLeaderboard] = useState({
+    students: [],
+    instructors: [],
+    institutions: [],
+  });
+  const fetchData = async () => {
+    try {
+      const response = await axios.get(`${baseUrl}users/fetchLeaderBoards`);
+      if (response.data.success) {
+        setLeaderboard({
+          students: response.data.data.students,
+          instructors: response.data.data.instructors,
+          institutions: response.data.data.institutions,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboards:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
   const filteredStudents = useMemo(() => {
-    return topStudents
-      .filter((s: any) => s.currentIScore > 20)
+    return leaderboard.students
+      .filter((s: any) => (s.currentIScore ?? 0) > 20)
       .filter((s: any) =>
         s.firstname.toLowerCase().includes(searchQuery.toLowerCase()),
       );
-  }, [searchQuery, topStudents]);
+  }, [searchQuery, leaderboard.students]);
   const filteredLecturers = useMemo(() => {
-    return topLecturers
-      .filter((l: any) => l.iScore > 20)
+    return leaderboard.instructors
+      .filter((l: any) => (l.currentIScore ?? 0) > 20)
       .filter((l: any) =>
         l.firstname.toLowerCase().includes(searchQuery.toLowerCase()),
       );
-  }, [searchQuery, topLecturers]);
+  }, [searchQuery, leaderboard.instructors]);
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
     // 1. Define Tier Permissions
     const isEnterprise = userRole === 'enterprise';
-    const isProOrPremium = user.plan === 'pro' || user.plan === 'premium';
+    const isProOrPremium = user.tier === 'pro' || user.tier === 'premium';
 
     // 2. Combine and Filter
-    const allUsers = [...topStudents, ...topLecturers];
+    const allUsers = [...leaderboard.students, ...leaderboard.instructors];
 
     return allUsers
       .filter(u => {
-        // RULE 1: The 'Gate' - Only users with iScore > 20 are searchable by the public
-        // (Enterprise can bypass this if you want them to see 'everyone')
         const isElite = u.currentIScore > 20;
         if (!isElite && !isEnterprise) return false;
 
@@ -230,7 +335,23 @@ export const RankingScreen: React.FC<RankingScreenProps> = ({
               : 'Locked', // Free users see "Locked" or a blurred placeholder
         };
       });
-  }, [searchQuery, topStudents, topLecturers, user.plan, userRole]);
+  }, [
+    searchQuery,
+    leaderboard.students,
+    leaderboard.instructors,
+    user.tier,
+    userRole,
+  ]);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+        <Text style={{ marginTop: 10, color: '#676D75' }}>
+          Loading Elite Rankings...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -246,40 +367,53 @@ export const RankingScreen: React.FC<RankingScreenProps> = ({
         searchResults={searchResults} // From the search logic we built
         navigation={navigation}
       />
-      {/* 3. Horizontal Students List */}
-      <Section title="Elite Students">
-        <FlatList
-          horizontal
-          data={filteredStudents}
-          renderItem={({ item }) => (
-            <RankCard
-              item={item}
-              onPress={() => navigation.navigate('Profile', { uid: item.uid })}
-              showAction={userRole === 'enterprise' ? 'Message' : 'View'}
-            />
-          )}
-        />
-      </Section>
-      <Section title="Elite Instructors">
-        <FlatList
-          horizontal
-          data={filteredLecturers}
-          renderItem={({ item }) => (
-            <RankCard
-              item={item}
-              onPress={() => navigation.navigate('Profile', { uid: item.uid })}
-              showAction={userRole === 'enterprise' ? 'Message' : 'View'}
-            />
-          )}
-        />
-      </Section>
+      {!searchQuery && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Elite Students</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AllStudents')}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <EliteCarousel
+            data={filteredStudents}
+            userRole={userRole}
+            navigation={navigation}
+          />
+
+          {/* 4. ELITE INSTRUCTORS (Now using Animated Carousel) */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Elite Instructors</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AllInstructors')}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <EliteCarousel
+            data={filteredLecturers}
+            userRole={userRole!}
+            navigation={navigation}
+          />
+        </>
+      )}
 
       {/* 4. Vertical Institution List */}
       <View style={styles.sectionWrapper}>
         <Text style={styles.sectionTitle}>Top Ranking Institutions</Text>
-        {topInstitutions.map((inst, index) => (
-          <InstitutionItem key={inst.id} item={inst} index={index} />
-        ))}
+        <View style={styles.instListContainer}>
+          {leaderboard.institutions.map((inst, index) => (
+            <InstitutionItem
+              key={inst.schoolCode || index}
+              item={inst}
+              index={index}
+            />
+          ))}
+        </View>
       </View>
 
       {/* 5. Enterprise CTA */}
@@ -632,5 +766,9 @@ const styles = StyleSheet.create({
   // so that cards bleed to the edges when scrolling.
   horizontalListPadding: {
     paddingRight: 20,
+  },
+  carouselContainer: {
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
   },
 });
