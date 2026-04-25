@@ -10,12 +10,7 @@ import { clearUser } from '@components/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { io, Socket } from 'socket.io-client';
-import {
-  ClassroomScreen,
-  StoreScreen,
-  RankingScreen,
-  Home,
-} from '../components/HomeScreenComponents';
+import { StoreScreen, Home } from '../components/HomeScreenComponents';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -30,6 +25,8 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import { RankingScreen } from '@components/RankingScreen';
+import ClassroomScreenComponent from '../components/Classroomcomponent';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 export interface SocketContextType {
@@ -85,6 +82,7 @@ const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const socketContext = useContext(SocketContext);
   const socket = socketContext?.socket;
+  const rawRole = user?.usertype || 'student';
 
   const [activeIcon, setActiveIcon] = useState<string>('home');
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
@@ -191,7 +189,9 @@ const HomeScreen = () => {
           {activeIcon === 'home' && <Home />}
 
           {isClassroomAllowed && activeIcon === 'classroom' && (
-            <ClassroomScreen />
+            <ClassroomScreenComponent
+              userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
+            />
           )}
 
           {activeIcon === 'store' && <StoreScreen />}
@@ -229,7 +229,7 @@ const HomeScreen = () => {
               <Icon
                 name={activeIcon === 'classroom' ? 'easel' : 'easel-outline'}
                 size={26}
-                color={activeIcon === 'classroom' ? '#fb966b' : '#032820'}
+                color={activeIcon === 'classroom' ? PRIMARY_COLOR : '#032820'}
               />
               {activeIcon === 'classroom' && (
                 <Text style={homeStyles.activeIconLabel}>Courses</Text>
@@ -248,7 +248,7 @@ const HomeScreen = () => {
             <Icon
               name={activeIcon === 'store' ? 'cart' : 'cart-outline'}
               size={26}
-              color={activeIcon === 'store' ? '#fb966b' : '#032820'}
+              color={activeIcon === 'store' ? PRIMARY_COLOR : '#032820'}
             />
             {activeIcon === 'store' && (
               <Text style={homeStyles.activeIconLabel}>Store</Text>
@@ -265,7 +265,7 @@ const HomeScreen = () => {
             <Icon
               name={activeIcon === 'ranking' ? 'trophy' : 'trophy-outline'}
               size={26}
-              color={activeIcon === 'ranking' ? '#fb966b' : '#032820'}
+              color={activeIcon === 'ranking' ? PRIMARY_COLOR : '#032820'}
             />
             {activeIcon === 'ranking' && (
               <Text style={homeStyles.activeIconLabel}>Ranking</Text>

@@ -11,9 +11,10 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LogoSizeable } from '../assets/images/Logo';
 import { getContrastColor } from '../utils/colorHelper';
 import { PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { DEFAULT_GRADIENT } from '../assets/styles/colors';
 
 const { width } = Dimensions.get('window');
-const DEFAULT_GRADIENT = ['#3b2115', '#5a3c2e', '#e05515'];
+
 
 export const ITagCard = ({
   iTagData,

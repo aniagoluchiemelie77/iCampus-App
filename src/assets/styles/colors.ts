@@ -5,6 +5,9 @@ import {
 } from '../../components/Classroomcomponent';
 const screenWidth = Dimensions.get('window').width;
 const { width, height } = Dimensions.get('window');
+export const DEFAULT_GRADIENT = ['#3b2115', '#5a3c2e', '#e05515'];
+export const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32']; 
+
 export const MainSignupStyles = StyleSheet.create({
   background: {
     width,

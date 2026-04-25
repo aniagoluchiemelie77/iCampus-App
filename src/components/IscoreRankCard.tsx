@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RankCardProps } from 'types/firebase';
-import { PRIMARY_COLOR } from './Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 
 export const RankCard: React.FC<RankCardProps> = ({
   item,
@@ -11,10 +11,9 @@ export const RankCard: React.FC<RankCardProps> = ({
   navigation,
 }) => {
   const diff = (item.currentIScore ?? 0) - (item.previousIScore ?? 0);
+  const isStudent = userRole === 'student';
   const isRising = diff > 0;
   const isFalling = diff < 0;
-
-  // Modern UI: Assign colors based on rank
   const getRankColor = () => {
     if (rank === 1) return '#FFD700';
     if (rank === 2) return '#C0C0C0';
@@ -28,7 +27,6 @@ export const RankCard: React.FC<RankCardProps> = ({
       style={styles.card}
       onPress={() => navigation.navigate('Profile', { uid: item.uid })}
     >
-      {/* Rank Badge */}
       {rank <= 3 && (
         <View
           style={[styles.topRankBadge, { backgroundColor: getRankColor() }]}
@@ -36,7 +34,6 @@ export const RankCard: React.FC<RankCardProps> = ({
           <Text style={styles.rankText}>{rank}</Text>
         </View>
       )}
-
       <View style={styles.avatarWrapper}>
         <Image
           source={{
@@ -49,7 +46,7 @@ export const RankCard: React.FC<RankCardProps> = ({
           <View
             style={[
               styles.trendBadge,
-              { backgroundColor: isRising ? '#4CAF50' : '#FF5252' },
+              { backgroundColor: isRising ? '#4CAF50' : PRIMARY_COLOR },
             ]}
           >
             <Icon
@@ -60,27 +57,20 @@ export const RankCard: React.FC<RankCardProps> = ({
           </View>
         )}
       </View>
-
       <Text style={styles.userName} numberOfLines={1}>
         {item.firstname} {item.lastname?.charAt(0)}.
       </Text>
-
       <Text style={styles.departmentText} numberOfLines={1}>
-        {item.department || item.jobTitle || 'Member'}
+        {isStudent ? item.department : item.jobTitle || 'iCampus User'}
       </Text>
-
       <View style={styles.iScoreContainer}>
         <Text style={styles.iScoreValue}>
           {Math.round(item.currentIScore || 0)}
         </Text>
-        <Text style={styles.iScoreLabel}>iScore</Text>
       </View>
 
       <TouchableOpacity
-        style={[
-          styles.actionBtn,
-          userRole === 'enterprise' && styles.enterpriseBtn,
-        ]}
+        style={styles.actionBtn}
         onPress={() => {
           if (userRole === 'enterprise') {
             navigation.navigate('Chat', { recipientId: item.uid });
@@ -89,12 +79,7 @@ export const RankCard: React.FC<RankCardProps> = ({
           }
         }}
       >
-        <Text
-          style={[
-            styles.actionBtnText,
-            userRole === 'enterprise' && styles.enterpriseBtnText,
-          ]}
-        >
+        <Text style={styles.actionBtnText}>
           {userRole === 'enterprise' ? 'Recruit' : 'Profile'}
         </Text>
       </TouchableOpacity>
@@ -106,17 +91,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 24,
     padding: 16,
-    marginRight: 14,
-    width: 150,
+    height: 220,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F0F2F5',
-    // Shadow
+    justifyContent: 'space-between',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
+    position: 'relative',
   },
   topRankBadge: {
     position: 'absolute',
@@ -127,9 +112,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
-    borderWidth: 2,
-    borderColor: '#FFF',
+    zIndex: 5,
   },
   rankText: {
     fontSize: 10,
@@ -140,14 +123,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 3,
     borderRadius: 35,
-    borderWidth: 1,
-    borderColor: '#F0F2F5',
+    borderColor: '#fadccc',
+    position: 'relative'
   },
   avatar: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
   },
   trendBadge: {
     position: 'absolute',
@@ -161,26 +143,25 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1A1D1E',
+    color: '#222',
     textAlign: 'center',
   },
   departmentText: {
     fontSize: 10,
-    color: '#9BA3AF',
+    color: PRIMARY_COLOR_TINT,
     marginBottom: 8,
     fontWeight: '500',
   },
   iScoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#fadccc',
+    padding: 10,
     borderRadius: 12,
     marginBottom: 14,
   },
   iScoreValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: PRIMARY_COLOR,
   },
@@ -192,21 +173,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   actionBtn: {
-    backgroundColor: '#F0F4FF',
+    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 8,
     borderRadius: 12,
     width: '100%',
   },
   actionBtnText: {
-    color: PRIMARY_COLOR,
+    color: '#fff',
     fontSize: 11,
     fontWeight: '800',
     textAlign: 'center',
-  },
-  enterpriseBtn: {
-    backgroundColor: PRIMARY_COLOR,
-  },
-  enterpriseBtnText: {
-    color: '#FFF',
   },
 });

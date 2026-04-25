@@ -36,6 +36,7 @@ import { homeStyles } from '../assets/styles/colors.ts';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const PRIMARY_COLOR = '#f54b02';
 export const PRIMARY_COLOR_TINT = '#f5743d';
+export const PRIMARY_COLOR_TINT_MAIN = '#f9dccf';
 
 // --- Sub-Components ---
 interface CourseModalProps {

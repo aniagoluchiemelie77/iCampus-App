@@ -22,7 +22,6 @@ import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from './hooks';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import ClassroomScreenComponent from './Classroomcomponent.tsx';
 import type {
   ProductCategoryList,
   Product,
@@ -1007,16 +1006,6 @@ export function Home() {
     </View>
   );
 }
-// ClassroomScreen.js
-export function ClassroomScreen() {
-  const user = useAppSelector(state => state.user);
-  const rawRole = user?.usertype || 'student';
-  return (
-    <ClassroomScreenComponent
-      userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
-    />
-  );
-}
 
 // StoreScreen.js
 export function StoreScreen() {
@@ -1881,8 +1870,3 @@ export function StoreScreen() {
   );
 }
 
-// ProfileScreen.js
-
-export function RankingScreen() {
-  return <Text>Ranking Screen</Text>;
-}

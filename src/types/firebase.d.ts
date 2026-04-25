@@ -414,7 +414,17 @@ export interface EventNote {
   recurrenceRule?: string;
   tags?: string[]; // e.g., ['exam', 'group meeting', 'revision']
 }
-
+export interface iCampusOperationalInstitutionSchema {
+  id?: string;
+  schoolName: string;
+  contactEmail: string;
+  schoolCode: string;
+  dateJoined: string;
+  timeJoined: string;
+  logo: string;
+  currentiScoreAvg: number;
+  previousiScoreAvg: number;
+};
 export interface UserTransactions {
   id: string; // unique ID for this transaction group (optional)
   userId: string; // or User['uid'] if referencing from your User type
@@ -772,6 +782,10 @@ export interface StatsData {
 export interface RankCardProps {
   item: User;
   rank: number; // Pass index + 1 from the list
+  userRole: UserType;
+  navigation: NavigationProp<any>;
+}
+export interface RankCardCarouselProps {
   userRole: UserType;
   navigation: NavigationProp<any>;
   data: User[];
