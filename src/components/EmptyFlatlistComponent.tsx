@@ -22,10 +22,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <View style={[styles.container, style]}>
-      <Icon name={iconName} size={80} color="#ccc" />
+      <Icon name={iconName} size={80} color={PRIMARY_COLOR_TINT} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
-      
+
       {buttonText && onPress && (
         <TouchableOpacity style={styles.button} onPress={onPress}>
           <Text style={styles.buttonText}>{buttonText}</Text>

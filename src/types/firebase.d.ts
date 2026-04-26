@@ -629,7 +629,8 @@ export interface Course {
   isActive?: boolean;
   price?: number;            
   thumbnailUrl?: string;
-  rating?: number;          
+  rating?: number;  
+  description?: string;        
   totalReviews?: number;
   isPublished?: boolean;    
   instructorName?: string;  

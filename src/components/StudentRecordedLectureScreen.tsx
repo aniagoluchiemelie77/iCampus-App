@@ -21,6 +21,8 @@ import { Lecture, Comment } from 'types/firebase';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { WebView } from 'react-native-webview';
 import { PageHeader } from '../components/PageHeader';
+import { formatTime } from '../utils/durationFormatter';
+
 interface StudentRecordedLecturesProps {
   lectureTitle: string;
   lectureVideoUrl: string;
@@ -220,11 +222,6 @@ export const StudentRecordedLecturesScreen: React.FC<
     if (diffInSeconds < 86400)
       return `${Math.floor(diffInSeconds / 3600)}h ago`;
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
-  };
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentContainer}>
