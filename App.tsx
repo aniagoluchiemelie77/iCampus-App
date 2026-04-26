@@ -35,7 +35,7 @@ import ForgotPasswordScreen from './src/screens/ForgotPassword';
 import ChangePasswordScreen from './src/screens/ChangePassword';
 import Settings from './src/screens/Settings';
 import Calender from './src/screens/Calender';
-import Profile from './src/screens/Profile';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import ProductDetails from './src/screens/ProductDetails';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import Checkout from './src/screens/Checkout';
@@ -176,7 +176,7 @@ export type RootStackParamList = {
   };
   Settings: undefined;
   Calender: undefined;
-  Profile: undefined; //Profile: { userId: string };
+  Profile: { userId: string };
   VerifyEmail: {
     verified?: string;
     email?: string;
@@ -433,7 +433,7 @@ const App = () => {
             />
             <Stack.Screen
               name="Profile"
-              component={Profile}
+              component={ProfileScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
