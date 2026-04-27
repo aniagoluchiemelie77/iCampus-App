@@ -24,12 +24,12 @@ const ACTION_CONFIG: Record<
 > = {
   // --- Social / General ---
   'Create Poll': {
-    icon: 'poll',
+    icon: 'poll', // MaterialIcons uses 'poll' (outlined by default or 'assessment')
     route: 'CreatePost',
     params: { type: 'poll' },
   },
   iAssistant: {
-    icon: 'smart-toy',
+    icon: 'smart-toy', // For outlined, ensure your library supports it or use 'robot-outline' if using MaterialCommunityIcons
     route: 'Assistant',
     params: {
       contextType: 'general',
@@ -38,10 +38,18 @@ const ACTION_CONFIG: Record<
     },
   },
   'Create Post': {
-    icon: 'edit',
+    icon: 'edit-note', // 'edit-note' looks more like an outlined 'edit'
     route: 'CreatePost',
     params: { type: 'post' },
   },
+
+  // --- Financial / Wallet ---
+  iCash: {
+    icon: 'account-balance-wallet',
+    route: 'ICashDashboard',
+    params: {},
+  },
+
   // --- Classroom Page ---
   'View Lectures': {
     icon: 'menu-book',
@@ -54,7 +62,7 @@ const ACTION_CONFIG: Record<
     params: {},
     category: 'premium',
   },
-  'Live Chat': { icon: 'chat', route: 'Modal' },
+  'Live Chat': { icon: 'chat-bubble-outline', route: 'Modal' }, // Explicitly outlined
   'Hand Wave': { icon: 'front-hand', route: 'Socket' },
   Library: {
     icon: 'local-library',
@@ -63,7 +71,11 @@ const ACTION_CONFIG: Record<
   },
 
   // --- Store Page ---
-  'View Favorites': { icon: 'favorite', route: 'StoreWishlist', params: {} },
+  'View Favorites': {
+    icon: 'favorite-border',
+    route: 'StoreWishlist',
+    params: {},
+  }, // 'favorite-border' is the outline
   'View Cart': { icon: 'shopping-cart', route: 'StoreCart', params: {} },
 
   // --- Additional ---
@@ -107,6 +119,11 @@ const ExpandableFAB = ({
           lectures && lectures.length > 0
             ? `I see you're looking at lectures for ${lectures[0].topicName}. How can I help?`
             : undefined,
+      });
+      return;
+    }else if (label === 'iCash') {
+      navigation.navigate('ICashDashboard', {
+        refresh: true,
       });
       return;
     }

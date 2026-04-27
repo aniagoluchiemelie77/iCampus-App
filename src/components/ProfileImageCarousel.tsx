@@ -6,155 +6,196 @@ import axios from 'axios';
 import {uploadToCloudinary} from '../utils/CloudinaryPresetHelper';
 import {PRIMARY_COLOR} from './Classroomcomponent';
 import ImagePicker from 'react-native-image-crop-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface ProfileImageCarouselProps {
   images: string[];
   isOwner: boolean;
-  uid: string
+  uid: string;
 }
 
-export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({ images, isOwner,
-  uid }) => {
-    const scrollX = useRef(new Animated.Value(0)).current;
-    const flatListRef = useRef<FlatList>(null);
-    const [activeIndex, setActiveIndex] = useState(0);
-    const [isUploading, setIsUploading] = useState(false);
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
-    const handlePickImage = async () => {
-        try {
-            const image = await ImagePicker.openPicker({
-                width: 400,
-                height: 400,
-                cropping: true, 
-                cropperCircleOverlay: true, 
-                compressImageQuality: 0.8,
-                mediaType: 'photo',
-                loadingLabelText: 'Processing...',
-            });
-            setPreviewImage(image.path);    
-        } catch (error: any) {
-            if (error.message.includes('permission') || error.message.includes('Required')) {
-                Alert.alert(
-                    "Permission Required",
-                    "iCampus needs access to your gallery to update your profile. Grant access in settings?",
-                    [
-                        { text: "Not now", style: "cancel" },
-                        { 
-                            text: "Open Settings", 
-                            onPress: () => Linking.openSettings() 
-                        }
-                    ]
-                );
-            } else if (error.message.includes('User cancelled')) {
-                console.log("User backed out");
-            } else {
-                console.error("ImagePicker Error: ", error.message);
-            }
-        }
-    };
-    const handleConfirmUpload = async () => {
-        setIsUploading(true);
-        try {
-            const imageUrl = await uploadToCloudinary(previewImage!);
-            await axios.patch(`${baseUrl}users/update-profile-pics`, {
-                uid,
-                newImage: imageUrl
-            });
-            setPreviewImage(null);
-        } finally {
-            setIsUploading(false);
-        }
-    };
-    const displayImages = useMemo(() => {
-        return images?.length > 0 ? images : ['https://via.placeholder.com/400'];
-    }, [images]);
-    // Handle auto-scroll logic
-    useEffect(() => {
-        if (displayImages.length <= 1) return;
-        const timer = setInterval(() => {
-            let nextIndex = activeIndex + 1;
-            if (nextIndex >= displayImages.length) nextIndex = 0;
-            flatListRef.current?.scrollToIndex({
-                index: nextIndex,
-                animated: true,
-            });
-            setActiveIndex(nextIndex);
-        }, 9000); // 5 seconds per image
-        return () => clearInterval(timer);
-    }, [activeIndex, displayImages]);
-    return (
-        <View style={styles.container}>
-            <Animated.FlatList
-                ref={flatListRef}
-                data={displayImages}
-                keyExtractor={(_, index) => index.toString()}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                    { useNativeDriver: false }
-                )}
-                onMomentumScrollEnd={(e) => {
-                    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-                    setActiveIndex(index);
-                }}
-                renderItem={({ item }) => (
-                    <Image source={{ uri: item }} style={styles.image} resizeMode="cover" />
-                )}
+export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
+  images,
+  isOwner,
+  uid,
+}) => {
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const handlePickImage = async () => {
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageQuality: 0.8,
+        mediaType: 'photo',
+        loadingLabelText: 'Processing...',
+      });
+      setPreviewImage(image.path);
+    } catch (error: any) {
+      if (
+        error.message.includes('permission') ||
+        error.message.includes('Required')
+      ) {
+        Alert.alert(
+          'Permission Required',
+          'iCampus needs access to your gallery to update your profile. Grant access in settings?',
+          [
+            { text: 'Not now', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => Linking.openSettings(),
+            },
+          ],
+        );
+      } else if (error.message.includes('User cancelled')) {
+        console.log('User backed out');
+      } else {
+        console.error('ImagePicker Error: ', error.message);
+      }
+    }
+  };
+  const handleConfirmUpload = async () => {
+    setIsUploading(true);
+    try {
+      const imageUrl = await uploadToCloudinary(previewImage!);
+      const token = await AsyncStorage.getItem('userToken');
+      await axios.patch(
+        `${baseUrl}users/update-profile-pics`,
+        {
+          uid,
+          newImage: imageUrl,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Ensure userToken is accessible here
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      setPreviewImage(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  const displayImages = useMemo(() => {
+    return images?.length > 0 ? images : ['https://via.placeholder.com/400'];
+  }, [images]);
+  // Handle auto-scroll logic
+  useEffect(() => {
+    if (displayImages.length <= 1) return;
+    const timer = setInterval(() => {
+      let nextIndex = activeIndex + 1;
+      if (nextIndex >= displayImages.length) nextIndex = 0;
+      flatListRef.current?.scrollToIndex({
+        index: nextIndex,
+        animated: true,
+      });
+      setActiveIndex(nextIndex);
+    }, 9000); // 5 seconds per image
+    return () => clearInterval(timer);
+  }, [activeIndex, displayImages]);
+  return (
+    <View style={styles.container}>
+      <Animated.FlatList
+        ref={flatListRef}
+        data={displayImages}
+        keyExtractor={(_, index) => index.toString()}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false },
+        )}
+        onMomentumScrollEnd={e => {
+          const index = Math.round(
+            e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
+          );
+          setActiveIndex(index);
+        }}
+        renderItem={({ item }) => (
+          <Image
+            source={{ uri: item }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        )}
+      />
+      {/* Glassmorphism Pagination Dots */}
+      <View style={styles.paginationContainer}>
+        {displayImages.map((_, i) => {
+          const opacity = scrollX.interpolate({
+            inputRange: [
+              (i - 1) * SCREEN_WIDTH,
+              i * SCREEN_WIDTH,
+              (i + 1) * SCREEN_WIDTH,
+            ],
+            outputRange: [0.4, 1, 0.4],
+            extrapolate: 'clamp',
+          });
+          const scale = scrollX.interpolate({
+            inputRange: [
+              (i - 1) * SCREEN_WIDTH,
+              i * SCREEN_WIDTH,
+              (i + 1) * SCREEN_WIDTH,
+            ],
+            outputRange: [0.8, 1.2, 0.8],
+            extrapolate: 'clamp',
+          });
+          return (
+            <Animated.View
+              key={i}
+              style={[styles.dot, { opacity, transform: [{ scale }] }]}
             />
-            {/* Glassmorphism Pagination Dots */}
-            <View style={styles.paginationContainer}>
-                {displayImages.map((_, i) => {
-                    const opacity = scrollX.interpolate({
-                        inputRange: [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH],
-                        outputRange: [0.4, 1, 0.4],
-                        extrapolate: 'clamp',
-                    });
-                    const scale = scrollX.interpolate({
-                        inputRange: [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH],
-                        outputRange: [0.8, 1.2, 0.8],
-                        extrapolate: 'clamp',
-                    });
-                    return (
-                        <Animated.View 
-                            key={i} 
-                            style={[styles.dot, { opacity, transform: [{ scale }] }]} 
-                        />
-                    );
-                })}
+          );
+        })}
+      </View>
+      {/* Owner Edit Overlay */}
+      {isOwner && (
+        <TouchableOpacity style={styles.editBtn} onPress={handlePickImage}>
+          <MaterialIcons name="photo-camera" size={20} color="#FFF" />
+        </TouchableOpacity>
+      )}
+      {/* Confirmation Modal */}
+      <Modal visible={!!previewImage} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.previewCard}>
+            <Text style={styles.previewTitle}>Update Profile Photo</Text>
+            <Image
+              source={{ uri: previewImage || '' }}
+              style={styles.fullPreview}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setPreviewImage(null)}
+                style={styles.cancelBtn}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirmUpload}
+                style={styles.confirmBtn}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Set as Profile Pic</Text>
+                )}
+              </TouchableOpacity>
             </View>
-            {/* Owner Edit Overlay */}
-            {isOwner && (
-                <TouchableOpacity style={styles.editBtn} onPress={handlePickImage}>
-                    <MaterialIcons name="photo-camera" size={20} color="#FFF" />
-                </TouchableOpacity>
-            )}
-            {/* Confirmation Modal */}
-            <Modal visible={!!previewImage} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.previewCard}>
-                        <Text style={styles.previewTitle}>Update Profile Photo</Text>
-                        <Image source={{ uri: previewImage || '' }} style={styles.fullPreview} />            
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity onPress={() => setPreviewImage(null)} style={styles.cancelBtn}>
-                                <Text style={styles.cancelBtnText}>Cancel</Text>
-                            </TouchableOpacity>              
-                            <TouchableOpacity onPress={handleConfirmUpload} style={styles.confirmBtn} disabled={isUploading}>
-                                {isUploading ? (
-                                    <ActivityIndicator color="#FFF" />
-                                ) : (
-                                    <Text style={styles.confirmBtnText}>Set as Profile Pic</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+          </View>
         </View>
-    );
+      </Modal>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

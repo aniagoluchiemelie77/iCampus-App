@@ -49,7 +49,7 @@ export const ITagCard = ({
       ]}
     >
       <View style={styles.cardHeader}>
-        <LogoSizeable width={50} height={50} />
+        <LogoSizeable width={50} height={50} color={textColor} />
       </View>
       <View style={styles.chipSection}>
         <Icon name="integrated-circuit-chip" size={45} color="#D4AF37" />

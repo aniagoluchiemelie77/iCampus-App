@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import ImagePicker from 'react-native-image-crop-picker';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -18,10 +17,12 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
+import { homeStyles } from '../assets/styles/colors.ts';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import { baseUrl } from '../components/HomeScreenComponents';
+import ExpandableFAB from '../components/ExpandableFAB';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -31,469 +32,14 @@ import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
 import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { ITagCard } from '../components/iTag';
-import { Course, ITag } from '../types/firebase';
+import { Course } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
-import { EmptyState } from '../components/EmptyFlatlistComponent';
-import { debounce } from 'lodash';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
+import { EditiTagModal } from '../components/EditItag.tsx';
+import { FollowListModal, FollowingListModal } from '../components/Fmodals.tsx';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
-const PRESET_COLORS = [
-  '#672a0e',
-  '#14335f',
-  '#80800d',
-  '#8a0c0c',
-  '#7b0859',
-  '#0b8049',
-];
-const CARD_HEIGHT = 190; // Fixed height as requested
-interface FollowModalProps {
-  visible: boolean;
-  onClose: () => void;
-  title: string;
-  data: any[];
-  navigation: any;
-}
-interface EditiTagModalProps {
-  visible: boolean;
-  onClose: () => void;
-  iTagData: ITag;
-  onSave: (updatedData: ITag) => void;
-}
-interface FollowModalProps {
-  visible: boolean;
-  onClose: () => void;
-  iTagData: ITag;
-  onSave: any[];
-}
-const UserRow = ({ item, navigation }: { item: any; navigation: any }) => {
-  const currentUser = useAppSelector(state => state.user);
-  const [isFollowing, setIsFollowing] = useState(
-    item.isFollowingByViewer || false,
-  );
-  const [loading, setLoading] = useState(false);
-  const handleToggle = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${baseUrl}users/follow/toggle`, {
-        followerId: currentUser.uid,
-        followingId: item.uid,
-      });
-      if (response.data.success) {
-        setIsFollowing(!isFollowing);
-        Toast.show({
-          type: 'success',
-          text1: response.data.action === 'followed' ? 'Success' : 'Updated',
-          text2: response.data.message,
-        });
-      }
-    } catch (error) {
-      console.error('Follow error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  return (
-    <TouchableOpacity
-      style={styles.userRow}
-      onPress={() => {
-        navigation.push('Profile', { uid: item.uid });
-      }}
-    >
-      <Image source={{ uri: item.profilePic?.[0] }} style={styles.avatar} />
-      <View style={styles.userInfo}>
-        <UserIdentity
-          firstname={item.firstname}
-          lastname={item.lastname}
-          tier={item.tier}
-          size="small"
-          isOrganization={item.usertype === 'enterprise'}
-          organizationName={item.organizationName}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.miniButton,
-          isFollowing ? styles.buttonFollowing : styles.buttonFollow,
-        ]}
-        onPress={handleToggle}
-        disabled={loading}
-      >
-        <Text
-          style={[
-            styles.miniButtonText,
-            isFollowing ? styles.textFollowing : styles.textFollow,
-          ]}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : isFollowing ? (
-            'Following'
-          ) : (
-            'Follow'
-          )}
-        </Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-};
-export const FollowListModal: React.FC<FollowModalProps> = ({
-  visible,
-  onClose,
-  title,
-  data,
-  navigation,
-}) => {
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={PRIMARY_COLOR_TINT}
-              />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={data}
-            keyExtractor={item => item.uid || item._id}
-            contentContainerStyle={{ paddingBottom: 30 }}
-            renderItem={({ item }) => (
-              <UserRow item={item} navigation={navigation} />
-            )}
-            ListEmptyComponent={
-              <EmptyState
-                iconName={'account-plus-outline'}
-                title={`No ${title} Yet`}
-                subtitle={"When people follow you, they'll show up here."}
-                style={{ marginTop: 60 }}
-              />
-            }
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-};
-export const FollowingListModal: React.FC<FollowModalProps> = ({
-  visible,
-  onClose,
-  title,
-  data,
-  navigation,
-}) => {
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={PRIMARY_COLOR_TINT}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* List */}
-          <FlatList
-            data={data}
-            keyExtractor={item => item.uid || item._id}
-            contentContainerStyle={{ paddingBottom: 30 }}
-            renderItem={({ item }) => (
-              <UserRow item={item} navigation={navigation} />
-            )}
-            ListEmptyComponent={
-              <EmptyState
-                iconName={'account-search-outline'}
-                title={`No ${title} Yet`}
-                subtitle={'Start following people to see them in this list.'}
-                style={{ marginTop: 60 }}
-              />
-            }
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-};
-export const EditiTagModal = ({
-  visible,
-  onClose,
-  iTagData,
-  onSave,
-}: EditiTagModalProps) => {
-  const isPremium = iTagData.tier === 'premium';
-  const isPro = iTagData.tier === 'pro';
-
-  const [username, setUsername] = useState(iTagData.username);
-  const [bgColor, setBgColor] = useState(
-    iTagData.designOptions.backgroundColor,
-  );
-  const [bgImage, setBgImage] = useState(
-    iTagData.designOptions.backgroundImage,
-  );
-
-  // Username validation states
-  const [isChecking, setIsChecking] = useState(false);
-  const [usernameError, setUsernameError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // 1. Image Picker Logic
-  const pickImage = () => {
-    ImagePicker.openPicker({
-      width: 1600,
-      height: 900,
-      cropping: true,
-      compressImageQuality: 0.8,
-      includeBase64: false,
-    })
-      .then(image => {
-        setBgImage(image.path);
-      })
-      .catch(e => {
-        if (e.code === 'E_PERMISSION_MISSING') {
-          Alert.alert(
-            'Permission Required',
-            'Please allow iCampus access to your photos in settings to change your iTag background.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-            ],
-          );
-        }
-      });
-  };
-
-  const handleSave = async () => {
-    if (usernameError) {
-      Toast.show({ type: 'error', text1: 'Wait!', text2: usernameError });
-      return;
-    }
-    setLoading(true);
-    try {
-      let finalImageUrl = bgImage;
-      if (bgImage && bgImage.startsWith('file://')) {
-        finalImageUrl = await uploadToCloudinary(bgImage);
-      }
-      const updatePayload = {
-        username: username.toLowerCase().trim(),
-        designOptions: {
-          ...iTagData.designOptions,
-          backgroundColor: bgColor,
-          backgroundImage: finalImageUrl,
-        },
-      };
-
-      // 3. Call your iCampus Backend
-      const response = await axios.put(`${baseUrl}users/update-itag`, {
-        userId: iTagData.userId,
-        updates: updatePayload,
-      });
-
-      if (response.data.success) {
-        onSave({
-          ...iTagData,
-          ...updatePayload,
-        });
-        Toast.show({
-          type: 'success',
-          text1: 'iTag Updated',
-          text2: 'Your custom design is now live!',
-        });
-        onClose();
-      }
-    } catch (error) {
-      console.error('Save iTag Error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Update Failed',
-        text2: 'Check your connection and try again.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2. Debounced Username Availability Check
-  const checkUsername = useMemo(
-    () =>
-      debounce(async (val: string) => {
-        if (val === iTagData.username) {
-          setUsernameError('');
-          return;
-        }
-        if (val.length < 3) {
-          setUsernameError('Too short');
-          return;
-        }
-        setIsChecking(true);
-        try {
-          const res = await axios.get(`${baseUrl}users/check-itag/${val}`);
-          setUsernameError(res.data.available ? '' : 'Username already taken');
-        } catch (err) {
-          console.error('Check Username Error:', err);
-          setUsernameError('Error checking availability');
-        } finally {
-          setIsChecking(false);
-        }
-      }, 500),
-    [iTagData.username],
-  );
-  useEffect(() => {
-    return () => {
-      checkUsername.cancel();
-    };
-  }, [checkUsername]);
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent={true}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Customize iTag</Text>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {isPremium && (
-              <View style={styles.previewContainer}>
-                <ITagCard
-                  isOwner={true}
-                  isPremium={true}
-                  iTagData={{
-                    ...iTagData,
-                    username,
-                    designOptions: {
-                      ...iTagData.designOptions,
-                      backgroundColor: bgColor,
-                      backgroundImage: bgImage,
-                    },
-                  }}
-                />
-              </View>
-            )}
-
-            {/* Username Input with Validation Feedback */}
-            {(isPro || isPremium) && (
-              <View style={styles.inputGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>iTag Username</Text>
-                </View>
-                <View style={styles.inputContainer}>
-                  {!isChecking && !usernameError && username.length >= 3 && (
-                    <View style={styles.iconWrapper}>
-                      <MaterialIcons
-                        name="check-circle"
-                        size={20}
-                        color={PRIMARY_COLOR}
-                      />
-                    </View>
-                  )}
-                  <TextInput
-                    style={[
-                      styles.input,
-                      usernameError ? styles.inputError : null,
-                    ]}
-                    value={username}
-                    onChangeText={setUsername}
-                    autoCapitalize="none"
-                  />
-                </View>
-                {usernameError && (
-                  <Text style={styles.errorText}>{usernameError}</Text>
-                )}
-              </View>
-            )}
-
-            {/* Premium Features: Horizontal Color Picker & Image Selector */}
-            {isPremium && (
-              <>
-                <Text style={styles.label}>Background Color</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.colorScroll}
-                >
-                  {PRESET_COLORS.map(color => (
-                    <TouchableOpacity
-                      key={color}
-                      style={[
-                        styles.colorCircle,
-                        { backgroundColor: color },
-                        bgColor === color && styles.selectedColor,
-                      ]}
-                      onPress={() => setBgColor(color)}
-                    />
-                  ))}
-                </ScrollView>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Background Image</Text>
-                  <TouchableOpacity
-                    style={styles.imagePickerBtn}
-                    onPress={pickImage}
-                  >
-                    <MaterialIcons
-                      name="photo-library"
-                      size={20}
-                      color="#fff"
-                    />
-                    <Text style={styles.imagePickerBtnText}>
-                      {bgImage ? 'Change Image' : 'Select from Gallery'}
-                    </Text>
-                  </TouchableOpacity>
-                  {bgImage && (
-                    <TouchableOpacity onPress={() => setBgImage(null)}>
-                      <Text style={styles.removePhotoText}>Remove Photo</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </>
-            )}
-          </ScrollView>
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.saveBtn,
-                (!!usernameError || loading) && { opacity: 0.5 },
-              ]}
-              onPress={handleSave}
-              disabled={!!usernameError || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.saveBtnText}>Save Changes</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
+const CARD_HEIGHT = 190;
 
 const CourseCard = ({ item }: { item: any }) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -689,9 +235,12 @@ export const ProfileScreen = ({ route }: any) => {
     data: [],
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [isEditItagModalVisible, setIsEditItagModalVisible] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchResults, _setSearchResults] = useState<any[]>([]);
   const [isFollowing, setIsFollowing] = useState(profileData.isFollowing);
+  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
+  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const handleFollowToggle = async () => {
     const previousState = isFollowing;
     setIsFollowing(!previousState);
@@ -727,6 +276,12 @@ export const ProfileScreen = ({ route }: any) => {
         text2: 'Please check your connection',
       });
     }
+  };
+  const handleSaveUpdate = (updatedITag: any) => {
+    setProfileData((prev: any) => ({
+      ...prev,
+      iTagData: updatedITag, // Update the nested iTagData with the new design/username
+    }));
   };
   useEffect(() => {
     const fetchProfile = async () => {
@@ -968,7 +523,7 @@ export const ProfileScreen = ({ route }: any) => {
         {isOwner && isIscoreViewEligible && (
           <TouchableOpacity
             style={styles.editButtonCircle}
-            //onPress={() => navigation.navigate('EditITag', { iTagData })}
+            onPress={() => setIsEditItagModalVisible(true)}
           >
             <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
           </TouchableOpacity>
@@ -1031,7 +586,15 @@ export const ProfileScreen = ({ route }: any) => {
           )}
         </View>
       )}
-      {/* Followers Modal Component here */}
+      {!isFabMenuVisible && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => setFabMenuVisible(true)}
+        >
+          <MaterialIcons name="widgets" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+      {/* Modals */}
       <FollowListModal
         visible={followModal.visible}
         title={followModal.title}
@@ -1039,7 +602,6 @@ export const ProfileScreen = ({ route }: any) => {
         navigation={navigation}
         onClose={() => setFollowModal(prev => ({ ...prev, visible: false }))}
       />
-      {/* Following Modal Component here */}
       <FollowingListModal
         visible={followingModal.visible}
         title={followingModal.title}
@@ -1047,12 +609,23 @@ export const ProfileScreen = ({ route }: any) => {
         navigation={navigation}
         onClose={() => setFollowingModal(prev => ({ ...prev, visible: false }))}
       />
+      <EditiTagModal
+        visible={isEditItagModalVisible}
+        onClose={() => setIsEditItagModalVisible(false)}
+        iTagData={profileData.iTagData}
+        onSave={handleSaveUpdate}
+      />
+      <ExpandableFAB
+        isVisible={isFabMenuVisible}
+        onClose={toggleFab}
+        actions={['iCash', 'iAssistant']}
+      />
       <Toast config={toastConfig} />
     </ScrollView>
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+  container: { flex: 1, backgroundColor: '#FFF', position: 'relative' },
   headerRightDiv: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1066,20 +639,6 @@ const styles = StyleSheet.create({
   bioText: { fontSize: 13, color: '#222', marginVertical: 10 },
   statsRow: { flexDirection: 'row', gap: 20 },
   statCount: { fontWeight: 'bold', color: PRIMARY_COLOR, fontSize: 13 },
-
-  // Metric Bar (iScore/iTag)
-  metricBar: {
-    flexDirection: 'row',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 15,
-    padding: 15,
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  metricItem: { flex: 1, alignItems: 'center' },
-  metricDivider: { width: 1, height: '80%', backgroundColor: '#DDD' },
-  metricLabel: { fontSize: 10, color: '#676D75', textTransform: 'uppercase' },
-  metricValue: { fontSize: 16, fontWeight: '900', color: PRIMARY_COLOR },
 
   // Verify Button
   verifyBtn: {
@@ -1388,70 +947,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 20,
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
-    marginBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#222',
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  avatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#f0f0f0',
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
   userType: {
     fontSize: 12,
     color: '#676D75',
     marginTop: 2,
     textTransform: 'capitalize',
-  },
-  miniButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  miniButton: {
-    paddingHorizontal: 7,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 0.8,
-    alignItems: 'center',
-  },
-  // State: Follow Back (Primary)
-  buttonFollow: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
-  textFollow: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  // State: Already Following (Outline)
-  buttonFollowing: {
-    backgroundColor: 'inherit',
-  },
-  textFollowing: {
-    color: PRIMARY_COLOR,
-    fontSize: 12,
-    fontWeight: '600',
   },
   followBtn: {
     flexDirection: 'row',
@@ -1469,114 +969,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 8,
     color: '#fff',
-  },
-  previewContainer: {
-    marginBottom: 25,
-    alignItems: 'center',
-  },
-  inputGroup: {
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#676D75',
-    marginBottom: 8,
-  },
-  inputContainer: {
-    position: 'relative', // Necessary for absolute positioning of the icon
-    justifyContent: 'center',
-  },
-  iconWrapper: {
-    position: 'absolute',
-    left: 12, // Extreme left
-    zIndex: 1, // Ensures it stays above the input background
-  },
-  input: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    color: '#1A1D1E',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    paddingBottom: 20,
-  },
-  cancelBtn: {
-    flex: 1,
-    padding: 16,
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    color: '#676D75',
-    fontWeight: '600',
-  },
-  saveBtn: {
-    flex: 2,
-    backgroundColor: PRIMARY_COLOR, // Use your defined primary color
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  colorScroll: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    paddingVertical: 5,
-  },
-  colorCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 15,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedColor: {
-    borderColor: PRIMARY_COLOR,
-    transform: [{ scale: 1.1 }],
-  },
-  imagePickerBtn: {
-    flexDirection: 'row',
-    backgroundColor: '#2D3748',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  imagePickerBtnText: {
-    color: '#fff',
-    marginLeft: 10,
-    fontWeight: '600',
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#E53E3E',
-    fontSize: 12,
-    marginTop: 5,
-    fontWeight: '500',
-  },
-  inputError: {
-    borderColor: '#E53E3E',
-    borderWidth: 1,
-  },
-  removePhotoText: {
-    color: '#E53E3E',
-    textAlign: 'center',
-    marginTop: 10,
-    fontSize: 13,
   },
 });

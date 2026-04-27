@@ -994,7 +994,7 @@ export function Home() {
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
         userRole={currentUser.usertype as 'student' | 'lecturer' | 'otherUser'}
-        actions={['Create Post', 'Create Poll', 'iAssistant']}
+        actions={['iCash', 'Create Post', 'Create Poll', 'iAssistant']}
       />
 
       {/* 4. PROFILE POPUP (LinkedIn Style Modal) */}

@@ -24,7 +24,7 @@ import { Course, User, Lecture, CourseException } from '../types/firebase';
 import { useAppSelector } from './hooks';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Logo from '../assets/images/Logo.tsx';
-import { baseUrl } from 'screens/Profile.tsx';
+import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1674,7 +1674,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['iAssistant', 'View Lectures', 'Create Course', 'Library']}
+        actions={[
+          'iCash',
+          'iAssistant',
+          'View Lectures',
+          'Create Course',
+          'Library',
+        ]}
         userRole={user.usertype}
         lectures={lectures}
       />
@@ -1705,11 +1711,11 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fdfdfd' },
+  container: { flex: 1, backgroundColor: '#fff', position: 'relative' },
   header: {
     paddingTop: 10,
     paddingBottom: 15,
-    backgroundColor: '#fee3d6',
+    backgroundColor: '#fadccc',
     borderBottomWidth: 1,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,

@@ -74,7 +74,7 @@ export const iCashSuccessScreen = ({ route, navigation }: any) => {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('iCashDashboard', { refresh: true })}
+        onPress={() => navigation.navigate('ICashDashboard', { refresh: true })}
       >
         <Text style={styles.buttonText}>Go to Dashboard</Text>
       </TouchableOpacity>
