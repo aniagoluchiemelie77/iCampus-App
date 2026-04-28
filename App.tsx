@@ -63,6 +63,7 @@ import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 import { iCashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
 import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
 import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
+import { ChatScreen } from './src/screens/ChatScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -89,6 +90,7 @@ export type RootStackParamList = {
       currency: string;
     } | null;
   };
+  Chat: { recipientId: string };
   ICashBuyPage: { refresh?: boolean };
   CreatePost: { type: 'post' | 'poll' };
   ICashWithdrawPage: undefined;
@@ -346,6 +348,11 @@ const App = () => {
             <Stack.Screen
               name="FlutterwaveWebview"
               component={FlutterwaveWebview}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Chat"
+              component={ChatScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -8,7 +8,7 @@ import {
   TextInput,
   Pressable,
 } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { PRIMARY_COLOR } from 'assets/styles/colors';
 
@@ -16,8 +16,8 @@ interface ChatInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
-  onPickDocument: () => void; 
-  onPickImage: () => void;    
+  onPickDocument: () => void;
+  onPickImage: () => void;
   placeholder?: string;
 }
 interface AttachmentModalProps {
@@ -26,7 +26,12 @@ interface AttachmentModalProps {
   onPickImage: () => void;
   onPickDocument: () => void;
 }
-export const AttachmentModal = ({ isVisible, onClose, onPickImage, onPickDocument }: AttachmentModalProps) => {
+export const AttachmentModal = ({
+  isVisible,
+  onClose,
+  onPickImage,
+  onPickDocument,
+}: AttachmentModalProps) => {
   return (
     <Modal
       transparent
@@ -37,33 +42,49 @@ export const AttachmentModal = ({ isVisible, onClose, onPickImage, onPickDocumen
       <Pressable style={styles.overlay} onPress={onClose}>
         <View style={styles.modalContent}>
           <Text style={styles.title}>Send Attachment</Text>
-          
+
           <View style={styles.optionsGrid}>
             {/* Image Option */}
-            <TouchableOpacity 
-              style={styles.option} 
-              onPress={() => { onPickImage(); onClose(); }}
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => {
+                onPickImage();
+                onClose();
+              }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: PRIMARY_COLOR }]}>
+              <View
+                style={[styles.iconCircle, { backgroundColor: PRIMARY_COLOR }]}
+              >
                 <MaterialIcons name="image" size={28} color="#fff" />
               </View>
               <Text style={styles.optionText}>Gallery</Text>
             </TouchableOpacity>
 
             {/* Document Option */}
-            <TouchableOpacity 
-              style={styles.option} 
-              onPress={() => { onPickDocument(); onClose(); }}
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => {
+                onPickDocument();
+                onClose();
+              }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: PRIMARY_COLOR }]}>
-                <MaterialIcons name="insert-drive-file" size={28} color="#fff" />
+              <View
+                style={[styles.iconCircle, { backgroundColor: PRIMARY_COLOR }]}
+              >
+                <MaterialIcons
+                  name="insert-drive-file"
+                  size={28}
+                  color="#fff"
+                />
               </View>
               <Text style={styles.optionText}>Document</Text>
             </TouchableOpacity>
 
             {/* Camera Option */}
             <TouchableOpacity style={styles.option} onPress={onClose}>
-              <View style={[styles.iconCircle, { backgroundColor: PRIMARY_COLOR }]}>
+              <View
+                style={[styles.iconCircle, { backgroundColor: PRIMARY_COLOR }]}
+              >
                 <MaterialIcons name="photo-camera" size={28} color="#fff" />
               </View>
               <Text style={styles.optionText}>Camera</Text>
@@ -75,18 +96,18 @@ export const AttachmentModal = ({ isVisible, onClose, onPickImage, onPickDocumen
   );
 };
 
-export const ChatInput = ({ 
-  value, 
-  onChangeText, 
-  onSend, 
-  onPickDocument, 
-  onPickImage, 
-  placeholder = "Type a message..." 
+export const ChatInput = ({
+  value,
+  onChangeText,
+  onSend,
+  onPickDocument = () => {},
+  onPickImage = () => {},
+  placeholder = 'Type a message...',
 }: ChatInputProps) => {
-    const [modalVisible, setModalVisible] = useState(false);
-    const handleAttachmentPress = () => {
-       setModalVisible(true);
-    };
+  const [modalVisible, setModalVisible] = useState(false);
+  const handleAttachmentPress = () => {
+    setModalVisible(true);
+  };
 
   return (
     <View style={styles.inputWrapper}>
@@ -98,8 +119,8 @@ export const ChatInput = ({
         multiline
         placeholderTextColor={PRIMARY_COLOR_TINT}
       />
-      <TouchableOpacity 
-        style={styles.iconButton} 
+      <TouchableOpacity
+        style={styles.iconButton}
         onPress={handleAttachmentPress}
       >
         <MaterialIcons name="attach-file" size={26} color="#666" />
@@ -109,7 +130,7 @@ export const ChatInput = ({
           <MaterialIcons name="send" size={20} color="#fff" />
         </TouchableOpacity>
       )}
-      <AttachmentModal 
+      <AttachmentModal
         isVisible={modalVisible}
         onClose={() => setModalVisible(false)}
         onPickImage={onPickImage}

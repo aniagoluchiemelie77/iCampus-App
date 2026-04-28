@@ -796,6 +796,7 @@ export interface ChatMessage {
   id: string;
   text?: string; 
   senderId: string;
+  recipientId?: string;
   firstName: string;
   lastName?: string;
   timestamp: string;

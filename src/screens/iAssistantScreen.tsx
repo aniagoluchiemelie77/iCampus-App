@@ -1,11 +1,17 @@
 import React, { useState, useRef} from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, KeyboardAvoidingView, TouchableOpacity, Platform } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import baseUrl, { PRIMARY_COLOR_TINT, PRIMARY_COLOR} from '../components/Classroomcomponent'
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { baseUrl } from '../components/HomeScreenComponents';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useAppSelector } from '../components/hooks';
+import { MessageBubble } from '../components/ChatMessageBubble.tsx';
+import { ChatInput } from '../components/ChatInput.tsx';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -72,41 +78,23 @@ export const Assistant = ({ route }: Props) => {
           flatListRef.current?.scrollToEnd({ animated: true })
         }
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item }) => {
-          const isUser = item.role === 'user';
-          return (
-            <View
-              style={[
-                styles.bubble,
-                item.role === 'user' ? styles.userBubble : styles.aiBubble,
-              ]}
-            >
-              <Text
-                style={item.role === 'user' ? styles.userText : styles.aiText}
-              >
-                {item.content}
-              </Text>
-              <View
-                style={[styles.tail, isUser ? styles.userTail : styles.aiTail]}
-              />
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <MessageBubble
+            content={item.content}
+            isUser={item.role === 'user'}
+            type="ai"
+          />
+        )}
         keyExtractor={(_, index) => index.toString()}
       />
-
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ask a question..."
-          value={input}
-          onChangeText={setInput}
-          multiline
-        />
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSendMessage}>
-          <Icon name="send" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <ChatInput
+        value={input}
+        onChangeText={setInput}
+        onSend={handleSendMessage}
+        onPickImage={() => console.log('image')}
+        onPickDocument={() => console.log('doc')}
+        placeholder="Ask iAssistant anything..."
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -117,73 +105,5 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 20,
-  },
-  bubble: {
-    padding: 12,
-    borderRadius: 18,
-    marginVertical: 10,
-    maxWidth: '80%',
-  },
-  userBubble: {
-    backgroundColor: PRIMARY_COLOR,
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 2,
-  },
-  aiBubble: {
-    backgroundColor: PRIMARY_COLOR_TINT,
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 2,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-  },
-  userText: {
-    color: '#fff',
-  },
-  aiText: {
-    color: '#fff',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    padding: 10,
-    alignItems: 'center',
-    borderTopWidth: 0.8,
-    borderTopColor: PRIMARY_COLOR_TINT,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#F0F2F5',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
-    maxHeight: 100,
-    color: '#222',
-  },
-  sendBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tail: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    bottom: 0,
-    transform: [{ rotate: '45deg' }],
-  },
-  userTail: {
-    right: -4,
-    bottom: 5,
-    backgroundColor: PRIMARY_COLOR,
-  },
-  aiTail: {
-    left: -4,
-    bottom: 5,
-    backgroundColor: PRIMARY_COLOR_TINT,
   },
 });
