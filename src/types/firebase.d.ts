@@ -3,9 +3,12 @@ import { NavigationProp } from '@react-navigation/native';
 export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
+export type AttachmentType = 'image' | 'video' | 'file';
 export interface User {
   uid: string;
   bio?: string;
+  headline?: string;
   refreshTokens?: string[];
   usertype?: UserType;
   firstname?: string;
@@ -738,15 +741,6 @@ export interface TestSubmission {
   };
   startTime?: string
 }
-export interface ChatMessage {
-  id: string;
-  text: string;
-  senderId: string;
-  firstName: string;
-  lastName?: string;
-  timestamp: string;
-  profilePic?: string; // Optional: to show small avatar in chat bubble
-}
 export interface Book {
   id: string;
   title: string;
@@ -791,4 +785,22 @@ export interface RankCardCarouselProps {
   userRole: UserType;
   navigation: NavigationProp<any>;
   data: User[];
+}
+export interface Attachment {
+  url: string;
+  type: AttachmentType;
+  fileName?: string; 
+  fileSize?: number;
+}
+export interface ChatMessage {
+  id: string;
+  text?: string; 
+  senderId: string;
+  firstName: string;
+  lastName?: string;
+  timestamp: string;
+  profilePic?: string;
+  status: MessageStatus;
+  attachments?: Attachment[];
+  isEdited?: boolean;
 }

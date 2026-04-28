@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,9 +16,9 @@ import { useAppDataContext } from './EventContext';
 import Video from 'react-native-video';
 import { Posts } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
-import type { RootStackParamList } from '../../App';
-import { StackNavigationProp } from '@react-navigation/stack';
 import { PRIMARY_COLOR } from './Classroomcomponent';
+import { UserIdentity } from './UserIdentity';
+import { baseUrl } from './HomeScreenComponents';
 const { width } = Dimensions.get('window');
 interface PostCardProps {
   post: Posts; // Using your existing Posts type
@@ -38,10 +38,6 @@ export const formatStatCount = (count: number): string => {
   }
   return count.toString();
 };
-type NavigationPropProductDetails = StackNavigationProp<
-  RootStackParamList,
-  'PostDetailScreen'
->;
 const MediaSection = ({ post, isVisible }: PostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const mediaUrls = Array.isArray(post.media?.url)
@@ -248,7 +244,9 @@ const LinkedText = ({
 export const PostCard = ({ post, isVisible }: PostCardProps) => {
   const user = post.userId;
   const [isExpanded, setIsExpanded] = useState(false);
-  const navigation = useNavigation<NavigationPropProductDetails>();
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [_, setLoading] = useState(true);
+  const navigation = useNavigation<any>();
   const TEXT_LIMIT = 150;
   const {
     toggleLike,
@@ -292,6 +290,26 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
       console.error(error);
     }
   };
+  useEffect(() => {
+    const fetchPosterDetails = async () => {
+      try {
+        const response = await fetch(`${baseUrl}users/search/${user}`);
+        const data = await response.json();
+        setUserDetails(data);
+      } catch (error) {
+        console.error('Error fetching poster details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchPosterDetails();
+    }
+  }, [user]);
+
+  // Use userDetails if loaded, otherwise fallback to the partial post.userId data
+  const displayUser = userDetails || post.userId;
 
   return (
     <View style={styles.container}>
@@ -303,9 +321,15 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
           style={styles.avatar}
         />
         <View style={styles.headerText}>
-          <Text style={styles.userName}>
-            {user?.firstname} {user?.lastname}
-          </Text>
+          <UserIdentity
+            firstname={user?.firstname}
+            lastname={user?.lastname}
+            tier={displayUser?.tier} // Assuming user object has tier
+            isVerified={displayUser?.isVerified}
+            isOrganization={displayUser?.usertype === 'enterprise'}
+            organizationName={displayUser?.organizationName}
+            size="medium"
+          />
           <Text style={styles.timestamp}>
             {getRelativeTime(post.createdAt)}
           </Text>
@@ -403,7 +427,6 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
             {formatStatCount(post.bookmarks?.length || 0)}
           </Text>
         </TouchableOpacity>
-
         <View style={styles.statGroup}>
           <MaterialIcons name="bar-chart" size={18} color="#666" />
           <Text style={styles.statText}>

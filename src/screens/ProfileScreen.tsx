@@ -23,6 +23,8 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 import { baseUrl } from '../components/HomeScreenComponents';
 import ExpandableFAB from '../components/ExpandableFAB';
+import { formatCount } from '../utils/followCountFormatter.ts';
+import { ProfileTabs } from '../components/ProfileTabs.tsx';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -36,6 +38,8 @@ import { Course } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
 import { EditiTagModal } from '../components/EditItag.tsx';
 import { FollowListModal, FollowingListModal } from '../components/Fmodals.tsx';
+import { PostCard } from '../components/PostCard.tsx';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -174,6 +178,7 @@ const CourseCard = ({ item }: { item: any }) => {
 export const CoursesView = ({ courses }: { courses: Course[] }) => {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+
   useEffect(() => {
     if (courses.length <= 1) return;
     const interval = setInterval(() => {
@@ -241,6 +246,14 @@ export const ProfileScreen = ({ route }: any) => {
   const [isFollowing, setIsFollowing] = useState(profileData.isFollowing);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [numLines, setNumLines] = useState<number | undefined>(undefined);
+
+  const onTextLayout = (e: any) => {
+    if (!isExpanded) {
+      setNumLines(e.nativeEvent.lines.length);
+    }
+  };
   const handleFollowToggle = async () => {
     const previousState = isFollowing;
     setIsFollowing(!previousState);
@@ -283,6 +296,17 @@ export const ProfileScreen = ({ route }: any) => {
       iTagData: updatedITag, // Update the nested iTagData with the new design/username
     }));
   };
+  const handleCopyITag = () => {
+    const iTagValue = profileData.iTagData?.username;
+    if (iTagValue) {
+      Clipboard.setString(iTagValue);
+      console.log('Copied to clipboard');
+      Toast.show({
+        type: 'success',
+        text2: 'Copied to clipboard',
+      });
+    }
+  };
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -321,6 +345,7 @@ export const ProfileScreen = ({ route }: any) => {
       />
     );
   const isIscoreViewEligible = currentUser.tier !== 'free';
+  const isVerified = profileData.isVerified === true;
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
       {!isSearchFocused ? (
@@ -381,7 +406,7 @@ export const ProfileScreen = ({ route }: any) => {
       {/* 1. Essential Info Section */}
       <View style={styles.profileInfoSection}>
         <TouchableOpacity
-          //onPress={() => navigation.navigate('EditProfile')}
+          onPress={() => navigation.navigate('EditProfile')}
           style={styles.editButtonCircle}
         >
           <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
@@ -408,20 +433,24 @@ export const ProfileScreen = ({ route }: any) => {
             </View>
           ))}
         {/* 3. Verification CTA (Other Users) */}
-        {isOwner && (
+        {isOwner && !isVerified && (
           <TouchableOpacity style={styles.verifyBtn}>
             <Text style={styles.verifyBtnText}>Get Verified</Text>
           </TouchableOpacity>
         )}
         {/* 4. Bio section */}
         <Text style={styles.bioText}>
-          {profileData.bio
-            ? profileData.bio
+          {profileData.headline
+            ? profileData.headline
             : profileData.usertype === 'student'
             ? `Student at ${profileData.schoolName}`
-            : `${profileData.jobTitle || 'Lecturer'} in ${
+            : profileData.usertype === 'lecturer'
+            ? `${profileData.jobTitle || 'Lecturer'} • ${
                 profileData.department
-              } at ${profileData.schoolName}`}
+              } at ${profileData.schoolName}`
+            : profileData.usertype === 'enterprise'
+            ? `${profileData.organizationName} Global Organization`
+            : 'iCampus User'}
         </Text>
         {!isOwner && !isFollowing && (
           <TouchableOpacity
@@ -444,10 +473,11 @@ export const ProfileScreen = ({ route }: any) => {
             }
           >
             <Text style={[styles.statCount, { marginRight: 4 }]}>
-              {profileData.followersCount || 0}
+              {formatCount(profileData.followersCount)}
             </Text>
             <Text style={styles.statCount}>Followers</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.statCountDiv}
             onPress={() =>
@@ -459,7 +489,7 @@ export const ProfileScreen = ({ route }: any) => {
             }
           >
             <Text style={[styles.statCount, { marginRight: 4 }]}>
-              {profileData.followingCount || 0}
+              {formatCount(profileData.followingCount)}
             </Text>
             <Text style={styles.statCount}>Following</Text>
           </TouchableOpacity>
@@ -513,7 +543,32 @@ export const ProfileScreen = ({ route }: any) => {
           )}
         </View>
       </View>
-      {/* 2. iTag Section */}
+      {/* 2. About Section */}
+      {profileData.bio && (
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.aboutContent}>
+            <Text
+              style={styles.aboutText}
+              numberOfLines={isExpanded ? undefined : 4}
+              onTextLayout={onTextLayout}
+            >
+              {profileData.bio}
+            </Text>
+            {numLines && numLines > 4 && (
+              <TouchableOpacity
+                onPress={() => setIsExpanded(!isExpanded)}
+                style={styles.seeMoreButton}
+              >
+                <Text style={styles.seeMoreText}>
+                  {isExpanded ? 'Show Less' : 'See More'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+      {/* 3. iTag Section */}
       <View style={styles.iTagDiv}>
         <ITagCard
           iTagData={profileData.iTagData}
@@ -528,19 +583,48 @@ export const ProfileScreen = ({ route }: any) => {
             <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
           </TouchableOpacity>
         )}
+        {!isOwner && (
+          <TouchableOpacity
+            style={styles.editButtonCircle}
+            onPress={handleCopyITag}
+          >
+            <MaterialIcons
+              name="content-copy"
+              size={20}
+              color={PRIMARY_COLOR}
+            />
+          </TouchableOpacity>
+        )}
       </View>
-      {/* 3. Courses View */}
+      {/* 4. Courses View */}
       {profileData.courses && profileData.courses.length > 0 && (
         <CoursesView courses={profileData.courses} />
       )}
-      {/* 4. Tabs View (Posts / Courses / Bookmarks) */}
-      <ProfileTabs
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        userType={profileData.usertype}
-      />
-      <View style={styles.tabContent}>
-        {/* Map content based on activeTab */}
+      {/* 5. Tabs View (Posts / Courses / Bookmarks) */}
+      <View style={styles.sectionContainer}>
+        <ProfileTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          userType={profileData.usertype}
+        />
+        <View style={styles.tabContent}>
+          {activeTab === 'Posts' && (
+            <FlatList
+              data={profileData.posts}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No posts yet.</Text>
+              }
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+
+          {/* Other tabs like 'Media', 'iCash', etc. */}
+        </View>
       </View>
       {isSearchFocused && (
         <View style={styles.searchOverlayScreen}>
@@ -631,10 +715,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profileInfoSection: {
-    paddingHorizontal: 20,
+    padding: 20,
+    borderRadius: 15,
     backgroundColor: '#fadccc',
     position: 'relative',
     marginVertical: 15,
+    marginHorizontal: 5,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
   bioText: { fontSize: 13, color: '#222', marginVertical: 10 },
   statsRow: { flexDirection: 'row', gap: 20 },
@@ -774,8 +862,14 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   iTagDiv: {
+    marginHorizontal: 5,
     position: 'relative',
-    paddingHorizontal: 10,
+    padding: 20,
+    borderRadius: 15,
+    backgroundColor: '#fadccc',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    marginBottom: 15,
   },
   courseCount: {
     marginLeft: 8,
@@ -788,7 +882,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionContainer: {
-    marginVertical: 20,
+    marginBottom: 15,
+    padding: 20,
+    marginHorizontal: 5,
+    borderRadius: 15,
+    backgroundColor: '#fadccc',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
   headerRow: {
     flexDirection: 'row',
@@ -799,7 +899,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A1D1E',
+    color: '#222',
   },
   // Professional Specifics
   thumbnail: {
@@ -969,5 +1069,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 8,
     color: '#fff',
+  },
+  aboutContent: {
+    marginTop: 5,
+    width: '100%',
+  },
+  aboutText: {
+    fontSize: 14,
+    color: '#2222',
+    lineHeight: 22,
+  },
+  seeMoreButton: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  seeMoreText: {
+    color: PRIMARY_COLOR,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  tabContent: {
+    marginVertical: 10,
+  },
+  emptyText: {
+    marginVertical: 15,
+    textAlign: 'center',
+    fontSize: 13,
+    color: PRIMARY_COLOR_TINT,
   },
 });
