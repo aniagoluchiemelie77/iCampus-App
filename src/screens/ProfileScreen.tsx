@@ -223,9 +223,13 @@ export const CoursesView = ({ courses }: { courses: Course[] }) => {
 };
 
 export const ProfileScreen = ({ route }: any) => {
-  const { userId: uid } = route.params;
+  const { identifier } = route.params;
   const currentUser = useAppSelector(state => state.user);
-  const isOwner = currentUser.uid === uid;
+  const isOwner =
+    currentUser.uid === identifier ||
+    currentUser.firstname === identifier ||
+    currentUser.lastname === identifier ||
+    currentUser.username === identifier;
   const navigation = useNavigation<any>();
   const [profileData, setProfileData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Posts');
@@ -310,14 +314,17 @@ export const ProfileScreen = ({ route }: any) => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get(`${baseUrl}users/profile/search/${uid}`, {
-          params: {
-            viewerUid: currentUser.uid,
-            viewerTier: currentUser.tier,
-            viewerRole: currentUser.usertype,
-            viewerFirstname: currentUser.firstname,
+        const res = await axios.get(
+          `${baseUrl}users/profile/search/${identifier}`,
+          {
+            params: {
+              viewerUid: currentUser.uid,
+              viewerTier: currentUser.tier,
+              viewerRole: currentUser.usertype,
+              viewerFirstname: currentUser.firstname,
+            },
           },
-        });
+        );
         setProfileData(res.data.data);
       } catch (error: any) {
         console.error(error);
@@ -330,7 +337,7 @@ export const ProfileScreen = ({ route }: any) => {
     };
     fetchProfile();
   }, [
-    uid,
+    identifier,
     currentUser.uid,
     currentUser.tier,
     currentUser.usertype,
@@ -606,11 +613,12 @@ export const ProfileScreen = ({ route }: any) => {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           userType={profileData.usertype}
+          isOwner={isOwner}
         />
         <View style={styles.tabContent}>
           {activeTab === 'Posts' && (
             <FlatList
-              data={profileData.posts}
+              data={profileData.posts.filter((p: any) => !p.isRepost)}
               keyExtractor={item => item.postId}
               renderItem={({ item }) => (
                 <PostCard post={item} isVisible={true} />
@@ -622,8 +630,32 @@ export const ProfileScreen = ({ route }: any) => {
               showsVerticalScrollIndicator={false}
             />
           )}
-
-          {/* Other tabs like 'Media', 'iCash', etc. */}
+          {activeTab === 'Reposts' && (
+            <FlatList
+              data={profileData.posts.filter((p: any) => p.isRepost)}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No reposts yet.</Text>
+              }
+            />
+          )}
+          {activeTab === 'Bookmarks' && (
+            <FlatList
+              data={profileData.bookmarkedPosts}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No bookmarks yet.</Text>
+              }
+            />
+          )}
+          {/* Other tabs like 'Media', etc. */}
         </View>
       </View>
       {isSearchFocused && (

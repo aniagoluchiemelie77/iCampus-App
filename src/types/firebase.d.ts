@@ -570,6 +570,7 @@ export interface Posts {
     expiresAt: string; 
     totalVotes: number;
   };
+  originalAuthor?: string
 }
 export interface Comment {
   id: string;

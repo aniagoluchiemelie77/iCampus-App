@@ -178,7 +178,7 @@ export type RootStackParamList = {
   };
   Settings: undefined;
   Calender: undefined;
-  Profile: { userId: string };
+  Profile: { identifier: string };
   VerifyEmail: {
     verified?: string;
     email?: string;

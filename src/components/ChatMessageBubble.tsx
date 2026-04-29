@@ -65,7 +65,9 @@ export const MessageBubble = ({
                     styles.fileRow,
                     isUser ? styles.fileRowUser : styles.fileRowUserNotUser,
                   ]}
-                  onPress={() => downloadFile(file.url, file.fileName)}
+                  onPress={() =>
+                    downloadFile(file.url, file.fileName || 'file')
+                  }
                 >
                   <MaterialIcons
                     name="file-download"

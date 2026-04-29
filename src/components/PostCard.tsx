@@ -19,6 +19,11 @@ import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR } from './Classroomcomponent';
 import { UserIdentity } from './UserIdentity';
 import { baseUrl } from './HomeScreenComponents';
+import {
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from 'assets/styles/colors';
+import { User } from '../types/firebase';
 const { width } = Dimensions.get('window');
 interface PostCardProps {
   post: Posts; // Using your existing Posts type
@@ -157,7 +162,7 @@ const PollView = ({
                   <MaterialIcons
                     name="check-circle"
                     size={14}
-                    color="#f54b02"
+                    color={PRIMARY_COLOR}
                     style={{ marginLeft: 5 }}
                   />
                 )}
@@ -242,9 +247,10 @@ const LinkedText = ({
   );
 };
 export const PostCard = ({ post, isVisible }: PostCardProps) => {
-  const user = post.userId;
+  const user = post.originalAuthor;
   const [isExpanded, setIsExpanded] = useState(false);
-  const [userDetails, setUserDetails] = useState<any>(null);
+  // Define the state with the User type
+  const [userDetails, setUserDetails] = useState<User | null>(null);
   const [_, setLoading] = useState(true);
   const navigation = useNavigation<any>();
   const TEXT_LIMIT = 150;
@@ -254,7 +260,7 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     currentUser,
     handleRepost,
     incrementShareCount,
-    handleVote, // Ensure this exists in your Context
+    handleVote,
   } = useAppDataContext();
   const getRelativeTime = (dateString: string | null): string => {
     if (!dateString) return '';
@@ -268,7 +274,6 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
       .replace(' days', 'd')
       .replace(' day', 'd');
   };
-
   const isLiked = post.likes?.includes(currentUser?.uid);
   const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
   const shouldShowSeeMore = post.content && post.content.length > TEXT_LIMIT;
@@ -308,26 +313,32 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     }
   }, [user]);
 
-  // Use userDetails if loaded, otherwise fallback to the partial post.userId data
-  const displayUser = userDetails || post.userId;
-
   return (
     <View style={styles.container}>
+      {post.isRepost && (
+        <View style={styles.repostHeader}>
+          <MaterialIcons name="repeat" size={14} color={PRIMARY_COLOR_TINT} />
+          <Text style={styles.repostText}>
+            {`${post.userId?.firstname} ${post.userId?.lastname} reposted`}
+          </Text>
+        </View>
+      )}
       <View style={styles.header}>
         <Image
           source={{
-            uri: user?.profilePic?.[0] || 'https://via.placeholder.com/40',
+            uri:
+              userDetails?.profilePic?.[0] || 'https://via.placeholder.com/40',
           }}
           style={styles.avatar}
         />
         <View style={styles.headerText}>
           <UserIdentity
-            firstname={user?.firstname}
-            lastname={user?.lastname}
-            tier={displayUser?.tier} // Assuming user object has tier
-            isVerified={displayUser?.isVerified}
-            isOrganization={displayUser?.usertype === 'enterprise'}
-            organizationName={displayUser?.organizationName}
+            firstname={userDetails?.firstname ?? ''}
+            lastname={userDetails?.lastname ?? ''}
+            tier={userDetails?.tier ? userDetails?.tier : 'free'}
+            isVerified={userDetails?.isVerified}
+            isOrganization={userDetails?.usertype === 'enterprise'}
+            organizationName={userDetails?.organizationName}
             size="medium"
           />
           <Text style={styles.timestamp}>
@@ -346,9 +357,9 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
             //navigation.navigate('SearchScreen', { query: cleanTag });
           }}
           onMentionPress={(mention: string) => {
-            const username = mention.replace('@', '');
-            console.log(username);
-            //navigation.navigate('ProfileScreen', { username: username });
+            const name = mention.replace('@', '');
+            console.log(name);
+            navigation.navigate('ProfileScreen', { identifier: name });
           }}
         />
         {shouldShowSeeMore && !isExpanded && (
@@ -446,13 +457,23 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
     padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
+  repostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  repostText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: PRIMARY_COLOR_TINT,
+    marginLeft: 10,
   },
   header: {
     flexDirection: 'row',
@@ -554,17 +575,17 @@ const styles = StyleSheet.create({
     height: 45,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
     justifyContent: 'center',
     marginBottom: 8,
     overflow: 'hidden',
     position: 'relative',
   },
   optionButtonDisabled: {
-    borderColor: '#E1E8ED',
+    borderColor: PRIMARY_COLOR_TINT_MAIN,
   },
   optionButtonSelected: {
-    borderColor: '#f54b02',
+    borderColor: PRIMARY_COLOR,
     borderWidth: 1.5,
   },
   progressBg: {
@@ -572,7 +593,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    backgroundColor: 'rgba(245, 75, 2, 0.1)', // Light brand color fill
+    backgroundColor: PRIMARY_COLOR_TINT, // Light brand color fill
   },
   optionContent: {
     flexDirection: 'row',
@@ -583,12 +604,12 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 14,
-    color: '#333',
+    color: PRIMARY_COLOR,
   },
   percentageText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: PRIMARY_COLOR_TINT_MAIN,
   },
   pollFooter: {
     flexDirection: 'row',
@@ -596,7 +617,7 @@ const styles = StyleSheet.create({
   },
   voteCount: {
     fontSize: 13,
-    color: '#666',
+    color: PRIMARY_COLOR_TINT,
   },
   dotSeparator: {
     marginHorizontal: 5,
@@ -604,10 +625,11 @@ const styles = StyleSheet.create({
   },
   pollStatus: {
     fontSize: 13,
-    color: '#666',
+    color: PRIMARY_COLOR_TINT,
   },
   boldText: {
     fontWeight: 'bold',
+    color: PRIMARY_COLOR_TINT_MAIN,
   },
   baseText: {
     fontSize: 14,

@@ -690,8 +690,14 @@ interface ProfileModalProps {
   visible: boolean;
   onClose: () => void;
   currentUser: User; // Ideally use your User type here
+  navigation: any;
 }
-const ProfileModal = ({ visible, onClose, currentUser }: ProfileModalProps) => (
+const ProfileModal = ({
+  visible,
+  onClose,
+  currentUser,
+  navigation,
+}: ProfileModalProps) => (
   <Modal
     visible={visible}
     transparent={true}
@@ -707,7 +713,12 @@ const ProfileModal = ({ visible, onClose, currentUser }: ProfileModalProps) => (
 
     <View style={modalStyles.drawer}>
       {/* User Header Section */}
-      <TouchableOpacity style={modalStyles.userInfo}>
+      <TouchableOpacity
+        style={modalStyles.userInfo}
+        onPress={() =>
+          navigation.navigate('ProfileScreen', { identifier: currentUser?.uid })
+        }
+      >
         <Image
           source={{
             uri:
@@ -832,7 +843,6 @@ export function Home() {
   const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
-  // Use useCallback to prevent infinite re-renders since it's a dependency in useEffect
   const loadPosts = useCallback(
     async (isRefreshing = false) => {
       if (loadingMore || (refreshing && !isRefreshing)) return;
@@ -848,7 +858,7 @@ export function Home() {
 
       try {
         const response = await fetch(
-          `${baseUrl}posts?limit=10&cursor=${currentCursor}`,
+          `${baseUrl}posts/fetchPosts?limit=10&cursor=${currentCursor}`,
         );
         const data = await response.json();
 
@@ -866,7 +876,6 @@ export function Home() {
     },
     [cursor, loadingMore, refreshing, posts.length, setPosts],
   );
-
   useEffect(() => {
     loadPosts(true); // Initial load
   }, [loadPosts]);
@@ -1002,6 +1011,7 @@ export function Home() {
         visible={isProfilePopupVisible}
         onClose={() => setProfilePopupVisible(false)}
         currentUser={currentUser}
+        navigation={navigation}
       />
     </View>
   );
