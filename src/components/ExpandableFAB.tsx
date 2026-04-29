@@ -29,7 +29,7 @@ const ACTION_CONFIG: Record<
     params: { type: 'poll' },
   },
   iAssistant: {
-    icon: 'smart-toy', // For outlined, ensure your library supports it or use 'robot-outline' if using MaterialCommunityIcons
+    icon: 'assistant', // For outlined, ensure your library supports it or use 'robot-outline' if using MaterialCommunityIcons
     route: 'Assistant',
     params: {
       contextType: 'general',
@@ -38,14 +38,14 @@ const ACTION_CONFIG: Record<
     },
   },
   'Create Post': {
-    icon: 'edit-note', // 'edit-note' looks more like an outlined 'edit'
+    icon: 'edit', // 'edit-note' looks more like an outlined 'edit'
     route: 'CreatePost',
     params: { type: 'post' },
   },
 
   // --- Financial / Wallet ---
   iCash: {
-    icon: 'account-balance-wallet',
+    icon: 'account-balance',
     route: 'ICashDashboard',
     params: {},
   },
@@ -57,22 +57,22 @@ const ACTION_CONFIG: Record<
     params: { title: 'View Lecture Schedule' },
   },
   'Create Course': {
-    icon: 'add-business',
+    icon: 'library-books',
     route: 'CreateCourse',
     params: {},
     category: 'premium',
   },
-  'Live Chat': { icon: 'chat-bubble-outline', route: 'Modal' }, // Explicitly outlined
-  'Hand Wave': { icon: 'front-hand', route: 'Socket' },
+  'Live Chat': { icon: 'chat', route: 'Modal' }, // Explicitly outlined
+  'Hand Wave': { icon: 'waving-hand', route: 'Socket' },
   Library: {
-    icon: 'local-library',
+    icon: 'align-vertical-bottom',
     route: 'LibraryScreen',
     params: {},
   },
 
   // --- Store Page ---
   'View Favorites': {
-    icon: 'favorite-border',
+    icon: 'favorite',
     route: 'StoreWishlist',
     params: {},
   }, // 'favorite-border' is the outline

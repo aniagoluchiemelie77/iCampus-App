@@ -16,7 +16,6 @@ import {
 import { PostCard } from './PostCard';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from './EventContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,6 +30,7 @@ import type {
 import {
   HomeScreenComponentStyles,
   NotificationPageStyles,
+  PRIMARY_COLOR,
   homeStyles,
   modalStyles,
 } from '../assets/styles/colors';
@@ -48,644 +48,22 @@ import {
   clearCart,
   selectTotalPoints,
 } from './CartProductsSlice';
-import { CLOUDINARY_APICLOUDNAME } from '@env';
 import Logo from '../assets/images/Logo.tsx';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-export const baseUrl = 'http://192.168.1.98:5000/';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import ExpandableFAB from './ExpandableFAB.tsx';
 import { useSocket } from './socketContext.ts';
+export const baseUrl = 'http://192.168.1.98:5000/';
 interface Props {
   navigation: StackNavigationProp<any>; // Replace 'any' with your ParamList if you have one
   initialCount?: number;
+  uid?: string;
 }
 const hapticOptions = {
   enableVibrateFallback: true,
   ignoreAndroidSystemSettings: false,
 };
 
-export const uploadImageToCloudinary = async (
-  imageUri: string,
-): Promise<string | null> => {
-  const data = new FormData();
-  data.append('file', {
-    uri: imageUri,
-    name: 'profile.jpg',
-    type: 'image/jpeg',
-  });
-  data.append('upload_preset', 'profileImgs');
-
-  try {
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_APICLOUDNAME}/image/upload`,
-      {
-        method: 'POST',
-        body: data,
-      },
-    );
-
-    const result = await res.json();
-    return result.secure_url;
-  } catch (err) {
-    console.error('Cloudinary upload failed:', err);
-    return null;
-  }
-};
-
-type NavigationPropProductDetails = StackNavigationProp<
-  RootStackParamList,
-  'ProductDetails'
->;
-//const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
-/*const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
-};
-
-const CalenderPopup = () => {
-  const { events, errorMessage, fetchEvents } = useAppDataContext();
-  const navigation = useNavigation<NavigationProp>();
-  const [visible, setVisible] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const scrollRef = useRef<ScrollView>(null);
-  const [showBackToToday, setShowBackToToday] = useState(false);
-  const [cardHeights, setCardHeights] = useState<number[]>([]);
-
-  const openPopup = () => {
-    setVisible(true);
-    fetchEvents();
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
-  const closePopup = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 0,
-      duration: 50,
-      useNativeDriver: true,
-    }).start(() => setVisible(false));
-  };
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-
-    // Add ordinal suffix
-    const getOrdinal = (n: number) => {
-      if (n > 3 && n < 21) return 'th';
-      switch (n % 10) {
-        case 1:
-          return 'st';
-        case 2:
-          return 'nd';
-        case 3:
-          return 'rd';
-        default:
-          return 'th';
-      }
-    };
-
-    const dayWithSuffix = `${day}${getOrdinal(day)}`;
-
-    const formatted = new Intl.DateTimeFormat('en-GB', {
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true,
-    }).format(date);
-
-    return `${dayWithSuffix} ${formatted}`;
-  };
-  const isToday = (dateString: string) => {
-    const eventDate = new Date(dateString);
-    const today = new Date();
-
-    return (
-      eventDate.getDate() === today.getDate() &&
-      eventDate.getMonth() === today.getMonth() &&
-      eventDate.getFullYear() === today.getFullYear()
-    );
-  };
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const yOffset = event.nativeEvent.contentOffset.y;
-    setShowBackToToday(yOffset > 50); // Show button after scrolling 100px
-  };
-  const getTodayIndex = () => {
-    const today = new Date();
-    return sortedEvents.findIndex(event => {
-      const eventDate = new Date(event.startDate);
-      return (
-        eventDate.getDate() === today.getDate() &&
-        eventDate.getMonth() === today.getMonth() &&
-        eventDate.getFullYear() === today.getFullYear()
-      );
-    });
-  };
-  const scrollToToday = () => {
-    const index = getTodayIndex();
-    if (index !== -1 && scrollRef.current) {
-      const yOffset = cardHeights
-        .slice(0, index)
-        .reduce((sum, h) => sum + h, 0);
-      scrollRef.current.scrollTo({ y: yOffset, animated: true });
-    }
-  };
-
-  const brightColors = [
-    '#6abd0cff',
-    '#d11755ff',
-    '#0496a9ff',
-    '#c4440dff',
-    '#b54607ff',
-  ];
-  const titleColorMap: { [title: string]: string } = {};
-  const getColorForTitle = (title: string) => {
-    if (!titleColorMap[title]) {
-      const index = Object.keys(titleColorMap).length % brightColors.length;
-      titleColorMap[title] = brightColors[index];
-    }
-    return titleColorMap[title];
-  };
-  const today = new Date();
-  const sortedEvents = [...events]
-    .filter(event => new Date(event.startDate) > today)
-    .sort(
-      (a, b) =>
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
-    );
-
-  return (
-    <View style={HomeScreenComponentStyles.container}>
-      <TouchableOpacity
-        style={[
-          homeStyles.iconItem,
-          HomeScreenComponentStyles.activityIcons,
-          HomeScreenComponentStyles.activityIcons2,
-        ]}
-        onPress={openPopup}
-      >
-        <Icon name="calendar-number-outline" size={30} color="#f54b02" />
-      </TouchableOpacity>
-
-      <Modal transparent visible={visible}>
-        {errorMessage && (
-          <Text style={{ color: 'gray', textAlign: 'center' }}>
-            {errorMessage}
-          </Text>
-        )}
-        <View style={HomeScreenComponentStyles.overlay}>
-          <TouchableWithoutFeedback onPress={closePopup}>
-            <View style={HomeScreenComponentStyles.backdrop} />
-          </TouchableWithoutFeedback>
-
-          {/* Modal content stays interactive and scrollable }
-          <View style={HomeScreenComponentStyles.popup}>
-            <View style={HomeScreenComponentStyles.topHeader2}>
-              <Text style={HomeScreenComponentStyles.welcomeText2}>Events</Text>
-              <TouchableOpacity
-                onPress={closePopup}
-                style={[
-                  homeStyles.iconItem,
-                  HomeScreenComponentStyles.activityIcons,
-                  HomeScreenComponentStyles.activityIcons2,
-                  HomeScreenComponentStyles.cancelIcon,
-                ]}
-              >
-                <Icon name="close-outline" size={28} color="#f54b02" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={HomeScreenComponentStyles.eventsContainer}>
-              <ScrollView
-                ref={scrollRef}
-                onScroll={handleScroll} // ✅ This uses the function
-                scrollEventThrottle={16}
-                contentContainerStyle={HomeScreenComponentStyles.eventsDiv}
-              >
-                {sortedEvents.map((event, index) => (
-                  <View
-                    key={event._id}
-                    onLayout={e => {
-                      const { height } = e.nativeEvent.layout;
-                      setCardHeights(prev => {
-                        const updated = [...prev];
-                        updated[index] = height;
-                        return updated;
-                      });
-                    }}
-                    style={HomeScreenComponentStyles.eventCard}
-                  >
-                    <View style={HomeScreenComponentStyles.eventVisibilityDiv2}>
-                      <Text
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={[
-                          HomeScreenComponentStyles.eventTitle,
-                          { backgroundColor: getColorForTitle(event.title) },
-                        ]}
-                      >
-                        {event.title}
-                      </Text>
-                      {isToday(event.startDate) && (
-                        <Icon name="hourglass" size={18} color="#f54b02" />
-                      )}
-                    </View>
-                    <Text
-                      numberOfLines={2}
-                      ellipsizeMode="tail"
-                      style={HomeScreenComponentStyles.eventDescription2}
-                    >
-                      {event.description}
-                    </Text>
-                    <View style={HomeScreenComponentStyles.eventLocationDiv}>
-                      <Icon name="location-outline" size={18} color="#f54b02" />
-                      <Text
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={HomeScreenComponentStyles.eventLocation}
-                      >
-                        {event.location}
-                      </Text>
-                    </View>
-                    <View style={HomeScreenComponentStyles.eventCardFooter}>
-                      <Text style={HomeScreenComponentStyles.eventDate}>
-                        {new Date(event.startDate).toLocaleDateString() ===
-                        new Date(event.endDate).toLocaleDateString()
-                          ? formatDate(event.startDate)
-                          : `${formatDate(event.startDate)} - ${formatDate(
-                              event.endDate,
-                            )}`}
-                      </Text>
-                      <View
-                        style={HomeScreenComponentStyles.eventVisibilityDiv}
-                      >
-                        <Icon
-                          name="bookmarks-outline"
-                          size={18}
-                          color="#f54b02"
-                        />
-                        <Text
-                          style={HomeScreenComponentStyles.eventVisibilityText}
-                        >
-                          {event.visibility.charAt(0).toUpperCase() +
-                            event.visibility.slice(1)}
-                        </Text>
-                      </View>
-                      {event.eventType === 'Lectures' &&
-                        event.lectureType === 'online' && (
-                          <Text style={HomeScreenComponentStyles.lectureType}>
-                            Online
-                          </Text>
-                        )}
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-              {showBackToToday && (
-                <TouchableOpacity
-                  onPress={scrollToToday}
-                  style={[
-                    HomeScreenComponentStyles.backToTodayButton,
-                    homeStyles.iconItem,
-                    HomeScreenComponentStyles.activityIcons,
-                    HomeScreenComponentStyles.activityIcons2,
-                  ]}
-                >
-                  <Icon name="arrow-up-outline" size={18} color="#f54b02" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Calender')}
-              style={[
-                homeStyles.iconItem,
-                HomeScreenComponentStyles.activityIcons,
-                HomeScreenComponentStyles.activityIcons2,
-                HomeScreenComponentStyles.CaddIcon,
-              ]}
-            >
-              <Icon name="add-outline" size={32} color="#f54b02" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-};
-
-const SettingsPopup = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const user = useAppSelector(state => state.user);
-  const [visible, setVisible] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
-  const openPopup = () => {
-    setVisible(true);
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
-  const closePopup = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 0,
-      duration: 50,
-      useNativeDriver: true,
-    }).start(() => setVisible(false));
-  };
-
-  return (
-    <View style={HomeScreenComponentStyles.container}>
-      <TouchableOpacity onPress={() => openPopup()}>
-        <Image
-          source={{
-            uri:
-              user.profilePic?.[user.profilePic.length - 1] ??
-              'https://example.com/default-profile.png',
-          }}
-          style={PointsPageStyles.profileImage}
-        />
-      </TouchableOpacity>
-
-      <Modal transparent visible={visible}>
-        <View style={HomeScreenComponentStyles.overlay}>
-          <TouchableWithoutFeedback onPress={closePopup}>
-            <View style={HomeScreenComponentStyles.backdrop} />
-          </TouchableWithoutFeedback>
-
-          {/* Modal content stays interactive and scrollable }
-          <View style={HomeScreenComponentStyles.popupRight}>
-            <ScrollView style={{ width: '100%' }}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Profile')}
-                style={HomeScreenComponentStyles.settingsBtn}
-              >
-                <Image
-                  source={{
-                    uri:
-                      user.profilePic?.[user.profilePic.length - 1] ??
-                      'https://example.com/default-profile.png',
-                  }}
-                  style={PointsPageStyles.profileImage2}
-                />
-                <View style={HomeScreenComponentStyles.settingsBtnRightdiv}>
-                  <View style={HomeScreenComponentStyles.settingsBtnRowdiv}>
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={HomeScreenComponentStyles.settingsBtnRowdivText}
-                    >
-                      {user.firstname} {user.lastname}
-                    </Text>
-                    <MaterialCommunityIcons
-                      name="chevron-right"
-                      size={23}
-                      color="#222"
-                      style={{ marginLeft: 4 }}
-                    />
-                  </View>
-                  <Text
-                    style={HomeScreenComponentStyles.settingsBtnRowdivText2}
-                  >
-                    ID: {user.uid}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-              <View style={HomeScreenComponentStyles.settingsBtnDiv}>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={[HomeScreenComponentStyles.settingsBtn2]}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="account-cog-outline"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Account Settings
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="shield-check-outline"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Privacy & Security
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="bell-ring-outline"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Notification & Sounds
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="laptop"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Devices
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="translate"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Language
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-              </View>
-              <View style={HomeScreenComponentStyles.settingsBtnDiv}>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={[HomeScreenComponentStyles.settingsBtn2]}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="assistant"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Chat with Orange
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="crown-outline"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      iCampus Premium
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="headset"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Help Center
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  //onPress={() => navigation.navigate('Profile')}
-                  style={HomeScreenComponentStyles.settingsBtn2}
-                >
-                  <View style={HomeScreenComponentStyles.settingsBtnLeftdiv}>
-                    <MaterialCommunityIcons
-                      name="apps"
-                      size={23}
-                      color="#222"
-                      style={{ marginRight: 9 }}
-                    />
-                    <Text
-                      style={HomeScreenComponentStyles.settingsBtnLeftdivText}
-                    >
-                      Other Apps by us
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={23}
-                    color="#222"
-                    style={{ marginRight: 3 }}
-                  />
-                </TouchableOpacity>
-                <Text style={HomeScreenComponentStyles.appVersionText}>
-                  App Version: {user.appVersion ? user.appVersion : 'v1.0'}
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-};*/
-//Home screen
 interface ProfileModalProps {
   visible: boolean;
   onClose: () => void;
@@ -740,12 +118,17 @@ const ProfileModal = ({
       <TouchableOpacity
         style={modalStyles.item}
         onPress={() => {
-          onClose();
-          //navigation.navigate('Bookmarks');
+          navigation.navigate('ICashDashboard', {
+            refresh: true,
+          });
         }}
       >
-        <MaterialIcons name="bookmark-border" size={24} color="#333" />
-        <Text style={modalStyles.itemText}>Bookmarks</Text>
+        <MaterialIcons
+          name="account-balance-wallet-oulined"
+          size={24}
+          color="#333"
+        />
+        <Text style={modalStyles.itemText}>iCash</Text>
       </TouchableOpacity>
 
       {/* 2. SETTINGS SECTION */}
@@ -769,7 +152,7 @@ const ProfileModal = ({
           //navigation.navigate('Settings');
         }}
       >
-        <MaterialIcons name="settings" size={24} color="#333" />
+        <MaterialIcons name="settings-outlined" size={24} color="#333" />
         <Text style={modalStyles.itemText}>Settings & Privacy</Text>
       </TouchableOpacity>
 
@@ -778,8 +161,10 @@ const ProfileModal = ({
         style={[modalStyles.item, { marginTop: 10 }]}
         //onPress={handleLogout}
       >
-        <MaterialIcons name="logout" size={24} color="#FF3B30" />
-        <Text style={[modalStyles.itemText, { color: '#FF3B30' }]}>Logout</Text>
+        <MaterialIcons name="logout-outlined" size={24} color={PRIMARY_COLOR} />
+        <Text style={[modalStyles.itemText, { color: PRIMARY_COLOR }]}>
+          Logout
+        </Text>
       </TouchableOpacity>
     </View>
   </Modal>
@@ -808,7 +193,7 @@ export const NotificationBell: React.FC<Props> = ({
   return (
     <TouchableOpacity
       onPress={() => {
-        setUnreadCount(0); // Clear badge locally when entering
+        setUnreadCount(0);
         navigation.navigate('Notifications');
       }}
       style={[
@@ -818,7 +203,11 @@ export const NotificationBell: React.FC<Props> = ({
         HomeScreenComponentStyles.notificationContainer,
       ]}
     >
-      <MaterialIcons name="notifications-none" size={23} color="#222" />
+      <MaterialIcons
+        name="notifications-outlined"
+        size={23}
+        color={PRIMARY_COLOR}
+      />
 
       {unreadCount > 0 && (
         <View style={HomeScreenComponentStyles.badge}>
@@ -830,6 +219,54 @@ export const NotificationBell: React.FC<Props> = ({
     </TouchableOpacity>
   );
 };
+
+export const MessageBell: React.FC<Props> = ({
+  navigation,
+  initialCount = 0,
+  uid,
+}) => {
+  const [unreadCount, setUnreadCount] = useState(initialCount);
+  const socketContext = useSocket();
+  const socket = socketContext?.socket;
+  useEffect(() => {
+    if (!socket) return;
+    const handleNewMsg = (data: any) => {
+      if (data.senderId !== uid) {
+        setUnreadCount(prev => prev + 1);
+      }
+    };
+    socket.on('receive_message', handleNewMsg);
+    return () => {
+      socket.off('receive_message', handleNewMsg);
+    };
+  }, [socket, uid]);
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        setUnreadCount(0);
+        navigation.navigate('MessagesList');
+      }}
+      style={[
+        homeStyles.iconItem,
+        HomeScreenComponentStyles.activityIcons,
+        HomeScreenComponentStyles.activityIcons2,
+        HomeScreenComponentStyles.notificationContainer,
+        { marginLeft: 3 },
+      ]}
+    >
+      <MaterialIcons name="chat-outlined" size={23} color={PRIMARY_COLOR} />
+      {unreadCount > 0 && (
+        <View style={HomeScreenComponentStyles.badge}>
+          <Text style={HomeScreenComponentStyles.badgeText}>
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
 export function Home() {
   const { posts, setPosts, incrementImpression, currentUser } =
     useAppDataContext();
@@ -841,12 +278,11 @@ export function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<any>();
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const loadPosts = useCallback(
     async (isRefreshing = false) => {
       if (loadingMore || (refreshing && !isRefreshing)) return;
-
       // If refreshing, reset cursor. If loading more, use existing cursor.
       const currentCursor = isRefreshing ? '' : cursor || '';
 
@@ -961,7 +397,14 @@ export function Home() {
           />
         </TouchableOpacity>
         <Logo />
-        <NotificationBell navigation={navigation} initialCount={0} />
+        <View style={homeStyles.headerContainerDiv}>
+          <NotificationBell navigation={navigation} initialCount={0} />
+          <MessageBell
+            navigation={navigation}
+            initialCount={0}
+            uid={currentUser.uid}
+          />
+        </View>
       </View>
 
       <FlatList
@@ -1022,7 +465,7 @@ export function StoreScreen() {
   const user = useAppSelector(state => state.user);
   const { fetchFavorites, fetchCartItems, toggleFavorite, favoriteProducts } =
     useAppDataContext();
-  const navigation = useNavigation<NavigationPropProductDetails>();
+  const navigation = useNavigation<any>();
   const dispatch = useDispatch();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
@@ -1098,24 +541,18 @@ export function StoreScreen() {
         );
         Toast.show({
           type: 'success',
-          text1: 'Product successfully added to cart',
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: 'Product successfully added to cart',
         });
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Failed to add to cart',
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: 'Failed to add to cart',
         });
       }
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: 'Failed to add to cart',
-        position: 'bottom',
-        bottomOffset: 10,
+        text2: 'Failed to add to cart',
       });
     }
   };
@@ -1136,24 +573,18 @@ export function StoreScreen() {
         await fetchCartItems(); // Refresh cart view
         Toast.show({
           type: 'success',
-          text1: 'Cart cleared successfully',
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: 'Cart cleared successfully',
         });
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Failed to clear cart',
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: 'Failed to clear cart',
         });
       }
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: 'Failed to clear cart',
-        position: 'bottom',
-        bottomOffset: 10,
+        text2: 'Failed to clear cart',
       });
     }
   };
@@ -1172,24 +603,18 @@ export function StoreScreen() {
         await fetchFavorites(); // Refresh cart view
         Toast.show({
           type: 'success',
-          text1: 'Favorites cleared successfully',
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: 'Favorites cleared successfully',
         });
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Failed to clear favorites',
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: 'Failed to clear favorites',
         });
       }
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: 'Failed to clear favorites',
-        position: 'bottom',
-        bottomOffset: 10,
+        text2: 'Failed to clear favorites',
       });
     }
   };
@@ -1211,17 +636,13 @@ export function StoreScreen() {
       } else {
         Toast.show({
           type: 'error',
-          text1: "Error, couldn't delete cart item. Please retry.",
-          position: 'bottom',
-          bottomOffset: 10,
+          text2: "Error, couldn't delete cart item. Please retry.",
         });
       }
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: "Error, couldn't delete cart item. Please retry.",
-        position: 'bottom',
-        bottomOffset: 10,
+        text2: "Error, couldn't delete cart item. Please retry.",
       });
     }
   };
@@ -1241,9 +662,7 @@ export function StoreScreen() {
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: "Error, couldn't remove item from favorites, please retry.",
-        position: 'bottom',
-        bottomOffset: 10,
+        text2: "Error, couldn't remove item from favorites, please retry.",
       });
     }
   };
@@ -1272,8 +691,8 @@ export function StoreScreen() {
       } catch (error) {
         Toast.show({
           type: 'error',
-          text1: "Error, couldn't fetch cart items.",
-          position: 'bottom',
+          text2: "Error, couldn't fetch cart items.",
+
           bottomOffset: 5,
         });
       }

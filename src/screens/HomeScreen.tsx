@@ -8,7 +8,7 @@ import React, {
 import { useDispatch } from 'react-redux';
 import { clearUser } from '@components/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { io, Socket } from 'socket.io-client';
 import { StoreScreen, Home } from '../components/HomeScreenComponents';
 import { useNavigation } from '@react-navigation/native';
@@ -193,7 +193,7 @@ const HomeScreen = () => {
               userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
             />
           )}
-
+          {/* activeIcon === 'search' && <SearchScreen /> */}
           {activeIcon === 'store' && <StoreScreen />}
           {activeIcon === 'ranking' && <RankingScreen />}
         </View>
@@ -207,9 +207,9 @@ const HomeScreen = () => {
               activeIcon === 'home' && homeStyles.activeIconItem,
             ]}
           >
-            <Icon
-              name={activeIcon === 'home' ? 'home' : 'home-outline'}
-              size={26}
+            <MaterialIcons
+              name={activeIcon === 'home' ? 'home' : 'home-outlined'}
+              size={23}
               color={activeIcon === 'home' ? PRIMARY_COLOR : '#2222'}
             />
             {activeIcon === 'home' && (
@@ -226,9 +226,9 @@ const HomeScreen = () => {
                 activeIcon === 'classroom' && homeStyles.activeIconItem,
               ]}
             >
-              <Icon
-                name={activeIcon === 'classroom' ? 'easel' : 'easel-outline'}
-                size={26}
+              <MaterialIcons
+                name={activeIcon === 'classroom' ? 'groups' : 'groups-outlined'}
+                size={23}
                 color={activeIcon === 'classroom' ? PRIMARY_COLOR : '#032820'}
               />
               {activeIcon === 'classroom' && (
@@ -237,6 +237,23 @@ const HomeScreen = () => {
             </TouchableOpacity>
           )}
 
+          {/* 3. Search */}
+          <TouchableOpacity
+            onPress={() => setActiveIcon('search')}
+            style={[
+              homeStyles.iconItem,
+              activeIcon === 'search' && homeStyles.activeIconItem,
+            ]}
+          >
+            <MaterialIcons
+              name={activeIcon === 'search' ? 'search' : 'search-outlined'}
+              size={23}
+              color={activeIcon === 'search' ? PRIMARY_COLOR : '#032820'}
+            />
+            {activeIcon === 'search' && (
+              <Text style={homeStyles.activeIconLabel}>Search</Text>
+            )}
+          </TouchableOpacity>
           {/* Store and Ranking tabs remain visible for everyone */}
           <TouchableOpacity
             onPress={() => setActiveIcon('store')}
@@ -245,9 +262,13 @@ const HomeScreen = () => {
               activeIcon === 'store' && homeStyles.activeIconItem,
             ]}
           >
-            <Icon
-              name={activeIcon === 'store' ? 'cart' : 'cart-outline'}
-              size={26}
+            <MaterialIcons
+              name={
+                activeIcon === 'store'
+                  ? 'shopping-cart'
+                  : 'shopping-cart-outlined'
+              }
+              size={23}
               color={activeIcon === 'store' ? PRIMARY_COLOR : '#032820'}
             />
             {activeIcon === 'store' && (
@@ -262,9 +283,13 @@ const HomeScreen = () => {
               activeIcon === 'ranking' && homeStyles.activeIconItem,
             ]}
           >
-            <Icon
-              name={activeIcon === 'ranking' ? 'trophy' : 'trophy-outline'}
-              size={26}
+            <MaterialIcons
+              name={
+                activeIcon === 'ranking'
+                  ? 'emoji-events'
+                  : 'emoji-events-outlined'
+              }
+              size={23}
               color={activeIcon === 'ranking' ? PRIMARY_COLOR : '#032820'}
             />
             {activeIcon === 'ranking' && (

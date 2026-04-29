@@ -64,6 +64,7 @@ import { iCashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
 import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
 import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
 import { ChatScreen } from './src/screens/ChatScreen.tsx';
+import { MessagesListScreen } from './src/screens/MessagesListScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -100,6 +101,7 @@ export type RootStackParamList = {
     type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
   };
   Welcome: { route: string };
+  MessagesList: undefined;
   CourseSubPage: {
     title:
       | 'Course Contents' //Both
@@ -322,6 +324,11 @@ const App = () => {
             <Stack.Screen
               name="Notifications"
               component={Notifications}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="MessagesList"
+              component={MessagesListScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

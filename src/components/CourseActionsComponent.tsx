@@ -796,7 +796,7 @@ export const RenderContents = ({
         }
         ListEmptyComponent={
           <EmptyState
-            iconName="book-open-variant"
+            iconName="search-off"
             title="Course Contents Not Found"
             subtitle={
               userRole === 'lecturer'
@@ -1086,7 +1086,7 @@ export const RenderMaterials = ({
       }}
       ListEmptyComponent={
         <EmptyState
-          iconName="file-pdf-box"
+          iconName="search-off"
           title="No Materials Found"
           subtitle={
             userRole === 'lecturer'
@@ -1270,7 +1270,7 @@ export const RenderAssignments = ({
       }}
       ListEmptyComponent={
         <EmptyState
-          iconName="clipboard-text-outline"
+          iconName="content-paste-off-outlined"
           title="No Assignments Posted"
           subtitle="Check back later for upcoming tasks and deadlines."
           buttonText={userRole === 'lecturer' ? 'Create Assignment' : undefined}
@@ -1289,7 +1289,7 @@ export const RenderStudentExceptions = ({
   onRefresh,
 }: StudentExceptionsProps) => {
   const limits = { free: 2, pro: 4, premium: 6 };
-  const currentPlan = user.plan || 'free';
+  const currentPlan = user.tier || 'free';
   const planLimit = limits[currentPlan];
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
@@ -1394,7 +1394,7 @@ export const RenderStudentExceptions = ({
       )}
       ListEmptyComponent={
         <EmptyState
-          iconName="alert-circle-check-outline"
+          iconName="search-off"
           title="No Exceptions Found"
           subtitle="All your course registrations are currently within normal limits."
         />
@@ -1487,7 +1487,7 @@ export const RenderLecturerExceptionsManage = ({
       )}
       ListEmptyComponent={
         <EmptyState
-          iconName="check-decagram-outline"
+          iconName="done-all-outlined"
           title="All Caught Up!"
           subtitle="There are no pending student exceptions requiring your approval right now."
           style={{ marginTop: 80 }}
@@ -1822,7 +1822,7 @@ export const RenderScheduleLecture = ({
               )}
               ListEmptyComponent={
                 <EmptyState
-                  iconName="book-alert-outline"
+                  iconName="search-off"
                   title="No syllabus topics found."
                   subtitle={`Please add topics to the course curriculum first.`}
                 />

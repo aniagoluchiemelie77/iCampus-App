@@ -182,7 +182,7 @@ export const LibraryScreen: React.FC = () => {
           )}
           ListEmptyComponent={
             <EmptyState
-              iconName="book-open-variant"
+              iconName="search-off"
               title="No Books Found"
               subtitle="We couldn't find any results for your search. Try adjusting your keywords."
               buttonText="Refresh Library"

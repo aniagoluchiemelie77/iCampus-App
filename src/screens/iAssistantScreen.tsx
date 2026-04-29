@@ -12,6 +12,7 @@ import { PageHeader } from '../components/PageHeader.tsx';
 import { useAppSelector } from '../components/hooks';
 import { MessageBubble } from '../components/ChatMessageBubble.tsx';
 import { ChatInput } from '../components/ChatInput.tsx';
+import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -86,6 +87,13 @@ export const Assistant = ({ route }: Props) => {
           />
         )}
         keyExtractor={(_, index) => index.toString()}
+        ListEmptyComponent={
+          <EmptyState
+            iconName="speaker-notes-off-outlined"
+            title="No Conversations Yet"
+            subtitle="We couldn't find any of your conversations with iAssistant. Be the first to say Hi"
+          />
+        }
       />
       <ChatInput
         value={input}

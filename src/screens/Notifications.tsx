@@ -10,14 +10,18 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
 import { useSocket } from '../components/SocketContext';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { baseUrl } from '../components/HomeScreenComponents';
-import { PRIMARY_COLOR } from '../components/Classroomcomponent';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '../components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 
 dayjs.extend(relativeTime);
 
@@ -237,19 +241,14 @@ const Notifications = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="chevon-left" size={25} color={PRIMARY_COLOR} />
+      <PageHeader
+        title="Notifications"
+        rightElement={
+          <TouchableOpacity onPress={markAllAsRead}>
+            <MaterialIcons name="done-all" size={24} color={PRIMARY_COLOR} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notifications</Text>
-        </View>
-
-        {/* Mark All Button */}
-        <TouchableOpacity onPress={markAllAsRead} style={styles.markAllBtn}>
-          <Text style={styles.markAllText}>Mark all as read</Text>
-        </TouchableOpacity>
-      </View>
+        }
+      />
 
       <View style={styles.tabBar}>
         {['all', 'unread', 'finance'].map(tab => (
@@ -284,7 +283,11 @@ const Notifications = () => {
           refreshing={loading}
           onRefresh={fetchNotifications}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No notifications yet.</Text>
+            <EmptyState
+              iconName="notifications-none"
+              title="No Notifications Found"
+              subtitle="We couldn't find any notifications for you."
+            />
           }
           contentContainerStyle={styles.listContent}
         />
@@ -295,57 +298,43 @@ const Notifications = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 16,
-    color: '#2222',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
+    alignItems: 'center',
+    marginVertical: 10,
+    padding: 10,
   },
   tab: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   activeTab: { borderBottomColor: PRIMARY_COLOR },
-  tabText: { fontSize: 13, color: '#888', fontWeight: '600' },
+  tabText: { fontSize: 13, color: '#2222', fontWeight: '600' },
   activeTabText: { color: PRIMARY_COLOR },
   listContent: { padding: 12 },
   card: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     elevation: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+    alignItems: 'center',
   },
   unreadCard: {
-    backgroundColor: '#fff5f2',
-    borderLeftWidth: 4,
-    borderLeftColor: PRIMARY_COLOR,
+    backgroundColor: '#fadccc',
   },
   iconContainer: { marginRight: 15, justifyContent: 'center' },
   unreadDot: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: PRIMARY_COLOR,
   },
   content: { flex: 1 },
@@ -357,18 +346,6 @@ const styles = StyleSheet.create({
   title: { fontWeight: 'bold', fontSize: 15, color: '#2222', flex: 1 },
   time: { fontSize: 11, color: '#999' },
   message: { fontSize: 13, color: '#666', lineHeight: 18 },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
-  markAllBtn: {
-    borderColor: PRIMARY_COLOR,
-    borderRadius: 7,
-    borderWidth: 0.8,
-    padding: 8,
-  },
-  markAllText: {
-    fontSize: 12,
-    color: PRIMARY_COLOR,
-    fontWeight: '600',
-  },
 });
 
 export default Notifications;

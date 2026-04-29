@@ -27,6 +27,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors.ts';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper.ts';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker, { types } from 'react-native-document-picker';
+import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -46,7 +47,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
     async (pageNum = 1) => {
       try {
         const response = await fetch(
-          `${baseUrl}users/messages/${currentUser.uid}/${recipientId}?page=${pageNum}&limit=20`,
+          `${baseUrl}users/messages/fetchMessage/${currentUser.uid}/${recipientId}?page=${pageNum}&limit=20`,
         );
         const result = await response.json();
 
@@ -333,6 +334,13 @@ export const ChatScreen = ({ route, navigation }: Props) => {
         onContentSizeChange={() => {
           if (page === 1) flatListRef.current?.scrollToEnd({ animated: true });
         }}
+        ListEmptyComponent={
+          <EmptyState
+            iconName="speaker-notes-off-outlined"
+            title="No Messages Yet"
+            subtitle="We couldn't find any messages for you. Be the first to say Hi"
+          />
+        }
       />
 
       {/* 3. Input Area */}
