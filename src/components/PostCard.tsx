@@ -9,6 +9,7 @@ import {
   Share,
   FlatList,
   Linking,
+  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -25,7 +26,7 @@ import {
 } from 'assets/styles/colors';
 import { User } from '../types/firebase';
 const { width } = Dimensions.get('window');
-interface PostCardProps {
+export interface PostCardProps {
   post: Posts; // Using your existing Posts type
   isVisible: boolean; // Add this line
 }
@@ -43,7 +44,7 @@ export const formatStatCount = (count: number): string => {
   }
   return count.toString();
 };
-const MediaSection = ({ post, isVisible }: PostCardProps) => {
+export const MediaSection = ({ post, isVisible }: PostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const mediaUrls = Array.isArray(post.media?.url)
     ? post.media.url
@@ -295,6 +296,16 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
       console.error(error);
     }
   };
+  const handleJobApply = (url: string) => {
+    Alert.alert(
+      'Leaving iCampus',
+      'You are being redirected to an external site to complete your application.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Proceed', onPress: () => Linking.openURL(url) },
+      ],
+    );
+  };
   useEffect(() => {
     const fetchPosterDetails = async () => {
       try {
@@ -349,6 +360,38 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
 
       {/* Post Content */}
       <View style={styles.contentContainer}>
+        {post.postType === 'job' && (
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.jobTitleLarge}>{post.jobMetadata?.title}</Text>
+            <Text style={styles.jobCompanySub}>
+              {post.jobMetadata?.company} • {post.jobMetadata?.location}
+            </Text>
+          </View>
+        )}
+        {post.postType === 'event' && (
+          <View style={styles.eventHeaderRow}>
+            <View style={styles.calendarMini}>
+              <MaterialIcons
+                name="calendar-month-outlined"
+                size={16}
+                color={PRIMARY_COLOR_TINT}
+                style={{ marginRight: 3 }}
+              />
+              <Text style={styles.calMonth}>
+                {post.eventMetadata?.startDate}
+              </Text>
+              <Text style={styles.calDay}>{post.eventMetadata?.startDate}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.eventTitleText}>
+                {post.eventMetadata?.title}
+              </Text>
+              <Text style={styles.eventLocationText}>
+                {post.eventMetadata?.location}
+              </Text>
+            </View>
+          </View>
+        )}
         <LinkedText
           content={displayText ?? ''}
           onTagPress={(tag: string) => {
@@ -370,6 +413,34 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
             <Text style={styles.seeMoreText}>
               {isExpanded ? 'Show less' : 'See more'}
             </Text>
+          </TouchableOpacity>
+        )}
+        {post.postType === 'job' && post.jobMetadata?.applicationLink && (
+          <TouchableOpacity
+            style={[
+              styles.primaryActionButton,
+              { marginHorizontal: 15, marginBottom: 10 },
+            ]}
+            onPress={() => handleJobApply(post.jobMetadata.applicationLink)}
+          >
+            <Text style={styles.primaryActionText}>Apply Now</Text>
+            <MaterialIcons
+              name="launch-outlined"
+              size={16}
+              color="white"
+              style={{ marginLeft: 8 }}
+            />
+          </TouchableOpacity>
+        )}
+
+        {post.postType === 'event' && (
+          <TouchableOpacity
+            style={[
+              styles.rsvpButtonOutline,
+              { marginHorizontal: 15, marginBottom: 10 },
+            ]}
+          >
+            <Text style={styles.rsvpText}>RSVP for Event</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -649,4 +720,79 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR,
     fontWeight: '700',
   },
+  jobTitleLarge: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  jobCompanySub: {
+    fontSize: 14,
+    color: PRIMARY_COLOR_TINT,
+    marginTop: 2,
+  },
+  eventBody: {
+    padding: 15,
+  },
+  eventHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 15,
+  },
+  calendarMini: {
+    backgroundColor: '#fadccc',
+    borderRadius: 8,
+    padding: 8,
+    alignItems: 'center',
+    width: 50,
+    flexDirection: 'row',
+  },
+  calMonth: {
+    fontSize: 12,
+    color: PRIMARY_COLOR_TINT,
+    fontWeight: 'bold',
+    marginRight: 3
+  },
+  calDay: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: PRIMARY_COLOR_TINT,
+  },
+  eventTitleText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222'
+  },
+  eventLocationText: {
+    fontSize: 12,
+    color: '#2222',
+    marginTop: 2,
+  },
+    primaryActionButton: {
+    backgroundColor: PRIMARY_COLOR,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginTop: 15,
+  },
+  primaryActionText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  rsvpButtonOutline: {
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  rsvpText: {
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+    fontSize: 15
+  }
 });

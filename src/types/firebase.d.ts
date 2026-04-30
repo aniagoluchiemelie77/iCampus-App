@@ -571,6 +571,23 @@ export interface Posts {
     totalVotes: number;
   };
   originalAuthor?: string
+  postType?: "media" | "job" | "event" | "poll";
+  jobMetadata?: {
+    title: string;
+    company: string,
+    location: string, 
+    type: { type: string, enum: ["Full-time", "Part-time", "Internship", "Contract"] },
+    salaryRange: string,
+    applicationLink: string,
+  };
+  eventMetadata?: {
+    title: string,
+    startDate: string,
+    endDate: string,
+    location: string, 
+    isVirtual: boolean,
+    attendees: string[];
+  };
 }
 export interface Comment {
   id: string;

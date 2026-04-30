@@ -40,6 +40,11 @@ import { EditiTagModal } from '../components/EditItag.tsx';
 import { FollowListModal, FollowingListModal } from '../components/Fmodals.tsx';
 import { PostCard } from '../components/PostCard.tsx';
 import Clipboard from '@react-native-clipboard/clipboard';
+import {
+  JobCard,
+  EventCard,
+  MediaGridItem,
+} from '../components/ProfileScreenTabbedComponents.tsx';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -655,7 +660,45 @@ export const ProfileScreen = ({ route }: any) => {
               }
             />
           )}
-          {/* Other tabs like 'Media', etc. */}
+          {activeTab === 'Media' && (
+            <FlatList
+              data={profileData.posts.filter(
+                (p: any) => p.media?.url?.length > 0,
+              )}
+              keyExtractor={item => item.postId}
+              numColumns={3}
+              renderItem={({ item }) => <MediaGridItem post={item} />}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No media found.</Text>
+              }
+            />
+          )}
+          {activeTab === 'Jobs' && (
+            <FlatList
+              data={profileData.posts.filter((p: any) => p.postType === 'job')}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <JobCard post={item} /> // Custom component for job styling
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No job listings.</Text>
+              }
+            />
+          )}
+          {activeTab === 'Events' && (
+            <FlatList
+              data={profileData.posts.filter(
+                (p: any) => p.postType === 'event',
+              )}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <EventCard post={item} /> // Custom component for event styling
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No upcoming events.</Text>
+              }
+            />
+          )}
         </View>
       </View>
       {isSearchFocused && (
