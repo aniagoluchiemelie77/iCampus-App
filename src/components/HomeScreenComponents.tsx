@@ -100,7 +100,8 @@ const ProfileModal = ({
         <Image
           source={{
             uri:
-              currentUser?.profilePic?.[0] || 'https://via.placeholder.com/40',
+              currentUser?.profilePic?.at(-1) ||
+              'https://via.placeholder.com/40',
           }}
           style={modalStyles.largeAvatar}
         />
@@ -390,7 +391,7 @@ export function Home() {
           <Image
             source={{
               uri:
-                currentUser?.profilePic?.[0] ||
+                currentUser?.profilePic?.at(-1) ||
                 'https://via.placeholder.com/40',
             }}
             style={homeStyles.headerProfilePic}

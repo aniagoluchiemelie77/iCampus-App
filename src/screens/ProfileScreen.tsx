@@ -479,11 +479,7 @@ export const ProfileScreen = ({ route }: any) => {
           />
         </View>
       )}
-      <ProfileImageCarousel
-        images={profileData.profilePic}
-        isOwner={isOwner}
-        uid={currentUser.uid}
-      />
+      <ProfileImageCarousel images={profileData.profilePic} isOwner={isOwner} />
       {/* 1. Essential Info Section */}
       <View style={styles.profileInfoSection}>
         <TouchableOpacity
@@ -822,7 +818,12 @@ export const ProfileScreen = ({ route }: any) => {
                   }}
                 >
                   <Image
-                    source={{ uri: item.profilePic?.[0] }}
+                    source={{
+                      uri:
+                        item.profilePic?.length > 0
+                          ? item.profilePic.at(-1)
+                          : 'https://your-placeholder-url.com/default.png',
+                    }}
                     style={styles.miniAvatar}
                   />
                   <View style={{ flex: 1 }}>

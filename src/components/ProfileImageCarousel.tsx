@@ -1,27 +1,29 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { View, FlatList, Image, Dimensions, StyleSheet, Animated, TouchableOpacity, Modal, Text, ActivityIndicator, Linking, Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { baseUrl } from './HomeScreenComponents';
-import axios from 'axios';
-import {uploadToCloudinary} from '../utils/CloudinaryPresetHelper';
-import {PRIMARY_COLOR} from './Classroomcomponent';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
+import { PRIMARY_COLOR } from './Classroomcomponent';
 import ImagePicker from 'react-native-image-crop-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { patchUserProfile } from 'api/localPatchApis';
+import { updateUserImage } from './UserSlice';
+import { useDispatch } from 'react-redux';
+import Toast from 'react-native-toast-message';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface ProfileImageCarouselProps {
   images: string[];
   isOwner: boolean;
-  uid: string;
+  uid?: string;
 }
 
 export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
   images,
   isOwner,
-  uid,
 }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
+  const dispatch = useDispatch();
   const flatListRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -66,19 +68,16 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
     try {
       const imageUrl = await uploadToCloudinary(previewImage!);
       const token = await AsyncStorage.getItem('userToken');
-      await axios.patch(
-        `${baseUrl}users/update-profile-pics`,
-        {
-          uid,
-          newImage: imageUrl,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Ensure userToken is accessible here
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const result = await patchUserProfile({ profilePic: imageUrl }, token!);
+      if (result && result.success) {
+        dispatch(updateUserImage(imageUrl));
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Profile picture updated!',
+        });
+        setPreviewImage(null);
+      }
       setPreviewImage(null);
     } finally {
       setIsUploading(false);

@@ -90,20 +90,37 @@ export const MessagesListScreen = ({ navigation }: any) => {
     return (
       <TouchableOpacity
         style={[styles.convoItem, isUnread && styles.unreadBackground]}
-        onPress={() => navigation.navigate('ChatScreen', { recipientId: item.otherUser.uid })}
+        onPress={() =>
+          navigation.navigate('ChatScreen', { recipientId: item.otherUser.uid })
+        }
       >
         <View style={styles.avatarContainer}>
-          <Image source={{ uri: item.otherUser.profilePic?.[0] || 'https://via.placeholder.com/50' }} style={styles.avatar} />
+          <Image
+            source={{
+              uri:
+                item.otherUser.profilePic?.at(-1) ||
+                'https://via.placeholder.com/50',
+            }}
+            style={styles.avatar}
+          />
           {isUnread && <View style={styles.unreadDot} />}
         </View>
         <View style={styles.textContainer}>
           <View style={styles.row}>
-            <Text style={[styles.userName, isUnread && styles.boldText]} numberOfLines={1}>
+            <Text
+              style={[styles.userName, isUnread && styles.boldText]}
+              numberOfLines={1}
+            >
               {item.otherUser.firstname} {item.otherUser.lastname}
             </Text>
-            <Text style={styles.time}>{formatTime(item.lastMessage.timestamp)}</Text>
+            <Text style={styles.time}>
+              {formatTime(item.lastMessage.timestamp)}
+            </Text>
           </View>
-          <Text numberOfLines={1} style={[styles.lastMsg, isUnread && styles.unreadText]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.lastMsg, isUnread && styles.unreadText]}
+          >
             {getMessagePreview(item.lastMessage)}
           </Text>
         </View>

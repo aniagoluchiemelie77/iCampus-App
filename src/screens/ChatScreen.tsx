@@ -294,7 +294,8 @@ export const ChatScreen = ({ route, navigation }: Props) => {
             <Image
               source={{
                 uri:
-                  recipient.profilePic?.[0] || 'https://via.placeholder.com/40',
+                  recipient.profilePic?.at(-1) ||
+                  'https://via.placeholder.com/40',
               }}
               style={styles.headerAvatar}
             />
