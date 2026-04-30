@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Modal,
   View,
   Dimensions,
   TouchableOpacity,
@@ -14,6 +13,7 @@ import {
   TextInput,
   Image,
 } from 'react-native';
+import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
@@ -29,26 +29,39 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from '../components/PageHeader';
 import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
 import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { ITagCard } from '../components/iTag';
-import { Course } from '../types/firebase';
+import { Course, User } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
 import { EditiTagModal } from '../components/EditItag.tsx';
 import { FollowListModal, FollowingListModal } from '../components/Fmodals.tsx';
 import { PostCard } from '../components/PostCard.tsx';
 import Clipboard from '@react-native-clipboard/clipboard';
-import {
-  JobCard,
-  EventCard,
-  MediaGridItem,
-} from '../components/ProfileScreenTabbedComponents.tsx';
+import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
+import { patchUserProfile } from 'api/localPatchApis.ts';
+import { searchUserProfile } from 'api/localGetApis.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
 const CARD_HEIGHT = 190;
+const POPULAR_SKILLS = [
+  'Programming',
+  'Graphic Design',
+  'Sewing',
+  'Public Speaking',
+  'Data Analysis',
+  'Photography',
+  'Marketing',
+  'Content Writing',
+  'UI/UX Design',
+  'Project Management',
+  'Videography',
+];
+const MAX_BIO_CHAR = 300;
 
 const CourseCard = ({ item }: { item: any }) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -111,10 +124,19 @@ const CourseCard = ({ item }: { item: any }) => {
       </TouchableOpacity>
       {/* Course Detail Modal */}
       <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        // Use 'isVisible' instead of 'visible'
+        isVisible={modalVisible}
+        // 'animationType="slide"' becomes these two:
+        animationIn="slideInUp"
+        animationOut="slideOutDown"
+        // 'transparent' is true by default in this library, so you can remove it.
+        // 'onRequestClose' becomes 'onBackButtonPress' (for Android)
+        onBackButtonPress={() => setModalVisible(false)}
+        onBackdropPress={() => setModalVisible(false)}
+        // Optional: Add the swipe gesture we talked about
+        swipeDirection="down"
+        onSwipeComplete={() => setModalVisible(false)}
+        style={styles.modalBottom}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -257,6 +279,15 @@ export const ProfileScreen = ({ route }: any) => {
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const [isExpanded, setIsExpanded] = useState(false);
   const [numLines, setNumLines] = useState<number | undefined>(undefined);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<'about' | 'skills' | null>(null);
+  const [tempBio, setTempBio] = useState(profileData.bio || '');
+  const [tempSkills, setTempSkills] = useState<string[]>(
+    profileData.skills || [],
+  );
+  const [skillInput, setSkillInput] = useState('');
+  const [apiSuggestions, setApiSuggestions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const onTextLayout = (e: any) => {
     if (!isExpanded) {
@@ -302,7 +333,7 @@ export const ProfileScreen = ({ route }: any) => {
   const handleSaveUpdate = (updatedITag: any) => {
     setProfileData((prev: any) => ({
       ...prev,
-      iTagData: updatedITag, // Update the nested iTagData with the new design/username
+      iTagData: updatedITag,
     }));
   };
   const handleCopyITag = () => {
@@ -316,21 +347,39 @@ export const ProfileScreen = ({ route }: any) => {
       });
     }
   };
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      const payload: Partial<User> =
+        modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
+
+      const token = await AsyncStorage.getItem('accessToken');
+      await patchUserProfile(payload, token!);
+      setProfileData((prev: User | null) =>
+        prev ? { ...prev, ...payload } : null,
+      );
+      setEditModalVisible(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Update Successful',
+        text2: 'Your profile has been updated.',
+      });
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: 'Could not update profile.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get(
-          `${baseUrl}users/profile/search/${identifier}`,
-          {
-            params: {
-              viewerUid: currentUser.uid,
-              viewerTier: currentUser.tier,
-              viewerRole: currentUser.usertype,
-              viewerFirstname: currentUser.firstname,
-            },
-          },
-        );
-        setProfileData(res.data.data);
+        const token = await AsyncStorage.getItem('accessToken');
+        const data = await searchUserProfile(identifier, currentUser, token!);
+        setProfileData(data);
       } catch (error: any) {
         console.error(error);
         Toast.show({
@@ -341,13 +390,33 @@ export const ProfileScreen = ({ route }: any) => {
       }
     };
     fetchProfile();
-  }, [
-    identifier,
-    currentUser.uid,
-    currentUser.tier,
-    currentUser.usertype,
-    currentUser.firstname,
-  ]);
+  }, [identifier, currentUser]);
+  useEffect(() => {
+    const fetchUniversalSkills = async () => {
+      if (skillInput.length < 2) {
+        setApiSuggestions([]);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `https://api.datamuse.com/words?ml=${skillInput}&max=10`,
+        );
+        const data = await response.json();
+        const suggestions = data.map(
+          (item: any) => item.word.charAt(0).toUpperCase() + item.word.slice(1),
+        );
+        setApiSuggestions(suggestions);
+      } catch (error) {
+        console.error('Skill API error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(fetchUniversalSkills, 400); // 400ms debounce
+    return () => clearTimeout(timer);
+  }, [skillInput]);
   if (!profileData)
     return (
       <ActivityIndicator
@@ -558,7 +627,19 @@ export const ProfileScreen = ({ route }: any) => {
       {/* 2. About Section */}
       {profileData.bio && (
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.sectionTitleDiv}>
+            <Text style={styles.sectionTitle}>About</Text>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => {
+                  setModalType('about');
+                  setEditModalVisible(true);
+                }}
+              >
+                <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.aboutContent}>
             <Text
               style={styles.aboutText}
@@ -580,7 +661,32 @@ export const ProfileScreen = ({ route }: any) => {
           </View>
         </View>
       )}
-      {/* 3. iTag Section */}
+      {/* 3. Skills Section */}
+      {profileData.skills && profileData.skills.length > 0 && (
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionTitleDiv}>
+            <Text style={styles.sectionTitle}>Skills</Text>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => {
+                  setModalType('skills');
+                  setEditModalVisible(true);
+                }}
+              >
+                <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.skillsWrapper}>
+            {profileData.skills.map((skill: string, index: number) => (
+              <View key={index} style={styles.skillChip}>
+                <Text style={styles.skillText}>{skill}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+      {/* 4. iTag Section */}
       <View style={styles.iTagDiv}>
         <ITagCard
           iTagData={profileData.iTagData}
@@ -608,11 +714,11 @@ export const ProfileScreen = ({ route }: any) => {
           </TouchableOpacity>
         )}
       </View>
-      {/* 4. Courses View */}
+      {/* 5. Courses View */}
       {profileData.courses && profileData.courses.length > 0 && (
         <CoursesView courses={profileData.courses} />
       )}
-      {/* 5. Tabs View (Posts / Courses / Bookmarks) */}
+      {/* 6. Tabs View (Posts / Courses / Bookmarks) */}
       <View style={styles.sectionContainer}>
         <ProfileTabs
           activeTab={activeTab}
@@ -678,7 +784,7 @@ export const ProfileScreen = ({ route }: any) => {
               data={profileData.posts.filter((p: any) => p.postType === 'job')}
               keyExtractor={item => item.postId}
               renderItem={({ item }) => (
-                <JobCard post={item} /> // Custom component for job styling
+                <PostCard post={item} isVisible={true} />
               )}
               ListEmptyComponent={
                 <Text style={styles.emptyText}>No job listings.</Text>
@@ -692,7 +798,7 @@ export const ProfileScreen = ({ route }: any) => {
               )}
               keyExtractor={item => item.postId}
               renderItem={({ item }) => (
-                <EventCard post={item} /> // Custom component for event styling
+                <PostCard post={item} isVisible={true} />
               )}
               ListEmptyComponent={
                 <Text style={styles.emptyText}>No upcoming events.</Text>
@@ -779,6 +885,130 @@ export const ProfileScreen = ({ route }: any) => {
         onClose={toggleFab}
         actions={['iCash', 'iAssistant']}
       />
+      <Modal
+        isVisible={isEditModalVisible}
+        onBackdropPress={() => setEditModalVisible(false)}
+        swipeDirection="down"
+        onSwipeComplete={() => setEditModalVisible(false)}
+        style={styles.modalBottom}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHandle} />
+
+          <Text style={[styles.modalTitle, { marginVertical: 10 }]}>
+            {modalType === 'about' ? 'Edit About' : 'Edit Skills'}
+          </Text>
+          {modalType === 'about' ? (
+            <View>
+              <TextInput
+                style={styles.bioInput}
+                multiline
+                maxLength={MAX_BIO_CHAR}
+                value={tempBio}
+                onChangeText={setTempBio}
+                placeholder="Tell people about yourself..."
+              />
+              <Text style={styles.charCount}>
+                {tempBio.length} / {MAX_BIO_CHAR}
+              </Text>
+            </View>
+          ) : (
+            /* --- SKILLS EDIT VIEW --- */
+            <>
+              {/* Modern Search Bar */}
+              <View style={styles.skillInputWrapper}>
+                <MaterialIcons
+                  name="auto-fix-high"
+                  size={20}
+                  color={PRIMARY_COLOR}
+                  style={styles.searchIcon}
+                />
+                <TextInput
+                  style={styles.skillSearchInput}
+                  value={skillInput}
+                  onChangeText={setSkillInput}
+                  placeholder="Type in a skill..."
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                />
+                {skillInput.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.addSkillBtn}
+                    onPress={() => {
+                      if (!tempSkills.includes(skillInput)) {
+                        setTempSkills([...tempSkills, skillInput]);
+                        setSkillInput('');
+                      }
+                    }}
+                  >
+                    <Text style={styles.addBtnText}>Add</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.activeScroll}
+              >
+                {tempSkills.map((skill, index) => (
+                  <View key={index} style={styles.activeSkillChip}>
+                    <Text style={styles.activeSkillText}>{skill}</Text>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setTempSkills(tempSkills.filter(s => s !== skill))
+                      }
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={14}
+                        color={PRIMARY_COLOR}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <View style={styles.suggestionHeader}>
+                <Text style={styles.suggestionTitle}>
+                  {skillInput.length > 0
+                    ? 'Global Results'
+                    : 'Popular on iCampus'}
+                </Text>
+                {isLoading && (
+                  <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+                )}
+              </View>
+              {/* Unified Results Side */}
+              <View style={styles.suggestionsWrapper}>
+                {(skillInput.length > 0 ? apiSuggestions : POPULAR_SKILLS).map(
+                  (skill, index) => {
+                    if (tempSkills.includes(skill)) return null;
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.suggestionChip}
+                        onPress={() => {
+                          setTempSkills([...tempSkills, skill]);
+                          setSkillInput('');
+                        }}
+                      >
+                        <Text style={styles.suggestionText}>{skill}</Text>
+                        <MaterialIcons
+                          name="add-circle-outline"
+                          size={18}
+                          color={PRIMARY_COLOR}
+                        />
+                      </TouchableOpacity>
+                    );
+                  },
+                )}
+              </View>
+            </>
+          )}
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
       <Toast config={toastConfig} />
     </ScrollView>
   );
@@ -971,6 +1201,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+  sectionTitleDiv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
@@ -1146,7 +1383,6 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   aboutContent: {
-    marginTop: 5,
     width: '100%',
   },
   aboutText: {
@@ -1171,5 +1407,164 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 13,
     color: PRIMARY_COLOR_TINT,
+  },
+  skillsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  skillChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  skillText: {
+    fontSize: 13,
+    color: '#2222',
+    fontWeight: '500',
+  },
+  modalBottom: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    minHeight: '70%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#ccc',
+    borderRadius: 10,
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+  bioInput: {
+    height: 120,
+    backgroundColor: '#fadccc',
+    borderRadius: 10,
+    padding: 15,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  charCount: {
+    textAlign: 'right',
+    marginTop: 5,
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 12,
+  },
+  skillInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: '#fadccc',
+    padding: 7,
+    borderRadius: 10,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  searchIcon: {
+    marginRight: 5,
+  },
+  skillSearchInput: {
+    flex: 1,
+    padding: 7,
+  },
+  addSkillBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 5,
+  },
+  addBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  modalSkillsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 15,
+    gap: 8,
+  },
+  editableSkillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eee',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  saveButton: {
+    backgroundColor: PRIMARY_COLOR,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 'auto', // Pushes to bottom of modal
+    marginBottom: 20,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  activeScroll: {
+    maxHeight: 50,
+    marginVertical: 10,
+  },
+  suggestionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  suggestionChip: {
+    alignItems: 'center',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    padding: 10,
+    borderRadius: 12,
+    width: '48%',
+    marginBottom: 8,
+  },
+  suggestionText: {
+    fontSize: 13,
+    color: PRIMARY_COLOR,
+    marginBottom: 3,
+  },
+  suggestionsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  activeSkillChip: {
+    alignItems: 'center',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+    gap: 5,
+  },
+  activeSkillText: {
+    color: PRIMARY_COLOR,
+    fontWeight: '600',
+    fontSize: 13,
+    marginBottom: 3,
+  },
+  suggestionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#222',
+    textTransform: 'capitalize',
+    letterSpacing: 1,
   },
 });

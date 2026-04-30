@@ -26,6 +26,7 @@ import {
 } from 'assets/styles/colors';
 import { User } from '../types/firebase';
 const { width } = Dimensions.get('window');
+import { formatEventDate } from '../utils/dateFormatter';
 export interface PostCardProps {
   post: Posts; // Using your existing Posts type
   isVisible: boolean; // Add this line
@@ -323,6 +324,7 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
       fetchPosterDetails();
     }
   }, [user]);
+  const eventDate = formatEventDate(post.eventMetadata?.startDate);
 
   return (
     <View style={styles.container}>
@@ -377,10 +379,8 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
                 color={PRIMARY_COLOR_TINT}
                 style={{ marginRight: 3 }}
               />
-              <Text style={styles.calMonth}>
-                {post.eventMetadata?.startDate}
-              </Text>
-              <Text style={styles.calDay}>{post.eventMetadata?.startDate}</Text>
+              <Text style={styles.calMonth}>{eventDate.month}</Text>
+              <Text style={styles.calDay}>{eventDate.day}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.eventTitleText}>
@@ -421,7 +421,7 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
               styles.primaryActionButton,
               { marginHorizontal: 15, marginBottom: 10 },
             ]}
-            onPress={() => handleJobApply(post.jobMetadata.applicationLink)}
+            onPress={() => handleJobApply(post.jobMetadata!.applicationLink)}
           >
             <Text style={styles.primaryActionText}>Apply Now</Text>
             <MaterialIcons
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   seeMoreText: {
-    color: '#f54b02', // Or your app's primary color
+    color: PRIMARY_COLOR,
     fontWeight: '600',
     marginTop: 4,
   },
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: '#fadccc',
     marginHorizontal: 3,
   },
   activeDot: {
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: PRIMARY_COLOR_TINT,
     fontWeight: 'bold',
-    marginRight: 3
+    marginRight: 3,
   },
   calDay: {
     fontSize: 12,
@@ -760,14 +760,14 @@ const styles = StyleSheet.create({
   eventTitleText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#222'
+    color: '#222',
   },
   eventLocationText: {
     fontSize: 12,
     color: '#2222',
     marginTop: 2,
   },
-    primaryActionButton: {
+  primaryActionButton: {
     backgroundColor: PRIMARY_COLOR,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -793,6 +793,6 @@ const styles = StyleSheet.create({
   rsvpText: {
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    fontSize: 15
-  }
+    fontSize: 15,
+  },
 });

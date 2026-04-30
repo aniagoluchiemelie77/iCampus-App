@@ -62,7 +62,9 @@ export interface User {
   firstSemesterUnits?: string,
   currentIScore?: number,
   previousIScore?: number,
-  itagusername?: string
+  itagusername?: string,
+  skills?: string[]; 
+  alternateEmails?: string[];
 };
 export interface iCampusAppDetails {
   appVersion: string;// e.g., ['tech', 'sports', 'arts']

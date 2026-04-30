@@ -2,7 +2,7 @@ import { PRIMARY_COLOR } from 'assets/styles/colors';
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Image, Dimensions,} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-
+import { Video, ResizeMode } from 'react-native-video';
 const { width } = Dimensions.get('window');
 
 export const MediaGridItem = ({ post }: { post: any }) => {
