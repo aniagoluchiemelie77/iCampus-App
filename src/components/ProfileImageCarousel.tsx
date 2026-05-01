@@ -4,7 +4,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { PRIMARY_COLOR } from './Classroomcomponent';
 import ImagePicker from 'react-native-image-crop-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { patchUserProfile } from 'api/localPatchApis';
 import { updateUserImage } from './UserSlice';
 import { useDispatch } from 'react-redux';
@@ -67,8 +66,7 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
     setIsUploading(true);
     try {
       const imageUrl = await uploadToCloudinary(previewImage!);
-      const token = await AsyncStorage.getItem('userToken');
-      const result = await patchUserProfile({ profilePic: imageUrl }, token!);
+      const result = await patchUserProfile({ profilePic: imageUrl });
       if (result && result.success) {
         dispatch(updateUserImage(imageUrl));
         Toast.show({
@@ -84,8 +82,11 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
     }
   };
   const displayImages = useMemo(() => {
-    return images?.length > 0 ? images : ['https://via.placeholder.com/400'];
-  }, [images]);
+  if (!images || images.length === 0) {
+    return ['https://via.placeholder.com/400'];
+  }
+  return [...images].reverse();
+}, [images]);
   // Handle auto-scroll logic
   useEffect(() => {
     if (displayImages.length <= 1) return;

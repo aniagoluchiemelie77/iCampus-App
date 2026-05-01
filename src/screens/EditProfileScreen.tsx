@@ -7,7 +7,6 @@ import { PageHeader } from '../components/PageHeader.tsx';
 import { getCountryCallingCode, getExampleNumber } from 'libphonenumber-js';
 import examples from 'libphonenumber-js/examples.mobile.json';
 import countries from 'i18n-iso-countries';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { patchUserProfile } from '../api/localPatchApis';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
@@ -62,8 +61,7 @@ export const EditProfileScreen = () => {
           changedData[key] = formData[key];
         }
       });
-      const token = await AsyncStorage.getItem('accessToken');
-      const result = await patchUserProfile(changedData, token!);
+      const result = await patchUserProfile(changedData);
       if (result) {
         dispatch(setUser(result.data));
         Toast.show({

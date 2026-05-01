@@ -1,8 +1,11 @@
 import { User } from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const searchUserProfile = async (identifier: string, currentUser: User, token: string) => {
+const token = await AsyncStorage.getItem('accessToken');
+
+export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
     viewerUid: currentUser.uid,
     viewerTier: currentUser.tier || 'free',

@@ -65,6 +65,8 @@ import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
 import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
 import { ChatScreen } from './src/screens/ChatScreen.tsx';
 import { MessagesListScreen } from './src/screens/MessagesListScreen.tsx';
+import { EditProfileScreen } from './src/screens/EditProfileScreen.tsx';
+import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -162,6 +164,8 @@ export type RootStackParamList = {
     onSuccess: () => void;
   };
   LibraryScreen: undefined;
+  EditProfile: undefined;
+  PersonaVerify: undefined;
   Home: undefined;
   LiveClassSessions: { lectureId: string; courseId: string };
   VideoPlayerScreen: {
@@ -365,6 +369,16 @@ const App = () => {
             <Stack.Screen
               name="iCashSecurity"
               component={ICashSecurityGateway}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PersonaVerify"
+              component={PersonaVerificationScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

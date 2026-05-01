@@ -29,7 +29,6 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from '../components/PageHeader';
 import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
@@ -352,9 +351,7 @@ export const ProfileScreen = ({ route }: any) => {
       setIsLoading(true);
       const payload: Partial<User> =
         modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
-
-      const token = await AsyncStorage.getItem('accessToken');
-      await patchUserProfile(payload, token!);
+      await patchUserProfile(payload);
       setProfileData((prev: User | null) =>
         prev ? { ...prev, ...payload } : null,
       );
@@ -377,8 +374,7 @@ export const ProfileScreen = ({ route }: any) => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const data = await searchUserProfile(identifier, currentUser, token!);
+        const data = await searchUserProfile(identifier, currentUser);
         setProfileData(data);
       } catch (error: any) {
         console.error(error);
@@ -511,7 +507,10 @@ export const ProfileScreen = ({ route }: any) => {
           ))}
         {/* 3. Verification CTA (Other Users) */}
         {isOwner && !isVerified && (
-          <TouchableOpacity style={styles.verifyBtn}>
+          <TouchableOpacity
+            style={styles.verifyBtn}
+            onPress={() => navigation.navigate('PersonaVerify')}
+          >
             <Text style={styles.verifyBtnText}>Get Verified</Text>
           </TouchableOpacity>
         )}
