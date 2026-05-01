@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const token = await AsyncStorage.getItem('accessToken');
 
-export const fetchInquiryFromBackend = async (): Promise<{ inquiryId: string }> => {
+export const fetchInquiryFromBackend = async (userType: string): Promise<{ inquiryId: string }> => {
   try {
     const response = await fetch(`${baseUrl}verifyUser/persona/create-inquiry`, {
       method: 'POST',
@@ -12,6 +12,9 @@ export const fetchInquiryFromBackend = async (): Promise<{ inquiryId: string }> 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      body: JSON.stringify({
+        userType: userType,
+      }),
     });
     if (!response.ok) {
         console.error("Failed to create inquiry");

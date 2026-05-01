@@ -33,7 +33,7 @@ import WelcomeScreen from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPassword';
 import ChangePasswordScreen from './src/screens/ChangePassword';
-import Settings from './src/screens/Settings';
+import { Settings } from './src/screens/Settings';
 import Calender from './src/screens/Calender';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import ProductDetails from './src/screens/ProductDetails';

@@ -53,6 +53,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import ExpandableFAB from './ExpandableFAB.tsx';
 import { useSocket } from './socketContext.ts';
+import { UserIdentity } from './UserIdentity.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 interface Props {
   navigation: StackNavigationProp<any>; // Replace 'any' with your ParamList if you have one
@@ -90,7 +91,6 @@ const ProfileModal = ({
     />
 
     <View style={modalStyles.drawer}>
-      {/* User Header Section */}
       <TouchableOpacity
         style={modalStyles.userInfo}
         onPress={() =>
@@ -105,13 +105,17 @@ const ProfileModal = ({
           }}
           style={modalStyles.largeAvatar}
         />
-        <Text style={modalStyles.userName}>
-          {currentUser?.firstname} {currentUser?.lastname}
-        </Text>
-        {currentUser?.hasSubscribed && (
-          <View style={modalStyles.badge}>
-            <Text style={modalStyles.badgeText}>PRO</Text>
-          </View>
+        <UserIdentity
+          firstname={currentUser.firstname!}
+          lastname={currentUser.lastname!}
+          tier={currentUser?.tier || 'free'}
+          isVerified={currentUser?.isVerified}
+          size="medium"
+          isOrganization={currentUser?.usertype === 'enterprise'}
+          organizationName={currentUser?.organizationName}
+        />
+        {currentUser.headline && (
+          <Text style={modalStyles.userSubtext}>{currentUser.headline}</Text>
         )}
       </TouchableOpacity>
 
@@ -142,7 +146,11 @@ const ProfileModal = ({
           //navigation.navigate('Subscription');
         }}
       >
-        <MaterialIcons name="stars" size={24} color="#f54b02" />
+        <MaterialIcons
+          name="verified-outlined"
+          size={24}
+          color={PRIMARY_COLOR}
+        />
         <Text style={modalStyles.itemText}>Manage Subscription</Text>
       </TouchableOpacity>
 
@@ -150,22 +158,11 @@ const ProfileModal = ({
         style={modalStyles.item}
         onPress={() => {
           onClose();
-          //navigation.navigate('Settings');
+          navigation.navigate('Settings');
         }}
       >
         <MaterialIcons name="settings-outlined" size={24} color="#333" />
-        <Text style={modalStyles.itemText}>Settings & Privacy</Text>
-      </TouchableOpacity>
-
-      {/* 3. LOGOUT */}
-      <TouchableOpacity
-        style={[modalStyles.item, { marginTop: 10 }]}
-        //onPress={handleLogout}
-      >
-        <MaterialIcons name="logout-outlined" size={24} color={PRIMARY_COLOR} />
-        <Text style={[modalStyles.itemText, { color: PRIMARY_COLOR }]}>
-          Logout
-        </Text>
+        <Text style={modalStyles.itemText}>Settings</Text>
       </TouchableOpacity>
     </View>
   </Modal>
@@ -220,7 +217,6 @@ export const NotificationBell: React.FC<Props> = ({
     </TouchableOpacity>
   );
 };
-
 export const MessageBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,

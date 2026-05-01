@@ -2687,7 +2687,7 @@ export const modalStyles = StyleSheet.create({
   drawer: {
     position: 'absolute',
     left: 0,
-    width: '60%',
+    width: '70%',
     height: '100%',
     backgroundColor: '#fff',
     borderBottomRightRadius: 20,
@@ -2698,37 +2698,26 @@ export const modalStyles = StyleSheet.create({
   userInfo: {
     alignItems: 'center',
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomWidth: .8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
     marginBottom: 10,
   },
   largeAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginBottom: 7,
+    marginBottom: 5,
   },
-  userName: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  userSubtext: {
+    fontSize: 13,
+    color: '#2222',
+    marginTop: 3,
   },
 separator: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     marginVertical: 10,
     width: '100%',
-  },
-  badge: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 5,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '900',
   },
   userHandle: {
     color: PRIMARY_COLOR,

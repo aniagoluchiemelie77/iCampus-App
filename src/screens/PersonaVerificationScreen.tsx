@@ -19,10 +19,11 @@ export const PersonaVerificationScreen = () => {
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user);
+  const usertype = user?.usertype || 'otherUser';
 
   const handleStartVerification = async () => {
     try {
-      const { inquiryId } = await fetchInquiryFromBackend();
+      const { inquiryId } = await fetchInquiryFromBackend(usertype);
       if (!inquiryId) return;
       Inquiry.fromInquiry(inquiryId)
         .onComplete((id, status, _fields) => {
@@ -49,17 +50,25 @@ export const PersonaVerificationScreen = () => {
       console.error('Failed to fetch inquiryId', error);
     }
   };
+  const isEnterprise = user?.usertype === 'enterprise';
 
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <MaterialIcons name="verified-user" size={80} color={PRIMARY_COLOR} />
+          <MaterialIcons
+            name={isEnterprise ? 'business' : 'verified-user'}
+            size={80}
+            color={PRIMARY_COLOR}
+          />
         </View>
-        <Text style={styles.title}>Verify Your Identity</Text>
+        <Text style={styles.title}>
+          {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
+        </Text>
         <Text style={styles.description}>
-          To keep iCampus safe, we use Persona to verify your identity. Please
-          have a valid ID ready.
+          {isEnterprise
+            ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
+            : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
         </Text>
 
         <View style={styles.featureList}>
@@ -69,7 +78,9 @@ export const PersonaVerificationScreen = () => {
               size={20}
               color={PRIMARY_COLOR}
             />
-            <Text style={styles.featureText}>Secure & Encrypted</Text>
+            <Text style={styles.featureText}>
+              {isEnterprise ? 'Official Business Review' : 'Secure & Encrypted'}
+            </Text>
           </View>
           <View style={styles.featureItem}>
             <MaterialIcons
