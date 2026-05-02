@@ -10,8 +10,7 @@ const initialState: User = {
   email: '',
   pointsBalance: 0,
   accessToken: '',
-  ipAddress: [],
-  deviceType: [],
+  sessions: [],
   password: '',
   department: '',
   hasSubscribed: false,
@@ -40,6 +39,9 @@ const userSlice = createSlice({
         state.profilePic = [action.payload];
       }
     },
+    updateUserSessions(state, action: PayloadAction<any[]>) {
+      state.sessions = action.payload;
+    },
     updateCoursesEnrolled(state, action: PayloadAction<string[]>) {
       state.coursesEnrolled = action.payload;
     },
@@ -49,5 +51,5 @@ const userSlice = createSlice({
 
   },
 });
-export const { setUser, clearUser, updateUserImage, updateCoursesEnrolled, updateCoursesTeaching} = userSlice.actions;
+export const { setUser, clearUser, updateUserImage, updateCoursesEnrolled, updateCoursesTeaching, updateUserSessions} = userSlice.actions;
 export default userSlice.reducer;

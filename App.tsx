@@ -67,6 +67,7 @@ import { ChatScreen } from './src/screens/ChatScreen.tsx';
 import { MessagesListScreen } from './src/screens/MessagesListScreen.tsx';
 import { EditProfileScreen } from './src/screens/EditProfileScreen.tsx';
 import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScreen.tsx';
+import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -104,6 +105,7 @@ export type RootStackParamList = {
   };
   Welcome: { route: string };
   MessagesList: undefined;
+  LinkedDevicesScreen: undefined;
   CourseSubPage: {
     title:
       | 'Course Contents' //Both
@@ -374,6 +376,11 @@ const App = () => {
             <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LinkedDevicesScreen"
+              component={LinkedDevicesScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

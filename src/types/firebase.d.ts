@@ -5,11 +5,21 @@ export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
 export type AttachmentType = 'image' | 'video' | 'file';
+
+export interface UserSession {
+  deviceId: string;
+  deviceName: string;
+  deviceType: string;
+  ipAddress: string;
+  location: string;
+  lastUsed: Date;
+  refreshToken: string
+};
 export interface User {
   uid: string;
   bio?: string;
   headline?: string;
-  refreshTokens?: string[];
+  sessions?: UserSession[];
   usertype?: UserType;
   firstname?: string;
   lastname?: string;
@@ -27,8 +37,6 @@ export interface User {
   likes?: string[]; 
   bookmarks?: string[];
   accessToken: string;
-  ipAddress?: string[];
-  deviceType?: string[]; 
   password: string;
   tier?: 'free' | 'pro' | 'premium';
   matricNumber?: string;

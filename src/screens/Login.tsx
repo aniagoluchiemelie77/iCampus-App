@@ -20,6 +20,7 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SignupScreenStyles } from '../assets/styles/colors';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
+import DeviceInfo from 'react-native-device-info';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -49,24 +50,18 @@ const Login = () => {
     }
 
     try {
-      // (Step 1 & 2: IP and Location logic remains the same...)
-      const ipRes = await fetch('https://api.ipify.org?format=json');
-      const { ip } = await ipRes.json();
-
-      const locationRes = await fetch(
-        `https://ipinfo.io/${ip}?token=0812a745a27433`,
-      );
-      const locationData = await locationRes.json();
-      const location =
-        [locationData.city, locationData.region, locationData.country]
-          .filter(Boolean)
-          .join(', ') || 'Unknown location';
-
-      // Step 3: Login Request
+      const deviceId = await DeviceInfo.getUniqueId();
+      const deviceName = DeviceInfo.getModel();
+      const brand = DeviceInfo.getBrand();
       const response = await fetch(`${baseUrl}users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password, ipAddress: ip, location }),
+        body: JSON.stringify({
+          identifier,
+          password,
+          deviceId,
+          deviceName: `${brand} ${deviceName}`,
+        }),
       });
 
       const contentType = response.headers.get('content-type');

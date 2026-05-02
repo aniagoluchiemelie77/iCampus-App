@@ -18,7 +18,7 @@ import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
-import { uploadImageToCloudinary } from './HomeScreenComponents';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { WEB_CLIENT_ID } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,7 +27,6 @@ import {
   ProfileComponentStyles,
   StudentSignupStyles,
 } from '../assets/styles/colors';
-import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
@@ -40,6 +39,7 @@ import {
 } from './StudentSignup';
 import { authorize } from 'react-native-app-auth';
 import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '@env';
+import DeviceInfo from 'react-native-device-info';
 
 GoogleSignin.configure({
   webClientId: WEB_CLIENT_ID,
@@ -62,7 +62,6 @@ const OtherUserSignup = () => {
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
   const { height } = Dimensions.get('window');
-  const [ipAddress, setIpAddress] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [firstname, setFirstname] = useState('');
   const [lastname, setLastname] = useState('');
@@ -228,7 +227,7 @@ const OtherUserSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadImageToCloudinary(imageUri);
+      const imageUrl = await uploadToCloudinary(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
@@ -257,27 +256,23 @@ const OtherUserSignup = () => {
       setUploading(false);
     }
   };
-  const fetchIP = async () => {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    setIpAddress(data.ip);
-  };
   const handleSubmit = async () => {
     setCreating(true);
     try {
-      await fetchIP();
-      const deviceType = DeviceInfo.getDeviceType();
+      const deviceId = await DeviceInfo.getUniqueId();
+      const deviceName = DeviceInfo.getModel();
+      const brand = DeviceInfo.getBrand();
 
       // Build the user object dynamically
       const registrationData = {
         currentIScore: 5,
-        deviceType: [deviceType],
-        ipAddress: [ipAddress],
         usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
         firstname,
         itagusername: firstname,
         lastname: subType === 'enterprise' ? '' : lastname, // Or use rep name
         email,
+        deviceId,
+        deviceName: `${brand} ${deviceName}`,
         password: isSocialSignup ? 'SOCIAL_AUTH' : password,
         country: country || '',
         organizationName: subType === 'enterprise' ? orgName : '',

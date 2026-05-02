@@ -19,7 +19,7 @@ import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
-import { uploadImageToCloudinary } from './HomeScreenComponents';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   HomeScreenComponentStyles,
@@ -129,7 +129,6 @@ const StudentSignup = () => {
   const [institution, setInstitution] = useState('');
   const [email, setEmail] = useState('');
   const { height } = Dimensions.get('window');
-  const [ipAddress, setIpAddress] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [verifiedEmail, setVerifiedEmail] = useState(false);
   const [timer, setTimer] = useState(900); // 15 minutes = 900 seconds
@@ -376,7 +375,7 @@ const StudentSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadImageToCloudinary(imageUri);
+      const imageUrl = await uploadToCloudinary(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
@@ -405,20 +404,14 @@ const StudentSignup = () => {
       setUploading(false);
     }
   };
-  const fetchIP = async () => {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    setIpAddress(data.ip);
-  };
-  const userType = 'student';
   const handleSubmit = async () => {
     setCreating(true);
+    const userType = 'student';
     try {
-      await fetchIP();
-      const deviceType = DeviceInfo.getDeviceType();
+      const deviceId = await DeviceInfo.getUniqueId();
+      const deviceName = DeviceInfo.getModel();
+      const brand = DeviceInfo.getBrand();
 
-      // Build the registration payload
-      // Note: We REMOVED userId and tokenId generation here.
       const registrationData = {
         currentIScore: 5,
         isVerified: true,
@@ -429,8 +422,8 @@ const StudentSignup = () => {
         lastname: userType === 'student' ? verifiedStudent?.lastname : '',
         schoolName: institution || '',
         email,
-        ipAddress: ipAddress,
-        deviceType: deviceType,
+        deviceId,
+        deviceName: `${brand} ${deviceName}`,
         password,
         department: userType === 'student' ? verifiedStudent?.department : '',
         country: country || '',

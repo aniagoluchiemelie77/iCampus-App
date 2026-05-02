@@ -37,3 +37,41 @@ export const fetchInquiryFromBackend = async (userType: string): Promise<{ inqui
     return { inquiryId: '' };
   }
 };
+
+export const revokeDeviceSession = async (
+  userId: string, 
+  deviceIdToRevoke: string
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/revoke-session`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ userId, deviceIdToRevoke }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Failed to revoke session:", data.error);
+      Toast.show({
+        type: 'error',
+        text1: 'Revoke Error',
+        text2: data.error || 'Failed to log out device',
+      });
+      return { success: false, message: data.error };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Backend Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: error.message || 'Check your internet connection',
+    });
+    return { success: false, message: error.message };
+  }
+};

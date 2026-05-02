@@ -14,6 +14,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from 'assets/styles/colors';
 import { useAppSelector } from '@components/hooks.ts';
 import DeviceInfo from 'react-native-device-info';
+import { useNavigation } from '@react-navigation/native';
 
 const SectionHeader = ({ title }: { title: string }) => (
   <Text style={styles.sectionHeader}>{title}</Text>
@@ -22,6 +23,7 @@ const SectionHeader = ({ title }: { title: string }) => (
 export const Settings = () => {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const user = useAppSelector(state => state.user);
+  const navigation = useNavigation<any>();
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(
     user.isVerified,
   );
@@ -51,7 +53,7 @@ export const Settings = () => {
             icon="devices"
             title="Linked Devices"
             subtitle="Manage where you're logged in"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('LinkedDevicesScreen')}
           />
           <SettingItem icon="block" title="Blocked Users" onPress={() => {}} />
           <SettingItem
