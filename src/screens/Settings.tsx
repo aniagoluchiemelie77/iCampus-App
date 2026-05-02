@@ -60,7 +60,7 @@ export const Settings = () => {
             icon="verified-outlined"
             title="Subscription"
             subtitle="Manage your Premium plan"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('Subscription')}
           />
           <SettingItem
             icon="fingerprint-outlined"

@@ -18,7 +18,8 @@ import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import {PRIMARY_COLOR_TINT} from './Classroomcomponent.tsx'
 import { SvgProps } from 'react-native-svg';
-import { FLUTTERWAVE_CLIENT_SECRET, FLUTTERWAVE_CLIENT_EKEY } from '@env';
+import { FLUTTERWAVE_CLIENT_EKEY } from '@env';
+import { initiatePaymentCharge } from '../api/localPostApis.ts';
 import {
   MasterCardLogo,
   VisaCardLogo,
@@ -37,6 +38,7 @@ import {
   formatCardNumber,
 } from '../utils/UserTransactionsHelpers.tsx';
 import { User } from 'types/firebase';
+import { fetchSupportedBanks } from 'api/localGetApis.ts';
 const { width } = Dimensions.get('window');
 export const CARD_WIDTH = width * 0.75;
 
@@ -163,7 +165,10 @@ const CardForm = ({
     </View>
     <View style={AddPaymentMethodStyles.row}>
       <View
-        style={[AddPaymentMethodStyles.inputGroup, { flex: 2, marginRight: 10 }]}
+        style={[
+          AddPaymentMethodStyles.inputGroup,
+          { flex: 2, marginRight: 10 },
+        ]}
       >
         <Text style={AddPaymentMethodStyles.label}>Expiry Date</Text>
         <View style={AddPaymentMethodStyles.expiryWrapper}>
@@ -228,7 +233,10 @@ const CardForm = ({
         </View>
         <View style={AddPaymentMethodStyles.row}>
           <View
-            style={[AddPaymentMethodStyles.inputGroup, { flex: 1, marginRight: 8 }]}
+            style={[
+              AddPaymentMethodStyles.inputGroup,
+              { flex: 1, marginRight: 8 },
+            ]}
           >
             <TextInput
               style={AddPaymentMethodStyles.input}
@@ -239,7 +247,10 @@ const CardForm = ({
             />
           </View>
           <View
-            style={[AddPaymentMethodStyles.inputGroup, { flex: 1, marginRight: 8 }]}
+            style={[
+              AddPaymentMethodStyles.inputGroup,
+              { flex: 1, marginRight: 8 },
+            ]}
           >
             <TextInput
               style={AddPaymentMethodStyles.input}
@@ -273,7 +284,7 @@ export const AddPaymentModal = ({
 }: AddPaymentModalProps) => {
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'card' | 'bank'>(
-    mode === 'withdraw' ? 'bank' : 'card'
+    mode === 'withdraw' ? 'bank' : 'card',
   );
   const [isLoading, setIsLoading] = useState(false);
   const [requiresPin, setRequiresPin] = useState(false);
@@ -348,18 +359,8 @@ export const AddPaymentModal = ({
           mode: isInternational ? 'avs_noauth' : 'pin',
         },
       };
-      const response = await fetch(
-        'https://api.flutterwave.com/v3/charges?type=card',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-      const result = await response.json();
+      const response = await initiatePaymentCharge('card', payload);
+      const result = response.data;
       if (result.status === 'success') {
         if (result.meta?.authorization?.mode === 'otp') {
           navigation.navigate('VerifyOTP', {
@@ -425,20 +426,8 @@ export const AddPaymentModal = ({
           purpose: 'linking_bank',
         },
       };
-      const response = await fetch(
-        'https://api.flutterwave.com/v3/charges?type=account',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const result = await response.json();
-
+      const response = await initiatePaymentCharge('account', payload);
+      const result = response.data;
       if (result.status === 'success') {
         if (result.meta?.authorization?.mode === 'otp') {
           navigation.navigate('VerifyOTP', {
@@ -497,19 +486,9 @@ export const AddPaymentModal = ({
       if (!user?.country) return;
       const countryCode = COUNTRY_CODE_MAP[user.country] || 'NG';
       try {
-        const res = await fetch(
-          `https://api.flutterwave.com/v3/banks/${countryCode}`,
-          {
-            headers: { Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}` },
-          },
-        );
-        const json = await res.json();
-        if (json.status === 'success') {
-          const formattedBanks = json.data.map((bank: any) => ({
-            label: bank.name,
-            value: bank.code,
-          }));
-          setBankItems(formattedBanks);
+        const banks = await fetchSupportedBanks(countryCode);
+        if (banks.length > 0) {
+          setBankItems(banks);
         }
       } catch (err) {
         console.error('Bank fetch failed:', err);
@@ -536,42 +515,44 @@ export const AddPaymentModal = ({
         />
         {mode === 'buy' && (
           <>
-        <View style={AddPaymentMethodStyles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              AddPaymentMethodStyles.tab,
-              activeTab === 'card' && AddPaymentMethodStyles.activeTab,
-            ]}
-            onPress={() => setActiveTab('card')}
-          >
-            <Text
-              style={[
-                AddPaymentMethodStyles.tabText,
-                activeTab === 'card' && AddPaymentMethodStyles.activeTabText,
-              ]}
-            >
-              CARD
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              AddPaymentMethodStyles.tab,
-              activeTab === 'bank' && AddPaymentMethodStyles.activeTab,
-            ]}
-            onPress={() => setActiveTab('bank')}
-          >
-            <Text
-              style={[
-                AddPaymentMethodStyles.tabText,
-                activeTab === 'bank' && AddPaymentMethodStyles.activeTabText,
-              ]}
-            >
-              BANK
-            </Text>
-          </TouchableOpacity>
-        </View>
-        </>
-      )}
+            <View style={AddPaymentMethodStyles.tabContainer}>
+              <TouchableOpacity
+                style={[
+                  AddPaymentMethodStyles.tab,
+                  activeTab === 'card' && AddPaymentMethodStyles.activeTab,
+                ]}
+                onPress={() => setActiveTab('card')}
+              >
+                <Text
+                  style={[
+                    AddPaymentMethodStyles.tabText,
+                    activeTab === 'card' &&
+                      AddPaymentMethodStyles.activeTabText,
+                  ]}
+                >
+                  CARD
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  AddPaymentMethodStyles.tab,
+                  activeTab === 'bank' && AddPaymentMethodStyles.activeTab,
+                ]}
+                onPress={() => setActiveTab('bank')}
+              >
+                <Text
+                  style={[
+                    AddPaymentMethodStyles.tabText,
+                    activeTab === 'bank' &&
+                      AddPaymentMethodStyles.activeTabText,
+                  ]}
+                >
+                  BANK
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
         <ScrollView contentContainerStyle={AddPaymentMethodStyles.formContent}>
           {activeTab === 'card' && mode === 'buy' ? (
             <CardForm

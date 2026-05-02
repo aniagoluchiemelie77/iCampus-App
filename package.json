@@ -34,6 +34,7 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.18",
+    "flutterwave-react-native": "^1.0.4",
     "i18n-iso-countries": "^7.14.0",
     "libphonenumber-js": "^1.12.42",
     "lodash": "^4.18.1",

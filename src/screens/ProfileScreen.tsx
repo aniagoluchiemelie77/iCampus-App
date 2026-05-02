@@ -123,16 +123,11 @@ const CourseCard = ({ item }: { item: any }) => {
       </TouchableOpacity>
       {/* Course Detail Modal */}
       <Modal
-        // Use 'isVisible' instead of 'visible'
         isVisible={modalVisible}
-        // 'animationType="slide"' becomes these two:
         animationIn="slideInUp"
         animationOut="slideOutDown"
-        // 'transparent' is true by default in this library, so you can remove it.
-        // 'onRequestClose' becomes 'onBackButtonPress' (for Android)
         onBackButtonPress={() => setModalVisible(false)}
         onBackdropPress={() => setModalVisible(false)}
-        // Optional: Add the swipe gesture we talked about
         swipeDirection="down"
         onSwipeComplete={() => setModalVisible(false)}
         style={styles.modalBottom}

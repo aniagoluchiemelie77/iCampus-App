@@ -8,9 +8,8 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { baseUrl } from '../components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
+import { initializeBuyTransaction } from '../api/localPostApis';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -24,6 +23,7 @@ import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
 import { UserBankOrCardDetails } from 'types/firebase';
 const { width } = Dimensions.get('window');
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
+import { getUserPaymentMethods } from 'api/localGetApis.ts';
 export const CARD_WIDTH = width * 0.75;
 
 interface PaymentMethodCardProps {
@@ -97,27 +97,9 @@ export const ICashBuyPage = ({ navigation }: any) => {
   const hasPaymentMethod = savedMethods.length > 0;
   const EXCHANGE_RATE_USD = 0.74;
   const fetchPaymentMethods = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}user/payment-methods/${user?.uid}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const result = await response.json();
-
-      const methods = Array.isArray(result) ? result : result.data;
-      if (Array.isArray(methods)) {
-        setSavedMethods(methods);
-      }
-    } catch (error) {
-      console.error('Error fetching methods:', error);
-    }
+    if (!user?.uid) return;
+    const methods = await getUserPaymentMethods(user.uid);
+    setSavedMethods(methods);
   }, [user?.uid]);
   useEffect(() => {
     const getLiveRate = async () => {
@@ -171,27 +153,17 @@ export const ICashBuyPage = ({ navigation }: any) => {
       return;
     }
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}user/transactions/initialize-buy`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            amount: numericAmount,
-            currency: currencyData.code,
-            userId: user.uid,
-            paymentToken: selectedMethod.paymentToken,
-            methodType: selectedMethod.method,
-            iCashAmount: iCashEquivalent,
-            country: user.country,
-          }),
-        },
-      );
-      const data = await response.json();
+      const payload = {
+        amount: numericAmount,
+        currency: currencyData.code,
+        userId: user.uid,
+        paymentToken: selectedMethod.paymentToken,
+        methodType: selectedMethod.method,
+        iCashAmount: iCashEquivalent,
+        country: user.country,
+      };
+      const response = await initializeBuyTransaction(payload);
+      const data = response.data;
       if (data.status === 'success') {
         if (data.authorization_url) {
           navigation.navigate('FlutterwaveWebview', {

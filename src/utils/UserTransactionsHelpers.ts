@@ -1,51 +1,67 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import { EXCHANGERATE_API_KEY, VERVE_SEARCH_API_KEY } from '@env';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const CACHE_KEY = 'EXCHANGE_RATE_CACHE';
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 const API_KEY = EXCHANGERATE_API_KEY;
 const EXCHANGERATE_API_BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
 
 export const fetchLiveRate = async (country: string) => {
   const currencyMap: Record<string, { code: string; symbol: string }> = {
-  // --- African Countries ---
-  Nigeria: { code: 'NGN', symbol: '₦' },
-  Ghana: { code: 'GHS', symbol: 'GH₵' },
-  Kenya: { code: 'KES', symbol: 'KSh' },
-  'South Africa': { code: 'ZAR', symbol: 'R' },
-  Egypt: { code: 'EGP', symbol: 'E£' },
-  Ethiopia: { code: 'ETB', symbol: 'Br' },
-  Rwanda: { code: 'RWF', symbol: 'FRw' },
-  Tanzania: { code: 'TZS', symbol: 'TSh' },
-  Uganda: { code: 'UGX', symbol: 'USh' },
-  Morocco: { code: 'MAD', symbol: 'DH' },
+    'Nigeria': { code: 'NGN', symbol: '₦' },
+    'Ghana': { code: 'GHS', symbol: 'GH₵' },
+    'USA': { code: 'USD', symbol: '$' },
+    'Brazil': { code: 'BRL', symbol: 'R$' },
+    'Mexico': { code: 'MXN', symbol: '$' },
+    'Argentina': { code: 'ARS', symbol: '$' },
+    'Russia': { code: 'RUB', symbol: '₽' },
+    'South Korea': { code: 'KRW', symbol: '₩' },
+    'Indonesia': { code: 'IDR', symbol: 'Rp' },
+    'Turkey': { code: 'TRY', symbol: '₺' },
+    'Saudi Arabia': { code: 'SAR', symbol: '﷼' },
+    'Switzerland': { code: 'CHF', symbol: 'CHF' },
+    'Sweden': { code: 'SEK', symbol: 'kr' },
+    'Norway': { code: 'NOK', symbol: 'kr' },
+    'Poland': { code: 'PLN', symbol: 'zł' },
+    'Singapore': { code: 'SGD', symbol: 'S$' },
+    'Malaysia': { code: 'MYR', symbol: 'RM' },
+    'Thailand': { code: 'THB', symbol: '฿' },
+    'Philippines': { code: 'PHP', symbol: '₱' },
+    'New Zealand': { code: 'NZD', symbol: 'NZ$' },
+    'Pakistan': { code: 'PKR', symbol: '₨' },
+    'Bangladesh': { code: 'BDT', symbol: '৳' },
+    'Vietnam': { code: 'VND', symbol: '₫' },
+    'Netherlands': { code: 'EUR', symbol: '€' },
+    'Spain': { code: 'EUR', symbol: '€' },
+    'Italy': { code: 'EUR', symbol: '€' },
+  };
 
-  // --- Popular Worldwide ---
-  USA: { code: 'USD', symbol: '$' },
-  'United Kingdom': { code: 'GBP', symbol: '£' },
-  Canada: { code: 'CAD', symbol: 'CA$' },
-  Australia: { code: 'AUD', symbol: 'A$' },
-  Germany: { code: 'EUR', symbol: '€' }, // Eurozone
-  France: { code: 'EUR', symbol: '€' },
-  China: { code: 'CNY', symbol: '¥' },
-  Japan: { code: 'JPY', symbol: '¥' },
-  India: { code: 'INR', symbol: '₹' },
-  'United Arab Emirates': { code: 'AED', symbol: 'د.إ' },
-};
-
-  const { code, symbol } = currencyMap[country] || currencyMap['Nigeria'];
+  const { code, symbol } = currencyMap[country] || currencyMap['USA'];
 
   try {
+    const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+    if (cachedData) {
+      const { rates, timestamp } = JSON.parse(cachedData);
+      const isExpired = Date.now() - timestamp > CACHE_DURATION;
+
+      if (!isExpired && rates[code]) {
+        return { rate: rates[code], symbol, code };
+      }
+    }
     const response = await axios.get(EXCHANGERATE_API_BASE_URL);
-    const rate = response.data.conversion_rates[code];
-    
-    return {
-      rate: rate || 1550, 
-      symbol,
-      code
-    };
+    const allRates = response.data.conversion_rates;
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+      rates: allRates,
+      timestamp: Date.now()
+    }));
+
+    return { rate: allRates[code] || 1, symbol, code };
   } catch (error) {
     console.error("Rate fetch failed", error);
-    return { rate: 1550, symbol, code }; // Default fallback
+    return { rate: 1, symbol, code }; 
   }
 };
 export const encryptCardDetails = (key: string, text: string): string => {

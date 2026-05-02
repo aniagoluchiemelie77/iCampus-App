@@ -9,9 +9,8 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { baseUrl } from '../components/HomeScreenComponents';
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeWithdrawTransaction } from '../api/localPostApis';
 import { useAppSelector } from '../components/hooks';
 import {
   PRIMARY_COLOR,
@@ -24,6 +23,7 @@ import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
 import { UserBankOrCardDetails } from 'types/firebase';
+import { getUserPaymentMethods } from 'api/localGetApis.ts';
 
 export const ICashWithdrawPage = ({ navigation }: any) => {
   const route = useRoute();
@@ -51,26 +51,9 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
   const fee = rawAmount * WITHDRAWAL_FEE_PERCENT;
   const finalPayout = rawAmount - fee;
   const fetchPaymentMethods = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}user/payment-methods/${user?.uid}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const result = await response.json();
-      const methods = Array.isArray(result) ? result : result.data;
-      if (Array.isArray(methods)) {
-        setSavedMethods(methods);
-      }
-    } catch (error) {
-      console.error('Error fetching methods:', error);
-    }
+    if (!user?.uid) return;
+    const methods = await getUserPaymentMethods(user.uid);
+    setSavedMethods(methods);
   }, [user?.uid]);
   useEffect(() => {
     const getLiveRate = async () => {
@@ -119,6 +102,9 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
       return () => clearTimeout(timer);
     }
   }, [needsRefresh, navigation, fetchPaymentMethods]);
+  useEffect(() => {
+    fetchPaymentMethods();
+  }, [fetchPaymentMethods]);
   const handleWithdrawTrigger = () => {
     const numericICash = parseFloat(iCashAmount);
     if (!numericICash || numericICash <= 0) return;
@@ -132,27 +118,16 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
   const finalExecution = useCallback(async () => {
     setIsProcessing(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}user/transactions/initialize-withdraw`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            'X-Idempotency-Key': Date.now().toString(),
-          },
-          body: JSON.stringify({
-            iCashAmount: parseFloat(iCashAmount),
-            amountToReceive: finalPayout,
-            fee: fee,
-            currency: currencyData.code,
-            userId: user.uid,
-            bankDetails: selectedMethod,
-          }),
-        },
-      );
-      const data = await response.json();
+      const payload = {
+        iCashAmount: parseFloat(iCashAmount),
+        amountToReceive: finalPayout,
+        fee: fee,
+        currency: currencyData.code,
+        userId: user.uid,
+        bankDetails: selectedMethod,
+      };
+      const response = await initializeWithdrawTransaction(payload);
+      const data = response.data;
       if (data.status === 'success') {
         setShowConfirmModal(false);
         navigation.navigate('iCashSuccessScreen', {

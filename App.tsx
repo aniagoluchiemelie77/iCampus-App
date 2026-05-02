@@ -68,6 +68,7 @@ import { MessagesListScreen } from './src/screens/MessagesListScreen.tsx';
 import { EditProfileScreen } from './src/screens/EditProfileScreen.tsx';
 import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScreen.tsx';
 import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
+import { SubscriptionScreen } from './src/screens/SubscriptionsScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -106,6 +107,9 @@ export type RootStackParamList = {
   Welcome: { route: string };
   MessagesList: undefined;
   LinkedDevicesScreen: undefined;
+  Subscription: {
+    targetScreen?: keyof RootStackParamList;
+  };
   CourseSubPage: {
     title:
       | 'Course Contents' //Both
@@ -320,6 +324,11 @@ const App = () => {
             <Stack.Screen
               name="IcashP2PScreen"
               component={IcashP2PScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Subscription"
+              component={SubscriptionScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
