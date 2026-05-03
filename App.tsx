@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; 
 import { Provider } from 'react-redux';
@@ -71,6 +71,7 @@ import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
 import { SubscriptionScreen } from './src/screens/SubscriptionsScreen.tsx';
 import { BlockedUsersScreen } from './src/screens/BlockedUsersScreen.tsx';
 import { NotificationSettings } from './src/screens/SNotificationScreen.tsx';
+import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -219,10 +220,31 @@ const App = () => {
   const [initialParams, _setInitialParams] = useState<
     RootStackParamList['Welcome'] | undefined
   >(undefined);
+  // ... inside your component
+
   useEffect(() => {
     BleManager.start({ showAlert: false })
       .then(() => console.log('BleManager Initialized'))
       .catch(error => console.error('BleManager init error', error));
+
+    const intercomApiKey = Platform.select({
+      ios: 'YOUR_IOS_API_KEY',
+      android: 'YOUR_ANDROID_API_KEY',
+    });
+
+    const appId = 'YOUR_APP_ID';
+    //Intercom.loginUser({
+    //  email: 'user@example.com',
+    //  userId: '12345'
+    //});
+    //Intercom.setUserHash('THE_HMAC_FROM_YOUR_BACKEND');
+
+    // Ensure apiKey exists before calling (helps with TS and safety)
+    if (intercomApiKey) {
+      Intercom.initialize(intercomApiKey, appId)
+        .then(() => console.log('Intercom Initialized'))
+        .catch(error => console.error('Intercom init error', error));
+    }
   }, []);
   useEffect(() => {
     const initializeApp = async () => {
