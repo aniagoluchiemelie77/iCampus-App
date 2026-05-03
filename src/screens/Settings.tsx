@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,28 +7,105 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SettingItem } from '../components/SettingsItem';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from 'assets/styles/colors';
-import { useAppSelector } from '@components/hooks.ts';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
+import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestPinReset } from '../api/localPostApis.ts';
 
-const SectionHeader = ({ title }: { title: string }) => (
+const rnBiometrics = new ReactNativeBiometrics();
+
+export const SectionHeader = ({ title }: { title: string }) => (
   <Text style={styles.sectionHeader}>{title}</Text>
 );
 
+export const throttle = (func: Function, limit: number) => {
+  let inThrottle: boolean;
+  return function (this: any, ...args: any[]) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+};
+
 export const Settings = () => {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
-  const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
-  const [biometricsEnabled, setBiometricsEnabled] = React.useState(
-    user.isVerified,
-  );
+  const [isResetting, setIsResetting] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
+  const [biometryType, setBiometryType] = useState<string>('Biometrics');
   const version = DeviceInfo.getVersion();
   const buildNumber = DeviceInfo.getBuildNumber();
+  const toggleBiometrics = async () => {
+    if (!biometricsEnabled) {
+      const { available, biometryType: detectedType } =
+        await rnBiometrics.isSensorAvailable();
+      if (available) {
+        const hardwareLabel = detectedType === 'FaceID' ? 'FaceID' : 'TouchID';
+        const { success } = await rnBiometrics.simplePrompt({
+          promptMessage: `Confirm ${hardwareLabel} to enable`,
+        });
+        if (success) {
+          await AsyncStorage.setItem('biometrics_enabled', 'true');
+          setBiometricsEnabled(true);
+          setBiometryType(hardwareLabel);
+          Toast.show({ type: 'success', text2: `${hardwareLabel} Enabled` });
+        }
+      } else {
+        Toast.show({
+          type: 'error',
+          text2: 'Biometrics not supported on this device',
+        });
+      }
+    } else {
+      await AsyncStorage.removeItem('biometrics_enabled');
+      setBiometricsEnabled(false);
+      Toast.show({ type: 'info', text2: 'Biometrics Disabled' });
+    }
+  };
+  const handlePinReset = async () => {
+    if (isResetting) return; // Prevent overlapping execution
+    setIsResetting(true);
+    try {
+      const response = await requestPinReset();
+      if (response.success) {
+        navigation.navigate('ICashResetPin');
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+  const throttledReset = throttle(handlePinReset, 2000);
+  useEffect(() => {
+    const checkStatus = async () => {
+      const val = await AsyncStorage.getItem('biometrics_enabled');
+      setBiometricsEnabled(val === 'true');
+    };
+    checkStatus();
+  }, []);
+  useEffect(() => {
+    const checkHardware = async () => {
+      const { available, biometryType: type } =
+        await rnBiometrics.isSensorAvailable();
+      if (available) {
+        if (type === BiometryTypes.FaceID) setBiometryType('FaceID');
+        else if (type === BiometryTypes.TouchID) setBiometryType('TouchID');
+        else setBiometryType('Biometrics');
+      }
+    };
+    checkHardware();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,8 +122,6 @@ export const Settings = () => {
             </TouchableOpacity>
           }
         />
-
-        {/* Account Section */}
         <SectionHeader title="Account & Security" />
         <View style={styles.group}>
           <SettingItem
@@ -69,16 +144,18 @@ export const Settings = () => {
           <SettingItem
             icon="fingerprint-outlined"
             title="Biometric Login"
-            subtitle="FaceID or Fingerprint"
+            subtitle={`Use ${biometryType} to secure your account`}
             toggle
             value={biometricsEnabled}
-            onPress={() => setBiometricsEnabled(!biometricsEnabled)}
+            onPress={toggleBiometrics}
           />
           <SettingItem
             icon="lock-reset-outlined"
             title="Reset iCashPin"
-            subtitle="Security for your campus wallet"
-            onPress={() => {}}
+            subtitle={
+              isResetting ? 'Requesting...' : 'Security for your campus wallet'
+            }
+            onPress={throttledReset}
           />
         </View>
 
@@ -96,13 +173,20 @@ export const Settings = () => {
           <SettingItem
             icon="auto-awesome-outlined"
             title="iAssistant"
-            subtitle="AI Preferences & Voice"
-            onPress={() => {}}
+            subtitle="Your iCampus AI assistant"
+            onPress={() =>
+              navigation.navigate('Assistant', {
+                contextType: 'general',
+                contextData: {},
+                initialMessage:
+                  "Hi! I'm your iAssistant. Having trouble with your account or want to know how iCampus works?",
+              })
+            }
           />
           <SettingItem
             icon="notifications-active-outlined"
             title="Notifications"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('NotificationSettings')}
           />
         </View>
 
@@ -154,6 +238,7 @@ export const Settings = () => {
         <Text style={styles.versionText}>
           App Version: {version} ({buildNumber})
         </Text>
+        <Toast config={toastConfig} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -169,12 +254,11 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR_TINT,
     textTransform: 'capitalize',
     marginLeft: 15,
-    marginVertical: 10,
+    marginVertical: 13,
   },
   group: {
     backgroundColor: '#fadccc',
-    borderTopWidth: 0.8,
-    borderBottomWidth: 0.8,
+    borderBottomWidth: 0.5,
     borderColor: PRIMARY_COLOR_TINT,
   },
   logoutButton: {

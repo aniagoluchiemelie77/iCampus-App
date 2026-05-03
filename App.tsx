@@ -70,6 +70,7 @@ import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScre
 import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
 import { SubscriptionScreen } from './src/screens/SubscriptionsScreen.tsx';
 import { BlockedUsersScreen } from './src/screens/BlockedUsersScreen.tsx';
+import { NotificationSettings } from './src/screens/SNotificationScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -101,6 +102,7 @@ export type RootStackParamList = {
   CreatePost: { type: 'post' | 'poll' };
   ICashWithdrawPage: undefined;
   Notifications: undefined;
+  NotificationSettings: undefined;
   VerifyOTP: {
     flw_ref: string;
     type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
@@ -367,6 +369,11 @@ const App = () => {
             <Stack.Screen
               name="SuspendedScreen"
               component={SuspendedScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="NotificationSettings"
+              component={NotificationSettings}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -4,12 +4,14 @@ import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import { StackScreenProps } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
-import {RootStackParamList} from '../../App'
-import { baseUrl } from '../components/HomeScreenComponents';
+import { RootStackParamList } from '../../App';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import toastConfig from '@components/ToastConfig';
-
+import {
+  requestPinReset,
+  setupICashPin,
+  verifyICashPin,
+} from '../api/localPostApis';
 
 type Props = StackScreenProps<RootStackParamList, 'iCashSecurity'>;
 const rnBiometrics = new ReactNativeBiometrics();
@@ -22,7 +24,7 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   const [confirmPin, setConfirmPin] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
-  const isRegistration = route.params?.isRegistration; 
+  const isRegistration = route.params?.isRegistration;
   const appState = useRef(AppState.currentState);
   const MAX_ATTEMPTS = 5;
 
@@ -38,22 +40,19 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
     }
   };
   const handleRequestReset = async () => {
-  try {
-    const token = await AsyncStorage.getItem('accessToken');
-    const response = await fetch(`${baseUrl}user/request-pin-reset`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (response.ok) {
-      Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Check your email for the reset code.' });
-      navigation.navigate('ICashResetPin');
+    try {
+      const response = await requestPinReset();
+      if (response.success) {
+        navigation.navigate('ICashResetPin');
+      }
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not request reset.',
+      });
     }
-  } catch (err) {
-    Toast.show({ type: 'error', text1: 'Error', text2: 'Could not request reset.' });
-  }
-};
-
+  };
   const handleBiometricAuth = useCallback(async () => {
     const { available, biometryType } = await rnBiometrics.isSensorAvailable();
     const isHardwareReady =
@@ -75,7 +74,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       console.log('Biometrics not supported or not enrolled');
     }
   }, [navigation]);
-
   const handleRegistrationFlow = (finalPin: string) => {
     if (!isConfirming) {
       // Move to confirmation step
@@ -101,22 +99,8 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   };
   const registerNewPin = async (finalPin: string) => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/setup-icash-pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ pin: finalPin }),
-      });
-
-      if (response.ok) {
-        Toast.show({
-          type: 'success',
-          text1: 'Secure',
-          text2: 'iCash PIN created successfully!',
-        });
+      const response = await setupICashPin(finalPin);
+      if (response.success) {
         navigation.replace('ICashDashboard', { refresh: true });
       }
     } catch (err) {
@@ -169,29 +153,22 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   };
   const verifyPin = async (finalPin: string) => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ pin: finalPin }),
-      });
-
-      const json = await response.json();
-
-      if (response.ok) {
+      const response = await verifyICashPin(finalPin);
+      if (response.success) {
         navigation.replace('ICashDashboard', { refresh: true });
       } else {
         triggerShake();
         setShowResetPin(true);
         setPin('');
-        if (json.attemptsRemaining !== undefined) {
-          setAttempts(MAX_ATTEMPTS - json.attemptsRemaining);
+        if (response.attemptsRemaining !== undefined) {
+          setAttempts(MAX_ATTEMPTS - response.attemptsRemaining);
         }
-        Toast.show({ type: 'error', text1: 'Security', text2: json.message });
-        if (json.isSuspended || response.status === 403) {
+        Toast.show({
+          type: 'error',
+          text1: 'Security',
+          text2: response.message,
+        });
+        if (response.isSuspended) {
           handleSuspension();
         }
       }
@@ -204,14 +181,19 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       handleBiometricAuth();
     }
   }, [handleBiometricAuth, isRegistration]);
-  // App State Listener: Re-lock if backgrounded
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        setPin('');
-      }
-      appState.current = nextAppState;
-    });
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === 'active'
+        ) {
+          setPin('');
+        }
+        appState.current = nextAppState;
+      },
+    );
 
     return () => subscription.remove();
   }, []);
@@ -220,14 +202,19 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   }, []);
   return (
     <View style={styles.container}>
-      <Icon 
-        name={isRegistration ? "shield-plus" : "shield-lock"} 
-        size={60} 
-        color={PRIMARY_COLOR} 
-        style={{ marginBottom: 20 }} 
+      <Icon
+        name={isRegistration ? 'shield-plus' : 'shield-lock'}
+        size={60}
+        color={PRIMARY_COLOR}
+        style={{ marginBottom: 20 }}
       />
       <Text style={styles.title}>{getHeaderTitle()}</Text>
-      <Text style={[styles.subtitle, attempts > 3 && { color: PRIMARY_COLOR, fontWeight: 'bold' }]}>
+      <Text
+        style={[
+          styles.subtitle,
+          attempts > 3 && { color: PRIMARY_COLOR, fontWeight: 'bold' },
+        ]}
+      >
         {getSubtitle()}
       </Text>
       <TextInput
@@ -240,31 +227,41 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
         style={styles.hiddenInput}
         autoFocus={true}
       />
-      <Pressable 
+      <Pressable
         onPress={() => inputRef.current?.focus()}
         style={styles.pressableArea}
       >
-        <Animated.View style={[styles.pinRow, { transform: [{ translateX: shakeAnimation }] }]}>
+        <Animated.View
+          style={[
+            styles.pinRow,
+            { transform: [{ translateX: shakeAnimation }] },
+          ]}
+        >
           {[...Array(6)].map((_, i) => (
-            <View 
-              key={i} 
+            <View
+              key={i}
               style={[
-                styles.dot, 
+                styles.dot,
                 pin.length > i && styles.dotFilled,
-                pin.length === i && styles.dotActive // Optional: highlight current dot
-              ]} 
+                pin.length === i && styles.dotActive, // Optional: highlight current dot
+              ]}
             />
           ))}
         </Animated.View>
       </Pressable>
       {showResetPin && (
-      <TouchableOpacity onPress={handleRequestReset} style={{ marginTop: 20, width: '100%', alignSelf: 'flex-end' }}>
-        <Text style={{ color: PRIMARY_COLOR, fontWeight: '600' }}>Forgot PIN?</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleRequestReset}
+          style={{ marginTop: 20, width: '100%', alignSelf: 'flex-end' }}
+        >
+          <Text style={{ color: PRIMARY_COLOR, fontWeight: '600' }}>
+            Forgot PIN?
+          </Text>
+        </TouchableOpacity>
       )}
       {!isRegistration && (
-        <TouchableOpacity 
-          style={styles.bioButton} 
+        <TouchableOpacity
+          style={styles.bioButton}
           onPress={handleBiometricAuth}
         >
           <Icon name="fingerprint" size={32} color={PRIMARY_COLOR} />

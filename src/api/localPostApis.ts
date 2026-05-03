@@ -249,3 +249,153 @@ export const markAllMessagesRead = async (
     return { success: false };
   }
 };
+export const verifyICashPin = async (
+  pin: string,
+): Promise<{ success: boolean; message?: string; isSuspended?: boolean; attemptsRemaining?: number }> => {
+  try {
+    const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pin }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'PIN Error',
+        text2: data.message || 'Verification failed',
+      });
+      return { 
+        success: false, 
+        message: data.message, 
+        isSuspended: data.isSuspended, 
+        attemptsRemaining: data.attemptsRemaining 
+      };
+    }
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+};
+export const setupICashPin = async (
+  pin: string,
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}user/setup-icash-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pin }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Setup Failed',
+        text2: data.message || 'Could not set PIN',
+      });
+      return { success: false, message: data.message };
+    }
+    Toast.show({ type: 'success', text1: 'Secure', text2: 'iCash PIN created successfully!' });
+    return { success: true, message: data.message };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+};
+export const requestPinReset = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}user/request-pin-reset`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      Toast.show({ type: 'error', text1: 'Error', text2: data.message });
+      return { success: false, message: data.message };
+    }
+    Toast.show({ type: 'info', text1: 'OTP Sent', text2: 'Check your registered email.' });
+    return { success: true, message: data.message };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+};
+export const resetICashPin = async (
+  otp: string,
+  newPin: string,
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}user/reset-icash-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ otp, newPin }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      Toast.show({ type: 'error', text1: 'Reset Failed', text2: data.message });
+      return { success: false, message: data.message };
+    }
+    Toast.show({ type: 'success', text1: 'Success', text2: 'PIN updated successfully.' });
+    return { success: true, message: data.message };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+};
+export const askIAssistantAgent = async (
+  params: {
+    message: string,
+    history: { role: 'user' | 'model', content: string }[],
+    contextType: string,
+    contextData: any,
+    userState: any, 
+  }
+): Promise<{ success: boolean; reply?: string; error?: string }> => {
+  const { message, history, contextType, contextData, userState } = params;
+
+  try {
+    const response = await fetch(`${baseUrl}users/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        message,
+        history,
+        context: {
+          type: contextType,
+          data: contextData,
+          appMetadata: {
+            tier: userState.tier,
+            isVerified: userState.isVerified,
+            usertype: userState.usertype,
+            appVersion: userState.appVersion,
+            hasSubscribed: userState.hasSubscribed,
+          }
+        },
+        userId: userState.uid
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({ type: 'error', text2: data.error });
+    }
+    return { success: true, reply: data.reply };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+};

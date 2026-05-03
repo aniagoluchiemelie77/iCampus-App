@@ -1,4 +1,4 @@
-import { User } from '../types/firebase';
+import { User, userPreferences } from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,4 +24,37 @@ export const patchUserProfile = async (data: Partial<User>) => {
     });
   }
   return await response.json();
+};
+export const updatePreferences = async (
+  userId: string,
+  update: Partial<userPreferences>,
+) => {
+  try {
+    const response = await fetch(`${baseUrl}users/preferences/${userId}`, {
+      method: 'PATCH', 
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(update),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Error',
+        text2: data.error || 'Failed to update preferences',
+      });
+    };
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Preference Update Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Network Error',
+      text2: error || 'Failed to update preferences',
+    });
+    return { success: false, error: error.message };
+  }
 };

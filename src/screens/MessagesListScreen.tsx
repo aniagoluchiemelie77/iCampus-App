@@ -119,7 +119,6 @@ export const MessagesListScreen = ({ navigation }: any) => {
             <UserIdentity
               firstname={item.otherUser.firstname}
               lastname={item.otherUser.lastname}
-              username={item.otherUser.username}
               tier={item.otherUser.tier}
               organizationName={item.otherUser.organizationName}
               size="medium"

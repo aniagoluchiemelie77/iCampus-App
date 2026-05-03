@@ -4,15 +4,23 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  Linking,
 } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import { baseUrl } from '../components/HomeScreenComponents';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useAppSelector } from '../components/hooks';
 import { MessageBubble } from '../components/ChatMessageBubble.tsx';
 import { ChatInput } from '../components/ChatInput.tsx';
+import { askIAssistantAgent } from '../api/localPostApis.ts';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper.ts';
+import ImagePicker from 'react-native-image-crop-picker';
+import DocumentPicker, { types } from 'react-native-document-picker';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
+import { AssistantMessage } from '../types/firebase';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -20,9 +28,8 @@ export const Assistant = ({ route }: Props) => {
   const { contextType, contextData, initialMessage } = route.params;
   const user = useAppSelector(state => state.user);
   const flatListRef = useRef<FlatList>(null);
-  const [messages, setMessages] = useState<
-    { role: 'user' | 'model'; content: string }[]
-  >([
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       role: 'model',
       content:
@@ -32,29 +39,120 @@ export const Assistant = ({ route }: Props) => {
   ]);
   const [input, setInput] = useState('');
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
-    const newMessage = { role: 'user' as const, content: input };
-    setMessages(prev => [...prev, newMessage]);
+    if (!input.trim() || isProcessing) return;
+    const userText = input;
+    setIsProcessing(true);
     setInput('');
-    try {
-      const response = await fetch(`${baseUrl}users/ai/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: input,
-          context: { type: contextType, data: contextData },
-          history: messages,
-          userId: user.uid,
-        }),
+    const userMsg: AssistantMessage = { role: 'user', content: userText };
+    setMessages(prev => [...prev, userMsg]);
+    const result = await askIAssistantAgent({
+      message: userText,
+      history: messages,
+      contextType: contextType,
+      contextData: contextData,
+      userState: user,
+    });
+    if (result.success) {
+      setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Assistant Offline',
+        text2: 'Try again shortly.',
       });
+    }
+    setIsProcessing(false);
+  };
+  const handlePickImage = async () => {
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageQuality: 0.8,
+        mediaType: 'photo',
+        loadingLabelText: 'Processing...',
+      });
+      if (image.path) {
+        const imageUrl = await uploadToCloudinary(image.path);
+        sendAttachmentMessage(imageUrl, 'image');
+      }
+    } catch (error: any) {
+      if (
+        error.message.includes('permission') ||
+        error.message.includes('Required')
+      ) {
+        Alert.alert(
+          'Permission Required',
+          'iCampus needs access to your gallery to update your profile. Grant access in settings?',
+          [
+            { text: 'Not now', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => Linking.openSettings(),
+            },
+          ],
+        );
+      } else if (error.message.includes('User cancelled')) {
+        console.log('User backed out');
+        Toast.show({
+          type: 'error',
+          text2: 'Pick action cancelled by user',
+        });
+      } else {
+        console.error('ImagePicker Error: ', error.message);
+        Toast.show({
+          type: 'error',
+          text1: 'ImagePicker Error',
+          text2: 'Error, please retry',
+        });
+      }
+    }
+  };
+  const sendAttachmentMessage = async (
+    url: string,
+    type: 'image' | 'file',
+    fileName?: string,
+  ) => {
+    const attachmentMsg: AssistantMessage = {
+      role: 'user',
+      content:
+        type === 'image' ? '[Sent an image]' : `[Shared file: ${fileName}]`,
+      attachments: [{ url, type, fileName: fileName || 'attachment' }],
+    };
+    setMessages(prev => [...prev, attachmentMsg]);
+    const result = await askIAssistantAgent({
+      message: `I just uploaded a ${type}.`,
+      history: messages,
+      contextType: contextType,
+      contextData: { ...contextData, attachmentUrl: url },
+      userState: user,
+    });
+    if (result.success) {
+      setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
+    }
+  };
 
-      const data = await response.json();
-      setMessages(prev => [
-        ...prev,
-        { role: 'model' as const, content: data.reply },
-      ]);
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.pickSingle({
+        type: [types.allFiles],
+      });
+      const { uri, name } = result;
+      const docUrl = await uploadToCloudinary(uri);
+      sendAttachmentMessage(docUrl, 'file', name || 'Document');
     } catch (err) {
-      console.error('AI Chat failed', err);
+      if (DocumentPicker.isCancel(err)) {
+        console.error('Document Picker Error:', err);
+      } else {
+        console.error('Document Picker Error:', err);
+        Toast.show({
+          type: 'error',
+          text1: 'Upload Error',
+          text2: 'Failed to upload document',
+        });
+      }
     }
   };
   return (
@@ -84,6 +182,7 @@ export const Assistant = ({ route }: Props) => {
             content={item.content}
             isUser={item.role === 'user'}
             type="ai"
+            attachments={item.attachments}
           />
         )}
         keyExtractor={(_, index) => index.toString()}
@@ -99,10 +198,11 @@ export const Assistant = ({ route }: Props) => {
         value={input}
         onChangeText={setInput}
         onSend={handleSendMessage}
-        onPickImage={() => console.log('image')}
-        onPickDocument={() => console.log('doc')}
+        onPickImage={handlePickImage}
+        onPickDocument={handlePickDocument}
         placeholder="Ask iAssistant anything..."
       />
+      <Toast config={toastConfig} />
     </KeyboardAvoidingView>
   );
 };

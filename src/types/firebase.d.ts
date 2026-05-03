@@ -112,19 +112,31 @@ export interface Notification {
   transactionIdMid?: string;
   fileUrls?: string[];
 }
-export interface UserSettings {
-  userId: User.uid;
-  phoneLightingMode?: 'dark' | 'light' | 'system-default';
-  languagePreference?: string; // e.g., 'en', 'fr', 'ig'
-  notificationPreferences?: {
-    email: boolean;
-    push: boolean;
-    sms: boolean;
+export interface userPreferences
+  {
+    userId: string;
+    notifications?: {
+      auth: boolean;
+      social: boolean;
+      classroom: boolean;
+      store: boolean;
+      finance: boolean;
+      profile: boolean;
+      security: boolean;
+    };
+    channels?: {
+      push: boolean;
+      email: boolean;
+      socket: boolean;
+    };
+    theme: "light" | "dark" | "system-default";
+    language: string;
+    quietHours?: {
+      enabled: boolean;
+      start: string;
+      end: string; 
+    }
   };
-  calendarView?: 'monthly' | 'weekly' | 'daily';
-  timeZone?: string; // e.g., 'Africa/Lagos'
-  updatedAt: string;
-}
 
 export interface PointsTransaction {
   id: string;
@@ -833,3 +845,12 @@ export interface ChatMessage {
   attachments?: Attachment[];
   isEdited?: boolean;
 }
+export type AssistantMessage = {
+  role: 'user' | 'model';
+  content: string;
+  attachments?: {
+    url: string;
+    type: 'image' | 'file';
+    fileName?: string;
+  }[];
+};

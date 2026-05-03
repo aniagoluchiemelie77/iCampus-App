@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from 
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
-import { baseUrl } from '../components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resetICashPin } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -23,11 +22,11 @@ export const ICashResetPin = ({ navigation }: Props) => {
 
   const handleTextChange = async (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
-    
+
     if (step === 'otp') {
       setOtp(cleaned);
       if (cleaned.length === 6) {
-        setStep('pin'); 
+        setStep('pin');
       }
     } else {
       setNewPin(cleaned);
@@ -39,26 +38,14 @@ export const ICashResetPin = ({ navigation }: Props) => {
   const submitReset = async (finalPin: string) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/reset-icash-pin`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ otp, newPin: finalPin }),
-      });
-
-      const json = await response.json();
-
-      if (response.ok) {
-        Toast.show({ type: 'success', text1: 'Success', text2: 'PIN updated.' });
+      const response = await resetICashPin(otp, finalPin);
+      if (response.success) {
         navigation.replace('ICashDashboard', { refresh: true });
       } else {
-        Toast.show({ type: 'error', text1: 'Failed', text2: json.message });
+        Toast.show({ type: 'error', text1: 'Failed', text2: response.message });
         setOtp('');
         setNewPin('');
-        setStep('otp'); // Reset to beginning on error
+        setStep('otp');
       }
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Connection failed' });
@@ -70,10 +57,12 @@ export const ICashResetPin = ({ navigation }: Props) => {
   return (
     <View style={styles.container}>
       <Icon name="lock-reset" size={60} color={PRIMARY_COLOR} />
-      <Text style={styles.title}>{step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}</Text>
+      <Text style={styles.title}>
+        {step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}
+      </Text>
       <Text style={styles.subtitle}>
-        {step === 'otp' 
-          ? 'Enter the 6-digit code sent to your email.' 
+        {step === 'otp'
+          ? 'Enter the 6-digit code sent to your email.'
           : 'Create a new iCash security PIN'}
       </Text>
 
@@ -86,16 +75,25 @@ export const ICashResetPin = ({ navigation }: Props) => {
         style={styles.hiddenInput}
       />
 
-      <Pressable style={styles.pinRow} onPress={() => inputRef.current?.focus()}>
+      <Pressable
+        style={styles.pinRow}
+        onPress={() => inputRef.current?.focus()}
+      >
         {[...Array(6)].map((_, i) => (
-          <View key={i} style={[
-            styles.dot, 
-            (step === 'otp' ? otp.length : newPin.length) > i && styles.dotFilled
-          ]} />
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              (step === 'otp' ? otp.length : newPin.length) > i &&
+                styles.dotFilled,
+            ]}
+          />
         ))}
       </Pressable>
 
-      {loading && <ActivityIndicator color={PRIMARY_COLOR} style={{ marginTop: 20 }} />}
+      {loading && (
+        <ActivityIndicator color={PRIMARY_COLOR} style={{ marginTop: 20 }} />
+      )}
     </View>
   );
 };

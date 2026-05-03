@@ -12,6 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { searchUsers } from '../api/localGetApis.ts';
 import toastConfig from '@components/ToastConfig';
 import { UserIdentity } from '../components/UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -175,13 +176,18 @@ export const ChatScreen = ({ route, navigation }: Props) => {
     const fetchRecipientDetails = async () => {
       try {
         setLoading(true);
-        const response = await fetch(
-          `${baseUrl}users/search?uid=${recipientId}`,
+        const response = await searchUsers(
+          recipientId,
+          currentUser?.tier!,
+          currentUser?.usertype!,
         );
-        const result = await response.json();
-
-        if (result.success) {
-          setRecipient(result.data);
+        if ((response as any).success) {
+          const result = (response as any).data;
+          if (Array.isArray(result) && result.length > 0) {
+            setRecipient(result[0]);
+          } else if (!Array.isArray(result) && result) {
+            setRecipient(result);
+          }
         }
       } catch (error) {
         console.error('Failed to load recipient details:', error);
@@ -190,7 +196,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       }
     };
     fetchRecipientDetails();
-  }, [recipientId]);
+  }, [recipientId, currentUser?.tier, currentUser?.usertype]);
   useEffect(() => {
     loadHistory(1);
 
@@ -257,23 +263,16 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       text: inputText,
       senderId: currentUser.uid,
       recipientId,
-      // Add these missing required fields from your interface:
       firstName: currentUser.firstname || 'User',
       lastName: currentUser.lastname || '',
       profilePic: currentUser.profilePic?.[0] || '',
-      // Metadata
       timestamp: new Date().toISOString(),
-      status: 'sent', // Ensure this matches your 'sending' | 'sent' | 'seen' type
+      status: 'sent',
     };
-
-    // 2. Emit to backend (include recipientId in the socket payload)
     socketRef.current?.emit('send_private_message', {
       ...messageData,
       recipientId: recipientId,
     });
-
-    // 3. Update UI locally
-    // TypeScript will now be happy because messageData matches ChatMessage[]
     setMessages(prev => [...prev, messageData]);
     setInputText('');
   };

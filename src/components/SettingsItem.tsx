@@ -64,8 +64,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    marginBottom: 10,
   },
   iconBackground: {
     width: 36,
