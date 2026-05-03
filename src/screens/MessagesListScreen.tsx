@@ -11,12 +11,14 @@ import {
 import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
 import { useAppSelector } from '../components/hooks';
-import { baseUrl } from '../components/HomeScreenComponents';
+import { markAllMessagesRead } from '../api/localPostApis';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
-import {formatTime} from '../utils/ChatTimestampFormatter';
-import {PageHeader} from '../components/PageHeader';
+import { formatTime } from '../utils/ChatTimestampFormatter';
+import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {EmptyState} from '../components/EmptyFlatlistComponent';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { UserIdentity } from '../components/UserIdentity';
+import { getConversations } from '../api/localGetApis';
 
 export const MessagesListScreen = ({ navigation }: any) => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -27,65 +29,72 @@ export const MessagesListScreen = ({ navigation }: any) => {
   const currentUser = useAppSelector(state => state.user);
 
   const getMessagePreview = (message: any) => {
-  if (message.text && message.text.trim().length > 0) {
-    return message.text;
-  }
-  if (message.attachments && message.attachments.length > 0) {
-    const type = message.attachments[0].type || 'file';
-    return type === 'image' ? 'Sent you an image' : 'Sent you a document';
-  }
-  return 'New message';
-};
+    if (message.text && message.text.trim().length > 0) {
+      return message.text;
+    }
+    if (message.attachments && message.attachments.length > 0) {
+      const type = message.attachments[0].type || 'file';
+      return type === 'image' ? 'Sent you an image' : 'Sent you a document';
+    }
+    return 'New message';
+  };
   const markAllAsRead = async () => {
     try {
-      const res = await fetch(`${baseUrl}users/messages/mark-all-read/${currentUser.uid}`, {
-        method: 'POST',
-      });
-      if (res.ok) {
-        setConversations(prev => prev.map(convo => ({
-          ...convo,
-          lastMessage: { ...convo.lastMessage, status: 'seen' }
-        })));
+      const result = await markAllMessagesRead(currentUser.uid);
+      if (result.success) {
+        setConversations(prev =>
+          prev.map(convo => ({
+            ...convo,
+            lastMessage: { ...convo.lastMessage, status: 'seen' },
+          })),
+        );
         Toast.show({ type: 'success', text1: 'All messages marked as read' });
       }
     } catch (err) {
       console.error(err);
     }
   };
-  const fetchConversations = useCallback(async (pageNum: number) => {
-    if (loading || (!hasMore && pageNum !== 1)) return;
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `${baseUrl}users/messages/conversations/${currentUser.uid}?page=${pageNum}`
-      );
-      const result = await res.json();    
-      if (result.success) {
-        setConversations(prev => 
-          pageNum === 1 ? result.data : [...prev, ...result.data]
-        );
-        setHasMore(result.hasMore);
-        setPage(pageNum);
+  const fetchConversations = useCallback(
+    async (pageNum: number) => {
+      if (loading || (!hasMore && pageNum !== 1)) return;
+      setLoading(true);
+      try {
+        const result = await getConversations(currentUser.uid, pageNum);
+        if (result.success) {
+          setConversations(prev =>
+            pageNum === 1 ? result.data : [...prev, ...result.data],
+          );
+          setHasMore(result.hasMore);
+          setPage(pageNum);
+        }
+      } catch (err) {
+        console.error(err);
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: 'Failed to fetch messages',
+        });
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',                    
-        text2: 'Failed to fetch messages',                    
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, hasMore, currentUser.uid]); 
-  useEffect(() => { 
-    fetchConversations(1); 
+    },
+    [loading, hasMore, currentUser.uid],
+  );
+  useEffect(() => {
+    fetchConversations(1);
   }, [fetchConversations]);
-  const displayedConversations = activeTab === 'Unread' 
-    ? conversations.filter(c => c.lastMessage.status !== 'seen' && c.lastMessage.senderId !== currentUser.uid)
-    : conversations;
+  const displayedConversations =
+    activeTab === 'Unread'
+      ? conversations.filter(
+          c =>
+            c.lastMessage.status !== 'seen' &&
+            c.lastMessage.senderId !== currentUser.uid,
+        )
+      : conversations;
   const renderItem = ({ item }: any) => {
-    const isUnread = item.lastMessage.senderId !== currentUser.uid && item.lastMessage.status !== 'seen';
+    const isUnread =
+      item.lastMessage.senderId !== currentUser.uid &&
+      item.lastMessage.status !== 'seen';
 
     return (
       <TouchableOpacity
@@ -107,12 +116,15 @@ export const MessagesListScreen = ({ navigation }: any) => {
         </View>
         <View style={styles.textContainer}>
           <View style={styles.row}>
-            <Text
-              style={[styles.userName, isUnread && styles.boldText]}
-              numberOfLines={1}
-            >
-              {item.otherUser.firstname} {item.otherUser.lastname}
-            </Text>
+            <UserIdentity
+              firstname={item.otherUser.firstname}
+              lastname={item.otherUser.lastname}
+              username={item.otherUser.username}
+              tier={item.otherUser.tier}
+              organizationName={item.otherUser.organizationName}
+              size="medium"
+              containerStyle={{ flex: 1 }}
+            />
             <Text style={styles.time}>
               {formatTime(item.lastMessage.timestamp)}
             </Text>
@@ -130,8 +142,8 @@ export const MessagesListScreen = ({ navigation }: any) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <PageHeader 
-        title="Messages" 
+      <PageHeader
+        title="Messages"
         rightElement={
           <TouchableOpacity onPress={markAllAsRead}>
             <MaterialIcons name="done-all" size={24} color={PRIMARY_COLOR} />
@@ -140,12 +152,19 @@ export const MessagesListScreen = ({ navigation }: any) => {
       />
       <View style={styles.tabBar}>
         {['All', 'Unread'].map((tab: any) => (
-          <TouchableOpacity 
-            key={tab} 
+          <TouchableOpacity
+            key={tab}
             onPress={() => setActiveTab(tab)}
             style={[styles.tabItem, activeTab === tab && styles.activeTabItem]}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === tab && styles.activeTabText,
+              ]}
+            >
+              {tab}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -156,13 +175,15 @@ export const MessagesListScreen = ({ navigation }: any) => {
         onEndReached={() => fetchConversations(page + 1)}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
-          <EmptyState 
+          <EmptyState
             iconName="speaker-notes-off"
             title="No Messages Found"
             subtitle="We couldn't find any messages for you."
           />
         }
-        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 20 }} /> : null}
+        ListFooterComponent={
+          loading ? <ActivityIndicator style={{ margin: 20 }} /> : null
+        }
       />
       <Toast config={toastConfig} />
     </View>
@@ -198,7 +219,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: PRIMARY_COLOR, 
+    backgroundColor: PRIMARY_COLOR,
   },
   textContainer: {
     flex: 1,
@@ -209,11 +230,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 4,
-  },
-  userName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222',
   },
   boldText: {
     fontWeight: '800',
@@ -229,18 +245,19 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 11,
     color: PRIMARY_COLOR_TINT,
+    marginLeft: 5,
   },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 10,
-    padding: 10
+    padding: 10,
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomColor: 'transparent',
-    borderBottomWidth: 2
+    borderBottomWidth: 2,
   },
   activeTabItem: {
     borderBottomColor: PRIMARY_COLOR,

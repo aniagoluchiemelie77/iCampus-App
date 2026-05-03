@@ -177,4 +177,75 @@ export const verifySubscriptionOnBackend = async (transactionId: string, tier: s
     return { success: false, error };
   }
 };
+export const toggleBlockUser = async (
+  targetUid: string,
+): Promise<{ success: boolean; action?: 'blocked' | 'unblocked'; message?: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/block/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ targetUid }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Failed to toggle block:", data.error);
+      Toast.show({
+        type: 'error',
+        text1: 'Block Error',
+        text2: data.error || 'Failed to update block status',
+      });
+      return { success: false, message: data.error };
+    }
+    // Success Toast
+    Toast.show({
+      type: 'success',
+      text1: data.action === 'blocked' ? 'User Blocked' : 'User Unblocked',
+      text2: data.action === 'blocked' 
+        ? 'You will no longer see this user.' 
+        : 'You can now see this user\'s profile.',
+    });
 
+    return { success: true, action: data.action };
+  } catch (error: any) {
+    console.error("Backend Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: error.message || 'Check your internet connection',
+    });
+    return { success: false, message: error.message };
+  }
+};
+export const markAllMessagesRead = async (
+  userId: string,
+): Promise<{ success: boolean }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/messages/mark-all-read/${userId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      Toast.show({
+        type: 'error',
+        text1: 'Mark Error',
+        text2: data.error || 'Failed to update',
+      });
+      return { success: false };
+    }
+
+    Toast.show({ type: 'success', text1: 'All messages marked as read' });
+    return { success: true };
+  } catch (error: any) {
+    Toast.show({
+      type: 'error',
+      text1: 'Update Error',
+      text2: error.message || 'Check your connection',
+    });
+    return { success: false };
+  }
+};

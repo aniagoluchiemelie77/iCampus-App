@@ -55,7 +55,11 @@ export const Settings = () => {
             subtitle="Manage where you're logged in"
             onPress={() => navigation.navigate('LinkedDevicesScreen')}
           />
-          <SettingItem icon="block" title="Blocked Users" onPress={() => {}} />
+          <SettingItem
+            icon="block"
+            title="Blocked Users"
+            onPress={() => navigation.navigate('BlockedUsers')}
+          />
           <SettingItem
             icon="verified-outlined"
             title="Subscription"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Dimensions,
@@ -43,6 +43,10 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { patchUserProfile } from 'api/localPatchApis.ts';
 import { searchUserProfile } from 'api/localGetApis.ts';
+import { toggleBlockUser } from 'api/localPostApis.ts';
+import { updateBlockedUsers } from '@components/UserSlice.ts';
+import { useDispatch } from 'react-redux';
+import { searchUsers } from '../api/localGetApis.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -246,6 +250,7 @@ export const CoursesView = ({ courses }: { courses: Course[] }) => {
 export const ProfileScreen = ({ route }: any) => {
   const { identifier } = route.params;
   const currentUser = useAppSelector(state => state.user);
+  const dispatch = useDispatch();
   const isOwner =
     currentUser.uid === identifier ||
     currentUser.firstname === identifier ||
@@ -254,6 +259,7 @@ export const ProfileScreen = ({ route }: any) => {
   const navigation = useNavigation<any>();
   const [profileData, setProfileData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Posts');
+  const [isBlocked, setIsBlocked] = useState(false);
   const [followModal, setFollowModal] = useState({
     visible: false,
     title: 'Followers',
@@ -267,7 +273,8 @@ export const ProfileScreen = ({ route }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditItagModalVisible, setIsEditItagModalVisible] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchResults, _setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [isFollowing, setIsFollowing] = useState(profileData.isFollowing);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
@@ -275,6 +282,7 @@ export const ProfileScreen = ({ route }: any) => {
   const [numLines, setNumLines] = useState<number | undefined>(undefined);
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'about' | 'skills' | null>(null);
+  const [blockedUserUid, setBlockedUserUid] = useState<string | null>(null);
   const [tempBio, setTempBio] = useState(profileData.bio || '');
   const [tempSkills, setTempSkills] = useState<string[]>(
     profileData.skills || [],
@@ -366,22 +374,55 @@ export const ProfileScreen = ({ route }: any) => {
       setIsLoading(false);
     }
   };
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const data = await searchUserProfile(identifier, currentUser);
-        setProfileData(data);
-      } catch (error: any) {
+  const fetchProfile = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await searchUserProfile(identifier, currentUser);
+      setProfileData(data);
+      setIsBlocked(false);
+    } catch (error: any) {
+      if (error.response?.status === 403 || error.isBlocked) {
+        setIsBlocked(true);
+        setBlockedUserUid(error.response.data.targetUid);
+      } else {
         console.error(error);
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: error?.message || 'An unexpected error occurred',
-        });
       }
-    };
-    fetchProfile();
+    } finally {
+      setIsLoading(false);
+    }
   }, [identifier, currentUser]);
+  const handleBlockToggle = async () => {
+    const targetUid = profileData?.uid || blockedUserUid;
+    if (!targetUid) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'User ID not found' });
+      return;
+    }
+    const result = await toggleBlockUser(targetUid);
+    if (result.success && result.action) {
+      dispatch(
+        updateBlockedUsers({
+          targetUid,
+          action: result.action,
+        }),
+      );
+      if (result.action === 'unblocked') {
+        setIsBlocked(false);
+        setBlockedUserUid(null);
+        fetchProfile();
+      } else {
+        setIsBlocked(true);
+      }
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Toggle Failed',
+        text2: 'Could not update block status. Please try again.',
+      });
+    }
+  };
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
   useEffect(() => {
     const fetchUniversalSkills = async () => {
       if (skillInput.length < 2) {
@@ -408,6 +449,23 @@ export const ProfileScreen = ({ route }: any) => {
     const timer = setTimeout(fetchUniversalSkills, 400); // 400ms debounce
     return () => clearTimeout(timer);
   }, [skillInput]);
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      const results = await searchUsers(
+        searchQuery,
+        currentUser.tier!,
+        currentUser.usertype!,
+      );
+      setSearchResults(results);
+      setIsSearching(false);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, currentUser]);
   if (!profileData)
     return (
       <ActivityIndicator
@@ -418,6 +476,52 @@ export const ProfileScreen = ({ route }: any) => {
     );
   const isIscoreViewEligible = currentUser.tier !== 'free';
   const isVerified = profileData.isVerified === true;
+  const isExplicitlyBlockedByMe = currentUser.blockedUsers?.includes(
+    profileData?.uid || identifier,
+  );
+  if (isBlocked) {
+    return (
+      <View style={styles.blockedContainer}>
+        <PageHeader title="Profile" />
+        <MaterialIcons
+          name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
+          size={80}
+          color={PRIMARY_COLOR}
+        />
+        <Text style={styles.blockedTitle}>
+          {isExplicitlyBlockedByMe ? 'User Blocked' : 'User Not Found'}
+        </Text>
+        <Text style={styles.blockedSubTitle}>
+          {isExplicitlyBlockedByMe
+            ? `You have blocked this user. Unblock them to view their profile and posts.`
+            : `This account is private or you have restricted access to this profile.`}
+        </Text>
+        <View style={styles.blockedBtnRow}>
+          <TouchableOpacity
+            style={[
+              styles.blockBtn,
+              { borderColor: PRIMARY_COLOR, borderWidth: 1 },
+            ]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={[styles.blockBtnText, { color: PRIMARY_COLOR }]}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+          {isExplicitlyBlockedByMe && (
+            <TouchableOpacity
+              style={[styles.blockBtn, { backgroundColor: PRIMARY_COLOR }]}
+              onPress={handleBlockToggle}
+            >
+              <Text style={[styles.blockBtnText, { color: '#fff' }]}>
+                Unblock User
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
       {!isSearchFocused ? (
@@ -483,6 +587,7 @@ export const ProfileScreen = ({ route }: any) => {
         <UserIdentity
           firstname={profileData.firstname}
           lastname={profileData.lastname}
+          username={profileData.username}
           tier={profileData.tier}
           isVerified={profileData.isVerified}
           showVerifyIcon={true}
@@ -799,7 +904,11 @@ export const ProfileScreen = ({ route }: any) => {
       </View>
       {isSearchFocused && (
         <View style={styles.searchOverlayScreen}>
-          {searchResults.length > 0 ? (
+          {isSearching ? (
+            <View style={styles.searchEmptyState}>
+              <ActivityIndicator color={PRIMARY_COLOR} size="small" />
+            </View>
+          ) : searchResults.length > 0 ? (
             <FlatList
               data={searchResults}
               keyExtractor={item => item.uid}
@@ -824,14 +933,14 @@ export const ProfileScreen = ({ route }: any) => {
                     <UserIdentity
                       firstname={item.firstname}
                       lastname={item.lastname}
+                      username={item.username}
                       tier={item.tier}
                       isVerified={item.isVerified}
-                      size="small" // Keeps it clean in a list row
+                      size="small"
                       isOrganization={item.usertype === 'enterprise'}
                       organizationName={item.organizationName}
                     />
                   </View>
-                  <Text style={styles.resultSub}>{item.usertype}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -1010,6 +1119,14 @@ export const ProfileScreen = ({ route }: any) => {
 };
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF', position: 'relative' },
+  blockedContainer: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   headerRightDiv: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1284,6 +1401,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#222',
   },
+  blockedTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: PRIMARY_COLOR,
+    marginVertical: 15,
+    textAlign: 'center',
+  },
+  blockedSubTitle: {
+    fontSize: 13,
+    color: PRIMARY_COLOR_TINT,
+    marginVertical: 15,
+    textAlign: 'center',
+  },
+  blockedBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+  },
   modalSubTitle: {
     fontSize: 13,
     color: PRIMARY_COLOR_TINT,
@@ -1370,6 +1507,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     borderWidth: 1.5,
     backgroundColor: PRIMARY_COLOR,
+  },
+  blockBtn: {
+    flexDirection: 'row',
+    alignContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  blockBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   followBtnText: {
     fontSize: 15,

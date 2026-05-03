@@ -11,6 +11,7 @@ const initialState: User = {
   pointsBalance: 0,
   accessToken: '',
   sessions: [],
+  blockedUsers: [],
   password: '',
   department: '',
   hasSubscribed: false,
@@ -42,6 +43,18 @@ const userSlice = createSlice({
     updateUserSessions(state, action: PayloadAction<any[]>) {
       state.sessions = action.payload;
     },
+    updateBlockedUsers(state, action: PayloadAction<{ targetUid: string; action: 'blocked' | 'unblocked' }>) {
+      if (!state.blockedUsers) {
+        state.blockedUsers = [];
+      }   
+      if (action.payload.action === 'blocked') {
+        if (!state.blockedUsers.includes(action.payload.targetUid)) {
+          state.blockedUsers.push(action.payload.targetUid);
+        }
+      } else {
+        state.blockedUsers = state.blockedUsers.filter(uid => uid !== action.payload.targetUid);
+      }
+    },
     updateCoursesEnrolled(state, action: PayloadAction<string[]>) {
       state.coursesEnrolled = action.payload;
     },
@@ -51,5 +64,5 @@ const userSlice = createSlice({
 
   },
 });
-export const { setUser, clearUser, updateUserImage, updateCoursesEnrolled, updateCoursesTeaching, updateUserSessions} = userSlice.actions;
+export const { setUser, clearUser, updateUserImage, updateCoursesEnrolled, updateCoursesTeaching, updateUserSessions, updateBlockedUsers} = userSlice.actions;
 export default userSlice.reducer;

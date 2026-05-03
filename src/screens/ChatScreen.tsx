@@ -302,7 +302,8 @@ export const ChatScreen = ({ route, navigation }: Props) => {
             <UserIdentity
               firstname={recipient?.firstname ?? ''}
               lastname={recipient?.lastname ?? ''}
-              tier={recipient?.tier ?? 'free'} // If tier is optional in UserIdentityProps, this is fine
+              username={recipient?.username}
+              tier={recipient?.tier ?? 'free'}
               isVerified={recipient?.isVerified ?? false}
               organizationName={recipient?.organizationName ?? ''}
               size="medium"

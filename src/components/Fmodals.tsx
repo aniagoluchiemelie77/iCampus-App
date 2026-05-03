@@ -68,6 +68,7 @@ const UserRow = ({ item, navigation }: { item: any; navigation: any }) => {
         <UserIdentity
           firstname={item.firstname}
           lastname={item.lastname}
+          username={item.firstname}
           tier={item.tier}
           size="small"
           isOrganization={item.usertype === 'enterprise'}

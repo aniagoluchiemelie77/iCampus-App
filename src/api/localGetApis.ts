@@ -82,3 +82,101 @@ export const getUserPaymentMethods = async (userId: string): Promise<any[]> => {
     return [];
   }
 };
+export const getBlockedUsers = async (
+  userId: string,
+): Promise<any[]> => {
+  if (!userId) return [];
+  try {
+    const response = await fetch(`${baseUrl}users/blocked-list/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Failed to fetch blocked users',
+      });
+      return [];
+    }
+    const list = Array.isArray(result) ? result : result.blockedUsers || result.data;
+    return Array.isArray(list) ? list : [];
+  } catch (error: any) {
+    console.error('BlockedUsersService Error:', error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not connect to the server',
+    });
+    return [];
+  }
+};
+export const getConversations = async (
+  userId: string,
+  pageNum: number,
+): Promise<{ success: boolean; data: any[]; hasMore: boolean }> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/messages/conversations/${userId}?page=${pageNum}`,
+      {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }
+    );
+    const result = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Failed to fetch conversations',
+      });
+      return { success: false, data: [], hasMore: false };
+    }
+    return { 
+      success: true, 
+      data: result.data || [], 
+      hasMore: result.hasMore 
+    };
+  } catch (error: any) {
+    console.error("Fetch Conversations Error:", error);
+    return { success: false, data: [], hasMore: false };
+  }
+};
+export const searchUsers = async (
+  query: string,
+  viewerTier: string,
+  viewerRole: string,
+): Promise<any[]> => {
+  if (!query || query.length < 2) return [];
+
+  try {
+    const response = await fetch(
+      `${baseUrl}users/search?q=${encodeURIComponent(query)}&viewerTier=${viewerTier}&viewerRole=${viewerRole}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Search failed',
+      });
+      return [];
+    }
+    return result.success ? result.data : [];
+  } catch (error) {
+    console.error("Search API Error:", error);
+    return [];
+  }
+};

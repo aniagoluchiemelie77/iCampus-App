@@ -108,6 +108,7 @@ const ProfileModal = ({
         <UserIdentity
           firstname={currentUser.firstname!}
           lastname={currentUser.lastname!}
+          username={currentUser.username}
           tier={currentUser?.tier || 'free'}
           isVerified={currentUser?.isVerified}
           size="medium"

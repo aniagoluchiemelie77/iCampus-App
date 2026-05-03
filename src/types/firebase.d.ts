@@ -52,7 +52,7 @@ export interface User {
   schoolCode?: string;
   current_level?: string;
   coursesEnrolled?: Course.courseId[];
-  isCourseRep?: boolean;
+  blockedUsers?: string[];
   appVersion?: iCampusAppDetails.appVersion;
   isVerified?: boolean
   userToken?: string,
