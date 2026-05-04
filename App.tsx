@@ -71,6 +71,7 @@ import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
 import { SubscriptionScreen } from './src/screens/SubscriptionsScreen.tsx';
 import { BlockedUsersScreen } from './src/screens/BlockedUsersScreen.tsx';
 import { NotificationSettings } from './src/screens/SNotificationScreen.tsx';
+import { ReferralScreen } from './src/screens/SReferralScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -104,6 +105,7 @@ export type RootStackParamList = {
   ICashWithdrawPage: undefined;
   Notifications: undefined;
   NotificationSettings: undefined;
+  ReferralScreen: undefined;
   VerifyOTP: {
     flw_ref: string;
     type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
@@ -370,6 +372,11 @@ const App = () => {
             <Stack.Screen
               name="MessagesList"
               component={MessagesListScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ReferralScreen"
+              component={ReferralScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -1,6 +1,8 @@
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CommonActions } from '@react-navigation/native';
+import DeviceInfo from 'react-native-device-info';
 
 const token = await AsyncStorage.getItem('accessToken');
 const handleTransactionError = (error: any, title: string) => {
@@ -397,5 +399,30 @@ export const askIAssistantAgent = async (
     return { success: true, reply: data.reply };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+};
+export const handleLogout = async (navigation: any) => {
+  try {
+    const currentDeviceId = await DeviceInfo.getUniqueId();
+    await fetch(`${baseUrl}users/revoke-session`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({  
+        deviceIdToRevoke: currentDeviceId 
+      }),
+    });
+  } catch (error) {
+    console.error("Logout action failed", error);
+  } finally {
+    await AsyncStorage.clear(); 
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'SignUp' }], 
+      })
+    );
   }
 };

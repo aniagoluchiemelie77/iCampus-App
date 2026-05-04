@@ -360,7 +360,8 @@ const styles = StyleSheet.create({
   cancelBtn: {
     padding: 16,
     alignItems: 'center',
-    borderWidth: 1,
+    borderRadius: 15,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR,
   },
   cancelBtnText: {

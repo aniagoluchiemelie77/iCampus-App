@@ -73,6 +73,7 @@ export interface User {
   itagusername?: string,
   skills?: string[]; 
   alternateEmails?: string[];
+  referralCode?: string
 };
 export interface iCampusAppDetails {
   appVersion: string;// e.g., ['tech', 'sports', 'arts']

@@ -19,6 +19,9 @@ import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestPinReset } from '../api/localPostApis.ts';
+import Rate, { AndroidMarket } from 'react-native-rate';
+import { ICAMPUS_APPLE_ID } from '@env';
+import { LogoutModal } from '../components/LogoutModal.tsx';
 
 const rnBiometrics = new ReactNativeBiometrics();
 
@@ -42,9 +45,17 @@ export const Settings = () => {
   const navigation = useNavigation<any>();
   const [isResetting, setIsResetting] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
+  const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
   const [biometryType, setBiometryType] = useState<string>('Biometrics');
   const version = DeviceInfo.getVersion();
   const buildNumber = DeviceInfo.getBuildNumber();
+  const options = {
+    AppleAppID: ICAMPUS_APPLE_ID,
+    GooglePackageName: 'com.useicampus.app',
+    preferredAndroidMarket: AndroidMarket.Google,
+    preferInApp: true,
+    openAppStoreIfInAppFails: true,
+  };
   const toggleBiometrics = async () => {
     if (!biometricsEnabled) {
       const { available, biometryType: detectedType } =
@@ -217,18 +228,30 @@ export const Settings = () => {
             icon="campaign-outlined"
             title="Refer a Friend"
             subtitle="Get iCampus credits"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('ReferralScreen')}
           />
           <SettingItem
             icon="star-rate-outlined"
             title="Rate iCampus"
             subtitle="Let us know how we're doing"
-            onPress={() => {}}
+            onPress={() => {
+              Rate.rate(options, (success, errorMessage) => {
+                if (success) {
+                  console.log('Rating dialog opened');
+                }
+                if (errorMessage) {
+                  console.error('Error rating:', errorMessage);
+                }
+              });
+            }}
           />
         </View>
 
         {/* Danger Zone */}
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => setLogoutModalVisible(true)}
+        >
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteButton}>
@@ -239,6 +262,12 @@ export const Settings = () => {
           App Version: {version} ({buildNumber})
         </Text>
         <Toast config={toastConfig} />
+        {/* Modals */}
+        <LogoutModal
+          visible={isLogoutModalVisible}
+          onClose={() => setLogoutModalVisible(false)}
+          navigation={navigation}
+        />
       </ScrollView>
     </SafeAreaView>
   );
