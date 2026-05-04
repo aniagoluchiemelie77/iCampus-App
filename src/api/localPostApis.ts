@@ -426,3 +426,106 @@ export const handleLogout = async (navigation: any) => {
     );
   }
 };
+export const verifySignupEmail = async (email: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/verifyEmail`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json();
+    return { 
+      success: response.ok, 
+      message: data?.message || 'Email verification failed', 
+    };
+  } catch (error) {
+    return { success: false, message: 'Network error occurred.' };
+  }
+};
+
+export const verifySignupEmailCode = async (email: string, code: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/verifyEmailCode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    });
+    const data = await response.json();
+    return { 
+      verified: data.verified, 
+      message: data?.message || 'Invalid or expired code',
+    };
+  } catch (error) {
+    return { verified: false, message: 'Network error occurred.' };
+  }
+};
+
+export const handleRegisterUser = async (registrationData: any) => {
+  try {
+    const response = await fetch(`${baseUrl}users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(registrationData),
+    });
+    const data = await response.json();
+    return { 
+      success: data?.success, 
+      message: data?.message,
+      user: data?.user,
+      accessToken: data?.accessToken,
+      refreshToken: data?.refreshToken,
+      status: response.status,
+    };
+  } catch (error) {
+    return { success: false, message: 'Network error during registration.' };
+  }
+};
+
+export const verifySignupStudent = async (institution: string, matric: string, signal?: AbortSignal) => {
+  try {
+    const response = await fetch(`${baseUrl}verifyStudent/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        school_name: institution,
+        matriculation_number: matric,
+      }),
+      signal, 
+    });
+
+    const data = await response.json();
+    return {
+      success: response.ok,
+      verified: data.verified,
+      data,
+      message: response.ok ? 'Student verified' : (data.message || 'Student not found'),
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, aborted: true };
+    return { success: false, message: 'Network error during student verification.' };
+  }
+};
+export const verifySignupInstructor = async (institution: string, staffId: string, signal?: AbortSignal) => {
+  try {
+    const response = await fetch(`${baseUrl}verifyInstructor/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        school_name: institution,
+        staff_id: staffId,
+      }),
+      signal,
+    });
+
+    const data = await response.json();
+    return {
+      verified: data.verified,
+      success: response.ok,
+      data,
+      message: response.ok ? 'Instructor verified' : (data.message || 'Instructor not found'),
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, aborted: true };
+    return { success: false, message: 'Network error during instructor verification.' };
+  }
+};

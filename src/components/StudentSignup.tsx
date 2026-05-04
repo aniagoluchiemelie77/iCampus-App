@@ -30,6 +30,17 @@ import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
+import {
+  verifySignupEmail,
+  verifySignupEmailCode,
+  handleRegisterUser,
+  verifySignupStudent,
+} from '../api/localPostApis';
+import {
+  isValidEmail,
+  isValidPassword,
+  getPasswordRequirements,
+} from '../utils/SignupHelpers';
 
 export type ProgressBarProps = {
   step: number;
@@ -55,28 +66,7 @@ export type SignupResponse = {
   email?: string;
   message?: string;
   token?: string;
-  // Add any other fields your backend returns
 };
-
-//Universal email regex
-export const isValidEmail = (inputEmail: string) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(inputEmail);
-};
-
-//Universal password regex
-export const isValidPassword = (inputPassword: string) => {
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{13,}$/;
-  return passwordRegex.test(inputPassword);
-};
-
-export const getPasswordRequirements = (password: string) => ({
-  hasUppercase: /[A-Z]/.test(password),
-  hasLowercase: /[a-z]/.test(password),
-  hasNumber: /\d/.test(password),
-  hasSymbol: /[\W_]/.test(password),
-  hasMinLength: password.length >= 10,
-});
 
 export const Footer = () => {
   const navigation = useNavigation<any>();
@@ -91,7 +81,6 @@ export const Footer = () => {
     </View>
   );
 };
-
 export const ProgressBar = ({
   step,
   setStep,
@@ -129,8 +118,7 @@ const StudentSignup = () => {
   const [institution, setInstitution] = useState('');
   const [email, setEmail] = useState('');
   const { height } = Dimensions.get('window');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [verifiedEmail, setVerifiedEmail] = useState(false);
+  const [_verifiedEmail, setVerifiedEmail] = useState(false);
   const [timer, setTimer] = useState(900); // 15 minutes = 900 seconds
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -148,8 +136,7 @@ const StudentSignup = () => {
 
   const [emailCode, setEmailCode] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [verifiedInstitution, setVerifiedInstitution] = useState(false);
+  const [_verifiedInstitution, setVerifiedInstitution] = useState(false);
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -166,7 +153,6 @@ const StudentSignup = () => {
   const [alertMessage, setAlertMessage] = useState('');
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
-  //const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
@@ -227,23 +213,18 @@ const StudentSignup = () => {
     const timeout = setTimeout(() => controller.abort(), 20000);
     let message;
     try {
-      const response = await fetch(`${baseUrl}verifyStudent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          school_name: institution,
-          matriculation_number: matric,
-        }),
-        signal: controller.signal,
-      });
-      const data = await response.json();
-      if (response.ok) {
-        console.log('✅ Student verified:', data);
-        setVerifiedStudent(data);
+      const response = await verifySignupStudent(
+        institution,
+        matric,
+        controller.signal,
+      );
+      if (response.success) {
+        console.log('✅ Student verified:', response.data);
+        setVerifiedStudent(response.data);
         setStudentNotFound(false);
         nextStep();
       } else {
-        message = 'Student not found';
+        message = response.message || 'Student not found';
         console.log('❌ ', message);
         setStudentNotFound(true);
         setAlertMessage(message);
@@ -265,18 +246,12 @@ const StudentSignup = () => {
   const verifyEmail = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await verifySignupEmail(email);
+      if (response.success) {
         nextStep();
       } else {
-        message = data?.message || 'Email verification failed, please retry.';
+        message =
+          response?.message || 'Email verification failed, please retry.';
         console.log('❌ ', message);
         setAlertMessage(message);
         setAlertType('error');
@@ -295,15 +270,8 @@ const StudentSignup = () => {
   const resendCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
+      const response = await verifySignupEmail(email);
+      if (response.success) {
         Toast.show({
           type: 'success',
           text1: 'Email verification resent successfully!',
@@ -315,7 +283,7 @@ const StudentSignup = () => {
         setEmailCode('');
       } else {
         message =
-          data?.message ||
+          response?.message ||
           'Error resending email verification code, please retry.';
         console.log('❌ ', message);
         setAlertMessage(message);
@@ -333,16 +301,8 @@ const StudentSignup = () => {
   const verifyCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmailCode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          code: emailCode,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await verifySignupEmailCode(email, emailCode);
+      if (response.verified) {
         Toast.show({
           type: 'success',
           text1: 'Email verified successfully!',
@@ -355,7 +315,7 @@ const StudentSignup = () => {
         setVerifiedEmail(true);
         console.log('Post Next');
       } else {
-        message = data?.message || 'Invalid or expired verification code';
+        message = response?.message || 'Invalid or expired verification code';
         console.log('❌ ', message);
         setVerifiedEmail(false);
         setAlertMessage(message);
@@ -388,10 +348,8 @@ const StudentSignup = () => {
     if (!selectedImage) return;
     setUploading(true);
     try {
-      // Save the selected image as the final avatar
       setAvatar(selectedImage);
       setHasUploadedAvatar(true);
-      // Close modal
       setShowModal(false);
       Toast.show({
         type: 'success',
@@ -437,30 +395,20 @@ const StudentSignup = () => {
           : {}),
       };
 
-      const response = await fetch(`${baseUrl}users/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registrationData),
-      });
-
-      const result = await response.json();
+      const response = await handleRegisterUser(registrationData);
 
       if (response.status === 409) {
         setCreating(false);
         setAlertType('error');
-        setAlertMessage(result.message || 'User already exists.');
+        setAlertMessage(response.message || 'User already exists.');
         setAlertVisible(true);
         return;
       }
 
-      if (response.ok) {
+      if (response.success) {
         setAlertType('success');
         setAlertMessage('Your account has been successfully created.');
-
-        // result should contain: { message, user, accessToken, refreshToken }
-        const { accessToken, refreshToken, user } = result;
-
-        // Save locally
+        const { accessToken, refreshToken, user } = response;
         await AsyncStorage.setItem('hasLaunched', 'true');
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
@@ -477,9 +425,9 @@ const StudentSignup = () => {
         setCreating(false);
         navigation.navigate('Home');
       } else {
-        console.warn('Signup failed:', result.message);
+        console.warn('Signup failed:', response.message);
         setAlertType('error');
-        setAlertMessage(result.message || 'Account creation failed.');
+        setAlertMessage(response.message || 'Account creation failed.');
         setCreating(false);
       }
       setAlertVisible(true);
@@ -491,7 +439,6 @@ const StudentSignup = () => {
       setCreating(false);
     }
   };
-
   useEffect(() => {
     if (timer <= 0) return;
 
@@ -506,8 +453,7 @@ const StudentSignup = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer]); // ← empty dependency array
-
+  }, [timer]);
   return (
     <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
       <>

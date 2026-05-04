@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import { useEffect, useState } from 'react';
-import { baseUrl } from './HomeScreenComponents';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
@@ -30,16 +29,22 @@ import {
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
+import { ProgressBar, Footer } from './StudentSignup';
 import {
-  ProgressBar,
-  Footer,
   isValidEmail,
   isValidPassword,
   getPasswordRequirements,
-} from './StudentSignup';
+} from '../utils/SignupHelpers';
 import { authorize } from 'react-native-app-auth';
 import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '@env';
 import DeviceInfo from 'react-native-device-info';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { formatSignupTime } from '../utils/ChatTimestampFormatter';
+import {
+  verifySignupEmail,
+  verifySignupEmailCode,
+  handleRegisterUser,
+} from '../api/localPostApis';
 
 GoogleSignin.configure({
   webClientId: WEB_CLIENT_ID,
@@ -67,8 +72,8 @@ const OtherUserSignup = () => {
   const [lastname, setLastname] = useState('');
   const [country, setCountry] = useState('');
   const [isSocialSignup, setIsSocialSignup] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [verifiedEmail, setVerifiedEmail] = useState(false);
+
+  const [_verifiedEmail, setVerifiedEmail] = useState(false);
   const [orgName, setOrgName] = useState('');
   const [website, setWebsite] = useState('');
   const [jobTitle, setJobTitle] = useState('');
@@ -92,25 +97,24 @@ const OtherUserSignup = () => {
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
+  // Add this near your other useState hooks
+  const [socialProvider, setSocialProvider] = useState<
+    'google' | 'github' | 'password'
+  >('password');
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
   //const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}:${secs < 10 ? '0' + secs : secs}`;
-  };
-  const isProfessionalEmail = (email: string) => {
+  const isProfessionalEmail = (em: string) => {
     const forbiddenDomains = [
       'gmail.com',
       'yahoo.com',
       'outlook.com',
       'hotmail.com',
     ];
-    const domain = email.split('@')[1]?.toLowerCase();
+    const domain = em.split('@')[1]?.toLowerCase();
     return domain && !forbiddenDomains.includes(domain);
   };
 
@@ -119,18 +123,12 @@ const OtherUserSignup = () => {
   const verifyEmail = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await verifySignupEmail(email);
+      if (response.success) {
         nextStep();
       } else {
-        message = data?.message || 'Email verification failed, please retry.';
+        message =
+          response.message || 'Email verification failed, please retry.';
         console.log('❌ ', message);
         setAlertMessage(message);
         setAlertType('error');
@@ -149,15 +147,8 @@ const OtherUserSignup = () => {
   const resendCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
+      const response = await verifySignupEmail(email);
+      if (response.success) {
         Toast.show({
           type: 'success',
           text1: 'Email verification resent successfully!',
@@ -169,7 +160,7 @@ const OtherUserSignup = () => {
         setEmailCode('');
       } else {
         message =
-          data?.message ||
+          response?.message ||
           'Error resending email verification code, please retry.';
         console.log('❌ ', message);
         setAlertMessage(message);
@@ -187,16 +178,8 @@ const OtherUserSignup = () => {
   const verifyCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmailCode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          code: emailCode,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await verifySignupEmailCode(email, emailCode);
+      if (response.verified) {
         Toast.show({
           type: 'success',
           text1: 'Email verified successfully!',
@@ -207,7 +190,7 @@ const OtherUserSignup = () => {
         nextStep();
         setVerifiedEmail(true);
       } else {
-        message = data?.message || 'Invalid or expired verification code';
+        message = response.message || 'Invalid or expired verification code';
         console.log('❌ ', message);
         setVerifiedEmail(false);
         setAlertMessage(message);
@@ -240,10 +223,8 @@ const OtherUserSignup = () => {
     if (!selectedImage) return;
     setUploading(true);
     try {
-      // Save the selected image as the final avatar
       setAvatar(selectedImage);
       setHasUploadedAvatar(true);
-      // Close modal
       setShowModal(false);
       Toast.show({
         type: 'success',
@@ -262,18 +243,18 @@ const OtherUserSignup = () => {
       const deviceId = await DeviceInfo.getUniqueId();
       const deviceName = DeviceInfo.getModel();
       const brand = DeviceInfo.getBrand();
-
-      // Build the user object dynamically
       const registrationData = {
         currentIScore: 5,
         usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
-        firstname,
+        firstname: subType === 'enterprise' ? '' : firstname,
         itagusername: firstname,
-        lastname: subType === 'enterprise' ? '' : lastname, // Or use rep name
+        lastname: subType === 'enterprise' ? '' : lastname,
         email,
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password: isSocialSignup ? 'SOCIAL_AUTH' : password,
+        providerId: isSocialSignup ? socialProvider : 'password',
+        isSocialSignup,
         country: country || '',
         organizationName: subType === 'enterprise' ? orgName : '',
         website: subType === 'enterprise' ? website : '',
@@ -281,33 +262,24 @@ const OtherUserSignup = () => {
         createdAt: new Date().toISOString(),
         profilePic: [avatar || ''],
       };
-
-      const response = await fetch(`${baseUrl}users/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registrationData),
-      });
-
-      const result = await response.json();
-
+      const response = await handleRegisterUser(registrationData);
       if (response.status === 409) {
         setCreating(false);
         setAlertType('error');
-        setAlertMessage(result.message || 'User or Enterprise already exists.');
+        setAlertMessage(
+          response.message || 'User or Enterprise already exists.',
+        );
         setAlertVisible(true);
         return;
       }
-      if (response.ok) {
+      if (response.success) {
         setAlertType('success');
         const message =
           subType === 'enterprise'
             ? 'Enterprise account created successfully!'
             : 'Account created successfully!';
         setAlertMessage(message);
-        // result should contain: { message, user, accessToken, refreshToken }
-        const { accessToken, refreshToken, user: newUser } = result;
-
-        // Save locally
+        const { accessToken, refreshToken, user: newUser } = response;
         await AsyncStorage.setItem('hasLaunched', 'true');
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
@@ -324,9 +296,9 @@ const OtherUserSignup = () => {
         setCreating(false);
         navigation.navigate('Home');
       } else {
-        console.warn('Signup failed:', result.message);
+        console.warn('Signup failed:', response.message);
         setAlertType('error');
-        setAlertMessage(result.message || 'Account creation failed.');
+        setAlertMessage(response.message || 'Account creation failed.');
         setCreating(false);
       }
       setAlertVisible(true);
@@ -344,24 +316,23 @@ const OtherUserSignup = () => {
         await GoogleSignin.hasPlayServices();
         const response = await GoogleSignin.signIn();
         const user = response.data?.user;
-
         if (user) {
           setFirstname(user.givenName || '');
           setLastname(user.familyName || '');
           setEmail(user.email || '');
           setAvatar(user.photo || null);
           setIsSocialSignup(true);
-          setStep(3); // Skip straight to Nationality
+          setSocialProvider('google');
+          setStep(5);
         }
       } else if (provider === 'Github') {
-        // 2. Start the OAuth flow
         const authState = await authorize(githubConfig);
-        // 3. Fetch User Profile using the Access Token
         const userResponse = await fetch('https://api.github.com/user', {
           headers: { Authorization: `Bearer ${authState.accessToken}` },
         });
         const githubUser = await userResponse.json();
-        // 4. Fetch User Email (GitHub often returns null email in the main profile)
+
+        // Email Fetch
         const emailResponse = await fetch(
           'https://api.github.com/user/emails',
           {
@@ -369,27 +340,37 @@ const OtherUserSignup = () => {
           },
         );
         const emails = await emailResponse.json();
-        const primaryEmail =
-          emails.find((e: any) => e.primary)?.email || emails[0]?.email;
+
+        const primaryEmail = Array.isArray(emails)
+          ? emails.find((e: any) => e.primary)?.email || emails[0]?.email
+          : githubUser.email;
+
         if (githubUser) {
-          const fullName = githubUser.name || githubUser.login;
+          const fullName = githubUser.name || githubUser.login || '';
           const nameParts = fullName.trim().split(/\s+/);
+
           setFirstname(nameParts[0] || '');
           setLastname(nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
           setEmail(primaryEmail || '');
           setAvatar(githubUser.avatar_url || null);
           setIsSocialSignup(true);
-          setStep(3);
+          setSocialProvider('github');
+          setStep(5);
         }
       }
     } catch (error: any) {
+      // Standardize error checking across different auth providers
+      const isCancelled =
+        error.message?.includes('cancel') ||
+        error.code === 'RNAppAuthError' ||
+        error.code === 'SIGN_IN_CANCELLED';
+
+      if (isCancelled) return;
+
       console.error(`${provider} Auth Error:`, error);
-      if (error.code === 'auth/user-cancelled') return;
-      if (error.code !== 'auth/user-cancelled') {
-        setAlertMessage(`${provider} signup failed. Please try again.`);
-        setAlertType('error');
-        setAlertVisible(true);
-      }
+      setAlertMessage(`Could not connect to ${provider}. Please try again.`);
+      setAlertType('error');
+      setAlertVisible(true);
     }
   };
   // Check if website has a dot and at least two characters after it
@@ -412,7 +393,7 @@ const OtherUserSignup = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer]); // ← empty dependency array
+  }, [timer]);
 
   return (
     <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
@@ -425,10 +406,10 @@ const OtherUserSignup = () => {
               style={StudentSignupStyles.card}
               onPress={() => {
                 setSubType('individual');
-                setStep(1); // Start the OtherUserSignup flow you already built
+                setStep(1);
               }}
             >
-              <Icon name="person-outline" size={40} color="#f54b02" />
+              <Icon name="person-outline" size={40} color={PRIMARY_COLOR} />
               <Text style={StudentSignupStyles.cardTitle}>Individual User</Text>
               <Text style={StudentSignupStyles.cardSub}>
                 {' '}
@@ -439,17 +420,19 @@ const OtherUserSignup = () => {
               style={StudentSignupStyles.card}
               onPress={() => {
                 setSubType('enterprise');
-                setStep(1); // This will lead to the Organization form
+                setStep(1);
               }}
             >
-              <Icon name="business-outline" size={40} color="#f54b02" />
+              <Icon name="business-outline" size={40} color={PRIMARY_COLOR} />
               <Text style={StudentSignupStyles.cardTitle}>Organization</Text>
               <Text style={StudentSignupStyles.cardSub}>
                 Institutions, schools, or corporate partners.
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={{ color: '#f54b02', marginTop: 10 }}>Go Back</Text>
+              <Text style={{ color: PRIMARY_COLOR, marginTop: 10 }}>
+                Go Back
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -462,7 +445,7 @@ const OtherUserSignup = () => {
             </Text>
             <TextInput
               placeholder="Email"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               value={email}
               onChangeText={setEmail}
               style={StudentSignupStyles.input}
@@ -472,7 +455,7 @@ const OtherUserSignup = () => {
             >
               <TextInput
                 placeholder="Password"
-                placeholderTextColor="#929191"
+                placeholderTextColor={PRIMARY_COLOR_TINT}
                 style={StudentSignupStyles.input2}
                 value={password}
                 onChangeText={setPassword}
@@ -482,7 +465,7 @@ const OtherUserSignup = () => {
                 <Icon
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={20}
-                  color="#929191"
+                  color={PRIMARY_COLOR_TINT}
                   style={{ marginRight: 7 }}
                 />
               </TouchableOpacity>
@@ -491,31 +474,31 @@ const OtherUserSignup = () => {
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasUppercase ? '#f54b02' : '#929191' },
+                  { backgroundColor: hasUppercase ? PRIMARY_COLOR : '#929191' },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasLowercase ? '#f54b02' : '#929191' },
+                  { backgroundColor: hasLowercase ? PRIMARY_COLOR : '#929191' },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasNumber ? '#f54b02' : '#929191' },
+                  { backgroundColor: hasNumber ? PRIMARY_COLOR : '#929191' },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasSymbol ? '#f54b02' : '#929191' },
+                  { backgroundColor: hasSymbol ? PRIMARY_COLOR : '#929191' },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasMinLength ? '#f54b02' : '#929191' },
+                  { backgroundColor: hasMinLength ? PRIMARY_COLOR : '#929191' },
                 ]}
               />
             </View>
@@ -533,7 +516,7 @@ const OtherUserSignup = () => {
                   backgroundColor:
                     !isValidEmail(email) || !isValidPassword(password)
                       ? '#fa9265'
-                      : '#f54b02',
+                      : PRIMARY_COLOR,
                 },
               ]}
             >
@@ -583,7 +566,7 @@ const OtherUserSignup = () => {
             {/* Code Input */}
             <TextInput
               placeholder="Enter 6‑digit code"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               value={emailCode}
               onChangeText={setEmailCode}
               maxLength={6}
@@ -591,7 +574,7 @@ const OtherUserSignup = () => {
             />
             <View style={StudentSignupStyles.rowDiv2}>
               <Text style={StudentSignupStyles.rowDivText}>
-                Code expires in {formatTime(timer)}
+                Code expires in {formatSignupTime(timer)}
               </Text>
               {/* Resend Code Button */}
               <TouchableOpacity onPress={resendCode}>
@@ -603,7 +586,7 @@ const OtherUserSignup = () => {
               <TouchableOpacity
                 style={[
                   StudentSignupStyles.nextButton,
-                  { backgroundColor: '#f54b02' },
+                  { backgroundColor: PRIMARY_COLOR },
                 ]}
                 disabled={verifying}
                 onPress={verifyCode}
@@ -625,14 +608,14 @@ const OtherUserSignup = () => {
             <TextInput
               placeholder="First Name"
               value={firstname}
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               onChangeText={setFirstname}
               style={StudentSignupStyles.input}
             />
             <TextInput
               placeholder="Last Name"
               value={lastname}
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               onChangeText={setLastname}
               style={[StudentSignupStyles.input, { marginTop: 15 }]}
             />
@@ -679,7 +662,9 @@ const OtherUserSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    country && firstname && lastname ? '#f54b02' : '#fa9265',
+                    country && firstname && lastname
+                      ? PRIMARY_COLOR
+                      : '#fa9265',
                 },
               ]}
             >
@@ -718,7 +703,7 @@ const OtherUserSignup = () => {
             <TouchableOpacity
               style={[
                 StudentSignupStyles.nextButton,
-                { backgroundColor: '#f54b02' },
+                { backgroundColor: PRIMARY_COLOR },
               ]}
               onPress={handleImageUpdate}
             >
@@ -797,7 +782,8 @@ const OtherUserSignup = () => {
               style={[
                 StudentSignupStyles.nextButton,
                 {
-                  backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
+                  backgroundColor:
+                    agreed || creating ? PRIMARY_COLOR : '#fa9265',
                 },
               ]}
             >
@@ -816,14 +802,14 @@ const OtherUserSignup = () => {
             </Text>
             <TextInput
               placeholder="Legal Organization Name"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               style={[StudentSignupStyles.input, { marginBottom: 15 }]}
               value={orgName}
               onChangeText={setOrgName}
             />
             <TextInput
               placeholder="Official Website (e.g. www.school.com)"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               style={StudentSignupStyles.input}
               value={website}
               onChangeText={setWebsite}
@@ -833,7 +819,10 @@ const OtherUserSignup = () => {
               disabled={!orgName || isValidWebsite(website) === false}
               style={[
                 StudentSignupStyles.nextButton,
-                { backgroundColor: orgName && website ? '#f54b02' : '#fa9265' },
+                {
+                  backgroundColor:
+                    orgName && website ? PRIMARY_COLOR : '#fa9265',
+                },
               ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
@@ -849,14 +838,14 @@ const OtherUserSignup = () => {
             </Text>
             <TextInput
               placeholder="Your Full Name"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               style={[StudentSignupStyles.input, { marginBottom: 15 }]}
               value={firstname}
               onChangeText={setFirstname}
             />
             <TextInput
               placeholder="Job Title (e.g. IT Admin, Principal)"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               style={StudentSignupStyles.input}
               value={jobTitle}
               onChangeText={setJobTitle}
@@ -868,7 +857,7 @@ const OtherUserSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    firstname && jobTitle ? '#f54b02' : '#fa9265',
+                    firstname && jobTitle ? PRIMARY_COLOR : '#fa9265',
                 },
               ]}
             >
@@ -885,7 +874,7 @@ const OtherUserSignup = () => {
             </Text>
             <TextInput
               placeholder="Official Business Email"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               style={StudentSignupStyles.input}
               value={email}
               onChangeText={setEmail}
@@ -902,7 +891,7 @@ const OtherUserSignup = () => {
               style={[
                 StudentSignupStyles.nextButton,
                 {
-                  backgroundColor: canProceed ? '#f54b02' : '#fa9265',
+                  backgroundColor: canProceed ? PRIMARY_COLOR : '#fa9265',
                 },
               ]}
             >
@@ -929,7 +918,7 @@ const OtherUserSignup = () => {
             />
             <View style={StudentSignupStyles.rowDiv2}>
               <Text style={StudentSignupStyles.rowDivText}>
-                Code expires in {formatTime(timer)}
+                Code expires in {formatSignupTime(timer)}
               </Text>
               {/* Resend Code Button */}
               <TouchableOpacity onPress={resendCode}>
@@ -940,7 +929,7 @@ const OtherUserSignup = () => {
               <TouchableOpacity
                 style={[
                   StudentSignupStyles.nextButton,
-                  { backgroundColor: '#f54b02' },
+                  { backgroundColor: PRIMARY_COLOR },
                 ]}
                 onPress={verifyCode}
               >
@@ -990,7 +979,8 @@ const OtherUserSignup = () => {
               style={[
                 StudentSignupStyles.nextButton,
                 {
-                  backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
+                  backgroundColor:
+                    agreed || creating ? PRIMARY_COLOR : '#fa9265',
                 },
               ]}
             >

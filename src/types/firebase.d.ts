@@ -18,6 +18,7 @@ export interface UserSession {
 export interface User {
   uid: string;
   bio?: string;
+  providerId?: string;
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;

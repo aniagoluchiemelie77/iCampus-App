@@ -30,14 +30,18 @@ import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
+import { ProgressBar, Institution, Footer } from './StudentSignup';
 import {
-  ProgressBar,
-  Institution,
-  Footer,
   isValidEmail,
   isValidPassword,
   getPasswordRequirements,
-} from './StudentSignup';
+} from '../utils/SignupHelpers';
+import {
+  verifySignupEmail,
+  verifySignupEmailCode,
+  handleRegisterUser,
+  verifySignupInstructor,
+} from '../api/localPostApis';
 
 type VerifiedInstructor = {
   firstname: string;
@@ -157,23 +161,18 @@ const InstructorSignup = () => {
     const timeout = setTimeout(() => controller.abort(), 20000);
     let message;
     try {
-      const response = await fetch(`${baseUrl}verifyInstructor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          school_name: institution,
-          staff_id: staffId,
-        }),
-        signal: controller.signal,
-      });
-      const data = await response.json();
-      if (response.ok) {
-        console.log('✅ Instructor verified:', data);
-        setVerifiedInstructor(data);
+      const response = await verifySignupInstructor(
+        institution,
+        staffId,
+        controller.signal,
+      );
+      if (response.verified) {
+        console.log('✅ Instructor verified:', response.data);
+        setVerifiedInstructor(response.data);
         setInstructorNotFound(false);
         nextStep();
       } else {
-        message = 'Instructor not found';
+        message = response.message || 'Instructor not found';
         setInstructorNotFound(true);
         setAlertMessage(message);
         setAlertType('error');
@@ -194,18 +193,12 @@ const InstructorSignup = () => {
   const verifyEmail = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await verifySignupEmail(email);
+      if (response.success) {
         nextStep();
       } else {
-        message = data?.message || 'Email verification failed, please retry.';
+        message =
+          response?.message || 'Email verification failed, please retry.';
         console.log('❌ ', message);
         setAlertMessage(message);
         setAlertType('error');
@@ -224,15 +217,9 @@ const InstructorSignup = () => {
   const resendCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+      const response = await verifySignupEmailCode(email, emailCode);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (response.verified) {
         Toast.show({
           type: 'success',
           text1: 'Email verification resent successfully!',
@@ -244,7 +231,7 @@ const InstructorSignup = () => {
         setEmailCode('');
       } else {
         message =
-          data?.message ||
+          response?.message ||
           'Error resending email verification code, please retry.';
         console.log('❌ ', message);
         setAlertMessage(message);
@@ -262,16 +249,8 @@ const InstructorSignup = () => {
   const verifyCode = async () => {
     let message;
     try {
-      const response = await fetch(`${baseUrl}users/verifyEmailCode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          code: emailCode,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await verifySignupEmailCode(email, emailCode);
+      if (response.verified) {
         Toast.show({
           type: 'success',
           text1: 'Email verified successfully!',
@@ -284,7 +263,7 @@ const InstructorSignup = () => {
         setVerifiedEmail(true);
         console.log('Post Next');
       } else {
-        message = data?.message || 'Invalid or expired verification code';
+        message = response?.message || 'Invalid or expired verification code';
         console.log('❌ ', message);
         setVerifiedEmail(false);
         setAlertMessage(message);
@@ -340,7 +319,6 @@ const InstructorSignup = () => {
       const deviceId = await DeviceInfo.getUniqueId();
       const deviceName = DeviceInfo.getModel();
       const brand = DeviceInfo.getBrand();
-
       const registrationData = {
         currentIScore: 5,
         isVerified: true,
@@ -365,31 +343,18 @@ const InstructorSignup = () => {
             }
           : {}),
       };
-
-      const response = await fetch(`${baseUrl}users/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registrationData),
-      });
-
-      const result = await response.json();
-
+      const response = await handleRegisterUser(registrationData);
       if (response.status === 409) {
         setCreating(false);
         setAlertType('error');
-        setAlertMessage(result.message || 'User already exists.');
+        setAlertMessage(response.message || 'User already exists.');
         setAlertVisible(true);
         return;
       }
-
-      if (response.ok) {
+      if (response.success) {
         setAlertType('success');
         setAlertMessage('Your account has been successfully created.');
-
-        // result should contain: { message, user, accessToken, refreshToken }
-        const { accessToken, refreshToken, user } = result;
-
-        // Save locally
+        const { accessToken, refreshToken, user } = response;
         await AsyncStorage.setItem('hasLaunched', 'true');
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
@@ -406,9 +371,9 @@ const InstructorSignup = () => {
         setCreating(false);
         navigation.navigate('Home');
       } else {
-        console.warn('Signup failed:', result.message);
+        console.warn('Signup failed:', response.message);
         setAlertType('error');
-        setAlertMessage(result.message || 'Account creation failed.');
+        setAlertMessage(response.message || 'Account creation failed.');
         setCreating(false);
       }
       setAlertVisible(true);
