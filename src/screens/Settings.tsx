@@ -22,6 +22,7 @@ import { requestPinReset } from '../api/localPostApis.ts';
 import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '@env';
 import { LogoutModal } from '../components/LogoutModal.tsx';
+import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';
 
 const rnBiometrics = new ReactNativeBiometrics();
 
@@ -46,6 +47,7 @@ export const Settings = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [biometryType, setBiometryType] = useState<string>('Biometrics');
   const version = DeviceInfo.getVersion();
   const buildNumber = DeviceInfo.getBuildNumber();
@@ -254,7 +256,10 @@ export const Settings = () => {
         >
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton}>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => setDeleteModalVisible(true)}
+        >
           <Text style={styles.deleteText}>Delete Account</Text>
         </TouchableOpacity>
 
@@ -266,6 +271,11 @@ export const Settings = () => {
         <LogoutModal
           visible={isLogoutModalVisible}
           onClose={() => setLogoutModalVisible(false)}
+          navigation={navigation}
+        />
+        <DeleteAccountModal
+          visible={isDeleteModalVisible}
+          onClose={() => setDeleteModalVisible(false)}
           navigation={navigation}
         />
       </ScrollView>
