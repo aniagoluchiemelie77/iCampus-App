@@ -7,7 +7,10 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SignupScreenStyles } from '../assets/styles/colors';
+import {
+  SignupScreenStyles,
+  StudentSignupStyles,
+} from '../assets/styles/colors';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -73,105 +76,102 @@ export default function ChangePasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <IconBackground />
-      <View style={SignupScreenStyles.container2}>
-        <View style={SignupScreenStyles.headerBtnsContainer}>
-          <Text style={SignupScreenStyles.activeTabText}>Forgot Password</Text>
-        </View>
-        <View style={SignupScreenStyles.inputContainer}>
-          <Text style={SignupScreenStyles.inputHeader}>
-            Enter your New Password:
-          </Text>
-          <View style={SignupScreenStyles.passwordInputWrapper}>
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              style={SignupScreenStyles.passwordInput}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
+      <View style={StudentSignupStyles.container}>
+        <Text style={StudentSignupStyles.mainHeader}>Forgot Password</Text>
+        <Text style={StudentSignupStyles.inputHeaderLogin}>
+          Enter your New Password:
+        </Text>
+        <View style={StudentSignupStyles.passwordInput}>
+          <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+            <MaterialIcons
+              name={
+                showPassword ? 'visibility-off-outlined' : 'visibility-outlined'
+              }
+              size={20}
+              color={PRIMARY_COLOR_TINT}
+              style={{ marginHorizontal: 5 }}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <MaterialIcons
-                name={
-                  showPassword
-                    ? 'visibility-off-outlined'
-                    : 'visibility-outlined'
-                }
-                size={20}
-                color={PRIMARY_COLOR_TINT}
-                style={{ marginHorizontal: 7 }}
-              />
-            </TouchableOpacity>
-          </View>
-          {!isValidPassword(password) && password.length > 0 && (
-            <Text style={SignupScreenStyles.validationText}>
-              Password must be at least 13 characters and include uppercase,
-              lowercase, number, and symbol.
-            </Text>
-          )}
-          <View style={SignupScreenStyles.passwordInputWrapper}>
-            <TextInput
-              placeholder="Confirm Password"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              style={SignupScreenStyles.passwordInput}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              <MaterialIcons
-                name={
-                  showConfirmPassword
-                    ? 'visibility-off-outlined'
-                    : 'visibility-outlined'
-                }
-                size={20}
-                color={PRIMARY_COLOR_TINT}
-                style={{ marginHorizontal: 7 }}
-              />
-            </TouchableOpacity>
-          </View>
-          {confirmPassword.length > 0 && confirmPassword !== password && (
-            <Text style={SignupScreenStyles.validationText}>
-              Passwords do not match.
-            </Text>
-          )}
-          <TouchableOpacity
-            style={[
-              SignupScreenStyles.toggleBtns,
-              (!isValidPassword(password) || confirmPassword !== password) &&
-                SignupScreenStyles.disabledBtn,
-            ]}
-            onPress={handleChangePassword}
-            disabled={
-              !isValidPassword(password) ||
-              confirmPassword !== password ||
-              isVerifying
-            }
-          >
-            <Text style={SignupScreenStyles.selectorHeader}>
-              {isVerifying ? 'Changing...' : 'Change'}
-            </Text>
           </TouchableOpacity>
-          <SweetAlertModal
-            visible={alertVisible}
-            onConfirm={() => setAlertVisible(false)}
-            title={
-              alertType === 'success'
-                ? 'Success!'
-                : alertType === 'error'
-                ? 'Oops!'
-                : alertType === 'warning'
-                ? 'Warning!'
-                : 'Notice'
-            }
-            message={alertMessage}
-            type={alertType}
+          <TextInput
+            placeholder="Enter your password..."
+            placeholderTextColor={PRIMARY_COLOR_TINT}
+            style={StudentSignupStyles.input2}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
           />
         </View>
+        {!isValidPassword(password) && password.length > 0 && (
+          <Text style={SignupScreenStyles.validationText}>
+            Password must be at least 13 characters and include uppercase,
+            lowercase, number, and symbol.
+          </Text>
+        )}
+        <Text style={StudentSignupStyles.inputHeaderLogin}>
+          Confirm your New Password:
+        </Text>
+        <View style={StudentSignupStyles.passwordInput}>
+          <TouchableOpacity
+            onPress={() => setShowConfirmPassword(prev => !prev)}
+          >
+            <MaterialIcons
+              name={
+                showConfirmPassword
+                  ? 'visibility-off-outlined'
+                  : 'visibility-outlined'
+              }
+              size={20}
+              color={PRIMARY_COLOR_TINT}
+              style={{ marginHorizontal: 5 }}
+            />
+          </TouchableOpacity>
+          <TextInput
+            placeholder="Confirm your new password..."
+            placeholderTextColor={PRIMARY_COLOR_TINT}
+            style={StudentSignupStyles.input2}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry={!showConfirmPassword}
+          />
+        </View>
+        {confirmPassword.length > 0 && confirmPassword !== password && (
+          <Text style={SignupScreenStyles.validationText}>
+            Passwords do not match.
+          </Text>
+        )}
+        <TouchableOpacity
+          style={[
+            SignupScreenStyles.toggleBtns,
+            (!isValidPassword(password) || confirmPassword !== password) &&
+              SignupScreenStyles.disabledBtn,
+          ]}
+          onPress={handleChangePassword}
+          disabled={
+            !isValidPassword(password) ||
+            confirmPassword !== password ||
+            isVerifying
+          }
+        >
+          <Text style={SignupScreenStyles.selectorHeader}>
+            {isVerifying ? 'Changing...' : 'Change'}
+          </Text>
+        </TouchableOpacity>
       </View>
+      <SweetAlertModal
+        visible={alertVisible}
+        onConfirm={() => setAlertVisible(false)}
+        title={
+          alertType === 'success'
+            ? 'Success!'
+            : alertType === 'error'
+            ? 'Oops!'
+            : alertType === 'warning'
+            ? 'Warning!'
+            : 'Notice'
+        }
+        message={alertMessage}
+        type={alertType}
+      />
     </KeyboardAvoidingView>
   );
 }

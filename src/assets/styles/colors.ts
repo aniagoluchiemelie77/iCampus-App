@@ -1374,7 +1374,7 @@ export const SignupScreenStyles = StyleSheet.create({
     width: '100%',
     borderColor: PRIMARY_COLOR_TINT,
     color: '#222',
-    borderRadius: 10,
+    borderRadius: 5,
     marginBottom: 15,
     fontSize: 14,
   },

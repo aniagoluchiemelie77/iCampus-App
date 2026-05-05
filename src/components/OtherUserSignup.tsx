@@ -49,8 +49,8 @@ GoogleSignin.configure({
 export const githubConfig = {
   issuer: 'https://github.com',
   clientId: GITHUB_CLIENT_ID,
-  clientSecret: GITHUB_CLIENT_SECRET, // In prod, keep this on backend!
-  redirectUrl: 'iCampus://oauth', // This MUST match your GitHub App settings
+  clientSecret: GITHUB_CLIENT_SECRET,
+  redirectUrl: 'iCampus://oauth',
   scopes: ['read:user', 'user:email'],
 };
 

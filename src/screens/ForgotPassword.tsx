@@ -7,7 +7,10 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SignupScreenStyles } from '../assets/styles/colors';
+import {
+  SignupScreenStyles,
+  StudentSignupStyles,
+} from '../assets/styles/colors';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
@@ -99,74 +102,70 @@ export default function ForgotPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <IconBackground />
-      <View style={SignupScreenStyles.container2}>
-        <View style={SignupScreenStyles.headerBtnsContainer}>
-          <Text style={SignupScreenStyles.activeTabText}>Forgot Password</Text>
-        </View>
-        <View style={SignupScreenStyles.inputContainer}>
-          {!emailVerified && (
-            <Animated.View
-              entering={FadeInRight.duration(400).springify()}
-              exiting={FadeOutLeft}
+      <View style={StudentSignupStyles.container}>
+        <Text style={StudentSignupStyles.mainHeader}>Forgot Password</Text>
+        {!emailVerified && (
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
+            <Text style={StudentSignupStyles.inputHeaderLogin}>
+              Enter your Email:
+            </Text>
+            <TextInput
+              style={SignupScreenStyles.input}
+              placeholder="Email"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              value={email}
+              onChangeText={setEmail}
+            />
+            <Text style={SignupScreenStyles.validationText}>
+              {!isValidEmail(email) && email.length > 0
+                ? 'Invalid email format'
+                : ''}
+            </Text>
+            <TouchableOpacity
+              style={[
+                SignupScreenStyles.toggleBtns,
+                isVerifying && SignupScreenStyles.disabledBtn,
+              ]}
+              onPress={handleVerifyEmail}
+              disabled={isVerifying}
             >
-              <Text style={SignupScreenStyles.inputHeader}>
-                Enter your Email:
+              <Text style={SignupScreenStyles.selectorHeader}>
+                {isVerifying ? 'Verifying...' : 'Verify'}
               </Text>
-              <TextInput
-                style={SignupScreenStyles.input}
-                placeholder="Email"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                value={email}
-                onChangeText={setEmail}
-              />
-              <Text style={SignupScreenStyles.validationText}>
-                {!isValidEmail(email) && email.length > 0
-                  ? 'Invalid email format'
-                  : ''}
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+        {emailVerified && (
+          <>
+            <Text style={StudentSignupStyles.inputHeaderLogin}>
+              Enter the 6-digit verification code sent to your email:
+            </Text>
+            <TextInput
+              style={SignupScreenStyles.input}
+              placeholder="Enter 6-digit code"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              value={code}
+              onChangeText={setCode}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+            <TouchableOpacity
+              style={[
+                SignupScreenStyles.toggleBtns,
+                isVerifying && SignupScreenStyles.disabledBtn,
+              ]}
+              onPress={handleVerifyCode}
+              disabled={isVerifying}
+            >
+              <Text style={SignupScreenStyles.selectorHeader}>
+                {isVerifying ? 'Verifying...' : 'Verify'}
               </Text>
-              <TouchableOpacity
-                style={[
-                  SignupScreenStyles.toggleBtns,
-                  isVerifying && SignupScreenStyles.disabledBtn,
-                ]}
-                onPress={handleVerifyEmail}
-                disabled={isVerifying}
-              >
-                <Text style={SignupScreenStyles.selectorHeader}>
-                  {isVerifying ? 'Verifying...' : 'Verify'}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-          {emailVerified && (
-            <>
-              <Text style={SignupScreenStyles.inputHeader}>
-                Enter the 6-digit verification code sent to your email:
-              </Text>
-              <TextInput
-                style={SignupScreenStyles.input}
-                placeholder="Enter 6-digit code"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                value={code}
-                onChangeText={setCode}
-                keyboardType="numeric"
-                maxLength={6}
-              />
-              <TouchableOpacity
-                style={[
-                  SignupScreenStyles.toggleBtns,
-                  isVerifying && SignupScreenStyles.disabledBtn,
-                ]}
-                onPress={handleVerifyCode}
-                disabled={isVerifying}
-              >
-                <Text style={SignupScreenStyles.selectorHeader}>
-                  {isVerifying ? 'Verifying...' : 'Verify'}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
       <SweetAlertModal
         visible={alertVisible}
