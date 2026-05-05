@@ -4,9 +4,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Modal,
   Image,
-  TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
@@ -21,19 +19,18 @@ import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { WEB_CLIENT_ID } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  HomeScreenComponentStyles,
-  ProfileComponentStyles,
-  StudentSignupStyles,
-} from '../assets/styles/colors';
+import { StudentSignupStyles } from '../assets/styles/colors';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
-import { ProgressBar, Footer } from './StudentSignup';
+import { ProgressBar, Footer } from './SignupComponents';
+import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {
   isValidEmail,
   isValidPassword,
   getPasswordRequirements,
+  isValidWebsite,
 } from '../utils/SignupHelpers';
 import { authorize } from 'react-native-app-auth';
 import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '@env';
@@ -45,6 +42,7 @@ import {
   verifySignupEmailCode,
   handleRegisterUser,
 } from '../api/localPostApis';
+import { ImageConfirmationModal } from './ImageConfirmationModal';
 
 GoogleSignin.configure({
   webClientId: WEB_CLIENT_ID,
@@ -373,11 +371,6 @@ const OtherUserSignup = () => {
       setAlertVisible(true);
     }
   };
-  // Check if website has a dot and at least two characters after it
-  const isValidWebsite = (url: string) => {
-    const websiteRegex = /\.[a-z]{2,}$/i;
-    return websiteRegex.test(url.trim());
-  };
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -409,7 +402,11 @@ const OtherUserSignup = () => {
                 setStep(1);
               }}
             >
-              <Icon name="person-outline" size={40} color={PRIMARY_COLOR} />
+              <MaterialIcons
+                name="person-outlined"
+                size={40}
+                color={PRIMARY_COLOR}
+              />
               <Text style={StudentSignupStyles.cardTitle}>Individual User</Text>
               <Text style={StudentSignupStyles.cardSub}>
                 {' '}
@@ -423,7 +420,11 @@ const OtherUserSignup = () => {
                 setStep(1);
               }}
             >
-              <Icon name="business-outline" size={40} color={PRIMARY_COLOR} />
+              <MaterialIcons
+                name="business-outlined"
+                size={40}
+                color={PRIMARY_COLOR}
+              />
               <Text style={StudentSignupStyles.cardTitle}>Organization</Text>
               <Text style={StudentSignupStyles.cardSub}>
                 Institutions, schools, or corporate partners.
@@ -439,7 +440,10 @@ const OtherUserSignup = () => {
 
         {/* STEP 1 — Credentials (Email & Password) */}
         {subType === 'individual' && step === 1 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Create your account
             </Text>
@@ -515,7 +519,7 @@ const OtherUserSignup = () => {
                 {
                   backgroundColor:
                     !isValidEmail(email) || !isValidPassword(password)
-                      ? '#fa9265'
+                      ? PRIMARY_COLOR_TINT
                       : PRIMARY_COLOR,
                 },
               ]}
@@ -551,12 +555,15 @@ const OtherUserSignup = () => {
                 </Text>
               </TouchableOpacity>
             </View>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 2 — Confirm Email */}
         {subType === 'individual' && step === 2 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Confirm Your Email
             </Text>
@@ -596,12 +603,15 @@ const OtherUserSignup = () => {
                 </Text>
               </TouchableOpacity>
             )}
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 3 — Personal Details (New Step) */}
         {subType === 'individual' && step === 3 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               {isSocialSignup ? 'Confirm your details' : 'Tell us your name'}
             </Text>
@@ -627,7 +637,11 @@ const OtherUserSignup = () => {
               <Text style={StudentSignupStyles.selectorHeader2}>
                 {country || 'Select Country'}
               </Text>
-              <Icon name="chevron-forward" size={20} color="#838282ff" />
+              <MaterialIcons
+                name="chevron-right-outlined"
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+              />
             </TouchableOpacity>
 
             <CountryPicker
@@ -664,13 +678,13 @@ const OtherUserSignup = () => {
                   backgroundColor:
                     country && firstname && lastname
                       ? PRIMARY_COLOR
-                      : '#fa9265',
+                      : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 4 - Avatar upload (Can skip) */}
@@ -783,7 +797,7 @@ const OtherUserSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    agreed || creating ? PRIMARY_COLOR : '#fa9265',
+                    agreed || creating ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
@@ -821,7 +835,7 @@ const OtherUserSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    orgName && website ? PRIMARY_COLOR : '#fa9265',
+                    orgName && website ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
@@ -857,7 +871,7 @@ const OtherUserSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    firstname && jobTitle ? PRIMARY_COLOR : '#fa9265',
+                    firstname && jobTitle ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
@@ -891,7 +905,9 @@ const OtherUserSignup = () => {
               style={[
                 StudentSignupStyles.nextButton,
                 {
-                  backgroundColor: canProceed ? PRIMARY_COLOR : '#fa9265',
+                  backgroundColor: canProceed
+                    ? PRIMARY_COLOR
+                    : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
@@ -980,7 +996,7 @@ const OtherUserSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    agreed || creating ? PRIMARY_COLOR : '#fa9265',
+                    agreed || creating ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
@@ -1008,45 +1024,14 @@ const OtherUserSignup = () => {
         type={alertType}
       />
       <Toast config={toastConfig} />
-      <Modal visible={showModal} transparent animationType="slide">
-        <View style={HomeScreenComponentStyles.overlayCenter}>
-          <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
-            <View style={HomeScreenComponentStyles.backdrop} />
-          </TouchableWithoutFeedback>
-          <View style={HomeScreenComponentStyles.popupCenter}>
-            <View style={HomeScreenComponentStyles.topHeader2}>
-              <Text style={HomeScreenComponentStyles.welcomeText2}>
-                Confirm Profile Photo
-              </Text>
-            </View>
-            {selectedImage && (
-              <Image
-                source={{ uri: selectedImage }}
-                style={ProfileComponentStyles.modalImage}
-              />
-            )}
-            <View style={ProfileComponentStyles.modalButtons}>
-              <TouchableOpacity
-                style={ProfileComponentStyles.confirmButton}
-                onPress={confirmUpload}
-              >
-                <Text style={ProfileComponentStyles.buttonText}>
-                  {uploading ? 'Uploading...' : 'Confirm'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={ProfileComponentStyles.cancelButton}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={ProfileComponentStyles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ImageConfirmationModal
+        isVisible={showModal}
+        imageUri={selectedImage}
+        onClose={() => setShowModal(false)}
+        onConfirm={confirmUpload}
+        isUploading={uploading}
+      />
     </View>
   );
 };
-
-
 export default OtherUserSignup;

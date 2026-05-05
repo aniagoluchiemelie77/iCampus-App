@@ -529,3 +529,30 @@ export const verifySignupInstructor = async (institution: string, staffId: strin
     return { success: false, message: 'Network error during instructor verification.' };
   }
 };
+
+export const signupValidateInstitution = async (institution: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/institutions/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schoolName: institution }),
+    });
+
+    const data = await response.json();
+
+    return {
+      success: response.ok,
+      schoolCode: data.schoolCode,
+      data,
+      message: response.ok 
+        ? 'Institution validated' 
+        : (data?.message || 'Failed to validate institution'),
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, aborted: true };
+    return { 
+      success: false, 
+      message: 'Network error during institution validation' 
+    };
+  }
+};

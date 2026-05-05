@@ -856,3 +856,30 @@ export type AssistantMessage = {
     fileName?: string;
   }[];
 };
+
+export type VerifiedStudent = {
+  firstname: string;
+  lastname: string;
+  department: string;
+  current_level: string;
+  phone_number: string;
+  matriculation_number: string;
+  school_name: string;
+};
+
+export type SignupResponse = {
+  verified?: boolean;
+  email?: string;
+  message?: string;
+  token?: string;
+};
+
+export type VerifiedInstructor = {
+  firstname: string;
+  lastname: string;
+  department: string;
+  current_level: string;
+  phone_number: string;
+  staff_id: string;
+  school_name: string;
+};

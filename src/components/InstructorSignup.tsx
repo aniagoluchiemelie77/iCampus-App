@@ -4,16 +4,12 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Modal,
   Image,
-  TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
-import { CountryPicker } from 'react-native-country-codes-picker'; // if you use this library
+import { CountryPicker } from 'react-native-country-codes-picker';
 import { useEffect, useState } from 'react';
-import { baseUrl } from './HomeScreenComponents';
 import { Dropdown } from 'react-native-element-dropdown';
-import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
@@ -21,16 +17,17 @@ import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {
-  HomeScreenComponentStyles,
-  ProfileComponentStyles,
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
   StudentSignupStyles,
 } from '../assets/styles/colors';
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
 import LogoBigger from '../assets/images/Logo';
-import { ProgressBar, Institution, Footer } from './StudentSignup';
+import { ProgressBar, Footer } from './SignupComponents';
 import {
   isValidEmail,
   isValidPassword,
@@ -41,42 +38,26 @@ import {
   verifySignupEmailCode,
   handleRegisterUser,
   verifySignupInstructor,
+  signupValidateInstitution,
 } from '../api/localPostApis';
-
-type VerifiedInstructor = {
-  firstname: string;
-  lastname: string;
-  department: string;
-  current_level: string;
-  phone_number: string;
-  staff_id: string;
-  school_name: string;
-};
-
-export type SignupResponse = {
-  verified?: boolean;
-  email?: string;
-  message?: string;
-  token?: string;
-};
+import { signupFetchInstitutions } from '../api/localGetApis';
+import { formatSignupTime } from '../utils/ChatTimestampFormatter';
+import { VerifiedInstructor } from '../types/firebase';
+import { ImageConfirmationModal } from './ImageConfirmationModal';
+import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 
 const InstructorSignup = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
   const [step, setStep] = useState(0);
-
   const [country, setCountry] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
-
   const [institution, setInstitution] = useState('');
   const [email, setEmail] = useState('');
   const { height } = Dimensions.get('window');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [verifiedEmail, setVerifiedEmail] = useState(false);
+  const [_verifiedEmail, setVerifiedEmail] = useState(false);
   const [timer, setTimer] = useState(900);
-
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
   const [staffId, setStaffId] = useState('');
   const [verifiedInstructor, setVerifiedInstructor] =
     useState<VerifiedInstructor | null>(null);
@@ -90,9 +71,7 @@ const InstructorSignup = () => {
 
   const [emailCode, setEmailCode] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [verifiedInstitution, setVerifiedInstitution] = useState(false);
-
+  const [_verifiedInstitution, setVerifiedInstitution] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -108,53 +87,33 @@ const InstructorSignup = () => {
   const [alertMessage, setAlertMessage] = useState('');
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
-  //const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
   const checkICampusOperationalInSchool = async () => {
-    const response = await fetch(`${baseUrl}users/institutions/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schoolName: institution }),
-    });
-    const data = await response.json();
-    if (response.ok) {
+    const response = await signupValidateInstitution(institution);
+    if (response.success) {
       setVerifiedInstitution(true);
-      setSchoolCode(data.schoolCode);
+      setSchoolCode(response.schoolCode);
       nextStep();
     } else {
       setVerifiedInstitution(false);
-      console.log(data?.message || 'Failed to validate institution');
+      console.log(response?.message || 'Failed to validate institution');
       setAlertType('error');
-      setAlertMessage(data?.message || 'Failed to validate institution');
+      setAlertMessage(response?.message || 'Failed to validate institution');
       setAlertVisible(true);
     }
   };
   const fetchInstitutionsByCountry = async (selectedCountry: string) => {
     try {
-      const response = await fetch(
-        `${baseUrl}users/institutions?country=${selectedCountry}`,
-      );
-      const data = await response.json();
-
-      if (response.ok) {
-        const formatted = data.institutions.map((i: Institution) => ({
-          label: i.name,
-          value: i.name,
-        }));
-        setInstitutionItems(formatted);
+      const response = await signupFetchInstitutions(selectedCountry);
+      if (response.success) {
+        setInstitutionItems(response.data);
       }
     } catch (error) {
       console.error('Error fetching institutions:', error);
     }
   };
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}:${secs < 10 ? '0' + secs : secs}`;
-  };
-
   const verifyInstructor = async () => {
     setVerifying(true);
     const controller = new AbortController();
@@ -407,15 +366,16 @@ const InstructorSignup = () => {
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
         <LogoBigger />
-
         <Text style={StudentSignupStyles.title}>Instructor signup</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Select your country
             </Text>
-
             <TouchableOpacity
               onPress={() => setShowCountryPicker(true)}
               style={StudentSignupStyles.selector}
@@ -423,21 +383,22 @@ const InstructorSignup = () => {
               <Text style={StudentSignupStyles.selectorHeader2}>
                 {country || 'Select Country'}
               </Text>
-              <Icon name="chevron-forward" size={20} color="#838282ff" />
+              <MaterialIcons
+                name="chevron-right-outlined"
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+              />
             </TouchableOpacity>
-
             <CountryPicker
               show={showCountryPicker}
               lang="en"
               searchMessage="Search country..."
-              enableModalAvoiding={true} // Helps with keyboard/search bar
+              enableModalAvoiding={true}
               onBackdropPress={() => setShowCountryPicker(false)}
               style={{
-                // This makes it a bottom sheet at a set height
                 modal: {
-                  height: 400, // Adjust this value to your preferred height
+                  height: 400,
                 },
-                // Modern styling for the search input
                 textInput: {
                   height: 45,
                   borderRadius: 10,
@@ -453,23 +414,27 @@ const InstructorSignup = () => {
                 fetchInstitutionsByCountry(item.name.en);
               }}
             />
-
             <TouchableOpacity
               onPress={nextStep}
               disabled={!country}
               style={[
                 StudentSignupStyles.nextButton,
-                { backgroundColor: country ? '#f54b02' : '#fa9265' },
+                {
+                  backgroundColor: country ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
+                },
               ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 1 — Select Institution */}
         {step === 1 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Select Institution:
             </Text>
@@ -479,7 +444,7 @@ const InstructorSignup = () => {
               valueField="value"
               search
               placeholder="Select your institution"
-              searchPlaceholderTextColor="#222"
+              searchPlaceholderTextColor={PRIMARY_COLOR_TINT}
               value={institution}
               onChange={async item => {
                 setInstitution(item.value);
@@ -491,23 +456,28 @@ const InstructorSignup = () => {
               disabled={!institution}
               style={[
                 StudentSignupStyles.nextButton,
-                { backgroundColor: country ? '#f54b02' : '#fa9265' }, // gray when disabled
+                {
+                  backgroundColor: country ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
+                }, // gray when disabled
               ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 2 — Staff ID Confirmation */}
         {step === 2 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Enter your Staff ID:
             </Text>
             <TextInput
               placeholder="Staff ID"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               value={staffId}
               onChangeText={setStaffId}
               style={StudentSignupStyles.input}
@@ -525,7 +495,9 @@ const InstructorSignup = () => {
                 StudentSignupStyles.nextButton,
                 {
                   backgroundColor:
-                    staffId.length < 3 || verifying ? '#fa9265' : '#f54b02',
+                    staffId.length < 3 || verifying
+                      ? PRIMARY_COLOR_TINT
+                      : PRIMARY_COLOR,
                 },
               ]}
             >
@@ -533,30 +505,37 @@ const InstructorSignup = () => {
                 {verifying ? 'Verifying...' : 'Verify'}
               </Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 3 — Password */}
         {step === 3 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Welcome {verifiedInstructor?.firstname}, create your password:
             </Text>
             <View style={StudentSignupStyles.passwordInput}>
               <TextInput
                 placeholder="Password"
-                placeholderTextColor="#929191"
+                placeholderTextColor={PRIMARY_COLOR_TINT}
                 style={StudentSignupStyles.input2}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
-                <Icon
-                  name={showPassword ? 'eye-off' : 'eye'}
+                <MaterialIcons
+                  name={
+                    showPassword
+                      ? 'visibility-off-outlined'
+                      : 'visibility-outlined'
+                  }
                   size={20}
-                  color="#929191"
-                  style={{ marginRight: 7 }}
+                  color={PRIMARY_COLOR_TINT}
+                  style={{ marginHorizontal: 7 }}
                 />
               </TouchableOpacity>
             </View>
@@ -564,38 +543,58 @@ const InstructorSignup = () => {
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasUppercase ? '#f54b02' : '#929191' },
+                  {
+                    backgroundColor: hasUppercase
+                      ? PRIMARY_COLOR
+                      : PRIMARY_COLOR_TINT,
+                  },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasLowercase ? '#f54b02' : '#929191' },
+                  {
+                    backgroundColor: hasLowercase
+                      ? PRIMARY_COLOR
+                      : PRIMARY_COLOR_TINT,
+                  },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasNumber ? '#f54b02' : '#929191' },
+                  {
+                    backgroundColor: hasNumber
+                      ? PRIMARY_COLOR
+                      : PRIMARY_COLOR_TINT,
+                  },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasSymbol ? '#f54b02' : '#929191' },
+                  {
+                    backgroundColor: hasSymbol
+                      ? PRIMARY_COLOR
+                      : PRIMARY_COLOR_TINT,
+                  },
                 ]}
               />
               <View
                 style={[
                   StudentSignupStyles.strengthSegment,
-                  { backgroundColor: hasMinLength ? '#f54b02' : '#929191' },
+                  {
+                    backgroundColor: hasMinLength
+                      ? PRIMARY_COLOR
+                      : PRIMARY_COLOR_TINT,
+                  },
                 ]}
               />
             </View>
             <View style={StudentSignupStyles.passwordInput}>
               <TextInput
                 placeholder="Confirm Password"
-                placeholderTextColor="#929191"
+                placeholderTextColor={PRIMARY_COLOR_TINT}
                 style={StudentSignupStyles.input2}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -604,11 +603,15 @@ const InstructorSignup = () => {
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword(prev => !prev)}
               >
-                <Icon
-                  name={showConfirmPassword ? 'eye-off' : 'eye'}
+                <MaterialIcons
+                  name={
+                    showConfirmPassword
+                      ? 'visibility-off-outlined'
+                      : 'visibility-outlined'
+                  }
                   size={20}
-                  color="#929191"
-                  style={{ marginRight: 7 }}
+                  color={PRIMARY_COLOR_TINT}
+                  style={{ marginHorizontal: 7 }}
                 />
               </TouchableOpacity>
             </View>
@@ -617,7 +620,6 @@ const InstructorSignup = () => {
                 Passwords do not match.
               </Text>
             )}
-
             <TouchableOpacity
               onPress={nextStep}
               disabled={
@@ -628,25 +630,28 @@ const InstructorSignup = () => {
                 {
                   backgroundColor:
                     !isValidPassword(password) || confirmPassword !== password
-                      ? '#fa9265'
-                      : '#f54b02',
+                      ? PRIMARY_COLOR_TINT
+                      : PRIMARY_COLOR,
                 },
               ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 4 — Email */}
         {step === 4 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Enter your email:
             </Text>
             <TextInput
               placeholder="Email"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               value={email}
               onChangeText={setEmail}
               style={StudentSignupStyles.input}
@@ -664,18 +669,23 @@ const InstructorSignup = () => {
               style={[
                 StudentSignupStyles.nextButton,
                 {
-                  backgroundColor: !isValidEmail(email) ? '#fa9265' : '#f54b02',
+                  backgroundColor: !isValidEmail(email)
+                    ? PRIMARY_COLOR_TINT
+                    : PRIMARY_COLOR,
                 },
               ]}
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 5 — Confirm Email */}
         {step === 5 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Confirm Your Email
             </Text>
@@ -685,7 +695,7 @@ const InstructorSignup = () => {
             {/* Code Input */}
             <TextInput
               placeholder="Enter 6‑digit code"
-              placeholderTextColor="#929191"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
               value={emailCode}
               onChangeText={setEmailCode}
               maxLength={6}
@@ -693,7 +703,7 @@ const InstructorSignup = () => {
             />
             <View style={StudentSignupStyles.rowDiv2}>
               <Text style={StudentSignupStyles.rowDivText}>
-                Code expires in {formatTime(timer)}
+                Code expires in {formatSignupTime(timer)}
               </Text>
               {/* Resend Code Button */}
               <TouchableOpacity onPress={resendCode}>
@@ -705,19 +715,22 @@ const InstructorSignup = () => {
               <TouchableOpacity
                 style={[
                   StudentSignupStyles.nextButton,
-                  { backgroundColor: '#f54b02' },
+                  { backgroundColor: PRIMARY_COLOR },
                 ]}
                 onPress={verifyCode}
               >
                 <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
               </TouchableOpacity>
             )}
-          </>
+          </Animated.View>
         )}
 
         {/* STEP 6 - Avatar upload (Can skip) */}
         {step === 6 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.header}>Upload Profile Photo</Text>
 
             {/* Main Container for the Avatar and Icon Overlay */}
@@ -730,12 +743,20 @@ const InstructorSignup = () => {
                       style={StudentSignupStyles.avatarImage}
                     />
                   ) : (
-                    <Icon name="person-circle" size={120} color="#E0E0E0" />
+                    <MaterialIcons
+                      name="account-circle-outlined"
+                      size={120}
+                      color={PRIMARY_COLOR}
+                    />
                   )}
 
                   {/* The Camera Icon Overlay */}
                   <View style={StudentSignupStyles.cameraIconBadge}>
-                    <Icon name="camera" size={20} color="#FFFFFF" />
+                    <MaterialIcons
+                      name="camera-alt-outlined"
+                      size={20}
+                      color="#FFFFFF"
+                    />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -745,7 +766,7 @@ const InstructorSignup = () => {
             <TouchableOpacity
               style={[
                 StudentSignupStyles.nextButton,
-                { backgroundColor: '#f54b02' },
+                { backgroundColor: PRIMARY_COLOR },
               ]}
               onPress={handleImageUpdate}
             >
@@ -763,7 +784,7 @@ const InstructorSignup = () => {
                 {hasUploadedAvatar ? 'Next' : 'Skip for now'}
               </Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/*FINAL STEP - iCampus Terms and conditions*/}
@@ -805,7 +826,7 @@ const InstructorSignup = () => {
                   agreed && StudentSignupStyles.checkboxChecked,
                 ]}
               >
-                {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
+                {agreed && <MaterialIcons name="check-outlined" size={14} color="#FFF" />}
               </View>
 
               {/* The Label */}
@@ -824,7 +845,8 @@ const InstructorSignup = () => {
               style={[
                 StudentSignupStyles.nextButton,
                 {
-                  backgroundColor: agreed || creating ? '#f54b02' : '#fa9265',
+                  backgroundColor:
+                    agreed || creating ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                 },
               ]}
             >
@@ -852,42 +874,13 @@ const InstructorSignup = () => {
         type={alertType}
       />
       <Toast config={toastConfig} />
-      <Modal visible={showModal} transparent animationType="slide">
-        <View style={HomeScreenComponentStyles.overlayCenter}>
-          <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
-            <View style={HomeScreenComponentStyles.backdrop} />
-          </TouchableWithoutFeedback>
-          <View style={HomeScreenComponentStyles.popupCenter}>
-            <View style={HomeScreenComponentStyles.topHeader2}>
-              <Text style={HomeScreenComponentStyles.welcomeText2}>
-                Confirm Profile Photo
-              </Text>
-            </View>
-            {selectedImage && (
-              <Image
-                source={{ uri: selectedImage }}
-                style={ProfileComponentStyles.modalImage}
-              />
-            )}
-            <View style={ProfileComponentStyles.modalButtons}>
-              <TouchableOpacity
-                style={ProfileComponentStyles.confirmButton}
-                onPress={confirmUpload}
-              >
-                <Text style={ProfileComponentStyles.buttonText}>
-                  {uploading ? 'Uploading...' : 'Confirm'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={ProfileComponentStyles.cancelButton}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={ProfileComponentStyles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ImageConfirmationModal
+        isVisible={showModal}
+        imageUri={selectedImage}
+        onClose={() => setShowModal(false)}
+        onConfirm={confirmUpload}
+        isUploading={uploading}
+      />
     </View>
   );
 };

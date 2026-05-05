@@ -180,3 +180,36 @@ export const searchUsers = async (
     return [];
   }
 };
+export const signupFetchInstitutions = async (country: string) => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/institutions?country=${country}`
+    );
+    const data = await response.json();
+
+    if (response.ok) {
+      const formatted = data.institutions.map((i: any) => ({
+        label: i.name,
+        value: i.name,
+      }));
+      
+      return {
+        success: true,
+        data: formatted,
+        originalData: data,
+        message: 'Institutions loaded successfully',
+      };
+    }
+
+    return {
+      success: false,
+      message: data?.message || 'Failed to fetch institutions',
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, aborted: true };
+    return { 
+      success: false, 
+      message: 'Network error while fetching institutions' 
+    };
+  }
+};

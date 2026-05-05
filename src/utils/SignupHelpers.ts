@@ -17,3 +17,7 @@ export const getPasswordRequirements = (password: string) => ({
   hasSymbol: /[\W_]/.test(password),
   hasMinLength: password.length >= 10,
 });
+export const isValidWebsite = (url: string) => {
+    const websiteRegex = /\.[a-z]{2,}$/i;
+    return websiteRegex.test(url.trim());
+  };

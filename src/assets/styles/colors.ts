@@ -68,29 +68,7 @@ export const MainSignupStyles = StyleSheet.create({
     borderRightWidth: 1.3,
     borderRightColor: PRIMARY_COLOR,
   },
-  buttonText: {
-    color: PRIMARY_COLOR,
-    fontSize: 15,
-    fontWeight: '700',
-    paddingVertical: 9,
-    textAlign: 'center',
-  },
-  footerDiv: {
-    flexDirection: 'row',
-    marginTop: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  footerDivText: {
-    color: '#fff',
-    marginRight: 5,
-    fontSize: 15,
-  },
-  footerDivText2: {
-    color: PRIMARY_COLOR,
-    fontSize: 15,
-  },
+
 })
 export const StudentSignupStyles = StyleSheet.create({
   container: {
@@ -99,12 +77,6 @@ export const StudentSignupStyles = StyleSheet.create({
     backgroundColor: '#fff',
     margin: 20,
     borderRadius: 10,
-  },
-  progressClickable: {
-    flex: 1,
-    height: 6,
-    marginHorizontal: 4,
-    borderRadius: 3,
   },
   title: {
     fontSize: 30,
@@ -118,8 +90,6 @@ export const StudentSignupStyles = StyleSheet.create({
     color: '#222',
     fontWeight: '700',
     marginVertical: 12,
-    width: '100%',
-    alignSelf: 'flex-start',
   },
   header: {
     fontSize: 15,
@@ -127,46 +97,42 @@ export const StudentSignupStyles = StyleSheet.create({
     fontWeight: '700',
     marginVertical: 12,
     width: '100%',
-    alignSelf: 'center',
+    textAlign: 'center',
   },
   inputHeader2: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#222',
     marginVertical: 10,
-    maxWidth: '100%',
-    flexWrap: 'wrap',
-  },
-  progressBarDiv: {
-    flexDirection: 'row',
-    marginVertical: 20,
-    width: '90%',
   },
   selector: {
     width: '100%',
     padding: 10,
-    borderWidth: 1,
-    borderColor: '#929191',
+    borderWidth: .8,
+    borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   selectorHeader2: {
     fontSize: 15,
-    color: '#929191',
+    color: PRIMARY_COLOR_TINT,
   },
   dropdown: {
-    minWidth: '100%',
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#929191',
+    width: '100%',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderWidth: .8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 10,
     color: '#222',
   },
   input: {
-    minWidth: '100%',
-    padding: 10,
-    borderWidth: 1,
+    width: '100%',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderWidth: .8,
     color: '#222',
-    borderColor: '#929191',
-    borderRadius: 5,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 10,
   },
   input2: {
     flex: 1,
@@ -176,20 +142,20 @@ export const StudentSignupStyles = StyleSheet.create({
   passwordInput: {
     width: '100%',
     borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#929191',
+    borderWidth: .8,
+    borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
   nextButton: {
-    minWidth: '100%',
-    padding: 12,
+    width: '80%',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     marginTop: 20,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 15,
+    alignContent: 'center',
   },
   nextButton2: {
     minWidth: 'auto',
@@ -208,7 +174,7 @@ export const StudentSignupStyles = StyleSheet.create({
     alignSelf: 'center',
   },
   nextButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
   },
@@ -220,9 +186,8 @@ export const StudentSignupStyles = StyleSheet.create({
   errorText: {
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 8,
-    width: '100%',
-    color: 'red',
+    marginTop: 10,
+    color: PRIMARY_COLOR,
   },
   footerDiv: {
     width: '100%',
@@ -245,6 +210,7 @@ export const StudentSignupStyles = StyleSheet.create({
   },
   strengthBarContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     marginBottom: 10,
     marginHorizontal: 5,
@@ -325,7 +291,7 @@ export const StudentSignupStyles = StyleSheet.create({
     marginVertical: 8,
   },
   avatarWrapper: {
-    position: 'relative', // Allows the camera icon to sit on top
+    position: 'relative', 
     borderWidth: 2,
     borderColor: PRIMARY_COLOR,
     borderStyle: 'dashed',
@@ -348,7 +314,7 @@ export const StudentSignupStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4, // Shadow for Android
-    shadowColor: '#000', // Shadow for iOS
+    shadowColor: PRIMARY_COLOR_TINT, // Shadow for iOS
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -461,14 +427,6 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
   },
-  topHeader2: {
-    backgroundColor: 'inherit',
-    padding: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
   topHeader3: {
     backgroundColor: 'inherit',
     padding: 10,
@@ -488,10 +446,6 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 19,
     fontWeight: 800,
-  },
-  welcomeText2: {
-    fontSize: 18,
-    fontWeight: 700,
   },
    welcomeText2c: {
     fontSize: 18,
@@ -764,12 +718,6 @@ badge: {
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
     justifyContent: 'flex-start',
   },
-  overlayCenter: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   overlay2: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)', // blurred effect
@@ -793,14 +741,6 @@ badge: {
     elevation: 5,
     alignItems: 'center',
     position: 'relative',
-  },
-  popupCenter: {
-    width: '80%',
-    padding: 15,
-    backgroundColor: '#eee',
-    borderRadius: 12,
-    elevation: 5,
-    alignItems: 'center',
   },
   popupCenter2: {
     width: '85%',
@@ -2392,46 +2332,16 @@ export const ProfileComponentStyles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  modalImage: {
-    width: '100%',
-    height: 350,
-    borderRadius: 10,
-    marginBottom: 7,
-    alignSelf: 'center',
-    resizeMode: 'cover',
-  },
   modalImage2: {
     width: '100%',
     height: 300,
     borderRadius: 10,
     marginBottom: 7,
   },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginVertical: 8,
-  },
   modalButtons2: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-  },
-  confirmButton: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 10,
-    borderRadius: 10,
-    width: '40%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 10,
-    borderRadius: 10,
-    width: '40%',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   nameBoxb: {
     flexDirection: 'row',
