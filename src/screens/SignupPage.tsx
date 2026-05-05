@@ -1,6 +1,7 @@
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
+import { SignupScreenStyles } from '../assets/styles/colors';
 import StudentSignup from '../components/StudentSignup';
 import InstructorSignup from '../components/InstructorSignup';
 import OtherUserSignup from '../components/OtherUserSignup';
@@ -30,7 +31,7 @@ const SignupPage = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}
+      style={SignupScreenStyles.bkg}
     >
       <IconBackground />
       {component}

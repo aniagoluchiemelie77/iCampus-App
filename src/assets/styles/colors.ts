@@ -27,10 +27,13 @@ export const MainSignupStyles = StyleSheet.create({
   },
   textContainer: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 0,
+    left: 0,
+    right: 0,
     width: '100%',
     alignItems: 'center',
     zIndex: 10,
+    paddingBottom: 20
   },
   title: {
     fontSize: 28,
@@ -54,7 +57,26 @@ export const MainSignupStyles = StyleSheet.create({
     borderWidth: 1.3,
     borderRadius: 10,
     borderColor: PRIMARY_COLOR,
-    marginBottom: 10,
+    marginBottom: 15,
+  },
+  buttonText:{
+    color: PRIMARY_COLOR,
+    fontSize: 14,
+    fontWeight: 'bold'
+  },
+  footerDiv:{
+    flexDirection: 'row',
+    alignContent: 'center'
+  },
+  footerDivText: {
+    fontSize: 14,
+    color: '#fff',
+    marginRight: 3
+  },
+  footerDivText2:{
+    fontSize: 14,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold'
   },
   buttonBox: {
     flex: 1,
@@ -75,30 +97,43 @@ export const StudentSignupStyles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     backgroundColor: '#fff',
-    margin: 20,
-    borderRadius: 10,
-  },
-  title: {
-    fontSize: 30,
-    color: '#222',
-    fontWeight: '700',
-    marginVertical: 24,
-    textAlign: 'center',
+    borderRadius: 15,
+    elevation: 10,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden',
   },
   inputHeader: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#222',
-    fontWeight: '700',
+    fontWeight: 'bold',
     marginVertical: 12,
   },
-  header: {
-    fontSize: 15,
+  inputHeaderLogin: {
+    fontSize: 14,
     color: '#222',
-    fontWeight: '700',
+    fontWeight: 'bold',
+    width: '100%',
+    marginBottom: 12,
+  },
+  header: {
+    fontSize: 14,
+    color: '#222',
+    fontWeight: 'bold',
     marginVertical: 12,
     width: '100%',
     textAlign: 'center',
   },
+  mainHeader:{
+    fontSize: 25,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+    marginVertical: 15,
+    width: '100%',
+    textAlign: 'center',
+  }, 
   inputHeader2: {
     fontSize: 13,
     color: '#222',
@@ -145,7 +180,6 @@ export const StudentSignupStyles = StyleSheet.create({
     borderWidth: .8,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
@@ -354,7 +388,7 @@ export const StudentSignupStyles = StyleSheet.create({
     // Elevation for Android
     elevation: 3,
     // Shadow for iOS
-    shadowColor: '#000',
+    shadowColor: '#222',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -466,7 +500,7 @@ export const HomeScreenComponentStyles = StyleSheet.create({
     borderColor: PRIMARY_COLOR, // Your preferred border color
     backgroundColor: '#fff',
     borderWidth: 2,
-    shadowColor: '#000',
+    shadowColor: '#222',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -684,7 +718,7 @@ badge: {
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#000',
+    color: '#222',
   },
   searchInput: {
     padding: 10,
@@ -694,7 +728,7 @@ badge: {
     borderWidth: 1,
     width: '82%',
     borderColor: '#838181ff',
-    color: '#000',
+    color: '#222',
   },
   container: {
     width: 'auto',
@@ -833,7 +867,7 @@ badge: {
     height: 110,
     marginVertical: 6,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: '#222',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -936,13 +970,13 @@ todayIndicatorText: {
     alignSelf: 'flex-start',
   },
   eventDescription: {
-    color: '#000',
+    color: '#222',
     fontWeight: '700',
     paddingVertical: 4,
     maxWidth: '80%',
   },
   eventDescription2: {
-    color: '#000',
+    color: '#222',
     fontWeight: '700',
     paddingVertical: 5,
     width: '100%',
@@ -1006,7 +1040,7 @@ todayIndicatorText: {
     paddingVertical: 11,
     width: '100%',
     fontWeight: '700',
-    color: '#000',
+    color: '#222',
     fontSize: 13,
     marginTop: 5
   },
@@ -1036,7 +1070,7 @@ todayIndicatorText: {
     fontWeight: '600',
     marginLeft: 3,
     fontSize: 13,
-    color: '#000'
+    color: '#222'
   }
   , 
   pagination: {
@@ -1168,7 +1202,7 @@ cartItemRightDiv: {
   totalLabel: {
     fontSize: 20,
     fontWeight: '700',
-    color: "#000"
+    color: "#222"
   },
   totalPrice: {
     flexDirection: 'row',
@@ -1199,11 +1233,11 @@ cartItemRightDiv: {
 largeText: {
   fontSize: 30,
   fontWeight: 'bold',
-  color: '#000',
+  color: '#222',
 },
 smallText: {
   fontSize: 20, // same or slightly smaller than icon
-  color: '#000',
+  color: '#222',
 },
 settingsBtn: {
   flexDirection: 'row',
@@ -1278,141 +1312,89 @@ export const WelcomeScreenStyles = StyleSheet.create({
 });
 export const SignupScreenStyles = StyleSheet.create({
   bkg: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#eee',
+    alignContent: 'center',
+    backgroundColor: '#fadccc',
     flex: 1,
     position: 'relative'
   },
-  bkg3: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexGrow: 1,
-  },
   container: {
-    alignItems: 'center',
+    alignContent: 'center',
     width: '100%',
     padding: 20,
-    justifyContent: 'space-evenly',
     backgroundColor: '#fff',
     position: 'relative',
   },
   container2: {
-    borderRadius: 10,
-    alignItems: 'center',
-    width: '100%',
+    borderRadius: 15,
+    alignContent: 'center',
+    width: '80%',
     padding: 20,
-    justifyContent: 'center',
     backgroundColor: '#fff',
     position: 'relative',
-    minHeight: '54%',
     zIndex: 5,
-  },
-  activeTabText: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: PRIMARY_COLOR,
+    elevation: 10,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden',
   },
   disabledBtn: {
-    backgroundColor: '#222',
-    opacity: 0.6,
+    backgroundColor: PRIMARY_COLOR_TINT
   },
   tabButton: {
     padding: 5,
-    color: '#000',
+    color: '#222',
   },
   header: {
     fontSize: 20,
-    color: '#000',
+    color: '#222',
   },
   headerBtnsContainer: {
     flexDirection: 'row',
     width: '100%',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginBottom: 5,
-    padding: 8,
-    top: 0,
-  },
-  headerBtnsContainerLogin: {
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 7,
+    alignContent: 'center',
+    marginVertical: 15,
   },
   welcomeText: {
-    color: '#000',
+    color: '#222',
     fontSize: 13,
     marginTop: 10,
     width: '100%',
     paddingHorizontal: 5
   },
-  welcomeHeader: {
-    width: '100%',
-    textAlign: 'center',
-  },
   inputContainer: {
-    fontSize: 17,
     padding: 10,
-    color: '#000',
-    flex: 1,
     width: '100%',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  inputContainerLogin: {
-    fontSize: 16,
-    paddingHorizontal: 10,
-    color: '#000',
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  inputHeader: {
-    fontSize: 13,
-    marginBottom: 8,
-    color: '#000',
   },
   input: {
-    borderWidth: 1,
-    padding: 10,
-    minWidth: '100%',
-    borderColor: '#000',
-    color: '#000',
-    marginBottom: 4,
-    fontSize: 13,
+    borderWidth: .8,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    width: '100%',
+    borderColor: PRIMARY_COLOR_TINT,
+    color: '#222',
+    borderRadius: 10,
+    marginBottom: 15,
+    fontSize: 14,
   },
   input2: {
     padding: 10,
     minWidth: '85%',
-    color: '#000',
+    color: '#222',
   },
   validationText: {
-    fontSize: 13,
-    color: '#fd1515ff',
+    fontSize: 11,
+    color: PRIMARY_COLOR,
     fontWeight: 800,
   },
-  inputKAVContainer: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  passwordContainer: {
-    width: '100%',
-    justifyContent: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-    color: '#000',
-    width: '100%',
-  },
   passwordInputWrapper: {
-    borderWidth: 1,
+    borderWidth: .8,
     marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#000',
+    width: '100%',
+    borderColor: PRIMARY_COLOR_TINT,
   },
   toggle: {
     flexDirection: 'row',
@@ -1423,9 +1405,9 @@ export const SignupScreenStyles = StyleSheet.create({
   toggleBtns: {
     paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    padding: 10,
+    borderRadius: 10,
+    alignContent: 'center',
+    width: '80%',
     backgroundColor: PRIMARY_COLOR,
   },
   selector: {
@@ -1433,25 +1415,26 @@ export const SignupScreenStyles = StyleSheet.create({
     backgroundColor: 'inherit',
     borderWidth: 1,
     width: '90%',
-    borderColor: '#000',
+    borderColor: '#222',
     color: '#fff',
   },
   selectorHeader: {
     color: '#fff',
+    fontSize: 14
   },
   passwordIcons: {
     marginRight: 9,
   },
   selectorHeader2: {
-    color: '#000',
+    color: '#222',
   },
   termsParagraph: {
     marginBottom: 10,
     fontSize: 17,
   },
   forgotPassParagraph: {
-    fontSize: 13,
-    color: '#000',
+    fontSize: 14,
+    color: PRIMARY_COLOR,
   },
   forgotPassDiv: {
     padding: 10,
@@ -1462,7 +1445,7 @@ export const SignupScreenStyles = StyleSheet.create({
     backgroundColor: 'inherit',
     borderWidth: 1,
     padding: 10,
-    borderColor: '#000',
+    borderColor: '#222',
   },
 });
 export const homeStyles = StyleSheet.create({
@@ -1500,7 +1483,7 @@ export const homeStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5, 
-    shadowColor: '#000', // Shadow for iOS
+    shadowColor: '#222', // Shadow for iOS
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1556,7 +1539,7 @@ export const homeStyles = StyleSheet.create({
     marginTop: 5,
     fontSize: 35,
     fontWeight: 700,
-    color: '#000',
+    color: '#222',
   },
 });
 export const EmailVerifyScreenStyles = StyleSheet.create({
@@ -1579,7 +1562,7 @@ export const EmailVerifyScreenStyles = StyleSheet.create({
   },
   infoText: {
     fontSize: 20,
-    color: '#000',
+    color: '#222',
     textAlign: 'center',
   },
 });
@@ -1641,7 +1624,7 @@ export const CalendarScreenStyles = StyleSheet.create({
     fontWeight: '700',
   },
   tabTextInactive: {
-    color: '#000',
+    color: '#222',
   },
   tabContentsContainer:{
     width: '93%',
@@ -1660,14 +1643,14 @@ export const CalendarScreenStyles = StyleSheet.create({
   label: {
     fontWeight: '700',
     marginBottom: 2,
-    color: '#000'
+    color: '#222'
   },
   input: {
     width: '100%',
     padding: 7,
     borderWidth: 1,
     borderColor: '#787777ff',
-    color: '#000'
+    color: '#222'
   },
   inputGroupDate: {
     flexDirection: 'row',
@@ -1733,7 +1716,7 @@ export const ToastPopupStyles = StyleSheet.create({
   successToastText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#222',
   },
   errorToastDiv: {
     borderLeftColor: '#f12c1eff', 
@@ -1742,7 +1725,7 @@ export const ToastPopupStyles = StyleSheet.create({
   errorToastText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#222',
   }
 });
 export const ProductDetailsStyles = StyleSheet.create({
@@ -1762,11 +1745,11 @@ export const ProductDetailsStyles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: '#222',
   },
   description: {
     fontSize: 15,
-    color: '#000',
+    color: '#222',
     paddingVertical: 10,
   },
   price: {
@@ -1887,7 +1870,7 @@ smallText: {
   },
   optionText: {
     fontSize: 14,
-    color: '#000',
+    color: '#222',
   },
   label: {
     fontWeight: 'bold',
@@ -1915,7 +1898,7 @@ smallText: {
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 10,
-    color: '#000',
+    color: '#222',
   },
   sellerInfo: {
     flexDirection: 'row',
@@ -2016,12 +1999,12 @@ smallText: {
   },
   fileInfoText: {
     fontSize: 16,
-    color: '#000',
+    color: '#222',
     fontWeight: '600',
   },
   fileInfoText2: {
     fontSize: 14,
-    color: '#000',
+    color: '#222',
     padding: 10,
   },
   fileInfoContainerLeftDiv: {
@@ -2175,7 +2158,7 @@ export const CheckoutPageStyles = StyleSheet.create({
     alignItems: 'center',
   },
   details: { flex: 1, padding: 10 },
-  name: { fontWeight: '700', fontSize: 15, color: '#000', marginBottom: 5 },
+  name: { fontWeight: '700', fontSize: 15, color: '#222', marginBottom: 5 },
   empty: { textAlign: 'center', marginTop: 50, fontSize: 18 },
   footer: {
     backgroundColor: '#fff',
@@ -2273,7 +2256,7 @@ export const ProfileComponentStyles = StyleSheet.create({
   },
   text: {
     fontSize: 14,
-    color: '#000',
+    color: '#222',
   },
   textColored: {
     paddingTop: 3,
@@ -2282,7 +2265,7 @@ export const ProfileComponentStyles = StyleSheet.create({
   },
   textRight: {
     fontSize: 14,
-    color: '#000',
+    color: '#222',
     marginLeft: 6,
   },
   swiper: {
@@ -2490,7 +2473,7 @@ icon: {
     padding: 10,
     fontSize: 14,
     fontWeight: '700',
-    color: '#000',
+    color: '#222',
     width: '100%',
     borderBottomWidth: 0.5,
     borderBottomColor: '#fc8f61ff',

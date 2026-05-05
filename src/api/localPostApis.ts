@@ -454,6 +454,7 @@ export const verifySignupEmailCode = async (email: string, code: string) => {
     return { 
       verified: data.verified, 
       message: data?.message || 'Invalid or expired code',
+      email: data.email
     };
   } catch (error) {
     return { verified: false, message: 'Network error occurred.' };
@@ -553,6 +554,81 @@ export const signupValidateInstitution = async (institution: string) => {
     return { 
       success: false, 
       message: 'Network error during institution validation' 
+    };
+  }
+};
+export const changePassword = async (
+  email: string, 
+  password: string, 
+  confirmPassword: string, 
+) => {
+  try {
+    const response = await fetch(`${baseUrl}users/changePassword`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, confirmPassword, email })
+    });
+
+    const data = await response.json();
+    return {
+      success: response.ok,
+      message: response.ok 
+        ? 'Password updated successfully' 
+        : (data?.message || 'Failed to update password'),
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, aborted: true };
+    return { 
+      success: false, 
+      message: 'Network error during password update.' 
+    };
+  }
+};
+export const handleForgotPassword = async (email: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/forgotPassword`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json();
+    return { 
+      success: response.ok, 
+      status: response.status,
+      message: data?.message || 'Email verification failed', 
+      email: data.email
+    };
+  } catch (error) {
+    return { success: false, message: 'Network error occurred.' };
+  }
+};
+export const loginUser = async (credentials: any) => {
+  try {
+    const response = await fetch(`${baseUrl}users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        credentials: credentials
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({ type: 'error', text1: 'Reset Failed', text2: data.message });
+      return { success: false, message: data.message, status: response.status };
+    }
+    return {
+      success: response.ok,
+      accessToken: data.accessToken, 
+      refreshToken: data.refreshToken,
+      user: data.user,
+      message: data.error || data.message || 'Login failed',
+      status: response.status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Network error. Please check your connection.',
+      status: response.status
     };
   }
 };

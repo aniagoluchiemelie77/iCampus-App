@@ -7,10 +7,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
 } from 'react-native';
-import {baseUrl} from '../components/HomeScreenComponents';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { loginUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,9 +16,19 @@ import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { SignupScreenStyles } from '../assets/styles/colors';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import {
+  SignupScreenStyles,
+  StudentSignupStyles,
+} from '../assets/styles/colors';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import DeviceInfo from 'react-native-device-info';
+import { isValidEmail } from '../utils/SignupHelpers';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { authorize } from 'react-native-app-auth';
+import { githubConfig } from '../components/OtherUserSignup';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -35,16 +43,45 @@ const Login = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [idToken, setIdToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
-  const isValidEmail = (inputEmail: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(inputEmail);
-  };
+  const [isSocialsLogin, setSocialLogin] = useState(false);
+  const [socialProvider, setSocialProvider] = useState<
+    'google' | 'github' | 'password'
+  >('password');
   const handleLogin = async () => {
-    if (!identifier || !password) {
-      setAlertType('warning');
-      setAlertMessage('Please enter your Email and Password.');
+    if (isSocialsLogin) {
+      try {
+        if (socialProvider === 'google') {
+          await GoogleSignin.hasPlayServices();
+          const response = await GoogleSignin.signIn();
+          const token = response.data?.idToken;
+          const userEmail = response.data?.user?.email;
+          if (token && userEmail) {
+            setIdToken(token);
+            setIdentifier(userEmail);
+          }
+        } else if (socialProvider === 'github') {
+          const result = await authorize(githubConfig);
+          if (result.accessToken) {
+            setIdentifier('GITHUB_USER');
+            setIdToken(result.accessToken);
+          }
+        }
+      } catch (error: any) {
+        console.error('Google Sign-In Error:', error);
+        const message = error;
+        setAlertMessage(message);
+        setAlertType('error');
+        setAlertVisible(true);
+        return;
+      }
+    }
+    if (!isSocialsLogin && (identifier === null || password === null)) {
+      const message = 'Ensure required fields are not empty.';
+      console.log('❌ ', message);
+      setAlertMessage(message);
+      setAlertType('error');
       setAlertVisible(true);
       return;
     }
@@ -53,32 +90,21 @@ const Login = () => {
       const deviceId = await DeviceInfo.getUniqueId();
       const deviceName = DeviceInfo.getModel();
       const brand = DeviceInfo.getBrand();
-      const response = await fetch(`${baseUrl}users/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier,
-          password,
-          deviceId,
-          deviceName: `${brand} ${deviceName}`,
-        }),
-      });
-
-      const contentType = response.headers.get('content-type');
-      if (response.ok && contentType?.includes('application/json')) {
-        const result = await response.json();
-
-        // --- THE FIX STARTS HERE ---
-        const { accessToken, refreshToken, user } = result;
-
-        // Save BOTH tokens to storage
+      const payload = {
+        identifier,
+        password: isSocialsLogin ? '' : password,
+        deviceId,
+        deviceName: `${brand} ${deviceName}`,
+        socialProvider,
+        idToken,
+      };
+      const response = await loginUser(payload);
+      if (response.success) {
+        const { accessToken, refreshToken, user } = response;
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
         await AsyncStorage.setItem('user', JSON.stringify(user));
-
-        // Update Redux state with the accessToken
         dispatch(setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }));
-        // --- THE FIX ENDS HERE ---
         if (user.isSuspended) {
           navigation.replace('SuspendedScreen', {
             reason: 'This account has been flagged for security violations.',
@@ -87,10 +113,9 @@ const Login = () => {
         }
         navigation.navigate('Home');
       } else {
-        const errorData = await response.json(); // Backend sends { error: "..." }
         setAlertType('error');
         setAlertMessage(
-          errorData.error || 'Invalid credentials. Please try again.',
+          response.message || 'Invalid credentials. Please try again.',
         );
         setAlertVisible(true);
       }
@@ -103,97 +128,128 @@ const Login = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
+    <KeyboardAvoidingView
+      style={SignupScreenStyles.bkg}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <IconBackground />
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={SignupScreenStyles.bkg3}
-        style={{ width: '85%' }}
-      >
-        <View style={SignupScreenStyles.container2}>
-          <View style={SignupScreenStyles.headerBtnsContainerLogin}>
-            <Text
-              style={[
-                SignupScreenStyles.activeTabText,
-                SignupScreenStyles.welcomeHeader,
-              ]}
-            >
-              Login
-            </Text>
-          </View>
-          <View style={SignupScreenStyles.inputContainerLogin}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
-              <Text style={SignupScreenStyles.inputHeader}>
-                Enter your Email:
-              </Text>
-              <TextInput
-                placeholder="Email"
-                placeholderTextColor="#000"
-                value={identifier}
-                onChangeText={setIdentifier}
-                style={SignupScreenStyles.input}
-              />
-              <Text style={SignupScreenStyles.validationText}>
-                {!isValidEmail(identifier) && identifier.length > 0
-                  ? 'Invalid email format'
-                  : ''}
-              </Text>
-              <Text style={SignupScreenStyles.inputHeader}>Password:</Text>
-              <View style={SignupScreenStyles.passwordInputWrapper}>
-                <TextInput
-                  placeholder="Password"
-                  placeholderTextColor="#000"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  style={[SignupScreenStyles.input2]}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Icon
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={22}
-                    color="#000"
-                    style={{ marginRight: 30 }}
-                  />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={[SignupScreenStyles.forgotPassDiv]}
-                onPress={() => navigation.navigate('ForgotPasswordScreen')}
-              >
-                <Text style={[SignupScreenStyles.forgotPassParagraph]}>
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={SignupScreenStyles.toggleBtns}
-                onPress={handleLogin}
-              >
-                <Text style={SignupScreenStyles.selectorHeader}>Login</Text>
-              </TouchableOpacity>
-              <SweetAlertModal
-                visible={alertVisible}
-                onConfirm={() => setAlertVisible(false)}
-                title={
-                  alertType === 'success'
-                    ? 'Success!'
-                    : alertType === 'error'
-                    ? 'Oops!'
-                    : alertType === 'warning'
-                    ? 'Warning!'
-                    : 'Notice'
-                }
-                message={alertMessage}
-                type={alertType}
-              />
-            </KeyboardAvoidingView>
-          </View>
+      <View style={StudentSignupStyles.container}>
+        <MaterialIcons
+          name="verified-user-outlined"
+          size={40}
+          color={PRIMARY_COLOR}
+        />
+        <Text style={StudentSignupStyles.mainHeader}>Login</Text>
+        <Text style={StudentSignupStyles.inputHeaderLogin}>
+          Enter your Email:
+        </Text>
+        <View style={StudentSignupStyles.passwordInput}>
+          <MaterialIcons
+            name="mail-outline-outlined"
+            size={20}
+            color={PRIMARY_COLOR_TINT}
+            style={{ marginHorizontal: 5 }}
+          />
+          <TextInput
+            placeholder="Enter your email..."
+            placeholderTextColor={PRIMARY_COLOR_TINT}
+            style={StudentSignupStyles.input2}
+            value={identifier}
+            onChangeText={setIdentifier}
+          />
         </View>
-      </ScrollView>
+        <Text style={SignupScreenStyles.validationText}>
+          {!isValidEmail(identifier) && identifier.length > 0
+            ? 'Invalid email format'
+            : ''}
+        </Text>
+        <Text style={[StudentSignupStyles.inputHeaderLogin, { marginTop: 12 }]}>
+          Password:
+        </Text>
+        <View style={StudentSignupStyles.passwordInput}>
+          <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+            <MaterialIcons
+              name={
+                showPassword ? 'visibility-off-outlined' : 'visibility-outlined'
+              }
+              size={20}
+              color={PRIMARY_COLOR_TINT}
+              style={{ marginHorizontal: 5 }}
+            />
+          </TouchableOpacity>
+          <TextInput
+            placeholder="Enter your password..."
+            placeholderTextColor={PRIMARY_COLOR_TINT}
+            style={StudentSignupStyles.input2}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+        </View>
+        <TouchableOpacity
+          style={[SignupScreenStyles.forgotPassDiv]}
+          onPress={() => navigation.navigate('ForgotPasswordScreen')}
+        >
+          <Text style={SignupScreenStyles.forgotPassParagraph}>
+            Forgot Password?
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={SignupScreenStyles.toggleBtns}
+          onPress={handleLogin}
+        >
+          <Text style={SignupScreenStyles.selectorHeader}>Login</Text>
+        </TouchableOpacity>
+        {/* The "OR" Divider */}
+        <View style={StudentSignupStyles.dividerContainer}>
+          <View style={StudentSignupStyles.dividerLine} />
+          <Text style={StudentSignupStyles.dividerText}>or</Text>
+          <View style={StudentSignupStyles.dividerLine} />
+        </View>
+        <View style={StudentSignupStyles.socialContainer}>
+          <TouchableOpacity
+            style={StudentSignupStyles.socialButton}
+            onPress={() => {
+              setSocialProvider('google');
+              setSocialLogin(true);
+              handleLogin();
+            }}
+          >
+            <Icon name="logo-google" size={20} color={PRIMARY_COLOR} />
+            <Text style={StudentSignupStyles.socialButtonText}>
+              Login with Google
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={StudentSignupStyles.socialButton}
+            onPress={() => {
+              setSocialProvider('github');
+              setSocialLogin(true);
+              handleLogin();
+            }}
+          >
+            <Icon name="logo-github" size={20} color={PRIMARY_COLOR} />
+            <Text style={StudentSignupStyles.socialButtonText}>
+              Login with Github
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <SweetAlertModal
+        visible={alertVisible}
+        onConfirm={() => setAlertVisible(false)}
+        title={
+          alertType === 'success'
+            ? 'Success!'
+            : alertType === 'error'
+            ? 'Oops!'
+            : alertType === 'warning'
+            ? 'Warning!'
+            : 'Notice'
+        }
+        message={alertMessage}
+        type={alertType}
+      />
     </KeyboardAvoidingView>
   );
 };

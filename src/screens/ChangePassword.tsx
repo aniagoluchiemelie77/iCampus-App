@@ -5,17 +5,18 @@ import {
   View,
   Text,
   TextInput,
-  ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
 import { SignupScreenStyles } from '../assets/styles/colors';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
-import { useNavigation, useRoute, RouteProp  } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {baseUrl} from '../components/HomeScreenComponents';
+import { changePassword } from '../api/localPostApis';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
+import { isValidPassword } from '../utils/SignupHelpers';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -40,10 +41,6 @@ export default function ChangePasswordScreen() {
   );
   const [alertMessage, setAlertMessage] = useState('');
   const [isVerifying, setVerifying] = useState(false);
-  const isValidPassword = (inputPassword: string) => {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{13,}$/;
-    return passwordRegex.test(inputPassword);
-  };
 
   const handleChangePassword = async () => {
     if (!password && !confirmPassword) {
@@ -53,19 +50,14 @@ export default function ChangePasswordScreen() {
       return;
     }
     setVerifying(true);
-    const response = await fetch(`${baseUrl}users/changePassword`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, confirmPassword, email }),
-    });
-
-    if (response.ok) {
+    const response = await changePassword(email, password, confirmPassword);
+    if (response.success) {
       setVerifying(false);
       setAlertType('success');
       setAlertMessage('Code verified. You will be redirected to login Page.');
       setAlertVisible(true);
       setTimeout(() => {
-        navigation.navigate('SignUp');
+        navigation.navigate('Login');
       }, 3000);
     } else {
       setVerifying(false);
@@ -76,119 +68,110 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={SignupScreenStyles.bkg} behavior="padding">
+    <KeyboardAvoidingView
+      style={SignupScreenStyles.bkg}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <IconBackground />
-      <ScrollView
-        contentContainerStyle={SignupScreenStyles.bkg3}
-        keyboardShouldPersistTaps="handled"
-        style={{ width: '85%' }}
-      >
-        <View style={SignupScreenStyles.container2}>
-          <View style={SignupScreenStyles.headerBtnsContainer}>
-            <Text style={SignupScreenStyles.activeTabText}>
-              Forgot Password
-            </Text>
-          </View>
-          <View style={SignupScreenStyles.inputContainer}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={SignupScreenStyles.inputKAVContainer}
-            >
-              <Text style={SignupScreenStyles.inputHeader}>
-                Enter your New Password:
-              </Text>
-              <View style={SignupScreenStyles.passwordContainer}>
-                <View style={SignupScreenStyles.passwordInputWrapper}>
-                  <TextInput
-                    placeholder="Password"
-                    placeholderTextColor="#000"
-                    style={SignupScreenStyles.passwordInput}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    <Icon
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={25}
-                      color="#000"
-                      style={SignupScreenStyles.passwordIcons}
-                    />
-                  </TouchableOpacity>
-                </View>
-                {!isValidPassword(password) && password.length > 0 && (
-                  <Text style={SignupScreenStyles.validationText}>
-                    Password must be at least 13 characters and include
-                    uppercase, lowercase, number, and symbol.
-                  </Text>
-                )}
-              </View>
-              <View style={SignupScreenStyles.passwordContainer}>
-                <View style={SignupScreenStyles.passwordInputWrapper}>
-                  <TextInput
-                    placeholder="Confirm Password"
-                    placeholderTextColor="#000"
-                    style={SignupScreenStyles.passwordInput}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirmPassword}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    <Icon
-                      name={showConfirmPassword ? 'eye-off' : 'eye'}
-                      size={25}
-                      color="#000"
-                      style={SignupScreenStyles.passwordIcons}
-                    />
-                  </TouchableOpacity>
-                </View>
-                {confirmPassword.length > 0 && confirmPassword !== password && (
-                  <Text style={SignupScreenStyles.validationText}>
-                    Passwords do not match.
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity
-                style={[
-                  SignupScreenStyles.toggleBtns,
-                  (!isValidPassword(password) ||
-                    confirmPassword !== password) &&
-                    SignupScreenStyles.disabledBtn,
-                ]}
-                onPress={handleChangePassword}
-                disabled={
-                  !isValidPassword(password) ||
-                  confirmPassword !== password ||
-                  isVerifying
-                }
-              >
-                <Text style={SignupScreenStyles.selectorHeader}>
-                  {isVerifying ? 'Changing...' : 'Change'}
-                </Text>
-              </TouchableOpacity>
-              <SweetAlertModal
-                visible={alertVisible}
-                onConfirm={() => setAlertVisible(false)}
-                title={
-                  alertType === 'success'
-                    ? 'Success!'
-                    : alertType === 'error'
-                    ? 'Oops!'
-                    : alertType === 'warning'
-                    ? 'Warning!'
-                    : 'Notice'
-                }
-                message={alertMessage}
-                type={alertType}
-              />
-            </KeyboardAvoidingView>
-          </View>
+      <View style={SignupScreenStyles.container2}>
+        <View style={SignupScreenStyles.headerBtnsContainer}>
+          <Text style={SignupScreenStyles.activeTabText}>Forgot Password</Text>
         </View>
-      </ScrollView>
+        <View style={SignupScreenStyles.inputContainer}>
+          <Text style={SignupScreenStyles.inputHeader}>
+            Enter your New Password:
+          </Text>
+          <View style={SignupScreenStyles.passwordInputWrapper}>
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              style={SignupScreenStyles.passwordInput}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <MaterialIcons
+                name={
+                  showPassword
+                    ? 'visibility-off-outlined'
+                    : 'visibility-outlined'
+                }
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+                style={{ marginHorizontal: 7 }}
+              />
+            </TouchableOpacity>
+          </View>
+          {!isValidPassword(password) && password.length > 0 && (
+            <Text style={SignupScreenStyles.validationText}>
+              Password must be at least 13 characters and include uppercase,
+              lowercase, number, and symbol.
+            </Text>
+          )}
+          <View style={SignupScreenStyles.passwordInputWrapper}>
+            <TextInput
+              placeholder="Confirm Password"
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+              style={SignupScreenStyles.passwordInput}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+            />
+            <TouchableOpacity
+              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              <MaterialIcons
+                name={
+                  showConfirmPassword
+                    ? 'visibility-off-outlined'
+                    : 'visibility-outlined'
+                }
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+                style={{ marginHorizontal: 7 }}
+              />
+            </TouchableOpacity>
+          </View>
+          {confirmPassword.length > 0 && confirmPassword !== password && (
+            <Text style={SignupScreenStyles.validationText}>
+              Passwords do not match.
+            </Text>
+          )}
+          <TouchableOpacity
+            style={[
+              SignupScreenStyles.toggleBtns,
+              (!isValidPassword(password) || confirmPassword !== password) &&
+                SignupScreenStyles.disabledBtn,
+            ]}
+            onPress={handleChangePassword}
+            disabled={
+              !isValidPassword(password) ||
+              confirmPassword !== password ||
+              isVerifying
+            }
+          >
+            <Text style={SignupScreenStyles.selectorHeader}>
+              {isVerifying ? 'Changing...' : 'Change'}
+            </Text>
+          </TouchableOpacity>
+          <SweetAlertModal
+            visible={alertVisible}
+            onConfirm={() => setAlertVisible(false)}
+            title={
+              alertType === 'success'
+                ? 'Success!'
+                : alertType === 'error'
+                ? 'Oops!'
+                : alertType === 'warning'
+                ? 'Warning!'
+                : 'Notice'
+            }
+            message={alertMessage}
+            type={alertType}
+          />
+        </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }

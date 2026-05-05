@@ -1,7 +1,7 @@
 //Universal email regex
 export const isValidEmail = (inputEmail: string) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(inputEmail);
+  return emailRegex.test(inputEmail.trim());
 };
 
 //Universal password regex

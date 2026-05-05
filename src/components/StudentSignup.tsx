@@ -375,7 +375,7 @@ const StudentSignup = () => {
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
         <LogoBigger />
 
-        <Text style={StudentSignupStyles.title}>Student signup</Text>
+        <Text style={StudentSignupStyles.mainHeader}>Student signup</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
           <Animated.View

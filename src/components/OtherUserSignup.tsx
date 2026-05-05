@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   Image,
-  Dimensions,
 } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import { useEffect, useState } from 'react';
@@ -22,7 +21,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StudentSignupStyles } from '../assets/styles/colors';
 import { useDispatch } from 'react-redux';
 import { setUser } from './UserSlice';
-import LogoBigger from '../assets/images/Logo';
 import { ProgressBar, Footer } from './SignupComponents';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -48,7 +46,7 @@ GoogleSignin.configure({
   webClientId: WEB_CLIENT_ID,
   offlineAccess: true,
 });
-const githubConfig = {
+export const githubConfig = {
   issuer: 'https://github.com',
   clientId: GITHUB_CLIENT_ID,
   clientSecret: GITHUB_CLIENT_SECRET, // In prod, keep this on backend!
@@ -64,7 +62,6 @@ const OtherUserSignup = () => {
   const dispatch = useDispatch();
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
-  const { height } = Dimensions.get('window');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [firstname, setFirstname] = useState('');
   const [lastname, setLastname] = useState('');
@@ -90,6 +87,7 @@ const OtherUserSignup = () => {
   const [uploading, setUploading] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [idToken, setIdToken] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>(
     'success',
@@ -252,6 +250,7 @@ const OtherUserSignup = () => {
         deviceName: `${brand} ${deviceName}`,
         password: isSocialSignup ? 'SOCIAL_AUTH' : password,
         providerId: isSocialSignup ? socialProvider : 'password',
+        idToken,
         isSocialSignup,
         country: country || '',
         organizationName: subType === 'enterprise' ? orgName : '',
@@ -314,14 +313,16 @@ const OtherUserSignup = () => {
         await GoogleSignin.hasPlayServices();
         const response = await GoogleSignin.signIn();
         const user = response.data?.user;
-        if (user) {
+        const token = response.data?.idToken;
+        if (user && token) {
+          setIdToken(token);
           setFirstname(user.givenName || '');
           setLastname(user.familyName || '');
           setEmail(user.email || '');
           setAvatar(user.photo || null);
           setIsSocialSignup(true);
           setSocialProvider('google');
-          setStep(5);
+          setStep(3);
         }
       } else if (provider === 'Github') {
         const authState = await authorize(githubConfig);
@@ -346,14 +347,23 @@ const OtherUserSignup = () => {
         if (githubUser) {
           const fullName = githubUser.name || githubUser.login || '';
           const nameParts = fullName.trim().split(/\s+/);
-
-          setFirstname(nameParts[0] || '');
-          setLastname(nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
-          setEmail(primaryEmail || '');
-          setAvatar(githubUser.avatar_url || null);
+          const socialPayload = {
+            email: primaryEmail,
+            firstname: nameParts[0] || '',
+            lastname: nameParts.slice(1).join(' ') || '',
+            providerId: 'github',
+            providerUserId: githubUser.id.toString(), // Save this in your DB!
+            accessToken: authState.accessToken, // Send this to verify on backend
+            avatar: githubUser.avatar_url,
+          };
+          setAvatar(socialPayload.avatar || null);
           setIsSocialSignup(true);
           setSocialProvider('github');
-          setStep(5);
+          setFirstname(socialPayload.firstname);
+          setLastname(socialPayload.lastname);
+          setEmail(socialPayload.email);
+          setIdToken(socialPayload.accessToken);
+          setStep(3);
         }
       }
     } catch (error: any) {
@@ -389,10 +399,14 @@ const OtherUserSignup = () => {
   }, [timer]);
 
   return (
-    <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
+    <View style={StudentSignupStyles.container}>
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={6} />
-        <LogoBigger />
+
+        <Text style={StudentSignupStyles.mainHeader}>
+          {subType === 'individual' ? 'User Signup' : 'Organization Signup'}
+        </Text>
+
         {step === 0 && !subType && (
           <View style={StudentSignupStyles.selectionContainer}>
             <TouchableOpacity
@@ -668,7 +682,6 @@ const OtherUserSignup = () => {
                 setShowCountryPicker(false);
               }}
             />
-
             <TouchableOpacity
               onPress={nextStep}
               disabled={!country || !firstname || !lastname}
@@ -689,7 +702,10 @@ const OtherUserSignup = () => {
 
         {/* STEP 4 - Avatar upload (Can skip) */}
         {subType === 'individual' && step === 4 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.header}>Upload Profile Photo</Text>
 
             {/* Main Container for the Avatar and Icon Overlay */}
@@ -702,12 +718,20 @@ const OtherUserSignup = () => {
                       style={StudentSignupStyles.avatarImage}
                     />
                   ) : (
-                    <Icon name="person-circle" size={120} color="#E0E0E0" />
+                    <MaterialIcons
+                      name="account-circle-outlined"
+                      size={120}
+                      color={PRIMARY_COLOR}
+                    />
                   )}
 
                   {/* The Camera Icon Overlay */}
                   <View style={StudentSignupStyles.cameraIconBadge}>
-                    <Icon name="camera" size={20} color="#FFFFFF" />
+                    <MaterialIcons
+                      name="camera-alt-outlined"
+                      size={20}
+                      color="#FFFFFF"
+                    />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -735,7 +759,7 @@ const OtherUserSignup = () => {
                 {hasUploadedAvatar ? 'Next' : 'Skip for now'}
               </Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/*FINAL STEP - iCampus Terms and conditions*/}
@@ -777,7 +801,9 @@ const OtherUserSignup = () => {
                   agreed && StudentSignupStyles.checkboxChecked,
                 ]}
               >
-                {agreed && <Icon name="checkmark" size={14} color="#FFF" />}
+                {agreed && (
+                  <MaterialIcons name="check-outlined" size={14} color="#FFF" />
+                )}
               </View>
 
               {/* The Label */}
@@ -810,7 +836,10 @@ const OtherUserSignup = () => {
 
         {/* ENTERPRISE STEP 0: Organization Identity */}
         {step === 1 && subType === 'enterprise' && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Create Organization Account
             </Text>
@@ -841,12 +870,15 @@ const OtherUserSignup = () => {
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* ENTERPRISE STEP 1: Representative Identity */}
         {step === 2 && subType === 'enterprise' && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Authorized Representative
             </Text>
@@ -877,12 +909,15 @@ const OtherUserSignup = () => {
             >
               <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
 
         {/* ENTERPRISE STEP 2: Account Credentials */}
         {step === 3 && subType === 'enterprise' && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Login Credentials
             </Text>
@@ -915,10 +950,13 @@ const OtherUserSignup = () => {
                 Verify Email
               </Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
         {subType === 'enterprise' && step === 4 && (
-          <>
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
             <Text style={StudentSignupStyles.inputHeader}>
               Verify Organization Email
             </Text>
@@ -954,7 +992,7 @@ const OtherUserSignup = () => {
                 </Text>
               </TouchableOpacity>
             )}
-          </>
+          </Animated.View>
         )}
         {subType === 'enterprise' && step === 5 && (
           <>

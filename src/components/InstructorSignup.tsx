@@ -366,7 +366,7 @@ const InstructorSignup = () => {
       <>
         <ProgressBar step={step} setStep={setStep} totalSteps={8} />
         <LogoBigger />
-        <Text style={StudentSignupStyles.title}>Instructor signup</Text>
+        <Text style={StudentSignupStyles.mainHeader}>Instructor signup</Text>
         {/* STEP 0 — Select Country */}
         {step === 0 && (
           <Animated.View
@@ -826,7 +826,9 @@ const InstructorSignup = () => {
                   agreed && StudentSignupStyles.checkboxChecked,
                 ]}
               >
-                {agreed && <MaterialIcons name="check-outlined" size={14} color="#FFF" />}
+                {agreed && (
+                  <MaterialIcons name="check-outlined" size={14} color="#FFF" />
+                )}
               </View>
 
               {/* The Label */}
