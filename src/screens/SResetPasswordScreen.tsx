@@ -168,20 +168,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 24,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fadccc',
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 5,
-    width: '100%'
+    width: '100%',
   },
   input: {
     flex: 1,
@@ -190,28 +184,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#222',
   },
-  submitButton: {
-    backgroundColor: PRIMARY_COLOR,
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    // Add shadow for depth
-    shadowColor: PRIMARY_COLOR,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   stepContainer: {
     marginTop: 20,
-    alignContent: 'center'
+    alignContent: 'center',
   },
   title: {
     fontSize: 25,
@@ -223,21 +198,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2222',
     marginBottom: 20,
-    width: '100%'
+    width: '100%',
   },
-  errorText:{
+  errorText: {
     fontSize: 11,
     fontWeight: 'bold',
     width: '100%',
     marginTop: 8,
-    color: PRIMARY_COLOR
+    color: PRIMARY_COLOR,
   },
   strengthBarContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     height: 5,
     marginTop: 10,
-    width: '100%'
+    width: '100%',
   },
   strengthSegment: {
     flex: 1,
@@ -252,7 +227,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignContent: 'center',
     marginTop: 30,
-    width: '80%'
+    width: '80%',
   },
   buttonText: {
     color: '#fff',
