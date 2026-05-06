@@ -23,17 +23,20 @@ interface Props {
   route: { params: { targetScreen?: string } };
   navigation: any;
 }
-const PRICES: Record<string, number> = {
-    free: 0,
-    pro: 1.11,
-    premium: 3.69,
+export const PRICES: Record<string, number> = {
+  free: 0,
+  pro: 1.11,
+  premium: 3.69,
 };
 interface FlutterwaveButtonProps {
   onPress: () => void;
   label: string;
 }
 
-const FlutterwaveButton = ({ onPress, label }: FlutterwaveButtonProps) => (
+export const FlutterwaveButton = ({
+  onPress,
+  label,
+}: FlutterwaveButtonProps) => (
   <TouchableOpacity style={styles.payButton} onPress={onPress}>
     <Text style={styles.payButtonText}>{label}</Text>
   </TouchableOpacity>

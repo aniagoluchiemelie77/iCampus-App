@@ -18,6 +18,8 @@ import {
   PRIMARY_COLOR_TINT,
   PRIMARY_COLOR_TINT_MAIN,
 } from './Classroomcomponent';
+import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
+import { useDispatch } from 'react-redux';
 import {
   User,
   RankCardCarouselProps,
@@ -26,7 +28,8 @@ import {
 import { RankCard } from './IscoreRankCard';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from './hooks';
-import { fetchLeaderboards } from '../api/localGetApis.ts';
+import { fetchLeaderboards, searchUsers } from '../api/localGetApis.ts';
+import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import moment from 'moment';
 import LinearGradient from 'react-native-linear-gradient';
 import { DEFAULT_GRADIENT, rankColors } from '../assets/styles/colors';
@@ -35,6 +38,8 @@ import toastConfig from './ToastConfig';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { homeStyles } from '../assets/styles/colors.ts';
 import { BlurView } from '@react-native-community/blur';
+import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
+import { setUser } from './UserSlice';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = 160; // Card width
@@ -46,6 +51,7 @@ interface UserScoreHeaderProps {
   nextUpdateDate: string;
   isEnterpriseView: boolean;
   isViewingSelf: boolean;
+  onUpgradePress: () => void;
 }
 interface InstitutionItemProps {
   item: iCampusOperationalInstitutionSchema;
@@ -142,6 +148,7 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
   nextUpdateDate,
   isEnterpriseView,
   isViewingSelf,
+  onUpgradePress,
 }) => {
   if (isEnterpriseView && isViewingSelf) {
     return (
@@ -173,7 +180,7 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
 
       <TouchableOpacity
         activeOpacity={isScoreLocked ? 0.8 : 1}
-        //onPress={() => isScoreLocked && onUpgradePress()}
+        onPress={() => isScoreLocked && onUpgradePress()}
         disabled={!isScoreLocked}
       >
         <View style={styles.scoreRow}>
@@ -274,10 +281,13 @@ const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
 export function RankingScreen() {
   const user = useAppSelector(state => state.user);
   const userRole = user.usertype;
+  const dispatch = useDispatch();
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isSubscriptionModalVisible, setSubscriptionModalVisible] =
+    useState(false);
   const [leaderboard, setLeaderboard] = useState<{
     students: User[];
     instructors: User[];
@@ -289,6 +299,11 @@ export function RankingScreen() {
   });
   const [placeholder, setPlaceholder] = useState('Search users...');
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [exchangeData, setExchangeData] = useState({
+    rate: 1,
+    symbol: '$',
+    code: 'USD',
+  });
 
   const fetchData = async () => {
     try {
@@ -330,9 +345,44 @@ export function RankingScreen() {
 
     return () => clearInterval(interval);
   }, []);
+  useEffect(() => {
+    fetchLiveRate(user?.country!).then(setExchangeData);
+  }, [user?.country]);
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
+  };
+  const handleSubSuccess = async (data: any) => {
+    setSubscriptionModalVisible(false);
+    const res = await verifySubscriptionOnBackend(
+      data.transaction_id || data.flw_ref,
+      'pro',
+      exchangeData.rate,
+    );
+    if (res.success) {
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Upgrade to Pro user successful.',
+      });
+      dispatch(
+        setUser({
+          ...user,
+          tier: 'pro',
+          hasSubscribed: true,
+        }),
+      );
+      if (selectedUser) {
+        const updatedUserRes = await searchUsers(
+          selectedUser.firstname,
+          user.tier!,
+          user.usertype!,
+        );
+        if (updatedUserRes && updatedUserRes.length > 0) {
+          setSelectedUser(updatedUserRes[0]);
+        }
+      }
+    }
   };
   const eliteStudents = useMemo(() => {
     return leaderboard.students.filter((s: any) => (s.currentIScore ?? 0) > 20);
@@ -378,6 +428,7 @@ export function RankingScreen() {
           isEnterpriseView={userRole === 'enterprise'}
           nextUpdateDate={nextUpdate}
           isViewingSelf={!selectedUser}
+          onUpgradePress={() => setSubscriptionModalVisible(true)}
         />
       </LinearGradient>
       <View style={styles.sectionHeader}>
@@ -450,6 +501,19 @@ export function RankingScreen() {
           <MaterialIcons name="search" size={28} color="#fff" />
         </TouchableOpacity>
       )}
+      <SubscriptionSelectionModal
+        isVisible={isSubscriptionModalVisible}
+        onClose={() => setSubscriptionModalVisible(false)}
+        targetTier="pro"
+        userContext={{
+          email: user.email,
+          name: `${user.firstname} ${user.lastname}`,
+          country: user.country!,
+        }}
+        exchangeData={exchangeData}
+        onSuccess={handleSubSuccess}
+        title="Unlock iScore Insights"
+      />
       <Toast config={toastConfig} />
     </ScrollView>
   );

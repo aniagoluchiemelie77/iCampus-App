@@ -174,7 +174,7 @@ export const searchUsers = async (
       });
       return [];
     }
-    return result.success ? result.data : [];
+    return Array.isArray(result.data) ? result.data : [result.data];
   } catch (error) {
     console.error("Search API Error:", error);
     return [];

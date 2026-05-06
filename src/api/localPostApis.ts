@@ -434,6 +434,9 @@ export const verifySignupEmail = async (email: string) => {
       body: JSON.stringify({ email }),
     });
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return { 
       success: response.ok, 
       message: data?.message || 'Email verification failed', 
@@ -451,6 +454,9 @@ export const verifySignupEmailCode = async (email: string, code: string) => {
       body: JSON.stringify({ email, code }),
     });
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return { 
       verified: data.verified, 
       message: data?.message || 'Invalid or expired code',
@@ -460,7 +466,6 @@ export const verifySignupEmailCode = async (email: string, code: string) => {
     return { verified: false, message: 'Network error occurred.' };
   }
 };
-
 export const handleRegisterUser = async (registrationData: any) => {
   try {
     const response = await fetch(`${baseUrl}users/register`, {
@@ -469,6 +474,9 @@ export const handleRegisterUser = async (registrationData: any) => {
       body: JSON.stringify(registrationData),
     });
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return { 
       success: data?.success, 
       message: data?.message,
@@ -481,7 +489,6 @@ export const handleRegisterUser = async (registrationData: any) => {
     return { success: false, message: 'Network error during registration.' };
   }
 };
-
 export const verifySignupStudent = async (institution: string, matric: string, signal?: AbortSignal) => {
   try {
     const response = await fetch(`${baseUrl}verifyStudent/verify`, {
@@ -495,6 +502,9 @@ export const verifySignupStudent = async (institution: string, matric: string, s
     });
 
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return {
       success: response.ok,
       verified: data.verified,
@@ -519,6 +529,9 @@ export const verifySignupInstructor = async (institution: string, staffId: strin
     });
 
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return {
       verified: data.verified,
       success: response.ok,
@@ -530,7 +543,6 @@ export const verifySignupInstructor = async (institution: string, staffId: strin
     return { success: false, message: 'Network error during instructor verification.' };
   }
 };
-
 export const signupValidateInstitution = async (institution: string) => {
   try {
     const response = await fetch(`${baseUrl}users/institutions/validate`, {
@@ -540,6 +552,9 @@ export const signupValidateInstitution = async (institution: string) => {
     });
 
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
 
     return {
       success: response.ok,
@@ -570,6 +585,9 @@ export const changePassword = async (
     });
 
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return {
       success: response.ok,
       message: response.ok 
@@ -592,6 +610,9 @@ export const handleForgotPassword = async (email: string) => {
       body: JSON.stringify({ email }),
     });
     const data = await response.json();
+    if (!data.ok) {
+      return { success: false, message: data.message };
+    }
     return { 
       success: response.ok, 
       status: response.status,
@@ -613,7 +634,7 @@ export const loginUser = async (credentials: any) => {
     });
     const data = await response.json();
     if (!response.ok) {
-      Toast.show({ type: 'error', text1: 'Reset Failed', text2: data.message });
+      Toast.show({ type: 'error', text1: 'Login Failed', text2: data.message });
       return { success: false, message: data.message, status: response.status };
     }
     return {
@@ -630,5 +651,24 @@ export const loginUser = async (credentials: any) => {
       message: 'Network error. Please check your connection.',
       status: response.status
     };
+  }
+};
+export const verifyCurrentPassword = async (password: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/password/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ password }),
+    });
+    const result = await response.json();
+    if (!result.ok) {
+      return { success: false, message: result.message };
+    }
+    return { success: response.ok, message: result.message };
+  } catch (error) {
+    return { success: false, message: "Network error. Try again." };
   }
 };

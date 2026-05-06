@@ -170,6 +170,12 @@ export const Settings = () => {
             }
             onPress={throttledReset}
           />
+          <SettingItem
+            icon="lock-reset-outlined"
+            title="Reset Login Password"
+            subtitle="Manage your iCampus login password"
+            onPress={() => navigation.navigate('ResetPasswordScreen')}
+          />
         </View>
 
         {/* App Settings */}
