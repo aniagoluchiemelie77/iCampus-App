@@ -435,7 +435,7 @@ export function Home() {
           style={homeStyles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets" size={28} color="#fff" />
+          <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
         </TouchableOpacity>
       )}
 

@@ -213,3 +213,31 @@ export const signupFetchInstitutions = async (country: string) => {
     };
   }
 };
+export const fetchLeaderboards = async () => {
+  try {
+    const response = await fetch(`${baseUrl}users/fetchLeaderBoards`);
+    const data = await response.json();
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        data: {
+          students: data.data.students || [],
+          instructors: data.data.instructors || [],
+          institutions: data.data.institutions || [],
+        },
+        message: 'Leaderboards loaded successfully',
+      };
+    }
+
+    return {
+      success: false,
+      message: data?.message || 'Failed to fetch leaderboards',
+    };
+  } catch (error: any) {
+    console.error("Leaderboard API Error:", error);
+    return {
+      success: false,
+      message: 'Network error while fetching leaderboards',
+    };
+  }
+};

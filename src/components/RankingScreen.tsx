@@ -7,49 +7,49 @@ import {
   Image,
   ScrollView,
   FlatList,
-  TextInput,
   Animated,
   Dimensions,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT, PRIMARY_COLOR_TINT_MAIN} from './Classroomcomponent';
-import { User, RankCardCarouselProps, iCampusOperationalInstitutionSchema } from 'types/firebase';
-import { NavigationProp } from '@react-navigation/native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from './Classroomcomponent';
+import {
+  User,
+  RankCardCarouselProps,
+  iCampusOperationalInstitutionSchema,
+} from 'types/firebase';
 import { RankCard } from './IscoreRankCard';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from './hooks';
-import { baseUrl } from './HomeScreenComponents';
+import { fetchLeaderboards } from '../api/localGetApis.ts';
 import moment from 'moment';
-import axios from 'axios';
 import LinearGradient from 'react-native-linear-gradient';
-import {DEFAULT_GRADIENT, rankColors} from '../assets/styles/colors';
+import { DEFAULT_GRADIENT, rankColors } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
+import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
+import { homeStyles } from '../assets/styles/colors.ts';
+import { BlurView } from '@react-native-community/blur';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = 160; // Card width
 const ITEM_SPACING = (width - ITEM_WIDTH) / 2;
 
 interface UserScoreHeaderProps {
-  score: number;
-  previousScore: number;
-  nextUpdateDate: string | Date;
-  searchQuery: string;
-  searchResults: User[];
-  navigation: NavigationProp<any>;
-  isLocked: boolean;
-  userRole: string;
+  user: any;
+  navigation: any;
+  nextUpdateDate: string;
+  isEnterpriseView: boolean;
+  isViewingSelf: boolean;
 }
 interface InstitutionItemProps {
   item: iCampusOperationalInstitutionSchema;
   index: number;
-}
-interface searchBarProps {
-  value: string,
-  placeholder: string,
-  onChange: (text: string) => void;
 }
 
 export const EliteCarousel: React.FC<RankCardCarouselProps> = ({
@@ -135,83 +135,15 @@ export const EliteCarousel: React.FC<RankCardCarouselProps> = ({
     </View>
   );
 };
-const SearchBar = ({ value, onChange, placeholder }: searchBarProps) => (
-  <View style={[styles.searchContainer]}>
-    <Icon name="magnify" size={20} color={PRIMARY_COLOR_TINT_MAIN} />
-    <TextInput
-      style={styles.searchInput}
-      placeholder={placeholder}
-      placeholderTextColor={PRIMARY_COLOR_TINT_MAIN}
-      value={value}
-      onChangeText={onChange}
-    />
-  </View>
-);
 
 const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
-  score,
-  previousScore,
-  nextUpdateDate,
-  searchQuery,
-  searchResults,
+  user,
   navigation,
-  isLocked,
-  userRole
+  nextUpdateDate,
+  isEnterpriseView,
+  isViewingSelf,
 }) => {
-  const isRising = score >= previousScore;
-  const daysUntilUpdate = moment(nextUpdateDate).diff(moment(), 'days');
-  const isEnterprise = userRole === 'enterprise';
-
-  // --- 1. SEARCH RESULTS VIEW ---
-  if (searchQuery.length > 0) {
-  return (
-    <View style={styles.searchOverlay}>
-      <View style={styles.searchHeaderRow}>
-        <Text style={styles.searchTitle}>Matching Talent</Text>
-        <Text style={styles.resultCount}>{searchResults.length} found</Text>
-      </View>
-
-      {searchResults.length > 0 ? (
-        <FlatList
-          horizontal
-          data={searchResults}
-          keyExtractor={(item) => item.uid}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 10 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.horizontalSearchCard}
-              onPress={() => navigation.navigate('Profile', { uid: item.uid })}
-            >
-              <Image
-                source={{ uri: item.profilePic?.[0] || 'https://sampeImg.png' }}
-                style={styles.searchAvatar}
-              />
-              <Text style={styles.searchName} numberOfLines={1}>
-                {item.firstname} {item.lastname}
-              </Text>
-              
-              <View style={styles.miniScoreBadge}>
-                {isLocked ? (
-                  <Icon name="lock" size={22} color={PRIMARY_COLOR_TINT_MAIN} />
-                ) : (
-                  <Text style={styles.iScoreText}>
-                    {Math.round(item.currentIScore ?? 0)}
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-      ) : (
-        <View style={styles.emptySearchContainer}>
-          <Text style={styles.noResultsText}>No matches for "{searchQuery}"</Text>
-        </View>
-      )}
-    </View>
-  );
-  }
-  if (isEnterprise) {
+  if (isEnterpriseView && isViewingSelf) {
     return (
       <View style={styles.userScoreCard}>
         <Text style={styles.headerLabel}>iScore Observer</Text>
@@ -224,32 +156,82 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
       </View>
     );
   }
-  // --- 2. DEFAULT PERSONAL SCORE VIEW ---
+
+  // 2. Score Calculation for Individual (Self or Searched User)
+  const score = user?.currentIScore ?? 0;
+  const previousScore = user?.previousIScore ?? 0;
+  const isRising = score >= previousScore;
+  const daysUntilUpdate = moment(nextUpdateDate).diff(moment(), 'days');
+  const isScoreLocked = user?.displayScore === 'Locked';
+
   return (
-    <View
-      style={styles.userScoreCard}
-    > 
-      <Text style={styles.headerLabel}>Your iScore</Text>
-      <View style={styles.scoreRow}>
-        <Text style={styles.bigScore}>{score.toFixed(0)}</Text>
-        <View style={styles.badgeContainer}>
-          <Text
-            style={styles.badgeText}
-          >
-            {isRising ? 'Rising Star' : 'Needs Momentum'}
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.timerText}>
-        Next update in: {daysUntilUpdate} days
+    <View style={styles.userScoreCard}>
+      {/* Dynamic Header Label */}
+      <Text style={styles.headerLabel}>
+        {isViewingSelf ? 'Your iScore' : `${user?.firstname}'s iScore`}
       </Text>
 
-      <TouchableOpacity onPress={() => navigation.navigate('IScoreBreakdown')}>
-        <Text style={styles.learnMore}>How is this calculated? →</Text>
+      <TouchableOpacity
+        activeOpacity={isScoreLocked ? 0.8 : 1}
+        //onPress={() => isScoreLocked && onUpgradePress()}
+        disabled={!isScoreLocked}
+      >
+        <View style={styles.scoreRow}>
+          <View style={styles.scoreCircle}>
+            <Text style={styles.bigScore}>
+              {isScoreLocked ? '88' : user?.displayScore ?? Math.round(score)}
+            </Text>
+
+            {isScoreLocked && (
+              <BlurView
+                style={StyleSheet.absoluteFill}
+                blurType="light"
+                blurAmount={10}
+                reducedTransparencyFallbackColor="white"
+              />
+            )}
+          </View>
+
+          <View style={styles.badgeContainer}>
+            <MaterialIcons
+              name={isRising ? 'trending-up' : 'speed'}
+              size={16}
+              color="#fff"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.badgeText}>
+              {isRising ? 'Rising Star' : 'Needs Momentum'}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Show timer only when looking at yourself */}
+      {isViewingSelf ? (
+        <Text style={styles.timerText}>
+          Next update in: {daysUntilUpdate} days
+        </Text>
+      ) : (
+        <Text style={styles.timerText}>
+          Tier: {user?.tier?.toUpperCase() || 'FREE'}
+        </Text>
+      )}
+
+      <TouchableOpacity
+        onPress={() =>
+          isViewingSelf
+            ? navigation.navigate('IScoreBreakdown')
+            : navigation.navigate('Profile', { uid: user.uid })
+        }
+      >
+        <Text style={styles.learnMore}>
+          {isViewingSelf ? 'How is this calculated? →' : 'View Full Profile →'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 };
+
 const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
   const isTopThree = index < 3;
   return (
@@ -257,7 +239,9 @@ const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
       {/* 1. Rank Medallion/Number */}
       <View style={styles.rankContainer}>
         {isTopThree ? (
-          <View style={[styles.medallion, { backgroundColor: rankColors[index] }]}>
+          <View
+            style={[styles.medallion, { backgroundColor: rankColors[index] }]}
+          >
             <Text style={styles.rankText}>{index + 1}</Text>
           </View>
         ) : (
@@ -266,7 +250,10 @@ const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
       </View>
       {/* 2. Logo with Shadow */}
       <View style={styles.logoContainer}>
-        <Image source={{ uri: item.logo || 'https://via.placeholder.com/150' }} style={styles.instLogo} />
+        <Image
+          source={{ uri: item.logo || 'https://via.placeholder.com/150' }}
+          style={styles.instLogo}
+        />
       </View>
       {/* 3. Content Area */}
       <View style={styles.contentArea}>
@@ -284,68 +271,38 @@ const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
     </TouchableOpacity>
   );
 };
-export function RankingScreen () {
+export function RankingScreen() {
   const user = useAppSelector(state => state.user);
   const userRole = user.usertype;
   const navigation = useNavigation<any>();
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [leaderboard, setLeaderboard] = useState<{
     students: User[];
     instructors: User[];
-    institutions: iCampusOperationalInstitutionSchema[]; 
+    institutions: iCampusOperationalInstitutionSchema[];
   }>({
     students: [],
     instructors: [],
-    institutions: []
+    institutions: [],
   });
-  const [placeholder, setPlaceholder] = useState('Search students...');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  useEffect(() => {
-  const delayDebounceFn = setTimeout(async () => {
-    if (searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const response = await axios.get(`${baseUrl}users/search`, {
-        params: { 
-          q: searchQuery,
-          viewerRole: userRole,
-          viewerTier: user.tier 
-        }
-      });
-      if (response.data.success) {
-        setSearchResults(response.data.data);
-      }
-    } catch (error: any) { // Option 1: Quick fix with 'any'
-      console.error("Search error:", error);
-      Toast.show({
-        type: 'error',
-        text1: 'Search Error',
-        text2: error?.message || "An unexpected error occurred", // Safe string access
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  }, 500); // 500ms debounce
-
-  return () => clearTimeout(delayDebounceFn);
-}, [searchQuery, userRole, user?.tier]);
-  // 1. Animation Value for Scroll
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const [placeholder, setPlaceholder] = useState('Search users...');
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${baseUrl}users/fetchLeaderBoards`);
-      if (response.data.success) {
+      const response = await fetchLeaderboards();
+      if (response.success && response.data) {
+        const {
+          students = [],
+          instructors = [],
+          institutions = [],
+        } = response.data;
         setLeaderboard({
-          students: response.data.data.students,
-          instructors: response.data.data.instructors,
-          institutions: response.data.data.institutions,
+          students,
+          instructors,
+          institutions,
         });
       }
     } catch (error) {
@@ -360,29 +317,19 @@ export function RankingScreen () {
   }, []);
   useEffect(() => {
     const phrases = [
-      "Search students...",
-      "Search lecturers...",
-      "Search institutions...",
-      "Find elite talent..."
+      'Search students...',
+      'Search lecturers...',
+      'Search institutions...',
+      'Find elite talent...',
     ];
     let i = 0;
     const interval = setInterval(() => {
       i = (i + 1) % phrases.length;
       setPlaceholder(phrases[i]);
-    }, 3000); 
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
-  const headerBg = scrollY.interpolate({
-    inputRange: [0, 80], 
-    outputRange: ['rgba(255,255,255,0)', '#FFF'], 
-    extrapolate: 'clamp',
-  });
-  const headerShadow = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [0, 4],
-    extrapolate: 'clamp',
-  });
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
@@ -391,13 +338,15 @@ export function RankingScreen () {
     return leaderboard.students.filter((s: any) => (s.currentIScore ?? 0) > 20);
   }, [leaderboard.students]);
   const eliteLecturers = useMemo(() => {
-    return leaderboard.instructors.filter((l: any) => (l.currentIScore ?? 0) > 20);
+    return leaderboard.instructors.filter(
+      (l: any) => (l.currentIScore ?? 0) > 20,
+    );
   }, [leaderboard.instructors]);
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-        <Text style={{ marginTop: 10, color: '#676D75' }}>
+        <Text style={{ marginTop: 10, color: PRIMARY_COLOR }}>
           Loading Elite Rankings...
         </Text>
       </View>
@@ -406,60 +355,30 @@ export function RankingScreen () {
   const nextUpdate = moment().add(1, 'month').startOf('month').toISOString();
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       refreshControl={
-      <RefreshControl 
-        refreshing={refreshing} 
-        onRefresh={onRefresh} 
-        colors={[PRIMARY_COLOR]} 
-        tintColor={PRIMARY_COLOR} 
-      />
-    }
-      >
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[PRIMARY_COLOR]}
+          tintColor={PRIMARY_COLOR}
+        />
+      }
+    >
       <LinearGradient
         colors={DEFAULT_GRADIENT}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.linearGradContainer}
-      > 
-        <Animated.View 
-          style={[
-            styles.stickyHeader, 
-            { backgroundColor: headerBg, elevation: headerShadow, shadowOpacity: scrollY.interpolate({
-                inputRange: [0, 80],
-                outputRange: [0, 0.1],
-                extrapolate: 'clamp',
-              }) 
-            }
-          ]}
-        >
-          <SearchBar 
-            value={searchQuery} 
-            onChange={setSearchQuery} 
-            placeholder={placeholder} 
-          />
-        </Animated.View>
-        {isSearching ? (
-          <ActivityIndicator size="large" color={PRIMARY_COLOR_TINT_MAIN} style={{ marginTop: 20 }} />
-        ) : searchResults.length > 0 ? (
-          <UserScoreHeader
-            score={user.currentIScore ?? 5} 
-            previousScore={user.previousIScore ?? 5}
-            nextUpdateDate={nextUpdate}   
-            searchQuery={searchQuery}
-            searchResults={searchResults}
-            navigation={navigation}
-            isLocked={userRole !== 'enterprise' && user.tier === 'free'}  
-            userRole={userRole ?? 'student'} 
-          />
-        ) : (
-          <>
-          <View style={styles.sectionHeaderLight}>
-            <Text style={styles.sectionTitleLight}>No results found</Text>
-          </View>
-          </>
-        )}
+      >
+        <UserScoreHeader
+          user={selectedUser ? selectedUser : user}
+          navigation={navigation}
+          isEnterpriseView={userRole === 'enterprise'}
+          nextUpdateDate={nextUpdate}
+          isViewingSelf={!selectedUser}
+        />
       </LinearGradient>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Our Elite Students</Text>
@@ -494,14 +413,12 @@ export function RankingScreen () {
 
       {/* 5. Enterprise CTA */}
       {userRole === 'enterprise' && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.hireBanner}
           onPress={() => navigation.navigate('EnterpriseSearch')} // Assuming you have a filtered search view
         >
           <View style={{ flex: 1 }}>
-            <Text style={styles.hireText}>
-              Looking for top talent? 
-            </Text>
+            <Text style={styles.hireText}>Looking for top talent?</Text>
             <Text style={styles.hireText}>
               Filter specifically by iScore metrics.
             </Text>
@@ -511,60 +428,69 @@ export function RankingScreen () {
           </View>
         </TouchableOpacity>
       )}
+      {isSearchFocused && (
+        <UserSearchOverlay
+          isRanking={true}
+          currentUser={user}
+          navigation={navigation}
+          placeholder={placeholder}
+          onClose={() => setIsSearchFocused(false)}
+          colors={{ primary: PRIMARY_COLOR, tint: PRIMARY_COLOR_TINT }}
+          onResultPress={userObject => {
+            setSelectedUser(userObject);
+            setIsSearchFocused(false);
+          }}
+        />
+      )}
+      {!isSearchFocused && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => setIsSearchFocused(true)}
+        >
+          <MaterialIcons name="search" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
       <Toast config={toastConfig} />
     </ScrollView>
   );
-};
+}
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    position: 'relative',
   },
-  linearGradContainer:{
+  linearGradContainer: {
     borderBottomRightRadius: 20,
     borderBottomLeftRadius: 20,
-    marginBottom: 10
-  },
-  stickyHeader: {
-    paddingVertical: 15,
-    backgroundColor: 'transparent',
-  },
-  // Search Bar
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fadccc', 
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 45,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-    color: PRIMARY_COLOR_TINT_MAIN,
+    padding: 20,
+    marginBottom: 10,
   },
   // Personal Score Card
   userScoreCard: {
-    padding: 20,
-    marginBottom: 20,
     elevation: 5,
-    shadowColor: PRIMARY_COLOR,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    alignContent: 'center',
   },
   headerLabel: {
-    color: '#fff',
+    color: PRIMARY_COLOR_TINT_MAIN,
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 1,
   },
   scoreRow: {
+    marginVertical: 10,
+    position: 'relative',
     alignItems: 'center',
-    marginTop: 10,
-    position: 'relative'
+  },
+  scoreCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR_TINT_MAIN,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   bigScore: {
     color: PRIMARY_COLOR_TINT_MAIN,
@@ -573,19 +499,26 @@ const styles = StyleSheet.create({
   },
   badgeContainer: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: -5,
+    right: -10,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR_TINT_MAIN
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR_TINT_MAIN,
+    elevation: 4,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   badgeText: {
-    color: '#fff',
+    color: PRIMARY_COLOR_TINT_MAIN,
     fontSize: 13,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   timerText: {
     color: PRIMARY_COLOR_TINT_MAIN,
@@ -624,14 +557,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
     color: PRIMARY_COLOR_TINT_MAIN,
-    textTransform: 'capitalize'
+    textTransform: 'capitalize',
   },
   miniScoreBadge: {
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: PRIMARY_COLOR_TINT_MAIN
+    borderColor: PRIMARY_COLOR_TINT_MAIN,
   },
   iScoreText: {
     color: PRIMARY_COLOR_TINT_MAIN,
@@ -650,7 +583,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
   },
   rankContainer: {
@@ -700,7 +633,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   instScoreBadge: {
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN, 
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     borderRadius: 14,
     alignItems: 'center',
   },
@@ -721,7 +654,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
-    borderBottomWidth: .8,
+    borderBottomWidth: 0.8,
     borderBottomColor: PRIMARY_COLOR_TINT_MAIN,
     paddingBottom: 10,
   },
@@ -749,13 +682,13 @@ const styles = StyleSheet.create({
   // Header Row handles the "Title" and "View All" positioning
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center', 
-    marginBottom: 15,
+    alignItems: 'center',
+    padding: 15,
   },
 
   sectionHeaderLight: {
     flexDirection: 'row',
-    alignItems: 'center', 
+    alignItems: 'center',
     marginVertical: 15,
   },
 
@@ -763,12 +696,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#222', 
+    color: '#222',
   },
   sectionTitleLight: {
     fontSize: 18,
     fontWeight: '800',
-    color: PRIMARY_COLOR_TINT_MAIN, 
+    color: PRIMARY_COLOR_TINT_MAIN,
   },
 
   // The "View All" interactive text
@@ -782,23 +715,23 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   carouselContainer: {
-    paddingVertical: 20,
+    padding: 20,
     backgroundColor: 'transparent',
   },
   horizontalSearchCard: {
-    width: '80%', 
+    width: '80%',
     alignItems: 'center',
     marginRight: 10,
     padding: 10,
     borderRadius: 18,
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT_MAIN,
   },
   instListContainer: {
-    paddingBottom: 20,  
+    padding: 20,
   },
   hireBanner: {
-    backgroundColor: PRIMARY_COLOR, 
+    backgroundColor: PRIMARY_COLOR,
     paddingBottom: 40,
     paddingHorizontal: 10,
     borderRadius: 20,
