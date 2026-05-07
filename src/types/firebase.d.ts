@@ -73,7 +73,7 @@ export interface User {
   previousIScore?: number,
   itagusername?: string,
   skills?: string[]; 
-  alternateEmails?: string[];
+  recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   referralCode?: string
 };
 export interface iCampusAppDetails {

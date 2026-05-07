@@ -58,3 +58,23 @@ export const updatePreferences = async (
     return { success: false, error: error.message };
   }
 };
+
+export const updateEmailRecord = async (email: string, type: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/update-emails`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ email, type }),
+    });
+    const result = await response.json();
+    if (!result.ok) {
+      return { success: result.success, message: result.message };
+    }
+    return { success: response.ok, message: result.message };
+  }catch (error) {
+     return { success: false, message: "Network error. Try again." };
+  }
+};

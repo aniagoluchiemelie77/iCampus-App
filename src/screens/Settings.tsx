@@ -176,6 +176,18 @@ export const Settings = () => {
             subtitle="Manage your iCampus login password"
             onPress={() => navigation.navigate('ResetPasswordScreen')}
           />
+          <SettingItem
+            icon="email-outlined"
+            title="Emails"
+            subtitle="Manage your iCampus emails"
+            onPress={() => navigation.navigate('ResetPasswordScreen')}
+          />
+          <SettingItem
+            icon="local-phone-outlined"
+            title="Phone Numbers"
+            subtitle="Manage your phone numbers"
+            onPress={() => navigation.navigate('ResetPasswordScreen')}
+          />
         </View>
 
         {/* App Settings */}
