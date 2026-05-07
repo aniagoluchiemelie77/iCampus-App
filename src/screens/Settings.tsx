@@ -180,13 +180,13 @@ export const Settings = () => {
             icon="email-outlined"
             title="Emails"
             subtitle="Manage your iCampus emails"
-            onPress={() => navigation.navigate('ResetPasswordScreen')}
+            onPress={() => navigation.navigate('EmailsScreen')}
           />
           <SettingItem
-            icon="local-phone-outlined"
+            icon="smartphone-outlined"
             title="Phone Numbers"
             subtitle="Manage your phone numbers"
-            onPress={() => navigation.navigate('ResetPasswordScreen')}
+            onPress={() => navigation.navigate('PhoneScreen')}
           />
         </View>
 

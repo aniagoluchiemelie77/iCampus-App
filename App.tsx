@@ -73,6 +73,8 @@ import { BlockedUsersScreen } from './src/screens/BlockedUsersScreen.tsx';
 import { NotificationSettings } from './src/screens/SNotificationScreen.tsx';
 import { ReferralScreen } from './src/screens/SReferralScreen.tsx';
 import { ResetPasswordScreen } from './src/screens/SResetPasswordScreen.tsx';
+import { EmailsScreen } from './src/screens/SEmails.tsx';
+import { PhoneScreen } from './src/screens/SPhoneNumberScreens.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -116,6 +118,8 @@ export type RootStackParamList = {
   LinkedDevicesScreen: undefined;
   BlockedUsers: undefined;
   ResetPasswordScreen: undefined;
+  EmailsScreen: undefined;
+  PhoneScreen: undefined;
   Subscription: {
     targetScreen?: keyof RootStackParamList;
   };
@@ -435,6 +439,16 @@ const App = () => {
             <Stack.Screen
               name="BlockedUsers"
               component={BlockedUsersScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="EmailsScreen"
+              component={EmailsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PhoneScreen"
+              component={PhoneScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

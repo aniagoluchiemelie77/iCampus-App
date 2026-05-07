@@ -672,3 +672,61 @@ export const verifyCurrentPassword = async (password: string) => {
     return { success: false, message: "Network error. Try again." };
   }
 };
+export const handleSendWhatsAppCode = async (formattedNumber: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/send-phone-otp`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ 
+        phoneNumber: formattedNumber, 
+        channel: 'whatsapp' 
+      }),
+    });
+    const data = await response.json();
+
+    if (response.ok) {
+      return{
+        success: response.ok,
+        message: 'OTP sent to your WhatsApp!',
+        data,
+      };
+    } else {
+      return{
+        success: false,
+        message: 'Whatsapp verification failed, please retry.'
+      };
+    }
+  } catch (error) {
+    Toast.show({ type: 'error', text2: 'Check your internet connection' });
+    return{
+      success: false,
+      message: 'Check your internet connection.'
+    };
+  } 
+};
+export const verifyPhoneOTPAPI = async (phoneNumber: string, code: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/verify-phone-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        phoneNumber, 
+        codeInput: code 
+      }),
+    });
+    const data = await response.json();
+    return {
+      success: response.ok,
+      message: data.message,
+      phoneNumbers: data.phoneNumbers
+    };
+  } catch (error) {
+    return { success: false, message: 'Connection to server failed' };
+  }
+};

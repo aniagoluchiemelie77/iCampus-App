@@ -4,8 +4,6 @@ import { useAppSelector } from '../components/hooks';
 import { InputGroup } from '../components/InputGroup';
 import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { PageHeader } from '../components/PageHeader.tsx';
-import { getCountryCallingCode, getExampleNumber } from 'libphonenumber-js';
-import examples from 'libphonenumber-js/examples.mobile.json';
 import countries from 'i18n-iso-countries';
 import { patchUserProfile } from '../api/localPatchApis';
 import Toast from 'react-native-toast-message';
@@ -24,7 +22,6 @@ export const EditProfileScreen = () => {
   const isEnterprise = user.usertype === 'enterprise';
   const isTeacher = user.usertype === 'lecturer';
   const isVerified = user.isVerified;
-  const countryIso = countries.getAlpha2Code(user.country || '', 'en') ?? 'US';
   const [formData, setFormData] = useState({
     headline: user.headline || '',
     organizationName: user.organizationName || '',
@@ -33,7 +30,6 @@ export const EditProfileScreen = () => {
     firstname: user.firstname || '',
     lastname: user.lastname || '',
     department: user.department || '',
-    phoneNumber: user.phoneNumber || '',
     email: user.email || '',
   });
   const isDirty =
@@ -44,7 +40,6 @@ export const EditProfileScreen = () => {
     formData.firstname !== (user.firstname || '') ||
     formData.lastname !== (user.lastname || '') ||
     formData.department !== (user.department || '') ||
-    formData.phoneNumber !== (user.phoneNumber || '') ||
     formData.email !== (user.email || '');
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({
@@ -80,20 +75,6 @@ export const EditProfileScreen = () => {
       });
     }
   };
-
-  const getCountryMetadata = (iso: string) => {
-    try {
-      const countryCode = `+${getCountryCallingCode(iso as any)}`;
-      const example = getExampleNumber(iso as any, examples);
-      return {
-        countryCode,
-        expectedLength: example ? example.nationalNumber.length : 10,
-      };
-    } catch (error) {
-      return { countryCode: '+1', expectedLength: 10 };
-    }
-  };
-  const { countryCode } = getCountryMetadata(countryIso);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -181,14 +162,6 @@ export const EditProfileScreen = () => {
       )}
 
       <InputGroup
-        label="Phone number"
-        defaultValue={formData.phoneNumber}
-        type="phone"
-        countryCode={countryCode}
-        onChangeText={text => handleInputChange('phoneNumber', text)}
-      />
-
-      <InputGroup
         label="Email"
         defaultValue={formData.email}
         isLocked={isVerified}
@@ -198,10 +171,6 @@ export const EditProfileScreen = () => {
         placeholderTextColor={PRIMARY_COLOR_TINT}
         onChangeText={text => handleInputChange('email', text)}
       />
-
-      <TouchableOpacity style={styles.altEmailBtn}>
-        <Text style={styles.altEmailText}>+ Add alternate email</Text>
-      </TouchableOpacity>
       <Toast config={toastConfig} />
     </ScrollView>
   );
@@ -222,19 +191,5 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: '#888',
-  },
-  altEmailBtn: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    padding: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-  },
-  altEmailText: {
-    color: '#007AFF',
-    fontWeight: '500',
   },
 });

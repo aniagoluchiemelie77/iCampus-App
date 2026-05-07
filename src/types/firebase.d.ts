@@ -47,7 +47,12 @@ export interface User {
   createdAt: string;
   twoFactorEnabled?: boolean;
   lastLogin?: string;
-  phoneNumber?: string;
+  phoneNumbers?: {
+    number: string;
+    isVerified: boolean;
+    verifiedVia: 'sms' | 'whatsapp';
+    addedAt: string;
+  }[];
   country?: string;
   badges?: string[];
   schoolCode?: string;
@@ -62,7 +67,6 @@ export interface User {
   pointsAccountId?: UserPointsAccount.pointsAccountId,
   cart?: string[];
   favorites?: string[];
-  phone_number?: string
   purchaseHistory?: PurchaseHistory[];
   PurchaseTransactions?: UserTransactions[];
   deals?: Deals.dealId[];

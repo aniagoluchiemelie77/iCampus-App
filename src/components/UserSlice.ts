@@ -9,6 +9,7 @@ const initialState: User = {
   schoolName: '',
   email: '',
   recoveryEmails: [],
+  phoneNumbers: [],
   pointsBalance: 0,
   accessToken: '',
   sessions: [],
@@ -56,6 +57,9 @@ const userSlice = createSlice({
         state.blockedUsers = state.blockedUsers.filter(uid => uid !== action.payload.targetUid);
       }
     },
+    updatePhoneNumbersData: (state, action: PayloadAction<{ phoneNumbers: any[] }>) => {
+      state.phoneNumbers = action.payload.phoneNumbers;
+    },
     updateEmailData(state, action: PayloadAction<{ 
       email?: string; 
       recoveryEmails?: { email: string; isVerified: boolean; addedAt: string }[] 
@@ -76,5 +80,5 @@ const userSlice = createSlice({
 
   },
 });
-export const { setUser, clearUser, updateUserImage, updateCoursesEnrolled, updateEmailData, updateCoursesTeaching, updateUserSessions, updateBlockedUsers} = userSlice.actions;
+export const { setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateCoursesEnrolled, updateEmailData, updateCoursesTeaching, updateUserSessions, updateBlockedUsers} = userSlice.actions;
 export default userSlice.reducer;
