@@ -1,20 +1,13 @@
 import React, {
   createContext,
   useContext,
-  useEffect,
   useState,
-  useCallback,
   ReactNode,
   useRef,
 } from 'react';
 
-import type { Product, User, Notification, Posts } from '../types/firebase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { User, Posts, Comment } from '../types/firebase';
 import Toast from 'react-native-toast-message';
-import { useDispatch } from 'react-redux';
-import type { AppDispatch } from './store';
-import { setNotifications2 } from './NotificationSplice';
-import { setCartItems } from './CartProductsSlice';
 import { baseUrl } from './HomeScreenComponents';
 import {
   recordPostImpressionAPI,
@@ -26,19 +19,12 @@ import {
   addCommentAPI,
   toggleLikeAPI,
   createRepostAPI,
+  toggleCommentLikeAPI,
 } from '../api/localPostApis';
 interface AppDataContextType {
-  events: any[];
-  favorites: Product[];
-  notification: Notification[];
-  cartProducts: Product[];
-  favoriteProducts: Product[];
   posts: Posts[];
   setPosts: React.Dispatch<React.SetStateAction<Posts[]>>;
-  cart: string[];
   toggleLike: (postId: string) => Promise<void>;
-  errorMessage: string | null;
-  fetchEvents: () => Promise<void>;
   currentUser: User;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
   handleRepost: (
@@ -51,10 +37,6 @@ interface AppDataContextType {
     parentId?: string | null,
   ) => Promise<void>;
   toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
-  fetchFavorites: () => Promise<void>;
-  fetchCartItems: () => Promise<void>;
-  fetchNotifications: () => Promise<void>;
-  toggleFavorite: (productId: string) => Promise<void>;
   handleVote: (postId: string, optionId: string) => Promise<void>;
   incrementImpression: (postId: string) => Promise<void>;
   toggleBookmark: (postId: string) => Promise<void>;
@@ -78,170 +60,9 @@ export const useAppDataContext = () => {
 };
 
 export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
-  const [events, setEvents] = useState<any[]>([]);
-  const dispatch = useDispatch<AppDispatch>();
-  const [favorites] = useState<Product[]>([]);
   const [posts, setPosts] = useState<Posts[]>([]);
-  const [cartProducts, setCartProducts] = useState<Product[]>([]);
-  const [notification, createNotifications] = useState<Notification[]>([]);
-  const [favoriteProducts, setFavoritesProducts] = useState<Product[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [cart] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState(user);
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `${baseUrl}user/events?userId=${user.uid}&department=${user.department}&level=${user.current_level}`,
-      );
-      if (!response.ok) {
-        Toast.show({
-          type: 'error',
-          text1: `Status ${response.status}, couldn't fetch events`,
-          position: 'bottom',
-          bottomOffset: 5,
-        });
-      }
-      const data = await response.json();
-      setEvents(data);
-      setErrorMessage(null);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-      Toast.show({
-        type: 'error',
-        text1: "Error, couldn't fetch events",
-        position: 'bottom',
-        bottomOffset: 5,
-      });
-    }
-  }, [user.uid, user.department, user.current_level]);
-
-  const fetchFavorites = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}store/favorites`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFavoritesProducts(data.products);
-      }
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
-      Toast.show({
-        type: 'error',
-        text1: "Error, couldn't fetch favorites.",
-        position: 'bottom',
-        bottomOffset: 5,
-      });
-    }
-  }, []);
-  const fetchNotifications = useCallback(async () => {
-    const queryParams = new URLSearchParams({
-      userId: user.uid,
-      limit: '100',
-      offset: '0',
-      unread: 'true',
-    });
-    try {
-      const res = await fetch(`${baseUrl}users/notifications?${queryParams}`);
-      if (res.ok) {
-        const data = await res.json();
-        console.log(data.notifications);
-        if (Array.isArray(data.notifications)) {
-          dispatch(setNotifications2(data.notifications));
-          createNotifications(data.notifications);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
-      Toast.show({
-        type: 'error',
-        text1: "Error, couldn't fetch favorites.",
-        position: 'bottom',
-        bottomOffset: 5,
-      });
-    }
-  }, [user.uid, dispatch]);
-
-  const fetchCartItems = useCallback(async () => {
-    const token = await AsyncStorage.getItem('accessToken');
-    console.log('Token:', token);
-
-    try {
-      const response = await fetch(`${baseUrl}store/cart`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const rawData = await response.json();
-      console.log('Fetched cart items:', rawData);
-
-      // Normalize each item
-      const normalizedItems = rawData.map((item: any) => ({
-        ...item,
-        quantity: Number(item.cartQuantity) || 1, // ✅ use cartQuantity from backend
-        stock: Number(item.quantity) || 0, // ✅ preserve stock separately
-      }));
-
-      setCartProducts(normalizedItems);
-      dispatch(setCartItems(normalizedItems));
-    } catch (error) {
-      console.warn(error);
-      Toast.show({
-        type: 'error',
-        text1: "Error, couldn't fetch cart items.",
-        position: 'bottom',
-        bottomOffset: 5,
-      });
-    }
-  }, [dispatch]);
-
-  const toggleFavorite = async (productId: string) => {
-    const token = await AsyncStorage.getItem('accessToken');
-
-    try {
-      console.log('Query...');
-      const res = await fetch(`${baseUrl}store/toggleFavorite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ productId }),
-      });
-
-      if (res.ok) {
-        const data = await res.json(); // Get the response body
-        Toast.show({
-          type: 'success',
-          text1: data.message,
-          position: 'bottom',
-          bottomOffset: 5, // Use server message directly
-        });
-
-        // Optional: update local favorites state if returned
-        setFavoritesProducts(data.favorites);
-      } else {
-        const errorData = await res.json();
-        Toast.show({
-          type: 'error',
-          text1: errorData.error || 'Failed to toggle favorite',
-          position: 'bottom',
-          bottomOffset: 5,
-        });
-      }
-      fetchFavorites(); // Refresh from server
-    } catch (error) {
-      console.error('Toggle error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to save product as favorite',
-      });
-    }
-  };
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
     setPosts(prevPosts =>
@@ -385,45 +206,35 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const toggleCommentLike = async (postId: string, commentId: string) => {
     if (!currentUser?.uid) return;
     const userId = currentUser.uid;
-
-    setPosts(prev =>
-      prev.map(post => {
+    const performToggle = (postsArray: any[]) =>
+      postsArray.map(post => {
         if (post.postId === postId) {
-          // 2. Use fallback [] to prevent mapping over undefined
-          const currentComments = post.comments ?? [];
-
-          const updatedComments = currentComments.map(c => {
+          const updatedComments = (post.comments ?? []).map((c: Comment) => {
             if (c.commentId === commentId) {
-              // 3. Ensure likes array exists before calling .includes
               const currentLikes = c.likes ?? [];
               const isLiked = currentLikes.includes(userId);
-
               return {
                 ...c,
                 likes: isLiked
-                  ? currentLikes.filter(id => id !== userId)
+                  ? currentLikes.filter((id: string) => id !== userId)
                   : [...currentLikes, userId],
               };
             }
             return c;
           });
-
           return { ...post, comments: updatedComments };
         }
         return post;
-      }),
-    );
-
-    // 4. API Call
-    try {
-      await fetch(`${baseUrl}posts/${postId}/comments/${commentId}/like`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
       });
-    } catch (error) {
-      console.error('Failed to sync comment like:', error);
-      // Optional: Add logic to "roll back" the state if the API fails
+    setPosts(prev => performToggle(prev));
+    const result = await toggleCommentLikeAPI(postId, commentId);
+    if (!result.success) {
+      setPosts(prev => performToggle(prev));
+      Toast.show({
+        type: 'error',
+        text1: 'Sync failed',
+        text2: 'Your like could not be saved.',
+      });
     }
   };
   const addComment = async (
@@ -568,41 +379,13 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     }
   };
 
-  useEffect(() => {
-    fetchEvents();
-    fetchFavorites();
-    fetchCartItems();
-    fetchNotifications();
-    const interval = setInterval(() => {
-      fetchEvents();
-      fetchFavorites();
-      fetchCartItems();
-      fetchNotifications();
-    }, 2 * 60 * 60 * 1000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchEvents, fetchFavorites, fetchCartItems, fetchNotifications]);
-
   return (
     <AppDataContext.Provider
       value={{
-        events,
-        favorites,
-        notification,
-        cartProducts,
-        errorMessage,
         currentUser,
         setCurrentUser,
-        cart,
-        favoriteProducts,
         posts,
         setPosts,
-        fetchEvents,
-        fetchFavorites,
-        fetchCartItems,
-        fetchNotifications,
-        toggleFavorite,
         toggleLike,
         incrementImpression,
         toggleBookmark,

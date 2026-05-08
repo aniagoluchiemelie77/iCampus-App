@@ -823,3 +823,31 @@ export const createRepostAPI = async (
     return { success: false, message: 'Connection to server failed' };
   }
 };
+export const toggleCommentLikeAPI = async (
+  postId: string, 
+  commentId: string
+) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/comments/${commentId}/like`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to like post',
+      };
+    }
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("toggleCommentLikeAPI Error:", error);
+    return { success: false, message: 'Connection to server failed' };
+  }
+};

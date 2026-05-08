@@ -40,14 +40,11 @@ const Notifications = () => {
     try {
       // Start with the base URL and userId
       let url = `${baseUrl}users/notifications?userId=${user.uid}`;
-
-      // Update query params to match the backend's expected keys
       if (activeTab === 'finance') {
         url += '&category=finance';
       }
-
       if (activeTab === 'unread') {
-        url += '&unread=true'; // Changed from 'isRead=false' to 'unread=true'
+        url += '&unread=true';
       }
 
       const response = await fetch(url);

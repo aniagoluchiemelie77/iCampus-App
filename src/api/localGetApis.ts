@@ -326,3 +326,37 @@ export const fetchPostByIdAPI = async (postId: string) => {
     return { success: false, data: null, message: 'Connection to server failed' };
   }
 };
+export const fetchProductsAPI = async ({ 
+  q = '', 
+  category = 'all', 
+  cursor = '', 
+  limit = 10 
+}) => {
+  try {
+    const categoryParam = category === 'all' ? '' : encodeURIComponent(category);
+    const queryParam = encodeURIComponent(q);
+    const url = `${baseUrl}store/products?q=${queryParam}&category=${categoryParam}&cursor=${cursor}&limit=${limit}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch store items',
+      };
+    }
+    return {
+      success: response.ok,
+      data: result.products || [],
+      nextCursor: result.nextCursor || null,
+    };
+  } catch (error) {
+    console.error("fetchProductsAPI Error:", error);
+    return { success: false, data: [], message: 'Network error' };
+  }
+};

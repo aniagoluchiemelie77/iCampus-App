@@ -5,7 +5,6 @@ import { store } from './src/components/store';
 import { Provider } from 'react-redux';
 import type {
   Posts,
-  Product,
   User,
   CourseException,
   Lecture,
@@ -212,7 +211,7 @@ export type RootStackParamList = {
   iCashSecurity: { isRegistration: boolean };
   ICashDashboard: { refresh?: boolean };
   ICashResetPin: undefined;
-  ProductDetails: { product: Product };
+  ProductDetails: { productId: string };
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
   IcashP2PScreen: undefined;

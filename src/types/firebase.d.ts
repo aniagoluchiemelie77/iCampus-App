@@ -5,6 +5,7 @@ export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
 export type AttachmentType = 'image' | 'video' | 'file';
+export type DeliveryGateway = 'drop_off' | 'home_delivery';
 
 export interface UserSession {
   deviceId: string;
@@ -57,19 +58,18 @@ export interface User {
   badges?: string[];
   schoolCode?: string;
   current_level?: string;
-  coursesEnrolled?: Course.courseId[];
+  coursesEnrolled?: Course['courseId'];
   blockedUsers?: string[];
   appVersion?: iCampusAppDetails.appVersion;
   isVerified?: boolean
   userToken?: string,
   tokenCreatedAt?: string,
-  coursesTeaching?: Course.courseId[];
+  coursesTeaching?: Course['courseId'];
   pointsAccountId?: UserPointsAccount.pointsAccountId,
   cart?: string[];
   favorites?: string[];
-  purchaseHistory?: PurchaseHistory[];
-  PurchaseTransactions?: UserTransactions[];
-  deals?: Deals.dealId[];
+  purchaseHistory: Order['orderId']; 
+  salesHistory?: Order['orderId'];
   userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string,
@@ -274,30 +274,60 @@ export interface ProductCategory {
 }
 export interface Product {
   _id?: string;
-  productId: string;
-  colors?: string[]; // optional
-  sizes?: string[]; // optional
-  id: string;
+  productId: string; 
+  sellerId: string; 
   schoolName: string;
-  isAvailable?: boolean;
-  category: ProductCategory.categoryName;
-  sellerId: User.uid; // UID of lecturer or student
+  type: 'physical' | 'course' | 'file';
+  category: string;
   title: string;
-  inStock?: string;
   description?: string;
+  priceInPoints: number; 
   mediaUrls: string[]; 
-  type: 'product' | 'File';
-  priceInPoints: number;
-  lockedWithPassword?: boolean;
-  password?: string; // only accessible after purchase
+  physicalDetails?: {
+    colors?: string[];
+    sizes?: string[];
+    inStock: number;
+    weightKg: number; 
+    sellerGateways: DeliveryGateway[];
+    isNationalShippingAvailable: boolean
+  };
+  courseDetails?: {
+    courseId: string; 
+    lecturerIds: string[];
+    duration: string;
+    totalReviews: number;
+    studentsEnrolledCount: number;
+    studentsEnrolled: string[];
+  };
+  fileDetails?: {
+    fileName: string;
+    fileSizeInMB: number;
+    fileFormat: string;
+    fileUrl: string; 
+    hasPassword: boolean; 
+  };
+  ratings: {
+    userId: string;
+    score: number;
+    comment: string;
+  }[];
+  favCount: number;
+  isAvailable: boolean;
   createdAt: string;
-  ratings: Rating[];
-  isFile?: boolean;
-  fileUrl?: string; // if isFile is true
-  fileSizeInMB?: number; // optional
-  downloadCount?: number; // optional
-  favCount?: number;
-  location?: string // optional
+}
+export interface Order {
+  orderId: string;
+  buyerId: string;
+  sellerId: string;
+  productId: string;
+  amountPaid: number;
+  status: 'pending_delivery' | 'completed' | 'cancelled';
+  deliveryMethod: 'drop_off' | 'home_delivery';
+  verificationQrCode: string; 
+  isVerifiedByScan: boolean;
+  generatedFilePassword?: string; 
+  createdAt: string;
+  completedAt?: string;
 }
 export interface CartItem {
   id: string;
@@ -618,15 +648,13 @@ export interface Posts {
   };
 }
 export interface Comment {
-  id: string;
-  userId: string;
-  firstName: string;
-  userName: string;
-  profilePic?: string;
-  text: string;
-  timestamp: string | number;
-  likes: number;
-  replies: Comment[]; 
+  commentId: string;
+  userId: string; 
+  comment: string;
+  likes: string[];
+  parentId: string;
+  createdAt: string;
+  replies?: Comment[];
 }
 export interface Lecture {
   id: string;
