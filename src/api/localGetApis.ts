@@ -180,6 +180,38 @@ export const searchUsers = async (
     return [];
   }
 };
+export const searchUsersByUid = async (
+  uid: string,
+  viewerTier: string,
+  viewerRole: string,
+): Promise<any[]> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/search?q=${encodeURIComponent(uid)}&viewerTier=${viewerTier}&viewerRole=${viewerRole}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Search failed',
+      });
+      return [];
+    }
+    return Array.isArray(result.data) ? result.data : [result.data];
+  } catch (error) {
+    console.error("Search API Error:", error);
+    return [];
+  }
+};
 export const signupFetchInstitutions = async (country: string) => {
   try {
     const response = await fetch(
@@ -239,5 +271,58 @@ export const fetchLeaderboards = async () => {
       success: false,
       message: 'Network error while fetching leaderboards',
     };
+  }
+};
+export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => {
+  try {
+    const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch posts',
+      };
+    }
+    return {
+      success: response.ok,
+      posts: data.posts || [],
+      nextCursor: data.nextCursor || null,
+    };
+  } catch (error) {
+    console.error("fetchPostsAPI Error:", error);
+    return { success: false, posts: [], message: 'Failed to connect to server' };
+  }
+};
+export const fetchPostByIdAPI = async (postId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch post',
+      };
+    }
+    return {
+      success: response.ok,
+      data,
+      message: response.ok ? 'Success' : (data.error || 'Post not found on server'),
+    };
+  } catch (error) {
+    console.error("fetchPostByIdAPI Error:", error);
+    return { success: false, data: null, message: 'Connection to server failed' };
   }
 };

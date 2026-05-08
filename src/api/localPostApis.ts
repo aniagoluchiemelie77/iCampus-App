@@ -730,3 +730,96 @@ export const verifyPhoneOTPAPI = async (phoneNumber: string, code: string) => {
     return { success: false, message: 'Connection to server failed' };
   }
 };
+export const addCommentAPI = async (
+  postId: string,
+  text: string,
+  parentId: string | null = null
+) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/comment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        comment: text,
+        parentId: parentId || "",
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to add comment',
+      };
+    }
+    return {
+      success: response.ok,
+      data: data, 
+      message: 'Comment added'
+    };
+  } catch (error) {
+    console.error("addCommentAPI Error:", error);
+    return { success: false, message: 'Connection to server failed' };
+  }
+};
+export const toggleLikeAPI = async (postId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/like`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to sync like',
+      };
+    }
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("toggleLikeAPI Error:", error);
+    return { success: false, message: 'Connection to server failed' };
+  }
+};
+export const createRepostAPI = async (
+  originalPostId: string,
+) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/repost`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        originalPostId,
+        isRepost: true,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to repost',
+      };
+    }
+
+    return {
+      success: response.ok,
+      data: response.ok ? data : null,
+      message: response.ok ? 'Reposted successfully!' : (data.message || 'Failed to repost'),
+    };
+  } catch (error) {
+    console.error("createRepostAPI Error:", error);
+    return { success: false, message: 'Connection to server failed' };
+  }
+};

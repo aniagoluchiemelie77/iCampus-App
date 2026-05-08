@@ -78,3 +78,84 @@ export const updateEmailRecord = async (email: string, type: string) => {
      return { success: false, message: "Network error. Try again." };
   }
 };
+export const recordPostImpressionAPI = async (postId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/impression`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to add impression',
+      };
+    }
+    return {
+      success: response.ok,
+      message: data.message,
+    };
+  } catch (error) {
+    console.error("recordPostImpressionAPI Error:", error);
+    return { success: false, message: 'Failed to record impression' };
+  }
+};
+export const castPollVoteAPI = async (postId: string, optionId: string, userId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/vote`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        optionId,
+        userId,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to cast poll vote',
+      };
+    }
+    return {
+      success: response.ok,
+      data: data,
+      message: response.ok ? 'Vote registered' : (data.message || 'Failed to register vote'),
+    };
+  } catch (error) {
+    console.error("castPollVoteAPI Error:", error);
+    return { success: false, message: 'Connection to server failed' };
+  }
+};
+export const toggleBookmarkAPI = async (postId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/bookmark`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Bookmark sync failed',
+      };
+    }
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("toggleBookmarkAPI Error:", error);
+    return { success: false, message: 'Connection to server failed' };
+  }
+};

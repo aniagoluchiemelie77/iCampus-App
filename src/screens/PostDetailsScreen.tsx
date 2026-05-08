@@ -28,8 +28,6 @@ export const PostDetailScreen = ({ route }: any) => {
     name: string;
   } | null>(null);
   const inputRef = useRef<TextInput>(null);
-
-  // Destructure fetchPostById from context (Ensure this is defined in your EventContext)
   const { addComment, toggleCommentLike, fetchPostById } = useAppDataContext();
 
   // Fetch post if we only have the ID (from Notifications)
