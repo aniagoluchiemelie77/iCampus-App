@@ -159,3 +159,58 @@ export const toggleBookmarkAPI = async (postId: string) => {
     return { success: false, message: 'Connection to server failed' };
   }
 };
+export const updateCartAPI = async (
+  productId: string, 
+  action: 'add' | 'remove'
+) => {
+  try {
+    const response = await fetch(`${baseUrl}store/cart/toggle`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ productId, action }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message,
+      };
+    }
+    return {
+      success: response.ok,
+      data: result.cart, 
+      message: result.message
+    };
+  } catch (error) {
+    console.error("updateCartAPI Error:", error);
+    return { success: false, message: "Network error" };
+  }
+};
+export const toggleFavoriteAPI = async (productId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}store/favorites/toggle`, {
+      method: 'PATCH', 
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ productId }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message,
+      };
+    }
+    return {
+      success: response.ok,
+      data: result.favorites,
+      message: result.message,
+    };
+  } catch (error) {
+    console.error("toggleFavoriteAPI Error:", error);
+    return { success: false, message: "Network error" };
+  }
+};

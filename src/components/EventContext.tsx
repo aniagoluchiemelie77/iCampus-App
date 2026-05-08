@@ -13,6 +13,8 @@ import {
   recordPostImpressionAPI,
   castPollVoteAPI,
   toggleBookmarkAPI,
+  updateCartAPI,
+  toggleFavoriteAPI,
 } from '../api/localPatchApis';
 import { fetchPostByIdAPI } from '../api/localGetApis';
 import {
@@ -38,6 +40,8 @@ interface AppDataContextType {
   ) => Promise<void>;
   toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
   handleVote: (postId: string, optionId: string) => Promise<void>;
+  handleCartItemToggle: (productId: string) => Promise<void>;
+  handleToggleFavorite: (productId: string) => Promise<void>;
   incrementImpression: (postId: string) => Promise<void>;
   toggleBookmark: (postId: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
@@ -378,6 +382,45 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       return null;
     }
   };
+  const handleCartItemToggle = async (productId: string) => {
+    const isAlreadyInCart = currentUser?.cart?.includes(productId) ?? false;
+    const action = isAlreadyInCart ? 'remove' : 'add';
+
+    const previousCart = currentUser?.cart ?? [];
+    const newCart =
+      action === 'add'
+        ? [...previousCart, productId]
+        : previousCart.filter(id => id !== productId);
+
+    setCurrentUser({ ...currentUser, cart: newCart });
+    const result = await updateCartAPI(productId, action);
+    if (!result.success) {
+      setCurrentUser({ ...currentUser, cart: previousCart });
+      Toast.show({
+        type: 'error',
+        text2: 'Could not update cart, please retry.',
+      });
+    }
+  };
+  const handleToggleFavorite = async (productId: string) => {
+    if (!currentUser) return;
+
+    const previousFavorites = currentUser?.favorites ?? [];
+    const isFavorited = previousFavorites.includes(productId);
+    const newFavorites = isFavorited
+      ? previousFavorites.filter(id => id !== productId)
+      : [...previousFavorites, productId];
+
+    setCurrentUser({ ...currentUser, favorites: newFavorites });
+    const result = await toggleFavoriteAPI(productId);
+    if (!result.success) {
+      setCurrentUser({ ...currentUser, favorites: previousFavorites });
+      Toast.show({
+        type: 'error',
+        text2: 'Could not update favorites, please retry.',
+      });
+    }
+  };
 
   return (
     <AppDataContext.Provider
@@ -394,6 +437,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         toggleCommentLike,
         addComment,
         handleVote,
+        handleCartItemToggle,
+        handleToggleFavorite,
         fetchPostById,
       }}
     >

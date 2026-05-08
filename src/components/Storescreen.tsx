@@ -9,7 +9,7 @@ import {EmptyState} from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppSelector } from '../components/hooks';
 import {PageHeader} from './PageHeader';
-import {PRIMARY_COLOR} from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 
 interface IconButtonProps {
   onPress: () => void;
@@ -18,11 +18,25 @@ interface IconButtonProps {
   badgeColor?: string;
 }
 
-const CATEGORIES = ['Electronics', 'Courses', 'Documents', 'Fashion', 'Stationery'];
+const CATEGORIES = [
+  'Electronics',
+  'Courses',
+  'Documents',
+  'Fashion',
+  'Stationery',
+];
 const STORE_TABS = ['All', 'Popular', ...CATEGORIES];
 
-const HeaderActionButton = ({ onPress, count, icon, badgeColor = '#007AFF' }: IconButtonProps) => (
-  <TouchableOpacity onPress={onPress} style={styles.actionButtonContainer}>
+const HeaderActionButton = ({
+  onPress,
+  count,
+  icon,
+  badgeColor = PRIMARY_COLOR,
+}: IconButtonProps) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.actionButtonContainer, { marginRight: 2 }]}
+  >
     <MaterialIcons name={icon} size={28} color={PRIMARY_COLOR} />
     {count! > 0 && (
       <View style={[styles.badge, { backgroundColor: badgeColor }]}>
@@ -33,141 +47,163 @@ const HeaderActionButton = ({ onPress, count, icon, badgeColor = '#007AFF' }: Ic
 );
 
 export const StoreScreen = () => {
-    const [products, setProducts] = useState<Product[]>([]);
-    const navigation = useNavigation<any>();
-    const currentUser = useAppSelector(state => state.user);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [placeholderIndex, setPlaceholderIndex] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [isFetchingMore, setIsFetchingMore] = useState(false);
-    const [selectedTab, setSelectedTab] = useState('All'); 
-    const [cursor, setCursor] = useState<string | null>(null);
-    const headerRightElement = (
+  const [products, setProducts] = useState<Product[]>([]);
+  const navigation = useNavigation<any>();
+  const currentUser = useAppSelector(state => state.user);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('All');
+  const [cursor, setCursor] = useState<string | null>(null);
+  const headerRightElement = (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <HeaderActionButton 
+      <HeaderActionButton
         icon="shopping-cart"
         count={currentUser?.cart?.length || 0}
         onPress={() => navigation.navigate('Cart')}
       />
-      <HeaderActionButton 
+      <HeaderActionButton
         icon="favorite"
         count={currentUser?.favorites?.length || 0}
-        badgeColor="#FF6B6B"
         onPress={() => navigation.navigate('Favorites')}
       />
     </View>
   );
 
-    const debouncedSearch = useMemo(
-        () =>
-            debounce(async (query: string, category: string) => {
-                setLoading(true);
-                const result = await fetchProductsAPI({
-                    q: query,
-                    category: category.toLowerCase(),
-                    limit: 10,
-                });
-                if (result.success) {
-                    setProducts(result.data);
-                    setCursor(result.nextCursor);
-                }
-                setLoading(false);
-            }, 500),
-        [] 
-    );
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setPlaceholderIndex((prev) => (prev + 1) % CATEGORIES.length);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, []);
-    useEffect(() => {
-        setCursor(null);  
-        debouncedSearch(searchQuery, selectedTab);  
-        return () => debouncedSearch.cancel();
-    }, [searchQuery, selectedTab, debouncedSearch]);
-    const loadMore = async () => {
-        if (isFetchingMore || !cursor) return;
-        setIsFetchingMore(true);
-        const result = await fetchProductsAPI({ 
-            q: searchQuery, 
-            category: selectedTab.toLowerCase(),  
-            cursor: cursor, 
-            limit: 10 
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (query: string, category: string) => {
+        setLoading(true);
+        const result = await fetchProductsAPI({
+          q: query,
+          category: category.toLowerCase(),
+          limit: 10,
         });
         if (result.success) {
-            setProducts((prev: Product[]) => [...prev, ...result.data]);
-            setCursor(result.nextCursor);
+          setProducts(result.data);
+          setCursor(result.nextCursor);
         }
-        setIsFetchingMore(false);
-    };
-    return (
-        <View style={styles.container}>
-            <PageHeader 
-                title="iCampus Store" 
-                subtitle="Marketplace" 
-                showBackButton={false} 
-                rightElement={headerRightElement}
-            />
-            <View style={styles.searchBarContainer}>
+        setLoading(false);
+      }, 500),
+    [],
+  );
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex(prev => (prev + 1) % CATEGORIES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    setCursor(null);
+    debouncedSearch(searchQuery, selectedTab);
+    return () => debouncedSearch.cancel();
+  }, [searchQuery, selectedTab, debouncedSearch]);
+  const loadMore = async () => {
+    if (isFetchingMore || !cursor) return;
+    setIsFetchingMore(true);
+    const result = await fetchProductsAPI({
+      q: searchQuery,
+      category: selectedTab.toLowerCase(),
+      cursor: cursor,
+      limit: 10,
+    });
+    if (result.success) {
+      setProducts((prev: Product[]) => [...prev, ...result.data]);
+      setCursor(result.nextCursor);
+    }
+    setIsFetchingMore(false);
+  };
+  return (
+    <View style={styles.container}>
+      <PageHeader
+        title="iCampus Store"
+        subtitle="Marketplace"
+        showBackButton={false}
+        rightElement={headerRightElement}
+      />
+      <View style={styles.searchBarContainer}>
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={PRIMARY_COLOR_TINT}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder={`Search for ${CATEGORIES[placeholderIndex]}...`}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          returnKeyType="search"
+          onSubmitEditing={() => debouncedSearch(searchQuery, selectedTab)}
+          placeholderTextColor={PRIMARY_COLOR_TINT}
         />
       </View>
-      <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          style={styles.tabsContainer}
-          contentContainerStyle={{ paddingRight: 20 }}
-        >
-          {STORE_TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setSelectedTab(tab)}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsContainer}
+        contentContainerStyle={{ paddingRight: 20 }}
+      >
+        {STORE_TABS.map(tab => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setSelectedTab(tab)}
+            style={[
+              styles.tabItem,
+              selectedTab === tab && styles.activeTabItem,
+            ]}
+          >
+            <Text
               style={[
-                styles.tabItem,
-                selectedTab === tab && styles.activeTabItem
+                styles.tabText,
+                selectedTab === tab && styles.activeTabText,
               ]}
             >
-              <Text style={[
-                styles.tabText,
-                selectedTab === tab && styles.activeTabText
-              ]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
       {loading && !isFetchingMore ? (
-        <ActivityIndicator size="large" color="#B9F2FF" />
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
       ) : (
         <FlatList
           data={products}
-          keyExtractor={(item) => item.productId}
+          keyExtractor={item => item.productId}
           numColumns={2}
           renderItem={({ item }) => (
-            <ProductCard 
-              product={item} 
-              onPress={() => navigation.navigate('ProductDetails', { productId: item.productId })}
+            <ProductCard
+              product={item}
+              onPress={() =>
+                navigation.navigate('ProductDetails', {
+                  productId: item.productId,
+                })
+              }
             />
           )}
           onEndReached={() => loadMore()}
-          onEndReachedThreshold={0.5} 
-          ListFooterComponent={isFetchingMore ? <ActivityIndicator color="#B9F2FF" /> : null}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingMore ? (
+              <ActivityIndicator color={PRIMARY_COLOR} size="small" />
+            ) : null
+          }
           ListEmptyComponent={
             !loading ? (
-                <EmptyState
-                    title={searchQuery ? "No Products Found" : 'No Products Listed'}
-                    subtitle={searchQuery ? `We couldn't find anything for "${searchQuery}" in ${selectedTab}.` : 'Empty product list, please refresh.'}
-                    buttonText={searchQuery ? "Clear Search" : "Refresh Store"}
-                    onPress={() => {
-                        setSearchQuery('');
-                        setSelectedTab('All');
-                    }}
-                />
+              <EmptyState
+                title={searchQuery ? 'No Products Found' : 'No Products Listed'}
+                subtitle={
+                  searchQuery
+                    ? `We couldn't find anything for "${searchQuery}" in ${selectedTab}.`
+                    : 'Empty product list, please refresh.'
+                }
+                buttonText={searchQuery ? 'Clear Search' : 'Refresh Store'}
+                onPress={() => {
+                  setSearchQuery('');
+                  setSelectedTab('All');
+                }}
+              />
             ) : null
           }
         />
@@ -177,43 +213,65 @@ export const StoreScreen = () => {
 };
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  searchBarContainer: { padding: 10, backgroundColor: '#f9f9f9' },
-  searchInput: {
-    height: 45,
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#eee',
+  searchBarContainer: {
+    marginVertical: 15,
+    backgroundColor: '#fadccc',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 0.8,
+    borderRadius: 10,
+    borderColor: PRIMARY_COLOR_TINT,
+    padding: 4,
   },
-  header: {
-    backgroundColor: '#fff',
-    paddingTop: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  searchIcon: {
+    marginRight: 3,
+  },
+  searchInput: {
+    borderRadius: 13,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    flex: 1,
   },
   tabsContainer: {
-    marginTop: 15,
     paddingHorizontal: 10,
-    paddingBottom: 10,
+    paddingVertical: 10,
+    backgroundColor: '#fadccc',
   },
   tabItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    padding: 5,
     marginRight: 10,
-    backgroundColor: '#f0f0f0',
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
   },
   activeTabItem: {
-    backgroundColor: '#B9F2FF',
+    borderBottomColor: PRIMARY_COLOR,
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: '#2222',
     fontWeight: '600',
   },
   activeTabText: {
-    color: '#007AFF',
+    color: PRIMARY_COLOR,
   },
-
+  actionButtonContainer: {
+    position: 'relative',
+    marginLeft: 15,
+    padding: 4,
+  },
+  badge: {
+    position: 'absolute',
+    right: -2,
+    top: -2,
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    alignContent: 'center',
+    zIndex: 10,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
 });
