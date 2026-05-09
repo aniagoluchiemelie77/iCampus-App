@@ -4,9 +4,16 @@ import React, {
   useState,
   ReactNode,
   useRef,
+  useEffect,
 } from 'react';
 
-import type { User, Posts, Comment } from '../types/firebase';
+import type {
+  User,
+  Posts,
+  Comment,
+  Product,
+  CartItem,
+} from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
 import {
@@ -16,7 +23,8 @@ import {
   updateCartAPI,
   toggleFavoriteAPI,
 } from '../api/localPatchApis';
-import { fetchPostByIdAPI } from '../api/localGetApis';
+import { fetchPostByIdAPI, fetchAllProductsAPI } from '../api/localGetApis';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   addCommentAPI,
   toggleLikeAPI,
@@ -27,6 +35,7 @@ interface AppDataContextType {
   posts: Posts[];
   setPosts: React.Dispatch<React.SetStateAction<Posts[]>>;
   toggleLike: (postId: string) => Promise<void>;
+  allProducts: Product[];
   currentUser: User;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
   handleRepost: (
@@ -40,7 +49,11 @@ interface AppDataContextType {
   ) => Promise<void>;
   toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
   handleVote: (postId: string, optionId: string) => Promise<void>;
-  handleCartItemToggle: (productId: string) => Promise<void>;
+  handleCartItemToggle: (
+    product: Product,
+    selectedSize?: string,
+    selectedColor?: string,
+  ) => Promise<void>;
   handleToggleFavorite: (productId: string) => Promise<void>;
   incrementImpression: (postId: string) => Promise<void>;
   toggleBookmark: (postId: string) => Promise<void>;
@@ -54,6 +67,7 @@ interface AppDataProviderProps {
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
+const CATALOG_CACHE_KEY = '@icampus_catalog_cache';
 
 export const useAppDataContext = () => {
   const context = useContext(AppDataContext);
@@ -66,6 +80,7 @@ export const useAppDataContext = () => {
 export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [posts, setPosts] = useState<Posts[]>([]);
   const [currentUser, setCurrentUser] = useState(user);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
@@ -382,18 +397,44 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       return null;
     }
   };
-  const handleCartItemToggle = async (productId: string) => {
-    const isAlreadyInCart = currentUser?.cart?.includes(productId) ?? false;
+  const handleCartItemToggle = async (
+    product: Product,
+    selectedSize?: string,
+    selectedColor?: string,
+  ) => {
+    // 1. New existence check: Use .find() instead of .includes()
+    const previousCart = currentUser?.cart ?? [];
+    const existingItem = previousCart.find(
+      item => item.productId === product.productId,
+    );
+
+    const isAlreadyInCart = !!existingItem;
     const action = isAlreadyInCart ? 'remove' : 'add';
 
-    const previousCart = currentUser?.cart ?? [];
-    const newCart =
-      action === 'add'
-        ? [...previousCart, productId]
-        : previousCart.filter(id => id !== productId);
+    let newCart;
+
+    if (action === 'add') {
+      const newItem: CartItem = {
+        productId: product.productId,
+        quantity: 1,
+        selectedSize: selectedSize || product.physicalDetails?.sizes?.[0], // default to first available
+        selectedColor: selectedColor || product.physicalDetails?.colors?.[0],
+      };
+      newCart = [...previousCart, newItem];
+    } else {
+      newCart = previousCart.filter(
+        item => item.productId !== product.productId,
+      );
+    }
 
     setCurrentUser({ ...currentUser, cart: newCart });
-    const result = await updateCartAPI(productId, action);
+
+    const result = await updateCartAPI(product.productId, action, {
+      selectedSize: selectedSize,
+      selectedColor: selectedColor,
+      quantity: 1,
+    });
+
     if (!result.success) {
       setCurrentUser({ ...currentUser, cart: previousCart });
       Toast.show({
@@ -421,11 +462,42 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   };
+  const syncCatalog = async () => {
+    try {
+      const localData = await AsyncStorage.getItem(CATALOG_CACHE_KEY);
+      const lastSync = await AsyncStorage.getItem(`${CATALOG_CACHE_KEY}_time`);
+      if (localData) {
+        setAllProducts(JSON.parse(localData));
+      }
+      const now = Date.now();
+      const thirtyMinutes = 30 * 60 * 1000;
+      if (!lastSync || now - parseInt(lastSync, 10) > thirtyMinutes) {
+        const result = await fetchAllProductsAPI();
+        if (result.success) {
+          setAllProducts(result.data);
+          await AsyncStorage.setItem(
+            CATALOG_CACHE_KEY,
+            JSON.stringify(result.data),
+          );
+          await AsyncStorage.setItem(
+            `${CATALOG_CACHE_KEY}_time`,
+            now.toString(),
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Hydration failed:', error);
+    }
+  };
 
+  useEffect(() => {
+    syncCatalog();
+  }, []);
   return (
     <AppDataContext.Provider
       value={{
         currentUser,
+        allProducts,
         setCurrentUser,
         posts,
         setPosts,

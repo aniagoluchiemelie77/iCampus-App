@@ -161,7 +161,8 @@ export const toggleBookmarkAPI = async (postId: string) => {
 };
 export const updateCartAPI = async (
   productId: string, 
-  action: 'add' | 'remove'
+  action: 'add' | 'remove' | 'update',
+  details?: { selectedSize?: string; selectedColor?: string; quantity?: number }
 ) => {
   try {
     const response = await fetch(`${baseUrl}store/cart/toggle`, {
@@ -170,7 +171,7 @@ export const updateCartAPI = async (
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ productId, action }),
+      body: JSON.stringify({ productId, action, ...details }),
     });
     const result = await response.json();
     if (!response.ok) {

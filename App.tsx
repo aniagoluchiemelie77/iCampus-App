@@ -74,6 +74,7 @@ import { ReferralScreen } from './src/screens/SReferralScreen.tsx';
 import { ResetPasswordScreen } from './src/screens/SResetPasswordScreen.tsx';
 import { EmailsScreen } from './src/screens/SEmails.tsx';
 import { PhoneScreen } from './src/screens/SPhoneNumberScreens.tsx';
+import { CartScreen } from './src/screens/CartScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -212,6 +213,7 @@ export type RootStackParamList = {
   ICashDashboard: { refresh?: boolean };
   ICashResetPin: undefined;
   ProductDetails: { productId: string };
+  CartScreen: undefined;
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
   IcashP2PScreen: undefined;
@@ -387,6 +389,11 @@ const App = () => {
             <Stack.Screen
               name="AllTransactionsScreen"
               component={AllTransactionsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CartScreen"
+              component={CartScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

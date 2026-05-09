@@ -360,3 +360,33 @@ export const fetchProductsAPI = async ({
     return { success: false, data: [], message: 'Network error' };
   }
 };
+export const fetchAllProductsAPI = async () => {
+  try {
+    const url = `${baseUrl}store/fetch-all-products`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, 
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to sync store catalog',
+      };
+    }
+    return {
+      success: true,
+      data: result.products,
+    };
+  } catch (error) {
+    console.error("fetchAllProductsAPI Error:", error);
+    return { 
+      success: false, 
+      data: [], 
+      message: 'Network error while syncing catalog' 
+    };
+  }
+};

@@ -16,6 +16,12 @@ export interface UserSession {
   lastUsed: Date;
   refreshToken: string
 };
+export interface CartItem {
+  productId: string;
+  quantity: number;
+  selectedColor?: string; 
+  selectedSize?: string;  
+}
 export interface User {
   uid: string;
   bio?: string;
@@ -66,7 +72,7 @@ export interface User {
   tokenCreatedAt?: string,
   coursesTeaching?: Course['courseId'];
   pointsAccountId?: UserPointsAccount.pointsAccountId,
-  cart?: string[];
+  cart?: CartItem[];
   favorites?: string[];
   purchaseHistory: Order['orderId']; 
   salesHistory?: Order['orderId'];
@@ -328,19 +334,6 @@ export interface Order {
   generatedFilePassword?: string; 
   createdAt: string;
   completedAt?: string;
-}
-export interface CartItem {
-  id: string;
-  itemId: Product.productId;
-  quantity: number;
-}
-export interface Cart {
-  userId: string;
-  cartItems: CartItem.itemId[];
-  totalCartItemQuantity: number;
-  totalCartValueInPoints: number;
-  addedAt: string;
-  updatedAt?: string;
 }
 export interface Refund {
   id: string;

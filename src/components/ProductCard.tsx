@@ -59,7 +59,10 @@ export const ProductCard = ({
     useAppDataContext();
   const isFavorited =
     currentUser?.favorites?.includes(product.productId) ?? false;
-  const isInCart = currentUser?.cart?.includes(product.productId) ?? false;
+  const cartItem = currentUser?.cart?.find(
+    item => item.productId === product.productId,
+  );
+  const isInCart = !!cartItem;
   const avgRating =
     product.ratings.length > 0
       ? (
@@ -103,7 +106,10 @@ export const ProductCard = ({
         <View style={styles.priceRow}>
           <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
           <Text style={styles.priceText}>
-            {product.priceInPoints.toLocaleString()}
+            {product.priceInPoints.toLocaleString(undefined, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}
           </Text>
         </View>
 
@@ -121,7 +127,7 @@ export const ProductCard = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => handleCartItemToggle(product.productId)}
+            onPress={() => handleCartItemToggle(product)}
             style={[styles.iconBtn, isInCart && styles.iconBtnSelected]}
           >
             <MaterialIcons

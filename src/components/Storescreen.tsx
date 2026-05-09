@@ -61,7 +61,7 @@ export const StoreScreen = () => {
       <HeaderActionButton
         icon="shopping-cart"
         count={currentUser?.cart?.length || 0}
-        onPress={() => navigation.navigate('Cart')}
+        onPress={() => navigation.navigate('CartScreen')}
       />
       <HeaderActionButton
         icon="favorite"
