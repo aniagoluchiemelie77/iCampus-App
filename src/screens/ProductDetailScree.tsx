@@ -9,132 +9,169 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT, PRIMARY_COLOR_TINT_MAIN } from 'asse
 const { width } = Dimensions.get('window');
 
 export const ProductDetailScreen = () => {
-    const route = useRoute();
-    const navigation = useNavigation();
-    const { productId } = route.params as { productId: string };
-    const { allProducts, handleCartItemToggle, handleToggleFavorite } = useAppDataContext();
-    const currentUser = useAppSelector(state => state.user);
-    const product = allProducts.find(p => p.productId === productId);
-    const [activeImageIndex, setActiveImageIndex] = useState(0);
-    const [selectedColor, setSelectedColor] = useState(product?.physicalDetails?.colors?.[0]);
-    const [selectedSize, setSelectedSize] = useState(product?.physicalDetails?.sizes?.[0]);
-    const [quantity, setQuantity] = useState(1);
-    const scrollX = useRef(new Animated.Value(0)).current;
-    const flatListRef = useRef<FlatList>(null);
-    useEffect(() => {
-        if (!product?.mediaUrls || product.mediaUrls.length <= 1) return;
-        const interval = setInterval(() => {
-            let nextIndex = activeImageIndex + 1;
-            if (nextIndex >= product.mediaUrls.length) nextIndex = 0;      
-            flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-            setActiveImageIndex(nextIndex);
-        }, 8000);
-        return () => clearInterval(interval);
-    }, [activeImageIndex, product?.mediaUrls]);
-    if (!product) return <Text>Product not found</Text>;
-    const isFavorite = currentUser?.favorites?.includes(product.productId);
-    return (
-        <View style={styles.container}>
-            <PageHeader
-                title="Item Detail"
-            />
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.productImageDiv}>
-                    <FlatList
-                        ref={flatListRef}
-                        data={product.mediaUrls}
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        onScroll={Animated.event(
-                            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                            { useNativeDriver: false }
-                        )}
-                        renderItem={({ item }) => (
-                            <Image source={{ uri: item }} style={styles.productImage} />
-                        )}
-                        keyExtractor={(_, index) => index.toString()}
-                    />
-                    <View style={styles.pagination}>
-                        {product.mediaUrls.map((_, i) => (
-                            <View key={i} style={[styles.dot, activeImageIndex === i && styles.activeDot]} />
-                        ))}
-                    </View>
-                </View>
-                <View style={styles.detailsContainer}>
-                    <View style={styles.titleContainer}>
-                        <View>
-                            <Text style={styles.title}>{product.title}</Text>
-                            {product.description && (
-                                <Text style={styles.description}>{product.description}</Text>
-                            )}
-                        </View>
-                        <View style={styles.price}>
-                            <Text style={styles.price}>{product.priceInPoints}</Text>
-                        </View>
-                    </View>
-                    {product.type === 'physical' && product.physicalDetails?.colors && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Select Color</Text>
-                            <View style={styles.optionsRow}>
-                                {product.physicalDetails.colors.map(color => (
-                                    <TouchableOpacity 
-                                        key={color} 
-                                        style={[styles.colorOption, { backgroundColor: color.toLowerCase() }, selectedColor === color && styles.selectedBorder]} 
-                                        onPress={() => setSelectedColor(color)}
-                                    />
-                                ))}
-                            </View>
-                        </View>
-                    )}
-                    {product.type === 'physical' && product.physicalDetails?.sizes && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Select Size</Text>
-                            <View style={styles.optionsRow}>
-                                {product.physicalDetails.sizes.map(size => (
-                                    <TouchableOpacity 
-                                        key={size} 
-                                        style={[styles.sizeOption, selectedSize === size && styles.selectedSize]} 
-                                        onPress={() => setSelectedSize(size)}
-                                    >
-                                        <Text style={selectedSize === size ? styles.whiteText : styles.blackText}>{size}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-                    )}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Quantity</Text>
-                        <View style={styles.quantityRow}>
-                            <TouchableOpacity onPress={() => setQuantity(Math.max(1, quantity - 1))} style={styles.qtyBtn}><Text>-</Text></TouchableOpacity>
-                            <Text style={styles.qtyText}>{quantity}</Text>
-                            <TouchableOpacity onPress={() => setQuantity(quantity + 1)} style={styles.qtyBtn}><Text>+</Text></TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </ScrollView>
-            <View style={styles.footer}>
-                <TouchableOpacity 
-                    style={styles.favBtn} 
-                    onPress={() => handleToggleFavorite(product.productId)}
-                >
-                    <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={28} color={isFavorite ? "red" : "black"} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={styles.addToCartBtn}
-                    onPress={() => handleCartItemToggle(product, selectedSize, selectedColor)}
-                >
-                    <Text style={styles.btnText}>Add to Cart</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={styles.checkoutBtn}
-                    onPress={() => navigation.navigate('Checkout', { productId })}
-                >
-                    <Text style={styles.btnText}>Buy Now</Text>
-                </TouchableOpacity>
-            </View>
+  const route = useRoute();
+  const navigation = useNavigation();
+  const { productId } = route.params as { productId: string };
+  const { allProducts, handleCartItemToggle, handleToggleFavorite } =
+    useAppDataContext();
+  const currentUser = useAppSelector(state => state.user);
+  const product = allProducts.find(p => p.productId === productId);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(
+    product?.physicalDetails?.colors?.[0],
+  );
+  const [selectedSize, setSelectedSize] = useState(
+    product?.physicalDetails?.sizes?.[0],
+  );
+  const [quantity, setQuantity] = useState(1);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
+  useEffect(() => {
+    if (!product?.mediaUrls || product.mediaUrls.length <= 1) return;
+    const interval = setInterval(() => {
+      let nextIndex = activeImageIndex + 1;
+      if (nextIndex >= product.mediaUrls.length) nextIndex = 0;
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+      setActiveImageIndex(nextIndex);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [activeImageIndex, product?.mediaUrls]);
+  if (!product) return <Text>Product not found</Text>;
+  const isFavorite = currentUser?.favorites?.includes(product.productId);
+  return (
+    <View style={styles.container}>
+      <PageHeader title="Item Detail" />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.productImageDiv}>
+          <FlatList
+            ref={flatListRef}
+            data={product.mediaUrls}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: false },
+            )}
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={styles.productImage} />
+            )}
+            keyExtractor={(_, index) => index.toString()}
+          />
+          <View style={styles.pagination}>
+            {product.mediaUrls.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, activeImageIndex === i && styles.activeDot]}
+              />
+            ))}
+          </View>
         </View>
-    );
+        <View style={styles.detailsContainer}>
+          <View style={styles.titleContainer}>
+            <View>
+              <Text style={styles.title}>{product.title}</Text>
+              {product.description && (
+                <Text style={styles.description}>{product.description}</Text>
+              )}
+            </View>
+            <View style={styles.priceDiv}>
+              <Text style={styles.price}>{product.priceInPoints}</Text>
+            </View>
+          </View>
+          {product.type === 'physical' && product.physicalDetails?.colors && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Color</Text>
+              <View style={styles.optionsRow}>
+                {product.physicalDetails.colors.map(color => (
+                  <TouchableOpacity
+                    key={color}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color.toLowerCase() },
+                      selectedColor === color && styles.selectedBorder,
+                    ]}
+                    onPress={() => setSelectedColor(color)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+          {product.type === 'physical' && product.physicalDetails?.sizes && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Size</Text>
+              <View style={styles.optionsRow}>
+                {product.physicalDetails.sizes.map(size => (
+                  <TouchableOpacity
+                    key={size}
+                    style={[
+                      styles.sizeOption,
+                      selectedSize === size && styles.selectedSize,
+                    ]}
+                    onPress={() => setSelectedSize(size)}
+                  >
+                    <Text
+                      style={
+                        selectedSize === size
+                          ? styles.whiteText
+                          : styles.blackText
+                      }
+                    >
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quantity</Text>
+            <View style={styles.quantityRow}>
+              <TouchableOpacity
+                onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                style={styles.qtyBtn}
+              >
+                <Text>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.qtyText}>{quantity}</Text>
+              <TouchableOpacity
+                onPress={() => setQuantity(quantity + 1)}
+                style={styles.qtyBtn}
+              >
+                <Text>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.favBtn}
+          onPress={() => handleToggleFavorite(product.productId)}
+        >
+          <Ionicons
+            name={isFavorite ? 'heart' : 'heart-outline'}
+            size={28}
+            color={isFavorite ? 'red' : 'black'}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.addToCartBtn}
+          onPress={() =>
+            handleCartItemToggle(product, selectedSize, selectedColor)
+          }
+        >
+          <Text style={styles.btnText}>Add to Cart</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.checkoutBtn}
+          onPress={() => navigation.navigate('Checkout', { productId })}
+        >
+          <Text style={styles.btnText}>Buy Now</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 };
 const styles = StyleSheet.create({
   container: {
@@ -165,7 +202,7 @@ const styles = StyleSheet.create({
   },
   activeDot: {
     backgroundColor: PRIMARY_COLOR,
-    width: 18, 
+    width: 18,
   },
 
   // --- Content Body ---
@@ -410,28 +447,33 @@ const styles = StyleSheet.create({
     color: '#31313122',
     marginTop: 7,
   },
-  productImageDiv:{
+  productImageDiv: {
     marginVertical: 10,
     width: width,
     height: 450,
-    position: 'relative'
+    position: 'relative',
   },
   productImage: {
     width: '100%',
-    height: '100%', 
+    height: '100%',
     resizeMode: 'cover',
   },
   pagination: {
     backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     flexDirection: 'row',
     position: 'absolute',
-    bottom: 20, 
+    bottom: 20,
     right: 10,
     alignSelf: 'center',
     zIndex: 10,
   },
-  titleContainer:{
+  titleContainer: {
     flexDirection: 'row',
-    width: '100%'
-  }
+    width: '100%',
+  },
+  priceDiv: {
+    paddingHorizontal: 5,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
 });
