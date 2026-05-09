@@ -25,7 +25,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { TransitionPresets } from '@react-navigation/stack';
 //import { saveUserToFirestore } from './src/services/firebaseServices';
 // Screens
-import VerifyEmail from './src/screens/EmailVerificationPage';
 import SignUpScreen from './src/screens/Signup';
 import SignupPage from './src/screens/SignupPage';
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -33,7 +32,6 @@ import HomeScreen from './src/screens/HomeScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPassword';
 import ChangePasswordScreen from './src/screens/ChangePassword';
 import { Settings } from './src/screens/Settings';
-import Calender from './src/screens/Calender';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import ProductDetails from './src/screens/ProductDetails';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
@@ -75,6 +73,7 @@ import { ResetPasswordScreen } from './src/screens/SResetPasswordScreen.tsx';
 import { EmailsScreen } from './src/screens/SEmails.tsx';
 import { PhoneScreen } from './src/screens/SPhoneNumberScreens.tsx';
 import { CartScreen } from './src/screens/CartScreen.tsx';
+import { FavoritesScreen } from './src/screens/FavoritesScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -202,18 +201,14 @@ export type RootStackParamList = {
     notification?: any;
   };
   Settings: undefined;
-  Calender: undefined;
   Profile: { identifier: string };
-  VerifyEmail: {
-    verified?: string;
-    email?: string;
-  };
   SuspendedScreen: { reason: string };
   iCashSecurity: { isRegistration: boolean };
   ICashDashboard: { refresh?: boolean };
   ICashResetPin: undefined;
   ProductDetails: { productId: string };
   CartScreen: undefined;
+  FavoritesScreen: undefined;
   ProductSellerScreen: { seller: User };
   Checkout: undefined;
   IcashP2PScreen: undefined;
@@ -556,13 +551,8 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="Calender"
-              component={Calender}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="VerifyEmail"
-              component={VerifyEmail}
+              name="FavoritesScreen"
+              component={FavoritesScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

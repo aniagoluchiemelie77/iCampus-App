@@ -23,12 +23,14 @@ import {
   updateCartAPI,
   toggleFavoriteAPI,
 } from '../api/localPatchApis';
+import { clearCartAPI, clearFavoritesAPI } from '../api/localDeleteApis';
 import { fetchPostByIdAPI, fetchAllProductsAPI } from '../api/localGetApis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   addCommentAPI,
   toggleLikeAPI,
   createRepostAPI,
+  bulkAddtoCartAPI,
   toggleCommentLikeAPI,
 } from '../api/localPostApis';
 interface AppDataContextType {
@@ -59,6 +61,9 @@ interface AppDataContextType {
   toggleBookmark: (postId: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
   fetchPostById: (postId: string) => Promise<Posts | null>;
+  handleClearCart: () => Promise<void>;
+  handleDeleteAllFavorites: () => Promise<void>;
+  handleAddAllFavoritesToCart: () => Promise<void>;
 }
 
 interface AppDataProviderProps {
@@ -402,17 +407,13 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     selectedSize?: string,
     selectedColor?: string,
   ) => {
-    // 1. New existence check: Use .find() instead of .includes()
     const previousCart = currentUser?.cart ?? [];
     const existingItem = previousCart.find(
       item => item.productId === product.productId,
     );
-
     const isAlreadyInCart = !!existingItem;
     const action = isAlreadyInCart ? 'remove' : 'add';
-
     let newCart;
-
     if (action === 'add') {
       const newItem: CartItem = {
         productId: product.productId,
@@ -443,6 +444,20 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   };
+  const handleClearCart = async () => {
+    const previousCart = currentUser?.cart ?? [];
+    setCurrentUser({ ...currentUser, cart: [] });
+    const result = await clearCartAPI();
+    if (!result.success) {
+      setCurrentUser({ ...currentUser, cart: previousCart });
+    } else {
+      Toast.show({
+        type: 'success',
+        text1: 'Cart Cleared',
+        text2: 'All items have been removed.',
+      });
+    }
+  };
   const handleToggleFavorite = async (productId: string) => {
     if (!currentUser) return;
 
@@ -460,6 +475,55 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         type: 'error',
         text2: 'Could not update favorites, please retry.',
       });
+    }
+  };
+  const handleAddAllFavoritesToCart = async () => {
+    const favoriteIds = currentUser?.favorites ?? [];
+    if (favoriteIds.length === 0) return;
+    const itemsToAdd: CartItem[] = favoriteIds.map(id => {
+      const product = allProducts.find(p => p.productId === id);
+      return {
+        productId: id,
+        quantity: 1,
+        selectedColor: product?.physicalDetails?.colors?.[0],
+        selectedSize: product?.physicalDetails?.sizes?.[0],
+      };
+    });
+    const existingCart = currentUser?.cart ?? [];
+    const updatedCart = [...existingCart];
+
+    itemsToAdd.forEach(newItem => {
+      const exists = updatedCart.some(
+        item => item.productId === newItem.productId,
+      );
+      if (!exists) {
+        updatedCart.push(newItem);
+      }
+    });
+
+    setCurrentUser({ ...currentUser, cart: updatedCart });
+    try {
+      const result = await bulkAddtoCartAPI(itemsToAdd);
+      if (!result.success) throw new Error();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'All favorites moved to cart!',
+      });
+    } catch (error) {
+      setCurrentUser({ ...currentUser, cart: existingCart }); // Rollback
+    }
+  };
+
+  const handleDeleteAllFavorites = async () => {
+    const previousFavorites = currentUser?.favorites ?? [];
+    setCurrentUser({ ...currentUser, favorites: [] });
+
+    const result = await clearFavoritesAPI();
+
+    if (!result.success) {
+      setCurrentUser({ ...currentUser, favorites: previousFavorites });
     }
   };
   const syncCatalog = async () => {
@@ -512,6 +576,9 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         handleCartItemToggle,
         handleToggleFavorite,
         fetchPostById,
+        handleClearCart,
+        handleDeleteAllFavorites,
+        handleAddAllFavoritesToCart,
       }}
     >
       {children}

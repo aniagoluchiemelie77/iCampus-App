@@ -282,7 +282,7 @@ export interface Product {
   _id?: string;
   productId: string; 
   sellerId: string; 
-  schoolName: string;
+  schoolName?: string;
   type: 'physical' | 'course' | 'file';
   category: string;
   title: string;

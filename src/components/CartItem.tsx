@@ -12,9 +12,9 @@ interface CartItemProps {
 
 export const CartItem: React.FC<CartItemProps> = ({ cartEntry, product, onRemove }) => {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card}>
       <Image source={{ uri: product.mediaUrls[0] }} style={styles.image} />
-      
+
       <View style={styles.details}>
         <View style={styles.detailSubdiv}>
           <View style={styles.headerRow}>
@@ -23,17 +23,28 @@ export const CartItem: React.FC<CartItemProps> = ({ cartEntry, product, onRemove
               <Text style={styles.quantityBadge}>x{cartEntry.quantity}</Text>
             )}
           </View>
-          <Text style={styles.title} numberOfLines={1}>{product.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            {product.title}
+          </Text>
           {(cartEntry.selectedSize || cartEntry.selectedColor) && (
             <View style={styles.variationRow}>
               {cartEntry.selectedSize && (
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>Size: {cartEntry.selectedSize}</Text>
+                  <Text style={styles.chipText}>
+                    Size: {cartEntry.selectedSize}
+                  </Text>
                 </View>
               )}
               {cartEntry.selectedColor && (
                 <View style={styles.chip}>
-                  <View style={[styles.colorDot, { backgroundColor: cartEntry.selectedColor.toLowerCase() }]} />
+                  <View
+                    style={[
+                      styles.colorDot,
+                      {
+                        backgroundColor: cartEntry.selectedColor.toLowerCase(),
+                      },
+                    ]}
+                  />
                   <Text style={styles.chipText}>{cartEntry.selectedColor}</Text>
                 </View>
               )}
@@ -42,17 +53,20 @@ export const CartItem: React.FC<CartItemProps> = ({ cartEntry, product, onRemove
         </View>
 
         <View style={styles.bottomRow}>
-            <View style={styles.priceDiv}>
-                <Text style={styles.price}>
-                    {(product.priceInPoints * cartEntry.quantity).toLocaleString(undefined, {
-                        minimumFractionDigits: 1,
-                        maximumFractionDigits: 1,
-                    })}
-                </Text>
-                <MaterialIcons name="diamond" size={20} color={PRIMARY_COLOR} />
-            </View>
-          
-          <TouchableOpacity 
+          <View style={styles.priceDiv}>
+            <Text style={styles.price}>
+              {(product.priceInPoints * cartEntry.quantity).toLocaleString(
+                undefined,
+                {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                },
+              )}
+            </Text>
+            <MaterialIcons name="diamond" size={20} color={PRIMARY_COLOR} />
+          </View>
+
+          <TouchableOpacity
             onPress={() => onRemove(product)}
             style={styles.removeButton}
           >
@@ -60,7 +74,7 @@ export const CartItem: React.FC<CartItemProps> = ({ cartEntry, product, onRemove
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

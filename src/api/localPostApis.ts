@@ -3,6 +3,7 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
+import {CartItem} from '../types/firebase'
 
 const token = await AsyncStorage.getItem('accessToken');
 const handleTransactionError = (error: any, title: string) => {
@@ -849,5 +850,29 @@ export const toggleCommentLikeAPI = async (
   } catch (error) {
     console.error("toggleCommentLikeAPI Error:", error);
     return { success: false, message: 'Connection to server failed' };
+  }
+};
+export const bulkAddtoCartAPI = async (items: CartItem[]) => {
+  try {
+    const response = await fetch(`${baseUrl}store/favorites-to-cart/bulk-add`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ items }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to move favorites to cart',
+      };
+    }
+    Toast.show({ type: 'success', text2: data.message });
+    return { success: response.ok && data.status };
+  } catch (e: any) { 
+    Toast.show({ type: 'error', text1: 'Network Error', text2: e.message });
+    return { success: false }; 
   }
 };

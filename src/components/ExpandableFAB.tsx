@@ -73,7 +73,7 @@ const ACTION_CONFIG: Record<
   // --- Store Page ---
   'View Favorites': {
     icon: 'favorite',
-    route: 'StoreWishlist',
+    route: 'FavoritesScreen',
     params: {},
   }, // 'favorite-border' is the outline
   'View Cart': { icon: 'shopping-cart', route: 'CartScreen', params: {} },

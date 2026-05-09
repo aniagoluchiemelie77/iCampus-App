@@ -66,7 +66,7 @@ export const StoreScreen = () => {
       <HeaderActionButton
         icon="favorite"
         count={currentUser?.favorites?.length || 0}
-        onPress={() => navigation.navigate('Favorites')}
+        onPress={() => navigation.navigate('FavoritesScreen')}
       />
     </View>
   );

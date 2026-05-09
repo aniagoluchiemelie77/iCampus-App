@@ -83,3 +83,56 @@ export const handleDeletePhone = async (phoneNumber: string) => {
     return { success: false, message: 'Network error' };
   }
 };
+export const clearCartAPI = async () => {
+  try {
+    const response = await fetch(`${baseUrl}store/cart/delete-all`, { 
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.status) {
+      Toast.show({ 
+        type: 'error', 
+        text1: 'Cart Error', 
+        text2: data.message || 'Failed to clear cart' 
+      });
+      return { success: false };
+    }
+    Toast.show({ type: 'success', text2: data.message });
+    return {
+      success: true,
+      message: data.message
+    };
+  } catch (error: any) {
+    console.error("Clear Cart Error:", error);
+    Toast.show({ type: 'error', text1: 'Network Error', text2: error.message });
+    return { success: false, message: 'Network error' };
+  }
+};
+export const clearFavoritesAPI = async () => {
+  try {
+    const response = await fetch(`${baseUrl}store/favorites/delete-all`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (!response.ok || !data.status) {
+      Toast.show({ 
+        type: 'error', 
+        text1: 'Delete Error', 
+        text2: data.message || 'Failed to clear favorites' 
+      });
+      return { success: false };
+    }
+    Toast.show({ type: 'success', text2: data.message });
+    return { success: response.ok && data.status };
+  } catch (e: any) { 
+    Toast.show({ type: 'error', text1: 'Network Error', text2: e.message });
+    return { success: false }; 
+  }
+};
