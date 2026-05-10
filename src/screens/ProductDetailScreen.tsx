@@ -9,7 +9,9 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {CurrencyDisplay} from '../components/CurrencyFormatter';
 import {formatTime} from '../utils/durationFormatter';
 import {formatCount} from '../utils/followCountFormatter';
-
+import { searchUsersByUid } from '../api/localGetApis';
+import { UserIdentity } from '../components/UserIdentity';
+import { ProductCard } from '../components/ProductCard';
 const { width } = Dimensions.get('window');
 
 export const ProductDetailScreen = () => {
@@ -30,6 +32,23 @@ export const ProductDetailScreen = () => {
   const [quantity, setQuantity] = useState(1);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
+  const [seller, setSeller] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchSeller = async () => {
+      if (product?.sellerId) {
+        const data = await searchUsersByUid(
+          product.sellerId,
+          currentUser.tier!,
+          currentUser.usertype!,
+        );
+        if (data && data.length > 0) {
+          setSeller(data[0]);
+        }
+      }
+    };
+    fetchSeller();
+  }, [product?.sellerId, currentUser?.tier, currentUser?.usertype]);
   useEffect(() => {
     if (!product?.mediaUrls || product.mediaUrls.length <= 1) return;
     const interval = setInterval(() => {
@@ -46,6 +65,9 @@ export const ProductDetailScreen = () => {
     item => item.productId === product.productId,
   );
   const isAlreadyInCart = !!existingItem;
+  const moreProducts = allProducts
+    .filter(p => p.sellerId === product.sellerId && p.productId !== productId)
+    .slice(0, 10);
   return (
     <View style={styles.container}>
       <PageHeader title="Item Detail" />
@@ -136,18 +158,35 @@ export const ProductDetailScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Course Info</Text>
               <View style={styles.infoRow}>
-                <MaterialIcons name="schedule-outlined" size={20} color={PRIMARY_COLOR_TINT} />
-                <Text style={styles.infoText}>Duration: {formatTime(product.courseDetails.duration)}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="people-outlined" size={20} color={PRIMARY_COLOR_TINT} />
+                <MaterialIcons
+                  name="schedule-outlined"
+                  size={20}
+                  color={PRIMARY_COLOR_TINT}
+                />
                 <Text style={styles.infoText}>
-                  {formatCount(product.courseDetails.studentsEnrolledCount)} Students Enrolled
+                  Duration: {formatTime(product.courseDetails.duration)}
                 </Text>
               </View>
               <View style={styles.infoRow}>
-                <MaterialIcons name="star-outline" size={20} color={PRIMARY_COLOR_TINT} />
-                <Text style={styles.infoText}>{formatCount(product.courseDetails.totalReviews)} Reviews</Text>
+                <MaterialIcons
+                  name="people-outlined"
+                  size={20}
+                  color={PRIMARY_COLOR_TINT}
+                />
+                <Text style={styles.infoText}>
+                  {formatCount(product.courseDetails.studentsEnrolledCount)}{' '}
+                  Students Enrolled
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialIcons
+                  name="star-outline"
+                  size={20}
+                  color={PRIMARY_COLOR_TINT}
+                />
+                <Text style={styles.infoText}>
+                  {formatCount(product.courseDetails.totalReviews)} Reviews
+                </Text>
               </View>
             </View>
           )}
@@ -155,14 +194,24 @@ export const ProductDetailScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>File Specifications</Text>
               <View style={styles.fileCard}>
-                <MaterialIcons name="insert-drive-file-outlined" size={30} color={PRIMARY_COLOR_TINT} />
+                <MaterialIcons
+                  name="insert-drive-file-outlined"
+                  size={30}
+                  color={PRIMARY_COLOR_TINT}
+                />
                 <View style={{ marginLeft: 12 }}>
                   <Text style={styles.fileSubText}>
-                    {product.fileDetails.fileFormat.toUpperCase()} • {product.fileDetails.fileSizeInMB} MB
+                    {product.fileDetails.fileFormat.toUpperCase()} •{' '}
+                    {product.fileDetails.fileSizeInMB} MB
                   </Text>
                 </View>
                 {product.fileDetails.hasPassword && (
-                  <MaterialIcons name="lock-outlined" size={18} color={PRIMARY_COLOR_TINT} style={{ marginLeft: 'auto' }} />
+                  <MaterialIcons
+                    name="lock-outlined"
+                    size={18}
+                    color={PRIMARY_COLOR_TINT}
+                    style={{ marginLeft: 'auto' }}
+                  />
                 )}
               </View>
             </View>
@@ -186,6 +235,56 @@ export const ProductDetailScreen = () => {
             </View>
           </View>
         </View>
+        <View style={styles.sellerSection}>
+          <Text style={styles.sectionTitle}>Seller Details</Text>
+          <View style={styles.sellerRow}>
+            <Image
+              source={{
+                uri: seller?.profilePic || 'https://via.placeholder.com/50',
+              }}
+              style={styles.sellerAvatar}
+            />
+            <UserIdentity
+              firstname={seller?.firstname || 'Loading...'}
+              lastname={seller?.lastname}
+              username={seller?.username}
+              tier={seller?.tier}
+              isVerified={seller?.isVerified}
+              isOrganization={seller?.usertype === 'enterprise'}
+              organizationName={seller?.organizationName}
+              size="medium"
+            />
+          </View>
+        </View>
+        {moreProducts.length > 0 && (
+          <View style={styles.moreSection}>
+            <View style={styles.moreHeader}>
+              <Text style={styles.sectionTitle2}>More by this seller</Text>
+              <TouchableOpacity
+                //onPress={() => {}}
+                style={styles.moreBtn}
+              >
+                <Text style={styles.moreBtnText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={moreProducts}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={item => item.productId}
+              renderItem={({ item }) => (
+                <ProductCard
+                  product={item}
+                  onPress={() =>
+                    navigation.push('ProductDetails', {
+                      productId: item.productId,
+                    })
+                  }
+                />
+              )}
+            />
+          </View>
+        )}
       </ScrollView>
       <View style={styles.footer}>
         <View style={styles.footerRow}>
@@ -193,14 +292,16 @@ export const ProductDetailScreen = () => {
             onPress={() => handleToggleFavorite(product.productId)}
           >
             <MaterialIcons
-              name={isFavorite ? 'favorite-outlined' : 'favorite-border-outlined'}
+              name={
+                isFavorite ? 'favorite-outlined' : 'favorite-border-outlined'
+              }
               size={28}
               color={PRIMARY_COLOR}
             />
           </TouchableOpacity>
           {!isAlreadyInCart && (
             <TouchableOpacity
-              style={{marginLeft: 4}}
+              style={{ marginLeft: 4 }}
               onPress={() =>
                 handleCartItemToggle(product, selectedSize, selectedColor)
               }
@@ -215,12 +316,14 @@ export const ProductDetailScreen = () => {
         </View>
         <TouchableOpacity
           style={styles.checkoutBtn}
-          onPress={() => navigation.navigate('Checkout', { 
-    productId,
-    quantity,
-    color: selectedColor,
-    size: selectedSize
-  })}
+          onPress={() =>
+            navigation.navigate('Checkout', {
+              productId,
+              quantity,
+              color: selectedColor,
+              size: selectedSize,
+            })
+          }
         >
           <Text style={styles.btnText}>Buy Now</Text>
         </TouchableOpacity>
@@ -264,10 +367,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    marginTop: -25, 
+    marginTop: -25,
     paddingHorizontal: 20,
     paddingTop: 25,
-    paddingBottom: 100, 
+    paddingBottom: 100,
   },
   title: {
     fontSize: 22,
@@ -355,7 +458,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     backgroundColor: '#FFFFFF',
-    borderTopWidth: .8,
+    borderTopWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     alignItems: 'center',
     gap: 12,
@@ -403,6 +506,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
+  sellerSection: {
+    marginVertical: 15,
+    padding: 15,
+    backgroundColor: '#fadccc',
+  },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sellerAvatar: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    borderColor: PRIMARY_COLOR_TINT_MAIN,
+    borderWidth: 1,
+    marginRight: 4,
+  },
   section: {
     marginTop: 15,
   },
@@ -411,7 +531,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#222',
     marginBottom: 10,
-    textAlign: 'center'
+    textAlign: 'center',
+  },
+  sectionTitle2: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222',
   },
   optionsRow: {
     flexDirection: 'row',
@@ -427,7 +552,7 @@ const styles = StyleSheet.create({
   },
   selectedBorder: {
     borderWidth: 3,
-    borderColor: PRIMARY_COLOR, 
+    borderColor: PRIMARY_COLOR,
     transform: [{ scale: 1.1 }],
   },
   sizeOption: {
@@ -442,7 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fadccc',
   },
   selectedSize: {
-    backgroundColor: PRIMARY_COLOR, 
+    backgroundColor: PRIMARY_COLOR,
     borderColor: PRIMARY_COLOR,
   },
   whiteText: {
@@ -474,10 +599,10 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  qtyBtnText:{
+  qtyBtnText: {
     fontSize: 14,
     color: '#fff',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   qtyText: {
     fontSize: 18,
@@ -521,20 +646,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 10
+    marginBottom: 10,
   },
-  checkoutBtn:{
+  checkoutBtn: {
     width: '100%',
     backgroundColor: PRIMARY_COLOR,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 12,
-    alignContent: 'center'
+    alignContent: 'center',
   },
-  btnText:{
+  btnText: {
     fontSize: 14,
     color: '#fff',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   infoRow: {
     flexDirection: 'row',
@@ -552,12 +677,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#fadccc',
     padding: 15,
     borderRadius: 12,
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
   },
   fileSubText: {
     fontSize: 13,
     color: '#777',
     marginTop: 2,
+  },
+  moreSection: {
+    alignContent: 'center',
+  },
+  moreHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  moreBtn: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 13,
+    alignContent: 'center',
+  },
+  moreBtnText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
