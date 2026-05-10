@@ -7,6 +7,7 @@ import { useAppSelector } from '../components/hooks';
 import {PageHeader} from '../components/PageHeader';
 import { PRIMARY_COLOR } from 'assets/styles/colors';
 import { useAppDataContext } from '../components/EventContext';
+import { CurrencyDisplay } from '../components/CurrencyFormatter';
 
 export const CartScreen = () => {
   const currentUser = useAppSelector(state => state.user);
@@ -65,7 +66,7 @@ export const CartScreen = () => {
         <View style={styles.footer}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Balance</Text>
-            <Text style={styles.totalValue}>{totalPrice} Points</Text>
+            <CurrencyDisplay value={totalPrice} size="large" />
           </View>
           <TouchableOpacity style={styles.checkoutBtn}>
             <Text style={styles.checkoutText}>Proceed to Checkout</Text>
@@ -111,7 +112,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   totalLabel: { color: '#222', fontSize: 15, fontWeight: 'bold' },
-  totalValue: { fontSize: 20, fontWeight: '800', color: PRIMARY_COLOR },
   checkoutBtn: {
     width: '80%',
     backgroundColor: PRIMARY_COLOR,

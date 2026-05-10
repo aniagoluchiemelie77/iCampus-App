@@ -15,6 +15,7 @@ import {
   PRIMARY_COLOR_TINT_MAIN,
 } from 'assets/styles/colors';
 import { formatStatNumber } from '../utils/followCountFormatter';
+import { CurrencyDisplay } from './CurrencyFormatter';
 
 const AnimatedThumbnail = ({ urls }: { urls: string[] }) => {
   const [index, setIndex] = useState(0);
@@ -82,6 +83,9 @@ export const ProductCard = ({
             <Text style={styles.soldOutText}>OUT OF STOCK</Text>
           </View>
         )}
+        <View style={styles.priceBadge}>
+          <CurrencyDisplay value={product.priceInPoints} size="small" />
+        </View>
       </View>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>
@@ -100,17 +104,6 @@ export const ProductCard = ({
             </Text>
             <MaterialIcons name="favorite" size={14} color={PRIMARY_COLOR} />
           </View>
-        </View>
-
-        {/* Price Row */}
-        <View style={styles.priceRow}>
-          <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
-          <Text style={styles.priceText}>
-            {product.priceInPoints.toLocaleString(undefined, {
-              minimumFractionDigits: 1,
-              maximumFractionDigits: 1,
-            })}
-          </Text>
         </View>
 
         {/* 3. Action Row */}
@@ -144,13 +137,6 @@ export const ProductCard = ({
 const styles = StyleSheet.create({
   info: { padding: 8 },
   title: { fontSize: 14, fontWeight: 'bold', color: '#222' },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
-  priceText: {
-    fontWeight: '700',
-    marginLeft: 4,
-    color: PRIMARY_COLOR,
-    fontSize: 15,
-  },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -185,15 +171,24 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(43, 42, 42, 0.6)',
+    top: 5,
+    left: 5,
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  priceBadge: {
+    position: 'absolute',
+    right: 5,
+    bottom: -7,
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   typeText: {
-    color: '#fff',
+    color: PRIMARY_COLOR,
     fontSize: 10,
     fontWeight: '800',
   },
@@ -202,8 +197,8 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     alignContent: 'center',
     position: 'absolute',
-    bottom: 3,
-    left: 3,
+    top: 3,
+    right: 3,
   },
   soldOutText: {
     color: PRIMARY_COLOR,

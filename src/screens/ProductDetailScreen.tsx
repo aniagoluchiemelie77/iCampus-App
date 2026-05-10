@@ -5,12 +5,16 @@ import { useAppSelector } from '../components/hooks';
 import { useAppDataContext } from '../components/EventContext';
 import {PageHeader} from '../components/PageHeader';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT, PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {CurrencyDisplay} from '../components/CurrencyFormatter';
+import {formatTime} from '../utils/durationFormatter';
+import {formatCount} from '../utils/followCountFormatter';
 
 const { width } = Dimensions.get('window');
 
 export const ProductDetailScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { productId } = route.params as { productId: string };
   const { allProducts, handleCartItemToggle, handleToggleFavorite } =
     useAppDataContext();
@@ -38,6 +42,10 @@ export const ProductDetailScreen = () => {
   }, [activeImageIndex, product?.mediaUrls]);
   if (!product) return <Text>Product not found</Text>;
   const isFavorite = currentUser?.favorites?.includes(product.productId);
+  const existingItem = currentUser?.cart?.find(
+    item => item.productId === product.productId,
+  );
+  const isAlreadyInCart = !!existingItem;
   return (
     <View style={styles.container}>
       <PageHeader title="Item Detail" />
@@ -76,7 +84,7 @@ export const ProductDetailScreen = () => {
               )}
             </View>
             <View style={styles.priceDiv}>
-              <Text style={styles.price}>{product.priceInPoints}</Text>
+              <CurrencyDisplay value={product.priceInPoints} size="large" />
             </View>
           </View>
           {product.type === 'physical' && product.physicalDetails?.colors && (
@@ -124,6 +132,41 @@ export const ProductDetailScreen = () => {
               </View>
             </View>
           )}
+          {product.type === 'course' && product.courseDetails && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Course Info</Text>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="schedule-outlined" size={20} color={PRIMARY_COLOR_TINT} />
+                <Text style={styles.infoText}>Duration: {formatTime(product.courseDetails.duration)}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="people-outlined" size={20} color={PRIMARY_COLOR_TINT} />
+                <Text style={styles.infoText}>
+                  {formatCount(product.courseDetails.studentsEnrolledCount)} Students Enrolled
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="star-outline" size={20} color={PRIMARY_COLOR_TINT} />
+                <Text style={styles.infoText}>{formatCount(product.courseDetails.totalReviews)} Reviews</Text>
+              </View>
+            </View>
+          )}
+          {product.type === 'file' && product.fileDetails && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>File Specifications</Text>
+              <View style={styles.fileCard}>
+                <MaterialIcons name="insert-drive-file-outlined" size={30} color={PRIMARY_COLOR_TINT} />
+                <View style={{ marginLeft: 12 }}>
+                  <Text style={styles.fileSubText}>
+                    {product.fileDetails.fileFormat.toUpperCase()} • {product.fileDetails.fileSizeInMB} MB
+                  </Text>
+                </View>
+                {product.fileDetails.hasPassword && (
+                  <MaterialIcons name="lock-outlined" size={18} color={PRIMARY_COLOR_TINT} style={{ marginLeft: 'auto' }} />
+                )}
+              </View>
+            </View>
+          )}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quantity</Text>
             <View style={styles.quantityRow}>
@@ -131,41 +174,53 @@ export const ProductDetailScreen = () => {
                 onPress={() => setQuantity(Math.max(1, quantity - 1))}
                 style={styles.qtyBtn}
               >
-                <Text>-</Text>
+                <Text style={styles.qtyBtnText}>-</Text>
               </TouchableOpacity>
               <Text style={styles.qtyText}>{quantity}</Text>
               <TouchableOpacity
                 onPress={() => setQuantity(quantity + 1)}
                 style={styles.qtyBtn}
               >
-                <Text>+</Text>
+                <Text style={styles.qtyBtnText}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.favBtn}
-          onPress={() => handleToggleFavorite(product.productId)}
-        >
-          <Ionicons
-            name={isFavorite ? 'heart' : 'heart-outline'}
-            size={28}
-            color={isFavorite ? 'red' : 'black'}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.addToCartBtn}
-          onPress={() =>
-            handleCartItemToggle(product, selectedSize, selectedColor)
-          }
-        >
-          <Text style={styles.btnText}>Add to Cart</Text>
-        </TouchableOpacity>
+        <View style={styles.footerRow}>
+          <TouchableOpacity
+            onPress={() => handleToggleFavorite(product.productId)}
+          >
+            <MaterialIcons
+              name={isFavorite ? 'favorite-outlined' : 'favorite-border-outlined'}
+              size={28}
+              color={PRIMARY_COLOR}
+            />
+          </TouchableOpacity>
+          {!isAlreadyInCart && (
+            <TouchableOpacity
+              style={{marginLeft: 4}}
+              onPress={() =>
+                handleCartItemToggle(product, selectedSize, selectedColor)
+              }
+            >
+              <MaterialIcons
+                name={'shopping-cart-outlined'}
+                size={28}
+                color={PRIMARY_COLOR}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.checkoutBtn}
-          onPress={() => navigation.navigate('Checkout', { productId })}
+          onPress={() => navigation.navigate('Checkout', { 
+    productId,
+    quantity,
+    color: selectedColor,
+    size: selectedSize
+  })}
         >
           <Text style={styles.btnText}>Buy Now</Text>
         </TouchableOpacity>
@@ -204,29 +259,21 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
     width: 18,
   },
-
-  // --- Content Body ---
   content: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    marginTop: -25, // Overlap the image slightly
+    marginTop: -25, 
     paddingHorizontal: 20,
     paddingTop: 25,
-    paddingBottom: 100, // Space for the fixed footer
+    paddingBottom: 100, 
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#222',
     letterSpacing: -0.5,
-  },
-  price: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#007AFF', // Theme Primary
-    marginTop: 8,
   },
   label: {
     fontSize: 16,
@@ -300,8 +347,6 @@ const styles = StyleSheet.create({
     color: '#60646C',
     marginTop: 20,
   },
-
-  // --- Fixed Bottom Footer ---
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -310,12 +355,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderColor: '#F0F0F0',
+    borderTopWidth: .8,
+    borderColor: PRIMARY_COLOR_TINT,
     alignItems: 'center',
     gap: 12,
-    // Add shadow to make it pop
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -360,16 +404,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   section: {
-    marginTop: 20,
+    marginTop: 15,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#49454F',
-    marginBottom: 12,
+    color: '#222',
+    marginBottom: 10,
+    textAlign: 'center'
   },
-
-  // --- Color Selection ---
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -380,44 +423,40 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: PRIMARY_COLOR_TINT_MAIN,
   },
   selectedBorder: {
     borderWidth: 3,
-    borderColor: '#007AFF', // Highlight ring for selected color
+    borderColor: PRIMARY_COLOR, 
     transform: [{ scale: 1.1 }],
   },
-
-  // --- Size Selection ---
   sizeOption: {
-    minWidth: 50,
+    width: 50,
     height: 44,
     paddingHorizontal: 12,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    alignContent: 'center',
+    backgroundColor: '#fadccc',
   },
   selectedSize: {
-    backgroundColor: '#1A1C1E', // Dark background for selected size
-    borderColor: '#1A1C1E',
+    backgroundColor: PRIMARY_COLOR, 
+    borderColor: PRIMARY_COLOR,
   },
   whiteText: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
   blackText: {
-    color: '#1A1C1E',
+    color: PRIMARY_COLOR,
     fontWeight: '600',
   },
-
-  // --- Quantity Selector ---
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F4F7',
+    backgroundColor: '#fadccc',
     alignSelf: 'flex-start',
     borderRadius: 12,
     padding: 4,
@@ -425,26 +464,30 @@ const styles = StyleSheet.create({
   qtyBtn: {
     width: 38,
     height: 38,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    // Subtle shadow for the buttons
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
+  qtyBtnText:{
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold'
+  },
   qtyText: {
     fontSize: 18,
     fontWeight: '700',
     marginHorizontal: 20,
-    color: '#1A1C1E',
+    color: PRIMARY_COLOR,
   },
   description: {
     fontSize: 14,
-    color: '#31313122',
+    color: '#2222',
     marginTop: 7,
   },
   productImageDiv: {
@@ -473,7 +516,48 @@ const styles = StyleSheet.create({
   },
   priceDiv: {
     paddingHorizontal: 5,
+  },
+  footerRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 10
+  },
+  checkoutBtn:{
+    width: '100%',
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    alignContent: 'center'
+  },
+  btnText:{
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#2222',
+  },
+  fileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fadccc',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: .8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  fileSubText: {
+    fontSize: 13,
+    color: '#777',
+    marginTop: 2,
   },
 });

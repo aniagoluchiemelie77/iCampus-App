@@ -33,7 +33,7 @@ import ForgotPasswordScreen from './src/screens/ForgotPassword';
 import ChangePasswordScreen from './src/screens/ChangePassword';
 import { Settings } from './src/screens/Settings';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import ProductDetails from './src/screens/ProductDetails';
+import { ProductDetailScreen } from './src/screens/ProductDetailScreen';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import Checkout from './src/screens/Checkout';
 import Notifications from './src/screens/Notifications';
@@ -557,7 +557,7 @@ const App = () => {
             />
             <Stack.Screen
               name="ProductDetails"
-              component={ProductDetails}
+              component={ProductDetailScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

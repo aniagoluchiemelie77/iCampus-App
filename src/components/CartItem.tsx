@@ -3,16 +3,30 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Product, CartItem as CartItemType } from '../types/firebase'; 
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { CurrencyDisplay } from './CurrencyFormatter';
+import { useNavigation } from '@react-navigation/native';
 
 interface CartItemProps {
-  cartEntry: CartItemType; 
-  product: Product; 
+  cartEntry: CartItemType;
+  product: Product;
   onRemove: (product: Product) => void;
 }
 
-export const CartItem: React.FC<CartItemProps> = ({ cartEntry, product, onRemove }) => {
+export const CartItem: React.FC<CartItemProps> = ({
+  cartEntry,
+  product,
+  onRemove,
+}) => {
+  const navigation = useNavigation<any>();
   return (
-    <TouchableOpacity style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() =>
+        navigation.navigate('ProductDetails', {
+          productId: product.productId,
+        })
+      }
+    >
       <Image source={{ uri: product.mediaUrls[0] }} style={styles.image} />
 
       <View style={styles.details}>
@@ -51,21 +65,11 @@ export const CartItem: React.FC<CartItemProps> = ({ cartEntry, product, onRemove
             </View>
           )}
         </View>
-
         <View style={styles.bottomRow}>
-          <View style={styles.priceDiv}>
-            <Text style={styles.price}>
-              {(product.priceInPoints * cartEntry.quantity).toLocaleString(
-                undefined,
-                {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                },
-              )}
-            </Text>
-            <MaterialIcons name="diamond" size={20} color={PRIMARY_COLOR} />
-          </View>
-
+          <CurrencyDisplay
+            value={product.priceInPoints * cartEntry.quantity}
+            size="medium"
+          />
           <TouchableOpacity
             onPress={() => onRemove(product)}
             style={styles.removeButton}
@@ -85,9 +89,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 10,
     marginBottom: 15,
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    width: '90%'
+    width: '90%',
   },
   image: {
     width: 100,
@@ -97,7 +101,7 @@ const styles = StyleSheet.create({
   details: {
     flex: 1,
     marginLeft: 14,
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   headerRow: {
     flexDirection: 'row',
@@ -112,7 +116,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    textTransform: 'capitalize'
+    textTransform: 'capitalize',
   },
   quantityBadge: {
     fontSize: 10,
@@ -154,21 +158,12 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 8,
   },
-  priceDiv:{
-    flexDirection: 'row',
-    alignItems: 'baseline'
-  },
-  price: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: PRIMARY_COLOR,
-  },
   removeButton: {
     alignContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: PRIMARY_COLOR
+    backgroundColor: PRIMARY_COLOR,
   },
   removeText: {
     fontSize: 12,
@@ -177,6 +172,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   detailSubdiv: {
-    width: '100%'
-  }
+    width: '100%',
+  },
 });

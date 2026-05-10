@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
@@ -126,7 +127,7 @@ export const ICashDashboard = () => {
         </View>
         <View style={iCashScreenStyles.balance}>
           <View style={iCashScreenStyles.balanceContainer}>
-            <Icon
+            <MaterialIcons
               name="diamond"
               size={32}
               color="#fff"
@@ -146,8 +147,10 @@ export const ICashDashboard = () => {
             )}
           </View>
           <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-            <Icon
-              name={showBalance ? 'eye-outline' : 'eye-off-outline'}
+            <MaterialIcons
+              name={
+                showBalance ? 'visibility-outlined' : 'visibility-off-outlined'
+              }
               size={24}
               color="#fff"
               style={iCashScreenStyles.balanceHideBtn}

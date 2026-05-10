@@ -300,7 +300,7 @@ export interface Product {
   courseDetails?: {
     courseId: string; 
     lecturerIds: string[];
-    duration: string;
+    duration: number;
     totalReviews: number;
     studentsEnrolledCount: number;
     studentsEnrolled: string[];
@@ -780,8 +780,8 @@ export interface CreateTestPayload {
   courseId: Course['courseId'];
   description?: string;
   title: string;
-  duration: number; // in minutes
-  totalMarks: number; // explicitly set by lecturer
+  duration: number; 
+  totalMarks: number; 
   questions: Question[];
   isPublished: boolean;
   status: 'published' | 'draft';
