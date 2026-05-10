@@ -278,6 +278,13 @@ export interface ProductCategory {
   updatedAt?: string;
   schoolName?: string;
 }
+export interface DropOffStation {
+  id: string;
+  name: string;        
+  address: string;     
+  code: string;        
+  contactPerson?: string; 
+}
 export interface Product {
   _id?: string;
   productId: string; 
@@ -296,6 +303,7 @@ export interface Product {
     weightKg: number; 
     sellerGateways: DeliveryGateway[];
     isNationalShippingAvailable: boolean
+    dropOffAddress: DropOffStation[];
   };
   courseDetails?: {
     courseId: string; 

@@ -9,7 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 interface CartItemProps {
   cartEntry: CartItemType;
   product: Product;
-  onRemove: (product: Product) => void;
+  onRemove?: (product: Product) => void;
 }
 
 export const CartItem: React.FC<CartItemProps> = ({
@@ -71,7 +71,7 @@ export const CartItem: React.FC<CartItemProps> = ({
             size="medium"
           />
           <TouchableOpacity
-            onPress={() => onRemove(product)}
+            onPress={() => onRemove && onRemove(product)}
             style={styles.removeButton}
           >
             <MaterialIcons name="delete-outlined" size={18} color="#fff" />

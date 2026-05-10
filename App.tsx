@@ -35,7 +35,7 @@ import { Settings } from './src/screens/Settings';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ProductDetailScreen } from './src/screens/ProductDetailScreen';
 import ProductSellerScreen from './src/screens/ProductSellerScreen';
-import Checkout from './src/screens/Checkout';
+import { CheckoutScreen } from './src/screens/Checkout.tsx';
 import Notifications from './src/screens/Notifications';
 import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
@@ -210,7 +210,12 @@ export type RootStackParamList = {
   CartScreen: undefined;
   FavoritesScreen: undefined;
   ProductSellerScreen: { seller: User };
-  Checkout: undefined;
+  Checkout: {
+    productId?: string;
+    selectedColor?: string;
+    selectedSize?: string;
+    quantity?: number;
+  };
   IcashP2PScreen: undefined;
   //TransactionPage: { transactionId: string };
   Login: undefined;
@@ -399,7 +404,7 @@ const App = () => {
 
             <Stack.Screen
               name="Checkout"
-              component={Checkout}
+              component={CheckoutScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

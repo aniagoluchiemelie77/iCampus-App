@@ -876,3 +876,29 @@ export const bulkAddtoCartAPI = async (items: CartItem[]) => {
     return { success: false }; 
   }
 };
+export const initializeCheckoutTransaction = async (payload: any) => {
+  try {
+    const response = await fetch(`${baseUrl}user/transactions/initialize-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to initialize checkout',
+      };
+    }
+    return { success: true, data };
+  } catch (error: any) {
+    if (typeof handleTransactionError === 'function') {
+      handleTransactionError(error, 'Purchase Error');
+    }
+    return { success: false, message: error.message || 'An unknown error occurred' };
+  }
+};

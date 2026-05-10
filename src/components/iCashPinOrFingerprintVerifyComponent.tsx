@@ -2,11 +2,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Animated, ActivityIndicator, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from './Classroomcomponent';
-import { baseUrl } from '../components/HomeScreenComponents';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
+import { verifyICashPin, requestPinReset } from '../api/localPostApis';
 const rnBiometrics = new ReactNativeBiometrics();
 
 interface PinVerificationProps {
@@ -14,21 +12,42 @@ interface PinVerificationProps {
   onSuccess: (data?: any) => void;
   onClose: () => void;
   title?: string | 'Enter iCash PIN';
-  navigation: any
+  navigation: any;
 }
-export const IcashPinOrFingerprintVerifyModal = ({navigation, isVisible, onSuccess, title, onClose} : PinVerificationProps) => {
+export const IcashPinOrFingerprintVerifyModal = ({
+  navigation,
+  isVisible,
+  onSuccess,
+  title,
+  onClose,
+}: PinVerificationProps) => {
   const [pin, setPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
 
-  // --- 1. Animation Logic ---
   const triggerShake = () => {
     Animated.sequence([
-      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: -10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 0,
+        duration: 50,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
@@ -51,22 +70,20 @@ export const IcashPinOrFingerprintVerifyModal = ({navigation, isVisible, onSucce
   const verifyPin = async (code: string) => {
     setIsProcessing(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify({ pin: code }),
-      });
-
-      if (response.ok) {
+      const response = await verifyICashPin(code);
+      if (response.success) {
         onSuccess();
+      } else if (response.isSuspended) {
+        navigation.navigate('SuspendedScreen', {
+          reason: response.message,
+        });
       } else {
         setPin('');
         triggerShake();
-        Toast.show({ type: 'error', text1: 'Invalid PIN' });
+        Toast.show({
+          type: 'error',
+          text2: `Invalid PIN, ${response.attemptsRemaining} attempts remaining.`,
+        });
       }
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Connection Error' });
@@ -83,18 +100,19 @@ export const IcashPinOrFingerprintVerifyModal = ({navigation, isVisible, onSucce
   };
   const handleRequestReset = async () => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/request-pin-reset`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
+      const response = await requestPinReset();
+      if (response.success) {
         Toast.show({
           type: 'success',
           text1: 'OTP Sent',
           text2: 'Check your email for the reset code.',
         });
         navigation.navigate('ICashResetPin');
+      } else {
+        Toast.show({
+          type: 'error',
+          text2: response.message,
+        });
       }
     } catch (err) {
       Toast.show({
@@ -111,80 +129,70 @@ export const IcashPinOrFingerprintVerifyModal = ({navigation, isVisible, onSucce
     }
   }, [isVisible, handleBiometricAuth]);
   return (
-    <Modal
-        visible={isVisible}
-        animationType="slide"
-        transparent={true}
-    >
-        <View style={styles.modalOverlay}>
-            <View style={styles.bottomSheet}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{title}</Text>
-                    <TouchableOpacity onPress={onClose}>
-                        <Icon name="close" size={24} color={PRIMARY_COLOR_TINT} />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.pinContainer}>
-                    <Text style={styles.pinSubtitle}>
-                        Enter your 6-digit iCash PIN
-                    </Text>
-                    <TextInput
-                        ref={inputRef}
-                        value={pin}
-                        onChangeText={handleTextChange}
-                        maxLength={6}
-                        keyboardType="number-pad"
-                        secureTextEntry
-                        style={styles.hiddenInput}
-                        autoFocus={true}
-                    />
-                    <Pressable
-                        onPress={() => inputRef.current?.focus()}
-                        style={styles.pressableArea}
-                    >
-                        <Animated.View
-                            style={[
-                               styles.pinRow,
-                               { transform: [{ translateX: shakeAnimation }] },
-                            ]}
-                        >
-                            {[...Array(6)].map((_, i) => (
-                                <View
-                                    key={i}
-                                    style={[
-                                        styles.dot,
-                                        pin.length > i && styles.dotFilled,
-                                        pin.length === i && styles.dotActive,
-                                    ]}
-                                />
-                            ))}
-                        </Animated.View>
-                    </Pressable>
-                    <View style={styles.pinActionRow}>
-                        <TouchableOpacity
-                            onPress={handleBiometricAuth}
-                            style={styles.iconBtn}
-                        >
-                            <Icon
-                                name="fingerprint"
-                                size={28}
-                                color={PRIMARY_COLOR}
-                            />
-                            <Text style={styles.iconBtnText}>Use Fingerprint</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handleRequestReset}>
-                            <Text style={styles.forgotText}>Forgot PIN?</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {isProcessing && (
-                        <ActivityIndicator
-                            style={{ marginTop: 20 }}
-                            color={PRIMARY_COLOR}
-                        />
-                    )}
-                </View>
+    <Modal visible={isVisible} animationType="slide" transparent={true}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.bottomSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Icon name="close" size={24} color={PRIMARY_COLOR_TINT} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.pinContainer}>
+            <Text style={styles.pinSubtitle}>Enter your 6-digit iCash PIN</Text>
+            <TextInput
+              ref={inputRef}
+              value={pin}
+              onChangeText={handleTextChange}
+              maxLength={6}
+              keyboardType="number-pad"
+              secureTextEntry
+              style={styles.hiddenInput}
+              autoFocus={true}
+            />
+            <Pressable
+              onPress={() => inputRef.current?.focus()}
+              style={styles.pressableArea}
+            >
+              <Animated.View
+                style={[
+                  styles.pinRow,
+                  { transform: [{ translateX: shakeAnimation }] },
+                ]}
+              >
+                {[...Array(6)].map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      pin.length > i && styles.dotFilled,
+                      pin.length === i && styles.dotActive,
+                    ]}
+                  />
+                ))}
+              </Animated.View>
+            </Pressable>
+            <View style={styles.pinActionRow}>
+              <TouchableOpacity
+                onPress={handleBiometricAuth}
+                style={styles.iconBtn}
+              >
+                <Icon name="fingerprint" size={28} color={PRIMARY_COLOR} />
+                <Text style={styles.iconBtnText}>Use Fingerprint</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleRequestReset}>
+                <Text style={styles.forgotText}>Forgot PIN?</Text>
+              </TouchableOpacity>
             </View>
+            {isProcessing && (
+              <ActivityIndicator
+                style={{ marginTop: 20 }}
+                color={PRIMARY_COLOR}
+              />
+            )}
+          </View>
         </View>
+      </View>
     </Modal>
   );
 };
