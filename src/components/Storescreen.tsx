@@ -4,12 +4,16 @@ import { useNavigation } from '@react-navigation/native';
 import { debounce } from 'lodash';
 import { ProductCard } from './ProductCard';
 import { fetchProductsAPI } from '../api/localGetApis';
-import {Product} from '../types/firebase';
-import {EmptyState} from './EmptyFlatlistComponent';
+import { completeOrderDelivery } from '../api/localPostApis';
+import { Product } from '../types/firebase';
+import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppSelector } from '../components/hooks';
-import {PageHeader} from './PageHeader';
+import { PageHeader } from './PageHeader';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { OrderScannerModal } from './OrderQRScannerModal';
+import Toast from 'react-native-toast-message';
+import toastConfig from '@components/ToastConfig';
 
 interface IconButtonProps {
   onPress: () => void;
@@ -48,6 +52,7 @@ const HeaderActionButton = ({
 
 export const StoreScreen = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,9 +64,8 @@ export const StoreScreen = () => {
   const headerRightElement = (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <HeaderActionButton
-        icon="shopping-cart"
-        count={currentUser?.cart?.length || 0}
-        onPress={() => navigation.navigate('CartScreen')}
+        icon="qr-code-scanner"
+        onPress={() => setIsScannerOpen(true)}
       />
       <HeaderActionButton
         icon="favorite"
@@ -113,6 +117,49 @@ export const StoreScreen = () => {
       setCursor(result.nextCursor);
     }
     setIsFetchingMore(false);
+  };
+  const handleCompleteOrder = async (orderId: string) => {
+    setIsScannerOpen(false);
+    setLoading(true);
+
+    try {
+      const response = await completeOrderDelivery(orderId);
+      if (response.success) {
+        Toast.show({
+          type: 'success',
+          text2:
+            response.message ||
+            'Transaction completed successfully, funds wil be released immediately.',
+        });
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'OrderVerificationSuccess',
+              params: {
+                orderId: response.orderId,
+                amount: response.settlementAmount,
+                role: response.role,
+                productName: response.productName,
+              },
+            },
+          ],
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text2: response.message || 'Order verification failed, please retry.',
+        });
+      }
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Verification Error',
+        text2: err.message || 'Order verification failed, please retry.',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <View style={styles.container}>
@@ -208,6 +255,12 @@ export const StoreScreen = () => {
           }
         />
       )}
+      <OrderScannerModal
+        isVisible={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onSuccess={handleCompleteOrder}
+      />
+      <Toast config={toastConfig} />
     </View>
   );
 };

@@ -227,8 +227,16 @@ export const ProductDetailScreen = () => {
               </TouchableOpacity>
               <Text style={styles.qtyText}>{quantity}</Text>
               <TouchableOpacity
-                onPress={() => setQuantity(quantity + 1)}
-                style={styles.qtyBtn}
+                onPress={() => {
+                  if (quantity < product.amountInStock) {
+                    setQuantity(quantity + 1);
+                  }
+                }}
+                disabled={quantity >= product.amountInStock}
+                style={[
+                  styles.qtyBtn,
+                  quantity >= product.amountInStock && styles.disabledBtn,
+                ]}
               >
                 <Text style={styles.qtyBtnText}>+</Text>
               </TouchableOpacity>
@@ -585,6 +593,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 12,
     padding: 4,
+  },
+  disabledBtn:{
+    opacity: 0.6
   },
   qtyBtn: {
     width: 38,

@@ -308,6 +308,7 @@ export interface Product {
   description?: string;
   priceInPoints: number; 
   mediaUrls: string[]; 
+  amountInStock: number;
   physicalDetails?: {
     colors?: string[];
     sizes?: string[];

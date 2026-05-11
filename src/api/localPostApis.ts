@@ -902,3 +902,35 @@ export const initializeCheckoutTransaction = async (payload: any) => {
     return { success: false, message: error.message || 'An unknown error occurred' };
   }
 };
+export const completeOrderDelivery = async (orderId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}store/orders/complete-delivery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ 
+        orderId, 
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok || data.success === false) {
+      return { 
+        success: false, 
+        message: data?.message || 'Verification failed. Please try again.' 
+      };
+    }
+    return { 
+      success: true, 
+      message: data.message || 'Transaction completed successfully!',
+      orderId: data.orderId,
+      settlementAmount: data.settlementAmount,
+      role: data.role,
+      productName: data.productName
+    };
+  } catch (error) {
+    console.error("API Error [completeOrderDelivery]:", error);
+    return { 
+      success: false, 
+      message: 'Network error occurred. Check your internet connection.' 
+    };
+  }
+};

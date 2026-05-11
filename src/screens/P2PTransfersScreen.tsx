@@ -135,8 +135,6 @@ export const IcashP2PScreen = () => {
   };
   const handleScanSuccess = async (data: string) => {
     setScannerVisible(false);
-
-    // 1. Extract username (assuming QR value is just the username or 'icampus:username')
     const tag = data.includes(':') ? data.split(':').pop() : data;
     if (tag) {
       setRecipientTag(tag);
@@ -155,7 +153,7 @@ export const IcashP2PScreen = () => {
   // 3. Define the Frame Processor to scan barcodes
   const frameProcessor = useFrameProcessor(
     frame => {
-      'worklet'; // Required for Reanimated/VisionCamera worklets
+      'worklet';
       const detectedBarcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
 
       if (detectedBarcodes.length > 0) {

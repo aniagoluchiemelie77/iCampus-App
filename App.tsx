@@ -76,6 +76,7 @@ import { PhoneScreen } from './src/screens/SPhoneNumberScreens.tsx';
 import { CartScreen } from './src/screens/CartScreen.tsx';
 import { FavoritesScreen } from './src/screens/FavoritesScreen.tsx';
 import { MarketplacePurchaseSuccessScreen } from './src/screens/MarketPurchaseSuccessScreen.tsx';
+import { OrderVerificationSuccess } from './src/screens/OrderVerificationScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -174,6 +175,12 @@ export type RootStackParamList = {
     initialMessage?: string;
   };
   SignupPage: { role: string };
+  OrderVerificationSuccess: {
+    amount: number;
+    role: 'seller' | 'agent';
+    productName: string;
+    orderId: string;
+  };
   PostDetailScreen: {
     post: Posts;
     postId: string;
@@ -390,6 +397,11 @@ const App = () => {
             <Stack.Screen
               name="MessagesList"
               component={MessagesListScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="OrderVerificationSuccess"
+              component={OrderVerificationSuccess}
               options={{ headerShown: false }}
             />
             <Stack.Screen
