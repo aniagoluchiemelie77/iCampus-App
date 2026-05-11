@@ -286,6 +286,17 @@ export interface DropOffStation {
   contactPerson?: string; 
   agentId: string
 }
+export interface MarketplaceOrder {
+  orderId: string;
+  productName: string;
+  productType: 'physical' | 'file' | 'course'; 
+  deliveryMethod: DeliveryGateway;
+  amountPaid: number;
+  status: string;
+  selectedStation?: DropOffStation;
+  generatedFilePassword?: string;
+  createdAt: string;
+}
 export interface Product {
   _id?: string;
   productId: string; 

@@ -9,6 +9,7 @@ import type {
   CourseException,
   Lecture,
   Course,
+  MarketplaceOrder,
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
@@ -74,6 +75,7 @@ import { EmailsScreen } from './src/screens/SEmails.tsx';
 import { PhoneScreen } from './src/screens/SPhoneNumberScreens.tsx';
 import { CartScreen } from './src/screens/CartScreen.tsx';
 import { FavoritesScreen } from './src/screens/FavoritesScreen.tsx';
+import { MarketplacePurchaseSuccessScreen } from './src/screens/MarketPurchaseSuccessScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -119,6 +121,10 @@ export type RootStackParamList = {
   ResetPasswordScreen: undefined;
   EmailsScreen: undefined;
   PhoneScreen: undefined;
+  MSuccessScreen: {
+    orders: MarketplaceOrder[];
+    totalSpent: number;
+  };
   Subscription: {
     targetScreen?: keyof RootStackParamList;
   };
@@ -339,6 +345,11 @@ const App = () => {
             <Stack.Screen
               name="LiveClassSessions"
               component={LiveClassSessions}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="MSuccessScreen"
+              component={MarketplacePurchaseSuccessScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

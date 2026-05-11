@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from 'react-native';
 import toastConfig from '@components/ToastConfig';
@@ -162,10 +161,11 @@ export const CheckoutScreen = ({ navigation }: any) => {
     );
 
     if (missingSelection) {
-      Alert.alert(
-        'Selection Required',
-        `Please select a drop-off location for ${missingSelection.product?.title}`,
-      );
+      Toast.show({
+        type: 'error',
+        text1: 'Selection Required',
+        text2: `Please select a drop-off location for ${missingSelection.product?.title}`,
+      });
       return;
     }
     setIsVerifyModalVisible(false);
@@ -205,12 +205,24 @@ export const CheckoutScreen = ({ navigation }: any) => {
     };
     const result = await initializeCheckoutTransaction(orderPayload);
     if (result.success) {
-      navigation.navigate('SuccessScreen', {
-        orderDetails: result.data,
-        payload: orderPayload,
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'MSuccessScreen',
+            params: {
+              orders: result.data,
+              totalSpent: orderPayload.totals.grandTotal,
+            },
+          },
+        ],
       });
     } else {
-      Alert.alert('Transaction Failed', result.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Checkout Error',
+        text2: result.message || 'Something went wrong, please retry',
+      });
     }
   };
 

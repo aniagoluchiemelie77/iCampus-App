@@ -49,7 +49,17 @@ const FlutterwaveWebview = ({ route, navigation }: any) => {
     if (currentUrl.includes('status=successful') || currentUrl.includes('tx_ref=')) {
       isProcessing.current = false;
       setTimeout(() => {
-        navigation.navigate('SuccessScreen', { refresh: true });
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'ICashDashboard',
+              params: {
+                refresh: true,
+              },
+            },
+          ],
+        });
       }, 1500);
     } 
     

@@ -170,15 +170,23 @@ export const ICashBuyPage = ({ navigation }: any) => {
             url: data.authorization_url,
           });
         } else {
-          navigation.navigate('iCashSuccessScreen', {
-            amountPurchased: iCashEquivalent,
+          navigation.reset({
+            index: 0,
+        routes: [
+          {
+            name: 'iCashSuccessScreen',
+            params: {
+              amountPurchased: iCashEquivalent,
             amountPaid: numericAmount,
             currency: currencyData.code,
             type: 'buy',
             amount: 0,
             payout: 0,
             recipientUsername: '',
-          });
+            },
+          },
+        ],
+      });
         }
       } else {
         Toast.show({

@@ -130,14 +130,28 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
       const data = response.data;
       if (data.status === 'success') {
         setShowConfirmModal(false);
-        navigation.navigate('iCashSuccessScreen', {
-          amount: iCashAmount,
-          type: 'withdraw',
-          payout: finalPayout,
-          currency: currencyData.code,
-          amountPurchased: 0,
-          amountPaid: 0,
-          recipientUsername: '',
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'iCashSuccessScreen',
+              params: {
+                amount: iCashAmount,
+                type: 'withdraw',
+                payout: finalPayout,
+                currency: currencyData.code,
+                amountPurchased: 0,
+                amountPaid: 0,
+                recipientUsername: '',
+              },
+            },
+          ],
+        });
+      }else {
+        Toast.show({
+          type: 'error',
+          text1: 'Transaction Error',
+          text2: data.message || 'Something went wrong, please retry',
         });
       }
     } catch (error: any) {

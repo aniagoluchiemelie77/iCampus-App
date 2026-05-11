@@ -187,14 +187,22 @@ export const IcashP2PScreen = () => {
       });
 
       if (response.ok) {
-        navigation.navigate('iCashSuccessScreen', {
-          amount: parseFloat(amount),
-          recipientUsername: searchResult!.username,
-          type: 'p2p',
-          amountPurchased: 0,
-          amountPaid: 0,
-          currency: 'iCash',
-          payout: 0,
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'iCashSuccessScreen',
+              params: {
+                amount: parseFloat(amount),
+                recipientUsername: searchResult!.username,
+                type: 'p2p',
+                amountPurchased: 0,
+                amountPaid: 0,
+                currency: 'iCash',
+                payout: 0,
+              },
+            },
+          ],
         });
       } else {
         const errorData = await response.json();
