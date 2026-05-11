@@ -279,11 +279,12 @@ export interface ProductCategory {
   schoolName?: string;
 }
 export interface DropOffStation {
-  id: string;
+  id?: string;
   name: string;        
   address: string;     
   code: string;        
   contactPerson?: string; 
+  agentId: string
 }
 export interface Product {
   _id?: string;

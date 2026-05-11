@@ -8,6 +8,7 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
+import toastConfig from '@components/ToastConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader';
@@ -19,8 +20,10 @@ import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFinger
 import Toast from 'react-native-toast-message';
 import { DeliveryGateway } from '../types/firebase';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import PhoneInput from "react-native-phone-number-input";
+import PhoneInput from 'react-native-phone-number-input';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { initializeCheckoutTransaction } from '../api/localPostApis';
+import { DropOffStation } from '../types/firebase';
 import {
   useRoute,
   //useNavigation
@@ -37,10 +40,17 @@ export const CheckoutScreen = ({ navigation }: any) => {
   const currentUser = useAppSelector(state => state.user);
   const { allProducts } = useAppDataContext();
   const [isValid, setIsValid] = useState(false);
-  const [countryCode, _setCountryCode] = useState<any>(currentUser.country || "NG");
-  const [formattedValue, setFormattedValue] = useState("");
+  const [selectedStations, setSelectedStations] = useState<
+    Record<string, DropOffStation>
+  >({});
+  const [countryCode, _setCountryCode] = useState<any>(
+    currentUser.country || 'NG',
+  );
+  const [formattedValue, setFormattedValue] = useState('');
   const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumbers?.[0]?.number || "");
+  const [phoneNumber, setPhoneNumber] = useState(
+    currentUser.phoneNumbers?.[0]?.number || '',
+  );
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const params = route.params as {
     productId?: string;
@@ -107,8 +117,12 @@ export const CheckoutScreen = ({ navigation }: any) => {
   const transactionTax = subtotal * TRANSACTION_TAX_RATE;
   const grandTotal = subtotal + transactionTax + totalDeliveryFee;
   const canAfford = userBalance >= grandTotal;
-  const homeItems = checkoutItems.filter(item => itemDeliveryMethods[item.productId] === 'home_delivery');
-  const dropOffItems = checkoutItems.filter(item => itemDeliveryMethods[item.productId] !== 'home_delivery');
+  const homeItems = checkoutItems.filter(
+    item => itemDeliveryMethods[item.productId] === 'home_delivery',
+  );
+  const dropOffItems = checkoutItems.filter(
+    item => itemDeliveryMethods[item.productId] !== 'home_delivery',
+  );
 
   // --- Purchase Logic ---
   const handleProceedToVerify = () => {
@@ -124,60 +138,81 @@ export const CheckoutScreen = ({ navigation }: any) => {
     }
     setIsVerifyModalVisible(true);
   };
-   const handlePhoneChange = (text: string) => {
-      setPhoneNumber(text);
-      const phoneNumberObj = parsePhoneNumberFromString(text, countryCode);
-      if (phoneNumberObj) {
-        setIsValid(phoneNumberObj.isValid());
-      } else {
-        setIsValid(false);
-      }
-    };
-  const onVerificationSuccess = async () => {
-  setIsVerifyModalVisible(false);
-
-  const orderPayload = {
-    items: checkoutItems.map(item => {
-      const isPhysical = item.product?.type === 'physical';
-      const method = itemDeliveryMethods[item.productId] || 'drop_off';
-      const stationInfo = (isPhysical && method === 'drop_off') 
-        ? item.product?.physicalDetails?.dropOffAddress 
-        : undefined;
-
-      return {
-        productId: item.productId,
-        sellerId: item.product?.sellerId, 
-        quantity: item.quantity,
-        deliveryMethod: method,
-        price: item.product?.priceInPoints,
-        color: item.selectedColor,
-        size: item.selectedSize,
-        ...(stationInfo && { stationAddress: stationInfo }), // Only adds key if data exists
-      };
-    }),
-    totals: {
-      subtotal,
-      tax: transactionTax,
-      delivery: totalDeliveryFee,
-      grandTotal,
-    },
-    shippingContact: {
-      phone: formattedValue,
-      address: deliveryAddress
-    },
-    buyerId: currentUser.uid,
-    timestamp: new Date().toISOString(),
+  const handlePhoneChange = (text: string) => {
+    setPhoneNumber(text);
+    const phoneNumberObj = parsePhoneNumberFromString(text, countryCode);
+    if (phoneNumberObj) {
+      setIsValid(phoneNumberObj.isValid());
+    } else {
+      setIsValid(false);
+    }
   };
-  const result = await initializeBuyTransaction(orderPayload);
-  if (result.success) {
-    navigation.navigate('SuccessScreen', { 
-      orderDetails: result.data, 
-      payload: orderPayload 
-    });
-  } else {
-    Alert.alert('Transaction Failed', result.message);
-  }
-};
+  const handleStationSelect = (productId: string, station: DropOffStation) => {
+    setSelectedStations(prev => ({
+      ...prev,
+      [productId]: station,
+    }));
+  };
+  const onVerificationSuccess = async () => {
+    const missingSelection = checkoutItems.find(
+      item =>
+        item.product?.type === 'physical' &&
+        itemDeliveryMethods[item.productId] === 'drop_off' &&
+        !selectedStations[item.productId],
+    );
+
+    if (missingSelection) {
+      Alert.alert(
+        'Selection Required',
+        `Please select a drop-off location for ${missingSelection.product?.title}`,
+      );
+      return;
+    }
+    setIsVerifyModalVisible(false);
+
+    const orderPayload = {
+      items: checkoutItems.map(item => {
+        const isPhysical = item.product?.type === 'physical';
+        const method = itemDeliveryMethods[item.productId] || 'drop_off';
+        const selectedStation = selectedStations[item.productId];
+
+        return {
+          productId: item.productId,
+          sellerId: item.product?.sellerId,
+          quantity: item.quantity,
+          deliveryMethod: method,
+          price: item.product?.priceInPoints,
+          color: item.selectedColor,
+          size: item.selectedSize,
+          ...(isPhysical &&
+            method === 'drop_off' && {
+              selectedStation: selectedStation,
+            }),
+        };
+      }),
+      totals: {
+        subtotal,
+        tax: transactionTax,
+        delivery: totalDeliveryFee,
+        grandTotal,
+      },
+      shippingContact: {
+        phone: formattedValue,
+        address: deliveryAddress,
+      },
+      buyerId: currentUser.uid,
+      timestamp: new Date().toISOString(),
+    };
+    const result = await initializeCheckoutTransaction(orderPayload);
+    if (result.success) {
+      navigation.navigate('SuccessScreen', {
+        orderDetails: result.data,
+        payload: orderPayload,
+      });
+    } else {
+      Alert.alert('Transaction Failed', result.message);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -298,25 +333,61 @@ export const CheckoutScreen = ({ navigation }: any) => {
         }}
         ListFooterComponent={
           <View style={styles.summaryContainer}>
-            {(dropOffItems.length > 0 || homeItems.length > 0 ) && (
+            {(dropOffItems.length > 0 || homeItems.length > 0) && (
               <View style={styles.deliveryInfoCard}>
                 {dropOffItems.length > 0 && (
                   <View style={styles.stationNoticeContainer}>
                     <Text style={styles.sectionTitle}>Pick-up Information</Text>
-                    {dropOffItems.map((item) => (
+                    {dropOffItems.map(item => (
                       <View key={item.productId} style={styles.stationRow}>
-                        <View style={{flexDirection: 'row', alignItems: 'center', width: '100%'}}>
-                          <MaterialIcons name="inventory-outlined" size={16} color={PRIMARY_COLOR_TINT} />
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            width: '100%',
+                          }}
+                        >
+                          <MaterialIcons
+                            name="inventory-outlined"
+                            size={16}
+                            color={PRIMARY_COLOR_TINT}
+                          />
                           <Text style={styles.stationText}>
-                            {item.product?.title} will be delivered at: 
+                            Available delivery stations for{' '}
+                            {item.product?.title}:
                           </Text>
                         </View>
-                        <View>
-                          {item.product?.physicalDetails?.dropOffAddress?.map((station, index) => (
-                            <Text key={station.id || index} style={styles.stationText2}>
-                              • {station.name}: {station.address}
-                            </Text>
-                          ))}
+                        <View style={{ marginVertical: 6, width: '100%' }}>
+                          {item.product?.physicalDetails?.dropOffAddress?.map(
+                            (station, index) => {
+                              const isSelected =
+                                selectedStations[item.productId]?.id ===
+                                (station.id || index);
+                              return (
+                                <TouchableOpacity
+                                  key={station.id || index}
+                                  onPress={() =>
+                                    handleStationSelect(item.productId, station)
+                                  }
+                                  style={[
+                                    styles.stationOption,
+                                    isSelected && styles.selectedStationOption,
+                                  ]}
+                                >
+                                  <Text
+                                    key={station.id || index}
+                                    style={[
+                                      styles.stationText2,
+                                      isSelected &&
+                                        styles.selectedStationOptionText,
+                                    ]}
+                                  >
+                                    {station.name}, {station.address}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            },
+                          )}
                         </View>
                       </View>
                     ))}
@@ -324,22 +395,28 @@ export const CheckoutScreen = ({ navigation }: any) => {
                 )}
                 {homeItems.length > 0 && (
                   <View style={styles.homeDeliveryForm}>
-                    <Text style={styles.sectionTitle}>Home Delivery Details</Text>          
+                    <Text style={styles.sectionTitle}>
+                      Home Delivery Details
+                    </Text>
                     <Text style={styles.label}>Recipient Phone Number</Text>
                     <PhoneInput
                       defaultValue={phoneNumber}
-                      defaultCode={countryCode} 
+                      defaultCode={countryCode}
                       layout="first"
                       onChangeText={handlePhoneChange}
-                      onChangeFormattedText={(text) => setFormattedValue(text)}
+                      onChangeFormattedText={text => setFormattedValue(text)}
                       containerStyle={styles.phoneInputContainer}
                       textContainerStyle={styles.phoneTextContainer}
                       withShadow
                     />
                     {!isValid && phoneNumber.length > 0 && (
-                      <Text style={styles.errorText}>Invalid number for {countryCode}</Text>
+                      <Text style={styles.errorText}>
+                        Invalid number for {countryCode}
+                      </Text>
                     )}
-                    <Text style={[styles.label, { marginTop: 10 }]}>Delivery Address</Text>
+                    <Text style={[styles.label, { marginTop: 10 }]}>
+                      Delivery Address
+                    </Text>
                     <TextInput
                       style={styles.addressInput}
                       placeholder="Room No, Hostel Name, or Faculty building..."
@@ -392,6 +469,7 @@ export const CheckoutScreen = ({ navigation }: any) => {
         onSuccess={onVerificationSuccess}
         title="Confirm Purchase"
       />
+      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };
@@ -502,7 +580,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   deliveryInfoCard: {
-    marginBottom: 15
+    marginBottom: 15,
   },
   stationNoticeContainer: {
     marginBottom: 8,
@@ -510,8 +588,7 @@ const styles = StyleSheet.create({
     borderLeftColor: PRIMARY_COLOR,
   },
   stationRow: {
-    alignItems: 'flex-start',
-    width: '100%'
+    width: '100%',
   },
   stationText: {
     fontSize: 12,
@@ -519,13 +596,15 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     flex: 1,
   },
-   stationText2: {
+  stationText2: {
     fontSize: 12,
     color: PRIMARY_COLOR,
-    marginBottom: 4
+  },
+  selectedStationOptionText: {
+    color: '#fff',
   },
   homeDeliveryForm: {
-    width: '100%'
+    width: '100%',
   },
   addressInput: {
     backgroundColor: '#fadccc',
@@ -534,8 +613,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: '#222',
-    textAlignVertical: 'top', 
-    borderWidth: .8,
+    textAlignVertical: 'top',
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
   },
   phoneInputContainer: {
@@ -543,7 +622,7 @@ const styles = StyleSheet.create({
     height: 60,
     backgroundColor: '#fadccc',
     borderRadius: 12,
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     overflow: 'hidden',
   },
@@ -562,5 +641,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2222',
     marginBottom: 8,
+  },
+  stationOption: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  selectedStationOption: {
+    backgroundColor: PRIMARY_COLOR,
   },
 });

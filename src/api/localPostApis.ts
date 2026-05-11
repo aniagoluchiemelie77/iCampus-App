@@ -878,7 +878,7 @@ export const bulkAddtoCartAPI = async (items: CartItem[]) => {
 };
 export const initializeCheckoutTransaction = async (payload: any) => {
   try {
-    const response = await fetch(`${baseUrl}user/transactions/initialize-checkout`, {
+    const response = await fetch(`${baseUrl}store/initialize-checkout`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -87,7 +87,7 @@ export const IcashP2PScreen = () => {
   const [amount, setAmount] = useState('');
   // Inside your IcashP2PScreen component
   const numericAmount = parseFloat(amount) || 0;
-  const hasSufficientFunds = user.pointsBalance >= numericAmount;
+  const hasSufficientFunds = user?.pointsBalance >= numericAmount;
   const isInputValid =
     numericAmount > 0 && recipientTag.length > 0 && searchResult;
   const isSendingToSelf = searchResult?.isUser === true; // Check the new backend flag
