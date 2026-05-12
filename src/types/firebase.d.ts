@@ -294,7 +294,7 @@ export interface MarketplaceOrder {
   amountPaid: number;
   status: string;
   selectedStation?: DropOffStation;
-  generatedFilePassword?: string;
+  fileUrl?: string;
   createdAt: string;
 }
 export interface Product {

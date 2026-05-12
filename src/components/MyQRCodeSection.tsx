@@ -9,6 +9,8 @@ import {
   Platform,
   UIManager,
   TouchableOpacity,
+  Linking,
+  Alert,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
@@ -29,10 +31,19 @@ interface OrderProps {
     deliveryMethod?: string;
     status: string;
     selectedStation?: { name: string; address: string };
-    generatedFilePassword?: string;
+    fileUrl?: string;
     createdAt: string;
   };
 }
+const handleDownload = (url: string) => {
+  if (!url) {
+    Alert.alert('Error', 'Download link not available.');
+    return;
+  }
+  Linking.openURL(url).catch(() =>
+    Alert.alert('Error', 'Could not open download link.'),
+  );
+};
 export const MyQRCodeSection = ({ itagusername }: { itagusername: string }) => {
   return (
     <View style={QRCodeStyles.qrSection}>
@@ -129,13 +140,16 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               <Text style={QRCodeStyles.completedText}>
                 Transaction Completed
               </Text>
-              {order.generatedFilePassword && (
-                <View style={QRCodeStyles.passwordBox}>
-                  <Text style={QRCodeStyles.passwordLabel}>FILE PASSWORD</Text>
-                  <Text style={QRCodeStyles.passwordValue}>
-                    {order.generatedFilePassword}
+              {order.productType === 'file' && order.fileUrl && (
+                <TouchableOpacity
+                  style={QRCodeStyles.downloadButton}
+                  onPress={() => handleDownload(order.fileUrl!)}
+                >
+                  <MaterialIcons name="file-download" size={20} color="white" />
+                  <Text style={QRCodeStyles.downloadButtonText}>
+                    Download File
                   </Text>
-                </View>
+                </TouchableOpacity>
               )}
               {order.productType === 'course' && (
                 <TouchableOpacity
@@ -283,24 +297,6 @@ const QRCodeStyles = StyleSheet.create({
     color: PRIMARY_COLOR,
     marginVertical: 10,
   },
-  passwordBox: {
-    padding: 15,
-    alignItems: 'center',
-    width: '100%',
-  },
-  passwordLabel: {
-    fontSize: 10,
-    color: '#2222',
-    letterSpacing: 1,
-    marginBottom: 5,
-  },
-  passwordValue: {
-    fontSize: 20,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontWeight: 'bold',
-    letterSpacing: 2,
-    color: PRIMARY_COLOR,
-  },
   accessButton: {
     marginTop: 15,
     backgroundColor: PRIMARY_COLOR,
@@ -310,6 +306,21 @@ const QRCodeStyles = StyleSheet.create({
   },
   accessButtonText: {
     color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 13,
+    alignItems: 'center',
+    marginTop: 15,
+    gap: 8,
+  },
+  downloadButtonText: {
+    color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
   },
