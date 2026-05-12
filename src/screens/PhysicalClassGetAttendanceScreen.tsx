@@ -387,7 +387,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
             <TouchableOpacity
               style={GetAttendanceScreenStyles.fetchBtn}
               onPress={() => {
-                navigation.navigate('Home');
+                navigation.navigate('Home', { activeTab: 'home' });
               }}
             >
               <Icon name="download" size={20} color="#fff" />

@@ -338,7 +338,7 @@ const StudentSignup = () => {
         );
 
         setCreating(false);
-        navigation.navigate('Home');
+        navigation.navigate('Home', { activeTab: 'home' });
       } else {
         console.warn('Signup failed:', response.message);
         setAlertType('error');

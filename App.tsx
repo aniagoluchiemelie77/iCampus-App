@@ -77,6 +77,7 @@ import { CartScreen } from './src/screens/CartScreen.tsx';
 import { FavoritesScreen } from './src/screens/FavoritesScreen.tsx';
 import { MarketplacePurchaseSuccessScreen } from './src/screens/MarketPurchaseSuccessScreen.tsx';
 import { OrderVerificationSuccess } from './src/screens/OrderVerificationScreen.tsx';
+import { PendingOrdersScreen } from './src/screens/PendingOrdersScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -122,6 +123,7 @@ export type RootStackParamList = {
   ResetPasswordScreen: undefined;
   EmailsScreen: undefined;
   PhoneScreen: undefined;
+  PendingOrdersScreen: undefined;
   MSuccessScreen: {
     orders: MarketplaceOrder[];
     totalSpent: number;
@@ -197,7 +199,7 @@ export type RootStackParamList = {
   LibraryScreen: undefined;
   EditProfile: undefined;
   PersonaVerify: undefined;
-  Home: undefined;
+  Home: { activeTab?: 'home' | 'classroom' | 'search' | 'store' | 'ranking' };
   LiveClassSessions: { lectureId: string; courseId: string };
   VideoPlayerScreen: {
     lectureId: string;
@@ -362,6 +364,11 @@ const App = () => {
             <Stack.Screen
               name="PhysicalAttendanceManager"
               component={PhysicalAttendanceManager}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PendingOrdersScreen"
+              component={PendingOrdersScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

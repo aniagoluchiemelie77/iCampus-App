@@ -2846,7 +2846,7 @@ export const RenderStudentTest = ({
         text2: 'Multiple security violations detected.',
       });
       handleFinalSubmit();
-      navigation.navigate('Home');
+      navigation.navigate('Home', { activeTab: 'classroom' });
     }
   }, [cheatingCount, handleFinalSubmit, navigation]);
 

@@ -934,3 +934,37 @@ export const completeOrderDelivery = async (orderId: string) => {
     };
   }
 };
+export const cancelOrderAPI = async (orderId: string, reason: string) => {
+  try {
+    const url = `${baseUrl}store/orders/cancel`; 
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ orderId, reason }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to cancel order',
+      };
+    }
+
+    return {
+      success: true,
+      message: result.message,
+    };
+  } catch (error) {
+    console.error("cancelOrderAPI Error:", error);
+    return { 
+      success: false, 
+      message: 'Network error. Please check your connection.' 
+    };
+  }
+};

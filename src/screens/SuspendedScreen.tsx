@@ -25,7 +25,7 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
       const data = await response.json();
 
       if (response.ok && !data.user.isSuspended) {
-        navigation.replace('Home');
+        navigation.replace('Home', { activeTab: 'home' });
       }
     } catch (err) {
       console.log("Still suspended or network error");

@@ -52,7 +52,7 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
     setLoading(false);
     if (result.success) {
         Toast.show({ type: 'success', text1: 'Success', text2: 'Password changed!' });
-        navigation.navigate('Home');
+        navigation.navigate('Home', { activeTab: 'home' });
     } else {
         setErrorText(result.message);
     }

@@ -12,7 +12,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { io, Socket } from 'socket.io-client';
 import { Home } from '../components/HomeScreenComponents';
 import { StoreScreen } from '../components/Storescreen';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from '../components/hooks';
@@ -78,14 +78,14 @@ export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
 };
 const HomeScreen = () => {
   const user = useAppSelector(state => state.user);
+  const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
+  const [activeIcon, setActiveIcon] = useState<string>('home');
   const userType = user?.usertype;
   const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
   const socketContext = useContext(SocketContext);
   const socket = socketContext?.socket;
   const rawRole = user?.usertype || 'student';
-
-  const [activeIcon, setActiveIcon] = useState<string>('home');
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
@@ -108,6 +108,11 @@ const HomeScreen = () => {
       }
     }
   }, [dispatch, navigation, user?.tokenCreatedAt]);
+  useEffect(() => {
+    if (route.params?.activeTab) {
+      setActiveIcon(route.params.activeTab);
+    }
+  }, [route.params?.activeTab]);
   useEffect(() => {
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       playNotificationSound();
@@ -170,7 +175,7 @@ const HomeScreen = () => {
       } else if (userType === 'student') {
         navigation.navigate('StudentAttendanceScanner', {
           lecture: ongoingLecture,
-          onSuccess: () => navigation.navigate('Home'),
+          onSuccess: () => navigation.navigate('Home', { activeTab: 'home' }),
         });
       }
       setOngoingLecture(null);

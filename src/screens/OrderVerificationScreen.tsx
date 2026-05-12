@@ -12,16 +12,20 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
   const { amount, role, productName, orderId } = route.params;
   return (
     <View style={styles.container}>
-      <MaterialIcons name='check-circle-outlined' size={50} color={PRIMARY_COLOR} />
-      <Text style={styles.congrats}>Transaction Finalized!</Text> 
+      <MaterialIcons
+        name="check-circle-outlined"
+        size={50}
+        color={PRIMARY_COLOR}
+      />
+      <Text style={styles.congrats}>Transaction Finalized!</Text>
       <View style={styles.card}>
         <Text style={styles.label}>
           {role === 'agent' ? 'Commission Earned' : 'Sale Proceeds'}
         </Text>
         <CurrencyDisplay value={amount} size="large" />
-        
+
         <View style={styles.divider} />
-        
+
         <Text style={styles.details}>Item: {productName}</Text>
         <Text style={styles.details}>Order ID: #{orderId}</Text>
       </View>
@@ -30,17 +34,19 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
         The funds have been added to your wallet balance and are ready for use.
       </Text>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('ICashDashboard',{
-            refresh: true
-        })} 
+        onPress={() =>
+          navigation.navigate('ICashDashboard', {
+            refresh: true,
+          })
+        }
       >
         <Text style={styles.buttonText}>View Wallet</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        onPress={() => navigation.navigate('Home')} 
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
       >
         <Text style={styles.backHome}>Back to Dashboard</Text>
       </TouchableOpacity>

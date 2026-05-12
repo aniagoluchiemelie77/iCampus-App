@@ -13,6 +13,7 @@ import type {
   Comment,
   Product,
   CartItem,
+  MarketplaceOrder,
 } from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
@@ -24,7 +25,11 @@ import {
   toggleFavoriteAPI,
 } from '../api/localPatchApis';
 import { clearCartAPI, clearFavoritesAPI } from '../api/localDeleteApis';
-import { fetchPostByIdAPI, fetchAllProductsAPI } from '../api/localGetApis';
+import {
+  fetchPostByIdAPI,
+  fetchAllProductsAPI,
+  fetchPendingOrdersAPI,
+} from '../api/localGetApis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   addCommentAPI,
@@ -32,9 +37,12 @@ import {
   createRepostAPI,
   bulkAddtoCartAPI,
   toggleCommentLikeAPI,
+  cancelOrderAPI,
 } from '../api/localPostApis';
 interface AppDataContextType {
   posts: Posts[];
+  pendingOrders: MarketplaceOrder[];
+  isOrdersLoading: boolean;
   setPosts: React.Dispatch<React.SetStateAction<Posts[]>>;
   toggleLike: (postId: string) => Promise<void>;
   allProducts: Product[];
@@ -64,6 +72,8 @@ interface AppDataContextType {
   handleClearCart: () => Promise<void>;
   handleDeleteAllFavorites: () => Promise<void>;
   handleAddAllFavoritesToCart: () => Promise<void>;
+  fetchPendingOrders: () => Promise<void>;
+  handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
 }
 
 interface AppDataProviderProps {
@@ -86,6 +96,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [posts, setPosts] = useState<Posts[]>([]);
   const [currentUser, setCurrentUser] = useState(user);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
+  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
 
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
@@ -515,7 +527,27 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       setCurrentUser({ ...currentUser, cart: existingCart }); // Rollback
     }
   };
-
+  const fetchPendingOrders = async () => {
+    try {
+      setIsOrdersLoading(true);
+      const result = await fetchPendingOrdersAPI();
+      if (result.success) {
+        setPendingOrders(result.data);
+      } else {
+        console.warn(result.message);
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: result.message,
+        });
+      }
+      setIsOrdersLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch pending orders:', error);
+    } finally {
+      setIsOrdersLoading(false);
+    }
+  };
   const handleDeleteAllFavorites = async () => {
     const previousFavorites = currentUser?.favorites ?? [];
     setCurrentUser({ ...currentUser, favorites: [] });
@@ -524,6 +556,22 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
     if (!result.success) {
       setCurrentUser({ ...currentUser, favorites: previousFavorites });
+    }
+  };
+  const handleCancelOrder = async (orderId: string, reason: string) => {
+    const result = await cancelOrderAPI(orderId, reason);
+    if (result.success) {
+      setPendingOrders(prev => prev.filter(o => o.orderId !== orderId));
+      Toast.show({
+        type: 'success',
+        text2: 'Your order has been cancelled and funds refunded',
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Cancel Error',
+        text2: result.message,
+      });
     }
   };
   const syncCatalog = async () => {
@@ -579,6 +627,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         handleClearCart,
         handleDeleteAllFavorites,
         handleAddAllFavoritesToCart,
+        pendingOrders,
+        fetchPendingOrders,
+        isOrdersLoading,
+        handleCancelOrder,
       }}
     >
       {children}

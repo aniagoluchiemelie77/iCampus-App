@@ -16,14 +16,23 @@ export const MarketplacePurchaseSuccessScreen = ({ route, navigation }: any) => 
   const { orders, totalSpent } = route.params;
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.successHeader}>
           <View style={styles.iconCircle}>
-            <MaterialIcons name="check-circle-outlined" size={50} color="white" />
+            <MaterialIcons
+              name="check-circle-outlined"
+              size={50}
+              color="white"
+            />
           </View>
           <Text style={styles.title}>Payment Successful!</Text>
-          <Text style={styles.subtitle}>Your order has been placed successfully</Text>
-          
+          <Text style={styles.subtitle}>
+            Your order has been placed successfully
+          </Text>
+
           <CurrencyDisplay value={totalSpent} size="large" />
         </View>
 
@@ -32,8 +41,10 @@ export const MarketplacePurchaseSuccessScreen = ({ route, navigation }: any) => 
         {/* 2. Order List Section */}
         <View style={styles.orderSection}>
           <Text style={styles.sectionTitle}>Your Items ({orders?.length})</Text>
-          <Text style={styles.sectionSubtitle}>Tap an item to view details</Text>
-          
+          <Text style={styles.sectionSubtitle}>
+            Tap an item to view details
+          </Text>
+
           {orders.map((item: any) => (
             <OrderAccordion key={item.orderId} order={item} />
           ))}
@@ -41,23 +52,32 @@ export const MarketplacePurchaseSuccessScreen = ({ route, navigation }: any) => 
 
         {/* 3. Action Buttons */}
         <View style={styles.footer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.primaryButton}
-            onPress={() => navigation.navigate('Home')} 
+            onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
           >
             <Text style={styles.primaryButtonText}>Back to Home</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => navigation.navigate('PendingOrders')}
+            onPress={() => navigation.navigate('PendingOrdersScreen')}
           >
-            <MaterialIcons name="history" size={20} color={PRIMARY_COLOR} />
-            <Text style={styles.secondaryButtonText}>Track All Pending Orders</Text>
+            <MaterialIcons
+              name="inventory-outlined"
+              size={20}
+              color={PRIMARY_COLOR}
+            />
+            <Text style={styles.secondaryButtonText}>
+              Track All Pending Orders
+            </Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.supportText}>
-          Having issues? <TouchableOpacity><Text style={styles.supportTextInText}>Contact Support</Text></TouchableOpacity>
+          Having issues?{' '}
+          <TouchableOpacity>
+            <Text style={styles.supportTextInText}>Contact Support</Text>
+          </TouchableOpacity>
         </Text>
       </ScrollView>
     </SafeAreaView>

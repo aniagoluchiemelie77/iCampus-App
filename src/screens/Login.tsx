@@ -111,7 +111,7 @@ const Login = () => {
           });
           return;
         }
-        navigation.navigate('Home');
+        navigation.navigate('Home', { activeTab: 'home' });
       } else {
         setAlertType('error');
         setAlertMessage(

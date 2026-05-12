@@ -54,9 +54,9 @@ export const DeleteAccountModal = ({
     const isPrimaryMatch = inputEmail === user.email.toLowerCase();
 
     // Check Alternates (default to empty array if null/undefined)
-    const alternates = user.alternateEmails || [];
+    const alternates = user.recoveryEmails || [];
     const isAlternateMatch = alternates.some(
-      alt => alt.toLowerCase() === inputEmail,
+      alt => alt.email.toLowerCase() === inputEmail.toLowerCase(),
     );
 
     if (isPrimaryMatch || isAlternateMatch) {

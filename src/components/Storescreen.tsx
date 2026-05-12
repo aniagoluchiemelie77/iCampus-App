@@ -6,6 +6,7 @@ import { ProductCard } from './ProductCard';
 import { fetchProductsAPI } from '../api/localGetApis';
 import { completeOrderDelivery } from '../api/localPostApis';
 import { Product } from '../types/firebase';
+import { useAppDataContext } from './EventContext';
 import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppSelector } from '../components/hooks';
@@ -39,7 +40,7 @@ const HeaderActionButton = ({
 }: IconButtonProps) => (
   <TouchableOpacity
     onPress={onPress}
-    style={[styles.actionButtonContainer, { marginRight: 2 }]}
+    style={[styles.actionButtonContainer, { marginRight: 3 }]}
   >
     <MaterialIcons name={icon} size={28} color={PRIMARY_COLOR} />
     {count! > 0 && (
@@ -53,6 +54,7 @@ const HeaderActionButton = ({
 export const StoreScreen = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const { pendingOrders } = useAppDataContext();
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user);
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +68,11 @@ export const StoreScreen = () => {
       <HeaderActionButton
         icon="qr-code-scanner"
         onPress={() => setIsScannerOpen(true)}
+      />
+      <HeaderActionButton
+        icon="inventory"
+        count={pendingOrders?.length || 0}
+        onPress={() => navigation.navigate('PendingOrdersScreen')}
       />
       <HeaderActionButton
         icon="favorite"

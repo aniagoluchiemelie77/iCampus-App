@@ -77,7 +77,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                     if (targetScreen) {
                         navigation.navigate(targetScreen);
                     } else {
-                        navigation.navigate('Home');
+                        navigation.navigate('Home', { activeTab: 'home' });
                     }
                 }
             } 

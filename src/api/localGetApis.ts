@@ -390,3 +390,37 @@ export const fetchAllProductsAPI = async () => {
     };
   }
 };
+export const fetchPendingOrdersAPI = async () => {
+  try {
+    const url = `${baseUrl}store/orders/pending`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, 
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch pending orders',
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data || [],
+    };
+  } catch (error) {
+    console.error("fetchPendingOrdersAPI Error:", error);
+    return { 
+      success: false, 
+      data: [], 
+      message: 'Network error occurred while fetching orders' 
+    };
+  }
+};

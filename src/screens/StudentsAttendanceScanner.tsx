@@ -104,7 +104,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
     setStatus('completed');
   };
   const onSuccess = useCallback(() => {
-    navigation.navigate('Home');
+    navigation.navigate('Home', { activeTab: 'home' });
   }, [navigation]);
   useEffect(() => {
     const handleDiscover = (data: any) => {

@@ -452,7 +452,7 @@ export const LecturerLiveClassSession = ({
   const handleEndLecture = () => {
     socket.emit('end_lecture', { lectureId: lecture.id });
     setEndModalVisible(false);
-    navigation.navigate('Home');
+    navigation.navigate('Home', { activeTab: 'classroom' });
   };
   const grantMic = (studentUid: string) => {
     socket.emit('grant_mic_permission', {

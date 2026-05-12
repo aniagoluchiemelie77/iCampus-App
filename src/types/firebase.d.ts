@@ -257,7 +257,7 @@ export interface AudioRecording {
 export interface Rating {
   id: string;
   userId: User.uid; // rater's UID
-  itemId: Product.productId; // product or file ID
+  itemId: Product['productId']; // product or file ID
   score: number; // e.g., 1 to 5
   comment?: string;
   ratedAt: string;
@@ -272,7 +272,7 @@ export interface ProductCategoryList {
 export interface ProductCategory {
   id: string;
   categories: ProductCategoryList.categoryName;
-  listedProducts: Product.productId[];
+  listedProducts: string[];
   listedProductsCount: number;
   createdAt: string;
   updatedAt?: string;
@@ -291,6 +291,8 @@ export interface MarketplaceOrder {
   productName: string;
   productType: 'physical' | 'file' | 'course'; 
   deliveryMethod: DeliveryGateway;
+  quantity: number;
+  cancellationReason: string;
   amountPaid: number;
   status: string;
   selectedStation?: DropOffStation;
