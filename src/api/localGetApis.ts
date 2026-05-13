@@ -1,4 +1,4 @@
-import { User, Product } from '../types/firebase';
+import { User, EnrichedCourseProduct } from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -425,7 +425,7 @@ export const fetchPendingOrdersAPI = async () => {
   }
 };
 export const getUserDownloads = async (
-): Promise<{ success: boolean; data: Product[] }> => {
+): Promise<{ success: boolean; data: EnrichedCourseProduct[] }> => {
   try {
     const response = await fetch(`${baseUrl}users/downloads/fetch-all`, {
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }

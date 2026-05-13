@@ -323,10 +323,15 @@ export interface Product {
   courseDetails?: {
     courseId: string; 
     lecturerIds: string[];
-    duration: number;
     totalReviews: number;
-    studentsEnrolledCount: number;
     studentsEnrolled: string[];
+    totalLessons: number; 
+    content: {
+      title: string;
+      videoUrl: string;
+      duration: number; 
+      isFreePreview: boolean;
+    }[];
   };
   fileDetails?: {
     fileName: string;
@@ -931,3 +936,8 @@ export type VerifiedInstructor = {
   staff_id: string;
   school_name: string;
 };
+export interface EnrichedCourseProduct extends Product {
+  progress: number;
+  lastAccessed: string;
+  completedLessons?: string[];
+}
