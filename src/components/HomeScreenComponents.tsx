@@ -5,7 +5,6 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Image,
   Modal,
   ViewToken,
 } from 'react-native';
@@ -29,10 +28,12 @@ import ExpandableFAB from './ExpandableFAB.tsx';
 import { useSocket } from './socketContext.ts';
 import { UserIdentity } from './UserIdentity.tsx';
 import { fetchPostsAPI } from '../api/localGetApis.ts';
+import { UserAvatar } from './UserAvatar.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 import { useAppSelector } from '../components/hooks';
+
 interface Props {
-  navigation: StackNavigationProp<any>; // Replace 'any' with your ParamList if you have one
+  navigation: StackNavigationProp<any>;
   initialCount?: number;
   uid?: string;
 }
@@ -73,12 +74,11 @@ const ProfileModal = ({
           navigation.navigate('ProfileScreen', { identifier: currentUser?.uid })
         }
       >
-        <Image
-          source={{
-            uri:
-              currentUser?.profilePic?.at(-1) ||
-              'https://via.placeholder.com/40',
-          }}
+        <UserAvatar
+          profilePic={currentUser?.profilePic}
+          firstName={currentUser.firstname!}
+          lastName={currentUser.lastname!}
+          organizationName={currentUser?.organizationName}
           style={modalStyles.largeAvatar}
         />
         <UserIdentity
@@ -359,12 +359,11 @@ export function Home() {
     <View style={homeStyles.mainWrapper}>
       <View style={homeStyles.headerContainer}>
         <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
-          <Image
-            source={{
-              uri:
-                currentUser?.profilePic?.at(-1) ||
-                'https://via.placeholder.com/40',
-            }}
+          <UserAvatar
+            profilePic={currentUser?.profilePic}
+            firstName={currentUser?.firstname}
+            lastName={currentUser?.lastname}
+            organizationName={currentUser?.organizationName}
             style={homeStyles.headerProfilePic}
           />
         </TouchableOpacity>

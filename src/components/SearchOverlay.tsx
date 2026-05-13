@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  ActivityIndicator, 
-  Image, 
-  StyleSheet 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { searchUsers } from '../api/localGetApis.ts'; 
+import { searchUsers } from '../api/localGetApis.ts';
 import { UserIdentity } from './UserIdentity';
-import {PRIMARY_COLOR_TINT, PRIMARY_COLOR_TINT_MAIN} from '../assets/styles/colors.ts';
+import {
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from '../assets/styles/colors.ts';
+import { UserAvatar } from './UserAvatar.tsx';
 
 interface UserSearchOverlayProps {
   currentUser: any;
@@ -24,10 +27,18 @@ interface UserSearchOverlayProps {
   };
   onResultPress?: (user: any) => void;
   isRanking?: boolean;
-  placeholder?: string
+  placeholder?: string;
 }
 
-export const UserSearchOverlay = ({placeholder, currentUser, navigation, onClose, colors, isRanking, onResultPress }: UserSearchOverlayProps) => {
+export const UserSearchOverlay = ({
+  placeholder,
+  currentUser,
+  navigation,
+  onClose,
+  colors,
+  isRanking,
+  onResultPress,
+}: UserSearchOverlayProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -48,7 +59,7 @@ export const UserSearchOverlay = ({placeholder, currentUser, navigation, onClose
         );
         setSearchResults(results || []);
       } catch (error) {
-        console.error("Search failed", error);
+        console.error('Search failed', error);
       } finally {
         setIsSearching(false);
       }
@@ -65,7 +76,7 @@ export const UserSearchOverlay = ({placeholder, currentUser, navigation, onClose
         </TouchableOpacity>
         <TextInput
           autoFocus
-          placeholder={placeholder? placeholder : 'Search users...'}
+          placeholder={placeholder ? placeholder : 'Search users...'}
           style={styles.headerSearchInput}
           placeholderTextColor={colors.tint}
           value={searchQuery}
@@ -88,17 +99,16 @@ export const UserSearchOverlay = ({placeholder, currentUser, navigation, onClose
                   onClose();
                   if (isRanking) {
                     onResultPress && onResultPress(item);
-                  }else{
+                  } else {
                     navigation.push('Profile', { uid: item.uid });
                   }
                 }}
               >
-                <Image
-                  source={{
-                    uri: item.profilePic?.length > 0
-                      ? item.profilePic.at(-1)
-                      : 'https://your-placeholder-url.com/default.png',
-                  }}
+                <UserAvatar
+                  profilePic={item.profilePic}
+                  firstName={item.firstname}
+                  lastName={item.lastname}
+                  organizationName={item.organizationName}
                   style={styles.miniAvatar}
                 />
                 <View style={{ flex: 1 }}>

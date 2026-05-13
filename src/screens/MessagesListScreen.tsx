@@ -3,10 +3,9 @@ import {
   View,
   FlatList,
   TouchableOpacity,
-  Image,
   Text,
   StyleSheet,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
@@ -19,6 +18,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { UserIdentity } from '../components/UserIdentity';
 import { getConversations } from '../api/localGetApis';
+import { UserAvatar } from '../components/UserAvatar';
 
 export const MessagesListScreen = ({ navigation }: any) => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -104,12 +104,11 @@ export const MessagesListScreen = ({ navigation }: any) => {
         }
       >
         <View style={styles.avatarContainer}>
-          <Image
-            source={{
-              uri:
-                item.otherUser.profilePic?.at(-1) ||
-                'https://via.placeholder.com/50',
-            }}
+          <UserAvatar
+            profilePic={item.otherUser?.profilePic}
+            firstName={item.otherUser?.firstname}
+            lastName={item.otherUser.lastname}
+            organizationName={item.organizationName}
             style={styles.avatar}
           />
           {isUnread && <View style={styles.unreadDot} />}

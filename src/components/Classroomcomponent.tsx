@@ -33,6 +33,8 @@ import * as Progress from 'react-native-progress';
 import axios from 'axios';
 import ExpandableFAB from './ExpandableFAB.tsx';
 import { homeStyles } from '../assets/styles/colors.ts';
+import { UserAvatar } from './UserAvatar.tsx';
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const PRIMARY_COLOR = '#f54b02';
 export const PRIMARY_COLOR_TINT = '#f5743d';
@@ -908,6 +910,7 @@ const ForYouCard = ({ course, onPress }: ForYouCardProps) => {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [courses, setCourses] = useState<Course[]>([]);
+  const navigation = useNavigation<any>();
   const [suggestedCourses, setSuggestedCourses] = useState<Course[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setLoading] = useState(false);
@@ -1064,7 +1067,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     }
   };
 
-  const renderHeader = () => {
+  const renderHeader = (navigation: any) => {
     const formatUserType = (type: string) => {
       if (!type) return '';
       return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
@@ -1075,13 +1078,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         <View style={styles.userInfoRow}>
           <TouchableOpacity
             onPress={() => {
-              /* Navigate to Profile */
+              navigation.navigate('Profile', {
+                identifier: user.uid,
+              });
             }}
           >
-            <Image
-              source={{
-                uri: user.profilePic?.[0] || 'https://via.placeholder.com/100',
-              }}
+            <UserAvatar
+              profilePic={user.profilePic}
+              firstName={user.firstname}
+              lastName={user.lastname}
               style={styles.profileFrame}
             />
           </TouchableOpacity>
@@ -1332,11 +1337,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [niches]); // Add niches as dependency so it updates if they change
+  }, [niches]); 
 
   return (
     <SafeAreaView style={styles.container}>
-      {renderHeader()}
+      {renderHeader(navigation)}
       {isLoading ? (
         <ActivityIndicator
           size="large"

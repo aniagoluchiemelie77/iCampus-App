@@ -15,11 +15,19 @@ interface ProfileImageCarouselProps {
   images: string[];
   isOwner: boolean;
   uid?: string;
+  organizationName?: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
 }
 
 export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
   images,
   isOwner,
+  organizationName,
+  firstName,
+  lastName,
+  username,
 }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const dispatch = useDispatch();
@@ -27,6 +35,15 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const getInitials = () => {
+    if (organizationName) return organizationName.substring(0, 2).toUpperCase();
+    if (firstName && lastName)
+      return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    if (firstName) return firstName[0].toUpperCase();
+    if (lastName) return lastName[0].toUpperCase();
+    if (username) return username[0].toUpperCase();
+    return '?';
+  };
   const handlePickImage = async () => {
     try {
       const image = await ImagePicker.openPicker({
@@ -82,11 +99,11 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
     }
   };
   const displayImages = useMemo(() => {
-  if (!images || images.length === 0) {
-    return ['https://via.placeholder.com/400'];
-  }
-  return [...images].reverse();
-}, [images]);
+    if (images && images.length > 0) {
+      return [...images].reverse();
+    }
+    return [];
+  }, [images]);
   // Handle auto-scroll logic
   useEffect(() => {
     if (displayImages.length <= 1) return;
@@ -103,31 +120,37 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
   }, [activeIndex, displayImages]);
   return (
     <View style={styles.container}>
-      <Animated.FlatList
-        ref={flatListRef}
-        data={displayImages}
-        keyExtractor={(_, index) => index.toString()}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false },
-        )}
-        onMomentumScrollEnd={e => {
-          const index = Math.round(
-            e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
-          );
-          setActiveIndex(index);
-        }}
-        renderItem={({ item }) => (
-          <Image
-            source={{ uri: item }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-        )}
-      />
+      {displayImages.length > 0 ? (
+        <Animated.FlatList
+          ref={flatListRef}
+          data={displayImages}
+          keyExtractor={(_, index) => index.toString()}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            { useNativeDriver: false },
+          )}
+          onMomentumScrollEnd={e => {
+            const index = Math.round(
+              e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
+            );
+            setActiveIndex(index);
+          }}
+          renderItem={({ item }) => (
+            <Image
+              source={{ uri: item }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          )}
+        />
+      ) : (
+        <View style={[styles.image, styles.fallbackContainer]}>
+          <Text style={styles.fallbackText}>{getInitials()}</Text>
+        </View>
+      )}
       {/* Glassmorphism Pagination Dots */}
       <View style={styles.paginationContainer}>
         {displayImages.map((_, i) => {
@@ -203,11 +226,22 @@ const styles = StyleSheet.create({
     height: 350,
     width: SCREEN_WIDTH,
     backgroundColor: '#fadccc',
-    position: 'relative'
+    position: 'relative',
   },
   image: {
     width: '100%',
     height: '100%',
+  },
+  fallbackContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: PRIMARY_COLOR,
+    alignContent: 'center',
+  },
+  fallbackText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   paginationContainer: {
     position: 'absolute',
@@ -240,7 +274,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 5
+    zIndex: 5,
   },
   previewCard: {
     width: '85%',
@@ -275,7 +309,7 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     fontSize: 14,
     color: PRIMARY_COLOR,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   confirmBtn: {
     backgroundColor: PRIMARY_COLOR,
@@ -283,9 +317,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
   },
-  confirmBtnText:{
+  confirmBtnText: {
     fontSize: 14,
     color: '#fff',
-    fontWeight: 'bold'
-  }
+    fontWeight: 'bold',
+  },
 });

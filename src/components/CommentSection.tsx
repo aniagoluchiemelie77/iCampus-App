@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { UserIdentity } from './UserIdentity';
 import { searchUsersByUid } from '../api/localGetApis';
 import { useAppSelector } from '../components/hooks';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { UserAvatar } from './UserAvatar';
 
 export const CommentItem = ({ comment, onLike, onReply }: any) => {
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -38,7 +39,13 @@ export const CommentItem = ({ comment, onLike, onReply }: any) => {
   return (
     <View style={styles.commentContainer}>
       <View style={styles.row}>
-        <Image source={{ uri: getProfilePic() }} style={styles.miniAvatar} />
+        <UserAvatar
+          profilePic={getProfilePic()}
+          firstName={userDetails.firstname}
+          lastName={userDetails.lastname}
+          organizationName={userDetails.organizationName}
+          style={styles.miniAvatar}
+        />
         <View style={styles.textBubble}>
           {userDetails ? (
             <UserIdentity

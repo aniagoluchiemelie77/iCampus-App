@@ -19,6 +19,7 @@ import { Posts } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR } from './Classroomcomponent';
 import { UserIdentity } from './UserIdentity';
+import { UserAvatar } from './UserAvatar';
 import { baseUrl } from './HomeScreenComponents';
 import {
   PRIMARY_COLOR_TINT,
@@ -337,11 +338,11 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
         </View>
       )}
       <View style={styles.header}>
-        <Image
-          source={{
-            uri:
-              userDetails?.profilePic?.[0] || 'https://via.placeholder.com/40',
-          }}
+        <UserAvatar
+          profilePic={userDetails?.profilePic}
+          firstName={userDetails?.firstname}
+          lastName={userDetails?.lastname}
+          organizationName={userDetails?.organizationName}
           style={styles.avatar}
         />
         <View style={styles.headerText}>

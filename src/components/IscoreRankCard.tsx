@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RankCardProps } from 'types/firebase';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { UserAvatar } from './UserAvatar';
 
 export const RankCard: React.FC<RankCardProps> = ({
   item,
@@ -35,10 +36,10 @@ export const RankCard: React.FC<RankCardProps> = ({
         </View>
       )}
       <View style={styles.avatarWrapper}>
-        <Image
-          source={{
-            uri: item.profilePic?.[0] || 'https://via.placeholder.com/150',
-          }}
+        <UserAvatar
+          profilePic={item.profilePic}
+          firstName={item.firstname}
+          lastName={item.lastname}
           style={styles.avatar}
         />
         {/* Trend Indicator */}

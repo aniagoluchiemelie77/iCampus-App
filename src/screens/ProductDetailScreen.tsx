@@ -12,6 +12,7 @@ import {formatCount} from '../utils/followCountFormatter';
 import { searchUsersByUid } from '../api/localGetApis';
 import { UserIdentity } from '../components/UserIdentity';
 import { ProductCard } from '../components/ProductCard';
+import { UserAvatar } from '../components/UserAvatar';
 const { width } = Dimensions.get('window');
 
 export const ProductDetailScreen = () => {
@@ -246,14 +247,15 @@ export const ProductDetailScreen = () => {
         <View style={styles.sellerSection}>
           <Text style={styles.sectionTitle}>Seller Details</Text>
           <View style={styles.sellerRow}>
-            <Image
-              source={{
-                uri: seller?.profilePic || 'https://via.placeholder.com/50',
-              }}
+            <UserAvatar
+              profilePic={seller?.profilePic}
+              firstName={seller?.firstname || 'Merchant'}
+              lastName={seller?.lastname}
+              organizationName={seller?.organizationName}
               style={styles.sellerAvatar}
             />
             <UserIdentity
-              firstname={seller?.firstname || 'Loading...'}
+              firstname={seller?.firstname || 'Merchant'}
               lastname={seller?.lastname}
               username={seller?.username}
               tier={seller?.tier}

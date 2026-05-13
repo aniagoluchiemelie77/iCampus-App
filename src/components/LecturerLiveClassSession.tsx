@@ -776,7 +776,6 @@ export const LecturerLiveClassSession = ({
                       {student.firstname} {student.lastname}
                     </Text>
                   </View>
-                  {/* Visual indicator if they are the one waving */}
                   {wavers.find(w => w.uid === student.uid) && (
                     <MaterialIcons
                       name="front-hand"

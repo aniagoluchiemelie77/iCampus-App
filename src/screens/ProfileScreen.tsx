@@ -530,7 +530,14 @@ export const ProfileScreen = ({ route }: any) => {
           }
         />
       )}
-      <ProfileImageCarousel images={profileData.profilePic} isOwner={isOwner} />
+      <ProfileImageCarousel
+        images={profileData.profilePic}
+        isOwner={isOwner}
+        organizationName={profileData.organizationName}
+        firstName={profileData.firstname}
+        lastName={profileData.lastname}
+        username={profileData.username}
+      />
       {/* 1. Essential Info Section */}
       <View style={styles.profileInfoSection}>
         <TouchableOpacity
