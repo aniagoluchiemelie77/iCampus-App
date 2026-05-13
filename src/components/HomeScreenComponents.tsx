@@ -60,7 +60,6 @@ const ProfileModal = ({
     animationType="slide"
     onRequestClose={onClose}
   >
-    {/* Dark Overlay to close the modal */}
     <TouchableOpacity
       activeOpacity={1}
       style={modalStyles.overlay}
@@ -111,6 +110,15 @@ const ProfileModal = ({
           color="#333"
         />
         <Text style={modalStyles.itemText}>iCash</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={modalStyles.item}
+        onPress={() => {
+          navigation.navigate('DownloadsScreen');
+        }}
+      >
+        <MaterialIcons name="folder-special-oulined" size={24} color="#333" />
+        <Text style={modalStyles.itemText}>My Downloads</Text>
       </TouchableOpacity>
 
       {/* 2. SETTINGS SECTION */}

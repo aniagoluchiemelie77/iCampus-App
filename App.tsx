@@ -78,6 +78,7 @@ import { FavoritesScreen } from './src/screens/FavoritesScreen.tsx';
 import { MarketplacePurchaseSuccessScreen } from './src/screens/MarketPurchaseSuccessScreen.tsx';
 import { OrderVerificationSuccess } from './src/screens/OrderVerificationScreen.tsx';
 import { PendingOrdersScreen } from './src/screens/PendingOrdersScreen.tsx';
+import { DownloadsScreen } from './src/screens/CourseDownloadsScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -109,6 +110,7 @@ export type RootStackParamList = {
   ICashBuyPage: { refresh?: boolean };
   CreatePost: { type: 'post' | 'poll' };
   ICashWithdrawPage: undefined;
+  DownloadsScreen: undefined;
   Notifications: undefined;
   NotificationSettings: undefined;
   ReferralScreen: undefined;
@@ -399,6 +401,11 @@ const App = () => {
             <Stack.Screen
               name="Notifications"
               component={Notifications}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="DownloadsScreen"
+              component={DownloadsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

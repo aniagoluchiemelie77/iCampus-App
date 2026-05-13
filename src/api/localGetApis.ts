@@ -1,4 +1,4 @@
-import { User } from '../types/firebase';
+import { User, Product } from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -422,5 +422,26 @@ export const fetchPendingOrdersAPI = async () => {
       data: [], 
       message: 'Network error occurred while fetching orders' 
     };
+  }
+};
+export const getUserDownloads = async (
+): Promise<{ success: boolean; data: Product[] }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/downloads/fetch-all`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Download Error',
+        text2: result.message || 'Could not load your library',
+      });
+      return { success: false, data: [] };
+    }
+    return { success: true, data: result.data }; 
+  } catch (error) {
+    console.error("Fetch Downloads Error:", error);
+    return { success: false, data: [] };
   }
 };
