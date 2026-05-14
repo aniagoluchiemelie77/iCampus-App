@@ -79,6 +79,8 @@ import { MarketplacePurchaseSuccessScreen } from './src/screens/MarketPurchaseSu
 import { OrderVerificationSuccess } from './src/screens/OrderVerificationScreen.tsx';
 import { PendingOrdersScreen } from './src/screens/PendingOrdersScreen.tsx';
 import { DownloadsScreen } from './src/screens/CourseDownloadsScreen.tsx';
+import { CourseLearningScreen } from './src/screens/DownloadsWatchScreen.tsx';
+import { CertificateScreen } from './src/screens/CourseCompletionSuccessScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -111,6 +113,26 @@ export type RootStackParamList = {
   CreatePost: { type: 'post' | 'poll' };
   ICashWithdrawPage: undefined;
   DownloadsScreen: undefined;
+  CourseLearningScreen: {
+    courseProduct: any;
+    userProgress: {
+      completedLessons: string[];
+      lastAccessed: Date | string;
+      progress: number;
+    };
+  };
+  CertificateScreen: {
+    certificateUrl: string;
+    certificateId: string;
+    details: {
+      studentName: string;
+      courseTitle: string;
+      lecturers: string[];
+      institution: string;
+      logoUrl: string;
+      issueDate: string;
+    };
+  };
   Notifications: undefined;
   NotificationSettings: undefined;
   ReferralScreen: undefined;
@@ -399,6 +421,11 @@ const App = () => {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="CertificateScreen"
+              component={CertificateScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="Notifications"
               component={Notifications}
               options={{ headerShown: false }}
@@ -406,6 +433,11 @@ const App = () => {
             <Stack.Screen
               name="DownloadsScreen"
               component={DownloadsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CourseLearningScreen"
+              component={CourseLearningScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

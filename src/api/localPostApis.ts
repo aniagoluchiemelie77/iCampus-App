@@ -968,3 +968,23 @@ export const cancelOrderAPI = async (orderId: string, reason: string) => {
     };
   }
 };
+export const generateCertificateAPI = async (productId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}users/downloads/generate-certificate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ productId }),
+    });
+    const data = await response.json();
+    return {
+      success: response.ok,
+      data: data,
+      message: data.message || 'Failed to generate certificate',
+    };
+  } catch (error) {
+    return { success: false, message: 'Server connection failed' };
+  }
+};

@@ -45,7 +45,21 @@ export const DownloadsScreen = () => {
       <FlatList
         data={products}
         keyExtractor={item => item.productId}
-        renderItem={({ item }) => <DownloadItemCard product={item} />}
+        renderItem={({ item }) => (
+          <DownloadItemCard
+            product={item}
+            onPress={() =>
+              navigation.navigate('CourseLearningScreen', {
+                courseProduct: item,
+                userProgress: {
+                  completedLessons: item.completedLessons || [],
+                  lastAccessed: item.lastAccessed,
+                  progress: item.progress,
+                },
+              })
+            }
+          />
+        )}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }

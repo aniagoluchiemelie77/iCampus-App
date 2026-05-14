@@ -215,3 +215,42 @@ export const toggleFavoriteAPI = async (productId: string) => {
     return { success: false, message: "Network error" };
   }
 };
+export const updateCourseProgressAPI = async (
+  productId: string,
+  progress: number,
+  completedLessons: string[]
+) => {
+  try {
+    const response = await fetch(`${baseUrl}users/downloads/update-progress`, {
+      method: 'PATCH', 
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, 
+      },
+      body: JSON.stringify({
+        productId,
+        progress, 
+        completedLessons, 
+        lastWatched: new Date().toISOString(),
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to update course progress',
+      };
+    }
+    return {
+      success: true,
+      data: data,
+      message: 'Progress saved successfully',
+    };
+  } catch (error) {
+    console.error("updateCourseProgressAPI Error:", error);
+    return { 
+      success: false, 
+      message: 'Connection to server failed. Please check your data.' 
+    };
+  }
+};
