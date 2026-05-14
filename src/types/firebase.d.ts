@@ -284,7 +284,9 @@ export interface DropOffStation {
   address: string;     
   code: string;        
   contactPerson?: string; 
-  agentId: string
+  agentId: string;
+  latitude: number;
+  longitude: number;
 }
 export interface MarketplaceOrder {
   orderId: string;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FlatList,
   View,
@@ -6,11 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Linking,
+  Platform,
 } from 'react-native';
+import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import toastConfig from '@components/ToastConfig';
+import Geolocation from 'react-native-geolocation-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader';
+import { getDistanceInMiles } from '../utils/distanceCalculator';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { useAppDataContext } from '../components/EventContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
@@ -36,6 +41,12 @@ const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
 export const CheckoutScreen = ({ navigation }: any) => {
   const route = useRoute();
+  const [userCoords, setUserCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [locationPermission, setLocationPermission] =
+    useState<string>('undetermined');
   const currentUser = useAppSelector(state => state.user);
   const { allProducts } = useAppDataContext();
   const [isValid, setIsValid] = useState(false);
@@ -225,6 +236,47 @@ export const CheckoutScreen = ({ navigation }: any) => {
       });
     }
   };
+  const getLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        setUserCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      error => {
+        console.log('Location Error: ', error.code, error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000,
+      },
+    );
+  };
+  const handleOpenSettings = async () => {
+    await Linking.openSettings();
+  };
+  const checkLocationPermission = useCallback(async () => {
+    const status = await request(
+      Platform.OS === 'ios'
+        ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
+        : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+    );
+    setLocationPermission(status);
+    if (status === RESULTS.GRANTED) {
+      getLocation();
+    } else if (status === RESULTS.DENIED) {
+      console.log('Permission denied, but requestable');
+    } else if (status === RESULTS.BLOCKED) {
+      handleOpenSettings();
+      console.log('Permission is blocked. User must enable it manually.');
+    }
+  }, []);
+
+  useEffect(() => {
+    checkLocationPermission();
+  }, [checkLocationPermission]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -375,6 +427,20 @@ export const CheckoutScreen = ({ navigation }: any) => {
                               const isSelected =
                                 selectedStations[item.productId]?.id ===
                                 (station.id || index);
+                              let distanceStr = '';
+                              if (
+                                userCoords &&
+                                station.latitude &&
+                                station.longitude
+                              ) {
+                                const miles = getDistanceInMiles(
+                                  userCoords.lat,
+                                  userCoords.lng,
+                                  station.latitude,
+                                  station.longitude,
+                                );
+                                distanceStr = `${miles.toFixed(1)} miles away`;
+                              }
                               return (
                                 <TouchableOpacity
                                   key={station.id || index}
@@ -396,6 +462,20 @@ export const CheckoutScreen = ({ navigation }: any) => {
                                   >
                                     {station.name}, {station.address}
                                   </Text>
+                                  {distanceStr ? (
+                                    <Text style={styles.distanceLabel}>
+                                      {distanceStr}
+                                    </Text>
+                                  ) : locationPermission === RESULTS.BLOCKED ? (
+                                    <TouchableOpacity
+                                      onPress={handleOpenSettings}
+                                      style={styles.enableBtn}
+                                    >
+                                      <Text style={styles.enableLocationText}>
+                                        Enable location to see distance
+                                      </Text>
+                                    </TouchableOpacity>
+                                  ) : null}
                                 </TouchableOpacity>
                               );
                             },
@@ -610,7 +690,13 @@ const styles = StyleSheet.create({
   },
   stationText2: {
     fontSize: 12,
+    color: '#2222',
+    marginBottom: 4,
+  },
+  distanceLabel: {
+    fontSize: 10,
     color: PRIMARY_COLOR,
+    fontWeight: 'bold',
   },
   selectedStationOptionText: {
     color: '#fff',
@@ -655,12 +741,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stationOption: {
-    flexDirection: 'row',
     width: '100%',
-    alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   selectedStationOption: {
     backgroundColor: PRIMARY_COLOR,
+  },
+  enableBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 13,
+  },
+  enableLocationText: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
