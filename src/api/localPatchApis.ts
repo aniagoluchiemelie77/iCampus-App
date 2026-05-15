@@ -253,3 +253,25 @@ export const updateCourseProgressAPI = async (
     };
   }
 };
+export const logProductImpressionAPI = async (productId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}store/product/toggle-impressions`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ productId }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result?.message || 'Failed to update increment impressions',
+      };
+    }
+  } catch (error) {
+    console.error("logProductImpressionAPI Error:", error);
+    return { success: false, message: "Network error" };
+  }
+};

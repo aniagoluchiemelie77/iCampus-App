@@ -9,6 +9,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {CurrencyDisplay} from '../components/CurrencyFormatter';
 import {formatTime} from '../utils/durationFormatter';
 import {formatCount} from '../utils/followCountFormatter';
+import { logProductImpressionAPI } from '../api/localPatchApis';
 import { searchUsersByUid } from '../api/localGetApis';
 import { UserIdentity } from '../components/UserIdentity';
 import { ProductCard } from '../components/ProductCard';
@@ -60,6 +61,14 @@ export const ProductDetailScreen = () => {
     }, 8000);
     return () => clearInterval(interval);
   }, [activeImageIndex, product?.mediaUrls]);
+  useEffect(() => {
+    const incrementView = async () => {
+      logProductImpressionAPI(productId);
+    };
+    if (productId) {
+      incrementView();
+    }
+  }, [productId]);
   if (!product) return <Text>Product not found</Text>;
   const isFavorite = currentUser?.favorites?.includes(product.productId);
   const existingItem = currentUser?.cart?.find(
@@ -69,6 +78,11 @@ export const ProductDetailScreen = () => {
   const moreProducts = allProducts
     .filter(p => p.sellerId === product.sellerId && p.productId !== productId)
     .slice(0, 10);
+  const totalDuration =
+    product?.courseDetails?.content?.reduce(
+      (acc, item) => acc + (item.duration || 0),
+      0,
+    ) || 0;
   return (
     <View style={styles.container}>
       <PageHeader title="Item Detail" />
@@ -165,7 +179,7 @@ export const ProductDetailScreen = () => {
                   color={PRIMARY_COLOR_TINT}
                 />
                 <Text style={styles.infoText}>
-                  Duration: {formatTime(product.courseDetails.duration)}
+                  Duration: {formatTime(totalDuration)}
                 </Text>
               </View>
               <View style={styles.infoRow}>
@@ -175,7 +189,7 @@ export const ProductDetailScreen = () => {
                   color={PRIMARY_COLOR_TINT}
                 />
                 <Text style={styles.infoText}>
-                  {formatCount(product.courseDetails.studentsEnrolledCount)}{' '}
+                  {formatCount(product.courseDetails.studentsEnrolled.length)}{' '}
                   Students Enrolled
                 </Text>
               </View>

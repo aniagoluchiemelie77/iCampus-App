@@ -97,7 +97,7 @@ export const MerchantDashboard = () => {
           {activeTab === 'Orders' && <OrdersList />}
           {activeTab === 'Inventory' && <ProductList />}
           {activeTab === 'Payouts' && <PayoutView />}
-          {activeTab === 'Payouts' && <ReviewsSection />}
+          {activeTab === 'Reviews' && <ReviewsSection />}
         </View>
       </ScrollView>
     </View>

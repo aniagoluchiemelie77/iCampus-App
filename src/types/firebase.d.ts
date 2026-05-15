@@ -154,6 +154,8 @@ export interface Product {
   _id?: string;
   productId: string; 
   sellerId: string; 
+  impressions: number;
+  sales: number;
   schoolName?: string;
   type: 'physical' | 'course' | 'file';
   category: string;
