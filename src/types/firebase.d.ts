@@ -202,6 +202,17 @@ export interface Product {
   isAvailable: boolean;
   createdAt: string;
 }
+export interface ProductSale {
+  sellerId: string;
+  productId: string;
+  orderId: string;
+  productType: 'physical' | 'file' | 'course';
+  quantity: number;
+  amountPaid: number;
+  buyerId: string;
+  netEarnings: number;
+  createdAt: string | Date;
+}
 export interface MarketplaceOrder {
   orderId: string;
   buyerId: string;

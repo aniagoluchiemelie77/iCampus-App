@@ -444,3 +444,33 @@ export const getUserDownloads = async (): Promise<{ success: boolean; data: Enri
     return { success: false, data: [] };
   }
 };
+export const fetchSellerSalesAPI = async () => {
+  try {
+    const url = `${baseUrl}store/sales/history`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, 
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch sales history',
+      };
+    }
+    return {
+      success: true,
+      data: result.data || [],
+    };
+  } catch (error) {
+    console.error("fetchSellerSalesAPI Error:", error);
+    return { 
+      success: false, 
+      data: [], 
+      message: 'Network error occurred while fetching sales' 
+    };
+  }
+};

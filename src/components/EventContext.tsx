@@ -14,6 +14,7 @@ import type {
   Product,
   CartItem,
   MarketplaceOrder,
+  ProductSale,
 } from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
@@ -28,6 +29,7 @@ import { clearCartAPI, clearFavoritesAPI } from '../api/localDeleteApis';
 import {
   fetchPostByIdAPI,
   fetchAllProductsAPI,
+  fetchSellerSalesAPI,
   fetchPendingOrdersAPI,
 } from '../api/localGetApis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,6 +49,8 @@ interface AppDataContextType {
   toggleLike: (postId: string) => Promise<void>;
   allProducts: Product[];
   currentUser: User;
+  sellerSales: ProductSale[];
+  fetchSellerSales: () => Promise<void>;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
   handleRepost: (
     originalPostId: string,
@@ -97,6 +101,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [currentUser, setCurrentUser] = useState(user);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
+  const [sellerSales, setSellerSales] = useState<ProductSale[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
 
   const toggleLike = async (postId: string) => {
@@ -601,6 +606,22 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       console.error('Hydration failed:', error);
     }
   };
+  const fetchSellerSales = async () => {
+    try {
+      const response = await fetchSellerSalesAPI();
+      if (response.success) {
+        setSellerSales(response.data);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: response.message || 'An unexpected error occurred',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching sales:', error);
+    }
+  };
 
   useEffect(() => {
     syncCatalog();
@@ -610,6 +631,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       value={{
         currentUser,
         allProducts,
+        sellerSales,
+        fetchSellerSales,
         setCurrentUser,
         posts,
         setPosts,

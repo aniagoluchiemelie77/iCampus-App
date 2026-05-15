@@ -11,6 +11,8 @@ import { useAppDataContext } from './EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
+import { ProductSale } from '../types/firebase';
+import { CurrencyDisplay } from './CurrencyFormatter';
 import Svg, {
   Polyline,
   Defs,
@@ -82,7 +84,7 @@ export const OrdersList = () => {
   return <Text>OrdersList</Text>;
 };
 export const OverviewsScreenComponent = () => {
-  const { allProducts, pendingOrders } = useAppDataContext();
+  const { allProducts, pendingOrders, sellerSales } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user);
 
   const sellerProducts = allProducts.filter(
@@ -96,10 +98,6 @@ export const OverviewsScreenComponent = () => {
     (sum, p) => sum + (p.impressions || 0),
     0,
   );
-  const totalSalesCount = sellerProducts.reduce(
-    (sum, p) => sum + (p.sales || 0),
-    0,
-  );
   const allRatings = sellerProducts.flatMap(p => p.ratings || []);
   const avgRating =
     allRatings.length > 0
@@ -107,6 +105,14 @@ export const OverviewsScreenComponent = () => {
           allRatings.reduce((sum, r) => sum + r.score, 0) / allRatings.length
         ).toFixed(1)
       : '0.0';
+  const totalIncome: number = sellerSales.reduce(
+    (sum: number, sale: ProductSale) => sum + sale.netEarnings,
+    0,
+  );
+  const totalSalesCount = sellerSales.reduce(
+    (sum: number, sale: ProductSale) => sum + sale.quantity,
+    0,
+  );
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
       {!hasProducts && (
@@ -182,6 +188,17 @@ export const OverviewsScreenComponent = () => {
               trend={totalImpressions > 0 ? 'up' : 'down'}
               colorOverride="rgba(255,255,255,0.8)"
             />
+            <View style={styles.ratingMiniBox}>
+              <View style={styles.graphHeader}>
+                <Text style={styles.miniLabel}>Total Income</Text>
+                <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
+              </View>
+              <CurrencyDisplay
+                value={totalIncome}
+                size="medium"
+                containerStyle={styles.incomeCurrency}
+              />
+            </View>
           </View>
         </View>
       </View>
@@ -413,5 +430,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 5,
     alignContent: 'center',
+  },
+  incomeCurrency: {
+    flex: 1,
   },
 });
