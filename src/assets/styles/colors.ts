@@ -7,6 +7,7 @@ export const PRIMARY_COLOR_TINT_MAIN = '#f9dccf';
 export const PREMIUM_BADGE_COLOR = '#93370f';
 export const PRO_BADGE_COLOR = '#f54b02';
 export const ENTERPRISE_BADGE_COLOR = '#f5770a';
+export const BACKGROUND_LIGHT = '#fff';
 
 const screenWidth = Dimensions.get('window').width;
 const { width, height } = Dimensions.get('window');

@@ -99,25 +99,33 @@ const ProfileModal = ({
       <TouchableOpacity
         style={modalStyles.item}
         onPress={() => {
+          onClose();
           navigation.navigate('ICashDashboard', {
             refresh: true,
           });
         }}
       >
-        <MaterialIcons
-          name="account-balance-wallet-oulined"
-          size={24}
-          color="#333"
-        />
+        <MaterialIcons name="account-balance-wallet" size={24} color="#333" />
         <Text style={modalStyles.itemText}>iCash</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={modalStyles.item}
         onPress={() => {
+          onClose();
+          navigation.navigate('SalesHub');
+        }}
+      >
+        <MaterialIcons name="add-business" size={24} color="#333" />
+        <Text style={modalStyles.itemText}>Sales Hub</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={modalStyles.item}
+        onPress={() => {
+          onClose();
           navigation.navigate('DownloadsScreen');
         }}
       >
-        <MaterialIcons name="folder-special-oulined" size={24} color="#333" />
+        <MaterialIcons name="folder-special" size={24} color="#333" />
         <Text style={modalStyles.itemText}>My Downloads</Text>
       </TouchableOpacity>
 
@@ -128,17 +136,12 @@ const ProfileModal = ({
         style={modalStyles.item}
         onPress={() => {
           onClose();
-          //navigation.navigate('Subscription');
+          navigation.navigate('Subscription');
         }}
       >
-        <MaterialIcons
-          name="verified-outlined"
-          size={24}
-          color={PRIMARY_COLOR}
-        />
+        <MaterialIcons name="verified" size={24} color={PRIMARY_COLOR} />
         <Text style={modalStyles.itemText}>Manage Subscription</Text>
       </TouchableOpacity>
-
       <TouchableOpacity
         style={modalStyles.item}
         onPress={() => {
@@ -146,7 +149,7 @@ const ProfileModal = ({
           navigation.navigate('Settings');
         }}
       >
-        <MaterialIcons name="settings-outlined" size={24} color="#333" />
+        <MaterialIcons name="settings" size={24} color="#333" />
         <Text style={modalStyles.itemText}>Settings</Text>
       </TouchableOpacity>
     </View>

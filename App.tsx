@@ -80,6 +80,7 @@ import { PendingOrdersScreen } from './src/screens/PendingOrdersScreen.tsx';
 import { DownloadsScreen } from './src/screens/CourseDownloadsScreen.tsx';
 import { CourseLearningScreen } from './src/screens/DownloadsWatchScreen.tsx';
 import { CertificateScreen } from './src/screens/CourseCompletionSuccessScreen.tsx';
+import { MerchantDashboard } from './src/screens/MerchantScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -135,6 +136,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   NotificationSettings: undefined;
   ReferralScreen: undefined;
+  SalesHub: undefined;
   VerifyOTP: {
     flw_ref: string;
     type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
@@ -497,6 +499,11 @@ const App = () => {
             <Stack.Screen
               name="iCashSecurity"
               component={ICashSecurityGateway}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SalesHub"
+              component={MerchantDashboard}
               options={{ headerShown: false }}
             />
             <Stack.Screen
