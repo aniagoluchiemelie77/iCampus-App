@@ -424,8 +424,7 @@ export const fetchPendingOrdersAPI = async () => {
     };
   }
 };
-export const getUserDownloads = async (
-): Promise<{ success: boolean; data: EnrichedCourseProduct[] }> => {
+export const getUserDownloads = async (): Promise<{ success: boolean; data: EnrichedCourseProduct[] }> => {
   try {
     const response = await fetch(`${baseUrl}users/downloads/fetch-all`, {
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }

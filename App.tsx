@@ -35,7 +35,6 @@ import ChangePasswordScreen from './src/screens/ChangePassword';
 import { Settings } from './src/screens/Settings';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ProductDetailScreen } from './src/screens/ProductDetailScreen';
-import ProductSellerScreen from './src/screens/ProductSellerScreen';
 import { CheckoutScreen } from './src/screens/Checkout.tsx';
 import Notifications from './src/screens/Notifications';
 import Login from './src/screens/Login';
@@ -248,7 +247,6 @@ export type RootStackParamList = {
   ProductDetails: { productId: string };
   CartScreen: undefined;
   FavoritesScreen: undefined;
-  ProductSellerScreen: { seller: User };
   Checkout: {
     productId?: string;
     selectedColor?: string;
@@ -584,11 +582,6 @@ const App = () => {
             <Stack.Screen
               name="LibraryScreen"
               component={LibraryScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ProductSellerScreen"
-              component={ProductSellerScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

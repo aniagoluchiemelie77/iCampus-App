@@ -86,25 +86,6 @@ export interface User {
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   referralCode?: string
 };
-export interface iCampusAppDetails {
-  appVersion: string;// e.g., ['tech', 'sports', 'arts']
-}
-export interface Community {
-  id: string;
-  communityId: string;
-  name: string;
-  description?: string;
-  members: User.uid[]; // user UIDs
-  createdBy: string; // UID
-  moderators: string[]; // UIDs of lecturers or admins
-  createdAt: string;
-  membersCount: number;
-  isPublic?: boolean;
-  schoolName: string;
-  department?: string; // optional
-  level?: string; // optional
-  tags?: string[]; // e.g., ['tech', 'sports', 'arts']
-}
 export interface Notification {
   id: string; // MongoDB _id
   notificationId: string; // Your custom logic ID (e.g., LECTURE_123)
@@ -149,101 +130,6 @@ export interface userPreferences
       end: string; 
     }
   };
-
-export interface PointsTransaction {
-  id: string;
-  userId: string;
-  type: TransactionType;
-  amount: number;
-  description?: string;
-  relatedUserId?: string; // for transfers/receives
-  relatedCommunityId?: string;
-  timestamp: string;
-}
-export interface PollCandidate {
-    id: string;
-    userId: string;
-    firstname: string;
-    lastname: string;
-    candidatePostTarget: string;
-    voteCount: number;
-    profilePic?: string;
-}
-
-export interface Poll {
-  id: string;
-  pollId: string;
-  title: string;
-  creatorId: string;
-  allowedRolesToCreate?: UserType[]; // restrict creation by role
-  candidates: PollCandidate[];
-  invitedUserIds: string[];
-  startDate: string;
-  endDate: string;
-  totalVotes: number;
-  department?: string; // if visibility is 'department'
-  restriction?: string; // optional
-  level?: string; // optional
-  createdByRole: UserType;
-  pollStartTime: string;
-  pollEndTime: string;
-  isLive: boolean;
-  liveComments?: string[];
-  createdAt: string;
-}
-
-export interface PollVote {
-  pollId: Poll.pollId;
-  candidateId: PollCandidate.userId;
-  voterId: User.uid;
-  timestamp: string;
-}
-export interface PollComment {
-  id: string;
-  pollId: Poll.pollId;
-  voterId: User.uid;
-  content: string;
-  timestamp: string;
-}
-export interface ClassSession {
-  id: string;
-  classSessionId: string;
-  hostId: User.uid; // lecturer UID
-  courseTitle: string;
-  level: string;
-  classVenue: string;
-  courseCode: string;
-  department: string;
-  schoolName: string;
-  classStartTime: string;
-  classEndTime: string;
-  isLive?: boolean;
-  allowAudioRecording?: boolean;
-  createdAt: string;
-  classCount?: number; 
-  classHistory?: string[];
-  attendeesCount: number; 
-  classSessionType?: 'lecture' | 'tutorial' | 'lab' | 'seminar' | 'workshop' | 'other';
-}
-export interface AttendanceRecordClassSession {
-  rollCallId: RollCall.rollCallId;
-  studentsId: User.uid[];
-  attendeesMatricNumber: User.matricNumber[];
-  schoolName: string;
-  courseTitle: string;
-  courseCode: string;
-  level: string;
-  department: string;
-  classSessionId: ClassSession.classSessionId;
-  classDuration?: string;
-  lecturerId: User.uid; // lecturer UID
-  classStartTime: ClassSession.classStartTime;
-  classEndTime: ClassSession.classEndTime;
-  classVenue: ClassSession.classVenue;
-  hasExceptions?: boolean;
-  exceptionsCount?: number;
-  exceptionsUserIds?: ClassExceptions.userId[];
-}
 export interface AudioRecording {
   id: string;
   audioRecordingId: string;
@@ -254,30 +140,6 @@ export interface AudioRecording {
   createdAt: string;
   duration?: string;
 }
-export interface Rating {
-  id: string;
-  userId: User.uid; // rater's UID
-  itemId: Product['productId']; // product or file ID
-  score: number; // e.g., 1 to 5
-  comment?: string;
-  ratedAt: string;
-}
-export interface ProductCategoryList {
-  id: string;
-  _id: string;
-  categoryName: string[];
-  updatedAt?: string;
-  icon?: string
-}
-export interface ProductCategory {
-  id: string;
-  categories: ProductCategoryList.categoryName;
-  listedProducts: string[];
-  listedProductsCount: number;
-  createdAt: string;
-  updatedAt?: string;
-  schoolName?: string;
-}
 export interface DropOffStation {
   id?: string;
   name: string;        
@@ -287,19 +149,6 @@ export interface DropOffStation {
   agentId: string;
   latitude: number;
   longitude: number;
-}
-export interface MarketplaceOrder {
-  orderId: string;
-  productName: string;
-  productType: 'physical' | 'file' | 'course'; 
-  deliveryMethod: DeliveryGateway;
-  quantity: number;
-  cancellationReason: string;
-  amountPaid: number;
-  status: string;
-  selectedStation?: DropOffStation;
-  fileUrl?: string;
-  createdAt: string;
 }
 export interface Product {
   _id?: string;
@@ -351,42 +200,25 @@ export interface Product {
   isAvailable: boolean;
   createdAt: string;
 }
-export interface Order {
+export interface MarketplaceOrder {
   orderId: string;
   buyerId: string;
   sellerId: string;
   productId: string;
+  productName: string;
+  productType: 'physical' | 'file' | 'course'; 
+  deliveryMethod: DeliveryGateway;
+  quantity: number;
+  cancellationReason: string;
   amountPaid: number;
-  status: 'pending_delivery' | 'completed' | 'cancelled';
-  deliveryMethod: 'drop_off' | 'home_delivery';
-  verificationQrCode: string; 
-  isVerifiedByScan: boolean;
-  generatedFilePassword?: string; 
+  status: "pending_delivery" | "completed" | "cancelled";
+  selectedStation?: DropOffStation;
+  fileUrl?: string;
   createdAt: string;
-  completedAt?: string;
-}
-export interface Refund {
-  id: string;
-  refundId: string;
-  sellerId: Product.sellerId;
-  buyerId: User.uid;
-  ProductId: Product.productId;
-  complaint: string;
-  requestedAt: string;
-  refundedAt?: string;
-  pointsRefunded?: number;
-  status?: 'successful' | 'cancelled';
-}
-export interface Purchase {
-  id: string;
-  purchaseId: string;
-  sellerId: Product.sellerId;
-  buyerId: User.uid;
-  productId: Product.productId;
-  purchasedAt: string;
-  pointsUsed: number;
-  unlockedPassword?: string; // if applicable
-  status?: 'successful' | 'refunded' | 'cancelled';
+  agentId?: string;
+  verificationQrCode?: string;
+  isVerifiedByScan?: boolean;
+  completedAt?: string
 }
 export interface UserPointsAccount {
   id: string;
@@ -409,50 +241,6 @@ export interface WithdrawalRequest {
   id: string;
   withdrawalRequestId: string;
   userId: User.uid;
-  pointsRequested: number;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
-export interface BuyRequest {
-  id: string;
-  buyRequestId: string;
-  userId: User.uid;
-  pointsRequested: number;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
-export interface PurchaseHistory {
-  id: string; // unique purchase record ID
-  userId?: User.uid; // reference to User.uid
-  status: 'pending' | 'approved' | 'rejected';
-  totalProductsPurchased: number;
-  totalPointsSpent: number;
-  items: {
-    productId: string;
-    title: string;
-    quantity: number;
-    priceInPoints: number;
-    selectedSize?: string;
-    selectedColor?: string;
-    selectedQuantity?: string;
-    fileUrl?: string;
-  }[];
-  date: string; // ISO timestamp
-}
-export interface TransferPointsRequest {
-  id: string;
-  transferRequestId: string;
-  senderId: User.uid;
-  recieverId: string;
-  pointsRequested: number;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
-export interface RecievePointsRequest {
-  id: string;
-  recieveRequestId: string;
-  senderId: string;
-  recieverId: User.uid;
   pointsRequested: number;
   requestedAt: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -510,18 +298,6 @@ export interface iCampusOperationalInstitutionSchema {
   currentiScoreAvg: number;
   previousiScoreAvg: number;
 };
-export interface UserTransactions {
-  id: string; // unique ID for this transaction group (optional)
-  userId: string; // or User['uid'] if referencing from your User type
-  transactions: Transaction[];
-}
-export interface Transaction {
-  id: string; 
-  transactionId: string; // external or internal reference
-  type: PurchaseTransactionType;
-  amountInPoints: number;
-  date: string; 
-}
 export interface Transactions {
   transactionId: string; 
   userId: User['uid'];
@@ -570,20 +346,6 @@ export interface UserBankOrCardDetails {
   createdAt: string;
   updatedAt?: string;
 }
-export interface TransactionMiddleState {
-  transactionId:  string;
-  sellerId: User.uid;
-  buyerId: User.uid;
-  priceInPoints: number;
-  status: {
-    type: string;
-    enum: ["pending", "completed", "rejected"];
-    default: "pending";
-  };
-  productIdArrays: Product.productId[];
-  createdAt: string;
-  updatedAt: string
-};
 export interface Deals {
   dealId:  string;
   sellerId: User.uid;
@@ -597,17 +359,6 @@ export interface Deals {
   };
   dealDate: string;
 };
-export interface UserRecordEntry {
-  type: string;
-  status: string;
-  message: string;
-  refDate: string; // e.g. "2025-11-12"
-  refTime: string; // e.g. "23:05"
-}
-export interface UserRecords {
-  userId: string;
-  records: UserRecordEntry[];
-}
 export interface PollOption {
   optionId: string;
   text: string;

@@ -446,7 +446,6 @@ export const verifySignupEmail = async (email: string) => {
     return { success: false, message: 'Network error occurred.' };
   }
 };
-
 export const verifySignupEmailCode = async (email: string, code: string) => {
   try {
     const response = await fetch(`${baseUrl}users/verifyEmailCode`, {

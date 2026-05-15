@@ -58,7 +58,6 @@ export const updatePreferences = async (
     return { success: false, error: error.message };
   }
 };
-
 export const updateEmailRecord = async (email: string, type: string) => {
   try {
     const response = await fetch(`${baseUrl}users/update-emails`, {

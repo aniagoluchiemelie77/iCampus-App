@@ -75,6 +75,7 @@ export const CertificateScreen = ({ route }: {route: any}) => {
         </View>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
