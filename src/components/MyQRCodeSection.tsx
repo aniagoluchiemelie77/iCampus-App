@@ -16,7 +16,9 @@ import QRCode from 'react-native-qrcode-svg';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-
+import { MarketplaceOrder } from '../types/firebase';
+import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
+import { CurrencyDisplay } from './CurrencyFormatter';
 if (
   Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -34,6 +36,9 @@ interface OrderProps {
     fileUrl?: string;
     createdAt: string;
   };
+}
+interface SellerOrderProps {
+  order: MarketplaceOrder;
 }
 const handleDownload = (url: string) => {
   if (!url) {
@@ -168,6 +173,135 @@ export const OrderAccordion = ({ order }: OrderProps) => {
     </View>
   );
 };
+export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleAccordion = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
+  const statusConfig = {
+    pending_delivery: {
+      color: '#FF9800',
+      label: 'Awaiting Delivery',
+      icon: 'HourglassEmpty',
+    },
+    completed: {
+      color: '#4CAF50',
+      label: 'Delivered & Paid',
+      icon: 'CheckCircle',
+    },
+    cancelled: { color: PRIMARY_COLOR, label: 'Cancelled', icon: 'Cancel' },
+  };
+  const currentStatus = statusConfig[order.status];
+  return (
+    <View style={QRCodeStyles.cardContainer}>
+      <TouchableOpacity
+        onPress={toggleAccordion}
+        activeOpacity={0.7}
+        style={[QRCodeStyles.header, expanded && QRCodeStyles.headerExpanded]}
+      >
+        <View style={QRCodeStyles.headerLead}>
+          <View
+            style={[
+              QRCodeStyles.statusDot,
+              { backgroundColor: currentStatus.color },
+            ]}
+          />
+          <View>
+            <Text style={QRCodeStyles.productTitle} numberOfLines={1}>
+              {order.productName}
+            </Text>
+            <Text style={QRCodeStyles.orderIdText}>
+              Order #{order.orderId} • {order.quantity} qty
+            </Text>
+          </View>
+        </View>
+        <MaterialIcons
+          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+          size={24}
+          color={PRIMARY_COLOR_TINT}
+        />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={QRCodeStyles.expandedContent}>
+          <View style={QRCodeStyles.detailsGrid}>
+            <DetailItem
+              label="Total Earnings"
+              value={<CurrencyDisplay value={order.amountPaid} size="small" />}
+            />
+            <DetailItem
+              label="Date"
+              value={new Date(order.createdAt).toLocaleDateString()}
+            />
+          </View>
+          {order.status === 'pending_delivery' && (
+            <View style={QRCodeStyles.actionBox}>
+              <MaterialIcons
+                name="delivery-dining-outlined"
+                size={20}
+                color={currentStatus.color}
+              />
+              <Text style={QRCodeStyles.actionText}>
+                {order.selectedStation
+                  ? `Please drop this off at: ${order.selectedStation.name}`
+                  : 'Buyer is currently awaiting for direct delivery.'}
+              </Text>
+            </View>
+          )}
+          {order.status === 'cancelled' && (
+            <View style={QRCodeStyles.actionBox}>
+              <MaterialIcons
+                name="cancel-outlined"
+                size={20}
+                color={currentStatus.color}
+              />
+              <Text
+                style={[
+                  QRCodeStyles.actionText,
+                  { color: currentStatus.color },
+                ]}
+              >
+                Reason: {order.cancellationReason || 'No reason provided.'}
+              </Text>
+            </View>
+          )}
+          {order.status === 'completed' && (
+            <View style={QRCodeStyles.actionBox}>
+              <MaterialIcons
+                name="check-circle-outlined"
+                size={20}
+                color={currentStatus.color}
+              />
+              <Text style={[QRCodeStyles.actionText, { color: '#2E7D32' }]}>
+                Order completed and verified via QR scan on{' '}
+                {new Date(order.completedAt!).toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
+const DetailItem = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) => (
+  <View style={QRCodeStyles.detailItem}>
+    <Text style={QRCodeStyles.detailLabel}>{label}</Text>
+    {typeof value === 'string' ? (
+      <Text style={QRCodeStyles.detailValue}>{value}</Text>
+    ) : (
+      <View style={{ marginTop: 4 }}>{value}</View>
+    )}
+  </View>
+);
+
 const QRCodeStyles = StyleSheet.create({
   qrSection: {
     alignItems: 'center',
@@ -323,5 +457,41 @@ const QRCodeStyles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    width: '100%',
+  },
+  detailItem: {
+    width: '48%',
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#222',
+    textTransform: 'capitalize',
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PRIMARY_COLOR,
+  },
+  actionBox: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  actionText: {
+    fontSize: 13,
+    color: '#2222',
+    marginLeft: 10,
+    flex: 1,
   },
 });

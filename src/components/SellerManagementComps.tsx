@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  RefreshControl,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppDataContext } from './EventContext';
@@ -13,6 +15,8 @@ import { useAppSelector } from './hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { ProductSale } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
+import { SellerOrderAccordion } from './MyQRCodeSection';
+import { EmptyState } from './EmptyFlatlistComponent';
 import Svg, {
   Polyline,
   Defs,
@@ -20,6 +24,7 @@ import Svg, {
   Stop,
   Path,
 } from 'react-native-svg';
+import { ReviewItem } from './ReviewItem';
 
 interface StatusCardProps {
   label: string;
@@ -79,9 +84,66 @@ export const StatusCard = ({ label, count, color, icon }: StatusCardProps) => (
     </View>
   </View>
 );
-
 export const OrdersList = () => {
-  return <Text>OrdersList</Text>;
+  const { pendingOrders } = useAppDataContext();
+  const currentUser = useAppSelector(state => state.user);
+  const sellerOrders = pendingOrders
+    .filter(o => o.sellerId === currentUser.uid)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+  if (sellerOrders.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <MaterialIcons
+          name="hourglass-disabled-outlined"
+          size={50}
+          color={PRIMARY_COLOR}
+        />
+        <Text style={styles.emptyText}>No orders found yet.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <View style={styles.statusRow}>
+        <StatusCard
+          label="Pending"
+          count={formatStatNumber(
+            sellerOrders.filter(o => o.status === 'pending_delivery').length,
+          )}
+          color="#FF9800"
+          icon="delivery-dining-outlined"
+        />
+        <StatusCard
+          label="Completed"
+          count={formatStatNumber(
+            sellerOrders.filter(o => o.status === 'completed').length,
+          )}
+          color="#4CAF50"
+          icon="check-circle-outlined"
+        />
+        <StatusCard
+          label="Cancelled"
+          count={formatStatNumber(
+            sellerOrders.filter(o => o.status === 'cancelled').length,
+          )}
+          color={PRIMARY_COLOR}
+          icon="cancel-outlined"
+        />
+      </View>
+      <FlatList
+        data={sellerOrders}
+        keyExtractor={item => item.orderId}
+        renderItem={({ item }) => <SellerOrderAccordion order={item} />}
+        contentContainerStyle={{ paddingBottom: 30, alignItems: 'center' }}
+        showsVerticalScrollIndicator={false}
+      />
+    </>
+  );
 };
 export const OverviewsScreenComponent = () => {
   const { allProducts, pendingOrders, sellerSales } = useAppDataContext();
@@ -258,7 +320,69 @@ export const PayoutView = () => {
   return <Text>PayoutView</Text>;
 };
 export const ReviewsSection = () => {
-  return <Text>ReviewsSection</Text>;
+  const { allReviews, refreshReviews } = useAppDataContext();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const currentUser = useAppSelector(state => state.user);
+  const sellerReviews = allReviews.filter(r => r.targetId === currentUser.uid);
+  const totalReviews = sellerReviews.length;
+  const avgRating =
+    totalReviews > 0
+      ? (
+          sellerReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+        ).toFixed(1)
+      : '0.0';
+
+  const numericAvg = parseFloat(avgRating);
+  const ratingColor =
+    numericAvg < 2 ? PRIMARY_COLOR : numericAvg < 3.5 ? '#FF9800' : '#4CAF50';
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshReviews();
+    setIsRefreshing(false);
+  };
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.subheader}>
+          <Text style={styles.title}>Customer Feedback</Text>
+          <Text style={styles.count}>{totalReviews} Total Reviews</Text>
+        </View>
+        <View style={styles.avgContainer}>
+          <View style={styles.ratingRow}>
+            <Text style={[styles.avgText, { color: ratingColor }]}>
+              {avgRating}
+            </Text>
+            <MaterialIcons name="star" size={20} color={ratingColor} />
+          </View>
+          <Text style={[styles.performanceLabel, { color: ratingColor }]}>
+            {numericAvg < 2
+              ? 'Poor Performance'
+              : numericAvg < 3.5
+              ? 'Average'
+              : 'Excellent'}
+          </Text>
+        </View>
+      </View>
+
+      <FlatList
+        data={sellerReviews}
+        keyExtractor={item => item.reviewerId}
+        renderItem={({ item }) => <ReviewItem review={item} />}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+        ListEmptyComponent={
+          <EmptyState
+            iconName="rate-review-outlined"
+            title="No Reviews Yet"
+            subtitle="When customers rate your products or service, they will appear here."
+            buttonText="Refresh Now"
+            onPress={handleRefresh}
+          />
+        }
+      />
+    </View>
+  );
 };
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -433,5 +557,58 @@ const styles = StyleSheet.create({
   },
   incomeCurrency: {
     flex: 1,
+  },
+  emptyContainer: { flex: 1, alignContent: 'center', backgroundColor: '#fff' },
+  emptyText: { color: PRIMARY_COLOR, fontSize: 15, marginTop: 15 },
+  header: {
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+    width: '100%',
+  },
+  subheader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  count: {
+    fontSize: 13,
+    color: PRIMARY_COLOR,
+  },
+  avgContainer: {
+    alignContent: 'center',
+    flexDirection: 'row',
+    padding: 15,
+    borderWidth: 1,
+    borderRadius: 15,
+    backgroundColor: '#fadccc',
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avgText: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginRight: 4,
+  },
+  performanceLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+    marginLeft: 6,
   },
 });

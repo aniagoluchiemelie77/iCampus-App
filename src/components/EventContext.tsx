@@ -15,6 +15,7 @@ import type {
   CartItem,
   MarketplaceOrder,
   ProductSale,
+  Review,
 } from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
@@ -31,6 +32,7 @@ import {
   fetchAllProductsAPI,
   fetchSellerSalesAPI,
   fetchPendingOrdersAPI,
+  fetchUserReviewsAPI,
 } from '../api/localGetApis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -51,6 +53,9 @@ interface AppDataContextType {
   currentUser: User;
   sellerSales: ProductSale[];
   fetchSellerSales: () => Promise<void>;
+  allReviews: any[];
+  setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
+  refreshReviews: () => Promise<void>;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
   handleRepost: (
     originalPostId: string,
@@ -103,6 +108,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
   const [sellerSales, setSellerSales] = useState<ProductSale[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
 
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
@@ -618,18 +624,48 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
           text2: response.message || 'An unexpected error occurred',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching sales:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: error.message || 'Check your connection',
+      });
+    }
+  };
+  const fetchReviews = async () => {
+    try {
+      const response = await fetchUserReviewsAPI();
+      if (response.success) {
+        setAllReviews(response.data);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: response.message || 'An unexpected error occurred',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching reviews:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: error.message || 'Check your connection',
+      });
     }
   };
 
   useEffect(() => {
+    fetchReviews();
     syncCatalog();
   }, []);
   return (
     <AppDataContext.Provider
       value={{
         currentUser,
+        allReviews,
+        setAllReviews,
+        refreshReviews: fetchReviews,
         allProducts,
         sellerSales,
         fetchSellerSales,

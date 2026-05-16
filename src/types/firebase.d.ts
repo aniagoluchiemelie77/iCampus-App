@@ -6,6 +6,7 @@ export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
 export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
+export type UserTier = 'free' | 'pro' | 'premium'; 
 
 export interface UserSession {
   deviceId: string;
@@ -46,7 +47,7 @@ export interface User {
   bookmarks?: string[];
   accessToken: string;
   password: string;
-  tier?: 'free' | 'pro' | 'premium';
+  tier?: UserTier;
   matricNumber?: string;
   department?: string;
   profilePic?: string[];
@@ -707,3 +708,18 @@ export interface EnrichedCourseProduct extends Product {
   lastAccessed: string;
   completedLessons?: string[];
 }
+export interface Review {
+  reviewerId: string;
+  targetId: string;
+  targetType: "product" | "seller" | "agent" | "course" | "lecturer";
+  orderId?: string;
+  rating: number;
+  comment?: string;
+  mediaUrls?: string[];
+  attributes?: {
+    deliverySpeed: number;
+    accuracy: number;
+    clarity: number;
+  },
+  createdAt: Date
+};

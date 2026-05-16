@@ -474,3 +474,29 @@ export const fetchSellerSalesAPI = async () => {
     };
   }
 };
+export const fetchUserReviewsAPI = async () => {
+  try {
+    const url = `${baseUrl}reviews/fetch-seller-reviews`; 
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch sales reviews',
+      };
+    }
+    return {
+      success: response.ok,
+      data: result.data || [],
+      message: result.message
+    };
+  } catch (error) {
+    return { success: false, data: [], message: 'Network error fetching reviews' };
+  }
+};
