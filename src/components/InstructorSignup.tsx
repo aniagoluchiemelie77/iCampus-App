@@ -15,7 +15,7 @@ import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {
@@ -108,7 +108,11 @@ const InstructorSignup = () => {
     try {
       const response = await signupFetchInstitutions(selectedCountry);
       if (response.success) {
-        setInstitutionItems(response.data);
+        const listWithOther = [
+          ...response.data,
+          { label: 'Other / Not Listed', value: 'OTHER' },
+        ];
+        setInstitutionItems(listWithOther);
       }
     } catch (error) {
       console.error('Error fetching institutions:', error);
@@ -242,7 +246,7 @@ const InstructorSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadToCloudinary(imageUri);
+      const imageUrl = await uploadToFirebase(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
@@ -358,7 +362,7 @@ const InstructorSignup = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer]); // ← empty dependency array
+  }, [timer]);
 
   return (
     <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>

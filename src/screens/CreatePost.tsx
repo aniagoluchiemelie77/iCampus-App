@@ -19,7 +19,7 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import { launchImageLibrary, ImageLibraryOptions } from 'react-native-image-picker';
 import axios from 'axios';
 import { useAppDataContext } from '@components/EventContext';
-// import storage from '@react-native-firebase/storage'; // Future Firebase import
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 
 interface MediaItem {
   uri: string;
@@ -35,7 +35,6 @@ interface Props {
   route: RouteProp<RootStackParamList, 'CreatePost'>;
 }
 
-
 const CreatePost = ({ route, navigation }: Props) => {
   const { type } = route.params;
   const [content, setContent] = useState('');
@@ -44,9 +43,7 @@ const CreatePost = ({ route, navigation }: Props) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-   const {
-      currentUser
-    } = useAppDataContext();
+  const { currentUser } = useAppDataContext();
 
   const removeOption = (index: number) => {
     const newOpts = pollOptions.filter((_, i) => i !== index);
@@ -56,142 +53,125 @@ const CreatePost = ({ route, navigation }: Props) => {
   const pickMedia = async () => {
     const options: ImageLibraryOptions = {
       mediaType: 'mixed',
-      selectionLimit: 4 - mediaList.length, 
+      selectionLimit: 4 - mediaList.length,
     };
     const result = await launchImageLibrary(options);
 
     if (result.assets) {
       const newAssets: MediaItem[] = result.assets.map(asset => ({
         uri: asset.uri || '',
-        type: (asset.type?.includes('video') ? 'video' : 'image') as 'image' | 'video',
+        type: (asset.type?.includes('video') ? 'video' : 'image') as
+          | 'image'
+          | 'video',
       }));
       setMediaList(prev => [...prev, ...newAssets].slice(0, 4));
     }
   };
   const handleCreatePost = async () => {
-  if (!content && mediaList.length === 0) return;
-  
-  setIsUploading(true);
-  setIsSuccess(false); 
-  let finalMediaUrls: string[] = [];
-  let mediaType: 'image' | 'video' | null = null;
+    if (!content && mediaList.length === 0) return;
 
-  try {
-    // --- START: MONGODB / CLOUDINARY UPLOAD LOGIC ---
-    for (const item of mediaList) {
-      const formData = new FormData();
-      formData.append('file', {
-        uri: item.uri,
-        type: item.type === 'video' ? 'video/mp4' : 'image/jpeg',
-        name: item.type === 'video' ? 'upload.mp4' : 'upload.jpg',
-      } as any);
-      formData.append('upload_preset', 'presetOne');
+    setIsUploading(true);
+    setUploadProgress(0);
+    let finalMediaUrls: string[] = [];
+    let lastMediaType: 'image' | 'video' | null = null;
 
-      const response = await axios.post(
-        'https://api.cloudinary.com/v1_1/dbdw3zftx/upload',
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-            setUploadProgress(progress);
-          },
-        }
-      );
-      finalMediaUrls.push(response.data.secure_url);
-      mediaType = item.type;
-    }
-    // --- END: MONGODB / CLOUDINARY UPLOAD LOGIC ---
+    try {
+      for (let i = 0; i < mediaList.length; i++) {
+        const item = mediaList[i];
 
-    /* --- FUTURE FIREBASE MIGRATION LOGIC (Commented Out) ---
-    for (const item of mediaList) {
-      const fileName = item.uri.substring(item.uri.lastIndexOf('/') + 1);
-      const reference = storage().ref(`posts/${currentUser.uid}/${fileName}`);
-      const task = reference.putFile(item.uri);
+        // (Simplified: for real progress, you'd need uploadBytesResumable)
+        const currentProgress = Math.round((i / mediaList.length) * 100);
+        setUploadProgress(currentProgress);
 
-      task.on('state_changed', snapshot => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
+        const downloadUrl = await uploadToFirebase(
+          item.uri,
+          `posts/${currentUser.uid}`,
+        );
+
+        finalMediaUrls.push(downloadUrl);
+        lastMediaType = item.type;
+      }
+
+      setUploadProgress(100);
+
+      // 2. CONSTRUCT THE POST OBJECT
+      const postData = {
+        userId: currentUser.uid,
+        content: content,
+        media:
+          finalMediaUrls.length > 0
+            ? {
+                url: finalMediaUrls, // Array of Firebase URLs
+                mediaType: lastMediaType,
+              }
+            : null,
+        poll:
+          type === 'poll'
+            ? {
+                options: pollOptions.map((opt, i) => ({
+                  optionId: `opt${i}`,
+                  text: opt,
+                  votes: [],
+                })),
+                totalVotes: 0,
+              }
+            : null,
+        createdAt: new Date().toISOString(),
+      };
+
+      // 3. SEND TO YOUR BACKEND
+      await axios.post(`${baseUrl}posts/create`, postData);
+
+      // 4. UI FEEDBACK
+      setIsSuccess(true);
+      Toast.show({
+        type: 'success',
+        text2: 'Post created successfully! 🚀',
       });
 
-      await task;
-      const url = await reference.getDownloadURL();
-      finalMediaUrls.push(url);
-      mediaType = item.type;
+      // Short delay for the user to see the success state
+      setTimeout(() => {
+        navigation.goBack();
+      }, 1500);
+    } catch (error) {
+      console.error('Post creation failed', error);
+      Toast.show({
+        type: 'error',
+        text2: 'Post upload failed, please retry',
+        position: 'bottom',
+      });
+    } finally {
+      setIsUploading(false);
     }
-    --- END FIREBASE LOGIC ---
-    */
-
-    // 2. CONSTRUCT THE POST OBJECT
-    const postData = {
-      userId: currentUser.uid, // Or currentUser.uid for Firebase
-      content: content,
-      media: finalMediaUrls.length > 0 ? {
-        url: finalMediaUrls, // Array of strings
-        mediaType: mediaType
-      } : null,
-      poll: type === 'poll' ? {
-        options: pollOptions.map((opt, i) => ({
-          optionId: `opt${i}`,
-          text: opt,
-          votes: []
-        })),
-        totalVotes: 0
-      } : null,
-      createdAt: new Date().toISOString(),
-    };
-
-    // 3. SEND TO DATABASE
-    // Current MongoDB call:
-    await axios.post(`${baseUrl}posts/create`, postData);
-
-    // Future Firebase call:
-    // await firestore().collection('Posts').add(postData);
-
-    navigation.goBack();
-  } catch (error) {
-    console.error("Upload failed", error);
-    Toast.show({
-                type: 'error',
-                text2: 'Post upload failed, please retry',
-                position: 'bottom',
-                bottomOffset: 10,
-              });
-  } finally {
-    setIsUploading(false);
-    setUploadProgress(100);
-    setIsSuccess(true);
-    // Wait 1 second so user sees it finished
-    await new Promise(resolve => setTimeout(() => resolve(null), 1000));
-    setIsUploading(false);
-    navigation.goBack();
-  }
-};
+  };
 
   // Logic: Can post if there's text OR if it's a poll with text OR if there's media
   const canPost = content.trim().length > 0 || mediaList.length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         {/* Header Section */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{top: 10, left: 10, right: 10, bottom: 10}}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
+          >
             <MaterialIcons name="chevron-left" size={32} color="#000" />
           </TouchableOpacity>
-          
+
           <Text style={styles.headerTitle}>
             {type === 'poll' ? 'Create Poll' : 'Create Post'}
           </Text>
 
-          <TouchableOpacity 
-            style={[styles.postBtn, !canPost && styles.disabledBtn]} 
+          <TouchableOpacity
+            style={[styles.postBtn, !canPost && styles.disabledBtn]}
             disabled={!canPost}
             onPress={() => {
-                handleCreatePost();
+              handleCreatePost();
             }}
           >
             <Text style={styles.postBtnText}>Post</Text>
@@ -201,7 +181,9 @@ const CreatePost = ({ route, navigation }: Props) => {
         {/* Use ScrollView so long polls/media don't get cut off */}
         <View style={{ flex: 1, padding: 15 }}>
           <TextInput
-            placeholder={type === 'poll' ? "Ask a question..." : "What's happening?"}
+            placeholder={
+              type === 'poll' ? 'Ask a question...' : "What's happening?"
+            }
             multiline
             autoFocus
             style={styles.input}
@@ -220,7 +202,7 @@ const CreatePost = ({ route, navigation }: Props) => {
                     style={styles.pollInput}
                     placeholder={`Option ${index + 1}`}
                     value={opt}
-                    onChangeText={(val) => {
+                    onChangeText={val => {
                       const newOpts = [...pollOptions];
                       newOpts[index] = val;
                       setPollOptions(newOpts);
@@ -228,14 +210,18 @@ const CreatePost = ({ route, navigation }: Props) => {
                   />
                   {pollOptions.length > 2 && (
                     <TouchableOpacity onPress={() => removeOption(index)}>
-                      <MaterialIcons name="remove-circle-outline" size={20} color="#FF3B30" />
+                      <MaterialIcons
+                        name="remove-circle-outline"
+                        size={20}
+                        color="#FF3B30"
+                      />
                     </TouchableOpacity>
                   )}
                 </View>
               ))}
               {pollOptions.length < 4 && (
-                <TouchableOpacity 
-                  style={styles.addOptionBtn} 
+                <TouchableOpacity
+                  style={styles.addOptionBtn}
                   onPress={() => setPollOptions([...pollOptions, ''])}
                 >
                   <Text style={styles.addOptionText}>+ Add another option</Text>
@@ -250,15 +236,22 @@ const CreatePost = ({ route, navigation }: Props) => {
               {mediaList.map((item, index) => (
                 <View key={index} style={styles.mediaPreviewWrapper}>
                   {item.type === 'image' ? (
-                    <Image source={{ uri: item.uri }} style={styles.mediaPreview} />
+                    <Image
+                      source={{ uri: item.uri }}
+                      style={styles.mediaPreview}
+                    />
                   ) : (
-                    <View style={[styles.mediaPreview, styles.videoPlaceholder]}>
+                    <View
+                      style={[styles.mediaPreview, styles.videoPlaceholder]}
+                    >
                       <MaterialIcons name="videocam" size={30} color="#fff" />
                     </View>
                   )}
-                  <TouchableOpacity 
-                    style={styles.removeButton} 
-                    onPress={() => setMediaList(prev => prev.filter((_, i) => i !== index))}
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() =>
+                      setMediaList(prev => prev.filter((_, i) => i !== index))
+                    }
                   >
                     <MaterialIcons name="cancel" size={22} color="#f54b02" />
                   </TouchableOpacity>
@@ -270,43 +263,57 @@ const CreatePost = ({ route, navigation }: Props) => {
 
         {/* Toolbar */}
         <View style={styles.toolbar}>
-            <TouchableOpacity 
-                onPress={pickMedia} 
-                style={[styles.toolbarBtn, (type === 'poll' || mediaList.length >= 4) && { opacity: 0.5 }]}
-                disabled={type === 'poll' || mediaList.length >= 4} 
-            >
-                <MaterialIcons name="image" size={26} color="#f54b02" />
-                <Text style={styles.toolbarText}>Photo/Video</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={pickMedia}
+            style={[
+              styles.toolbarBtn,
+              (type === 'poll' || mediaList.length >= 4) && { opacity: 0.5 },
+            ]}
+            disabled={type === 'poll' || mediaList.length >= 4}
+          >
+            <MaterialIcons name="image" size={26} color="#f54b02" />
+            <Text style={styles.toolbarText}>Photo/Video</Text>
+          </TouchableOpacity>
         </View>
         {isUploading && (
-  <View style={[
-    styles.bottomToastContainer, 
-    isSuccess && styles.successToast // Turns green on success
-]}>
-  <View style={styles.toastContent}>
-    <View style={styles.toastHeader}>
-      <Text style={[
-          styles.toastTitle, 
-          isSuccess && styles.successTitle // Turns text white on success
-      ]}>
-        {isSuccess ? "Post Published!" : "Publishing your post..."}
-      </Text>
-      {isSuccess ? (
-        <MaterialIcons name="check-circle" size={24} color="#FFF" />
-      ) : (
-        <Text style={styles.toastPercentage}>{Math.round(uploadProgress)}%</Text>
-      )}
-    </View>
-    
-    {!isSuccess && (
-      <View style={styles.progressBarBackground}>
-        <View style={[styles.progressBarFill, { width: `${uploadProgress}%` }]} />
-      </View>
-    )}
-  </View>
-</View>
-)}
+          <View
+            style={[
+              styles.bottomToastContainer,
+              isSuccess && styles.successToast, // Turns green on success
+            ]}
+          >
+            <View style={styles.toastContent}>
+              <View style={styles.toastHeader}>
+                <Text
+                  style={[
+                    styles.toastTitle,
+                    isSuccess && styles.successTitle, // Turns text white on success
+                  ]}
+                >
+                  {isSuccess ? 'Post Published!' : 'Publishing your post...'}
+                </Text>
+                {isSuccess ? (
+                  <MaterialIcons name="check-circle" size={24} color="#FFF" />
+                ) : (
+                  <Text style={styles.toastPercentage}>
+                    {Math.round(uploadProgress)}%
+                  </Text>
+                )}
+              </View>
+
+              {!isSuccess && (
+                <View style={styles.progressBarBackground}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${uploadProgress}%` },
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+        )}
         <Toast config={toastConfig} />
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -14,7 +14,7 @@ import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { WEB_CLIENT_ID } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -206,7 +206,7 @@ const OtherUserSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadToCloudinary(imageUri);
+      const imageUrl = await uploadToFirebase(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
@@ -245,7 +245,7 @@ const OtherUserSignup = () => {
         firstname: subType === 'enterprise' ? '' : firstname,
         itagusername: firstname,
         lastname: subType === 'enterprise' ? '' : lastname,
-        email,
+        email: email.toLowerCase().trim(),
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password: isSocialSignup ? 'SOCIAL_AUTH' : password,

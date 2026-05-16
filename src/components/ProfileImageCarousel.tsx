@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { View, FlatList, Image, Dimensions, StyleSheet, Animated, TouchableOpacity, Modal, Text, ActivityIndicator, Linking, Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { PRIMARY_COLOR } from './Classroomcomponent';
 import ImagePicker from 'react-native-image-crop-picker';
 import { patchUserProfile } from 'api/localPatchApis';
@@ -82,8 +82,8 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
   const handleConfirmUpload = async () => {
     setIsUploading(true);
     try {
-      const imageUrl = await uploadToCloudinary(previewImage!);
-      const result = await patchUserProfile({ profilePic: imageUrl });
+      const imageUrl = await uploadToFirebase(previewImage!);
+      const result = await patchUserProfile({ profilePic: [imageUrl] });
       if (result && result.success) {
         dispatch(updateUserImage(imageUrl));
         Toast.show({

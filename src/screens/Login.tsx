@@ -64,7 +64,25 @@ const Login = () => {
         } else if (socialProvider === 'github') {
           const result = await authorize(githubConfig);
           if (result.accessToken) {
-            setIdentifier('GITHUB_USER');
+            const emailResponse = await fetch(
+              'https://api.github.com/user/emails',
+              {
+                headers: { Authorization: `Bearer ${result.accessToken}` },
+              },
+            );
+            const emails = await emailResponse.json();
+            const primaryEmail = Array.isArray(emails)
+              ? emails.find((e: any) => e.primary && e.verified)?.email ||
+                emails[0]?.email
+              : null;
+            if (!primaryEmail) {
+              setAlertMessage(
+                'Could not retrieve a verified email from GitHub.',
+              );
+              setAlertVisible(true);
+              return;
+            }
+            setIdentifier(primaryEmail); 
             setIdToken(result.accessToken);
           }
         }
