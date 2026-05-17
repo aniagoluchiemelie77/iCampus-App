@@ -21,6 +21,7 @@ import {
   ProductList,
   PayoutView,
   ReviewsSection,
+  SalesScreen,
 } from '../components/SellerManagementComps.tsx';
 import { useAppSelector } from '../components/hooks';
 
@@ -73,28 +74,34 @@ export const MerchantDashboard = () => {
           contentContainerStyle={styles.tabBarScrollContainer}
           style={styles.tabBarWrapper}
         >
-          {['Overview', 'Orders', 'Inventory', 'Payouts', 'Reviews'].map(
-            tab => (
-              <TouchableOpacity
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={[styles.tab, activeTab === tab && styles.activeTab]}
+          {[
+            'Overview',
+            'Orders',
+            'Sales',
+            'Inventory',
+            'Reviews',
+            'Payouts',
+          ].map(tab => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab && styles.activeTabText,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab && styles.activeTabText,
-                  ]}
-                >
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ),
-          )}
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
         <View style={styles.content}>
           {activeTab === 'Overview' && <OverviewsScreenComponent />}
           {activeTab === 'Orders' && <OrdersList />}
+          {activeTab === 'Sales' && <SalesScreen />}
           {activeTab === 'Inventory' && <ProductList />}
           {activeTab === 'Payouts' && <PayoutView />}
           {activeTab === 'Reviews' && <ReviewsSection />}

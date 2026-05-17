@@ -41,7 +41,8 @@ export interface User {
   verificationToken?: string;
   email: string;
   communitiesId?: Community.communitiesId[];
-  pointsBalance?: UserPointsAccount.currentBalance;
+  pointsBalance?: number;
+  pendingSalesBalance?: number;
   staffId?: string;
   likes?: string[]; 
   bookmarks?: string[];
@@ -72,7 +73,6 @@ export interface User {
   userToken?: string,
   tokenCreatedAt?: string,
   coursesTeaching?: Course['courseId'];
-  pointsAccountId?: UserPointsAccount.pointsAccountId,
   cart?: CartItem[];
   favorites?: string[];
   purchaseHistory: Order['orderId']; 
@@ -233,23 +233,6 @@ export interface MarketplaceOrder {
   verificationQrCode?: string;
   isVerifiedByScan?: boolean;
   completedAt?: string
-}
-export interface UserPointsAccount {
-  id: string;
-  pointsAccountId: string;
-  userId: User.uid;
-  role?: User.usertype;
-  currentBalance: number;
-  lifetimeEarned: number;
-  lifetimeSpent: number;
-  lastTransaction?: PointsTransaction;
-  purchases?: Purchase[];
-  refunds?: Refund[];
-  withdrawalHistory?: WithdrawalRequest[];
-  buyHistory?: BuyRequest[];
-  transferredPointsHistory?: TransferPointsRequest[];
-  recievedPointsHistory?: RecievePointsRequest[];
-  tier?: 'bronze' | 'silver' | 'gold' | 'platinum'; // optional gamification
 }
 export interface WithdrawalRequest {
   id: string;

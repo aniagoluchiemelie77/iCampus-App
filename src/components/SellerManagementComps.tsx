@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,15 @@ import { useAppDataContext } from './EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
-import { ProductSale } from '../types/firebase';
+import { ProductSale, UserTier } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
+import { searchUsersByUid } from '../api/localGetApis';
+import { UserAvatar } from './UserAvatar';
+import { UserIdentity } from './UserIdentity';
+import { useNavigation } from '@react-navigation/native';
+import RNPickerSelect from 'react-native-picker-select';
 import Svg, {
   Polyline,
   Defs,
@@ -31,6 +36,24 @@ interface StatusCardProps {
   count: string;
   color: string;
   icon: string;
+}
+interface StatusCardMiniProps {
+  label: string;
+  count: number;
+  color: string;
+  icon: string;
+}
+interface TopBuyerProfile {
+  uid: string;
+  firstname: string;
+  lastname: string;
+  username: string;
+  profilePic: string | string[];
+  tier: UserTier;
+  isVerified: boolean;
+  totalSpent: number;
+  organizationName?: string;
+  displayScore?: number | string;
 }
 
 const LineGraph = ({
@@ -84,9 +107,24 @@ export const StatusCard = ({ label, count, color, icon }: StatusCardProps) => (
     </View>
   </View>
 );
+export const StatusCardMini = ({
+  label,
+  count,
+  color,
+  icon,
+}: StatusCardMiniProps) => (
+  <View style={[styles.statusCard, { borderLeftColor: color }]}>
+    <View style={styles.statusIconContainer}>
+      <MaterialIcons name={icon} size={22} color={color} />
+    </View>
+    <View>
+      <CurrencyDisplay value={count} size="medium" />
+      <Text style={[styles.statusLabel, { marginTop: 4 }]}>{label}</Text>
+    </View>
+  </View>
+);
 export const OrdersList = () => {
-  const { pendingOrders } = useAppDataContext();
-  const currentUser = useAppSelector(state => state.user);
+  const { pendingOrders, currentUser } = useAppDataContext();
   const sellerOrders = pendingOrders
     .filter(o => o.sellerId === currentUser.uid)
     .sort(
@@ -161,6 +199,7 @@ export const OverviewsScreenComponent = () => {
     0,
   );
   const allRatings = sellerProducts.flatMap(p => p.ratings || []);
+  const currentBalance = currentUser.pendingSalesBalance || 0;
   const avgRating =
     allRatings.length > 0
       ? (
@@ -251,12 +290,21 @@ export const OverviewsScreenComponent = () => {
               colorOverride="rgba(255,255,255,0.8)"
             />
             <View style={styles.ratingMiniBox}>
-              <View style={styles.graphHeader}>
+              <View style={[styles.graphHeader, { marginBottom: 3 }]}>
                 <Text style={styles.miniLabel}>Total Income</Text>
                 <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
               </View>
               <CurrencyDisplay
                 value={totalIncome}
+                size="medium"
+                containerStyle={styles.incomeCurrency}
+              />
+              <View style={[styles.graphHeader, { marginVertical: 3 }]}>
+                <Text style={styles.miniLabel}>Available For Payout</Text>
+                <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
+              </View>
+              <CurrencyDisplay
+                value={currentBalance}
                 size="medium"
                 containerStyle={styles.incomeCurrency}
               />
@@ -318,6 +366,197 @@ export const ProductList = () => {
 };
 export const PayoutView = () => {
   return <Text>PayoutView</Text>;
+};
+export const SalesScreen = () => {
+  const { sellerSales, currentUser } = useAppDataContext();
+  const navigation = useNavigation<any>();
+  const [topBuyersProfiles, setTopBuyersProfiles] = useState<TopBuyerProfile[]>(
+    [],
+  );
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthIndex = now.getMonth();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthIndex);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const yearItems = [
+    { label: '2025', value: 2025 },
+    { label: '2026', value: 2026 },
+  ];
+
+  const allMonths = [
+    { label: 'January', value: 0 },
+    { label: 'February', value: 1 },
+    { label: 'March', value: 2 },
+    { label: 'April', value: 3 },
+    { label: 'May', value: 4 },
+    { label: 'June', value: 5 },
+    { label: 'July', value: 6 },
+    { label: 'August', value: 7 },
+    { label: 'September', value: 8 },
+    { label: 'October', value: 9 },
+    { label: 'November', value: 10 },
+    { label: 'December', value: 11 },
+  ];
+  const availableMonths = allMonths.filter(
+    m => selectedYear < currentYear || m.value <= currentMonthIndex,
+  );
+
+  const topBuyersList = useMemo(() => {
+    const counts = sellerSales.reduce<Record<string, number>>((acc, sale) => {
+      acc[sale.buyerId] = (acc[sale.buyerId] || 0) + sale.amountPaid;
+      return acc;
+    }, {});
+    return Object.entries(counts)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 8);
+  }, [sellerSales]);
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      if (!currentUser?.tier || !currentUser?.usertype) return;
+      const profiles = await Promise.all(
+        topBuyersList.map(async ([uid, totalSpent]) => {
+          const result = await searchUsersByUid(
+            uid,
+            currentUser.tier!,
+            currentUser.usertype!,
+          );
+          const userData = Array.isArray(result) ? result[0] : result;
+          if (!userData) return null;
+          return {
+            ...userData,
+            totalSpent,
+          } as TopBuyerProfile;
+        }),
+      );
+      const validProfiles = profiles.filter(
+        (p): p is TopBuyerProfile => p !== null && !!p.uid,
+      );
+      setTopBuyersProfiles(validProfiles);
+    };
+    if (topBuyersList.length > 0) {
+      fetchProfiles();
+    }
+  }, [topBuyersList, currentUser?.tier, currentUser?.usertype]);
+  const monthlyStats = useMemo(() => {
+    const filterSales = (m: number, y: number) =>
+      sellerSales.filter(s => {
+        const d = new Date(s.createdAt);
+        return d.getMonth() === m && d.getFullYear() === y;
+      });
+
+    const currentMonthTotal = filterSales(selectedMonth, selectedYear).reduce(
+      (sum, s) => sum + s.netEarnings,
+      0,
+    );
+
+    // Handle year roll-over for previous month comparison
+    const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+    const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+
+    const prevMonthTotal = filterSales(prevMonth, prevYear).reduce(
+      (sum, s) => sum + s.netEarnings,
+      0,
+    );
+
+    return {
+      total: currentMonthTotal,
+      trend: (currentMonthTotal >= prevMonthTotal ? 'up' : 'down') as
+        | 'up'
+        | 'down',
+    };
+  }, [selectedMonth, selectedYear, sellerSales]);
+  const totalIncome: number = sellerSales.reduce(
+    (sum: number, sale: ProductSale) => sum + (sale.netEarnings || 0),
+    0,
+  );
+  const currentBalance = currentUser.pendingSalesBalance || 0;
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.statusRowB}>
+        <StatusCardMini
+          label="Total Generated Income"
+          count={totalIncome}
+          color="#FF9800"
+          icon="diamond-outlined"
+        />
+        <StatusCardMini
+          label="Available For Payout"
+          count={currentBalance}
+          color="#4CAF50"
+          icon="diamond-outlined"
+        />
+      </View>
+      <View style={styles.graphCard}>
+        <View style={styles.graphHeader}>
+          <Text style={styles.chartTitle}>Revenue Trend</Text>
+          <CurrencyDisplay value={monthlyStats.total} size="medium" />
+        </View>
+        <View style={styles.dropdownRow}>
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>Year</Text>
+            <RNPickerSelect
+              onValueChange={value => setSelectedYear(value)}
+              items={yearItems}
+              value={selectedYear}
+              style={pickerSelectStyles}
+              useNativeAndroidPickerStyle={false}
+            />
+          </View>
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>Month</Text>
+            <RNPickerSelect
+              onValueChange={value => setSelectedMonth(value)}
+              items={availableMonths}
+              value={selectedMonth}
+              style={pickerSelectStyles}
+              useNativeAndroidPickerStyle={false}
+            />
+          </View>
+        </View>
+        <View style={{ height: 120 }}>
+          <LineGraph trend={monthlyStats.trend as 'up' | 'down'} />
+        </View>
+      </View>
+      <Text style={styles.sectionTitle}>Your Top Customers</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.buyerScroll}
+      >
+        {topBuyersProfiles.map(buyer => (
+          <TouchableOpacity
+            key={buyer.uid}
+            style={styles.buyerCard}
+            onPress={() =>
+              navigation.navigate('Profile', {
+                identifier: buyer.uid,
+              })
+            }
+          >
+            <UserAvatar
+              profilePic={buyer.profilePic}
+              firstName={buyer.firstname}
+              lastName={buyer.lastname}
+              style={styles.avatar}
+            />
+            <UserIdentity
+              firstname={buyer.firstname}
+              lastname={buyer.lastname}
+              tier={buyer?.tier || 'free'}
+              organizationName={buyer.organizationName}
+              size="small"
+              containerStyle={{ marginTop: 8 }}
+            />
+            <View style={styles.spentText}>
+              <CurrencyDisplay value={buyer.totalSpent} size="medium" />
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </ScrollView>
+  );
 };
 export const ReviewsSection = () => {
   const { allReviews, refreshReviews } = useAppDataContext();
@@ -398,6 +637,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 20,
+  },
+  statusRowB: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   statusCard: {
     backgroundColor: '#fadccc',
@@ -538,7 +782,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
   },
   row: {
     width: '100%',
@@ -611,4 +854,68 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     marginLeft: 6,
   },
+  graphCard: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: '#fadccc',
+    elevation: 5,
+  },
+  chartTitle: { color: '#222', fontSize: 16 },
+  buyerScroll: { paddingLeft: 16, paddingVertical: 15, marginVertical: 15 },
+  buyerCard: {
+    width: 140,
+    backgroundColor: '#fadccc',
+    borderRadius: 15,
+    padding: 15,
+    marginRight: 12,
+    alignItems: 'center',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  avatar: { width: 60, height: 60, borderRadius: 30 },
+  spentText: {
+    marginTop: 6,
+  },
+  dropdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginVertical: 15,
+  },
+  pickerContainer: {
+    width: '48%', // Leaves a small gap in the middle
+  },
+  pickerLabel: {
+    fontSize: 12,
+    color: PRIMARY_COLOR_TINT,
+    marginBottom: 4,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });
+
+const pickerSelectStyles = {
+  inputIOS: {
+    fontSize: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 8,
+    color: PRIMARY_COLOR,
+    backgroundColor: '#fadccc',
+    paddingRight: 30,
+  },
+  inputAndroid: {
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 8,
+    color: PRIMARY_COLOR,
+    backgroundColor: '#fadccc',
+    paddingRight: 30,
+  },
+};
