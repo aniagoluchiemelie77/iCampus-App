@@ -115,7 +115,7 @@ const ProfileModal = ({
           navigation.navigate('SalesHub');
         }}
       >
-        <MaterialIcons name="add-business" size={24} color="#333" />
+        <MaterialIcons name="store-front-outlined" size={24} color="#333" />
         <Text style={modalStyles.itemText}>Sales Hub</Text>
       </TouchableOpacity>
       <TouchableOpacity

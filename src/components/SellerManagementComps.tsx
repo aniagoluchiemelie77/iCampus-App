@@ -7,13 +7,14 @@ import {
   ScrollView,
   FlatList,
   RefreshControl,
+  Image,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppDataContext } from './EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
-import { ProductSale, UserTier } from '../types/firebase';
+import { ProductSale, UserTier, Product } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
@@ -55,7 +56,32 @@ interface TopBuyerProfile {
   organizationName?: string;
   displayScore?: number | string;
 }
-
+const ProductListHeader = ({
+  count,
+  onAdd,
+}: {
+  count: number;
+  onAdd: () => void;
+}) => (
+  <View style={styles.listHeader}>
+    <Text style={styles.countText}>
+      {count} {count === 1 ? 'Product' : 'Products'}
+    </Text>
+    <TouchableOpacity style={styles.addBtn} onPress={onAdd}>
+      <MaterialIcons name="add-business-outlined" size={20} color="#FFF" />
+      <Text style={styles.addBtnText}>New</Text>
+    </TouchableOpacity>
+  </View>
+);
+const ProductEmptyState = ({ onAdd }: { onAdd: () => void }) => (
+  <EmptyState
+    iconName="store-front-outlined"
+    title="No Products Found"
+    subtitle="You haven't listed any items for sale yet. Start your journey by adding your first product!"
+    buttonText="Create Product"
+    onPress={onAdd}
+  />
+);
 const LineGraph = ({
   trend,
   colorOverride,
@@ -362,7 +388,149 @@ export const OverviewsScreenComponent = () => {
   );
 };
 export const ProductList = () => {
-  return <Text>ProductList</Text>;
+  const { allProducts, currentUser } = useAppDataContext();
+  const sellerProducts = allProducts.filter(
+    p => p.sellerId === currentUser.uid,
+  );
+  const renderProductItem = ({ item }: { item: Product }) => {
+    const isPhysical = item.type === 'physical';
+    const isLowStock =
+      isPhysical &&
+      (item.amountInStock ?? 0) > 0 &&
+      (item.amountInStock ?? 0) < 5;
+    const isOutOfStock = isPhysical && item.amountInStock === 0;
+    const avgRating =
+      item.ratings && item.ratings.length > 0
+        ? (
+            item.ratings.reduce((s, r) => s + r.score, 0) / item.ratings.length
+          ).toFixed(1)
+        : 'N/A';
+
+    return (
+      <TouchableOpacity style={styles.card}>
+        <View style={styles.imageContainer}>
+          <Image
+            source={{
+              uri: item.mediaUrls[0] || 'https://via.placeholder.com/150',
+            }}
+            style={styles.thumbnail}
+          />
+          <View style={styles.typeBadge}>
+            <Text style={styles.typeText}>{item.type.toUpperCase()}</Text>
+          </View>
+        </View>
+        <View style={styles.infoContainer}>
+          <View style={styles.headerRow}>
+            <Text style={styles.title} numberOfLines={2}>
+              {item.title}
+            </Text>
+          </View>
+          <Text style={styles.category}>{item.category}</Text>
+          <View style={styles.detailsRow}>
+            {isPhysical ? (
+              <View style={styles.badge}>
+                <MaterialIcons
+                  name="inventory-outlined"
+                  size={14}
+                  color={
+                    isOutOfStock
+                      ? PRIMARY_COLOR
+                      : isLowStock
+                      ? '#FF9800'
+                      : '#4CAF50'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.detailText,
+                    isOutOfStock && { color: PRIMARY_COLOR },
+                  ]}
+                >
+                  {isOutOfStock
+                    ? 'Out of Stock'
+                    : `${item.amountInStock} in Stock`}
+                </Text>
+              </View>
+            ) : item.type === 'course' ? (
+              <View style={styles.badge}>
+                <MaterialIcons
+                  name="play-circle-outline"
+                  size={14}
+                  color={PRIMARY_COLOR}
+                />
+                <Text style={styles.detailText}>
+                  {item.courseDetails?.totalLessons || 0} Lessons
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.badge}>
+                <MaterialIcons
+                  name="insert-drive-file"
+                  size={14}
+                  color={PRIMARY_COLOR}
+                />
+                <Text style={styles.detailText}>
+                  {item.fileDetails?.fileFormat?.toUpperCase() || 'FILE'}
+                </Text>
+              </View>
+            )}
+            <CurrencyDisplay value={item.priceInPoints} size="medium" />
+          </View>
+          <View style={styles.statsFooter}>
+            <View style={styles.statItem}>
+              <MaterialIcons
+                name="visibility-outlined"
+                size={14}
+                color={PRIMARY_COLOR_TINT}
+              />
+              <Text style={styles.statLabel}>{item.impressions || 0}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialIcons
+                name="shopping-cart-outlined"
+                size={14}
+                color={PRIMARY_COLOR_TINT}
+              />
+              <Text style={styles.statLabel}>{item.sales || 0}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialIcons name="star" size={14} color={PRIMARY_COLOR_TINT} />
+              <Text style={styles.statLabel}>{avgRating}</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+  const handleAddNew = () => {
+    console.log('Navigating to creation...');
+  };
+
+  return (
+    <ScrollView>
+      <View style={styles.statusRow}>
+        <StatusCard
+          label="Total Products Count"
+          count={formatStatNumber(sellerProducts.length)}
+          color={PRIMARY_COLOR}
+          icon="store-front-outlined"
+        />
+      </View>
+      <FlatList
+        data={sellerProducts}
+        keyExtractor={item => item.productId}
+        renderItem={renderProductItem}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        ListHeaderComponent={
+          <ProductListHeader
+            count={sellerProducts.length}
+            onAdd={handleAddNew}
+          />
+        }
+        ListEmptyComponent={<ProductEmptyState onAdd={handleAddNew} />}
+      />
+    </ScrollView>
+  );
 };
 export const PayoutView = () => {
   return <Text>PayoutView</Text>;
@@ -729,7 +897,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: PRIMARY_COLOR,
+    color: '#2222',
     marginLeft: 4,
     letterSpacing: 0.5,
   },
@@ -892,6 +1060,117 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 4,
+    alignSelf: 'flex-end',
+  },
+  countText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  thumbnail: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    backgroundColor: PRIMARY_COLOR,
+  },
+  typeBadge: {
+    position: 'absolute',
+    bottom: -5,
+    alignSelf: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    backgroundColor: '#fff',
+  },
+  typeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: PRIMARY_COLOR,
+  },
+
+  infoContainer: {
+    flex: 1,
+    marginLeft: 15,
+    justifyContent: 'space-between',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  category: {
+    fontSize: 12,
+    color: PRIMARY_COLOR_TINT,
+    marginTop: -2,
+    marginBottom: 8,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fadccc',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  detailText: {
+    fontSize: 12,
+    marginLeft: 4,
+    color: '#555',
+    fontWeight: '500',
+  },
+  statsFooter: {
+    flexDirection: 'row',
+    borderTopWidth: 0.8,
+    borderTopColor: PRIMARY_COLOR_TINT,
+    marginTop: 10,
+    paddingTop: 8,
+    gap: 15,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 
