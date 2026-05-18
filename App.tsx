@@ -81,6 +81,7 @@ import { DownloadsScreen } from './src/screens/CourseDownloadsScreen.tsx';
 import { CourseLearningScreen } from './src/screens/DownloadsWatchScreen.tsx';
 import { CertificateScreen } from './src/screens/CourseCompletionSuccessScreen.tsx';
 import { MerchantDashboard } from './src/screens/MerchantScreen.tsx';
+import { CreateProductScreen } from './src/screens/CreateProductScreen.tsx';
 import { PayoutSuccess } from './src/screens/PayoutSuccessScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
@@ -225,6 +226,7 @@ export type RootStackParamList = {
   LibraryScreen: undefined;
   EditProfile: undefined;
   PersonaVerify: undefined;
+  CreateProduct: undefined;
   PayoutSuccess: { amount: number; transactionId: string };
   Home: { activeTab?: 'home' | 'classroom' | 'search' | 'store' | 'ranking' };
   LiveClassSessions: { lectureId: string; courseId: string };
@@ -405,6 +407,11 @@ const App = () => {
             <Stack.Screen
               name="StudentAttendanceScanner"
               component={StudentAttendanceScanner}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreateProduct"
+              component={CreateProductScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -26,10 +26,12 @@ import {
 import { useAppSelector } from '../components/hooks';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import { useNavigation } from '@react-navigation/native';
 
 export const MerchantDashboard = () => {
   const currentUser = useAppSelector(state => state.user);
   const [activeTab, setActiveTab] = useState('Overview');
+  const navigation = useNavigation<any>();
   const isOrganization = currentUser.organizationName !== '';
 
   return (
@@ -39,11 +41,15 @@ export const MerchantDashboard = () => {
         subtitle="Manage your products & earnings"
         rightElement={
           <TouchableOpacity
-            //onPress={() => {}}
+            onPress={() => navigation.navigate('CreateProduct')}
             style={styles.topBtn}
           >
-            <Text style={styles.topBtnText}>Manage hub</Text>
-            <MaterialIcons name="settings-outlined" size={25} color="#fff" />
+            <Text style={styles.topBtnText}>Add Product</Text>
+            <MaterialIcons
+              name="add-business-outlined"
+              size={25}
+              color="#fff"
+            />
           </TouchableOpacity>
         }
       />

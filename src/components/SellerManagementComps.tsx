@@ -220,6 +220,7 @@ export const OrdersList = () => {
 export const OverviewsScreenComponent = () => {
   const { allProducts, pendingOrders, sellerSales } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user);
+  const navigation = useNavigation<any>();
 
   const sellerProducts = allProducts.filter(
     p => p.sellerId === currentUser.uid,
@@ -250,7 +251,7 @@ export const OverviewsScreenComponent = () => {
   );
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
-      {!hasProducts && (
+      {!hasProducts ? (
         <View style={styles.emptyStateCard}>
           <MaterialIcons
             name="add-shopping-cart"
@@ -261,145 +262,167 @@ export const OverviewsScreenComponent = () => {
           <Text style={styles.emptyStateSub}>
             You haven't uploaded any products yet.
           </Text>
-          <TouchableOpacity style={styles.addBtnSmall}>
+          <TouchableOpacity
+            style={styles.addBtnSmall}
+            onPress={() => navigation.navigate('CreateProduct')}
+          >
             <Text style={styles.addBtnText}>Upload First Product</Text>
           </TouchableOpacity>
         </View>
-      )}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <Text style={styles.timeRange}>Total Reach</Text>
-      </View>
-      <View style={styles.statsOverviewRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>
-            {formatStatNumber(totalImpressions)}
-          </Text>
-          <Text style={styles.statLabel}>Impressions</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>
-            {formatStatNumber(totalSalesCount)}
-          </Text>
-          <Text style={styles.statLabel}>Total Sales</Text>
-        </View>
-      </View>
-      <View style={styles.gridContainer}>
-        <View style={styles.leftColumn}>
-          <View style={styles.salesGraphBox}>
-            <View style={styles.graphHeader}>
-              <Text style={styles.miniLabel}>Sales Growth</Text>
-              <MaterialIcons
-                name={totalSalesCount > 0 ? 'trending-up' : 'trending-flat'}
-                size={16}
-                color={PRIMARY_COLOR}
-              />
-            </View>
-            <LineGraph trend={totalSalesCount > 5 ? 'up' : 'down'} />
+      ) : (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Overview</Text>
+            <Text style={styles.timeRange}>Total Reach</Text>
           </View>
-          <View style={styles.ratingMiniBox}>
-            <View style={styles.graphHeader}>
-              <Text style={styles.miniLabel}>Rating</Text>
-              <MaterialIcons name="star" size={16} color={PRIMARY_COLOR} />
+          <View style={styles.statsOverviewRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>
+                {formatStatNumber(totalImpressions)}
+              </Text>
+              <Text style={styles.statLabel}>Impressions</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{avgRating}</Text>
-              <MaterialIcons
-                name="star"
-                size={19}
-                color={PRIMARY_COLOR}
-                style={{ marginLeft: 4 }}
-              />
+              <Text style={styles.statValue}>
+                {formatStatNumber(totalSalesCount)}
+              </Text>
+              <Text style={styles.statLabel}>Total Sales</Text>
             </View>
           </View>
-        </View>
-        <View style={styles.rightColumn}>
-          <View style={styles.impressionsTallBox}>
-            <View style={styles.graphHeader}>
-              <Text style={styles.miniLabel}>Impressions</Text>
-              <MaterialIcons name="bar-chart" size={16} color={PRIMARY_COLOR} />
+          <View style={styles.gridContainer}>
+            <View style={styles.leftColumn}>
+              <View style={styles.salesGraphBox}>
+                <View style={styles.graphHeader}>
+                  <Text style={styles.miniLabel}>Sales Growth</Text>
+                  <MaterialIcons
+                    name={totalSalesCount > 0 ? 'trending-up' : 'trending-flat'}
+                    size={16}
+                    color={PRIMARY_COLOR}
+                  />
+                </View>
+                <LineGraph trend={totalSalesCount > 5 ? 'up' : 'down'} />
+              </View>
+              <View style={styles.ratingMiniBox}>
+                <View style={styles.graphHeader}>
+                  <Text style={styles.miniLabel}>Rating</Text>
+                  <MaterialIcons name="star" size={16} color={PRIMARY_COLOR} />
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{avgRating}</Text>
+                  <MaterialIcons
+                    name="star"
+                    size={19}
+                    color={PRIMARY_COLOR}
+                    style={{ marginLeft: 4 }}
+                  />
+                </View>
+              </View>
             </View>
-            <LineGraph
-              trend={totalImpressions > 0 ? 'up' : 'down'}
-              colorOverride="rgba(255,255,255,0.8)"
+            <View style={styles.rightColumn}>
+              <View style={styles.impressionsTallBox}>
+                <View style={styles.graphHeader}>
+                  <Text style={styles.miniLabel}>Impressions</Text>
+                  <MaterialIcons
+                    name="bar-chart"
+                    size={16}
+                    color={PRIMARY_COLOR}
+                  />
+                </View>
+                <LineGraph
+                  trend={totalImpressions > 0 ? 'up' : 'down'}
+                  colorOverride="rgba(255,255,255,0.8)"
+                />
+                <View style={styles.ratingMiniBox}>
+                  <View style={[styles.graphHeader, { marginBottom: 3 }]}>
+                    <Text style={styles.miniLabel}>Total Income</Text>
+                    <MaterialIcons
+                      name="diamond"
+                      size={16}
+                      color={PRIMARY_COLOR}
+                    />
+                  </View>
+                  <CurrencyDisplay
+                    value={totalIncome}
+                    size="medium"
+                    containerStyle={styles.incomeCurrency}
+                  />
+                  <View style={[styles.graphHeader, { marginVertical: 3 }]}>
+                    <Text style={styles.miniLabel}>Available For Payout</Text>
+                    <MaterialIcons
+                      name="diamond"
+                      size={16}
+                      color={PRIMARY_COLOR}
+                    />
+                  </View>
+                  <CurrencyDisplay
+                    value={currentBalance}
+                    size="medium"
+                    containerStyle={styles.incomeCurrency}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+          <View style={styles.statusRow}>
+            <StatusCard
+              label="Pending"
+              count={formatStatNumber(
+                sellerOrders.filter(o => o.status === 'pending_delivery')
+                  .length,
+              )}
+              color="#FF9800"
+              icon="delivery-dining-outlined"
             />
-            <View style={styles.ratingMiniBox}>
-              <View style={[styles.graphHeader, { marginBottom: 3 }]}>
-                <Text style={styles.miniLabel}>Total Income</Text>
-                <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
-              </View>
-              <CurrencyDisplay
-                value={totalIncome}
-                size="medium"
-                containerStyle={styles.incomeCurrency}
-              />
-              <View style={[styles.graphHeader, { marginVertical: 3 }]}>
-                <Text style={styles.miniLabel}>Available For Payout</Text>
-                <MaterialIcons name="diamond" size={16} color={PRIMARY_COLOR} />
-              </View>
-              <CurrencyDisplay
-                value={currentBalance}
-                size="medium"
-                containerStyle={styles.incomeCurrency}
-              />
+            <StatusCard
+              label="Completed"
+              count={formatStatNumber(
+                sellerOrders.filter(o => o.status === 'completed').length,
+              )}
+              color="#4CAF50"
+              icon="check-circle-outlined"
+            />
+            <StatusCard
+              label="Cancelled"
+              count={formatStatNumber(
+                sellerOrders.filter(o => o.status === 'cancelled').length,
+              )}
+              color={PRIMARY_COLOR}
+              icon="cancel-outlined"
+            />
+          </View>
+          <View style={styles.reviewHighlight}>
+            <View>
+              <Text style={styles.ratingTitle}>Customer Satisfaction</Text>
+              <Text style={styles.ratingSub}>
+                {allRatings.length}{' '}
+                {allRatings.length === 1 ? 'review' : 'reviews'}
+              </Text>
+            </View>
+            <View style={styles.ratingValueBox}>
+              <Text style={styles.ratingText}>{avgRating}</Text>
+              <MaterialIcons name="star" size={16} color={PRIMARY_COLOR} />
             </View>
           </View>
-        </View>
-      </View>
-      <View style={styles.statusRow}>
-        <StatusCard
-          label="Pending"
-          count={formatStatNumber(
-            sellerOrders.filter(o => o.status === 'pending_delivery').length,
-          )}
-          color="#FF9800"
-          icon="delivery-dining-outlined"
-        />
-        <StatusCard
-          label="Completed"
-          count={formatStatNumber(
-            sellerOrders.filter(o => o.status === 'completed').length,
-          )}
-          color="#4CAF50"
-          icon="check-circle-outlined"
-        />
-        <StatusCard
-          label="Cancelled"
-          count={formatStatNumber(
-            sellerOrders.filter(o => o.status === 'cancelled').length,
-          )}
-          color={PRIMARY_COLOR}
-          icon="cancel-outlined"
-        />
-      </View>
-      <View style={styles.reviewHighlight}>
-        <View>
-          <Text style={styles.ratingTitle}>Customer Satisfaction</Text>
-          <Text style={styles.ratingSub}>
-            {allRatings.length} {allRatings.length === 1 ? 'review' : 'reviews'}
-          </Text>
-        </View>
-        <View style={styles.ratingValueBox}>
-          <Text style={styles.ratingText}>{avgRating}</Text>
-          <MaterialIcons name="star" size={16} color={PRIMARY_COLOR} />
-        </View>
-      </View>
-      <View style={styles.newsCard}>
-        <Text style={styles.newsTag}>PRO TIP</Text>
-        <Text style={styles.newsText}>
-          {totalImpressions > 0 && totalSalesCount === 0
-            ? 'High impressions but no sales? Try lowering your price or adding clearer descriptions.'
-            : "Keep your stock updated! Products marked 'In Stock' get 2x more clicks."}
-        </Text>
-      </View>
+          <View style={styles.newsCard}>
+            <Text style={styles.newsTag}>PRO TIP</Text>
+            <Text style={styles.newsText}>
+              {totalImpressions > 0 && totalSalesCount === 0
+                ? 'High impressions but no sales? Try lowering your price or adding clearer descriptions.'
+                : "Keep your stock updated! Products marked 'In Stock' get 2x more clicks."}
+            </Text>
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 };
 export const ProductList = () => {
   const { allProducts, currentUser } = useAppDataContext();
+  const navigation = useNavigation<any>();
   const sellerProducts = allProducts.filter(
     p => p.sellerId === currentUser.uid,
   );
+  const hasProducts = sellerProducts.length > 0;
   const renderProductItem = ({ item }: { item: Product }) => {
     const isPhysical = item.type === 'physical';
     const isLowStock =
@@ -511,32 +534,54 @@ export const ProductList = () => {
     );
   };
   const handleAddNew = () => {
-    console.log('Navigating to creation...');
+    navigation.navigate('CreateProduct');
   };
 
   return (
     <ScrollView>
-      <View style={styles.statusRow}>
-        <StatusCard
-          label="Total Products Count"
-          count={formatStatNumber(sellerProducts.length)}
-          color={PRIMARY_COLOR}
-          icon="store-front-outlined"
-        />
-      </View>
-      <FlatList
-        data={sellerProducts}
-        keyExtractor={item => item.productId}
-        renderItem={renderProductItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        ListHeaderComponent={
-          <ProductListHeader
-            count={sellerProducts.length}
-            onAdd={handleAddNew}
+      {!hasProducts ? (
+        <View style={styles.emptyStateCard}>
+          <MaterialIcons
+            name="add-shopping-cart"
+            size={45}
+            color={PRIMARY_COLOR}
           />
-        }
-        ListEmptyComponent={<ProductEmptyState onAdd={handleAddNew} />}
-      />
+          <Text style={styles.emptyStateTitle}>Start Selling</Text>
+          <Text style={styles.emptyStateSub}>
+            You haven't uploaded any products yet.
+          </Text>
+          <TouchableOpacity
+            style={styles.addBtnSmall}
+            onPress={() => navigation.navigate('CreateProduct')}
+          >
+            <Text style={styles.addBtnText}>Upload First Product</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={styles.statusRow}>
+            <StatusCard
+              label="Total Products Count"
+              count={formatStatNumber(sellerProducts.length)}
+              color={PRIMARY_COLOR}
+              icon="store-front-outlined"
+            />
+          </View>
+          <FlatList
+            data={sellerProducts}
+            keyExtractor={item => item.productId}
+            renderItem={renderProductItem}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ListHeaderComponent={
+              <ProductListHeader
+                count={sellerProducts.length}
+                onAdd={handleAddNew}
+              />
+            }
+            ListEmptyComponent={<ProductEmptyState onAdd={handleAddNew} />}
+          />
+        </>
+      )}
     </ScrollView>
   );
 };
@@ -711,6 +756,7 @@ export const SalesScreen = () => {
   const [topBuyersProfiles, setTopBuyersProfiles] = useState<TopBuyerProfile[]>(
     [],
   );
+  const hasProducts = sellerSales.length > 0;
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonthIndex = now.getMonth();
@@ -812,87 +858,109 @@ export const SalesScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.statusRowB}>
-        <StatusCardMini
-          label="Total Generated Income"
-          count={totalIncome}
-          color="#FF9800"
-          icon="diamond-outlined"
-        />
-        <StatusCardMini
-          label="Available For Payout"
-          count={currentBalance}
-          color="#4CAF50"
-          icon="diamond-outlined"
-        />
-      </View>
-      <View style={styles.graphCard}>
-        <View style={styles.graphHeader}>
-          <Text style={styles.chartTitle}>Revenue Trend</Text>
-          <CurrencyDisplay value={monthlyStats.total} size="medium" />
-        </View>
-        <View style={styles.dropdownRow}>
-          <View style={styles.pickerContainer}>
-            <Text style={styles.pickerLabel}>Year</Text>
-            <RNPickerSelect
-              onValueChange={value => setSelectedYear(value)}
-              items={yearItems}
-              value={selectedYear}
-              style={pickerSelectStyles}
-              useNativeAndroidPickerStyle={false}
-            />
-          </View>
-          <View style={styles.pickerContainer}>
-            <Text style={styles.pickerLabel}>Month</Text>
-            <RNPickerSelect
-              onValueChange={value => setSelectedMonth(value)}
-              items={availableMonths}
-              value={selectedMonth}
-              style={pickerSelectStyles}
-              useNativeAndroidPickerStyle={false}
-            />
-          </View>
-        </View>
-        <View style={{ height: 120 }}>
-          <LineGraph trend={monthlyStats.trend as 'up' | 'down'} />
-        </View>
-      </View>
-      <Text style={styles.sectionTitle}>Your Top Customers</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.buyerScroll}
-      >
-        {topBuyersProfiles.map(buyer => (
+      {!hasProducts ? (
+        <View style={styles.emptyStateCard}>
+          <MaterialIcons
+            name="add-shopping-cart"
+            size={45}
+            color={PRIMARY_COLOR}
+          />
+          <Text style={styles.emptyStateTitle}>Start Selling</Text>
+          <Text style={styles.emptyStateSub}>
+            You haven't uploaded any products yet.
+          </Text>
           <TouchableOpacity
-            key={buyer.uid}
-            style={styles.buyerCard}
-            onPress={() =>
-              navigation.navigate('Profile', {
-                identifier: buyer.uid,
-              })
-            }
+            style={styles.addBtnSmall}
+            onPress={() => navigation.navigate('CreateProduct')}
           >
-            <UserAvatar
-              profilePic={buyer.profilePic}
-              firstName={buyer.firstname}
-              lastName={buyer.lastname}
-              style={styles.avatar}
-            />
-            <UserIdentity
-              firstname={buyer.firstname}
-              lastname={buyer.lastname}
-              tier={buyer?.tier || 'free'}
-              organizationName={buyer.organizationName}
-              size="small"
-              containerStyle={{ marginTop: 8 }}
-            />
-            <View style={styles.spentText}>
-              <CurrencyDisplay value={buyer.totalSpent} size="medium" />
-            </View>
+            <Text style={styles.addBtnText}>Upload First Product</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        </View>
+      ) : (
+        <>
+          <View style={styles.statusRowB}>
+            <StatusCardMini
+              label="Total Generated Income"
+              count={totalIncome}
+              color="#FF9800"
+              icon="diamond-outlined"
+            />
+            <StatusCardMini
+              label="Available For Payout"
+              count={currentBalance}
+              color="#4CAF50"
+              icon="diamond-outlined"
+            />
+          </View>
+          <View style={styles.graphCard}>
+            <View style={styles.graphHeader}>
+              <Text style={styles.chartTitle}>Revenue Trend</Text>
+              <CurrencyDisplay value={monthlyStats.total} size="medium" />
+            </View>
+            <View style={styles.dropdownRow}>
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Year</Text>
+                <RNPickerSelect
+                  onValueChange={value => setSelectedYear(value)}
+                  items={yearItems}
+                  value={selectedYear}
+                  style={pickerSelectStyles}
+                  useNativeAndroidPickerStyle={false}
+                />
+              </View>
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Month</Text>
+                <RNPickerSelect
+                  onValueChange={value => setSelectedMonth(value)}
+                  items={availableMonths}
+                  value={selectedMonth}
+                  style={pickerSelectStyles}
+                  useNativeAndroidPickerStyle={false}
+                />
+              </View>
+            </View>
+            <View style={{ height: 120 }}>
+              <LineGraph trend={monthlyStats.trend as 'up' | 'down'} />
+            </View>
+          </View>
+          <Text style={styles.sectionTitle}>Your Top Customers</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.buyerScroll}
+          >
+            {topBuyersProfiles.map(buyer => (
+              <TouchableOpacity
+                key={buyer.uid}
+                style={styles.buyerCard}
+                onPress={() =>
+                  navigation.navigate('Profile', {
+                    identifier: buyer.uid,
+                  })
+                }
+              >
+                <UserAvatar
+                  profilePic={buyer.profilePic}
+                  firstName={buyer.firstname}
+                  lastName={buyer.lastname}
+                  style={styles.avatar}
+                />
+                <UserIdentity
+                  firstname={buyer.firstname}
+                  lastname={buyer.lastname}
+                  tier={buyer?.tier || 'free'}
+                  organizationName={buyer.organizationName}
+                  size="small"
+                  containerStyle={{ marginTop: 8 }}
+                />
+                <View style={styles.spentText}>
+                  <CurrencyDisplay value={buyer.totalSpent} size="medium" />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
     </ScrollView>
   );
 };
