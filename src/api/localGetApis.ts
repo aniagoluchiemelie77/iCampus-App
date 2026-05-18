@@ -500,3 +500,29 @@ export const fetchUserReviewsAPI = async () => {
     return { success: false, data: [], message: 'Network error fetching reviews' };
   }
 };
+export const fetchPayoutHistoryAPI = async () => {
+  try {
+    const url = `${baseUrl}payouts/fetch-history`; 
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch payout history',
+      };
+    }
+    return {
+      success: response.ok,
+      data: result.data || [],
+      message: result.message,
+    };
+  } catch (error) {
+    return { success: false, data: [], message: 'Network error fetching payouts' };
+  }
+};

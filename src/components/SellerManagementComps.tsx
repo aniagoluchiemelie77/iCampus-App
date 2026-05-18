@@ -8,21 +8,26 @@ import {
   FlatList,
   RefreshControl,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppDataContext } from './EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
-import { ProductSale, UserTier, Product } from '../types/firebase';
+import { ProductSale, UserTier, Product, Payout } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
-import { searchUsersByUid } from '../api/localGetApis';
+import { searchUsersByUid, fetchPayoutHistoryAPI } from '../api/localGetApis';
+import { requestPayoutAPI } from '../api/localPostApis';
 import { UserAvatar } from './UserAvatar';
+import { IcashPinOrFingerprintVerifyModal } from './iCashPinOrFingerprintVerifyComponent';
 import { UserIdentity } from './UserIdentity';
 import { useNavigation } from '@react-navigation/native';
 import RNPickerSelect from 'react-native-picker-select';
+import moment from 'moment';
 import Svg, {
   Polyline,
   Defs,
@@ -533,7 +538,146 @@ export const ProductList = () => {
   );
 };
 export const PayoutView = () => {
-  return <Text>PayoutView</Text>;
+  const { currentUser } = useAppDataContext();
+  const [history, setHistory] = useState<Payout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPinVisible, setIsPinVisible] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const navigation = useNavigation<any>();
+
+  const currentBalance = currentUser?.pendingSalesBalance || 0;
+  const isVerified =
+    (currentUser?.isVerified && currentUser?.twoFactorEnabled) || false;
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    const res = await fetchPayoutHistoryAPI();
+    if (res.success) setHistory(res.data);
+    setLoading(false);
+  };
+
+  const handleWithdraw = async () => {
+    if (!isVerified) {
+      Alert.alert(
+        'Verification Required',
+        'Your account must be verified and 2 factor authentification enabled...',
+      );
+      return;
+    }
+    if (currentBalance < 5) {
+      Alert.alert('Low Balance', 'Minimum payout amount is 5.00 iCash');
+      return;
+    }
+    setIsPinVisible(true);
+  };
+  const executePayout = async () => {
+    setIsPinVisible(false);
+    setRequesting(true);
+    const res = await requestPayoutAPI(currentBalance);
+    if (res.success) {
+      Alert.alert('Success', 'Payout processed successfully!');
+      loadHistory();
+    } else {
+      Alert.alert('Error', res.message);
+    }
+    setRequesting(false);
+  };
+  const renderHistoryItem = (item: Payout) => (
+    <View style={styles.historyCard}>
+      <View style={styles.historyInfo}>
+        <Text style={styles.historyMethod}>
+          {item.method || 'Internal Transfer'}
+        </Text>
+        <Text style={styles.historyDate}>
+          {moment(item.createdAt).format('MMM DD, YYYY • HH:mm')}
+        </Text>
+        <Text style={styles.refText}>{item.reference}</Text>
+      </View>
+      <View style={styles.historyRight}>
+        <CurrencyDisplay value={item.amount} size="small" />
+        <Text style={styles.statusBadge}>{item.status}</Text>
+      </View>
+    </View>
+  );
+  const renderHeader = () => (
+    <View style={styles.balanceCard}>
+      <Text style={styles.balanceLabel}>Available for Payout</Text>
+      <CurrencyDisplay value={currentBalance} size="large" />
+      {!isVerified ? (
+        <>
+          <Text style={styles.warningText}>
+            Verification and 2-factor authentication is required for payout
+          </Text>
+          <TouchableOpacity
+            style={styles.verifyBtn}
+            onPress={() => navigation.navigate('PersonaVerify')}
+          >
+            <Text style={styles.verifyBtnText}>Verify Identity</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.withdrawBtn,
+            (currentBalance <= 0 || requesting) && styles.disabledBtn,
+          ]}
+          onPress={handleWithdraw}
+          disabled={currentBalance <= 0 || requesting}
+        >
+          {requesting ? (
+            <ActivityIndicator color={PRIMARY_COLOR} />
+          ) : (
+            <>
+              <MaterialIcons
+                name="account-balance-wallet-outlined"
+                size={20}
+                color={PRIMARY_COLOR}
+              />
+              <Text style={styles.withdrawBtnText}>Withdraw Funds</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+      <Text style={styles.sectionTitleInside}>Payout History</Text>
+    </View>
+  );
+  return (
+    <>
+      <FlatList
+        data={history}
+        keyExtractor={item => item.payoutId}
+        renderItem={({ item }) => renderHistoryItem(item)}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          !loading ? (
+            <EmptyState
+              iconName="history"
+              title="No Payouts Yet"
+              subtitle="Your processed withdrawals will appear here."
+            />
+          ) : (
+            <ActivityIndicator
+              style={{ marginTop: 20 }}
+              color={PRIMARY_COLOR}
+              size="small"
+            />
+          )
+        }
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
+      <IcashPinOrFingerprintVerifyModal
+        navigation={navigation}
+        isVisible={isPinVisible}
+        onClose={() => setIsPinVisible(false)}
+        onSuccess={executePayout}
+        title="Confirm Payout"
+      />
+    </>
+  );
 };
 export const SalesScreen = () => {
   const { sellerSales, currentUser } = useAppDataContext();
@@ -1171,6 +1315,118 @@ const styles = StyleSheet.create({
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  listContainer: {
+    padding: 16,
+    backgroundColor: '#F8F9FB', // Light gray background
+    paddingBottom: 40,
+  },
+  balanceCard: {
+    backgroundColor: '#fadccc',
+    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 8,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  balanceLabel: {
+    color: '#222',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  withdrawBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  withdrawBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  verifyBtn: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 15,
+    alignContent: 'center',
+  },
+  verifyBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  warningText: {
+    color: PRIMARY_COLOR,
+    fontSize: 12,
+    textAlign: 'center',
+    marginVertical: 15,
+    paddingHorizontal: 20,
+    lineHeight: 18,
+    opacity: 0.9,
+  },
+  // History Items
+  sectionTitleInside: {
+    alignSelf: 'flex-start',
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 30,
+  },
+  historyCard: {
+    backgroundColor: '#fadccc',
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyMethod: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#222',
+  },
+  historyDate: {
+    fontSize: 12,
+    color: '#2222',
+    marginTop: 4,
+  },
+  refText: {
+    fontSize: 9,
+    color: PRIMARY_COLOR,
+    fontFamily: 'monospace',
+    marginTop: 4,
+  },
+  historyRight: {
+    alignItems: 'flex-end',
+  },
+  statusBadge: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#2222',
+    marginTop: 6,
+    overflow: 'hidden',
   },
 });
 

@@ -23,6 +23,17 @@ export interface CartItem {
   selectedColor?: string; 
   selectedSize?: string;  
 }
+export interface Payout
+  {
+    payoutId: string;
+    sellerUid: string;
+    amount: number;
+    status: "processing" | "completed" | "failed" | "cancelled";
+    method: string;
+    reference: string;
+    createdAt: Date;
+  }
+;
 export interface User {
   uid: string;
   bio?: string;
