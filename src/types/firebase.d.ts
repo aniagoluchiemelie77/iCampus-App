@@ -86,7 +86,7 @@ export interface User {
   coursesTeaching?: Course['courseId'];
   cart?: CartItem[];
   favorites?: string[];
-  purchaseHistory: Order['orderId']; 
+  purchaseHistory?: Order['orderId']; 
   salesHistory?: Order['orderId'];
   userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
   secondSemesterUnits?: string,

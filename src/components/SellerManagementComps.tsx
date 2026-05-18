@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Toast from 'react-native-toast-message';
 import { useAppDataContext } from './EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
@@ -28,6 +29,8 @@ import { UserIdentity } from './UserIdentity';
 import { useNavigation } from '@react-navigation/native';
 import RNPickerSelect from 'react-native-picker-select';
 import moment from 'moment';
+import { useDispatch } from 'react-redux';
+import { setUser } from './UserSlice';
 import Svg, {
   Polyline,
   Defs,
@@ -544,6 +547,7 @@ export const PayoutView = () => {
   const [isPinVisible, setIsPinVisible] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const navigation = useNavigation<any>();
+  const dispatch = useDispatch();
 
   const currentBalance = currentUser?.pendingSalesBalance || 0;
   const isVerified =
@@ -558,7 +562,6 @@ export const PayoutView = () => {
     if (res.success) setHistory(res.data);
     setLoading(false);
   };
-
   const handleWithdraw = async () => {
     if (!isVerified) {
       Alert.alert(
@@ -578,10 +581,33 @@ export const PayoutView = () => {
     setRequesting(true);
     const res = await requestPayoutAPI(currentBalance);
     if (res.success) {
-      Alert.alert('Success', 'Payout processed successfully!');
+      dispatch(
+        setUser({ ...currentUser, pointsBalance: res.newPointsBalance }),
+      );
+      Toast.show({
+        type: 'success',
+        text1: 'Fetch Error',
+        text2: res.message || 'Payout processed successfully',
+      });
       loadHistory();
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'PayoutSuccess',
+            params: {
+              amount: currentBalance,
+              transactionId: res.transactionId || 'N/A',
+            },
+          },
+        ],
+      });
     } else {
-      Alert.alert('Error', res.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Transaction Error',
+        text2: res.message || 'An unexpected error occurred',
+      });
     }
     setRequesting(false);
   };

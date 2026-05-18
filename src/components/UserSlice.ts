@@ -22,8 +22,6 @@ const initialState: User = {
   userToken: '',
   tokenCreatedAt: '',
   profilePic: [],
-  coursesEnrolled: [],
-  coursesTeaching: [],
 };
 const userSlice = createSlice({
   name: 'user',
@@ -71,14 +69,8 @@ const userSlice = createSlice({
         state.recoveryEmails = action.payload.recoveryEmails;
       }
     },
-    updateCoursesEnrolled(state, action: PayloadAction<string[]>) {
-      state.coursesEnrolled = action.payload;
-    },
-    updateCoursesTeaching(state, action: PayloadAction<string[]>) {
-      state.coursesTeaching = action.payload;
-    },
 
   },
 });
-export const { setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateCoursesEnrolled, updateEmailData, updateCoursesTeaching, updateUserSessions, updateBlockedUsers} = userSlice.actions;
+export const { setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, updateBlockedUsers} = userSlice.actions;
 export default userSlice.reducer;

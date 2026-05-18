@@ -1009,6 +1009,7 @@ export const requestPayoutAPI = async (amount: number) => {
     return {
       success: response.ok,
       newPointsBalance: result.newPointsBalance,
+      transactionId: result.transactionId,
       message: result.message,
     };
   } catch (error) {
