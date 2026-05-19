@@ -213,6 +213,14 @@ export interface Product {
   favCount: number;
   isAvailable: boolean;
   createdAt: string;
+  niche:
+      "Electronics" |
+      "Courses" |
+      "Documents" |
+      "Fashion" |
+      "Stationery" |
+      "Snacks and Deserts" |
+      "Food";
 }
 export interface ProductSale {
   sellerId: string;

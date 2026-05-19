@@ -3,7 +3,10 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
-import {CartItem} from '../types/firebase'
+import {CartItem} from '../types/firebase';
+import {
+  Platform
+} from 'react-native';
 
 const token = await AsyncStorage.getItem('accessToken');
 const handleTransactionError = (error: any, title: string) => {
@@ -1014,5 +1017,48 @@ export const requestPayoutAPI = async (amount: number) => {
     };
   } catch (error) {
     return { success: false, message: 'Network error during payout' };
+  }
+};
+export const uploadLessonVideoAPI = async (fileUri: string, fileName: string, fileType: string) => {
+  try {
+    const url = `${baseUrl}users/lecturers/class/upload-video`;
+    const formData = new FormData();
+    const cleanUri = Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri;
+    formData.append('video', {
+      uri: cleanUri,
+      name: fileName,
+      type: fileType,
+    } as any);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to complete video verification process.',
+        data: null,
+      };
+    }
+
+    return {
+      success: true,
+      message: result.message,
+      data: result.data, // Structure containing permanentUrl and verification status
+    };
+  } catch (error) {
+    console.error('Multipart upload network connection failure:', error);
+    return { 
+      success: false, 
+      message: 'Network connection failure while transmitting media file.', 
+      data: null 
+    };
   }
 };
