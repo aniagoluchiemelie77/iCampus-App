@@ -430,12 +430,6 @@ export const ProductList = () => {
       (item.amountInStock ?? 0) > 0 &&
       (item.amountInStock ?? 0) < 5;
     const isOutOfStock = isPhysical && item.amountInStock === 0;
-    const avgRating =
-      item.ratings && item.ratings.length > 0
-        ? (
-            item.ratings.reduce((s, r) => s + r.score, 0) / item.ratings.length
-          ).toFixed(1)
-        : 'N/A';
 
     return (
       <TouchableOpacity style={styles.card}>
@@ -510,23 +504,32 @@ export const ProductList = () => {
           <View style={styles.statsFooter}>
             <View style={styles.statItem}>
               <MaterialIcons
-                name="visibility-outlined"
-                size={14}
-                color={PRIMARY_COLOR_TINT}
-              />
-              <Text style={styles.statLabel}>{item.impressions || 0}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <MaterialIcons
                 name="shopping-cart-outlined"
                 size={14}
                 color={PRIMARY_COLOR_TINT}
               />
               <Text style={styles.statLabel}>{item.sales || 0}</Text>
             </View>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() =>
+                navigation.navigate('CreateProduct', {
+                  product: item,
+                })
+              }
+            >
+              <MaterialIcons
+                name="edit-outlined"
+                size={17}
+                color={PRIMARY_COLOR}
+              />
+            </TouchableOpacity>
             <View style={styles.statItem}>
-              <MaterialIcons name="star" size={14} color={PRIMARY_COLOR_TINT} />
-              <Text style={styles.statLabel}>{avgRating}</Text>
+              <MaterialIcons
+                name="delete-outlined"
+                size={17}
+                color={PRIMARY_COLOR}
+              />
             </View>
           </View>
         </View>

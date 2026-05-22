@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import {
   UIManager,
   Image,
   Alert,
-  Switch,
   ActivityIndicator,
   PermissionsAndroid,
+  Modal,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import ImagePicker from 'react-native-image-crop-picker';
@@ -25,6 +25,8 @@ import {
   PRIMARY_COLOR_TINT_MAIN,
 } from '../assets/styles/colors';
 import DropDownPicker from 'react-native-dropdown-picker';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
 import {
   Product,
   DropOffStation,
@@ -32,7 +34,8 @@ import {
   GeolocationError,
 } from '../types/firebase';
 import Video from 'react-native-video';
-import { uploadLessonVideoAPI } from '../api/localPostApis';
+import { useNavigation } from '@react-navigation/native';
+import { uploadLessonVideoAPI, saveProductApiCall } from '../api/localPostApis';
 import { fetchDropOffStationsAPI } from '../api/localGetApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
@@ -44,15 +47,16 @@ interface VideoDurationExtractorProps {
   uri: string;
   onDurationExtracted: (duration: number) => void;
 }
-interface FormState {
-  price: string;
-  category: ItemCategory;
-}
 interface StepHeaderProps {
   number: number;
   title: string;
   currentStep: number;
   toggleStep: (step: number) => void;
+}
+interface PriceSectionProps {
+  userCountry?: string;
+  formInputs: CompleteFormInputs;
+  setFormInputs: React.Dispatch<React.SetStateAction<CompleteFormInputs>>;
 }
 type UIContentItem = NonNullable<
   Product['courseDetails']
@@ -63,6 +67,53 @@ type UIContentItem = NonNullable<
     | 'Pending Review'
     | 'Flagged/Rejected'
     | 'Failed';
+};
+export interface CompleteFormInputs {
+  title: string;
+  description: string;
+  price: string;
+  niche: string;
+  productType: 'physical' | 'file' | 'course';
+  physicalDetails: {
+    weightKg: string;
+    inStock: string;
+    sellerGateways: ('drop_off' | 'home_delivery')[];
+    dropOffAddress: DropOffStation[];
+    colors: string[];
+    sizes: string[];
+  };
+  courseDetails: {
+    additionalLecturersRaw: string;
+    content: UIContentItem[];
+  };
+  fileDetails: {
+    fileName: string;
+    fileSizeInMB: number;
+    fileFormat: string;
+    fileUrl: string;
+    isUploading: boolean;
+    rawBlobOrFile?: any;
+  };
+  lessons: {
+    title: string;
+    videoUrl: string;
+    duration: number;
+    isFreePreview: boolean;
+  }[];
+}
+const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
+  Documents: 'file',
+  Templates: 'file',
+  'Software Assets': 'file',
+  Courses: 'course',
+  'Audio Resources': 'course',
+  Electronics: 'physical',
+  Fashion: 'physical',
+  Stationery: 'physical',
+  'Snacks and Deserts': 'physical',
+  Food: 'physical',
+  'Health & Beauty': 'physical',
+  Crafts: 'physical',
 };
 const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
   file: 100,
@@ -94,8 +145,11 @@ export const VideoDurationExtractor = ({
     />
   );
 };
-export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
-  const [form, setForm] = useState<FormState>({ price: '', category: 'file' });
+export default function PriceSectionComponent({
+  userCountry = 'Nigeria',
+  formInputs,
+  setFormInputs,
+}: PriceSectionProps) {
   const [exchangeDetails, setExchangeDetails] = useState<{
     rate: number;
     symbol: string;
@@ -128,10 +182,10 @@ export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
 
   const ICASH_TO_USD_ANCHOR = 0.74;
   const localRatePerIcash = exchangeDetails.rate * ICASH_TO_USD_ANCHOR;
-  const icashEntered = parseFloat(form.price) || 0;
 
-  // Dynamic pricing caps validation logic
-  const maxAllowedIcash = CATEGORY_MAX_PRICES[form.category];
+  // Bind calculations directly to formInputs instead of local state
+  const icashEntered = parseFloat(formInputs.price) || 0;
+  const maxAllowedIcash = CATEGORY_MAX_PRICES[formInputs.productType];
   const isOverpriced = icashEntered > maxAllowedIcash;
 
   const rawConvertedAmount = icashEntered * localRatePerIcash;
@@ -148,19 +202,18 @@ export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
         style={[styles.input, isOverpriced && styles.inputWarning]}
         placeholder="0.00"
         keyboardType="numeric"
-        value={form.price}
-        onChangeText={text => setForm(prev => ({ ...prev, price: text }))}
+        value={formInputs.price} // Read directly from master state
+        onChangeText={
+          text => setFormInputs(prev => ({ ...prev, price: text })) // Write directly to master state
+        }
       />
-
-      {/* Dynamic Regulator Error Text */}
       {isOverpriced && (
         <Text style={styles.warningText}>
-          ⚠️ This exceeds the maximum limit of {maxAllowedIcash} iCash allowed
-          for a {form.category}.
+          This exceeds the maximum limit of {maxAllowedIcash} iCash allowed for
+          a {formInputs.productType}.
         </Text>
       )}
 
-      {/* Secondary Local Currency Equivalent Input (Non-editable) */}
       <Text style={styles.label}>
         Estimated Local Value ({exchangeDetails.code})
       </Text>
@@ -168,14 +221,14 @@ export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
         <Text style={styles.currencyPrefix}>{exchangeDetails.symbol}</Text>
         <TextInput
           style={[styles.input, styles.disabledInput]}
-          value={form.price ? formattedLocalCurrency : '0.00'}
+          value={formInputs.price ? formattedLocalCurrency : '0.00'}
           editable={false}
           selectTextOnFocus={false}
         />
         {exchangeDetails.loading && (
           <ActivityIndicator
             size="small"
-            color="#007AFF"
+            color={PRIMARY_COLOR}
             style={styles.spinner}
           />
         )}
@@ -232,11 +285,43 @@ const StepHeader = ({
     />
   </TouchableOpacity>
 );
-export const CreateProductScreen = () => {
+export const CreateProductScreen = ({ route }: any) => {
   const user = useAppSelector(state => state.user);
+  const { product: existingProduct } = route.params;
+  const navigation = useNavigation<any>();
   const [activeStep, setActiveStep] = useState(1);
   const [nicheOpen, setNicheOpen] = useState(false);
   const [nicheValue, setNicheValue] = useState(null);
+  const initialFormInputs = useMemo<CompleteFormInputs>(
+    () => ({
+      title: '',
+      description: '',
+      price: '',
+      niche: '',
+      productType: 'physical',
+      lessons: [],
+      physicalDetails: {
+        weightKg: '',
+        inStock: '',
+        sellerGateways: ['drop_off'],
+        dropOffAddress: [],
+        colors: [],
+        sizes: [],
+      },
+      courseDetails: {
+        additionalLecturersRaw: '',
+        content: [],
+      },
+      fileDetails: {
+        fileName: '',
+        fileSizeInMB: 0,
+        fileFormat: '',
+        fileUrl: '',
+        isUploading: false,
+      },
+    }),
+    [],
+  );
   const [nicheItems, setNicheItems] = useState([
     { label: 'Study Guides & Documents', value: 'Documents', group: 'file' },
     { label: 'Checklists & Templates', value: 'Templates', group: 'file' },
@@ -286,57 +371,13 @@ export const CreateProductScreen = () => {
     uri: string;
     index: number;
   } | null>(null);
-  const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
-    Courses: 'course',
-    Documents: 'file',
-    Electronics: 'physical',
-    Fashion: 'physical',
-    Stationery: 'physical',
-    'Snacks and Deserts': 'physical',
-    Food: 'physical',
-  };
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const productType: Product['type'] = nicheValue
     ? nicheToTypeMap[nicheValue as Product['niche']]
     : 'physical';
-  console.log(productType);
-  const [physicalDetails, setPhysicalDetails] = useState<{
-    weightKg: string;
-    inStock: string;
-    sellerGateways: ('drop_off' | 'home_delivery')[];
-    dropOffAddress: DropOffStation[];
-    colors: string[];
-    sizes: string[];
-  }>({
-    weightKg: '',
-    inStock: '',
-    sellerGateways: ['drop_off'],
-    dropOffAddress: [],
-    colors: [],
-    sizes: [],
-  });
-  const [courseDetails, setCourseDetails] = useState<{
-    additionalLecturersRaw: string;
-    content: UIContentItem[];
-  }>({
-    additionalLecturersRaw: '',
-    content: [],
-  });
-  const [fileDetails, setFileDetails] = useState<{
-    fileName: string;
-    fileSizeInMB: number;
-    fileFormat: string;
-    fileUrl: string;
-    hasPassword?: boolean;
-    passwordProtectionKey?: string;
-    isUploading: boolean;
-  }>({
-    fileName: '',
-    fileSizeInMB: 0,
-    fileFormat: '',
-    fileUrl: '',
-    hasPassword: false,
-    isUploading: false,
-  });
+  const [formInputs, setFormInputs] =
+    useState<CompleteFormInputs>(initialFormInputs);
   const toggleStep = (step: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveStep(activeStep === step ? 0 : step);
@@ -350,7 +391,15 @@ export const CreateProductScreen = () => {
     })
       .then(selectedAssets => {
         const selectedUris = selectedAssets.map(asset => asset.path);
-        setImages(prev => [...prev, ...selectedUris].slice(0, 5));
+
+        setFormInputs(prev => {
+          const currentThumbnails = (prev as any).thumbnails || [];
+
+          return {
+            ...prev,
+            thumbnails: [...currentThumbnails, ...selectedUris].slice(0, 5),
+          } as any;
+        });
       })
       .catch(err => {
         if (err.message !== 'User cancelled image selection') {
@@ -367,42 +416,44 @@ export const CreateProductScreen = () => {
         type: [DocumentPicker.types.video],
         copyTo: 'cachesDirectory',
       });
+
       const targetUri = response.fileCopyUri || response.uri;
       const fileName = response.name || `lesson-video-${Date.now()}.mp4`;
       const fileType = response.type || 'video/mp4';
-      setLessons(prev => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], videoUrl: targetUri };
-        return updated;
-      });
 
-      // 2. Trigger off-screen structural frame duration logging locally
+      // 1. Set local cache URI and trigger temporary state
+      setFormInputs(prev => {
+        const updatedLessons = [...(prev.lessons || [])];
+        if (updatedLessons[index]) {
+          updatedLessons[index] = {
+            ...updatedLessons[index],
+            videoUrl: targetUri,
+            isUploading: true,
+          } as any;
+        }
+        return { ...prev, lessons: updatedLessons };
+      });
       setActiveExtractingUri({ uri: targetUri, index });
-
-      // 3. Initiate background upload verification pipeline
-      setLessons(prev => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], isUploading: true }; // UI indicator
-        return updated;
-      });
-
       const uploadResult = await uploadLessonVideoAPI(
         targetUri,
         fileName,
         fileType,
       );
-
-      setLessons(prev => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          isUploading: false,
-          videoUrl: uploadResult.success ? uploadResult.data.permanentUrl : '',
-          verificationStatus: uploadResult.success
-            ? uploadResult.data.status
-            : 'Failed',
-        };
-        return updated;
+      setFormInputs(prev => {
+        const updatedLessons = [...(prev.lessons || [])];
+        if (updatedLessons[index]) {
+          updatedLessons[index] = {
+            ...updatedLessons[index],
+            isUploading: false,
+            videoUrl: uploadResult.success
+              ? uploadResult.data.permanentUrl
+              : '',
+            verificationStatus: uploadResult.success
+              ? uploadResult.data.status
+              : 'Failed',
+          } as any;
+        }
+        return { ...prev, lessons: updatedLessons };
       });
 
       if (!uploadResult.success) {
@@ -426,24 +477,37 @@ export const CreateProductScreen = () => {
       const extension = rawName.split('.').pop()?.toUpperCase() || 'UNKNOWN';
       const sizeInBytes = response.size || 0;
       const sizeInMB = parseFloat((sizeInBytes / (1024 * 1024)).toFixed(2));
-      setFileDetails(prev => ({
-        ...prev,
-        fileName: rawName,
-        fileSizeInMB: sizeInMB,
-        fileFormat: extension,
-        isUploading: true,
-      }));
+      setFormInputs(
+        prev =>
+          ({
+            ...prev,
+            fileDetails: {
+              ...(prev as any).fileDetails,
+              fileName: rawName,
+              fileSizeInMB: sizeInMB,
+              fileFormat: extension,
+              isUploading: true,
+            },
+          } as any),
+      );
+
       const uploadResult = await uploadFileToFirebaseClient(
         targetUri,
         'digital-products',
       );
-      setFileDetails(prev => ({
-        ...prev,
-        isUploading: false,
-        fileUrl: uploadResult.success
-          ? uploadResult.data?.permanentUrl || ''
-          : '',
-      }));
+      setFormInputs(
+        prev =>
+          ({
+            ...prev,
+            fileDetails: {
+              ...(prev as any).fileDetails,
+              isUploading: false,
+              fileUrl: uploadResult.success
+                ? uploadResult.data?.permanentUrl || ''
+                : '',
+            },
+          } as any),
+      );
 
       if (!uploadResult.success) {
         Alert.alert('Upload Failed', uploadResult.message);
@@ -469,7 +533,13 @@ export const CreateProductScreen = () => {
 
         const uri = response.assets?.[0]?.uri;
         if (uri) {
-          setCourseThumbnail(uri);
+          setFormInputs(
+            prev =>
+              ({
+                ...prev,
+                thumbnails: uri,
+              } as any),
+          );
         }
       },
     );
@@ -498,6 +568,167 @@ export const CreateProductScreen = () => {
       }
     }
     return false;
+  };
+  const handleAddColor = () => {
+    const cleanInput = colorInput.trim();
+    if (!cleanInput) return;
+
+    setFormInputs(prev => {
+      const currentColors = prev.physicalDetails?.colors || [];
+      const updatedColors = currentColors.includes(cleanInput)
+        ? currentColors
+        : [...currentColors, cleanInput];
+
+      return {
+        ...prev,
+        physicalDetails: {
+          ...prev.physicalDetails,
+          colors: updatedColors,
+        },
+      };
+    });
+
+    setColorInput('');
+  };
+  const handleAddSize = () => {
+    const cleanInput = sizeInput.trim();
+    if (!cleanInput) return;
+
+    setFormInputs(prev => {
+      // Safely fallback to an empty array if sizes is undefined
+      const currentSizes = prev.physicalDetails?.sizes || [];
+
+      const updatedSizes = currentSizes.includes(cleanInput)
+        ? currentSizes
+        : [...currentSizes, cleanInput];
+
+      return {
+        ...prev,
+        physicalDetails: {
+          ...prev.physicalDetails,
+          sizes: updatedSizes,
+        },
+      };
+    });
+
+    setSizeInput('');
+  };
+  const handlePublishProduct = async () => {
+    const productId = existingProduct?.productId || existingProduct?._id;
+    const isEditing = !!productId;
+
+    const {
+      title,
+      description,
+      price,
+      niche,
+      physicalDetails,
+      courseDetails,
+      fileDetails,
+    } = formInputs;
+
+    if (
+      !title.trim() ||
+      !description.trim() ||
+      !price ||
+      Number(price) <= 0 ||
+      !niche
+    ) {
+      Toast.show({
+        type: 'error',
+        text1: 'Missing Info',
+        text2:
+          'Please fill in all general vital fields (Title, Description, Price, and Niche).',
+      });
+      return;
+    }
+
+    // 2. Domain-Specific Validations
+    if (productType === 'physical') {
+      if (!physicalDetails?.inStock || Number(physicalDetails.inStock) < 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'Missing Info',
+          text2:
+            'Please specify valid stock availability for your physical product.',
+        });
+        return;
+      }
+    }
+
+    if (productType === 'file') {
+      // Only throw validation error if it is a new asset build without a file path tracking reference
+      if (!fileDetails?.rawBlobOrFile?.uri && !fileDetails?.fileUrl) {
+        Toast.show({
+          type: 'error',
+          text1: 'Missing Asset',
+          text2: 'Please attach the digital product file before publishing.',
+        });
+        return;
+      }
+    }
+
+    if (productType === 'course') {
+      if (!lessons || lessons.length === 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'Missing Content',
+          text2: 'Please add at least one lesson module to your course.',
+        });
+        return;
+      }
+    }
+
+    const formPayload = {
+      title: title.trim(),
+      description: description.trim(),
+      productType,
+      price: Number(price),
+      niche,
+      physicalDetails,
+      courseDetails,
+      fileDetails,
+      lessons,
+    };
+
+    try {
+      setIsSubmitting(true);
+      setUploadProgress(0);
+
+      const result = await saveProductApiCall(
+        formPayload,
+        productId,
+        progress => {
+          setUploadProgress(progress);
+        },
+      );
+
+      console.log('Product catalog update finalized:', result);
+      setIsSubmitting(false);
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'ProductPublishSuccess',
+            params: {
+              productName: formPayload.title,
+              productType: formPayload.productType,
+              isEditing: isEditing,
+            },
+          },
+        ],
+      });
+    } catch (error: any) {
+      setIsSubmitting(false);
+      console.error('Upload stalled or failed:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Failed',
+        text2:
+          error?.message ||
+          'Something went wrong while pushing assets to the server.',
+      });
+    }
   };
   useEffect(() => {
     const getNearbyStations = async () => {
@@ -539,6 +770,89 @@ export const CreateProductScreen = () => {
 
     getNearbyStations();
   }, []);
+  useEffect(() => {
+    const selectedNiche = formInputs.niche;
+
+    const computedType = selectedNiche
+      ? (nicheToTypeMap[
+          selectedNiche as keyof typeof nicheToTypeMap
+        ] as CompleteFormInputs['productType']) || 'physical'
+      : 'physical';
+
+    if (formInputs.productType !== computedType) {
+      setFormInputs(prev => {
+        const updated = { ...prev, productType: computedType };
+
+        if (computedType === 'file') {
+          updated.physicalDetails = {
+            weightKg: '',
+            inStock: '',
+            sellerGateways: ['drop_off'], // Matched your original default
+            dropOffAddress: [],
+            colors: [],
+            sizes: [],
+          };
+          updated.courseDetails = { additionalLecturersRaw: '', content: [] };
+          updated.lessons = [];
+        } else if (computedType === 'course') {
+          updated.physicalDetails = {
+            weightKg: '',
+            inStock: '',
+            sellerGateways: ['drop_off'], // Matched your original default
+            dropOffAddress: [],
+            colors: [],
+            sizes: [],
+          };
+          updated.fileDetails = {
+            fileName: '',
+            fileSizeInMB: 0,
+            fileFormat: '',
+            fileUrl: '',
+            isUploading: false,
+          };
+        } else if (computedType === 'physical') {
+          updated.courseDetails = { additionalLecturersRaw: '', content: [] };
+          updated.lessons = [];
+          updated.fileDetails = {
+            fileName: '',
+            fileSizeInMB: 0,
+            fileFormat: '',
+            fileUrl: '',
+            isUploading: false,
+          };
+        }
+
+        return updated;
+      });
+    }
+  }, [formInputs.niche, formInputs.productType]);
+  useEffect(() => {
+    if (existingProduct) {
+      setFormInputs({
+        // 1. Fallback to default fields first
+        ...initialFormInputs,
+
+        // 2. Spread the master product data fields (title, description, price, etc.)
+        ...existingProduct,
+
+        // 3. Deeply merge sub-objects so optional fields remain safe arrays/objects
+        physicalDetails: {
+          ...initialFormInputs.physicalDetails,
+          ...(existingProduct.physicalDetails || {}),
+        },
+        courseDetails: {
+          ...initialFormInputs.courseDetails,
+          ...(existingProduct.courseDetails || {}),
+        },
+        fileDetails: {
+          ...initialFormInputs.fileDetails,
+          ...(existingProduct.fileDetails || {}),
+        },
+        // Safely map arrays or default to empty lists
+        lessons: existingProduct.lessons || [],
+      });
+    }
+  }, [initialFormInputs, existingProduct]);
   return (
     <ScrollView
       style={styles.container}
@@ -558,16 +872,26 @@ export const CreateProductScreen = () => {
             <Text style={styles.label}>Product Title</Text>
             <TextInput
               style={styles.input}
+              value={formInputs.title}
+              onChangeText={text =>
+                setFormInputs(prev => ({ ...prev, title: text }))
+              }
               placeholder="e.g. Shoes, bags, wristwatch..."
               placeholderTextColor={PRIMARY_COLOR_TINT}
             />
+
             <Text style={styles.label}>Product Description</Text>
             <TextInput
               style={styles.bioInput}
               multiline
+              value={formInputs.description}
+              onChangeText={text =>
+                setFormInputs(prev => ({ ...prev, description: text }))
+              }
               placeholder="A brief description of your listing (optional)."
               placeholderTextColor={PRIMARY_COLOR_TINT}
             />
+
             <Text style={styles.label}>Niche (Category)</Text>
             <View style={{ zIndex: 2000 }}>
               <DropDownPicker
@@ -577,6 +901,11 @@ export const CreateProductScreen = () => {
                 setOpen={setNicheOpen}
                 setValue={setNicheValue}
                 setItems={setNicheItems}
+                onChangeValue={value => {
+                  if (value) {
+                    setFormInputs(prev => ({ ...prev, niche: value }));
+                  }
+                }}
                 placeholder="Select a category"
                 listMode="MODAL"
                 modalProps={{
@@ -606,7 +935,7 @@ export const CreateProductScreen = () => {
         />
         {activeStep === 2 && (
           <View style={styles.expandedContent}>
-            {productType !== 'course' ? (
+            {formInputs.productType !== 'course' ? (
               <View>
                 <TouchableOpacity
                   style={styles.uploadPlaceholder}
@@ -686,7 +1015,7 @@ export const CreateProductScreen = () => {
                 )}
                 <View style={styles.divider} />
                 <Text style={styles.miniLabel}>Lessons & Video Modules</Text>
-                {lessons.map((lesson, index) => (
+                {formInputs.lessons.map((lesson, index) => (
                   <View key={index} style={styles.lessonCard}>
                     <View style={styles.lessonHeaderRow}>
                       <Text style={styles.lessonNumberLabel}>
@@ -694,7 +1023,10 @@ export const CreateProductScreen = () => {
                       </Text>
                       <TouchableOpacity
                         onPress={() =>
-                          setLessons(prev => prev.filter((_, i) => i !== index))
+                          setFormInputs(prev => ({
+                            ...prev,
+                            lessons: prev.lessons.filter((_, i) => i !== index),
+                          }))
                         }
                       >
                         <MaterialIcons
@@ -710,11 +1042,17 @@ export const CreateProductScreen = () => {
                       placeholder="Lesson Title (e.g., Intro to Programming)"
                       value={lesson.title}
                       onChangeText={text => {
-                        const updated = [...lessons];
-                        updated[index].title = text;
-                        setLessons(updated);
+                        setFormInputs(prev => {
+                          const updatedLessons = [...prev.lessons];
+                          updatedLessons[index] = {
+                            ...updatedLessons[index],
+                            title: text,
+                          };
+                          return { ...prev, lessons: updatedLessons };
+                        });
                       }}
                     />
+
                     <View style={styles.lessonMetaRow}>
                       <TouchableOpacity
                         style={styles.videoAttachBtn}
@@ -731,16 +1069,22 @@ export const CreateProductScreen = () => {
                           {lesson.videoUrl ? 'Video Attached' : 'Upload Video'}
                         </Text>
                       </TouchableOpacity>
+
                       <TouchableOpacity
                         style={[
                           styles.previewToggle,
                           lesson.isFreePreview && styles.previewToggleActive,
                         ]}
                         onPress={() => {
-                          const updated = [...lessons];
-                          updated[index].isFreePreview =
-                            !updated[index].isFreePreview;
-                          setLessons(updated);
+                          setFormInputs(prev => {
+                            const updatedLessons = [...prev.lessons];
+                            updatedLessons[index] = {
+                              ...updatedLessons[index],
+                              isFreePreview:
+                                !updatedLessons[index].isFreePreview,
+                            };
+                            return { ...prev, lessons: updatedLessons };
+                          });
                         }}
                       >
                         <Text
@@ -758,15 +1102,18 @@ export const CreateProductScreen = () => {
                 <TouchableOpacity
                   style={styles.addLessonBtn}
                   onPress={() =>
-                    setLessons(prev => [
+                    setFormInputs(prev => ({
                       ...prev,
-                      {
-                        title: '',
-                        videoUrl: '',
-                        duration: 0,
-                        isFreePreview: false,
-                      },
-                    ])
+                      lessons: [
+                        ...prev.lessons,
+                        {
+                          title: '',
+                          videoUrl: '',
+                          duration: 0,
+                          isFreePreview: false,
+                        },
+                      ],
+                    }))
                   }
                 >
                   <MaterialIcons name="add" size={20} color={PRIMARY_COLOR} />
@@ -798,13 +1145,19 @@ export const CreateProductScreen = () => {
                       style={styles.input}
                       placeholder="0.5"
                       keyboardType="numeric"
-                      value={physicalDetails.weightKg}
-                      onChangeText={text =>
-                        setPhysicalDetails(prev => ({
+                      value={formInputs.physicalDetails.weightKg}
+                      onChangeText={text => {
+                        const cleanFloat = text
+                          .replace(/[^0-9.]/g, '')
+                          .replace(/(\..*?)\..*/g, '$1');
+                        setFormInputs(prev => ({
                           ...prev,
-                          weightKg: text,
-                        }))
-                      }
+                          physicalDetails: {
+                            ...prev.physicalDetails,
+                            weightKg: cleanFloat,
+                          },
+                        }));
+                      }}
                     />
                   </View>
 
@@ -813,11 +1166,18 @@ export const CreateProductScreen = () => {
                     <TextInput
                       style={styles.input}
                       placeholder="10"
-                      keyboardType="numeric"
-                      value={physicalDetails.inStock}
-                      onChangeText={text =>
-                        setPhysicalDetails(prev => ({ ...prev, inStock: text }))
-                      }
+                      keyboardType="number-pad"
+                      value={formInputs.physicalDetails.inStock}
+                      onChangeText={text => {
+                        const cleanInt = text.replace(/[^0-9]/g, '');
+                        setFormInputs(prev => ({
+                          ...prev,
+                          physicalDetails: {
+                            ...prev.physicalDetails,
+                            inStock: cleanInt,
+                          },
+                        }));
+                      }}
                     />
                   </View>
                 </View>
@@ -830,51 +1190,45 @@ export const CreateProductScreen = () => {
                       placeholder="e.g. Red, Blue, Matte Black"
                       value={colorInput}
                       onChangeText={setColorInput}
-                      onSubmitEditing={() => {
-                        if (!colorInput.trim()) return;
-                        setPhysicalDetails(prev => ({
-                          ...prev,
-                          colors: prev.colors.includes(colorInput.trim())
-                            ? prev.colors
-                            : [...prev.colors, colorInput.trim()],
-                        }));
-                        setColorInput('');
-                      }}
+                      onSubmitEditing={handleAddColor}
                     />
                     <TouchableOpacity
                       style={styles.addTagButton}
-                      onPress={() => {
-                        if (!colorInput.trim()) return;
-                        setPhysicalDetails(prev => ({
-                          ...prev,
-                          colors: prev.colors.includes(colorInput.trim())
-                            ? prev.colors
-                            : [...prev.colors, colorInput.trim()],
-                        }));
-                        setColorInput('');
-                      }}
+                      onPress={handleAddColor}
                     >
                       <Text style={styles.addTagButtonText}>Add</Text>
                     </TouchableOpacity>
                   </View>
                   <View style={styles.tagWrapper}>
-                    {physicalDetails.colors.map((color, index) => (
-                      <TouchableOpacity
-                        key={`color-${index}`}
-                        style={[
-                          styles.tagBadge,
-                          { backgroundColor: '#fadccc' },
-                        ]}
-                        onPress={() =>
-                          setPhysicalDetails(prev => ({
-                            ...prev,
-                            colors: prev.colors.filter(c => c !== color),
-                          }))
-                        }
-                      >
-                        <Text style={styles.tagText}>{color} ✕</Text>
-                      </TouchableOpacity>
-                    ))}
+                    {(formInputs.physicalDetails?.colors || []).map(
+                      (color, index) => (
+                        <TouchableOpacity
+                          key={`color-${index}`}
+                          style={[
+                            styles.tagBadge,
+                            { backgroundColor: '#fadccc' },
+                          ]}
+                          onPress={() =>
+                            setFormInputs((prev: any) => {
+                              // Type the parameter as any directly
+                              const currentColors =
+                                prev.physicalDetails?.colors || [];
+                              return {
+                                ...prev,
+                                physicalDetails: {
+                                  ...prev.physicalDetails,
+                                  colors: currentColors.filter(
+                                    (c: string) => c !== color,
+                                  ),
+                                },
+                              };
+                            })
+                          }
+                        >
+                          <Text style={styles.tagText}>{color} ✕</Text>
+                        </TouchableOpacity>
+                      ),
+                    )}
                   </View>
                   <Text style={[styles.label, { marginTop: 8 }]}>
                     Available Sizes (Optional)
@@ -885,48 +1239,45 @@ export const CreateProductScreen = () => {
                       placeholder="e.g. Medium, XL, 42, 10 inches"
                       value={sizeInput}
                       onChangeText={setSizeInput}
-                      onSubmitEditing={() => {
-                        if (!sizeInput.trim()) return;
-                        setPhysicalDetails(prev => ({
-                          ...prev,
-                          sizes: prev.sizes.includes(sizeInput.trim())
-                            ? prev.sizes
-                            : [...prev.sizes, sizeInput.trim()],
-                        }));
-                        setSizeInput('');
-                      }}
+                      onSubmitEditing={handleAddSize}
                     />
                     <TouchableOpacity
                       style={styles.addTagButton}
-                      onPress={() => {
-                        if (!sizeInput.trim()) return;
-                        setPhysicalDetails(prev => ({
-                          ...prev,
-                          sizes: prev.sizes.includes(sizeInput.trim())
-                            ? prev.sizes
-                            : [...prev.sizes, sizeInput.trim()],
-                        }));
-                        setSizeInput('');
-                      }}
+                      onPress={handleAddSize}
                     >
                       <Text style={styles.addTagButtonText}>Add</Text>
                     </TouchableOpacity>
                   </View>
                   <View style={styles.tagWrapper}>
-                    {physicalDetails.sizes.map((size, index) => (
-                      <TouchableOpacity
-                        key={`size-${index}`}
-                        style={styles.tagBadge}
-                        onPress={() =>
-                          setPhysicalDetails(prev => ({
-                            ...prev,
-                            sizes: prev.sizes.filter(s => s !== size),
-                          }))
-                        }
-                      >
-                        <Text style={styles.tagText}>{size}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    {(formInputs.physicalDetails?.sizes || []).map(
+                      (size, index) => (
+                        <TouchableOpacity
+                          key={`size-${index}`}
+                          style={[
+                            styles.tagBadge,
+                            { backgroundColor: '#e2f0d9' },
+                          ]}
+                          onPress={() =>
+                            setFormInputs((prev: any) => {
+                              // Typing 'prev' as any prevents any trailing syntax errors
+                              const currentSizes =
+                                prev.physicalDetails?.sizes || [];
+                              return {
+                                ...prev,
+                                physicalDetails: {
+                                  ...prev.physicalDetails,
+                                  sizes: currentSizes.filter(
+                                    (s: string) => s !== size,
+                                  ),
+                                },
+                              };
+                            })
+                          }
+                        >
+                          <Text style={styles.tagText}>{size} ✕</Text>
+                        </TouchableOpacity>
+                      ),
+                    )}
                   </View>
                 </View>
                 <Text style={styles.label}>Fulfillment / Delivery Options</Text>
@@ -934,27 +1285,36 @@ export const CreateProductScreen = () => {
                   How will the buyer receive this item? Select all that apply.
                 </Text>
                 <View style={styles.gatewayRow}>
+                  {/* Drop-off Station Chip */}
                   <TouchableOpacity
                     activeOpacity={0.8}
                     style={[
                       styles.gatewayChip,
-                      physicalDetails.sellerGateways.includes('drop_off') &&
-                        styles.activeChip,
+                      formInputs.physicalDetails.sellerGateways.includes(
+                        'drop_off',
+                      ) && styles.activeChip,
                     ]}
                     onPress={() => {
-                      setPhysicalDetails(prev => {
-                        const hasIt = prev.sellerGateways.includes('drop_off');
-                        const updated = hasIt
-                          ? prev.sellerGateways.filter(g => g !== 'drop_off')
-                          : [...prev.sellerGateways, 'drop_off'];
+                      setFormInputs(prev => {
+                        const currentGateways =
+                          prev.physicalDetails.sellerGateways;
+                        const hasIt = currentGateways.includes('drop_off');
+
+                        const updatedGateways = hasIt
+                          ? currentGateways.filter(g => g !== 'drop_off')
+                          : [...currentGateways, 'drop_off'];
 
                         return {
                           ...prev,
-                          sellerGateways: updated as (
-                            | 'drop_off'
-                            | 'home_delivery'
-                          )[],
-                          dropOffAddress: hasIt ? [] : prev.dropOffAddress,
+                          physicalDetails: {
+                            ...prev.physicalDetails,
+                            // Cast the array back to the expected specific type
+                            sellerGateways:
+                              updatedGateways as typeof currentGateways,
+                            dropOffAddress: hasIt
+                              ? []
+                              : prev.physicalDetails.dropOffAddress,
+                          },
                         };
                       });
                     }}
@@ -962,8 +1322,9 @@ export const CreateProductScreen = () => {
                     <Text
                       style={[
                         styles.chipText,
-                        physicalDetails.sellerGateways.includes('drop_off') &&
-                          styles.activeChipText,
+                        formInputs.physicalDetails.sellerGateways.includes(
+                          'drop_off',
+                        ) && styles.activeChipText,
                       ]}
                     >
                       Drop-off Station
@@ -973,26 +1334,28 @@ export const CreateProductScreen = () => {
                     activeOpacity={0.8}
                     style={[
                       styles.gatewayChip,
-                      physicalDetails.sellerGateways.includes(
+                      formInputs.physicalDetails.sellerGateways.includes(
                         'home_delivery',
                       ) && styles.activeChip,
                     ]}
                     onPress={() => {
-                      setPhysicalDetails(prev => {
-                        const hasIt =
-                          prev.sellerGateways.includes('home_delivery');
-                        const updated = hasIt
-                          ? prev.sellerGateways.filter(
-                              g => g !== 'home_delivery',
-                            )
-                          : [...prev.sellerGateways, 'home_delivery'];
+                      setFormInputs(prev => {
+                        const currentGateways =
+                          prev.physicalDetails.sellerGateways;
+                        const hasIt = currentGateways.includes('home_delivery');
+
+                        const updatedGateways = hasIt
+                          ? currentGateways.filter(g => g !== 'home_delivery')
+                          : [...currentGateways, 'home_delivery'];
 
                         return {
                           ...prev,
-                          sellerGateways: updated as (
-                            | 'drop_off'
-                            | 'home_delivery'
-                          )[],
+                          physicalDetails: {
+                            ...prev.physicalDetails,
+                            // Cast the array back to the expected specific type
+                            sellerGateways:
+                              updatedGateways as typeof currentGateways,
+                          },
                         };
                       });
                     }}
@@ -1000,7 +1363,7 @@ export const CreateProductScreen = () => {
                     <Text
                       style={[
                         styles.chipText,
-                        physicalDetails.sellerGateways.includes(
+                        formInputs.physicalDetails.sellerGateways.includes(
                           'home_delivery',
                         ) && styles.activeChipText,
                       ]}
@@ -1009,7 +1372,9 @@ export const CreateProductScreen = () => {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                {physicalDetails.sellerGateways.includes('drop_off') && (
+                {formInputs.physicalDetails.sellerGateways.includes(
+                  'drop_off',
+                ) && (
                   <View style={styles.stationBlock}>
                     <Text style={[styles.label, { marginTop: 12 }]}>
                       Select Drop-off Hubs Nearby
@@ -1019,9 +1384,10 @@ export const CreateProductScreen = () => {
                       sale.
                     </Text>
                     {stations.map(station => {
-                      const isSelected = physicalDetails.dropOffAddress.some(
-                        s => s.code === station.code,
-                      );
+                      const isSelected =
+                        formInputs.physicalDetails.dropOffAddress.some(
+                          s => s.code === station.code,
+                        );
                       return (
                         <TouchableOpacity
                           key={station.code}
@@ -1031,18 +1397,27 @@ export const CreateProductScreen = () => {
                             isSelected && styles.activeStationCard,
                           ]}
                           onPress={() => {
-                            setPhysicalDetails(prev => {
-                              const alreadySelected = prev.dropOffAddress.some(
+                            setFormInputs(prev => {
+                              const currentAddresses =
+                                prev.physicalDetails.dropOffAddress;
+                              const alreadySelected = currentAddresses.some(
                                 s => s.code === station.code,
                               );
+
                               const updatedStations = alreadySelected
-                                ? prev.dropOffAddress.filter(
+                                ? currentAddresses.filter(
                                     s => s.code !== station.code,
                                   )
-                                : [...prev.dropOffAddress, station];
+                                : [...currentAddresses, station];
+
                               return {
                                 ...prev,
-                                dropOffAddress: updatedStations,
+                                physicalDetails: {
+                                  ...prev.physicalDetails,
+                                  // explicitly casting ensures compatibility with CompleteFormInputs types
+                                  dropOffAddress:
+                                    updatedStations as typeof currentAddresses,
+                                },
                               };
                             });
                           }}
@@ -1083,12 +1458,15 @@ export const CreateProductScreen = () => {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. John Mark"
-                  value={courseDetails.additionalLecturersRaw}
+                  value={(formInputs as any).additionalLecturersRaw || ''}
                   onChangeText={text =>
-                    setCourseDetails(prev => ({
-                      ...prev,
-                      additionalLecturersRaw: text,
-                    }))
+                    setFormInputs(
+                      prev =>
+                        ({
+                          ...prev,
+                          additionalLecturersRaw: text,
+                        } as any),
+                    )
                   }
                   autoCorrect={false}
                 />
@@ -1105,21 +1483,28 @@ export const CreateProductScreen = () => {
                   activeOpacity={0.8}
                   style={[
                     styles.fileUploadBox,
-                    fileDetails.fileUrl ? styles.fileUploadedBox : null,
+                    formInputs.fileDetails.fileUrl
+                      ? styles.fileUploadedBox
+                      : null,
                   ]}
                   onPress={pickDigitalFile}
-                  disabled={fileDetails.isUploading}
+                  disabled={formInputs.fileDetails.isUploading}
                 >
-                  {fileDetails.isUploading ? (
-                    <ActivityIndicator size="small" color="#007AFF" />
-                  ) : fileDetails.fileUrl ? (
+                  {formInputs.fileDetails.isUploading ? (
+                    <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+                  ) : formInputs.fileDetails.fileUrl ? (
                     <View style={{ alignItems: 'center' }}>
-                      <Text style={styles.fileIcon}>📄</Text>
+                      <MaterialIcons
+                        name="insert-drive-file-outlined"
+                        size={25}
+                        color={PRIMARY_COLOR}
+                      />
                       <Text style={styles.fileNameText} numberOfLines={1}>
-                        {fileDetails.fileName}
+                        {formInputs.fileDetails.fileName}
                       </Text>
                       <Text style={styles.fileMetaText}>
-                        {fileDetails.fileFormat} • {fileDetails.fileSizeInMB} MB
+                        {formInputs.fileDetails.fileFormat} •{' '}
+                        {formInputs.fileDetails.fileSizeInMB} MB
                       </Text>
                       <Text style={styles.reUploadText}>
                         Tap to replace file
@@ -1127,49 +1512,17 @@ export const CreateProductScreen = () => {
                     </View>
                   ) : (
                     <View style={{ alignItems: 'center' }}>
-                      <Text style={styles.uploadCloudIcon}>📥</Text>
+                      <MaterialIcons
+                        name="file-upload-outlined"
+                        size={20}
+                        color={PRIMARY_COLOR}
+                      />
                       <Text style={styles.uploadBoxText}>
                         Select PDF, ZIP, EPUB, or Source Document
                       </Text>
                     </View>
                   )}
                 </TouchableOpacity>
-                <View style={styles.switchContainer}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={styles.switchLabel}>
-                      Password Protected Archive
-                    </Text>
-                    <Text style={styles.subLabel}>
-                      Toggle this if your file requires a key sequence to
-                      extract or read.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={fileDetails.hasPassword}
-                    onValueChange={value =>
-                      setFileDetails(prev => ({ ...prev, hasPassword: value }))
-                    }
-                    trackColor={{ true: '#007AFF' }}
-                  />
-                </View>
-                {fileDetails.hasPassword && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={styles.label}>Extraction Password / Key</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter extraction password details for buyer"
-                      value={fileDetails.passwordProtectionKey}
-                      onChangeText={text =>
-                        setFileDetails(prev => ({
-                          ...prev,
-                          passwordProtectionKey: text,
-                        }))
-                      }
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-                )}
               </View>
             )}
           </View>
@@ -1180,14 +1533,21 @@ export const CreateProductScreen = () => {
         <StepHeader
           number={4}
           toggleStep={toggleStep}
-          title="Inventory & Stock"
+          title="Price"
           currentStep={activeStep}
         />
         {activeStep === 4 && (
-          <PriceSectionComponent userCountry={user?.country} />
+          <PriceSectionComponent
+            userCountry={user?.country}
+            formInputs={formInputs}
+            setFormInputs={setFormInputs}
+          />
         )}
       </View>
-      <TouchableOpacity style={styles.submitButton}>
+      <TouchableOpacity
+        style={styles.submitButton}
+        onPress={handlePublishProduct}
+      >
         <Text style={styles.submitButtonText}>Publish Product</Text>
       </TouchableOpacity>
       {activeExtractingUri && (
@@ -1204,6 +1564,38 @@ export const CreateProductScreen = () => {
           }}
         />
       )}
+      <Modal
+        visible={isSubmitting}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Publishing Product</Text>
+
+            <ActivityIndicator
+              size="large"
+              color={PRIMARY_COLOR}
+              style={{ marginVertical: 25 }}
+            />
+            <View style={styles.progressBarTrack}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${uploadProgress}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {uploadProgress < 100
+                ? `Uploading assets... ${uploadProgress}%`
+                : 'Processing metadata and finalizing layout...'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+      <Toast config={toastConfig} />
     </ScrollView>
   );
 };
@@ -1304,8 +1696,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 25,
+    width: '100%',
   },
-  submitButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  submitButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   bioInput: {
     height: 120,
     backgroundColor: '#fadccc',
@@ -1550,39 +1943,31 @@ const styles = StyleSheet.create({
   },
   fileUploadBox: {
     borderWidth: 2,
-    borderColor: '#D0D7DE',
+    borderColor: PRIMARY_COLOR,
     borderStyle: 'dashed',
     borderRadius: 12,
     padding: 24,
-    backgroundColor: '#FAFAFA',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#fadccc',
+    alignContent: 'center',
     marginBottom: 16,
   },
   fileUploadedBox: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F4F9FF',
+    borderColor: PRIMARY_COLOR,
     borderStyle: 'solid',
-  },
-  uploadCloudIcon: {
-    fontSize: 32,
-    marginBottom: 8,
   },
   uploadBoxText: {
     fontSize: 13,
-    color: '#666',
+    color: PRIMARY_COLOR,
     fontWeight: '500',
     textAlign: 'center',
-  },
-  fileIcon: {
-    fontSize: 36,
-    marginBottom: 4,
+    marginTop: 3,
   },
   fileNameText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#222',
     textAlign: 'center',
+    marginTop: 3,
   },
   fileMetaText: {
     fontSize: 12,
@@ -1591,27 +1976,12 @@ const styles = StyleSheet.create({
   },
   reUploadText: {
     fontSize: 11,
-    color: '#007AFF',
+    color: PRIMARY_COLOR,
     fontWeight: '600',
     marginTop: 8,
     textTransform: 'uppercase',
   },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 4,
-  },
-  switchLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222',
-  },
+
   priceHintText: {
     fontSize: 12,
     color: '#666',
@@ -1717,6 +2087,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: -8,
     marginBottom: 12,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: '#FFF',
+    borderRadius: 25,
+    padding: 25,
+    alignContent: 'center',
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: PRIMARY_COLOR,
+  },
+  progressBarTrack: {
+    height: 8,
+    width: '80%',
+    backgroundColor: PRIMARY_COLOR_TINT,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
     fontWeight: '500',
   },
 });

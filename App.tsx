@@ -10,6 +10,7 @@ import type {
   Lecture,
   Course,
   MarketplaceOrder,
+  Product,
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
@@ -83,6 +84,7 @@ import { CertificateScreen } from './src/screens/CourseCompletionSuccessScreen.t
 import { MerchantDashboard } from './src/screens/MerchantScreen.tsx';
 import { CreateProductScreen } from './src/screens/CreateProductScreen.tsx';
 import { PayoutSuccess } from './src/screens/PayoutSuccessScreen.tsx';
+import { ProductPublishSuccess } from './src/screens/ProductPublishSuccessScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -138,6 +140,11 @@ export type RootStackParamList = {
   Notifications: undefined;
   NotificationSettings: undefined;
   ReferralScreen: undefined;
+  ProductPublishSuccess: {
+    productName: string;
+    productType: string;
+    isEditing: boolean;
+  };
   SalesHub: undefined;
   VerifyOTP: {
     flw_ref: string;
@@ -226,7 +233,7 @@ export type RootStackParamList = {
   LibraryScreen: undefined;
   EditProfile: undefined;
   PersonaVerify: undefined;
-  CreateProduct: undefined;
+  CreateProduct: { product?: Product };
   PayoutSuccess: { amount: number; transactionId: string };
   Home: { activeTab?: 'home' | 'classroom' | 'search' | 'store' | 'ranking' };
   LiveClassSessions: { lectureId: string; courseId: string };
@@ -427,6 +434,11 @@ const App = () => {
             <Stack.Screen
               name="Login"
               component={Login}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProductPublishSuccess"
+              component={ProductPublishSuccess}
               options={{ headerShown: false }}
             />
             <Stack.Screen

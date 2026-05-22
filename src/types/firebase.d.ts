@@ -199,10 +199,10 @@ export interface Product {
   physicalDetails?: {
     colors?: string[];
     sizes?: string[];
-    inStock: number;
-    weightKg: number; 
+    inStock: string;
+    weightKg: string; 
     sellerGateways: DeliveryGateway[];
-    isNationalShippingAvailable: boolean
+    isNationalShippingAvailable?: boolean;
     dropOffAddress: DropOffStation[];
   };
   courseDetails?: {
@@ -224,6 +224,7 @@ export interface Product {
     fileFormat: string;
     fileUrl: string; 
     hasPassword: boolean; 
+    isUploading: boolean;
   };
   ratings: {
     userId: string;
@@ -240,7 +241,12 @@ export interface Product {
       "Fashion" |
       "Stationery" |
       "Snacks and Deserts" |
-      "Food";
+      "Food" | 
+      'Templates' | 
+      'Software Assets' |
+      'Audio Resources' | 
+      'Health & Beauty' | 
+      'Crafts'
 }
 export interface ProductSale {
   sellerId: string;

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
 import {CartItem} from '../types/firebase';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import {
   Platform
 } from 'react-native';
@@ -990,7 +991,6 @@ export const generateCertificateAPI = async (productId: string) => {
     return { success: false, message: 'Server connection failed' };
   }
 };
-
 export const requestPayoutAPI = async (amount: number) => {
   try {
     const url = `${baseUrl}payouts/request-payout`;
@@ -1061,4 +1061,76 @@ export const uploadLessonVideoAPI = async (fileUri: string, fileName: string, fi
       data: null 
     };
   }
+};
+export const saveProductApiCall = async (
+  payload: any, 
+  productId?: string, 
+  onProgress?: (percentage: number) => void
+) => {
+  const isEditing = !!productId;
+
+  const multipartFields: any[] = [
+    { name: 'title', data: String(payload.title) },
+    { name: 'description', data: String(payload.description) },
+    { name: 'productType', data: String(payload.productType) },
+    { name: 'price', data: String(payload.price) },
+  ];
+
+  if (payload.productType === 'physical') {
+    multipartFields.push(
+      { name: 'weightKg', data: String(payload.physicalDetails?.weightKg || '') },
+      { name: 'inStock', data: String(payload.physicalDetails?.inStock || '') },
+      { name: 'colors', data: JSON.stringify(payload.physicalDetails?.colors || []) },
+      { name: 'sizes', data: JSON.stringify(payload.physicalDetails?.sizes || []) },
+      { name: 'sellerGateways', data: JSON.stringify(payload.physicalDetails?.sellerGateways || []) },
+      { name: 'dropOffAddress', data: JSON.stringify(payload.physicalDetails?.dropOffAddress || []) }
+    );
+  }
+
+  if (payload.productType === 'course') {
+    multipartFields.push(
+      { name: 'additionalLecturersRaw', data: String(payload.courseDetails?.additionalLecturersRaw || '') }
+    );
+    if (payload.lessons) {
+      multipartFields.push({ name: 'lessons', data: JSON.stringify(payload.lessons) });
+    }
+  }
+
+  // Only append a physical file payload if the user explicitly picked a new file while creating/editing
+  if (payload.productType === 'file' && payload.fileDetails?.rawBlobOrFile?.uri) {
+    const rawUri = payload.fileDetails.rawBlobOrFile.uri;
+    const cleanUri = rawUri.replace('file://', ''); 
+    multipartFields.push({
+      name: 'digitalAsset',
+      filename: payload.fileDetails.rawBlobOrFile.name || 'upload.mp4',
+      type: payload.fileDetails.rawBlobOrFile.type || 'video/mp4',
+      data: ReactNativeBlobUtil.wrap(cleanUri),
+    });
+  }
+
+  // Dynamically set up destination routes and methods
+  const method = isEditing ? 'PUT' : 'POST'; 
+  const endpoint = isEditing 
+    ? `${baseUrl}store/products/edit/${productId}` // Adjust this path match pattern to your backend route
+    : `${baseUrl}store/products/create`;
+
+  const response = await ReactNativeBlobUtil.config({
+    fileCache: true,
+  })
+  .fetch(
+    method,
+    endpoint,
+    {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data',
+    },
+    multipartFields
+  )
+  .uploadProgress({ interval: 250 }, (written, total) => {
+    if (onProgress && total > 0) {
+      onProgress(Math.round((written / total) * 100));
+    }
+  });
+
+  return response.json();
 };
