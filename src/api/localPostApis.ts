@@ -1095,8 +1095,6 @@ export const saveProductApiCall = async (
       multipartFields.push({ name: 'lessons', data: JSON.stringify(payload.lessons) });
     }
   }
-
-  // Only append a physical file payload if the user explicitly picked a new file while creating/editing
   if (payload.productType === 'file' && payload.fileDetails?.rawBlobOrFile?.uri) {
     const rawUri = payload.fileDetails.rawBlobOrFile.uri;
     const cleanUri = rawUri.replace('file://', ''); 
@@ -1107,11 +1105,9 @@ export const saveProductApiCall = async (
       data: ReactNativeBlobUtil.wrap(cleanUri),
     });
   }
-
-  // Dynamically set up destination routes and methods
   const method = isEditing ? 'PUT' : 'POST'; 
   const endpoint = isEditing 
-    ? `${baseUrl}store/products/edit/${productId}` // Adjust this path match pattern to your backend route
+    ? `${baseUrl}store/products/edit/${productId}` 
     : `${baseUrl}store/products/create`;
 
   const response = await ReactNativeBlobUtil.config({

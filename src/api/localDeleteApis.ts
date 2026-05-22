@@ -136,3 +136,20 @@ export const clearFavoritesAPI = async () => {
     return { success: false }; 
   }
 };
+export const deleteProductApi = async (productId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}store/products/delete/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // Assuming you pass your auth token here
+      }
+    });
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error invoking deleteProductApi:", error);
+    throw error;
+  }
+};
