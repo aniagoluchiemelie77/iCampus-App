@@ -19,7 +19,11 @@ import Geolocation from '@react-native-community/geolocation';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker from 'react-native-document-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from '../assets/styles/colors';
 import DropDownPicker from 'react-native-dropdown-picker';
 import {
   Product,
@@ -35,12 +39,41 @@ import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../components/hooks';
 import { launchImageLibrary } from 'react-native-image-picker';
 
+type ItemCategory = Product['type'];
 interface VideoDurationExtractorProps {
   uri: string;
   onDurationExtracted: (duration: number) => void;
 }
 interface FormState {
   price: string;
+  category: ItemCategory;
+}
+interface StepHeaderProps {
+  number: number;
+  title: string;
+  currentStep: number;
+  toggleStep: (step: number) => void;
+}
+type UIContentItem = NonNullable<
+  Product['courseDetails']
+>['content'][number] & {
+  isUploading?: boolean;
+  verificationStatus?:
+    | 'Approved'
+    | 'Pending Review'
+    | 'Flagged/Rejected'
+    | 'Failed';
+};
+const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
+  file: 100,
+  course: 500,
+  physical: 1000,
+};
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 export const VideoDurationExtractor = ({
   uri,
@@ -62,7 +95,7 @@ export const VideoDurationExtractor = ({
   );
 };
 export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
-  const [form, setForm] = useState<FormState>({ price: '' });
+  const [form, setForm] = useState<FormState>({ price: '', category: 'file' });
   const [exchangeDetails, setExchangeDetails] = useState<{
     rate: number;
     symbol: string;
@@ -92,9 +125,15 @@ export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
 
     getMarketRates();
   }, [userCountry]);
+
   const ICASH_TO_USD_ANCHOR = 0.74;
   const localRatePerIcash = exchangeDetails.rate * ICASH_TO_USD_ANCHOR;
   const icashEntered = parseFloat(form.price) || 0;
+
+  // Dynamic pricing caps validation logic
+  const maxAllowedIcash = CATEGORY_MAX_PRICES[form.category];
+  const isOverpriced = icashEntered > maxAllowedIcash;
+
   const rawConvertedAmount = icashEntered * localRatePerIcash;
 
   const formattedLocalCurrency = new Intl.NumberFormat(undefined, {
@@ -106,12 +145,20 @@ export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
     <View style={styles.container}>
       <Text style={styles.label}>Price (iCash)</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, isOverpriced && styles.inputWarning]}
         placeholder="0.00"
         keyboardType="numeric"
         value={form.price}
         onChangeText={text => setForm(prev => ({ ...prev, price: text }))}
       />
+
+      {/* Dynamic Regulator Error Text */}
+      {isOverpriced && (
+        <Text style={styles.warningText}>
+          ⚠️ This exceeds the maximum limit of {maxAllowedIcash} iCash allowed
+          for a {form.category}.
+        </Text>
+      )}
 
       {/* Secondary Local Currency Equivalent Input (Non-editable) */}
       <Text style={styles.label}>
@@ -135,33 +182,12 @@ export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
       </View>
       <Text style={styles.rateHint}>
         Rate anchored at 1 iCash = {exchangeDetails.symbol}
-        {exchangeDetails.rate.toFixed(2)} {exchangeDetails.code}
+        {(exchangeDetails.rate * ICASH_TO_USD_ANCHOR).toFixed(2)}{' '}
+        {exchangeDetails.code}
       </Text>
     </View>
   );
 }
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-interface StepHeaderProps {
-  number: number;
-  title: string;
-  currentStep: number;
-  toggleStep: (step: number) => void;
-}
-type UIContentItem = NonNullable<
-  Product['courseDetails']
->['content'][number] & {
-  isUploading?: boolean;
-  verificationStatus?:
-    | 'Approved'
-    | 'Pending Review'
-    | 'Flagged/Rejected'
-    | 'Failed';
-};
 const StepHeader = ({
   number,
   title,
@@ -212,13 +238,42 @@ export const CreateProductScreen = () => {
   const [nicheOpen, setNicheOpen] = useState(false);
   const [nicheValue, setNicheValue] = useState(null);
   const [nicheItems, setNicheItems] = useState([
-    { label: 'Electronics', value: 'Electronics' },
-    { label: 'Courses', value: 'Courses' },
-    { label: 'Document', value: 'Documents' },
-    { label: 'Fashion', value: 'Fashion' },
-    { label: 'Stationery', value: 'Stationery' },
-    { label: 'Snacks and Deserts', value: 'Snacks and Deserts' },
-    { label: 'Food', value: 'Food' },
+    { label: 'Study Guides & Documents', value: 'Documents', group: 'file' },
+    { label: 'Checklists & Templates', value: 'Templates', group: 'file' },
+    { label: 'Code & Dev Resources', value: 'Software Assets', group: 'file' },
+    {
+      label: 'Premium Masterclasses & Courses',
+      value: 'Courses',
+      group: 'course',
+    },
+    {
+      label: 'Audio Guides & Audiobooks',
+      value: 'Audio Resources',
+      group: 'course',
+    },
+    {
+      label: ' Tech Gears & Electronics',
+      value: 'Electronics',
+      group: 'physical',
+    },
+    { label: 'Apparel & Wardrobe', value: 'Fashion', group: 'physical' },
+    {
+      label: 'Desk Setup & Stationery',
+      value: 'Stationery',
+      group: 'physical',
+    },
+    {
+      label: 'Quick Bites & Munchies',
+      value: 'Snacks and Deserts',
+      group: 'physical',
+    },
+    { label: 'Hot Meals & Refreshments', value: 'Food', group: 'physical' },
+    {
+      label: 'Self-Care & Essentials',
+      value: 'Health & Beauty',
+      group: 'physical',
+    },
+    { label: 'Handcrafted & Custom Arts', value: 'Crafts', group: 'physical' },
   ]);
   const [stations, setStations] = useState<DropOffStation[]>([]);
   const [_loading, setLoading] = useState<boolean>(true);
@@ -249,7 +304,7 @@ export const CreateProductScreen = () => {
     inStock: string;
     sellerGateways: ('drop_off' | 'home_delivery')[];
     dropOffAddress: DropOffStation[];
-    colors: string[]; // Added
+    colors: string[];
     sizes: string[];
   }>({
     weightKg: '',
@@ -260,8 +315,8 @@ export const CreateProductScreen = () => {
     sizes: [],
   });
   const [courseDetails, setCourseDetails] = useState<{
-    additionalLecturersRaw: string; // To capture the comma-separated text input
-    content: UIContentItem[]; // Array of lesson objects with videoUrl, duration, etc.
+    additionalLecturersRaw: string;
+    content: UIContentItem[];
   }>({
     additionalLecturersRaw: '',
     content: [],
@@ -552,7 +607,6 @@ export const CreateProductScreen = () => {
         {activeStep === 2 && (
           <View style={styles.expandedContent}>
             {productType !== 'course' ? (
-              /* STANDARD PRODUCT IMAGES UPLOAD */
               <View>
                 <TouchableOpacity
                   style={styles.uploadPlaceholder}
@@ -590,13 +644,10 @@ export const CreateProductScreen = () => {
                 )}
               </View>
             ) : (
-              /* COURSE CURRICULUM & THUMBNAIL UPLOAD */
               <View>
                 <Text style={styles.sectionSubtitle}>
                   Build your curriculum. Add lessons and attach video files.
                 </Text>
-
-                {/* ADDED: Dedicated Course Thumbnail Section */}
                 <Text style={styles.miniLabel}>Course Cover Thumbnail</Text>
                 {courseThumbnail ? (
                   <View style={styles.courseThumbnailPreviewWrapper}>
@@ -606,9 +657,13 @@ export const CreateProductScreen = () => {
                     />
                     <TouchableOpacity
                       style={styles.courseThumbnailRemoveBtn}
-                      onPress={() => setCourseThumbnail(null)} // Ensure you declare this state at top
+                      onPress={() => setCourseThumbnail(null)}
                     >
-                      <MaterialIcons name="delete" size={16} color="#FFF" />
+                      <MaterialIcons
+                        name="delete-outlined"
+                        size={16}
+                        color={PRIMARY_COLOR}
+                      />
                       <Text style={styles.courseThumbnailRemoveText}>
                         Remove Cover
                       </Text>
@@ -620,19 +675,16 @@ export const CreateProductScreen = () => {
                     onPress={pickCourseThumbnail}
                   >
                     <MaterialIcons
-                      name="image-search"
+                      name="image-search-outlined"
                       size={24}
                       color={PRIMARY_COLOR}
                     />
                     <Text style={styles.courseThumbnailPlaceholderText}>
-                      Upload Course Banner/Thumbnail
+                      Upload Course Thumbnail
                     </Text>
                   </TouchableOpacity>
                 )}
-
                 <View style={styles.divider} />
-
-                {/* Lessons List Builder */}
                 <Text style={styles.miniLabel}>Lessons & Video Modules</Text>
                 {lessons.map((lesson, index) => (
                   <View key={index} style={styles.lessonCard}>
@@ -646,16 +698,16 @@ export const CreateProductScreen = () => {
                         }
                       >
                         <MaterialIcons
-                          name="delete-outline"
+                          name="delete-outlined"
                           size={20}
-                          color="#EF4444"
+                          color={PRIMARY_COLOR}
                         />
                       </TouchableOpacity>
                     </View>
 
                     <TextInput
                       style={styles.input}
-                      placeholder="Lesson Title (e.g., Intro to Hooks)"
+                      placeholder="Lesson Title (e.g., Intro to Programming)"
                       value={lesson.title}
                       onChangeText={text => {
                         const updated = [...lessons];
@@ -673,18 +725,12 @@ export const CreateProductScreen = () => {
                         <MaterialIcons
                           name="video-library-outlined"
                           size={18}
-                          color={lesson.videoUrl ? PRIMARY_COLOR : '#666'}
+                          color="#fff"
                         />
-                        <Text
-                          style={[
-                            styles.videoAttachText,
-                            lesson.videoUrl && { color: PRIMARY_COLOR },
-                          ]}
-                        >
+                        <Text style={styles.videoAttachText}>
                           {lesson.videoUrl ? 'Video Attached' : 'Upload Video'}
                         </Text>
                       </TouchableOpacity>
-
                       <TouchableOpacity
                         style={[
                           styles.previewToggle,
@@ -709,7 +755,6 @@ export const CreateProductScreen = () => {
                     </View>
                   </View>
                 ))}
-
                 <TouchableOpacity
                   style={styles.addLessonBtn}
                   onPress={() =>
@@ -746,7 +791,6 @@ export const CreateProductScreen = () => {
           <View style={styles.expandedContent}>
             {productType === 'physical' && (
               <View style={styles.sectionContainer}>
-                {/* 1. Basic Dimensions Rows */}
                 <View style={styles.row}>
                   <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.label}>Weight (Kg)</Text>
@@ -764,7 +808,7 @@ export const CreateProductScreen = () => {
                     />
                   </View>
 
-                  <View style={{ flex: 1, marginLeft: 8 }}>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.label}>Stock Quantity</Text>
                     <TextInput
                       style={styles.input}
@@ -819,7 +863,7 @@ export const CreateProductScreen = () => {
                         key={`color-${index}`}
                         style={[
                           styles.tagBadge,
-                          { backgroundColor: '#F0F0F0' },
+                          { backgroundColor: '#fadccc' },
                         ]}
                         onPress={() =>
                           setPhysicalDetails(prev => ({
@@ -832,8 +876,6 @@ export const CreateProductScreen = () => {
                       </TouchableOpacity>
                     ))}
                   </View>
-
-                  {/* B. Sizes Tag Input */}
                   <Text style={[styles.label, { marginTop: 8 }]}>
                     Available Sizes (Optional)
                   </Text>
@@ -870,16 +912,11 @@ export const CreateProductScreen = () => {
                       <Text style={styles.addTagButtonText}>Add</Text>
                     </TouchableOpacity>
                   </View>
-
-                  {/* Sizes Rendered Tags Row */}
                   <View style={styles.tagWrapper}>
                     {physicalDetails.sizes.map((size, index) => (
                       <TouchableOpacity
                         key={`size-${index}`}
-                        style={[
-                          styles.tagBadge,
-                          { backgroundColor: '#EBF3FF' },
-                        ]}
+                        style={styles.tagBadge}
                         onPress={() =>
                           setPhysicalDetails(prev => ({
                             ...prev,
@@ -887,9 +924,7 @@ export const CreateProductScreen = () => {
                           }))
                         }
                       >
-                        <Text style={[styles.tagText, { color: '#007AFF' }]}>
-                          {size} ✕
-                        </Text>
+                        <Text style={styles.tagText}>{size}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -898,9 +933,7 @@ export const CreateProductScreen = () => {
                 <Text style={styles.subLabel}>
                   How will the buyer receive this item? Select all that apply.
                 </Text>
-
                 <View style={styles.gatewayRow}>
-                  {/* Drop Off Option */}
                   <TouchableOpacity
                     activeOpacity={0.8}
                     style={[
@@ -936,8 +969,6 @@ export const CreateProductScreen = () => {
                       Drop-off Station
                     </Text>
                   </TouchableOpacity>
-
-                  {/* Home Delivery Option */}
                   <TouchableOpacity
                     activeOpacity={0.8}
                     style={[
@@ -974,12 +1005,10 @@ export const CreateProductScreen = () => {
                         ) && styles.activeChipText,
                       ]}
                     >
-                      🏠 Home Delivery
+                      Home Delivery
                     </Text>
                   </TouchableOpacity>
                 </View>
-
-                {/* 3. Conditional Drop Off Station Picker Layout */}
                 {physicalDetails.sellerGateways.includes('drop_off') && (
                   <View style={styles.stationBlock}>
                     <Text style={[styles.label, { marginTop: 12 }]}>
@@ -989,7 +1018,6 @@ export const CreateProductScreen = () => {
                       Choose where you will physically drop this package upon
                       sale.
                     </Text>
-
                     {stations.map(station => {
                       const isSelected = physicalDetails.dropOffAddress.some(
                         s => s.code === station.code,
@@ -1021,25 +1049,19 @@ export const CreateProductScreen = () => {
                         >
                           <View style={styles.stationInfo}>
                             <Text style={styles.stationName}>
-                              {station.name}{' '}
-                              <Text style={styles.stationCode}>
-                                ({station.code})
-                              </Text>
+                              {station.name}
                             </Text>
                             <Text style={styles.stationAddress}>
                               {station.address}
                             </Text>
                           </View>
-                          <View
-                            style={[
-                              styles.checkboxCircle,
-                              isSelected && styles.checkboxCircleChecked,
-                            ]}
-                          >
-                            {isSelected && (
-                              <View style={styles.checkboxInner} />
-                            )}
-                          </View>
+                          {isSelected && (
+                            <MaterialIcons
+                              name="check-circle-outlined"
+                              size={15}
+                              color={PRIMARY_COLOR}
+                            />
+                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -1277,10 +1299,9 @@ const styles = StyleSheet.create({
     height: 120,
     borderStyle: 'dashed',
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: PRIMARY_COLOR,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     marginTop: 15,
   },
   uploadText: { color: PRIMARY_COLOR_TINT, marginTop: 8, fontSize: 13 },
@@ -1325,7 +1346,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: '#666',
+    color: '#222',
     marginBottom: 15,
   },
   thumbnailContainer: {
@@ -1349,9 +1370,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   lessonCard: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: '#fadccc',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
@@ -1365,7 +1386,7 @@ const styles = StyleSheet.create({
   lessonNumberLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#666',
+    color: '#2222',
   },
   lessonMetaRow: {
     flexDirection: 'row',
@@ -1376,9 +1397,7 @@ const styles = StyleSheet.create({
   videoAttachBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -1386,20 +1405,18 @@ const styles = StyleSheet.create({
   videoAttachText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
+    color: '#fff',
     marginLeft: 6,
   },
   previewToggle: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#fff',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
   previewToggleActive: {
     borderColor: PRIMARY_COLOR,
-    backgroundColor: '#FFF0EA',
   },
   previewToggleText: {
     fontSize: 12,
@@ -1443,26 +1460,23 @@ const styles = StyleSheet.create({
   gatewayChip: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: PRIMARY_COLOR,
     borderRadius: 8,
     paddingVertical: 12,
     marginHorizontal: 4,
-    backgroundColor: '#FFF',
   },
   activeChip: {
-    borderColor: '#007AFF', // Use your main application theme color here
-    backgroundColor: '#E6F0FF',
+    backgroundColor: PRIMARY_COLOR,
   },
   chipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#444',
+    color: PRIMARY_COLOR_TINT,
   },
   activeChipText: {
-    color: '#007AFF',
+    color: '#FFF',
     fontWeight: '600',
   },
   stationBlock: {
@@ -1476,16 +1490,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
     padding: 14,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   activeStationCard: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F4F9FF',
+    backgroundColor: '#fff',
+    borderColor: PRIMARY_COLOR,
   },
   stationInfo: {
     flex: 1,
@@ -1496,38 +1508,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#222',
   },
-  stationCode: {
-    fontSize: 11,
-    color: '#888',
-  },
   stationAddress: {
     fontSize: 12,
     color: '#666',
     marginTop: 3,
   },
-  checkboxCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#CCC',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxCircleChecked: {
-    borderColor: '#007AFF',
-  },
-  checkboxInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#007AFF',
-  },
   variantSection: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
     padding: 14,
     marginBottom: 16,
   },
@@ -1567,7 +1553,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#444',
+    color: PRIMARY_COLOR_TINT,
   },
   fileUploadBox: {
     borderWidth: 2,
@@ -1672,7 +1658,7 @@ const styles = StyleSheet.create({
   miniLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#222',
     marginTop: 10,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -1702,7 +1688,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: 150,
     marginBottom: 16,
-    backgroundColor: '#000',
+    backgroundColor: PRIMARY_COLOR,
   },
   courseThumbnailPreview: {
     width: '100%',
@@ -1714,7 +1700,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 10,
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -1723,13 +1709,21 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   courseThumbnailRemoveText: {
-    color: '#FFF',
+    color: PRIMARY_COLOR_TINT,
     fontSize: 12,
     fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: PRIMARY_COLOR_TINT,
     marginVertical: 14,
+  },
+  inputWarning: { borderColor: PRIMARY_COLOR },
+  warningText: {
+    color: PRIMARY_COLOR,
+    fontSize: 11,
+    marginTop: -8,
+    marginBottom: 12,
+    fontWeight: '500',
   },
 });
