@@ -6,6 +6,8 @@
     <string>iCampus requires access to your photo library to let you upload profile pictures.</string>
     <key>NSCameraUsageDescription</key>
     <string>iCampus needs camera access to scan iTag QR codes for instant iCash transfers or to take a new profile photo.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need your location to show you the closest available drop-off stations.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -38,8 +40,6 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,20 +13,34 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  PermissionsAndroid,
 } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker from 'react-native-document-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import DropDownPicker from 'react-native-dropdown-picker';
-import { Product, DropOffStation } from '../types/firebase';
+import {
+  Product,
+  DropOffStation,
+  GeolocationPosition,
+  GeolocationError,
+} from '../types/firebase';
 import Video from 'react-native-video';
 import { uploadLessonVideoAPI } from '../api/localPostApis';
+import { fetchDropOffStationsAPI } from '../api/localGetApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
+import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
+import { useAppSelector } from '../components/hooks';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 interface VideoDurationExtractorProps {
   uri: string;
   onDurationExtracted: (duration: number) => void;
+}
+interface FormState {
+  price: string;
 }
 export const VideoDurationExtractor = ({
   uri,
@@ -47,6 +61,85 @@ export const VideoDurationExtractor = ({
     />
   );
 };
+export default function PriceSectionComponent({ userCountry = 'Nigeria' }) {
+  const [form, setForm] = useState<FormState>({ price: '' });
+  const [exchangeDetails, setExchangeDetails] = useState<{
+    rate: number;
+    symbol: string;
+    code: string;
+    loading: boolean;
+  }>({
+    rate: 1,
+    symbol: '₦',
+    code: 'NGN',
+    loading: true,
+  });
+
+  useEffect(() => {
+    const getMarketRates = async () => {
+      try {
+        const result = await fetchLiveRate(userCountry);
+        setExchangeDetails({
+          rate: result.rate,
+          symbol: result.symbol,
+          code: result.code,
+          loading: false,
+        });
+      } catch (err) {
+        setExchangeDetails(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    getMarketRates();
+  }, [userCountry]);
+  const ICASH_TO_USD_ANCHOR = 0.74;
+  const localRatePerIcash = exchangeDetails.rate * ICASH_TO_USD_ANCHOR;
+  const icashEntered = parseFloat(form.price) || 0;
+  const rawConvertedAmount = icashEntered * localRatePerIcash;
+
+  const formattedLocalCurrency = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rawConvertedAmount);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>Price (iCash)</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="0.00"
+        keyboardType="numeric"
+        value={form.price}
+        onChangeText={text => setForm(prev => ({ ...prev, price: text }))}
+      />
+
+      {/* Secondary Local Currency Equivalent Input (Non-editable) */}
+      <Text style={styles.label}>
+        Estimated Local Value ({exchangeDetails.code})
+      </Text>
+      <View style={styles.disabledInputWrapper}>
+        <Text style={styles.currencyPrefix}>{exchangeDetails.symbol}</Text>
+        <TextInput
+          style={[styles.input, styles.disabledInput]}
+          value={form.price ? formattedLocalCurrency : '0.00'}
+          editable={false}
+          selectTextOnFocus={false}
+        />
+        {exchangeDetails.loading && (
+          <ActivityIndicator
+            size="small"
+            color="#007AFF"
+            style={styles.spinner}
+          />
+        )}
+      </View>
+      <Text style={styles.rateHint}>
+        Rate anchored at 1 iCash = {exchangeDetails.symbol}
+        {exchangeDetails.rate.toFixed(2)} {exchangeDetails.code}
+      </Text>
+    </View>
+  );
+}
 if (
   Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -114,6 +207,7 @@ const StepHeader = ({
   </TouchableOpacity>
 );
 export const CreateProductScreen = () => {
+  const user = useAppSelector(state => state.user);
   const [activeStep, setActiveStep] = useState(1);
   const [nicheOpen, setNicheOpen] = useState(false);
   const [nicheValue, setNicheValue] = useState(null);
@@ -126,9 +220,12 @@ export const CreateProductScreen = () => {
     { label: 'Snacks and Deserts', value: 'Snacks and Deserts' },
     { label: 'Food', value: 'Food' },
   ]);
+  const [stations, setStations] = useState<DropOffStation[]>([]);
+  const [_loading, setLoading] = useState<boolean>(true);
   const [images, setImages] = useState<string[]>([]);
   const [colorInput, setColorInput] = useState('');
   const [sizeInput, setSizeInput] = useState('');
+  const [courseThumbnail, setCourseThumbnail] = useState<string | null>(null);
   const [lessons, setLessons] = useState<UIContentItem[]>([]);
   const [activeExtractingUri, setActiveExtractingUri] = useState<{
     uri: string;
@@ -157,7 +254,7 @@ export const CreateProductScreen = () => {
   }>({
     weightKg: '',
     inStock: '',
-    sellerGateways: ['drop_off'], // Defaulting to drop_off as requested
+    sellerGateways: ['drop_off'],
     dropOffAddress: [],
     colors: [],
     sizes: [],
@@ -185,27 +282,6 @@ export const CreateProductScreen = () => {
     hasPassword: false,
     isUploading: false,
   });
-  const AVAILABLE_STATIONS: DropOffStation[] = [
-    {
-      id: '1',
-      name: 'Main Campus Hub',
-      address: 'Gate 2, Student Union Complex',
-      code: 'MCH-01',
-      agentId: 'ag_77',
-      latitude: 6.428,
-      longitude: 7.501,
-    },
-    {
-      id: '2',
-      name: 'Chime Avenue Station',
-      address: '32 Chime Ave, New Haven',
-      code: 'CAS-02',
-      agentId: 'ag_34',
-      latitude: 6.441,
-      longitude: 7.505,
-    },
-  ];
-
   const toggleStep = (step: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveStep(activeStep === step ? 0 : step);
@@ -323,7 +399,91 @@ export const CreateProductScreen = () => {
       }
     }
   };
+  const pickCourseThumbnail = () => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+        quality: 1,
+      },
+      response => {
+        if (response.didCancel) return;
+        if (response.errorCode) {
+          console.log('ImagePicker Error: ', response.errorMessage);
+          return;
+        }
 
+        const uri = response.assets?.[0]?.uri;
+        if (uri) {
+          setCourseThumbnail(uri);
+        }
+      },
+    );
+  };
+  const requestLocationPermission = async (): Promise<boolean> => {
+    if (Platform.OS === 'ios') {
+      return true;
+    }
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Location Permission',
+            message:
+              'This app needs access to your location to find the closest drop-off stations.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return false;
+  };
+  useEffect(() => {
+    const getNearbyStations = async () => {
+      try {
+        setLoading(true);
+        const hasPermission = await requestLocationPermission();
+        if (!hasPermission) {
+          const response = await fetchDropOffStationsAPI();
+          if (response.success) setStations(response.data);
+          setLoading(false);
+          return;
+        }
+        Geolocation.getCurrentPosition(
+          async (position: GeolocationPosition) => {
+            const { latitude, longitude } = position.coords;
+            const response = await fetchDropOffStationsAPI(latitude, longitude);
+            if (response.success) {
+              setStations(response.data);
+            }
+            setLoading(false);
+          },
+          async (error: GeolocationError) => {
+            console.log('Location error code:', error.code, error.message);
+            const response = await fetchDropOffStationsAPI();
+            if (response.success) setStations(response.data);
+            setLoading(false);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 10000,
+          },
+        );
+      } catch (error) {
+        console.error('Error fetching stations:', error);
+        setLoading(false);
+      }
+    };
+
+    getNearbyStations();
+  }, []);
   return (
     <ScrollView
       style={styles.container}
@@ -392,6 +552,7 @@ export const CreateProductScreen = () => {
         {activeStep === 2 && (
           <View style={styles.expandedContent}>
             {productType !== 'course' ? (
+              /* STANDARD PRODUCT IMAGES UPLOAD */
               <View>
                 <TouchableOpacity
                   style={styles.uploadPlaceholder}
@@ -429,10 +590,50 @@ export const CreateProductScreen = () => {
                 )}
               </View>
             ) : (
+              /* COURSE CURRICULUM & THUMBNAIL UPLOAD */
               <View>
                 <Text style={styles.sectionSubtitle}>
                   Build your curriculum. Add lessons and attach video files.
                 </Text>
+
+                {/* ADDED: Dedicated Course Thumbnail Section */}
+                <Text style={styles.miniLabel}>Course Cover Thumbnail</Text>
+                {courseThumbnail ? (
+                  <View style={styles.courseThumbnailPreviewWrapper}>
+                    <Image
+                      source={{ uri: courseThumbnail }}
+                      style={styles.courseThumbnailPreview}
+                    />
+                    <TouchableOpacity
+                      style={styles.courseThumbnailRemoveBtn}
+                      onPress={() => setCourseThumbnail(null)} // Ensure you declare this state at top
+                    >
+                      <MaterialIcons name="delete" size={16} color="#FFF" />
+                      <Text style={styles.courseThumbnailRemoveText}>
+                        Remove Cover
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.courseThumbnailPlaceholder}
+                    onPress={pickCourseThumbnail}
+                  >
+                    <MaterialIcons
+                      name="image-search"
+                      size={24}
+                      color={PRIMARY_COLOR}
+                    />
+                    <Text style={styles.courseThumbnailPlaceholderText}>
+                      Upload Course Banner/Thumbnail
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <View style={styles.divider} />
+
+                {/* Lessons List Builder */}
+                <Text style={styles.miniLabel}>Lessons & Video Modules</Text>
                 {lessons.map((lesson, index) => (
                   <View key={index} style={styles.lessonCard}>
                     <View style={styles.lessonHeaderRow}>
@@ -508,6 +709,7 @@ export const CreateProductScreen = () => {
                     </View>
                   </View>
                 ))}
+
                 <TouchableOpacity
                   style={styles.addLessonBtn}
                   onPress={() =>
@@ -692,8 +894,6 @@ export const CreateProductScreen = () => {
                     ))}
                   </View>
                 </View>
-
-                {/* 2. Shipping Gateways Multi-Select Chips */}
                 <Text style={styles.label}>Fulfillment / Delivery Options</Text>
                 <Text style={styles.subLabel}>
                   How will the buyer receive this item? Select all that apply.
@@ -717,7 +917,6 @@ export const CreateProductScreen = () => {
 
                         return {
                           ...prev,
-                          // Force TS to see this as the exact literal array type required by the state
                           sellerGateways: updated as (
                             | 'drop_off'
                             | 'home_delivery'
@@ -734,7 +933,7 @@ export const CreateProductScreen = () => {
                           styles.activeChipText,
                       ]}
                     >
-                      📦 Drop-off Station
+                      Drop-off Station
                     </Text>
                   </TouchableOpacity>
 
@@ -791,7 +990,7 @@ export const CreateProductScreen = () => {
                       sale.
                     </Text>
 
-                    {AVAILABLE_STATIONS.map(station => {
+                    {stations.map(station => {
                       const isSelected = physicalDetails.dropOffAddress.some(
                         s => s.code === station.code,
                       );
@@ -961,7 +1160,6 @@ export const CreateProductScreen = () => {
           </View>
         )}
       </View>
-
       {/* --- STEP 4: Price --- */}
       <View style={styles.card}>
         <StepHeader
@@ -971,26 +1169,7 @@ export const CreateProductScreen = () => {
           currentStep={activeStep}
         />
         {activeStep === 4 && (
-          <View style={styles.expandedContent}>
-            <Text style={styles.label}>Price (iCash)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              keyboardType="numeric"
-              value={form.price}
-              onChangeText={text => setForm(prev => ({ ...prev, price: text }))}
-            />
-
-            {/* Dynamic contextual advice helper text */}
-            <Text style={styles.priceHintText}>
-              {productType === 'file' &&
-                '⚠️ Digital files are capped at 1,000 iCash to keep materials accessible.'}
-              {productType === 'course' &&
-                '💡 Premium courses are restricted to a maximum threshold of 10,000 iCash.'}
-              {productType === 'physical' &&
-                '📦 Physical items are regulated up to a limit of 50,000 iCash.'}
-            </Text>
-          </View>
+          <PriceSectionComponent userCountry={user?.country} />
         )}
       </View>
       <TouchableOpacity style={styles.submitButton}>
@@ -1459,5 +1638,98 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 6,
     fontStyle: 'italic',
+  },
+  disabledInputWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  disabledInput: {
+    backgroundColor: '#EEF2F6', // Visually distinct greyed background
+    borderColor: '#D0D7DE',
+    color: '#57606A',
+    paddingLeft: 34, // Push text right to fit symbol prefix neatly
+  },
+  currencyPrefix: {
+    position: 'absolute',
+    left: 14,
+    top: 13,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#57606A',
+    zIndex: 1,
+  },
+  spinner: {
+    position: 'absolute',
+    right: 14,
+    top: 14,
+  },
+  rateHint: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: -4,
+  },
+  miniLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 10,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  courseThumbnailPlaceholder: {
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  courseThumbnailPlaceholderText: {
+    fontSize: 14,
+    color: PRIMARY_COLOR,
+    fontWeight: '500',
+  },
+  courseThumbnailPreviewWrapper: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+    height: 150,
+    marginBottom: 16,
+    backgroundColor: '#000',
+  },
+  courseThumbnailPreview: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    opacity: 0.85,
+  },
+  courseThumbnailRemoveBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  courseThumbnailRemoveText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 14,
   },
 });

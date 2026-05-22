@@ -152,6 +152,25 @@ export interface AudioRecording {
   createdAt: string;
   duration?: string;
 }
+export interface GeolocationPosition {
+  coords: {
+    latitude: number;
+    longitude: number;
+    altitude: number | null;
+    accuracy: number;
+    altitudeAccuracy: number | null;
+    heading: number | null;
+    speed: number | null;
+  };
+  timestamp: number;
+}
+export interface GeolocationError {
+  code: number;
+  message: string;
+  PERMISSION_DENIED: number;
+  POSITION_UNAVAILABLE: number;
+  TIMEOUT: number;
+}
 export interface DropOffStation {
   id?: string;
   name: string;        
@@ -159,8 +178,9 @@ export interface DropOffStation {
   code: string;        
   contactPerson?: string; 
   agentId: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
+  distance?: string;
 }
 export interface Product {
   _id?: string;

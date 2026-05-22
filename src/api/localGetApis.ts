@@ -1,4 +1,4 @@
-import { User, EnrichedCourseProduct } from '../types/firebase';
+import { User, EnrichedCourseProduct, DropOffStation } from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -524,5 +524,41 @@ export const fetchPayoutHistoryAPI = async () => {
     };
   } catch (error) {
     return { success: false, data: [], message: 'Network error fetching payouts' };
+  }
+};
+export const fetchDropOffStationsAPI = async (lat?: number, lng?: number) => {
+  try {
+    let url = `${baseUrl}store/drop-off-stations/fetch`;
+    if (lat !== undefined && lng !== undefined) {
+      url += `?lat=${lat}&lng=${lng}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, 
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch drop-off stations',
+        data: [],
+      };
+    }
+
+    return {
+      success: true,
+      data: (result.data as DropOffStation[]) || [],
+      message: result.message,
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      data: [], 
+      message: 'Network error fetching drop-off stations' 
+    };
   }
 };
