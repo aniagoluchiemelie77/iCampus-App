@@ -1076,13 +1076,13 @@ export const CreateProductScreen = () => {
                 </Text>
                 <Text style={styles.subLabel}>
                   You are automatically assigned as the primary instructor. Add
-                  other creator UIDs separated by commas if you are co-authoring
-                  this course.
+                  your co-creator's fullname if you are co-authoring this course
+                  (Optional).
                 </Text>
 
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. uid_abc123, uid_xyz789"
+                  placeholder="e.g. John Mark"
                   value={courseDetails.additionalLecturersRaw}
                   onChangeText={text =>
                     setCourseDetails(prev => ({
@@ -1090,7 +1090,6 @@ export const CreateProductScreen = () => {
                       additionalLecturersRaw: text,
                     }))
                   }
-                  autoCapitalize="none"
                   autoCorrect={false}
                 />
               </View>
@@ -1102,8 +1101,6 @@ export const CreateProductScreen = () => {
                   Upload the document, textbook, or source archive. Buyers will
                   instantly unlock download access post-checkout.
                 </Text>
-
-                {/* File Action Box */}
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[
@@ -1137,8 +1134,6 @@ export const CreateProductScreen = () => {
                     </View>
                   )}
                 </TouchableOpacity>
-
-                {/* Has Password Protection Toggle */}
                 <View style={styles.switchContainer}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={styles.switchLabel}>
@@ -1157,8 +1152,6 @@ export const CreateProductScreen = () => {
                     trackColor={{ true: '#007AFF' }}
                   />
                 </View>
-
-                {/* Optional Key Entry Field */}
                 {fileDetails.hasPassword && (
                   <View style={{ marginTop: 8 }}>
                     <Text style={styles.label}>Extraction Password / Key</Text>
