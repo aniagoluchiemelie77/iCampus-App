@@ -142,7 +142,7 @@ export const deleteProductApi = async (productId: string) => {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // Assuming you pass your auth token here
+        'Authorization': `Bearer ${token}` 
       }
     });
 

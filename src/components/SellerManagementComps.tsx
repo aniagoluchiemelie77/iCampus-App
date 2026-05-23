@@ -524,13 +524,13 @@ export const ProductList = () => {
                 color={PRIMARY_COLOR}
               />
             </TouchableOpacity>
-            <View style={styles.statItem}>
+            <TouchableOpacity style={styles.statItem}>
               <MaterialIcons
                 name="delete-outlined"
                 size={17}
                 color={PRIMARY_COLOR}
               />
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
