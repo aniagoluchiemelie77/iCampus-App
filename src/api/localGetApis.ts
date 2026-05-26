@@ -335,7 +335,7 @@ export const fetchProductsAPI = async ({
   try {
     const categoryParam = category === 'all' ? '' : encodeURIComponent(category);
     const queryParam = encodeURIComponent(q);
-    const url = `${baseUrl}store/products?q=${queryParam}&category=${categoryParam}&cursor=${cursor}&limit=${limit}`;
+    const url = `${baseUrl}store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursor}&limit=${limit}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
