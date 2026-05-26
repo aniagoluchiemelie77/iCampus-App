@@ -37,7 +37,10 @@ import Video from 'react-native-video';
 import { useNavigation } from '@react-navigation/native';
 import { uploadLessonVideoAPI, saveProductApiCall } from '../api/localPostApis';
 import { fetchDropOffStationsAPI } from '../api/localGetApis';
-import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
+import {
+  uploadFileToFirebaseClient,
+  uploadToFirebase,
+} from '../utils/CloudinaryPresetHelper';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../components/hooks';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -100,6 +103,7 @@ export interface CompleteFormInputs {
     duration: number;
     isFreePreview: boolean;
   }[];
+  mediaUrls: string[];
 }
 const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
   Documents: 'file',
@@ -319,6 +323,7 @@ export const CreateProductScreen = ({ route }: any) => {
         fileUrl: '',
         isUploading: false,
       },
+      mediaUrls: [],
     }),
     [],
   );
@@ -397,7 +402,7 @@ export const CreateProductScreen = ({ route }: any) => {
 
           return {
             ...prev,
-            thumbnails: [...currentThumbnails, ...selectedUris].slice(0, 5),
+            mediaUrls: [...currentThumbnails, ...selectedUris].slice(0, 5),
           } as any;
         });
       })
@@ -420,8 +425,6 @@ export const CreateProductScreen = ({ route }: any) => {
       const targetUri = response.fileCopyUri || response.uri;
       const fileName = response.name || `lesson-video-${Date.now()}.mp4`;
       const fileType = response.type || 'video/mp4';
-
-      // 1. Set local cache URI and trigger temporary state
       setFormInputs(prev => {
         const updatedLessons = [...(prev.lessons || [])];
         if (updatedLessons[index]) {
@@ -537,7 +540,7 @@ export const CreateProductScreen = ({ route }: any) => {
             prev =>
               ({
                 ...prev,
-                thumbnails: uri,
+                mediaUrls: uri,
               } as any),
           );
         }
@@ -595,7 +598,6 @@ export const CreateProductScreen = ({ route }: any) => {
     if (!cleanInput) return;
 
     setFormInputs(prev => {
-      // Safely fallback to an empty array if sizes is undefined
       const currentSizes = prev.physicalDetails?.sizes || [];
 
       const updatedSizes = currentSizes.includes(cleanInput)
@@ -625,6 +627,7 @@ export const CreateProductScreen = ({ route }: any) => {
       physicalDetails,
       courseDetails,
       fileDetails,
+      mediaUrls,
     } = formInputs;
 
     if (
@@ -679,27 +682,43 @@ export const CreateProductScreen = ({ route }: any) => {
       }
     }
 
-    const formPayload = {
-      title: title.trim(),
-      description: description.trim(),
-      productType,
-      price: Number(price),
-      niche,
-      physicalDetails,
-      courseDetails,
-      fileDetails,
-      lessons,
-    };
-
     try {
       setIsSubmitting(true);
-      setUploadProgress(0);
-
+      setUploadProgress(10);
+      const thumbnails: string[] = mediaUrls || [];
+      let finalThumbnails: string[] = [];
+      if (thumbnails.length > 0) {
+        const localUris = mediaUrls.filter(
+          uri => uri.startsWith('file://') || !uri.startsWith('http'),
+        );
+        const remoteUrls = mediaUrls.filter(uri => uri.startsWith('http'));
+        if (localUris.length > 0) {
+          const uploadedUrls = await Promise.all(
+            localUris.map(uri => uploadToFirebase(uri, 'product-thumbnails')),
+          );
+          finalThumbnails = [...remoteUrls, ...uploadedUrls];
+        } else {
+          finalThumbnails = remoteUrls;
+        }
+      }
+      setUploadProgress(30);
+      const formPayload = {
+        title: title.trim(),
+        description: description.trim(),
+        productType,
+        price: Number(price),
+        mediaUrls: finalThumbnails,
+        niche,
+        physicalDetails,
+        courseDetails,
+        fileDetails,
+        lessons,
+      };
       const result = await saveProductApiCall(
         formPayload,
         productId,
         progress => {
-          setUploadProgress(progress);
+          setUploadProgress(30 + Math.round(progress / 2));
         },
       );
 
@@ -829,13 +848,8 @@ export const CreateProductScreen = ({ route }: any) => {
   useEffect(() => {
     if (existingProduct) {
       setFormInputs({
-        // 1. Fallback to default fields first
         ...initialFormInputs,
-
-        // 2. Spread the master product data fields (title, description, price, etc.)
         ...existingProduct,
-
-        // 3. Deeply merge sub-objects so optional fields remain safe arrays/objects
         physicalDetails: {
           ...initialFormInputs.physicalDetails,
           ...(existingProduct.physicalDetails || {}),
@@ -848,7 +862,6 @@ export const CreateProductScreen = ({ route }: any) => {
           ...initialFormInputs.fileDetails,
           ...(existingProduct.fileDetails || {}),
         },
-        // Safely map arrays or default to empty lists
         lessons: existingProduct.lessons || [],
       });
     }

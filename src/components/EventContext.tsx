@@ -54,6 +54,8 @@ interface AppDataContextType {
   sellerSales: ProductSale[];
   fetchSellerSales: () => Promise<void>;
   allReviews: any[];
+  syncCatalog: () => Promise<void>;
+  deleteProductLocal: (productId: string) => Promise<void>;
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
   refreshReviews: () => Promise<void>;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
@@ -654,6 +656,21 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   };
+  const deleteProductLocal = async (productId: string) => {
+    try {
+      setAllProducts(prevProducts => {
+        const updated = prevProducts.filter(p => p.productId !== productId);
+        AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(updated)).catch(
+          err =>
+            console.error('Failed to update cache during local deletion:', err),
+        );
+
+        return updated;
+      });
+    } catch (error) {
+      console.error('Failed local product deletion pipeline:', error);
+    }
+  };
 
   useEffect(() => {
     fetchReviews();
@@ -662,6 +679,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   return (
     <AppDataContext.Provider
       value={{
+        deleteProductLocal,
+        syncCatalog,
         currentUser,
         allReviews,
         setAllReviews,

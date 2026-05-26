@@ -1105,6 +1105,13 @@ export const saveProductApiCall = async (
       data: ReactNativeBlobUtil.wrap(cleanUri),
     });
   }
+  if (payload.mediaUrls) {
+    const thumbnailData = Array.isArray(payload.mediaUrls)
+      ? JSON.stringify(payload.mediaUrls)
+      : String(payload.mediaUrls);
+      
+    multipartFields.push({ name: 'mediaUrls', data: thumbnailData });
+  }
   const method = isEditing ? 'PUT' : 'POST'; 
   const endpoint = isEditing 
     ? `${baseUrl}store/products/edit/${productId}` 

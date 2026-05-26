@@ -23,6 +23,7 @@ import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { searchUsersByUid, fetchPayoutHistoryAPI } from '../api/localGetApis';
 import { requestPayoutAPI } from '../api/localPostApis';
+import { deleteProductApi } from '../api/localDeleteApis';
 import { UserAvatar } from './UserAvatar';
 import { IcashPinOrFingerprintVerifyModal } from './iCashPinOrFingerprintVerifyComponent';
 import { UserIdentity } from './UserIdentity';
@@ -417,12 +418,53 @@ export const OverviewsScreenComponent = () => {
   );
 };
 export const ProductList = () => {
-  const { allProducts, currentUser } = useAppDataContext();
+  const { allProducts, currentUser, deleteProductLocal } = useAppDataContext();
   const navigation = useNavigation<any>();
   const sellerProducts = allProducts.filter(
     p => p.sellerId === currentUser.uid,
   );
   const hasProducts = sellerProducts.length > 0;
+  const handleDeletePress = (productId: string, productTitle: string) => {
+    Alert.alert(
+      'Remove Listing?',
+      `Are you sure you want to permanently delete "${productTitle}"? This will clear all hosted media assets and cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await deleteProductApi(productId);
+              if (result.success) {
+                await deleteProductLocal(productId);
+                Toast.show({
+                  type: 'success',
+                  text2: 'Product has been permanently removed.',
+                });
+              } else {
+                Toast.show({
+                  type: 'error',
+                  text1: 'Delete Error',
+                  text2: result.message || 'Could not complete request.',
+                });
+              }
+            } catch (error) {
+              Toast.show({
+                type: 'error',
+                text1: 'Network Error',
+                text2: 'Something went wrong while connecting to the server.',
+              });
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
   const renderProductItem = ({ item }: { item: Product }) => {
     const isPhysical = item.type === 'physical';
     const isLowStock =
@@ -524,7 +566,10 @@ export const ProductList = () => {
                 color={PRIMARY_COLOR}
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() => handleDeletePress(item.productId, item.title)}
+            >
               <MaterialIcons
                 name="delete-outlined"
                 size={17}
@@ -539,7 +584,6 @@ export const ProductList = () => {
   const handleAddNew = () => {
     navigation.navigate('CreateProduct');
   };
-
   return (
     <ScrollView>
       {!hasProducts ? (
