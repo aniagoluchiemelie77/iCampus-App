@@ -76,6 +76,11 @@ export const StoreScreen = () => {
         onPress={() => navigation.navigate('PendingOrdersScreen')}
       />
       <HeaderActionButton
+        icon="shopping-cart-outlined"
+        count={currentUser?.cart?.length || 0}
+        onPress={() => navigation.navigate('CartScreen')}
+      />
+      <HeaderActionButton
         icon="favorite"
         count={currentUser?.favorites?.length || 0}
         onPress={() => navigation.navigate('FavoritesScreen')}

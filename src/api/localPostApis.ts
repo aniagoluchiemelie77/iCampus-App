@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 const token = await AsyncStorage.getItem('accessToken');
+
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
   Toast.show({
@@ -1136,4 +1137,40 @@ export const saveProductApiCall = async (
   });
 
   return response.json();
+};
+export const submitReviewApi = async (reviewPayload: any, authToken: string) => {
+  try {
+    const formData = new FormData();
+    formData.append('targetId', reviewPayload.targetId);
+    formData.append('targetType', reviewPayload.targetType);
+    formData.append('orderId', reviewPayload.orderId);
+    formData.append('rating', String(reviewPayload.rating));
+    formData.append('comment', reviewPayload.comment);
+  
+    formData.append('attributes', JSON.stringify(reviewPayload.attributes));
+    formData.append('mediaUrls', JSON.stringify(reviewPayload.mediaUrls));
+    const response = await fetch(`${baseUrl}users/reviews/create`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: formData,
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to submit review.',
+      };
+    }
+    return {
+      success: response.ok,
+      message: 'Review submitted successfully.',
+    };
+  } catch (error) {
+    console.error('Error invoking submitReviewApi:', error);
+    throw error;
+  }
 };

@@ -14,18 +14,18 @@ import type {
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
-  prefixes: ['icampus://'],
+  prefixes: ['https://useicampus.app', 'icampus://'],
   config: {
     screens: {
-      VerifyEmail: 'verify-email',
+      CreateReview: 'reviews/:orderId',
+      Home: 'home',
+      Store: 'marketplace',
     },
   },
 };
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-//import firestore from '@react-native-firebase/firestore';
 import { TransitionPresets } from '@react-navigation/stack';
-//import { saveUserToFirestore } from './src/services/firebaseServices';
 // Screens
 import SignUpScreen from './src/screens/Signup';
 import SignupPage from './src/screens/SignupPage';
@@ -85,6 +85,7 @@ import { MerchantDashboard } from './src/screens/MerchantScreen.tsx';
 import { CreateProductScreen } from './src/screens/CreateProductScreen.tsx';
 import { PayoutSuccess } from './src/screens/PayoutSuccessScreen.tsx';
 import { ProductPublishSuccess } from './src/screens/ProductPublishSuccessScreen.tsx';
+import { CreateReviewScreen } from './src/screens/ReviewsScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -149,6 +150,10 @@ export type RootStackParamList = {
   VerifyOTP: {
     flw_ref: string;
     type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
+  };
+  CreateReviewScreen: {
+    targetId: string;
+    productType: 'product' | 'seller' | 'agent' | 'course' | 'lecturer';
   };
   Welcome: { route: string };
   MessagesList: undefined;
@@ -384,6 +389,11 @@ const App = () => {
             <Stack.Screen
               name="CreatePost"
               component={CreatePost}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreateReviewScreen"
+              component={CreateReviewScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
