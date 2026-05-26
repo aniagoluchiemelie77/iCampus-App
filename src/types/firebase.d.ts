@@ -38,6 +38,7 @@ export interface User {
   uid: string;
   bio?: string;
   providerId?: string;
+  isDarkMode?: boolean;
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;

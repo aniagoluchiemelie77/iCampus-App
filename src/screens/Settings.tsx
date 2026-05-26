@@ -14,6 +14,7 @@ import { PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { useAppSelector } from '../components/hooks';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
@@ -23,6 +24,8 @@ import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '@env';
 import { LogoutModal } from '../components/LogoutModal.tsx';
 import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';
+import { useDispatch } from 'react-redux';
+import { toggleTheme } from '../components/UserSlice.ts';
 
 const rnBiometrics = new ReactNativeBiometrics();
 
@@ -42,7 +45,11 @@ export const throttle = (func: Function, limit: number) => {
 };
 
 export const Settings = () => {
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const DarkThemedStyles = 'Dark';
+  const dispatch = useDispatch();
+  const { isDarkMode } = useAppSelector(state => state.user);
+  const colors = isDarkMode ? DarkThemedStyles : styles;
+  console.log(colors);
   const navigation = useNavigation<any>();
   const [isResetting, setIsResetting] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
@@ -199,7 +206,7 @@ export const Settings = () => {
             subtitle={isDarkMode ? 'Dark Mode' : 'Light Mode'}
             toggle
             value={isDarkMode}
-            onPress={() => setIsDarkMode(!isDarkMode)}
+            onPress={() => dispatch(toggleTheme())}
           />
           <SettingItem
             icon="auto-awesome-outlined"

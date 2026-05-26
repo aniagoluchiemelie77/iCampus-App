@@ -14,6 +14,26 @@ const { width, height } = Dimensions.get('window');
 export const DEFAULT_GRADIENT = ['#3b2115', '#5a3c2e', '#e05515'];
 export const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32']; 
 
+export const lightTheme = {
+  background: '#ffffff',
+  surface: '#f8fafc',
+  text: '#1e293b',
+  textMuted: '#64748b',
+  primary: '#0066cc', 
+  secondary: '#f0f7ff',
+  border: '#e2e8f0',
+};
+export const darkTheme = {
+  background: '#0f172a', // Deep dark blue/grey
+  surface: '#1e293b',
+  text: '#f8fafc',
+  textMuted: '#94a3b8',
+  primary: '#38bdf8', // Slightly brighter primary for dark mode legibility
+  secondary: '#1e293b',
+  border: '#334155',
+};
+export type ThemeColors = typeof lightTheme;
+
 export const MainSignupStyles = StyleSheet.create({
   background: {
     width,
