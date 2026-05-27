@@ -242,9 +242,9 @@ export const Settings = () => {
             onPress={() => {}}
           />
           <SettingItem
-            icon="info-outline"
-            title="About iCampus"
-            onPress={() => {}}
+            icon="help-center-outlined"
+            title="Frequently Asked Questions (FAQs)"
+            onPress={() => navigation.navigate('FAQScreen')}
           />
         </View>
 
