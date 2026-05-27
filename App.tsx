@@ -32,7 +32,7 @@ const linking = {
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TransitionPresets } from '@react-navigation/stack';
-// Screens
+
 import SignUpScreen from './src/screens/Signup';
 import SignupPage from './src/screens/SignupPage';
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -123,7 +123,10 @@ export type RootStackParamList = {
   };
   Chat: { recipientId: string };
   ICashBuyPage: { refresh?: boolean };
-  CreatePost: { type: 'post' | 'poll' };
+  CreatePost: {
+    type?: 'post' | 'poll';
+    post?: Posts;
+  };
   ICashWithdrawPage: undefined;
   FAQScreen: undefined;
   DownloadsScreen: undefined;

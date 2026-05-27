@@ -562,3 +562,35 @@ export const fetchDropOffStationsAPI = async (lat?: number, lng?: number) => {
     };
   }
 };
+export const fetchUserConnections = async (): Promise<{success: boolean; message?: string; data: any}> => {
+  try {
+    const response = await fetch(`${baseUrl}users/fetch-connections`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to fetch connections',
+        data: [],
+      };
+    }
+    return {
+      success: true,
+      data: result.data
+    } 
+      
+  } catch (error) {
+    console.error("Fetch Connections Error:", error);
+    return {
+      success: false,
+      message: 'Check network connection.',
+      data: [],
+    };
+  }
+};

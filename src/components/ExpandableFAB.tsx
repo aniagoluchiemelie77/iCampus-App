@@ -24,7 +24,7 @@ const ACTION_CONFIG: Record<
 > = {
   // --- Social / General ---
   'Create Poll': {
-    icon: 'poll', // MaterialIcons uses 'poll' (outlined by default or 'assessment')
+    icon: 'poll',
     route: 'CreatePost',
     params: { type: 'poll' },
   },

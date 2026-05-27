@@ -5,12 +5,18 @@ import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
 import {CartItem} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
+import axios from 'axios';
 import {
   Platform
 } from 'react-native';
 
 const token = await AsyncStorage.getItem('accessToken');
 
+interface ServiceResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
   Toast.show({
@@ -1172,5 +1178,77 @@ export const submitReviewApi = async (reviewPayload: any, authToken: string) => 
   } catch (error) {
     console.error('Error invoking submitReviewApi:', error);
     throw error;
+  }
+};
+export const submitOrUpdatePostService = async (
+  postData: any,
+  isEditMode: boolean,
+  postId?: string
+): Promise<ServiceResponse> => { 
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`, 
+    },
+  };
+
+  try {
+    if (isEditMode) {
+      if (!postId) {
+        return {
+          success: false,
+          message: 'Missing crucial parameter for update operation',
+        };
+      }
+      const response = await axios.put(`${baseUrl}posts/${postId}/update`, postData, config);
+      const result = response.data;
+
+      if (!result.success) {
+        Toast.show({
+          type: 'error',
+          text2: result.message || 'Failed to edit post'
+        });
+        return {
+          success: false,
+          message: result.message || 'Failed to edit post'
+        };
+      }
+      
+      return {
+        success: true,
+        message: result.message || 'Post edit successful',
+        data: result.data
+      };
+
+    } else {
+      const response = await axios.post(`${baseUrl}posts/create`, postData, config);
+      const result = response.data;
+      if (!result.success) {
+        Toast.show({
+          type: 'error',
+          text2: result.message || 'Failed to create post.'
+        });
+        return {
+          success: false,
+          message: result.message || 'Failed to create post'
+        };
+      }
+      
+      return {
+        success: true,
+        message: result.message || 'Post creation successful',
+        data: result.data
+      };
+    }
+  } catch (error: any) {
+    const serverMessage = error.response?.data?.message || 'Network transaction failed';
+    Toast.show({
+      type: 'error',
+      text2: serverMessage
+    });
+    return {
+      success: false,
+      message: serverMessage
+    };
   }
 };
