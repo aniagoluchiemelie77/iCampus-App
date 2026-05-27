@@ -6,8 +6,6 @@ import {
   Text,
   StyleSheet,
   LayoutAnimation,
-  Platform,
-  UIManager,
   TouchableOpacity,
   Linking,
   Alert,
@@ -19,12 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { MarketplaceOrder } from '../types/firebase';
 import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { CurrencyDisplay } from './CurrencyFormatter';
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+
 interface OrderProps {
   order: {
     orderId: string;
@@ -39,6 +32,10 @@ interface OrderProps {
 }
 interface SellerOrderProps {
   order: MarketplaceOrder;
+}
+interface FAQItemProps {
+  question: string;
+  answer: string;
 }
 const handleDownload = (url: string) => {
   if (!url) {
@@ -302,6 +299,36 @@ const DetailItem = ({
   </View>
 );
 
+export const FAQItem = ({ question, answer }: FAQItemProps) => {
+  const [expanded, setExpanded] = useState(false);
+  const toggleAccordion = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
+  return (
+    <View style={QRCodeStyles.cardContainer}>
+      <TouchableOpacity
+        onPress={toggleAccordion}
+        activeOpacity={0.7}
+        style={[QRCodeStyles.header, expanded && QRCodeStyles.headerExpanded]}
+      >
+        <Text style={QRCodeStyles.questionText}>Q: {question}</Text>
+        <MaterialIcons
+          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+          size={24}
+          color={PRIMARY_COLOR_TINT}
+        />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={QRCodeStyles.expandedContent}>
+          <Text style={QRCodeStyles.answerText}>{answer}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 const QRCodeStyles = StyleSheet.create({
   qrSection: {
     alignItems: 'center',
@@ -493,5 +520,17 @@ const QRCodeStyles = StyleSheet.create({
     color: '#2222',
     marginLeft: 10,
     flex: 1,
+  },
+  questionText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222',
+    flex: 1,
+    paddingRight: 8,
+  },
+  answerText: {
+    fontSize: 14,
+    color: '#2222',
+    lineHeight: 20,
   },
 });

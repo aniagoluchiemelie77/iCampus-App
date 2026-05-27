@@ -227,12 +227,12 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
       <TouchableOpacity
         onPress={() =>
           isViewingSelf
-            ? navigation.navigate('IScoreBreakdown')
+            ? navigation.navigate('FAQScreen')
             : navigation.navigate('Profile', { uid: user.uid })
         }
       >
         <Text style={styles.learnMore}>
-          {isViewingSelf ? 'How is this calculated? →' : 'View Full Profile →'}
+          {isViewingSelf ? 'How iScore is calculated?' : 'View Full Profile'}
         </Text>
       </TouchableOpacity>
     </View>

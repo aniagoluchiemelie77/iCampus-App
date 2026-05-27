@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, Platform } from 'react-native';
+import {
+  ActivityIndicator,
+  View,
+  StyleSheet,
+  Platform,
+  UIManager,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; 
 import { Provider } from 'react-redux';
@@ -86,7 +92,9 @@ import { CreateProductScreen } from './src/screens/CreateProductScreen.tsx';
 import { PayoutSuccess } from './src/screens/PayoutSuccessScreen.tsx';
 import { ProductPublishSuccess } from './src/screens/ProductPublishSuccessScreen.tsx';
 import { CreateReviewScreen } from './src/screens/ReviewsScreen.tsx';
+import { FAQScreen } from './src/screens/FAQScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
+import { PRIMARY_COLOR } from 'assets/styles/colors.ts';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -117,6 +125,7 @@ export type RootStackParamList = {
   ICashBuyPage: { refresh?: boolean };
   CreatePost: { type: 'post' | 'poll' };
   ICashWithdrawPage: undefined;
+  FAQScreen: undefined;
   DownloadsScreen: undefined;
   CourseLearningScreen: {
     courseProduct: any;
@@ -284,8 +293,11 @@ const App = () => {
   const [initialParams, _setInitialParams] = useState<
     RootStackParamList['Welcome'] | undefined
   >(undefined);
-  // ... inside your component
-
+  if (Platform.OS === 'android') {
+    if (UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }
   useEffect(() => {
     BleManager.start({ showAlert: false })
       .then(() => console.log('BleManager Initialized'))
@@ -361,7 +373,7 @@ const App = () => {
   if (!initialRoute) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
       </View>
     );
   }
@@ -404,6 +416,11 @@ const App = () => {
             <Stack.Screen
               name="MSuccessScreen"
               component={MarketplacePurchaseSuccessScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="FAQScreen"
+              component={FAQScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

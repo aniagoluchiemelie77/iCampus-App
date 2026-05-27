@@ -44,6 +44,7 @@ import {
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../components/hooks';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { PageHeader } from '../components/PageHeader';
 
 type ItemCategory = Product['type'];
 interface VideoDurationExtractorProps {
@@ -292,6 +293,8 @@ const StepHeader = ({
 export const CreateProductScreen = ({ route }: any) => {
   const user = useAppSelector(state => state.user);
   const { product: existingProduct } = route.params;
+  const productId = existingProduct?.productId || existingProduct?._id;
+  const isEditing = !!productId;
   const navigation = useNavigation<any>();
   const [activeStep, setActiveStep] = useState(1);
   const [nicheOpen, setNicheOpen] = useState(false);
@@ -616,9 +619,6 @@ export const CreateProductScreen = ({ route }: any) => {
     setSizeInput('');
   };
   const handlePublishProduct = async () => {
-    const productId = existingProduct?.productId || existingProduct?._id;
-    const isEditing = !!productId;
-
     const {
       title,
       description,
@@ -871,7 +871,7 @@ export const CreateProductScreen = ({ route }: any) => {
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
     >
-      <Text style={styles.mainTitle}>Create New Listing</Text>
+      <PageHeader title={isEditing ? 'Edit Listing' : 'Create New Listing'} />
       {/* --- STEP 1: GENERAL INFO --- */}
       <View style={styles.card}>
         <StepHeader
@@ -1616,13 +1616,6 @@ export const CreateProductScreen = ({ route }: any) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   scrollContent: { padding: 20, paddingBottom: 100 },
-  mainTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
