@@ -10,8 +10,11 @@ import {
   FlatList,
   Linking,
   Alert,
+  Pressable,
 } from 'react-native';
+import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useAppDataContext } from './EventContext';
 import Video from 'react-native-video';
@@ -20,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR } from './Classroomcomponent';
 import { UserIdentity } from './UserIdentity';
 import { UserAvatar } from './UserAvatar';
-import { baseUrl } from './HomeScreenComponents';
+import { searchUsersByUid } from '../api/localGetApis';
 import {
   PRIMARY_COLOR_TINT,
   PRIMARY_COLOR_TINT_MAIN,
@@ -28,24 +31,18 @@ import {
 import { User } from '../types/firebase';
 const { width } = Dimensions.get('window');
 import { formatEventDate } from '../utils/dateFormatter';
+import { formatStatNumber } from '../utils/followCountFormatter';
+import Toast from 'react-native-toast-message';
+import toastConfig from '../components/ToastConfig';
 export interface PostCardProps {
-  post: Posts; // Using your existing Posts type
-  isVisible: boolean; // Add this line
+  post: Posts;
+  isVisible: boolean;
 }
 interface LinkedTextProps {
   content: string;
   onTagPress?: (tag: string) => void;
   onMentionPress?: (mention: string) => void;
 }
-export const formatStatCount = (count: number): string => {
-  if (count >= 1000000) {
-    return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-  }
-  if (count >= 1000) {
-    return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  }
-  return count.toString();
-};
 export const MediaSection = ({ post, isVisible }: PostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const mediaUrls = Array.isArray(post.media?.url)
@@ -252,7 +249,7 @@ const LinkedText = ({
 export const PostCard = ({ post, isVisible }: PostCardProps) => {
   const user = post.originalAuthor;
   const [isExpanded, setIsExpanded] = useState(false);
-  // Define the state with the User type
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [userDetails, setUserDetails] = useState<User | null>(null);
   const [_, setLoading] = useState(true);
   const navigation = useNavigation<any>();
@@ -264,6 +261,7 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     handleRepost,
     incrementShareCount,
     handleVote,
+    handleDeletePost,
   } = useAppDataContext();
   const getRelativeTime = (dateString: string | null): string => {
     if (!dateString) return '';
@@ -277,18 +275,28 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
       .replace(' days', 'd')
       .replace(' day', 'd');
   };
+  const isOwner = currentUser?.uid === user;
   const isLiked = post.likes?.includes(currentUser?.uid);
   const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
   const shouldShowSeeMore = post.content && post.content.length > TEXT_LIMIT;
   const displayText = isExpanded
     ? post.content
     : post.content?.slice(0, TEXT_LIMIT);
+  const deepLinkUrl = `https://useicampus.io/posts/${post.postId}`;
+
+  const handleCopyLink = () => {
+    Clipboard.setString(deepLinkUrl);
+    setIsMenuVisible(false);
+    Toast.show({ type: 'success', text2: 'Link copied to clipboard!' });
+  };
 
   const handleExternalShare = async (posts: Posts) => {
     try {
       const result = await Share.share({
-        message: `${posts.content} \n\n View more on iCampus App!`,
-        url: `https://iCampus.com/posts/${posts.postId}`, // Deep link
+        message: `${
+          post.content || 'Check out this post on iCampus!'
+        } \n\nView more on iCampus App!`,
+        url: deepLinkUrl,
       });
 
       if (result.action === Share.sharedAction) {
@@ -297,6 +305,31 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     } catch (error) {
       console.error(error);
     }
+  };
+  const confirmDelete = () => {
+    setIsMenuVisible(false);
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to permanently delete this post? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await handleDeletePost(post.postId);
+            } catch (err) {
+              console.error('Failed to delete post', err);
+            }
+          },
+        },
+      ],
+    );
+  };
+  const handleEditNavigate = () => {
+    setIsMenuVisible(false);
+    navigation.navigate('CreatePost', { post: post });
   };
   const handleJobApply = (url: string) => {
     Alert.alert(
@@ -311,9 +344,14 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
   useEffect(() => {
     const fetchPosterDetails = async () => {
       try {
-        const response = await fetch(`${baseUrl}users/search/${user}`);
-        const data = await response.json();
-        setUserDetails(data);
+        const userArray = await searchUsersByUid(
+          user!,
+          currentUser?.tier || 'free',
+          currentUser?.usertype || 'student',
+        );
+        if (userArray && userArray.length > 0) {
+          setUserDetails(userArray[0]);
+        }
       } catch (error) {
         console.error('Error fetching poster details:', error);
       } finally {
@@ -324,11 +362,15 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
     if (user) {
       fetchPosterDetails();
     }
-  }, [user]);
+  }, [user, currentUser?.tier, currentUser?.usertype]);
   const eventDate = formatEventDate(post.eventMetadata?.startDate);
 
   return (
-    <View style={styles.container}>
+    <Pressable
+      onLongPress={() => setIsMenuVisible(true)}
+      delayLongPress={400}
+      style={styles.container}
+    >
       {post.isRepost && (
         <View style={styles.repostHeader}>
           <MaterialIcons name="repeat" size={14} color={PRIMARY_COLOR_TINT} />
@@ -466,9 +508,13 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
             navigation.navigate('PostDetailScreen', { post: post })
           }
         >
-          <MaterialIcons name="chatbubble-outline" size={18} color="#666" />
+          <MaterialIcons
+            name="chatbubble-outline"
+            size={18}
+            color={PRIMARY_COLOR_TINT}
+          />
           <Text style={styles.statText}>
-            {formatStatCount(post.commentsCount ?? 0)}
+            {formatStatNumber(post.commentsCount ?? 0)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -478,10 +524,10 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
           <MaterialIcons
             name={isLiked ? 'heart' : 'heart-outline'}
             size={18}
-            color={isLiked ? '#f54b02' : '#666'}
+            color={isLiked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
           />
           <Text style={styles.statText}>
-            {formatStatCount(post.likes?.length || 0)}
+            {formatStatNumber(post.likes?.length || 0)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -491,10 +537,10 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
           <MaterialIcons
             name="repeat"
             size={18}
-            color={post.isRepost ? '#f54b02' : '#666'}
+            color={post.isRepost ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
           />
           <Text style={styles.statText}>
-            {formatStatCount(post.repostsCount ?? 0)}
+            {formatStatNumber(post.repostsCount ?? 0)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -504,29 +550,88 @@ export const PostCard = ({ post, isVisible }: PostCardProps) => {
           <MaterialIcons
             name={isBookmarked ? 'bookmark' : 'bookmark-border'}
             size={18}
-            color={isBookmarked ? '#f54b02' : '#666'}
+            color={isBookmarked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
           />
           <Text style={styles.statText}>
-            {formatStatCount(post.bookmarks?.length || 0)}
+            {formatStatNumber(post.bookmarks?.length || 0)}
           </Text>
         </TouchableOpacity>
         <View style={styles.statGroup}>
-          <MaterialIcons name="bar-chart" size={18} color="#666" />
+          <MaterialIcons
+            name="bar-chart"
+            size={18}
+            color={PRIMARY_COLOR_TINT}
+          />
           <Text style={styles.statText}>
-            {formatStatCount(post.impressions || 0)}
+            {formatStatNumber(post.impressions || 0)}
           </Text>
         </View>
         <TouchableOpacity
           style={styles.statGroup}
           onPress={() => handleExternalShare(post)}
         >
-          <MaterialIcons name="share" size={18} color="#666" />
+          <MaterialIcons name="share" size={18} color={PRIMARY_COLOR_TINT} />
           <Text style={styles.statText}>
-            {formatStatCount(post.shares?.length || 0)}
+            {formatStatNumber(post.shares?.length || 0)}
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+      <Modal
+        isVisible={isMenuVisible}
+        onBackdropPress={() => setIsMenuVisible(false)}
+        swipeDirection="down"
+        onSwipeComplete={() => setIsMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setIsMenuVisible(false)}
+        >
+          <View style={styles.sheetContainer}>
+            <View style={styles.dragIndicator} />
+
+            <TouchableOpacity style={styles.menuItem} onPress={handleCopyLink}>
+              <MaterialIcons name="link" size={22} color="#333" />
+              <Text style={styles.menuText}>Copy link</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleExternalShare(post)}
+            >
+              <MaterialIcons name="share" size={22} color="#333" />
+              <Text style={styles.menuText}>Share via...</Text>
+            </TouchableOpacity>
+
+            {isOwner && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleEditNavigate}
+                >
+                  <MaterialIcons name="edit" size={22} color="#333" />
+                  <Text style={styles.menuText}>Edit post</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem]}
+                  onPress={confirmDelete}
+                >
+                  <MaterialIcons
+                    name="delete-outlined"
+                    size={22}
+                    color={PRIMARY_COLOR}
+                  />
+                  <Text style={[styles.menuText, { color: PRIMARY_COLOR }]}>
+                    Delete post
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+      <Toast config={toastConfig} />
+    </Pressable>
   );
 };
 const styles = StyleSheet.create({
@@ -795,5 +900,42 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: '#fadccc',
+    position: 'absolute',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    width: '100%',
+    bottom: 55,
+  },
+  dragIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: PRIMARY_COLOR_TINT,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+    borderBottomWidth: 0.8,
+    marginBottom: 15,
+  },
+  menuText: {
+    fontSize: 14,
+    marginLeft: 15,
+    color: '#333',
+    fontWeight: '500',
   },
 });

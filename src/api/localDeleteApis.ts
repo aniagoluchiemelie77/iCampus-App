@@ -153,3 +153,19 @@ export const deleteProductApi = async (productId: string) => {
     throw error;
   }
 };
+export const deletePostApi = async (postId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}posts/${postId}/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      }
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error invoking deletePostApi:", error);
+    throw error;
+  }
+};

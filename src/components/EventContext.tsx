@@ -6,7 +6,6 @@ import React, {
   useRef,
   useEffect,
 } from 'react';
-
 import type {
   User,
   Posts,
@@ -26,7 +25,11 @@ import {
   updateCartAPI,
   toggleFavoriteAPI,
 } from '../api/localPatchApis';
-import { clearCartAPI, clearFavoritesAPI } from '../api/localDeleteApis';
+import {
+  clearCartAPI,
+  clearFavoritesAPI,
+  deletePostApi,
+} from '../api/localDeleteApis';
 import {
   fetchPostByIdAPI,
   fetchAllProductsAPI,
@@ -58,6 +61,7 @@ interface AppDataContextType {
   deleteProductLocal: (productId: string) => Promise<void>;
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
   refreshReviews: () => Promise<void>;
+  handleDeletePost: (postId: string) => Promise<void>;
   setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
   handleRepost: (
     originalPostId: string,
@@ -671,6 +675,27 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       console.error('Failed local product deletion pipeline:', error);
     }
   };
+  const handleDeletePost = async (postId: string): Promise<void> => {
+    try {
+      const response = await deletePostApi(postId);
+      if (response && response.success) {
+        setPosts(currentPosts =>
+          currentPosts.filter(post => post.postId !== postId),
+        );
+        Toast.show({ type: 'success', text2: 'Post deleted successfully' });
+      } else {
+        Toast.show({ type: 'error', text2: 'Failed to delete post' });
+      }
+    } catch (error) {
+      console.error('Context Delete Post Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Error',
+        text2: 'Could not delete your post. Please try again.',
+      });
+      throw error;
+    }
+  };
 
   useEffect(() => {
     fetchReviews();
@@ -679,6 +704,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   return (
     <AppDataContext.Provider
       value={{
+        handleDeletePost,
         deleteProductLocal,
         syncCatalog,
         currentUser,

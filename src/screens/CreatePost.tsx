@@ -304,7 +304,6 @@ const CreatePost = ({ route, navigation }: any) => {
               )}
             </View>
           )}
-
           {/* Media Grid Preview Panel */}
           {mediaList.length > 0 && (
             <View style={styles.mediaContainer}>

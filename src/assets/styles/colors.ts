@@ -1523,7 +1523,7 @@ export const homeStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 10,
+    height: 55,
     backgroundColor: 'rgba(250, 220, 204, 0.85)', 
     position: 'absolute',
     bottom: 15,

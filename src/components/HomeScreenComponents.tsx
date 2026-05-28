@@ -395,10 +395,8 @@ export function Home() {
         renderItem={({ item }) => (
           <PostCard post={item} isVisible={item.postId === activePostId} />
         )}
-        // Interaction Props
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        // Pagination Props
         onEndReached={() => loadPosts(false)}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
