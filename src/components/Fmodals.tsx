@@ -10,15 +10,14 @@ import {
   Image,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useAppSelector } from '../components/hooks';
-import axios from 'axios';
 import Toast from 'react-native-toast-message';
-import { baseUrl } from '../components/HomeScreenComponents';
-import {
-  PRIMARY_COLOR,
-} from '@components/Classroomcomponent';
+import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { UserIdentity } from '../components/UserIdentity';
 import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import {
+  toggleFollowUser,
+  toggleBlockUserFromProfile,
+} from '../api/localPostApis';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 
 interface FollowModalProps {
@@ -28,40 +27,60 @@ interface FollowModalProps {
   data: any[];
   navigation: any;
 }
-
-const UserRow = ({ item, navigation }: { item: any; navigation: any }) => {
-  const currentUser = useAppSelector(state => state.user);
-  const [isFollowing, setIsFollowing] = useState(
-    item.isFollowingByViewer || false,
+interface UserRowProps {
+  item: any;
+  navigation: any;
+  type: 'followers' | 'following'; // Identifies the context layout
+}
+const UserRow = ({ item, navigation, type }: UserRowProps) => {
+  const [isActiveState, setIsActiveState] = useState(
+    type === 'following' ? item.isFollowingByViewer ?? true : true,
   );
   const [loading, setLoading] = useState(false);
+
   const handleToggle = async () => {
     setLoading(true);
-    try {
-      const response = await axios.post(`${baseUrl}users/follow/toggle`, {
-        followerId: currentUser.uid,
-        followingId: item.uid,
-      });
-      if (response.data.success) {
-        setIsFollowing(!isFollowing);
+
+    if (type === 'following') {
+      const result = await toggleFollowUser(item.uid);
+      if (result.success) {
+        setIsActiveState(result.action === 'followed');
         Toast.show({
           type: 'success',
-          text1: response.data.action === 'followed' ? 'Success' : 'Updated',
-          text2: response.data.message,
+          text1: result.action === 'followed' ? 'Followed' : 'Unfollowed',
+          text2: result.message,
         });
       }
-    } catch (error) {
-      console.error('Follow error:', error);
-    } finally {
-      setLoading(false);
+    } else {
+      const result = await toggleBlockUserFromProfile(item.uid);
+      if (result.success) {
+        setIsActiveState(result.action !== 'blocked'); // If blocked, remove active follower visual status
+        Toast.show({
+          type: 'success',
+          text1:
+            result.action === 'blocked' ? 'User Blocked' : 'User Unblocked',
+          text2:
+            result.action === 'blocked'
+              ? 'Removed from your followers list.'
+              : 'Reversed successfully.',
+        });
+      }
+    }
+    setLoading(false);
+  };
+  const getButtonLabel = () => {
+    if (loading) return <ActivityIndicator size="small" color="#fff" />;
+    if (type === 'following') {
+      return isActiveState ? 'Unfollow' : 'Follow';
+    } else {
+      return isActiveState ? 'Block' : 'Blocked';
     }
   };
+
   return (
     <TouchableOpacity
       style={styles.userRow}
-      onPress={() => {
-        navigation.push('Profile', { uid: item.uid });
-      }}
+      onPress={() => navigation.push('Profile', { uid: item.uid })}
     >
       <Image source={{ uri: item.profilePic?.[0] }} style={styles.avatar} />
       <View style={styles.userInfo}>
@@ -79,30 +98,36 @@ const UserRow = ({ item, navigation }: { item: any; navigation: any }) => {
       <TouchableOpacity
         style={[
           styles.miniButton,
-          isFollowing ? styles.buttonFollowing : styles.buttonFollow,
+          type === 'following'
+            ? isActiveState
+              ? styles.buttonUnfollow
+              : styles.buttonFollow
+            : isActiveState
+            ? styles.buttonBlock
+            : styles.buttonBlocked,
         ]}
         onPress={handleToggle}
-        disabled={loading}
+        disabled={loading || (!isActiveState && type === 'followers')} // Prevent toggling once blocked
       >
         <Text
           style={[
             styles.miniButtonText,
-            isFollowing ? styles.textFollowing : styles.textFollow,
+            type === 'following'
+              ? isActiveState
+                ? styles.textUnfollow
+                : styles.textFollow
+              : isActiveState
+              ? styles.textBlock
+              : styles.textBlocked,
           ]}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : isFollowing ? (
-            'Following'
-          ) : (
-            'Follow'
-          )}
+          {getButtonLabel()}
         </Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
 };
-export const FollowListModal: React.FC<FollowModalProps> = ({
+export const FollowersListModal: React.FC<FollowModalProps> = ({
   visible,
   onClose,
   title,
@@ -134,7 +159,7 @@ export const FollowListModal: React.FC<FollowModalProps> = ({
             keyExtractor={item => item.uid || item._id}
             contentContainerStyle={{ paddingBottom: 30 }}
             renderItem={({ item }) => (
-              <UserRow item={item} navigation={navigation} />
+              <UserRow item={item} navigation={navigation} type="followers" />
             )}
             ListEmptyComponent={
               <EmptyState
@@ -184,7 +209,7 @@ export const FollowingListModal: React.FC<FollowModalProps> = ({
             keyExtractor={item => item.uid || item._id}
             contentContainerStyle={{ paddingBottom: 30 }}
             renderItem={({ item }) => (
-              <UserRow item={item} navigation={navigation} />
+              <UserRow item={item} navigation={navigation} type="following" />
             )}
             ListEmptyComponent={
               <EmptyState
@@ -244,7 +269,7 @@ const styles = StyleSheet.create({
   },
   miniButtonText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   miniButton: {
     paddingHorizontal: 7,
@@ -253,15 +278,33 @@ const styles = StyleSheet.create({
     borderWidth: 0.8,
     alignItems: 'center',
   },
-  // State: Follow Back (Primary)
   buttonFollow: {
+    backgroundColor: 'inherit',
+    borderColor: 'transparent',
+  },
+  buttonBlock: {
     backgroundColor: PRIMARY_COLOR,
     borderColor: PRIMARY_COLOR,
   },
+  buttonUnfollow: {
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
+  },
+  buttonBlocked: {
+    backgroundColor: 'inherit',
+    borderColor: 'transparent',
+  },
   textFollow: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
+    color: PRIMARY_COLOR,
+  },
+  textBlock: {
+    color: '#fff',
+  },
+  textUnfollow: {
+    color: '#fff',
+  },
+  textBlocked: {
+    color: PRIMARY_COLOR,
   },
   // State: Already Following (Outline)
   buttonFollowing: {

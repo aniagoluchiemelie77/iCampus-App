@@ -37,7 +37,10 @@ import { ITagCard } from '../components/iTag';
 import { Course, User } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
 import { EditiTagModal } from '../components/EditItag.tsx';
-import { FollowListModal, FollowingListModal } from '../components/Fmodals.tsx';
+import {
+  FollowersListModal,
+  FollowingListModal,
+} from '../components/Fmodals.tsx';
 import { PostCard } from '../components/PostCard.tsx';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
@@ -883,7 +886,7 @@ export const ProfileScreen = ({ route }: any) => {
         </TouchableOpacity>
       )}
       {/* Modals */}
-      <FollowListModal
+      <FollowersListModal
         visible={followModal.visible}
         title={followModal.title}
         data={followModal.data}

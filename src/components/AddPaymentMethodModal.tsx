@@ -18,7 +18,6 @@ import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import {PRIMARY_COLOR_TINT} from './Classroomcomponent.tsx'
 import { SvgProps } from 'react-native-svg';
-import { FLUTTERWAVE_CLIENT_EKEY } from '@env';
 import { initiatePaymentCharge } from '../api/localPostApis.ts';
 import {
   MasterCardLogo,
@@ -30,7 +29,6 @@ import {
 import DropDownPicker from 'react-native-dropdown-picker';
 import {
   validateExpiryYear,
-  encryptCardDetails,
   validateExpiryMonth,
   validateCVV,
   getBin,
@@ -315,6 +313,7 @@ export const AddPaymentModal = ({
     const monthErr = validateExpiryMonth(month);
     const yearErr = validateExpiryYear(year);
     const cvvErr = validateCVV(cvv);
+
     if (monthErr || yearErr || cvvErr) {
       Toast.show({
         type: 'error',
@@ -323,45 +322,30 @@ export const AddPaymentModal = ({
       });
       return;
     }
+
     setIsLoading(true);
-    const cardObject = JSON.stringify({
-      card_number: number.replace(/\s/g, ''),
-      cvv: cvv,
-      expiry_month: month,
-      expiry_year: year,
-      pin: pin,
-      billing_address: cardData.address,
-      billing_city: cardData.city,
-      billing_state: cardData.state,
-      billing_zip: cardData.zipcode,
-      billing_country: cardData.country || 'US',
-    });
-    const encryptedData = encryptCardDetails(
-      FLUTTERWAVE_CLIENT_EKEY,
-      cardObject,
-    );
+
     try {
-      const payload = {
-        client: encryptedData,
-        currency: currencyData.code || 'NGN',
-        amount: '50',
-        fullname:
-          name ||
-          `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim() ||
-          'Guest User',
-        email: user?.email,
-        tx_ref: `link-card-${Date.now()}`,
-        meta: {
-          userId: user.uid,
-          purpose: 'linking_card',
+      const response = await initiatePaymentCharge('card', {
+        cardData: {
+          number,
+          cvv,
+          month,
+          year,
+          pin,
+          name,
+          address: cardData.address,
+          city: cardData.city,
+          state: cardData.state,
+          zipcode: cardData.zipcode,
+          country: cardData.country,
         },
-        authorization: {
-          mode: isInternational ? 'avs_noauth' : 'pin',
-        },
-      };
-      const response = await initiatePaymentCharge('card', payload);
+        isInternational,
+        currencyCode: currencyData.code || 'NGN',
+      });
       const result = response.data;
-      if (result.status === 'success') {
+
+      if (result && result.status === 'success') {
         if (result.meta?.authorization?.mode === 'otp') {
           navigation.navigate('VerifyOTP', {
             flw_ref: result.data.flw_ref,
@@ -376,7 +360,7 @@ export const AddPaymentModal = ({
         Toast.show({
           type: 'error',
           text1: 'Linking Failed',
-          text2: result.message,
+          text2: result?.message || 'Transaction could not be verified.',
         });
       }
     } catch (error: any) {

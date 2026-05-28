@@ -13,15 +13,14 @@ import {
   TextInput,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import axios from 'axios';
 import Toast from 'react-native-toast-message';
-import { baseUrl } from '../components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT} from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { ITagCard } from '../components/iTag';
 import { ITag } from '../types/firebase';
 import { debounce } from 'lodash';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { checkITagAvailability } from '../api/localGetApis';
+import { customizeItag } from '../api/localPutApis';
 
 const PRESET_COLORS = [
   '#672a0e',
@@ -94,7 +93,7 @@ export const EditiTagModal = ({
     try {
       let finalImageUrl = bgImage;
       if (bgImage && bgImage.startsWith('file://')) {
-        finalImageUrl = await uploadToCloudinary(bgImage);
+        finalImageUrl = await uploadToFirebase(bgImage, 'itag-bgImages');
       }
       const updatePayload = {
         username: username.toLowerCase().trim(),
@@ -104,22 +103,9 @@ export const EditiTagModal = ({
           backgroundImage: finalImageUrl,
         },
       };
+      const response = await customizeItag(updatePayload);
 
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await axios.put(
-        `${baseUrl}users/update-itag`,
-        {
-          userId: iTagData.userId,
-          updates: updatePayload,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      if (response.data.success) {
+      if (response.success) {
         onSave({
           ...iTagData,
           ...updatePayload,
@@ -129,6 +115,7 @@ export const EditiTagModal = ({
           text1: 'iTag Updated',
           text2: 'Your custom design is now live!',
         });
+
         onClose();
       }
     } catch (error) {
@@ -142,8 +129,6 @@ export const EditiTagModal = ({
       setLoading(false);
     }
   };
-
-  // 2. Debounced Username Availability Check
   const checkUsername = useMemo(
     () =>
       debounce(async (val: string) => {
@@ -157,11 +142,15 @@ export const EditiTagModal = ({
         }
         setIsChecking(true);
         try {
-          const res = await axios.get(`${baseUrl}users/check-itag/${val}`);
-          if (res.data.available) {
-            setUsernameError('');
+          const result = await checkITagAvailability(val);
+          if (result.success) {
+            if (result.available) {
+              setUsernameError('');
+            } else {
+              setUsernameError('Username already taken');
+            }
           } else {
-            setUsernameError('Username already taken');
+            setUsernameError('Could not verify username availability');
           }
         } catch (err) {
           console.error('Check Username Error:', err);

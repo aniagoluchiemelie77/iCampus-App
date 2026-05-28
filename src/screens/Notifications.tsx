@@ -14,7 +14,11 @@ import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { baseUrl } from '../components/HomeScreenComponents';
+import { fetchNotificationsByTab } from '../api/localGetApis';
+import {
+  markAllNotificationsAsRead,
+  markSingleNotificationAsRead,
+} from '../api/localPatchApis';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -31,50 +35,38 @@ const Notifications = () => {
   const { socket } = useSocket();
 
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'unread', 'finance'
+  const [activeTab, setActiveTab] = useState<'all' | 'finance' | 'unread'>(
+    'all',
+  );
   const [loading, setLoading] = useState(false);
 
   // 1. Fetch Notifications with Filters
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      // Start with the base URL and userId
-      let url = `${baseUrl}users/notifications?userId=${user.uid}`;
-      if (activeTab === 'finance') {
-        url += '&category=finance';
+      const result = await fetchNotificationsByTab(activeTab);
+      if (result.success) {
+        setNotifications(result.notifications);
       }
-      if (activeTab === 'unread') {
-        url += '&unread=true';
-      }
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      setNotifications(data.notifications || []);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [user.uid, activeTab]);
+  }, [activeTab]);
   // Notifications.tsx
 
   const markAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     try {
-      const response = await fetch(
-        `${baseUrl}users/notifications/mark-all-read/${user.uid}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
+      const result = await markAllNotificationsAsRead();
 
-      if (response.ok) {
+      if (result.success) {
         Toast.show({
           type: 'success',
           text1: 'Notifications all marked as read',
         });
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       } else {
         fetchNotifications();
       }
@@ -83,16 +75,14 @@ const Notifications = () => {
       fetchNotifications();
     }
   };
+  const tabs: ('all' | 'unread' | 'finance')[] = ['all', 'unread', 'finance'];
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // 2. Real-time Socket Listener
   useEffect(() => {
     if (!socket) return;
-
-    // Listen for the event emitted by your backend createNotification function
     socket.on('new_notification', (newNotif: any) => {
       setNotifications(prev => [newNotif, ...prev]);
     });
@@ -171,12 +161,12 @@ const Notifications = () => {
 
   const markAsReadOnServer = async (id: string) => {
     try {
-      await fetch(`${baseUrl}users/notifications/${id}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const result = await markSingleNotificationAsRead(id);
+      if (result.success) {
+        setNotifications(prev =>
+          prev.map(n => (n.id === id ? { ...n, isRead: true } : n)),
+        );
+      }
     } catch (err) {
       console.error('Read error:', err);
     }
@@ -184,7 +174,6 @@ const Notifications = () => {
 
   const renderNotificationItem = ({ item }: { item: any }) => {
     const getIcon = () => {
-      // Use PRIMARY_COLOR for everything to keep UI consistent
       const iconColor = PRIMARY_COLOR;
 
       switch (item.category) {
@@ -200,7 +189,6 @@ const Notifications = () => {
         case 'announcement':
           return { name: 'campaign', color: iconColor };
         default:
-          // Fallback for any other categories
           return { name: 'notifications', color: iconColor };
       }
     };
@@ -248,7 +236,7 @@ const Notifications = () => {
       />
 
       <View style={styles.tabBar}>
-        {['all', 'unread', 'finance'].map(tab => (
+        {tabs.map(tab => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}

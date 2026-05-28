@@ -1,59 +1,17 @@
 import React, { useEffect, useState,  } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from '../../App';
 import {
-  CalendarScreenStyles,
   NotificationPageStyles,
   NotificationDetailsStyles,
-} from '../assets/styles/colors'; // adjust import paths
-import { baseUrl } from '../components/HomeScreenComponents';
+} from '../assets/styles/colors';
+import { fetchNotificationDetails } from '../api/localGetApis';
 import { Notification } from '../types/firebase';
 import { PRIMARY_COLOR } from '../components/Classroomcomponent';
-
-type NavigationProp = StackNavigationProp<
-  RootStackParamList,
-  'NotificationDetails'
->;
-
-const formatDateWithSuffix = (dateString: string) => {
-  const date = new Date(dateString);
-  const day = date.getDate();
-  const suffix =
-    day % 10 === 1 && day !== 11
-      ? 'st'
-      : day % 10 === 2 && day !== 12
-      ? 'nd'
-      : day % 10 === 3 && day !== 13
-      ? 'rd'
-      : 'th';
-
-  const month = date.toLocaleString('default', { month: 'short' });
-  const year = date.getFullYear();
-
-  return `${month} ${day}${suffix} ${year}`;
-};
-
-const CustomHeader: React.FC<{ title: string; onBack: () => void }> = ({
-  title,
-  onBack,
-}) => (
-  <View style={CalendarScreenStyles.headerContainer2}>
-    <TouchableOpacity onPress={onBack}>
-      <Icon name="chevron-left" size={25} color={PRIMARY_COLOR} />
-    </TouchableOpacity>
-    <Text style={CalendarScreenStyles.headerTitle}>{title}</Text>
-  </View>
-);
+import { formatDateWithSuffix } from '../utils/dateFormatter';
+import { PageHeader } from '../components/PageHeader';
 
 const EmptyNotification = () => (
   <View style={NotificationPageStyles.emptyNotifications}>
@@ -66,7 +24,6 @@ const EmptyNotification = () => (
 // ... (keep existing imports)
 
 export default function NotificationDetails() {
-  const navigation2 = useNavigation<NavigationProp>();
   const route =
     useRoute<RouteProp<RootStackParamList, 'NotificationDetails'>>();
   const { notificationId, notification: passedNotification } = route.params;
@@ -81,11 +38,10 @@ export default function NotificationDetails() {
       const fetchNotification = async () => {
         setLoading(true);
         try {
-          const res = await fetch(
-            `${baseUrl}users/notifications/${notificationId}`,
-          );
-          const data = await res.json();
-          if (data.notification) setNotification(data.notification);
+          const result = await fetchNotificationDetails(notificationId);
+          if (result.success && result.notification) {
+            setNotification(result.notification);
+          }
         } catch (err) {
           console.error('Error fetching notification:', err);
         } finally {
@@ -104,10 +60,7 @@ export default function NotificationDetails() {
 
   return (
     <ScrollView contentContainerStyle={NotificationDetailsStyles.container}>
-      <CustomHeader
-        title="Notification Details"
-        onBack={() => navigation2.goBack()}
-      />
+      <PageHeader title="Notification Details" />
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', marginTop: 100 }}>

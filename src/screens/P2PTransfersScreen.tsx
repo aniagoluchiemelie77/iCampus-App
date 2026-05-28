@@ -19,8 +19,6 @@ import { useAppSelector } from '../components/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
 // @ts-ignore: runOnJS is deprecated in Reanimated but stable for Vision Camera
 import { runOnJS } from 'react-native-reanimated';
-import { baseUrl } from '../components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -32,6 +30,8 @@ import { PageHeader } from '../components/PageHeader';
 import { ITagCard } from '../components/iTag';
 import { MyQRCodeSection } from '../components/MyQRCodeSection';
 import { FeatureCard } from '../components/P2PFeatureCardComponent';
+import { searchUsersByITag } from '../api/localGetApis';
+import { executeP2PTransfer } from '../api/localPostApis';
 
 interface ITagSearchResult {
   userId: string;
@@ -87,7 +87,7 @@ export const IcashP2PScreen = () => {
   const [amount, setAmount] = useState('');
   // Inside your IcashP2PScreen component
   const numericAmount = parseFloat(amount) || 0;
-  const hasSufficientFunds = user?.pointsBalance >= numericAmount;
+  const hasSufficientFunds = user?.pointsBalance! >= numericAmount;
   const isInputValid =
     numericAmount > 0 && recipientTag.length > 0 && searchResult;
   const isSendingToSelf = searchResult?.isUser === true; // Check the new backend flag
@@ -107,21 +107,8 @@ export const IcashP2PScreen = () => {
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`${baseUrl}user/iTag/search/${tag}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setSearchResult(data);
-      } else {
-        console.log('Search error:', data.message);
-        setSearchResult(null);
-      }
+      const data = await searchUsersByITag(tag);
+      setSearchResult(data);
     } catch (error: any) {
       if (error.response && error.response.status === 404) {
         console.log('User not found');
@@ -169,22 +156,14 @@ export const IcashP2PScreen = () => {
   const processFinalTransaction = async () => {
     setIsLoading(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`${baseUrl}user/transactions/p2p-transfer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          recipientId: searchResult!.userId,
-          recipientiTagName: searchResult!.username,
-          amount: parseFloat(amount),
-          description: `Transfer to ${searchResult!.username}`,
-        }),
+      const result = await executeP2PTransfer({
+        recipientId: searchResult!.userId,
+        recipientiTagName: searchResult!.username,
+        amount: parseFloat(amount),
+        description: `Transfer to ${searchResult!.username}`,
       });
 
-      if (response.ok) {
+      if (result.success) {
         navigation.reset({
           index: 0,
           routes: [
@@ -201,12 +180,6 @@ export const IcashP2PScreen = () => {
               },
             },
           ],
-        });
-      } else {
-        const errorData = await response.json();
-        Toast.show({
-          type: 'error',
-          text1: errorData.message || 'Transfer Failed',
         });
       }
     } catch (error) {

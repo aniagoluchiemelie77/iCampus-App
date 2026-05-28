@@ -19,10 +19,13 @@ import {
 import toastConfig from '@components/ToastConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  fetchFeaturedBooksByDepartment,
+  searchLibraryBooks,
+} from '../api/localGetApis.ts';
+import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '../components/Classroomcomponent';
-import { baseUrl } from '../components/HomeScreenComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { BookCard } from '../components/BookCard';
 import { Book } from 'types/firebase';
@@ -43,14 +46,14 @@ export const LibraryScreen: React.FC = () => {
     if (!query) return;
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `${baseUrl}users/library/search?q=${encodeURIComponent(query)}&userId=${
-          user.uid
-        }`,
-      );
-      const data = await response.json();
-      setBooks(data);
-    } catch (error) {
+  const result = await searchLibraryBooks(query);
+
+  if (result.success) {
+    setBooks(result.books);
+  } else {
+    setBooks([]); 
+  }
+} catch (error) {
       Toast.show({
         type: 'error',
         text1: 'Search Error',
@@ -98,14 +101,14 @@ export const LibraryScreen: React.FC = () => {
     setLoading(true);
     const userDept = user?.department || '';
     try {
-      const response = await fetch(
-        `${baseUrl}users/library/featured?department=${encodeURIComponent(
-          userDept,
-        )}`,
-      );
-      const data = await response.json();
-      setBooks(data);
-    } catch (error) {
+  const result = await fetchFeaturedBooksByDepartment(userDept);
+
+  if (result.success) {
+    setBooks(result.books);
+  } else {
+    setBooks([]); 
+  }
+} catch (error) {
       Toast.show({
         type: 'error',
         text1: 'Library Fetch Error',

@@ -17,6 +17,12 @@ interface ServiceResponse {
   message: string;
   data?: any;
 }
+interface P2PTransferPayload {
+  recipientId: string;
+  recipientiTagName: string;
+  amount: number;
+  description: string;
+}
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
   Toast.show({
@@ -1250,5 +1256,77 @@ export const submitOrUpdatePostService = async (
       success: false,
       message: serverMessage
     };
+  }
+};
+export const executeP2PTransfer = async (
+  payload: P2PTransferPayload
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}user/transactions/p2p-transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Transfer Error',
+        text2: result.message || 'Failed to complete P2P transfer',
+      });
+      return { success: false, message: result.message };
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error("P2P Transfer Utility Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'An unexpected error occurred during transfer.',
+    });
+    return { success: false, message: error.message };
+  }
+};
+export const toggleFollowUser = async (
+  targetFollowingId: string
+): Promise<{ success: boolean; action?: 'followed' | 'unfollowed'; message?: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/follow/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ followingId: targetFollowingId }),
+    });
+
+    const result = await response.json();
+    return response.ok ? result : { success: false };
+  } catch (error) {
+    console.error('Toggle Follow Utility Error:', error);
+    return { success: false };
+  }
+};
+export const toggleBlockUserFromProfile = async (
+  targetUserId: string
+): Promise<{ success: boolean; action?: 'blocked' | 'unblocked' }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/block/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ targetUserId }),
+    });
+
+    const result = await response.json();
+    return response.ok ? { success: true, action: result.action } : { success: false };
+  } catch (error) {
+    console.error('Toggle Block Utility Error:', error);
+    return { success: false };
   }
 };

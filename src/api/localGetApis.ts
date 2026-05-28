@@ -1,10 +1,23 @@
-import { User, EnrichedCourseProduct, DropOffStation } from '../types/firebase';
+import { User, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture} from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const token = await AsyncStorage.getItem('accessToken');
-
+interface CheckITagResponse {
+  success: boolean;
+  available: boolean;
+  message?: string;
+}
+interface OngoingLectureResponse {
+  success: boolean;
+  ongoing: boolean;
+  lecture: Lecture | null;
+}
+export interface SearchBooksResponse {
+  success: boolean;
+  books: Book[]; 
+}
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
     viewerUid: currentUser.uid,
@@ -146,6 +159,45 @@ export const getConversations = async (
     return { success: false, data: [], hasMore: false };
   }
 };
+export const fetchMessages = async (
+  recipientId: string,
+  pageNum: number,
+  limit: number = 20
+): Promise<{ success: boolean; data: any[]; hasMore: boolean }> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/messages/fetchMessage/${recipientId}?page=${pageNum}&limit=${limit}`,
+      {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }
+    );
+    
+    const result = await response.json();
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Failed to fetch messages',
+      });
+      return { success: false, data: [], hasMore: false };
+    }
+
+    return {
+      success: true,
+      data: result.data || [],
+      hasMore: result.hasMore ?? false
+    };
+  } catch (error: any) {
+    console.error("Fetch Messages Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'An unexpected error occurred while loading messages.',
+    });
+    return { success: false, data: [], hasMore: false };
+  }
+};
 export const searchUsers = async (
   query: string,
   viewerTier: string,
@@ -247,7 +299,14 @@ export const signupFetchInstitutions = async (country: string) => {
 };
 export const fetchLeaderboards = async () => {
   try {
-    const response = await fetch(`${baseUrl}users/fetchLeaderBoards`);
+    const url = `${baseUrl}users/fetchLeaderBoards`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
     const data = await response.json();
     if (response.ok && data.success) {
       return {
@@ -592,5 +651,240 @@ export const fetchUserConnections = async (): Promise<{success: boolean; message
       message: 'Check network connection.',
       data: [],
     };
+  }
+};
+export const searchUsersByITag = async (tag: string): Promise<any> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}user/iTag/search/${encodeURIComponent(tag)}`, 
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Search Error',
+        text2: result.message || 'Failed to locate tag matching criteria.',
+      });
+      return null;
+    }
+    return result;
+  } catch (error) {
+    console.error("iTag Search API Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Network Anomaly',
+      text2: 'Could not connect to the iCampus routing nodes.',
+    });
+    return null;
+  }
+};
+export const fetchNotificationDetails = async (
+  notificationId: string
+): Promise<{ success: boolean; notification: Notification | null }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/notifications/${notificationId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Notification Error',
+        text2: result.message || 'Failed to fetch notification details',
+      });
+      return { success: false, notification: null };
+    }
+
+    return { 
+      success: true, 
+      notification: result.notification 
+    };
+  } catch (error: any) {
+    console.error("Fetch Notification Detail Utility Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not connect to the notification server.',
+    });
+    return { success: false, notification: null };
+  }
+};
+export const fetchNotificationsByTab = async (
+  activeTab: 'all' | 'finance' | 'unread'
+): Promise<{ success: boolean; notifications: Notification[] }> => {
+  try {
+    const params = new URLSearchParams();
+    if (activeTab === 'finance') {
+      params.append('category', 'finance');
+    } else if (activeTab === 'unread') {
+      params.append('unread', 'true');
+    }
+    const queryString = params.toString();
+    const finalUrl = queryString ? `${baseUrl}users/get-notifications?${queryString}` : `${baseUrl}users/get-notifications`;
+
+    const response = await fetch(finalUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Failed to fetch notifications',
+      });
+      return { success: false, notifications: [] };
+    }
+
+    return {
+      success: true,
+      notifications: result.notifications || [],
+    };
+  } catch (error: any) {
+    console.error("Fetch Notifications Utility Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'An unexpected error occurred while loading updates.',
+    });
+    return { success: false, notifications: [] };
+  }
+};
+export const checkITagAvailability = async (
+  username: string
+): Promise<CheckITagResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/check-itag/${encodeURIComponent(username)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, available: false, message: result.message };
+    }
+    return { 
+      success: true, 
+      available: result.available ?? false 
+    };
+  } catch (error: any) {
+    console.error("Check iTag Utility Error:", error);
+    return { success: false, available: false, message: error.message };
+  }
+};
+export const fetchOngoingLecture = async (): Promise<OngoingLectureResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/lectures/ongoing`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, ongoing: false, lecture: null };
+    }
+    return {
+      success: true,
+      ongoing: result.ongoing ?? false,
+      lecture: result.lecture || null,
+    };
+  } catch (error) {
+    console.error("Fetch Ongoing Lecture Utility Error:", error);
+    return { success: false, ongoing: false, lecture: null };
+  }
+};
+export const fetchFeaturedBooksByDepartment = async (
+  department: string
+): Promise<{ success: boolean; books: Book[] }> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/library/featured?department=${encodeURIComponent(department)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Library Error',
+        text2: data.message || 'Failed to load featured books',
+      });
+      return { success: false, books: [] };
+    }
+
+    // Checking if the backend returns the array directly or wrapped inside an object
+    const booksArray = Array.isArray(data) ? data : data.books || [];
+
+    return { 
+      success: true, 
+      books: booksArray 
+    };
+  } catch (error: any) {
+    console.error("Fetch Featured Books Utility Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not connect to the library catalog.',
+    });
+    return { success: false, books: [] };
+  }
+};
+export const searchLibraryBooks = async (
+  query: string
+): Promise<SearchBooksResponse> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/library/search?q=${encodeURIComponent(query)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, books: [] };
+    }
+    const booksArray = Array.isArray(data) ? data : data.books || [];
+
+    return {
+      success: true,
+      books: booksArray,
+    };
+  } catch (error) {
+    console.error("Search Library Utility Error:", error);
+    return { success: false, books: [] };
   }
 };

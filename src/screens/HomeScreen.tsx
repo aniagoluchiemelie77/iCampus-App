@@ -28,6 +28,7 @@ import { Lecture } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { RankingScreen } from '@components/RankingScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
+import { fetchOngoingLecture } from '../api/localGetApis';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 export interface SocketContextType {
@@ -133,10 +134,11 @@ const HomeScreen = () => {
 
     const checkOngoing = async () => {
       try {
-        const res = await fetch(`${baseUrl}users/lectures/ongoing/${user.uid}`);
-        const data = await res.json();
-        if (data.ongoing) {
+        const data = await fetchOngoingLecture();
+        if (data.success && data.ongoing) {
           setOngoingLecture(data.lecture);
+        } else {
+          setOngoingLecture(null);
         }
       } catch (err) {
         console.error('iCampus: Failed to check ongoing status', err);

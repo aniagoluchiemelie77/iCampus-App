@@ -275,3 +275,66 @@ export const logProductImpressionAPI = async (productId: string) => {
     return { success: false, message: "Network error" };
   }
 };
+export const markAllNotificationsAsRead = async (
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/notifications/mark-all-read`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Action Failed',
+        text2: result.message || 'Failed to mark all notifications as read',
+      });
+      return { success: false, message: result.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Mark All Read Utility Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not reach the server to update notifications.',
+    });
+    return { success: false, message: error.message };
+  }
+};
+export const markSingleNotificationAsRead = async (
+  notificationId: string
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}users/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    const result = response.status !== 204 ? await response.json() : {};
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Error',
+        text2: result.message || 'Failed to mark notification as read',
+      });
+      return { success: false, message: result.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Mark Single Read Utility Error:", error);
+    return { success: false, message: error.message };
+  }
+};

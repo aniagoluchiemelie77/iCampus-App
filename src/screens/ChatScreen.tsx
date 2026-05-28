@@ -12,7 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { searchUsers } from '../api/localGetApis.ts';
+import { searchUsers, fetchMessages } from '../api/localGetApis.ts';
 import toastConfig from '@components/ToastConfig';
 import { UserIdentity } from '../components/UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -25,7 +25,7 @@ import { ChatMessage, User } from '../types/firebase';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors.ts';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper.ts';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper.ts';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker, { types } from 'react-native-document-picker';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
@@ -47,19 +47,13 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   const loadHistory = useCallback(
     async (pageNum = 1) => {
       try {
-        const response = await fetch(
-          `${baseUrl}users/messages/fetchMessage/${currentUser.uid}/${recipientId}?page=${pageNum}&limit=20`,
-        );
-        const result = await response.json();
-
+        const result = await fetchMessages(recipientId, pageNum);
         if (result.success) {
-          // If loading page 1, set fresh. If loading more, append to the TOP (prev)
           setMessages(prev =>
             pageNum === 1 ? result.data : [...result.data, ...prev],
           );
           setHasMore(result.hasMore);
-          setPage(pageNum); // Now 'page' is being used!
-
+          setPage(pageNum);
           socketRef.current?.emit('mark_as_seen', {
             readerId: currentUser.uid,
             senderId: recipientId,
@@ -88,7 +82,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
         loadingLabelText: 'Processing...',
       });
       if (image.path) {
-        const imageUrl = await uploadToCloudinary(image.path);
+        const imageUrl = await uploadToFirebase(image.path);
         sendAttachmentMessage(imageUrl, 'image');
       }
     } catch (error: any) {
@@ -155,7 +149,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
         type: [types.allFiles],
       });
       const { uri, name } = result;
-      const docUrl = await uploadToCloudinary(uri);
+      const docUrl = await uploadToFirebase(uri);
       // 2. Send the message
       sendAttachmentMessage(docUrl, 'file', name || 'Document');
     } catch (err) {
