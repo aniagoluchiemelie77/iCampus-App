@@ -34,7 +34,14 @@ import {
 } from '../components/CourseActionsComponent';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import toastConfig from '../components/ToastConfig';
-import { getCourseDetails } from '../api/localGetApis';
+import {
+  getCourseDetails,
+  getStudentLecturesTimeline,
+  checkAssessmentStatus,
+} from '../api/localGetApis';
+import { submitLectureException } from '../api/localPostApis';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../components/UserSlice';
 
 const EmptyState = ({ message }: { message: string }) => (
   <View style={CourseActionStyles.emptyDivContainer}>
@@ -48,6 +55,7 @@ const EmptyState = ({ message }: { message: string }) => (
 );
 export const CourseSubPage = ({ route, navigation }: any) => {
   const user = useAppSelector(state => state.user);
+  const dispatch = useDispatch();
   const {
     title,
     course,
@@ -58,7 +66,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false); // Added missing loading state
+  const [loading, setLoading] = useState(false);
   const [localExceptions, setLocalExceptions] = useState<CourseException[]>(
     initialExceptions || [],
   );
@@ -78,28 +86,24 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   ) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/student/class/exceptions/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(newException),
-        },
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
+      const result = await submitLectureException(newException);
+      if (result.success && result.exception) {
         Toast.show({
           type: 'success',
           text1: 'Exception submitted successfully',
           position: 'bottom',
         });
         setLocalExceptions([result.exception, ...localExceptions]);
+        dispatch(
+          setUser({
+            ...user,
+            pointsBalance:
+              result.newIcashBalance !== null &&
+              result.newIcashBalance !== undefined
+                ? Number(result.newIcashBalance)
+                : user.pointsBalance,
+          }),
+        );
         setModalVisible(false);
       } else {
         Toast.show({
@@ -160,15 +164,17 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const fetchTimeline = useCallback(async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/student/class/lectures/timeline`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const result = await response.json();
-      if (response.ok) setAllLectures(result.data);
+      const result = await getStudentLecturesTimeline();
+      if (result.success && result.data) {
+        setAllLectures(result.data);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Timeline Error',
+          text2: result.message || 'Could not load upcoming schedule.',
+          position: 'bottom',
+        });
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -194,28 +200,24 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     async (assessmentId: string) => {
       setLoading(true);
       try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await fetch(
-          `${baseUrl}users/student/class/courses/${course.courseId}/assessments/${assessmentId}/check-status`,
-          {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          },
+        const result = await checkAssessmentStatus(
+          course.courseId,
+          assessmentId,
         );
-
-        const result = await response.json();
-
-        if (response.ok) {
+        if (result.success) {
           if (result.hasSubmitted) {
             setHasSubmitted(true);
           } else {
-            setActiveTest(result.test);
+            setActiveTest(result.test!);
           }
         } else {
-          throw new Error(result.message);
+          Toast.show({
+            type: 'error',
+            text1: 'Assessment Error',
+            text2:
+              result.message || 'Could not verify test access requirements.',
+            position: 'bottom',
+          });
         }
       } catch (error: any) {
         Toast.show({ type: 'error', text1: 'Error', text2: error.message });
@@ -370,7 +372,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     testData: CreateTestPayload,
     isSilent: boolean = false,
   ) => {
-    // Only show the global loading spinner if it's NOT a silent auto-save
     if (!isSilent) setLoading(true);
 
     try {
@@ -579,7 +580,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         placeholder={`Search ${title.toLowerCase()}...`}
-        userRole={userRole} // Pass the userRole here
+        userRole={userRole}
       />
 
       <View style={CourseActionStyles.body}>

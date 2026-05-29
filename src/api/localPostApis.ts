@@ -3,7 +3,7 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
-import {CartItem} from '../types/firebase';
+import {CartItem, CourseException} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
 import {
@@ -22,6 +22,12 @@ interface P2PTransferPayload {
   recipientiTagName: string;
   amount: number;
   description: string;
+}
+interface SubmitExceptionResponse {
+  success: boolean;
+  exception?: CourseException;
+  message?: string;
+  newIcashBalance?: string
 }
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
@@ -1333,5 +1339,39 @@ export const toggleBlockUserFromProfile = async (
   } catch (error) {
     console.error('Toggle Block Utility Error:', error);
     return { success: false };
+  }
+};
+export const submitLectureException = async (
+  newException: Partial<CourseException>,
+): Promise<SubmitExceptionResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/student/class/exceptions/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(newException),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: result.message || 'Failed to submit exception report' 
+      };
+    }
+    return {
+      success: true,
+      exception: result.exception,
+      newIcashBalance: result.newBalance
+    };
+
+  } catch (error) {
+    console.error('Submit Student Exception Utility Error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'An unknown network error occurred.' 
+    };
   }
 };

@@ -1,4 +1,4 @@
-import { User, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException} from '../types/firebase';
+import { User, CreateTestPayload, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException} from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,6 +31,17 @@ interface GetExceptionsResponse {
 interface FetchCourseResponse {
   success: boolean;
   course?: Course;
+  message?: string;
+}
+interface GetTimelineResponse {
+  success: boolean;
+  data?: Lecture[];
+  message?: string;
+}
+interface CheckAssessmentStatusResponse {
+  success: boolean;
+  hasSubmitted?: boolean;
+  test?: CreateTestPayload | null;
   message?: string;
 }
 
@@ -1011,6 +1022,71 @@ export const getCourseDetails = async (courseId: string): Promise<FetchCourseRes
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'An unexpected error occurred' 
+    };
+  }
+};
+export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/student/class/lectures/timeline`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: result.message || 'Failed to retrieve lecture timeline' 
+      };
+    }
+    return {
+      success: true,
+      data: result.data || []
+    };
+  } catch (error) {
+    console.error('Get Lectures Timeline Utility Error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'A network error occurred' 
+    };
+  }
+};
+export const checkAssessmentStatus = async (
+  courseId: string,
+  assessmentId: string
+): Promise<CheckAssessmentStatusResponse> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/student/class/courses/${courseId}/assessments/${assessmentId}/check-status`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: result.message || 'Failed to verify assessment availability status.' 
+      };
+    }
+    return {
+      success: true,
+      hasSubmitted: result.hasSubmitted,
+      test: result.test || null,
+    };
+
+  } catch (error) {
+    console.error('Check Assessment Status Utility Error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'An unexpected network error occurred' 
     };
   }
 };
