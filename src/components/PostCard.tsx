@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     width: '100%',
-    bottom: 55,
+    bottom: 70,
   },
   dragIndicator: {
     width: 40,

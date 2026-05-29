@@ -38,6 +38,7 @@ export interface User {
   uid: string;
   bio?: string;
   providerId?: string;
+  schoolAvatarUrl?: string;
   isDarkMode?: boolean;
   headline?: string;
   sessions?: UserSession[];
@@ -711,9 +712,9 @@ export type VerifiedStudent = {
   lastname: string;
   department: string;
   current_level: string;
-  phone_number: string;
-  matriculation_number: string;
-  school_name: string;
+  matricNumber: string;
+  schoolAvatarUrl?: string;
+  isVerified: boolean;
 };
 
 export type SignupResponse = {
@@ -727,10 +728,8 @@ export type VerifiedInstructor = {
   firstname: string;
   lastname: string;
   department: string;
-  current_level: string;
-  phone_number: string;
   staff_id: string;
-  school_name: string;
+  isVerified: boolean;
 };
 export interface EnrichedCourseProduct extends Product {
   progress: number;

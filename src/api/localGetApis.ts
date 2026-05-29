@@ -1,4 +1,4 @@
-import { User, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture} from '../types/firebase';
+import { User, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException} from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,10 +14,26 @@ interface OngoingLectureResponse {
   ongoing: boolean;
   lecture: Lecture | null;
 }
-export interface SearchBooksResponse {
+interface SearchBooksResponse {
   success: boolean;
   books: Book[]; 
 }
+interface GetCourseResponse {
+  success: boolean;
+  data?: Course;
+  error?: string;
+}
+interface GetExceptionsResponse {
+  success: boolean;
+  data?: CourseException[];
+  error?: string;
+}
+interface FetchCourseResponse {
+  success: boolean;
+  course?: Course;
+  message?: string;
+}
+
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
     viewerUid: currentUser.uid,
@@ -886,5 +902,115 @@ export const searchLibraryBooks = async (
   } catch (error) {
     console.error("Search Library Utility Error:", error);
     return { success: false, books: [] };
+  }
+};
+export const getUserAccountState = async (): Promise<any> => {
+  try {
+    const response = await fetch(`${baseUrl}users/check-account-state`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: `Request failed with status ${response.status}`
+      });
+      return { 
+        success: false, 
+        error: data.message || `Request failed with status ${response.status}` 
+      };
+    }
+    return {
+      success: true,
+      user: data.user,
+    };
+
+  } catch (error) {
+    console.error("Get User Profile Utility Error:", error);
+    Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: 'An unknown error occurred'
+      });
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An unknown error occurred' 
+    };
+  }
+};
+export const getCourseDetailsForOngoingLecture = async (courseId: string): Promise<GetCourseResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/course/ongoing-lecture/${courseId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to fetch course details' };
+    }
+    return { success: true, data };
+  } catch (error) {
+    console.error("Get Course Details Utility Error:", error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+export const getAllExceptionsForOngoingLecture = async (lectureId: string): Promise<GetExceptionsResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/exceptions/lectures/${lectureId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to fetch lecture exceptions' };
+    }
+    const exceptionsArray = Array.isArray(data) ? data : data.exceptions || [];
+    return { success: true, data: exceptionsArray };
+  } catch (error) {
+    console.error("Get Lecture Exceptions Utility Error:", error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+export const getCourseDetails = async (courseId: string): Promise<FetchCourseResponse> => {
+  try {
+    if (!token) {
+      return { success: false, message: 'Authentication token not found' };
+    }
+
+    const response = await fetch(`${baseUrl}users/courses/fetch-course-details/${courseId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: result.message || 'Failed to refresh course' 
+      };
+    }
+
+    return {
+      success: true,
+      course: result.data || result.course,
+    };
+
+  } catch (error) {
+    console.error('Fetch Course Details Utility Error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'An unexpected error occurred' 
+    };
   }
 };

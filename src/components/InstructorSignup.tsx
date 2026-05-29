@@ -85,6 +85,7 @@ const InstructorSignup = () => {
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
+  const [institutionName, setInstitutionName] = useState<string>('');
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
@@ -95,6 +96,7 @@ const InstructorSignup = () => {
     if (response.success) {
       setVerifiedInstitution(true);
       setSchoolCode(response.schoolCode);
+      setInstitutionName(response.schoolName);
       nextStep();
     } else {
       setVerifiedInstitution(false);
@@ -125,12 +127,11 @@ const InstructorSignup = () => {
     let message;
     try {
       const response = await verifySignupInstructor(
-        institution,
+        schoolCode,
         staffId,
         controller.signal,
       );
       if (response.verified) {
-        console.log('✅ Instructor verified:', response.data);
         setVerifiedInstructor(response.data);
         setInstructorNotFound(false);
         nextStep();
@@ -275,8 +276,8 @@ const InstructorSignup = () => {
       setUploading(false);
     }
   };
-  const userType = 'lecturer';
   const handleSubmit = async () => {
+    const userType = 'lecturer';
     setCreating(true);
     try {
       const deviceId = await DeviceInfo.getUniqueId();
@@ -288,23 +289,14 @@ const InstructorSignup = () => {
         profilePic: avatar || '',
         usertype: userType,
         schoolCode,
-        firstname: userType === 'lecturer' ? verifiedInstructor?.firstname : '',
-        lastname: userType === 'lecturer' ? verifiedInstructor?.lastname : '',
-        schoolName: institution || '',
+        ...verifiedInstructor,
+        schoolName: institutionName || '',
         email,
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password,
-        department:
-          userType === 'lecturer' ? verifiedInstructor?.department : '',
         country: country || '',
         itagusername: verifiedInstructor?.firstname,
-        ...(userType === 'lecturer' && verifiedInstructor
-          ? {
-              phone_number: verifiedInstructor.phone_number,
-              staff_id: verifiedInstructor.staff_id,
-            }
-          : {}),
       };
       const response = await handleRegisterUser(registrationData);
       if (response.status === 409) {

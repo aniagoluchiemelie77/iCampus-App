@@ -45,9 +45,6 @@ import { ProgressBar, Footer } from '../components/SignupComponents';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter';
 import { VerifiedStudent } from '../types/firebase';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
-export interface Institution {
-  name: string;
-}
 
 const StudentSignup = () => {
   const navigation = useNavigation<any>();
@@ -93,6 +90,7 @@ const StudentSignup = () => {
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
+  const [institutionName, setInstitutionName] = useState<string>('');
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
@@ -103,6 +101,7 @@ const StudentSignup = () => {
     if (response.success) {
       setVerifiedInstitution(true);
       setSchoolCode(response.schoolCode);
+      setInstitutionName(response.schoolName);
       nextStep();
     } else {
       setVerifiedInstitution(false);
@@ -133,12 +132,11 @@ const StudentSignup = () => {
     let message;
     try {
       const response = await verifySignupStudent(
-        institution,
+        schoolCode,
         matric,
         controller.signal,
       );
-      if (response.success) {
-        console.log('✅ Student verified:', response.data);
+      if (response.success && response.verified) {
         setVerifiedStudent(response.data);
         setStudentNotFound(false);
         nextStep();
@@ -288,32 +286,21 @@ const StudentSignup = () => {
       const deviceId = await DeviceInfo.getUniqueId();
       const deviceName = DeviceInfo.getModel();
       const brand = DeviceInfo.getBrand();
-
       const registrationData = {
         currentIScore: 5,
         isVerified: true,
         profilePic: avatar || '',
         usertype: userType,
         schoolCode,
-        firstname: userType === 'student' ? verifiedStudent?.firstname : '',
-        lastname: userType === 'student' ? verifiedStudent?.lastname : '',
-        schoolName: institution || '',
+        ...verifiedStudent,
+        schoolName: institutionName || '',
         email,
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password,
-        department: userType === 'student' ? verifiedStudent?.department : '',
         country: country || '',
         itagusername: verifiedStudent?.firstname,
-        ...(userType === 'student' && verifiedStudent
-          ? {
-              current_level: verifiedStudent.current_level,
-              phone_number: verifiedStudent.phone_number,
-              matriculation_number: verifiedStudent.matriculation_number,
-            }
-          : {}),
       };
-
       const response = await handleRegisterUser(registrationData);
 
       if (response.status === 409) {

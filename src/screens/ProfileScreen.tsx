@@ -18,10 +18,8 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors.ts';
-import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
-import { baseUrl } from '../components/HomeScreenComponents';
 import ExpandableFAB from '../components/ExpandableFAB';
 import { formatCount } from '../utils/followCountFormatter.ts';
 import { ProfileTabs } from '../components/ProfileTabs.tsx';
@@ -46,7 +44,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { patchUserProfile } from 'api/localPatchApis.ts';
 import { searchUserProfile } from 'api/localGetApis.ts';
-import { toggleBlockUser } from 'api/localPostApis.ts';
+import { toggleBlockUser, toggleFollowUser } from 'api/localPostApis.ts';
 import { updateBlockedUsers } from '@components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
@@ -249,7 +247,6 @@ export const CoursesView = ({ courses }: { courses: Course[] }) => {
     </View>
   );
 };
-
 export const ProfileScreen = ({ route }: any) => {
   const { identifier } = route.params;
   const currentUser = useAppSelector(state => state.user);
@@ -301,24 +298,21 @@ export const ProfileScreen = ({ route }: any) => {
     setIsFollowing(!previousState);
 
     try {
-      const response = await axios.post(`${baseUrl}users/follow/toggle`, {
-        followerId: currentUser.uid,
-        followingId: profileData.uid,
-      });
-
-      if (!response.data.success) {
+      const result = await toggleFollowUser(profileData.uid);
+      if (!result.success) {
         setIsFollowing(previousState);
         Toast.show({
           type: 'error',
           text1: 'API Error',
-          text2: 'Could not update follow status',
+          text2: result.message || 'Could not update follow status',
         });
+        return;
       }
       Toast.show({
         type: 'success',
-        text1: response.data.action === 'followed' ? 'Success!' : 'Updated',
+        text1: result.action === 'followed' ? 'Success!' : 'Updated',
         text2:
-          response.data.action === 'followed'
+          result.action === 'followed'
             ? `You are now following ${profileData.firstname}`
             : `Unfollowed ${profileData.firstname}`,
       });

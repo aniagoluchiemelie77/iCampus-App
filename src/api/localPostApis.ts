@@ -506,27 +506,31 @@ export const handleRegisterUser = async (registrationData: any) => {
     return { success: false, message: 'Network error during registration.' };
   }
 };
-export const verifySignupStudent = async (institution: string, matric: string, signal?: AbortSignal) => {
+export const verifySignupStudent = async (
+  schoolId: string, 
+  matric: string, 
+  signal?: AbortSignal
+) => {
   try {
     const response = await fetch(`${baseUrl}verifyStudent/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        school_name: institution,
+        school_id: schoolId, 
         matriculation_number: matric,
       }),
       signal, 
     });
 
     const data = await response.json();
-    if (!data.ok) {
-      return { success: false, message: data.message };
+    if (!response.ok) {
+      return { success: false, message: data.message || 'Student not found' };
     }
     return {
-      success: response.ok,
-      verified: data.verified,
-      data,
-      message: response.ok ? 'Student verified' : (data.message || 'Student not found'),
+      success: true,
+      verified: data.isVerified,
+      data, 
+      message: 'Student verified',
     };
   } catch (error: any) {
     if (error.name === 'AbortError') return { success: false, aborted: true };
@@ -575,6 +579,7 @@ export const signupValidateInstitution = async (institution: string) => {
 
     return {
       success: response.ok,
+      schoolName: data.schoolName,
       schoolCode: data.schoolCode,
       data,
       message: response.ok 

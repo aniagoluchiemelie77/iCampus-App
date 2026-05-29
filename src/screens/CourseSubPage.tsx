@@ -34,6 +34,7 @@ import {
 } from '../components/CourseActionsComponent';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import toastConfig from '../components/ToastConfig';
+import { getCourseDetails } from '../api/localGetApis';
 
 const EmptyState = ({ message }: { message: string }) => (
   <View style={CourseActionStyles.emptyDivContainer}>
@@ -228,21 +229,15 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const fetchCourseDetails = useCallback(async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/courses/${course.courseId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      const result = await response.json();
-      if (response.ok) {
-        setCurrentCourse(result.data || result.course);
+      const result = await getCourseDetails(course.courseId);
+      if (result.success && result.course) {
+        setCurrentCourse(result.course);
       } else {
-        throw new Error(result.message || 'Failed to refresh course');
+        Toast.show({
+          type: 'error',
+          text1: 'Refresh Failed',
+          text2: result.message || 'Could not update course details.',
+        });
       }
     } catch (err: any) {
       Toast.show({

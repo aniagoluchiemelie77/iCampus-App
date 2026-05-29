@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } 
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { baseUrl } from '../components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import { getUserAccountState } from '../api/localGetApis';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '@components/Classroomcomponent';
 
 type Props = StackScreenProps<RootStackParamList, 'SuspendedScreen'>;
 
@@ -13,22 +15,23 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
   const { reason } = route.params;
   const [checking, setChecking] = useState(false);
   const handleContactSupport = () => {
-    Linking.openURL('mailto:support@icampus.edu.ng?subject=iCash Account Suspension');
+    Linking.openURL(
+      'mailto:support@icampus.edu.ng?subject=iCash Account Suspension',
+    );
   };
   const checkAccountStatus = async () => {
     setChecking(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await response.json();
-
-      if (response.ok && !data.user.isSuspended) {
+      const result = await getUserAccountState();
+      if (result.success && result.user && !result.user.isSuspended) {
         navigation.replace('Home', { activeTab: 'home' });
+      } else if (result.user?.isSuspended) {
+        console.warn('User account is suspended.');
+      } else {
+        console.error('Authentication failed:', result.error);
       }
     } catch (err) {
-      console.log("Still suspended or network error");
+      console.log('Still suspended or network error');
     } finally {
       setChecking(false);
     }
@@ -38,18 +41,20 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
     <View style={styles.container}>
       <Icon name="account-cancel" size={100} color={PRIMARY_COLOR} />
       <Text style={styles.title}>Account Restricted</Text>
-      <Text style={styles.reasonText}>{reason || "Security protocol triggered."}</Text>
-      
+      <Text style={styles.reasonText}>
+        {reason || 'Security protocol triggered.'}
+      </Text>
+
       <View style={styles.infoBox}>
         <Text style={styles.infoText}>
-          Your iCampus account has been restricted. This usually happens after multiple 
-          failed iCash PIN attempts or suspicious activity. You cannot access 
-          services until this is resolved.
+          Your iCampus account has been restricted. This usually happens after
+          multiple failed iCash PIN attempts or suspicious activity. You cannot
+          access services until this is resolved.
         </Text>
       </View>
 
-      <TouchableOpacity 
-        style={styles.primaryBtn} 
+      <TouchableOpacity
+        style={styles.primaryBtn}
         onPress={checkAccountStatus}
         disabled={checking}
       >
@@ -60,7 +65,10 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.supportLink} onPress={handleContactSupport}>
+      <TouchableOpacity
+        style={styles.supportLink}
+        onPress={handleContactSupport}
+      >
         <Icon name="email-outline" size={20} color={PRIMARY_COLOR} />
         <Text style={styles.supportLinkText}>Contact iCampus Security</Text>
       </TouchableOpacity>

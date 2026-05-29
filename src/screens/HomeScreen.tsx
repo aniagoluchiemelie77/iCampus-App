@@ -28,7 +28,11 @@ import { Lecture } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { RankingScreen } from '@components/RankingScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
-import { fetchOngoingLecture } from '../api/localGetApis';
+import {
+  fetchOngoingLecture,
+  getCourseDetailsForOngoingLecture,
+  getAllExceptionsForOngoingLecture,
+} from '../api/localGetApis';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 export interface SocketContextType {
@@ -152,42 +156,57 @@ const HomeScreen = () => {
 
   const handleJoinLecture = async () => {
     if (!ongoingLecture) return;
-    if (ongoingLecture.lectureType !== 'Physical') {
+    if (ongoingLecture.lectureType === 'Online') {
       navigation.navigate('LiveClassSessions', {
         lectureId: ongoingLecture.id,
         courseId: ongoingLecture.courseId,
       });
       setOngoingLecture(null);
       return;
-    }
-    try {
-      if (userType === 'lecturer') {
-        const [courseRes, exceptionsRes] = await Promise.all([
-          fetch(`${baseUrl}users/courses/${ongoingLecture.courseId}`),
-          fetch(`${baseUrl}users/exceptions/lectures/${ongoingLecture.id}`),
-        ]);
-        const courseData = await courseRes.json();
-        const exceptionsData = await exceptionsRes.json();
-
-        navigation.navigate('PhysicalAttendanceManager', {
-          lecture: ongoingLecture,
-          course: courseData,
-          exceptions: exceptionsData,
-        });
-      } else if (userType === 'student') {
-        navigation.navigate('StudentAttendanceScanner', {
-          lecture: ongoingLecture,
-          onSuccess: () => navigation.navigate('Home', { activeTab: 'home' }),
+    } else if (ongoingLecture.lectureType === 'Physical') {
+      try {
+        if (userType === 'lecturer') {
+          const [courseResult, exceptionsResult] = await Promise.all([
+            getCourseDetailsForOngoingLecture(ongoingLecture.courseId),
+            getAllExceptionsForOngoingLecture(ongoingLecture.id),
+          ]);
+          if (courseResult.success && exceptionsResult.success) {
+            navigation.navigate('PhysicalAttendanceManager', {
+              lecture: ongoingLecture,
+              course: courseResult.data!,
+              exceptions: exceptionsResult.data!,
+            });
+          } else {
+            const courseError = courseResult.error
+              ? `Course Err: ${courseResult.error}`
+              : '';
+            const exceptionsError = exceptionsResult.error
+              ? `Exceptions Err: ${exceptionsResult.error}`
+              : '';
+            console.error(
+              `Data fetch failed. ${courseError} ${exceptionsError}`,
+            );
+            Toast.show({
+              type: 'error',
+              text1: 'Fetch Error',
+              text2: `Data fetch failed. ${courseError} ${exceptionsError}`,
+            });
+          }
+        } else if (userType === 'student') {
+          navigation.navigate('StudentAttendanceScanner', {
+            lecture: ongoingLecture,
+            onSuccess: () => navigation.navigate('Home', { activeTab: 'home' }),
+          });
+        }
+        setOngoingLecture(null);
+      } catch (err) {
+        console.error('Failed to fetch attendance requirements', err);
+        Toast.show({
+          type: 'error',
+          text1: 'Connection Error',
+          text2: 'Could not load lecture details.',
         });
       }
-      setOngoingLecture(null);
-    } catch (err) {
-      console.error('Failed to fetch attendance requirements', err);
-      Toast.show({
-        type: 'error',
-        text1: 'Connection Error',
-        text2: 'Could not load lecture details.',
-      });
     }
   };
   return (
