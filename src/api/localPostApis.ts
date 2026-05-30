@@ -42,6 +42,17 @@ interface SaveAssessmentResponse {
   data?: CreateTestPayload; 
   error?: string;
 }
+ interface DownloadReportResponse {
+  success: boolean;
+  message?: string;
+  localPath?: string;
+  error?: string;
+}
+interface VerifyFaceResponse {
+  verified: boolean;
+  message?: string;
+  similarity?: number;
+}
 
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
@@ -1475,6 +1486,97 @@ export const saveCourseAssessment = async (
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown network error',
+    };
+  }
+};
+export const downloadAttendanceReport = async (
+  lectureId: string,
+  courseTitle: string,
+  exceptions: any[]
+): Promise<DownloadReportResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/lecturers/class/lectures/${lectureId}/report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ exceptions }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Server failed to compile the attendance sheet.',
+      };
+    }
+    if (!result.pdfUrl) {
+      return {
+        success: false,
+        error: 'Report compiled, but no downloadable document link was returned.',
+      };
+    }
+    const { fs } = ReactNativeBlobUtil;
+    const dateStr = new Date().toISOString().split('T')[0];
+    const cleanCourseCode = (courseTitle || 'Course').replace(/\s+/g, '_');
+    const filename = `Attendance_${cleanCourseCode}_${dateStr}.pdf`;
+    const localDestPath = `${fs.dirs.DownloadDir}/${filename}`;
+    await ReactNativeBlobUtil.config({
+      path: localDestPath,
+      addAndroidDownloads: {
+        useDownloadManager: true,
+        title: filename,
+        description: 'iCampus Attendance Sheet Report Document.',
+        mime: 'application/pdf',
+        mediaScannable: true,
+        notification: true,
+      },
+    }).fetch('GET', result.pdfUrl);
+
+    return {
+      success: true,
+      message: result.message || 'Report saved successfully.',
+      localPath: localDestPath,
+    };
+  } catch (error) {
+    console.error('Download Attendance Report Utility Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network connection failure.',
+    };
+  }
+};
+export const verifyFacialIdentity = async (
+  base64Image: string,
+  schoolAvatarUrl: string
+): Promise<VerifyFaceResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/student/class/attendance/verify-student`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        selfieBase64: base64Image,
+        targetImageUrl: schoolAvatarUrl,
+      }),
+    });
+
+    if (response.status === 401) {
+      return { verified: false, message: "Session expired. Please log back in." };
+    }
+    const result = await response.json();
+    return {
+      verified: response.ok && result.verified,
+      message: result.message,
+      similarity: result.similarity
+    };
+  } catch (error) {
+    console.error("API Utility Network Exception:", error);
+    return {
+      verified: false,
+      message: "Network communication timeout. Is your internet active?",
     };
   }
 };

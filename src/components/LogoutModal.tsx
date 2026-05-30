@@ -19,26 +19,29 @@ export const LogoutModal = ({
   onClose,
   navigation,
 }: LogoutModalProps) => {
-
   const handleLogoutAction = async () => {
     try {
-        await handleLogout(navigation);
+      await handleLogout(navigation);
     } catch (e) {
-        console.log("Server logout failed, clearing local session anyway.");
+      console.log('Server logout failed, clearing local session anyway.');
     }
   };
 
   return (
-    <Modal 
-        isVisible={visible}
-        onBackdropPress={() => onClose()}
-        swipeDirection="down"
-        onSwipeComplete={() => onClose()}
+    <Modal
+      isVisible={visible}
+      onBackdropPress={() => onClose()}
+      swipeDirection="down"
+      onSwipeComplete={() => onClose()}
+      style={styles.modalOverride}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Logout</Text>
-          <Text style={styles.modalSubtitle}>Are you sure you want to logout from this device? This action can not be reversed.</Text>
+          <Text style={styles.modalSubtitle}>
+            Are you sure you want to logout from this device? This action can
+            not be reversed.
+          </Text>
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -47,7 +50,7 @@ export const LogoutModal = ({
               style={styles.saveBtn}
               onPress={handleLogoutAction}
             >
-                <Text style={styles.saveBtnText}>Logout</Text>
+              <Text style={styles.saveBtnText}>Logout</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -75,7 +78,7 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     marginVertical: 15,
     fontSize: 14,
-    color: "#222"
+    color: '#222',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -87,7 +90,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     borderRadius: 15,
-    borderWidth: .8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR,
   },
   cancelBtnText: {
@@ -105,5 +108,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 14,
-  }
+  },
+  modalOverride: {
+    margin: 0,
+  },
 });

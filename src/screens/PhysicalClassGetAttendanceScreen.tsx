@@ -25,10 +25,10 @@ import BleManager from 'react-native-ble-manager';
 import { requestMultiple, PERMISSIONS } from 'react-native-permissions';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import ReactNativeBlobUtil from 'react-native-blob-util';
-import * as RNHTMLtoPDF from 'react-native-html-to-pdf';
+import { formatTime } from '../utils/durationFormatter';
 import Toast from 'react-native-toast-message';
 import toastConfig from '@components/ToastConfig';
+import { downloadAttendanceReport } from '../api/localPostApis';
 
 type AttendanceStatus = 'idle' | 'fetching' | 'completed';
 type Props = StackScreenProps<RootStackParamList, 'PhysicalAttendanceManager'>;
@@ -45,11 +45,6 @@ interface GroupedSection {
   title: string;
   data: any[];
 }
-export const formatTimer = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-};
 
 export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   const { lecture, course, exceptions } = route.params;
@@ -60,34 +55,41 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [status, setStatus] = useState<AttendanceStatus>('idle');
-  const startAttendanceBroadcast = async (lectureId: string) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const startCountdownTimer = (duration: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setSecondsLeft(duration);
+
+    timerRef.current = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          handleStopFetching();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  const initHardwareSession = async () => {
     try {
       await NativeProperty.addService(SERVICE_UUID, true);
-      await NativeProperty.startSales('iCampus-' + lectureId);
-      console.log('Beacon Started');
+      await NativeProperty.startSales('iCampus-' + lecture.id);
+      console.log('BLE Beacon Hardware Transmitting Signal');
     } catch (error) {
-      console.error('Bluetooth start failed', error);
+      console.error('Bluetooth hardware driver assignment failed:', error);
     }
   };
   const handleStartFetching = async () => {
     setStatus('fetching');
-    setSecondsLeft(300);
     socketRef.current?.emit('start_attendance_session', {
       lectureId: lecture.id,
       lecturerId: user.uid,
     });
-    try {
-      await NativeProperty.addService(SERVICE_UUID, true);
-      await NativeProperty.startSales('iCampus-' + lecture.id);
-    } catch (e) {
-      console.error(e);
-    }
-    timerRef.current = setInterval(() => {
-      setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
+    await initHardwareSession();
+    startCountdownTimer(300);
   };
   const handleStopFetching = async () => {
-    setIsFetching(false);
     if (timerRef.current) clearInterval(timerRef.current);
     await NativeProperty.stopSales();
     socketRef.current?.emit('end_attendance_session', {
@@ -95,94 +97,29 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     });
     setStatus('completed');
   };
-  const handleDownload = async () => {
-    try {
-      const courseCode = course?.courseCode || 'Unknown_Course';
-      const courseTitle = course?.courseTitle || 'Untitled Course';
-      const lectureTitle = lecture?.topicName || 'General Session';
-      const timestamp = new Date().toLocaleString();
-      const dateStr = new Date().toISOString().split('T')[0];
-      const tableRows = groupedData
-        .flatMap(section =>
-          section.data.map(
-            student => `
-        <tr>
-          <td>${student.firstname} ${student.lastname}</td>
-          <td>${student.matricNumber || 'N/A'}</td>
-          <td>${section.title}</td>
-          <td>${student.isException ? 'Exception' : ' '}</td>
-        </tr>
-      `,
-          ),
-        )
-        .join('');
-
-      const htmlContent = `
-      <html>
-        <style>
-          body { font-family: Helvetica; padding: 20px; color: #222; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .logo { width: 80px; margin-bottom: 10px; }
-          .meta-box { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ecf0f1; }
-          .meta-box p{ margin-bottom: 10px}
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { padding: 10px; text-align: left; font-size: 12px; }
-          td { border-bottom: 1px solid #eee; padding: 10px; font-size: 11px; }
-          tr:nth-child(even) { background-color: #f2f2f2; }
-        </style>
-        <body>
-          <div class="header">
-            <img src="https://yourdomain.com/assets/logo.png" class="logo" />
-            <h1>iCampus Attendance Report</h1>
-          </div>
-          <div class="meta-box">
-            <p><strong>Course:</strong> ${courseCode} - ${courseTitle}</p>
-            <p><strong>Lecture:</strong> ${lectureTitle}</p>
-            <p><strong>Date/Time:</strong> ${timestamp}</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Student Name</th>
-                <th>Matric Number</th>
-                <th>Department</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-      // 3. Generate PDF
-      const options = {
-        html: htmlContent,
-        fileName: `Attendance_${courseCode.replace(/\s+/g, '_')}_${dateStr}`,
-        directory: 'Documents',
-      };
-
-      const file = await (RNHTMLtoPDF as any).convert(options);
-
-      // 4. Move to Downloads for User Access (Fixes createFile error)
-      const { fs } = ReactNativeBlobUtil;
-      const destPath = `${fs.dirs.DownloadDir}/${options.fileName}.pdf`;
-
-      // Use fs.cp (copy) or fs.mv (move) from the temporary path to Downloads
-      await fs.cp(file.filePath!, destPath);
+  const handleDownloadReport = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    const result = await downloadAttendanceReport(
+      lecture.id,
+      course?.courseTitle!,
+      exceptions,
+    );
+    if (result.success) {
       Toast.show({
         type: 'success',
-        text1: 'Attendance PDF report saved to Downloads.',
+        text1: 'Report Downloaded',
+        text2: 'Saved directly to your Downloads folder.',
       });
-    } catch (error) {
-      console.error('PDF Export Error:', error);
+    } else {
       Toast.show({
         type: 'error',
-        text1: 'Failed to generate the attendance report.',
+        text1: 'Download Failed',
+        text2: result.error || 'Could not preserve document.',
       });
     }
+
+    setIsDownloading(false);
   };
   const checkBluetoothAndStart = async () => {
     try {
@@ -207,6 +144,21 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
         ],
       );
     }
+  };
+  const handleRetryFetching = async () => {
+    Toast.show({
+      type: 'info',
+      text1: 'Rescanning...',
+      text2: 'Bluetooth broadcast restarted for 2 mins.',
+    });
+    setStatus('fetching');
+
+    socketRef.current?.emit('start_attendance_session', {
+      lectureId: lecture.id,
+      lecturerId: user.uid,
+    });
+    await initHardwareSession();
+    startCountdownTimer(120);
   };
   useEffect(() => {
     if (!user?.uid) return;
@@ -252,13 +204,14 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
             uid: e.studentId,
             firstname: e.studentInfo?.fullname?.split(' ')[0] ?? 'Unknown',
             lastname: e.studentInfo?.fullname?.split(' ')[1] ?? 'Student',
-            matricNumber: e.studentInfo.matricNumber,
+            matricNumber: e.studentInfo?.matricNumber,
             isException: true,
             reasonCategory: e.reasonCategory,
           })),
       ],
     }));
   };
+
   const groupedData = getGroupedData();
   const idle = status === 'idle';
   const fetching = status === 'fetching';
@@ -281,7 +234,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
             style={GetAttendanceScreenStyles.fetchBtn}
             onPress={() => {
               setIsFetching(true);
-              startAttendanceBroadcast(lecture.id);
               checkBluetoothAndStart();
             }}
           >
@@ -293,11 +245,10 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       )}
       {isFetching && fetching && (
         <View style={GetAttendanceScreenStyles.fetchingContainer}>
-          {/* Visual Pulse Animation Area */}
           <View style={GetAttendanceScreenStyles.pulseWrapper}>
             <View style={GetAttendanceScreenStyles.timerCircle}>
               <Text style={GetAttendanceScreenStyles.timerNumber}>
-                {formatTimer(secondsLeft)}
+                {formatTime(secondsLeft)}
               </Text>
               <Text style={GetAttendanceScreenStyles.timerLabel}>
                 Scanning...
@@ -375,12 +326,21 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
             <TouchableOpacity
               style={GetAttendanceScreenStyles.fetchBtn}
               onPress={() => {
-                handleDownload();
+                handleDownloadReport();
               }}
             >
               <Icon name="download" size={20} color="#fff" />
               <Text style={GetAttendanceScreenStyles.fetchBtnText}>
                 Download
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={GetAttendanceScreenStyles.fetchBtn}
+              onPress={handleRetryFetching}
+            >
+              <Icon name="download" size={20} color="#fff" />
+              <Text style={GetAttendanceScreenStyles.fetchBtnText}>
+                Rescan / Retry
               </Text>
             </TouchableOpacity>
 
