@@ -4,7 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 
 const token = await AsyncStorage.getItem('accessToken');
-
+interface DeleteLectureResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 export const handleFinalDelete = async ({navigation, reason}: {navigation: any, reason?: string}) => {
   try {
     const response = await fetch(`${baseUrl}users/account/delete`, {
@@ -167,5 +171,36 @@ export const deletePostApi = async (postId: string) => {
   } catch (error) {
     console.error("Error invoking deletePostApi:", error);
     throw error;
+  }
+};
+export const deleteLectureSchedule = async (lectureId: string): Promise<DeleteLectureResponse> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/lectures/${lectureId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Failed to cancel the scheduled lecture.',
+      };
+    }
+    return {
+      success: true,
+      message: result.message,
+    };
+  } catch (error) {
+    console.error("Delete Lecture Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error',
+    };
   }
 };

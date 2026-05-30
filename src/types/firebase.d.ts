@@ -499,6 +499,8 @@ export interface Lecture {
   views?: number;
   likes?: number 
   comments?: Comment[];
+  department?: string;
+  level?: string;
 }
 export interface Course {
   id: string;
@@ -589,7 +591,7 @@ export type CreateLecturePayload = Omit<
   Lecture, 
   'id' | '_id' | 'isTaught' | 'attendance' | 'status'
 > & {
-  repeatWeeks: number; // Add the field required for bulk creation
+  repeatWeeks: number; 
 };
 export interface Question {
   id: string;

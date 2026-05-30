@@ -4,7 +4,16 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const token = await AsyncStorage.getItem('accessToken');
-
+interface UpdateExceptionStatusPayload {
+  status: 'approved' | 'rejected';
+  lecturerComment?: string;
+}
+ interface UpdateExceptionStatusResponse {
+  success: boolean;
+  message?: string;
+  newIcashBalance?: number;
+  error?: string;
+}
 export const patchUserProfile = async (data: Partial<User>) => {
   const response = await fetch(`${baseUrl}/users/update-profile`, {
     method: 'PATCH',
@@ -336,5 +345,42 @@ export const markSingleNotificationAsRead = async (
   } catch (error: any) {
     console.error("Mark Single Read Utility Error:", error);
     return { success: false, message: error.message };
+  }
+};
+export const updateExceptionStatus = async (
+  id: string,
+  payload: UpdateExceptionStatusPayload
+): Promise<UpdateExceptionStatusResponse> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || `Failed to update exception status to ${payload.status}`,
+      };
+    }
+    return {
+      success: true,
+      message: data.message,
+      newIcashBalance: data.newIcashBalance, 
+    };
+  } catch (error) {
+    console.error("Update Exception Status Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error',
+    };
   }
 };

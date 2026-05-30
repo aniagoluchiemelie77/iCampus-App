@@ -44,6 +44,11 @@ interface CheckAssessmentStatusResponse {
   test?: CreateTestPayload | null;
   message?: string;
 }
+interface GetAssessmentsResponse {
+  success: boolean;
+  data?: CreateTestPayload[]; 
+  error?: string;
+}
 
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
@@ -1087,6 +1092,73 @@ export const checkAssessmentStatus = async (
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'An unexpected network error occurred' 
+    };
+  }
+};
+export const getCourseExceptions = async (courseId: string): Promise<GetExceptionsResponse> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/exceptions?courseId=${courseId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: data.message || 'Failed to fetch course exceptions' 
+      };
+    }
+    const exceptionsArray = Array.isArray(data) ? data : data.exceptions || [];
+    
+    return { 
+      success: true, 
+      data: exceptionsArray 
+    };
+
+  } catch (error) {
+    console.error("Get Course Exceptions Utility Error:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+};
+export const getCourseAssessments = async (courseId: string): Promise<GetAssessmentsResponse> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Failed to fetch assessments for this course.',
+      };
+    }
+    const assessmentsArray = Array.isArray(result.data) ? result.data : [];
+    return {
+      success: true,
+      data: assessmentsArray,
+    };
+  } catch (error) {
+    console.error("Get Assessments Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error',
     };
   }
 };

@@ -3,7 +3,7 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
-import {CartItem, CourseException} from '../types/firebase';
+import {CartItem, CourseException, Lecture, CreateLecturePayload, CreateTestPayload} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
 import {
@@ -29,6 +29,20 @@ interface SubmitExceptionResponse {
   message?: string;
   newIcashBalance?: string
 }
+interface ScheduleLectureResponse {
+  success: boolean;
+  message?: string;
+  count?: number;
+  lecture?: Lecture;
+  error?: string;
+}
+interface SaveAssessmentResponse {
+  success: boolean;
+  message?: string;
+  data?: CreateTestPayload; 
+  error?: string;
+}
+
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
   Toast.show({
@@ -1372,6 +1386,95 @@ export const submitLectureException = async (
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'An unknown network error occurred.' 
+    };
+  }
+};
+export const createLectureSchedule = async (
+  courseId: string,
+  lectureData: CreateLecturePayload
+): Promise<ScheduleLectureResponse> => {
+  try {
+    const finalPayload = {
+      ...lectureData,
+      courseId: courseId,
+      location: lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
+      videoUrl: lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
+    };
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/createSchedule`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(finalPayload),
+      }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Check your inputs and try again.',
+      };
+    }
+    return {
+      success: true,
+      message: data.message,
+      count: data.count,
+      lecture: data.lecture,
+    };
+  } catch (error) {
+    console.error("Schedule Lecture Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error',
+    };
+  }
+};
+export const saveCourseAssessment = async (
+  courseId: string,
+  testData: CreateTestPayload
+): Promise<SaveAssessmentResponse> => {
+  try {
+    const finalPayload = {
+      ...testData,
+      courseId: courseId,
+      duration: Number(testData.duration),
+      totalMarks: Number(testData.totalMarks),
+      questions: testData.questions.map(q => ({
+        ...q,
+        points: Number(q.points),
+      })),
+    };
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(finalPayload),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Failed to save assessment configuration.',
+      };
+    }
+    return {
+      success: true,
+      message: result.message,
+      data: result.data,
+    };
+  } catch (error) {
+    console.error("Save Assessment Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error',
     };
   }
 };

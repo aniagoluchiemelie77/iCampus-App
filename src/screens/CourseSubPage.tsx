@@ -38,10 +38,18 @@ import {
   getCourseDetails,
   getStudentLecturesTimeline,
   checkAssessmentStatus,
+  getCourseExceptions,
+  getCourseAssessments,
 } from '../api/localGetApis';
-import { submitLectureException } from '../api/localPostApis';
+import {
+  submitLectureException,
+  createLectureSchedule,
+  saveCourseAssessment,
+} from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
+import { updateExceptionStatus } from '../api/localPatchApis';
+import { deleteLectureSchedule } from '../api/localDeleteApis';
 
 const EmptyState = ({ message }: { message: string }) => (
   <View style={CourseActionStyles.emptyDivContainer}>
@@ -254,27 +262,14 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const fetchExceptions = useCallback(async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      const response = await fetch(
-        `${baseUrl}users/exceptions?courseId=${course.courseId}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      const result: { success: boolean; exceptions: CourseException[] } =
-        await response.json();
-      if (response.ok) {
-        setLocalExceptions(result.exceptions);
+      const result = await getCourseExceptions(course.courseId);
+      if (result.success && result.data) {
+        setLocalExceptions(result.data);
       } else {
         Toast.show({
           type: 'error',
           text1: 'Fetch Error',
-          text2: 'Failed to fetch exceptions',
+          text2: result.error || 'Failed to fetch exceptions',
         });
       }
     } catch (error: any) {
@@ -294,24 +289,32 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   ) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status }),
-        },
-      );
-
-      if (response.ok) {
+      const result = await updateExceptionStatus(id, { status });
+      if (result.success) {
         setLocalExceptions(prev =>
           prev.map(ex => (ex.id === id ? { ...ex, status } : ex)),
         );
-        Toast.show({ type: 'success', text1: `Exception ${status}` });
+        dispatch(
+          setUser({
+            ...user,
+            pointsBalance:
+              result.newIcashBalance !== null &&
+              result.newIcashBalance !== undefined
+                ? Number(result.newIcashBalance)
+                : user.pointsBalance,
+          }),
+        );
+        Toast.show({
+          type: 'success',
+          text1: 'Status Updated',
+          text2: `Exception was successfully ${status}.`,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Update Failed',
+          text2: result.error || 'Could not update exception status.',
+        });
       }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Failed to update status' });
@@ -319,43 +322,18 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       setLoading(false);
     }
   };
-  const handleCreateLecture = async (
-    lectureData: CreateLecturePayload, // One argument, matches the prop
-  ) => {
+  const handleCreateLecture = async (lectureData: CreateLecturePayload) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      // Clean up payload: if it's physical, remove videoUrl, etc.
-      const finalPayload = {
-        ...lectureData,
-        courseId: course.courseId,
-        location:
-          lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
-        videoUrl:
-          lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
-      };
-
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/lectures/createSchedule`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(finalPayload),
-        },
-      );
-      const result = await response.json();
-      if (response.ok) {
+      const result = await createLectureSchedule(course.courseId, lectureData);
+      if (result.success && result.lecture) {
         setScheduledLecture(result.lecture);
         setShowSuccessModal(true);
       } else {
         Toast.show({
           type: 'error',
           text1: 'Scheduling Failed',
-          text2: result.message || 'Check your inputs',
+          text2: result.error || 'Could not save schedule setup.',
         });
       }
     } catch (error: any) {
@@ -375,32 +353,8 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     if (!isSilent) setLoading(true);
 
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const finalPayload = {
-        ...testData,
-        courseId: course.courseId,
-        duration: Number(testData.duration),
-        totalMarks: Number(testData.totalMarks),
-        questions: testData.questions.map(q => ({
-          ...q,
-          points: Number(q.points),
-        })),
-      };
-
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(finalPayload),
-        },
-      );
-      const result = await response.json();
-
-      if (response.ok) {
+      const result = await saveCourseAssessment(course.courseId, testData);
+      if (result.success) {
         if (!isSilent) {
           Toast.show({
             type: 'success',
@@ -416,7 +370,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         Toast.show({
           type: 'error',
           text1: 'Save Failed',
-          text2: result.message || 'Check your connection',
+          text2: result.error || 'Check your connection',
         });
       }
     } catch (error: any) {
@@ -432,19 +386,8 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const fetchTests = useCallback(async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assessments`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      const result = await response.json();
-      if (response.ok) {
+      const result = await getCourseAssessments(course.courseId);
+      if (result.success && result.data) {
         const sortedTests = result.data.sort(
           (a: any, b: any) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -454,7 +397,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         Toast.show({
           type: 'error',
           text1: 'Fetch Error',
-          text2: result.message,
+          text2: result.error || 'Could not load assessments.',
         });
       }
     } catch (error: any) {
@@ -470,24 +413,19 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const handleDeleteLecture = async (lectureId: string) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/lectures/${lectureId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (response.ok) {
-        // Remove from local state immediately
+      const result = await deleteLectureSchedule(lectureId);
+      if (result.success) {
         setAllLectures(prev => prev.filter(lec => lec.id !== lectureId));
-        Toast.show({ type: 'success', text1: 'Lecture Deleted' });
+        Toast.show({
+          type: 'success',
+          text2: result.message || 'Students have been notified.',
+        });
       } else {
-        const result = await response.json();
-        throw new Error(result.message || 'Failed to delete');
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Error',
+          text2: result.error || 'Unauthorized Access',
+        });
       }
     } catch (error: any) {
       Toast.show({ type: 'error', text1: 'Error', text2: error.message });
@@ -518,7 +456,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       fetchExceptions();
     }
     if (title === 'Assessments') {
-      fetchTests(); // <--- Fetch tests when the Assessment page is active
+      fetchTests();
     }
   }, [title, fetchExceptions, fetchTests]);
   useEffect(() => {
@@ -528,7 +466,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         setActiveTest(publishedTest);
       }
     }
-  }, [tests, title, userRole]); // Trigger whenever the 'tests' array is updated from fetchTests()
+  }, [tests, title, userRole]);
   useEffect(() => {
     const specificId = (route.params as any)?.assessmentId;
 
@@ -567,7 +505,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       }
     }
   }, [activeTest, fetchTests, userRole, title]);
-
   const goBack = () => navigation.goBack();
   return (
     <SafeAreaView
