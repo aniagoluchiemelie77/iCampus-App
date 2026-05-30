@@ -49,6 +49,11 @@ interface GetAssessmentsResponse {
   data?: CreateTestPayload[]; 
   error?: string;
 }
+interface SearchCoursesResponse {
+  success: boolean;
+  courses?: any[]; 
+  error?: string;
+}
 
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
@@ -1160,5 +1165,66 @@ export const getCourseAssessments = async (courseId: string): Promise<GetAssessm
       success: false,
       error: error instanceof Error ? error.message : 'Unknown network error',
     };
+  }
+};
+export const searchPosts = async (query: string): Promise<any[]> => {
+  try {
+    const response = await fetch(`${baseUrl}posts/search?q=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: 'Failed to fetch posts'
+      });
+      return [];
+    }
+    const result = await response.json();
+    return result.posts || [];
+  } catch (error) {
+    console.error('API Error inside searchPosts utility:', error);
+    return [];
+  }
+};
+export const searchICashMarketLocal = (query: string, catalog: any[]): any[] => {
+  const formattedQuery = query.toLowerCase().trim();
+  
+  if (!formattedQuery) return [];
+  return catalog.filter(product => {
+    return (
+      product.title?.toLowerCase().includes(formattedQuery) ||
+      product.description?.toLowerCase().includes(formattedQuery) ||
+      product.category?.toLowerCase().includes(formattedQuery)
+    );
+  });
+};
+export const searchCourses = async (query: string): Promise<SearchCoursesResponse[]> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/courses/search?q=${encodeURIComponent(query)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      console.error('Unified course endpoint returned error status:', result.message);
+      return [];
+    }
+    return Array.isArray(result.courses) ? result.courses : [];
+    
+  } catch (error) {
+    console.error("Search Courses Utility Error:", error);
+    return [];
   }
 };

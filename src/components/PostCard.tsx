@@ -36,7 +36,7 @@ import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
 export interface PostCardProps {
   post: Posts;
-  isVisible: boolean;
+  isVisible?: boolean;
 }
 interface LinkedTextProps {
   content: string;
@@ -246,394 +246,408 @@ const LinkedText = ({
     </Text>
   );
 };
-export const PostCard = ({ post, isVisible }: PostCardProps) => {
-  const user = post.originalAuthor;
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [userDetails, setUserDetails] = useState<User | null>(null);
-  const [_, setLoading] = useState(true);
-  const navigation = useNavigation<any>();
-  const TEXT_LIMIT = 150;
-  const {
-    toggleLike,
-    toggleBookmark,
-    currentUser,
-    handleRepost,
-    incrementShareCount,
-    handleVote,
-    handleDeletePost,
-  } = useAppDataContext();
-  const getRelativeTime = (dateString: string | null): string => {
-    if (!dateString) return '';
-    return formatDistanceToNowStrict(new Date(dateString), {
-      addSuffix: false,
-    })
-      .replace(' minutes', 'm')
-      .replace(' minute', 'm')
-      .replace(' hours', 'h')
-      .replace(' hour', 'h')
-      .replace(' days', 'd')
-      .replace(' day', 'd');
-  };
-  const isOwner = currentUser?.uid === user;
-  const isLiked = post.likes?.includes(currentUser?.uid);
-  const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
-  const shouldShowSeeMore = post.content && post.content.length > TEXT_LIMIT;
-  const displayText = isExpanded
-    ? post.content
-    : post.content?.slice(0, TEXT_LIMIT);
-  const deepLinkUrl = `https://useicampus.io/posts/${post.postId}`;
+export const PostCard = React.memo(
+  ({ post, isVisible }: PostCardProps) => {
+    const user = post.originalAuthor;
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
+    const [userDetails, setUserDetails] = useState<User | null>(null);
+    const [_, setLoading] = useState(true);
+    const navigation = useNavigation<any>();
+    const TEXT_LIMIT = 150;
+    const {
+      toggleLike,
+      toggleBookmark,
+      currentUser,
+      handleRepost,
+      incrementShareCount,
+      handleVote,
+      handleDeletePost,
+    } = useAppDataContext();
+    const getRelativeTime = (dateString: string | null): string => {
+      if (!dateString) return '';
+      return formatDistanceToNowStrict(new Date(dateString), {
+        addSuffix: false,
+      })
+        .replace(' minutes', 'm')
+        .replace(' minute', 'm')
+        .replace(' hours', 'h')
+        .replace(' hour', 'h')
+        .replace(' days', 'd')
+        .replace(' day', 'd');
+    };
+    const isOwner = currentUser?.uid === user;
+    const isLiked = post.likes?.includes(currentUser?.uid);
+    const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
+    const shouldShowSeeMore = post.content && post.content.length > TEXT_LIMIT;
+    const displayText = isExpanded
+      ? post.content
+      : post.content?.slice(0, TEXT_LIMIT);
+    const deepLinkUrl = `https://useicampus.io/posts/${post.postId}`;
 
-  const handleCopyLink = () => {
-    Clipboard.setString(deepLinkUrl);
-    setIsMenuVisible(false);
-    Toast.show({ type: 'success', text2: 'Link copied to clipboard!' });
-  };
-
-  const handleExternalShare = async (posts: Posts) => {
-    try {
-      const result = await Share.share({
-        message: `${
-          post.content || 'Check out this post on iCampus!'
-        } \n\nView more on iCampus App!`,
-        url: deepLinkUrl,
-      });
-
-      if (result.action === Share.sharedAction) {
-        incrementShareCount(posts.postId);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-  const confirmDelete = () => {
-    setIsMenuVisible(false);
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to permanently delete this post? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await handleDeletePost(post.postId);
-            } catch (err) {
-              console.error('Failed to delete post', err);
-            }
-          },
-        },
-      ],
-    );
-  };
-  const handleEditNavigate = () => {
-    setIsMenuVisible(false);
-    navigation.navigate('CreatePost', { post: post });
-  };
-  const handleJobApply = (url: string) => {
-    Alert.alert(
-      'Leaving iCampus',
-      'You are being redirected to an external site to complete your application.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Proceed', onPress: () => Linking.openURL(url) },
-      ],
-    );
-  };
-  useEffect(() => {
-    const fetchPosterDetails = async () => {
-      try {
-        const userArray = await searchUsersByUid(
-          user!,
-          currentUser?.tier || 'free',
-          currentUser?.usertype || 'student',
-        );
-        if (userArray && userArray.length > 0) {
-          setUserDetails(userArray[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching poster details:', error);
-      } finally {
-        setLoading(false);
-      }
+    const handleCopyLink = () => {
+      Clipboard.setString(deepLinkUrl);
+      setIsMenuVisible(false);
+      Toast.show({ type: 'success', text2: 'Link copied to clipboard!' });
     };
 
-    if (user) {
-      fetchPosterDetails();
-    }
-  }, [user, currentUser?.tier, currentUser?.usertype]);
-  const eventDate = formatEventDate(post.eventMetadata?.startDate);
+    const handleExternalShare = async (posts: Posts) => {
+      try {
+        const result = await Share.share({
+          message: `${
+            post.content || 'Check out this post on iCampus!'
+          } \n\nView more on iCampus App!`,
+          url: deepLinkUrl,
+        });
 
-  return (
-    <Pressable
-      onLongPress={() => setIsMenuVisible(true)}
-      delayLongPress={400}
-      style={styles.container}
-    >
-      {post.isRepost && (
-        <View style={styles.repostHeader}>
-          <MaterialIcons name="repeat" size={14} color={PRIMARY_COLOR_TINT} />
-          <Text style={styles.repostText}>
-            {`${post.userId?.firstname} ${post.userId?.lastname} reposted`}
-          </Text>
-        </View>
-      )}
-      <View style={styles.header}>
-        <UserAvatar
-          profilePic={userDetails?.profilePic}
-          firstName={userDetails?.firstname}
-          lastName={userDetails?.lastname}
-          organizationName={userDetails?.organizationName}
-          style={styles.avatar}
-        />
-        <View style={styles.headerText}>
-          <UserIdentity
-            firstname={userDetails?.firstname ?? ''}
-            lastname={userDetails?.lastname ?? ''}
-            tier={userDetails?.tier ? userDetails?.tier : 'free'}
-            isVerified={userDetails?.isVerified}
-            isOrganization={userDetails?.usertype === 'enterprise'}
-            organizationName={userDetails?.organizationName}
-            size="medium"
-          />
-          <Text style={styles.timestamp}>
-            {getRelativeTime(post.createdAt)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Post Content */}
-      <View style={styles.contentContainer}>
-        {post.postType === 'job' && (
-          <View style={{ marginBottom: 10 }}>
-            <Text style={styles.jobTitleLarge}>{post.jobMetadata?.title}</Text>
-            <Text style={styles.jobCompanySub}>
-              {post.jobMetadata?.company} • {post.jobMetadata?.location}
-            </Text>
-          </View>
-        )}
-        {post.postType === 'event' && (
-          <View style={styles.eventHeaderRow}>
-            <View style={styles.calendarMini}>
-              <MaterialIcons
-                name="calendar-month-outlined"
-                size={16}
-                color={PRIMARY_COLOR_TINT}
-                style={{ marginRight: 3 }}
-              />
-              <Text style={styles.calMonth}>{eventDate.month}</Text>
-              <Text style={styles.calDay}>{eventDate.day}</Text>
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.eventTitleText}>
-                {post.eventMetadata?.title}
-              </Text>
-              <Text style={styles.eventLocationText}>
-                {post.eventMetadata?.location}
-              </Text>
-            </View>
-          </View>
-        )}
-        <LinkedText
-          content={displayText ?? ''}
-          onTagPress={(tag: string) => {
-            const cleanTag = tag.replace('#', '');
-            console.log(cleanTag);
-            //navigation.navigate('SearchScreen', { query: cleanTag });
-          }}
-          onMentionPress={(mention: string) => {
-            const name = mention.replace('@', '');
-            console.log(name);
-            navigation.navigate('ProfileScreen', { identifier: name });
-          }}
-        />
-        {shouldShowSeeMore && !isExpanded && (
-          <Text style={styles.content}>...</Text>
-        )}
-        {shouldShowSeeMore && (
-          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-            <Text style={styles.seeMoreText}>
-              {isExpanded ? 'Show less' : 'See more'}
-            </Text>
-          </TouchableOpacity>
-        )}
-        {post.postType === 'job' && post.jobMetadata?.applicationLink && (
-          <TouchableOpacity
-            style={[
-              styles.primaryActionButton,
-              { marginHorizontal: 15, marginBottom: 10 },
-            ]}
-            onPress={() => handleJobApply(post.jobMetadata!.applicationLink)}
-          >
-            <Text style={styles.primaryActionText}>Apply Now</Text>
-            <MaterialIcons
-              name="launch-outlined"
-              size={16}
-              color="white"
-              style={{ marginLeft: 8 }}
-            />
-          </TouchableOpacity>
-        )}
-
-        {post.postType === 'event' && (
-          <TouchableOpacity
-            style={[
-              styles.rsvpButtonOutline,
-              { marginHorizontal: 15, marginBottom: 10 },
-            ]}
-          >
-            <Text style={styles.rsvpText}>RSVP for Event</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* 3. Conditional: Show Poll OR Media */}
-      {post.poll ? (
-        <PollView
-          poll={post.poll}
-          currentUserId={currentUser?.uid}
-          postId={post.postId}
-          onVote={handleVote}
-        />
-      ) : (
-        <MediaSection post={post} isVisible={isVisible} />
-      )}
-
-      {/* Footer: Interactions */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.statGroup}
-          onPress={() =>
-            navigation.navigate('PostDetailScreen', { post: post })
+        if (result.action === Share.sharedAction) {
+          incrementShareCount(posts.postId);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    const confirmDelete = () => {
+      setIsMenuVisible(false);
+      Alert.alert(
+        'Delete Post',
+        'Are you sure you want to permanently delete this post? This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await handleDeletePost(post.postId);
+              } catch (err) {
+                console.error('Failed to delete post', err);
+              }
+            },
+          },
+        ],
+      );
+    };
+    const handleEditNavigate = () => {
+      setIsMenuVisible(false);
+      navigation.navigate('CreatePost', { post: post });
+    };
+    const handleJobApply = (url: string) => {
+      Alert.alert(
+        'Leaving iCampus',
+        'You are being redirected to an external site to complete your application.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Proceed', onPress: () => Linking.openURL(url) },
+        ],
+      );
+    };
+    useEffect(() => {
+      const fetchPosterDetails = async () => {
+        try {
+          const userArray = await searchUsersByUid(
+            user!,
+            currentUser?.tier || 'free',
+            currentUser?.usertype || 'student',
+          );
+          if (userArray && userArray.length > 0) {
+            setUserDetails(userArray[0]);
           }
-        >
-          <MaterialIcons
-            name="chatbubble-outline"
-            size={18}
-            color={PRIMARY_COLOR_TINT}
-          />
-          <Text style={styles.statText}>
-            {formatStatNumber(post.commentsCount ?? 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.statGroup}
-          onPress={() => toggleLike(post.postId)}
-        >
-          <MaterialIcons
-            name={isLiked ? 'heart' : 'heart-outline'}
-            size={18}
-            color={isLiked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
-          />
-          <Text style={styles.statText}>
-            {formatStatNumber(post.likes?.length || 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.statGroup}
-          onPress={() => handleRepost(post.postId)}
-        >
-          <MaterialIcons
-            name="repeat"
-            size={18}
-            color={post.isRepost ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
-          />
-          <Text style={styles.statText}>
-            {formatStatNumber(post.repostsCount ?? 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.statGroup}
-          onPress={() => toggleBookmark(post.postId)}
-        >
-          <MaterialIcons
-            name={isBookmarked ? 'bookmark' : 'bookmark-border'}
-            size={18}
-            color={isBookmarked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
-          />
-          <Text style={styles.statText}>
-            {formatStatNumber(post.bookmarks?.length || 0)}
-          </Text>
-        </TouchableOpacity>
-        <View style={styles.statGroup}>
-          <MaterialIcons
-            name="bar-chart"
-            size={18}
-            color={PRIMARY_COLOR_TINT}
-          />
-          <Text style={styles.statText}>
-            {formatStatNumber(post.impressions || 0)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.statGroup}
-          onPress={() => handleExternalShare(post)}
-        >
-          <MaterialIcons name="share" size={18} color={PRIMARY_COLOR_TINT} />
-          <Text style={styles.statText}>
-            {formatStatNumber(post.shares?.length || 0)}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <Modal
-        isVisible={isMenuVisible}
-        onBackdropPress={() => setIsMenuVisible(false)}
-        swipeDirection="down"
-        onSwipeComplete={() => setIsMenuVisible(false)}
+        } catch (error) {
+          console.error('Error fetching poster details:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      if (user) {
+        fetchPosterDetails();
+      }
+    }, [user, currentUser?.tier, currentUser?.usertype]);
+    const eventDate = formatEventDate(post.eventMetadata?.startDate);
+
+    return (
+      <Pressable
+        onLongPress={() => setIsMenuVisible(true)}
+        delayLongPress={400}
+        style={styles.container}
       >
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => setIsMenuVisible(false)}
-        >
-          <View style={styles.sheetContainer}>
-            <View style={styles.dragIndicator} />
-
-            <TouchableOpacity style={styles.menuItem} onPress={handleCopyLink}>
-              <MaterialIcons name="link" size={22} color="#333" />
-              <Text style={styles.menuText}>Copy link</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleExternalShare(post)}
-            >
-              <MaterialIcons name="share" size={22} color="#333" />
-              <Text style={styles.menuText}>Share via...</Text>
-            </TouchableOpacity>
-
-            {isOwner && (
-              <>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleEditNavigate}
-                >
-                  <MaterialIcons name="edit" size={22} color="#333" />
-                  <Text style={styles.menuText}>Edit post</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.menuItem]}
-                  onPress={confirmDelete}
-                >
-                  <MaterialIcons
-                    name="delete-outlined"
-                    size={22}
-                    color={PRIMARY_COLOR}
-                  />
-                  <Text style={[styles.menuText, { color: PRIMARY_COLOR }]}>
-                    Delete post
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+        {post.isRepost && (
+          <View style={styles.repostHeader}>
+            <MaterialIcons name="repeat" size={14} color={PRIMARY_COLOR_TINT} />
+            <Text style={styles.repostText}>
+              {`${post.userId?.firstname} ${post.userId?.lastname} reposted`}
+            </Text>
           </View>
-        </Pressable>
-      </Modal>
-      <Toast config={toastConfig} />
-    </Pressable>
-  );
-};
+        )}
+        <View style={styles.header}>
+          <UserAvatar
+            profilePic={userDetails?.profilePic}
+            firstName={userDetails?.firstname}
+            lastName={userDetails?.lastname}
+            organizationName={userDetails?.organizationName}
+            style={styles.avatar}
+          />
+          <View style={styles.headerText}>
+            <UserIdentity
+              firstname={userDetails?.firstname ?? ''}
+              lastname={userDetails?.lastname ?? ''}
+              tier={userDetails?.tier ? userDetails?.tier : 'free'}
+              isVerified={userDetails?.isVerified}
+              isOrganization={userDetails?.usertype === 'enterprise'}
+              organizationName={userDetails?.organizationName}
+              size="medium"
+            />
+            <Text style={styles.timestamp}>
+              {getRelativeTime(post.createdAt)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Post Content */}
+        <View style={styles.contentContainer}>
+          {post.postType === 'job' && (
+            <View style={{ marginBottom: 10 }}>
+              <Text style={styles.jobTitleLarge}>
+                {post.jobMetadata?.title}
+              </Text>
+              <Text style={styles.jobCompanySub}>
+                {post.jobMetadata?.company} • {post.jobMetadata?.location}
+              </Text>
+            </View>
+          )}
+          {post.postType === 'event' && (
+            <View style={styles.eventHeaderRow}>
+              <View style={styles.calendarMini}>
+                <MaterialIcons
+                  name="calendar-month-outlined"
+                  size={16}
+                  color={PRIMARY_COLOR_TINT}
+                  style={{ marginRight: 3 }}
+                />
+                <Text style={styles.calMonth}>{eventDate.month}</Text>
+                <Text style={styles.calDay}>{eventDate.day}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.eventTitleText}>
+                  {post.eventMetadata?.title}
+                </Text>
+                <Text style={styles.eventLocationText}>
+                  {post.eventMetadata?.location}
+                </Text>
+              </View>
+            </View>
+          )}
+          <LinkedText
+            content={displayText ?? ''}
+            onTagPress={(tag: string) => {
+              const cleanTag = tag.replace('#', '');
+              console.log(cleanTag);
+              //navigation.navigate('SearchScreen', { query: cleanTag });
+            }}
+            onMentionPress={(mention: string) => {
+              const name = mention.replace('@', '');
+              console.log(name);
+              navigation.navigate('ProfileScreen', { identifier: name });
+            }}
+          />
+          {shouldShowSeeMore && !isExpanded && (
+            <Text style={styles.content}>...</Text>
+          )}
+          {shouldShowSeeMore && (
+            <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+              <Text style={styles.seeMoreText}>
+                {isExpanded ? 'Show less' : 'See more'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {post.postType === 'job' && post.jobMetadata?.applicationLink && (
+            <TouchableOpacity
+              style={[
+                styles.primaryActionButton,
+                { marginHorizontal: 15, marginBottom: 10 },
+              ]}
+              onPress={() => handleJobApply(post.jobMetadata!.applicationLink)}
+            >
+              <Text style={styles.primaryActionText}>Apply Now</Text>
+              <MaterialIcons
+                name="launch-outlined"
+                size={16}
+                color="white"
+                style={{ marginLeft: 8 }}
+              />
+            </TouchableOpacity>
+          )}
+
+          {post.postType === 'event' && (
+            <TouchableOpacity
+              style={[
+                styles.rsvpButtonOutline,
+                { marginHorizontal: 15, marginBottom: 10 },
+              ]}
+            >
+              <Text style={styles.rsvpText}>RSVP for Event</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 3. Conditional: Show Poll OR Media */}
+        {post.poll ? (
+          <PollView
+            poll={post.poll}
+            currentUserId={currentUser?.uid}
+            postId={post.postId}
+            onVote={handleVote}
+          />
+        ) : (
+          <MediaSection post={post} isVisible={isVisible} />
+        )}
+
+        {/* Footer: Interactions */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.statGroup}
+            onPress={() =>
+              navigation.navigate('PostDetailScreen', { post: post })
+            }
+          >
+            <MaterialIcons
+              name="chatbubble-outline"
+              size={18}
+              color={PRIMARY_COLOR_TINT}
+            />
+            <Text style={styles.statText}>
+              {formatStatNumber(post.commentsCount ?? 0)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statGroup}
+            onPress={() => toggleLike(post.postId)}
+          >
+            <MaterialIcons
+              name={isLiked ? 'heart' : 'heart-outline'}
+              size={18}
+              color={isLiked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
+            />
+            <Text style={styles.statText}>
+              {formatStatNumber(post.likes?.length || 0)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statGroup}
+            onPress={() => handleRepost(post.postId)}
+          >
+            <MaterialIcons
+              name="repeat"
+              size={18}
+              color={post.isRepost ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
+            />
+            <Text style={styles.statText}>
+              {formatStatNumber(post.repostsCount ?? 0)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statGroup}
+            onPress={() => toggleBookmark(post.postId)}
+          >
+            <MaterialIcons
+              name={isBookmarked ? 'bookmark' : 'bookmark-border'}
+              size={18}
+              color={isBookmarked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
+            />
+            <Text style={styles.statText}>
+              {formatStatNumber(post.bookmarks?.length || 0)}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.statGroup}>
+            <MaterialIcons
+              name="bar-chart"
+              size={18}
+              color={PRIMARY_COLOR_TINT}
+            />
+            <Text style={styles.statText}>
+              {formatStatNumber(post.impressions || 0)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.statGroup}
+            onPress={() => handleExternalShare(post)}
+          >
+            <MaterialIcons name="share" size={18} color={PRIMARY_COLOR_TINT} />
+            <Text style={styles.statText}>
+              {formatStatNumber(post.shares?.length || 0)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <Modal
+          isVisible={isMenuVisible}
+          onBackdropPress={() => setIsMenuVisible(false)}
+          swipeDirection="down"
+          onSwipeComplete={() => setIsMenuVisible(false)}
+        >
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setIsMenuVisible(false)}
+          >
+            <View style={styles.sheetContainer}>
+              <View style={styles.dragIndicator} />
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleCopyLink}
+              >
+                <MaterialIcons name="link" size={22} color="#333" />
+                <Text style={styles.menuText}>Copy link</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleExternalShare(post)}
+              >
+                <MaterialIcons name="share" size={22} color="#333" />
+                <Text style={styles.menuText}>Share via...</Text>
+              </TouchableOpacity>
+
+              {isOwner && (
+                <>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={handleEditNavigate}
+                  >
+                    <MaterialIcons name="edit" size={22} color="#333" />
+                    <Text style={styles.menuText}>Edit post</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.menuItem]}
+                    onPress={confirmDelete}
+                  >
+                    <MaterialIcons
+                      name="delete-outlined"
+                      size={22}
+                      color={PRIMARY_COLOR}
+                    />
+                    <Text style={[styles.menuText, { color: PRIMARY_COLOR }]}>
+                      Delete post
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </Pressable>
+        </Modal>
+        <Toast config={toastConfig} />
+      </Pressable>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.post.postId === nextProps.post.postId &&
+      prevProps.post.likes?.length === nextProps.post.likes?.length &&
+      prevProps.post.bookmarks?.length === nextProps.post.bookmarks?.length
+    );
+  },
+);
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
