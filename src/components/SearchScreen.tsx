@@ -23,13 +23,18 @@ import {
   searchCourses,
   searchAcademicResources,
 } from '../api/localGetApis';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from 'assets/styles/colors';
 import { useAppDataContext } from './EventContext';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from './ProductCard';
 import { PageHeader } from '../components/PageHeader';
+import { formatCount } from '../utils/followCountFormatter';
 
 interface NormalizedCourseItem {
   id: string;
@@ -75,34 +80,22 @@ const CourseSearchCard = ({
     <TouchableOpacity
       style={[
         styles.cardWrapper,
-        { borderBottomColor: colors.border },
-        !item.isActive && { opacity: 0.5 },
+        { backgroundColor: colors.backgroundSecondary },
       ]}
       onPress={handleNavigationRoute}
       disabled={!item.isActive}
     >
-      {/* LEFT ASPECT: IMAGING PICTURE OR CHARACTER AVATAR GLYPH */}
       {item.thumbnail ? (
         <Image source={{ uri: item.thumbnail }} style={styles.thumbnailImg} />
       ) : (
-        <View
-          style={[
-            styles.avatarPlaceholder,
-            { backgroundColor: item.isPremiumPaid ? '#8E44AD' : '#2C3E50' },
-          ]}
-        >
+        <View style={styles.avatarPlaceholder}>
           <Text style={styles.initialsText}>
             {getCourseInitials(item.title)}
           </Text>
         </View>
       )}
-
-      {/* MID PANEL: CORE COURSE IDENTITY METADATA CONTENT */}
       <View style={styles.infoMetaContainer}>
         <View style={styles.badgeRow}>
-          <Text style={[styles.courseCodeLabel, { color: colors.tint }]}>
-            {item.code}
-          </Text>
           {item.isPremiumPaid ? (
             <View style={styles.premiumBadge}>
               <Text style={styles.premiumBadgeText}>Premium Masterclass</Text>
@@ -120,34 +113,30 @@ const CourseSearchCard = ({
         >
           {item.title}
         </Text>
-
         <Text
-          style={[styles.instructorNameSub, { color: colors.tint }]}
+          style={[styles.instructorNameSub, { color: colors.primaryTint }]}
           numberOfLines={1}
         >
           By {item.instructors}
         </Text>
-
+        {item.isPremiumPaid && (
+          <CurrencyDisplay value={item.price} size="small" />
+        )}
         <View style={styles.metricRowGroup}>
           <MaterialIcons
-            name="people-outline"
+            name="people-outlined"
             size={14}
-            color={colors.tint}
+            color={colors.primaryTint}
             style={{ marginRight: 4 }}
           />
-          <Text style={[styles.studentsCountMetric, { color: colors.tint }]}>
-            {item.studentsCount}{' '}
+          <Text
+            style={[styles.studentsCountMetric, { color: colors.primaryTint }]}
+          >
+            {formatCount(item.studentsCount)}{' '}
             {item.studentsCount === 1 ? 'student' : 'students'} enrolled
           </Text>
         </View>
       </View>
-
-      {/* RIGHT ALIGNMENT: FINANCIAL VALUE MATRIX DISPATCHER */}
-      {item.isPremiumPaid && (
-        <View style={styles.currencyRightTray}>
-          <CurrencyDisplay value={item.price} size="small" />
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
@@ -162,54 +151,54 @@ const ResourceSearchCard = ({
 }) => {
   const getFileIconProps = (format: string) => {
     const fmt = format?.toLowerCase();
-    if (fmt === 'pdf') return { name: 'file-pdf-box', color: '#E74C3C' };
+    if (fmt === 'pdf')
+      return {
+        name: 'picture-as-pdf-outlined',
+        color: PRIMARY_COLOR_TINT_MAIN,
+      };
     if (['doc', 'docx'].includes(fmt))
-      return { name: 'file-word-box', color: '#2B579A' };
+      return {
+        name: 'insert-drive-file-outlined',
+        color: PRIMARY_COLOR_TINT_MAIN,
+      };
     if (['xls', 'xlsx'].includes(fmt))
-      return { name: 'file-excel-box', color: '#217346' };
+      return { name: 'article-outlined', color: PRIMARY_COLOR_TINT_MAIN };
     if (['ppt', 'pptx'].includes(fmt))
-      return { name: 'file-powerpoint-box', color: '#D24726' };
+      return {
+        name: 'insert-drive-file-outlined',
+        color: PRIMARY_COLOR_TINT_MAIN,
+      };
     if (['jpg', 'jpeg', 'png'].includes(fmt))
-      return { name: 'file-image-outline', color: '#3498DB' };
-    return { name: 'file-document-outline', color: '#7F8C8D' };
+      return { name: 'image-outlined', color: PRIMARY_COLOR_TINT_MAIN };
+    return {
+      name: 'insert-drive-file-outlined',
+      color: PRIMARY_COLOR_TINT_MAIN,
+    };
   };
-
   const iconProps = getFileIconProps(item.format);
-
   const handlePress = () => {
     if (item.isPremiumPaid) {
-      // Navigate to marketplace file listing details
       navigation.navigate('ProductDetails', { productId: item.id });
     } else {
-      // Navigate to institutional course classroom overview
       navigation.navigate('CourseDetails', { courseId: item.courseId });
     }
   };
-
   return (
     <TouchableOpacity
       style={[
         styles.cardContainer,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colors.backgroundSecondary },
       ]}
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      {/* File Icon Block */}
-      <View
-        style={[
-          styles.iconContainer,
-          { backgroundColor: `${iconProps.color}15` },
-        ]}
-      >
+      <View style={styles.iconContainer}>
         <MaterialIcons
           name={iconProps.name}
           size={32}
           color={iconProps.color}
         />
       </View>
-
-      {/* Metadata / Content Block */}
       <View style={styles.metaContainer}>
         <Text
           style={[styles.titleText, { color: colors.text }]}
@@ -217,7 +206,6 @@ const ResourceSearchCard = ({
         >
           {item.title}
         </Text>
-
         <View style={styles.badgeRow}>
           <Text
             style={[
@@ -239,8 +227,6 @@ const ResourceSearchCard = ({
           )}
         </View>
       </View>
-
-      {/* Action Block (Price Tag or Open Arrow) */}
       <View style={styles.actionContainer}>
         {item.isPremiumPaid ? (
           <View style={[styles.priceBadge, { backgroundColor: '#FF950020' }]}>
@@ -463,12 +449,7 @@ export const SearchScreen = () => {
           );
         })}
       </ScrollView>
-      <View
-        style={[
-          styles.searchOverlayScreen,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
+      <View style={[styles.searchOverlayScreen]}>
         {isSearching ? (
           <View style={styles.searchEmptyState}>
             <ActivityIndicator color={colors.primary} size="small" />
@@ -567,23 +548,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     alignItems: 'center',
+    alignSelf: 'center',
     borderBottomWidth: 0.5,
+    marginBottom: 15,
+    marginHorizontal: 6,
+    borderRadius: 12,
   },
   thumbnailImg: {
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#E5E7EB',
   },
   avatarPlaceholder: {
     width: 64,
     height: 64,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: PRIMARY_COLOR,
+    alignContent: 'center',
   },
   initialsText: {
-    color: '#FFFFFF',
+    color: PRIMARY_COLOR_TINT_MAIN,
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.5,
@@ -598,31 +582,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  courseCodeLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginRight: 8,
-  },
   premiumBadge: {
-    backgroundColor: 'rgba(142, 68, 173, 0.15)',
+    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   premiumBadgeText: {
-    color: '#9B59B6',
+    color: PRIMARY_COLOR_TINT_MAIN,
     fontSize: 10,
     fontWeight: '700',
   },
   academicBadge: {
-    backgroundColor: 'rgba(52, 152, 219, 0.15)',
+    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   academicBadgeText: {
-    color: '#3498DB',
+    color: PRIMARY_COLOR_TINT_MAIN,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -638,16 +616,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metricRowGroup: {
+    marginTop: 3,
     flexDirection: 'row',
     alignItems: 'center',
   },
   studentsCountMetric: {
     fontSize: 12,
-  },
-  currencyRightTray: {
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginLeft: 8,
   },
   cardContainer: {
     flexDirection: 'row',
@@ -655,16 +629,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    borderWidth: 1,
     marginBottom: 8,
-    marginHorizontal: 16,
+    marginHorizontal: 5,
   },
   iconContainer: {
     width: 48,
     height: 48,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: PRIMARY_COLOR,
+    alignContent: 'center',
   },
   metaContainer: {
     flex: 1,

@@ -12,7 +12,7 @@ export const lightPalette = {
   backgroundSecondary: '#fadccc',
   text: '#333333',
   textDarker: '#222222',
-  tint: '#6B7280',
+  tint: '#9b9999cf',
   inputTextHolder: PRIMARY_COLOR_TINT,
   border: PRIMARY_COLOR_TINT,
   primary: PRIMARY_COLOR,
