@@ -27,6 +27,7 @@ import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { RankingScreen } from '@components/RankingScreen';
+import {SearchScreen} from '@components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
 import {
   fetchOngoingLecture,
@@ -220,7 +221,7 @@ const HomeScreen = () => {
               userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
             />
           )}
-          {/* activeIcon === 'search' && <SearchScreen /> */}
+          {activeIcon === 'search' && <SearchScreen />}
           {activeIcon === 'store' && <StoreScreen />}
           {activeIcon === 'ranking' && <RankingScreen />}
         </View>

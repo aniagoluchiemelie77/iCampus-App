@@ -9,6 +9,9 @@ interface DeleteLectureResponse {
   message?: string;
   error?: string;
 }
+interface DeleteMaterialPayload {
+  materialUrl: string;
+}
 export const handleFinalDelete = async ({navigation, reason}: {navigation: any, reason?: string}) => {
   try {
     const response = await fetch(`${baseUrl}users/account/delete`, {
@@ -201,6 +204,42 @@ export const deleteLectureSchedule = async (lectureId: string): Promise<DeleteLe
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown network error',
+    };
+  }
+};
+export const deleteCourseMaterial = async (
+  courseId: string,
+  payload: DeleteMaterialPayload
+): Promise<{ success: boolean; message?: string; error?: string }> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/courses/deleteMaterial/${courseId}`,
+      {
+        method: 'DELETE', 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Failed to remove material from backend servers.',
+      };
+    }
+
+    return {
+      success: true,
+      message: result.message || 'Material removed successfully.',
+    };
+  } catch (error) {
+    console.error("Delete Material Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error occurred',
     };
   }
 };

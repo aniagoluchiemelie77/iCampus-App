@@ -1,17 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import {Image, View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Platform, Dimensions } from 'react-native';
+import {
+  Image,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PostCard } from './PostCard'; 
-import {UserAvatar} from './UserAvatar';
+import { PostCard } from './PostCard';
+import { UserAvatar } from './UserAvatar';
 import { UserIdentity } from './UserIdentity';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { useAppSelector } from './hooks';
-import {searchPosts, searchUsers, searchICashMarketLocal, searchCourses} from '../api/localGetApis';
+import {
+  searchPosts,
+  searchUsers,
+  searchICashMarketLocal,
+  searchCourses,
+  searchAcademicResources,
+} from '../api/localGetApis';
 import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { useAppDataContext } from './EventContext';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { ProductCard } from './ProductCard';
+import { PageHeader } from '../components/PageHeader';
 
 interface NormalizedCourseItem {
   id: string;
@@ -29,13 +47,13 @@ interface CourseSearchCardProps {
   navigation: any;
   colors: any;
 }
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
 
-
-const CourseSearchCard = ({ item, navigation, colors }: CourseSearchCardProps) => {
-
+const CourseSearchCard = ({
+  item,
+  navigation,
+  colors,
+}: CourseSearchCardProps) => {
   const getCourseInitials = (title: string) => {
     return title
       .split(' ')
@@ -54,8 +72,12 @@ const CourseSearchCard = ({ item, navigation, colors }: CourseSearchCardProps) =
   };
 
   return (
-    <TouchableOpacity 
-      style={[styles.cardWrapper, { borderBottomColor: colors.border }, !item.isActive && { opacity: 0.5 }]} 
+    <TouchableOpacity
+      style={[
+        styles.cardWrapper,
+        { borderBottomColor: colors.border },
+        !item.isActive && { opacity: 0.5 },
+      ]}
       onPress={handleNavigationRoute}
       disabled={!item.isActive}
     >
@@ -63,15 +85,24 @@ const CourseSearchCard = ({ item, navigation, colors }: CourseSearchCardProps) =
       {item.thumbnail ? (
         <Image source={{ uri: item.thumbnail }} style={styles.thumbnailImg} />
       ) : (
-        <View style={[styles.avatarPlaceholder, { backgroundColor: item.isPremiumPaid ? '#8E44AD' : '#2C3E50' }]}>
-          <Text style={styles.initialsText}>{getCourseInitials(item.title)}</Text>
+        <View
+          style={[
+            styles.avatarPlaceholder,
+            { backgroundColor: item.isPremiumPaid ? '#8E44AD' : '#2C3E50' },
+          ]}
+        >
+          <Text style={styles.initialsText}>
+            {getCourseInitials(item.title)}
+          </Text>
         </View>
       )}
 
       {/* MID PANEL: CORE COURSE IDENTITY METADATA CONTENT */}
       <View style={styles.infoMetaContainer}>
         <View style={styles.badgeRow}>
-          <Text style={[styles.courseCodeLabel, { color: colors.tint }]}>{item.code}</Text>
+          <Text style={[styles.courseCodeLabel, { color: colors.tint }]}>
+            {item.code}
+          </Text>
           {item.isPremiumPaid ? (
             <View style={styles.premiumBadge}>
               <Text style={styles.premiumBadgeText}>Premium Masterclass</Text>
@@ -83,18 +114,30 @@ const CourseSearchCard = ({ item, navigation, colors }: CourseSearchCardProps) =
           )}
         </View>
 
-        <Text style={[styles.courseTitleHeader, { color: colors.text }]} numberOfLines={2}>
+        <Text
+          style={[styles.courseTitleHeader, { color: colors.text }]}
+          numberOfLines={2}
+        >
           {item.title}
         </Text>
-        
-        <Text style={[styles.instructorNameSub, { color: colors.tint }]} numberOfLines={1}>
+
+        <Text
+          style={[styles.instructorNameSub, { color: colors.tint }]}
+          numberOfLines={1}
+        >
           By {item.instructors}
         </Text>
 
         <View style={styles.metricRowGroup}>
-          <MaterialIcons name="people-outline" size={14} color={colors.tint} style={{ marginRight: 4 }} />
+          <MaterialIcons
+            name="people-outline"
+            size={14}
+            color={colors.tint}
+            style={{ marginRight: 4 }}
+          />
           <Text style={[styles.studentsCountMetric, { color: colors.tint }]}>
-            {item.studentsCount} {item.studentsCount === 1 ? 'student' : 'students'} enrolled
+            {item.studentsCount}{' '}
+            {item.studentsCount === 1 ? 'student' : 'students'} enrolled
           </Text>
         </View>
       </View>
@@ -108,18 +151,130 @@ const CourseSearchCard = ({ item, navigation, colors }: CourseSearchCardProps) =
     </TouchableOpacity>
   );
 };
+const ResourceSearchCard = ({
+  item,
+  navigation,
+  colors,
+}: {
+  item: any;
+  navigation: any;
+  colors: any;
+}) => {
+  const getFileIconProps = (format: string) => {
+    const fmt = format?.toLowerCase();
+    if (fmt === 'pdf') return { name: 'file-pdf-box', color: '#E74C3C' };
+    if (['doc', 'docx'].includes(fmt))
+      return { name: 'file-word-box', color: '#2B579A' };
+    if (['xls', 'xlsx'].includes(fmt))
+      return { name: 'file-excel-box', color: '#217346' };
+    if (['ppt', 'pptx'].includes(fmt))
+      return { name: 'file-powerpoint-box', color: '#D24726' };
+    if (['jpg', 'jpeg', 'png'].includes(fmt))
+      return { name: 'file-image-outline', color: '#3498DB' };
+    return { name: 'file-document-outline', color: '#7F8C8D' };
+  };
 
-export const AdvancedSearchOverlay = () => {
-    const navigation = useNavigation<any>();
-    const { colors } = useTheme();
+  const iconProps = getFileIconProps(item.format);
+
+  const handlePress = () => {
+    if (item.isPremiumPaid) {
+      // Navigate to marketplace file listing details
+      navigation.navigate('ProductDetails', { productId: item.id });
+    } else {
+      // Navigate to institutional course classroom overview
+      navigation.navigate('CourseDetails', { courseId: item.courseId });
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.cardContainer,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+      onPress={handlePress}
+      activeOpacity={0.7}
+    >
+      {/* File Icon Block */}
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: `${iconProps.color}15` },
+        ]}
+      >
+        <MaterialIcons
+          name={iconProps.name}
+          size={32}
+          color={iconProps.color}
+        />
+      </View>
+
+      {/* Metadata / Content Block */}
+      <View style={styles.metaContainer}>
+        <Text
+          style={[styles.titleText, { color: colors.text }]}
+          numberOfLines={1}
+        >
+          {item.title}
+        </Text>
+
+        <View style={styles.badgeRow}>
+          <Text
+            style={[
+              styles.sourceText,
+              { color: colors.textMuted || '#7F8C8D' },
+            ]}
+          >
+            {item.metaSource}
+          </Text>
+          {item.fileSize && (
+            <Text
+              style={[
+                styles.sizeText,
+                { color: colors.textMuted || '#7F8C8D' },
+              ]}
+            >
+              • {item.fileSize}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Action Block (Price Tag or Open Arrow) */}
+      <View style={styles.actionContainer}>
+        {item.isPremiumPaid ? (
+          <View style={[styles.priceBadge, { backgroundColor: '#FF950020' }]}>
+            <MaterialIcons
+              name="star-circle"
+              size={14}
+              color="#FF9500"
+              style={{ marginRight: 2 }}
+            />
+            <Text style={[styles.priceText, { color: '#FF9500' }]}>
+              {item.price > 0 ? `${item.price} pts` : 'Free'}
+            </Text>
+          </View>
+        ) : (
+          <MaterialIcons
+            name="chevron-right"
+            size={20}
+            color={colors.textMuted || '#7F8C8D'}
+          />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+export const SearchScreen = () => {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { allProducts } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user);
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-
-  // Define tabs structure matching X configuration
   const tabs: { id: SearchTab; label: string }[] = [
     { id: 'people', label: 'People' },
     { id: 'posts', label: 'Posts' },
@@ -140,10 +295,14 @@ export const AdvancedSearchOverlay = () => {
         let results = [];
         switch (activeTab) {
           case 'people':
-            results = await searchUsers(searchQuery, currentUser.tier || 'free', currentUser.usertype || 'student');
+            results = await searchUsers(
+              searchQuery,
+              currentUser.tier || 'free',
+              currentUser.usertype || 'student',
+            );
             break;
           case 'posts':
-            results = await searchPosts(searchQuery); 
+            results = await searchPosts(searchQuery);
             break;
           case 'market':
             results = searchICashMarketLocal(searchQuery, allProducts);
@@ -166,8 +325,6 @@ export const AdvancedSearchOverlay = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, activeTab, currentUser, allProducts]);
-
-  // --- DYNAMIC CARD RENDER ENGINE ---
   const renderItemCard = ({ item }: { item: any }) => {
     switch (activeTab) {
       case 'posts':
@@ -178,7 +335,7 @@ export const AdvancedSearchOverlay = () => {
           <TouchableOpacity
             style={styles.searchResultRow}
             onPress={() => {
-              navigation.navigate('Profile', { uid: item.uid })
+              navigation.navigate('Profile', { uid: item.uid });
             }}
           >
             <UserAvatar
@@ -205,79 +362,113 @@ export const AdvancedSearchOverlay = () => {
 
       case 'market':
         return (
-          <TouchableOpacity 
-            style={styles.searchResultRow} 
-            onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
-          >
-            <MaterialIcons name="shopping-bag" size={24} color={colors.primary} />
-            <View style={{ marginLeft: 12 }}>
-              <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
-              <Text style={{ color: colors.primary, fontWeight: '600' }}>₦{item.price}</Text>
-            </View>
-          </TouchableOpacity>
+          <ProductCard
+            product={item}
+            onPress={() =>
+              navigation.navigate('ProductDetails', {
+                productId: item.productId,
+              })
+            }
+          />
         );
-    
-        case 'courses':
-  return (
-    <CourseSearchCard 
-      item={item} 
-      navigation={navigation}
-      colors={colors} 
-    />
-  );
-      default:
+
+      case 'courses':
         return (
-          <TouchableOpacity style={styles.searchResultRow}>
-            <MaterialIcons name={activeTab === 'courses' ? "book" : "description"} size={24} color={colors.tint} />
-            <Text style={[styles.itemTitle, { color: colors.text, marginLeft: 12 }]}>
-              {item.name || item.courseTitle || item.title}
-            </Text>
-          </TouchableOpacity>
+          <CourseSearchCard
+            item={item}
+            navigation={navigation}
+            colors={colors}
+          />
+        );
+      case 'resources':
+        return (
+          <ResourceSearchCard
+            item={item}
+            navigation={navigation}
+            colors={colors}
+          />
         );
     }
   };
 
   return (
-    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.background }]}>
-      
-      {/* 1. HEADER SECTION (Back Arrow + Input box) */}
-      <View style={[styles.activeSearchHeader, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity>
-          <MaterialIcons name="arrow-back" size={24} color={colors.tint} />
-        </TouchableOpacity>
+    <View
+      style={[
+        StyleSheet.absoluteFillObject,
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
+    >
+      <PageHeader title="iCampus Search" showBackButton={false} />
+      <View
+        style={[
+          styles.activeSearchHeader,
+          {
+            borderBottomColor: colors.border,
+            backgroundColor: colors.backgroundSecondary,
+          },
+        ]}
+      >
         <TextInput
           autoFocus
           placeholder={`Search ${activeTab}...`}
-          style={[styles.headerSearchInput, { color: colors.text }]}
-          placeholderTextColor={colors.tint}
+          style={[
+            styles.headerSearchInput,
+            { color: colors.text, borderColor: colors.border },
+          ]}
+          placeholderTextColor={colors.inputTextHolder}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
-
-      {/* 2. TAB CONTROL TRAY (X-Style Horizontal Scroll or Fixed Row) */}
-      <View style={[styles.tabBarContainer, { borderBottomColor: colors.border }]}>
-        {tabs.map((tab) => {
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabBarScrollContainer}
+        style={[
+          styles.tabBarContainer,
+          {
+            borderBottomColor: colors.border,
+            backgroundColor: colors.backgroundSecondary,
+          },
+        ]}
+      >
+        {tabs.map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.tabItem, isActive && { borderBottomColor: colors.primary }]}
+              style={[
+                styles.tabItem,
+                isActive && { borderBottomColor: colors.primary },
+              ]}
               onPress={() => {
                 setActiveTab(tab.id);
-                setSearchResults([]); // Flush previous search buffer when switching contexts
+                setSearchResults([]);
               }}
             >
-              <Text style={[styles.tabLabel, { color: isActive ? colors.primary : colors.tint, fontWeight: isActive ? '700' : '500' }]}>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color: isActive ? colors.primary : colors.text,
+                  },
+                ]}
+              >
                 {tab.label}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </View>
-
-      {/* 3. CORE RESULTS LIFECYCLE LIST VIEW */}
-      <View style={styles.searchOverlayScreen}>
+      </ScrollView>
+      <View
+        style={[
+          styles.searchOverlayScreen,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         {isSearching ? (
           <View style={styles.searchEmptyState}>
             <ActivityIndicator color={colors.primary} size="small" />
@@ -285,17 +476,22 @@ export const AdvancedSearchOverlay = () => {
         ) : searchResults.length > 0 ? (
           <FlatList
             data={searchResults}
-            keyExtractor={(item) => item.postId || item.uid || item.id || item._id}
+            keyExtractor={item =>
+              item.postId || item.uid || item.id || item._id
+            }
             renderItem={renderItemCard}
             contentContainerStyle={{ paddingBottom: 40 }}
           />
         ) : (
-          // Using your clean custom <EmptyState /> UI component
           <EmptyState
             iconName={searchQuery.length < 2 ? 'search' : 'find-in-page'}
-            title={searchQuery.length < 2 ? `Search iCampus ${activeTab}` : 'No Results Found'}
+            title={
+              searchQuery.length < 2
+                ? `Search iCampus ${activeTab}`
+                : 'No Results Found'
+            }
             subtitle={
-              searchQuery.length < 2 
+              searchQuery.length < 2
                 ? `Enter at least 2 characters to look through the platform database directory updates.`
                 : `We couldn't discover any matches matching "${searchQuery}" inside this tab profile context.`
             }
@@ -308,35 +504,34 @@ export const AdvancedSearchOverlay = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   activeSearchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignContent: 'center',
+    marginBottom: 15,
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
-    paddingBottom: 12,
-    borderBottomWidth: 0.5,
+    paddingVertical: 15,
   },
   headerSearchInput: {
     flex: 1,
-    marginLeft: 16,
-    fontSize: 16,
-    paddingVertical: 8,
+    fontSize: 14,
+    paddingVertical: 10,
+    borderWidth: 0.8,
+    borderRadius: 12,
   },
   tabBarContainer: {
-    flexDirection: 'row',
-    width: SCREEN_WIDTH,
     borderBottomWidth: 0.5,
-    justifyContent: 'space-evenly',
+    marginBottom: 15,
   },
   tabItem: {
-    paddingVertical: 14,
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
     alignItems: 'center',
-    flex: 1,
   },
   tabLabel: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '600',
   },
   searchOverlayScreen: {
     flex: 1,
@@ -360,8 +555,7 @@ const styles = StyleSheet.create({
   },
   searchEmptyState: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     paddingTop: 60,
   },
   emptyStatePadding: {
@@ -454,5 +648,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-end',
     marginLeft: 8,
+  },
+  cardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+    marginHorizontal: 16,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  metaContainer: {
+    flex: 1,
+    marginLeft: 14,
+    justifyContent: 'center',
+  },
+  titleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  sourceText: {
+    fontSize: 12,
+  },
+  sizeText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  actionContainer: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginLeft: 8,
+  },
+  priceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  priceText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tabBarScrollContainer: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    paddingVertical: 10,
   },
 });

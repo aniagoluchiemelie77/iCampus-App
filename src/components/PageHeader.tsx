@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import Logo from '../assets/images/Logo';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import { useTheme } from 'context/ThemeContext';
 
 interface PageHeaderProps {
   title: string;
@@ -12,42 +12,47 @@ interface PageHeaderProps {
   rightElement?: React.ReactNode;
 }
 
-export const PageHeader = ({ 
-  title, 
-  subtitle, 
-  showBackButton = true, 
-  rightElement 
+export const PageHeader = ({
+  title,
+  subtitle,
+  showBackButton = true,
+  rightElement,
 }: PageHeaderProps) => {
   const navigation = useNavigation();
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.header}>
-      {/* Left Section: Back Button */}
+    <View
+      style={[styles.header, { backgroundColor: colors.backgroundSecondary }]}
+    >
       <View style={styles.sideContainer}>
         {showBackButton && (
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MaterialIcons name="chevron-left" size={32} color={PRIMARY_COLOR} />
+            <MaterialIcons
+              name="chevron-left"
+              size={32}
+              color={colors.primary}
+            />
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Middle Section: Title, Logo, and Subtitle */}
       <View style={styles.centerContainer}>
         <View style={styles.headerTitleDiv}>
-        <Text style={styles.headerTitle}>{title}</Text>
-        {subtitle && (
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {subtitle}
+          <Text style={[styles.headerTitle, { color: colors.primary }]}>
+            {title}
           </Text>
-        )}
+          {subtitle && (
+            <Text
+              style={[styles.headerSubtitle, { color: colors.primaryTint }]}
+              numberOfLines={1}
+            >
+              {subtitle}
+            </Text>
+          )}
         </View>
         <Logo />
       </View>
-
-      {/* Right Section: Custom Element or Spacer */}
-      <View style={styles.sideContainer}>
-        {rightElement ? rightElement : <View style={{ width: 32 }} />}
-      </View>
+      {rightElement && <View style={styles.sideContainer}>{rightElement}</View>}
     </View>
   );
 };
@@ -58,10 +63,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
   },
   sideContainer: {
-    width: 40, 
+    width: 49,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -74,18 +78,16 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
     marginBottom: 3,
     textAlign: 'center',
   },
   headerTitleDiv: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 6
+    marginRight: 6,
   },
   headerSubtitle: {
     fontSize: 11,
-    color: PRIMARY_COLOR_TINT,
     textAlign: 'center',
   },
 });

@@ -21,6 +21,7 @@ import {
   AppState,
   Dimensions,
   SectionList,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
@@ -59,6 +60,10 @@ import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
 import { BarChart } from 'react-native-chart-kit';
 import { OngoingLectureModal } from './OngoingLiveLecturesModal';
+import { saveCourseMaterial } from '../api/localPostApis';
+import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
+import { deleteCourseMaterial } from '../api/localDeleteApis';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 const { width } = Dimensions.get('window');
 const math = create(all);
 
@@ -905,7 +910,6 @@ export const RenderContents = ({
     </View>
   );
 };
-// 3. Materials View
 export const RenderMaterials = ({
   course,
   lectures,
@@ -922,7 +926,7 @@ export const RenderMaterials = ({
   const insets = useSafeAreaInsets();
   const [isUploading, setIsUploading] = useState(false);
   const [refreshing, _setRefreshing] = useState(false);
-  const allResources = [
+  const combinedResources = [
     ...(course.resources || []).map(res => ({
       title: 'General Reference',
       url: res,
@@ -936,7 +940,6 @@ export const RenderMaterials = ({
       })),
     ),
   ];
-  const [localResources, setLocalResources] = useState(allResources);
   const handleDownload = async (url: string, fileName: string) => {
     try {
       if (Platform.OS === 'ios') {
@@ -978,52 +981,95 @@ export const RenderMaterials = ({
       });
 
       setIsUploading(true);
-
-      const formData = new FormData();
-      formData.append('file', {
-        uri:
-          Platform.OS === 'android'
-            ? pickerResult.uri
-            : pickerResult.uri.replace('file://', ''),
-        name: pickerResult.name || 'upload.pdf',
-        type: pickerResult.type || 'application/pdf',
-      } as any);
-
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/uploadMaterial/${course.courseId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        },
+      Toast.show({ type: 'info', text1: 'Uploading to cloud storage...' });
+      const firebaseResult = await uploadFileToFirebaseClient(
+        pickerResult.uri,
+        'course-materials',
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        const newResources = data.resources.map((res: string) => ({
-          title: 'Course Material',
-          url: res,
-          type: 'Course',
-        }));
-        setLocalResources(newResources);
-        Toast.show({ type: 'success', text1: 'Material Uploaded' });
+      if (!firebaseResult.success || !firebaseResult.data?.permanentUrl) {
+        throw new Error(
+          firebaseResult.message || 'Cloud storage processing failed.',
+        );
+      }
+      Toast.show({ type: 'info', text1: 'Finalizing setup with server...' });
+      const apiResult = await saveCourseMaterial(course.courseId, {
+        materialUrl: firebaseResult.data.permanentUrl,
+        title: pickerResult.name || 'Untitled Document',
+      });
+      if (apiResult.success) {
+        onRefresh();
+        Toast.show({
+          type: 'success',
+          text1: 'Material Uploaded Successfully',
+        });
+      } else {
+        throw new Error(
+          apiResult.error || 'Backend pipeline synchronization failed.',
+        );
       }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
-        // User cancelled the picker
-      } else {
-        Toast.show({ type: 'error', text1: 'Upload failed' });
+        // Intentional exit execution if user cancels file context explorer
+        return;
       }
+      console.error('Pipeline breakdown caught: ', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Upload failed',
+        text2: err instanceof Error ? err.message : 'Please try again later',
+      });
     } finally {
       setIsUploading(false);
     }
   };
-  const filteredData = localResources.filter(
-    (item: any) =>
+  const processDeletion = async (url: string) => {
+    try {
+      setIsUploading(true);
+      Toast.show({ type: 'info', text1: 'Removing material...' });
+
+      const apiResult = await deleteCourseMaterial(course.courseId, {
+        materialUrl: url,
+      });
+      if (apiResult.success) {
+        Toast.show({ type: 'success', text1: 'Material Deleted Successfully' });
+        onRefresh();
+      } else {
+        throw new Error(apiResult.error || 'Backend failed to delete asset.');
+      }
+    } catch (err) {
+      console.error('Deletion Pipeline Failure: ', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Deletion failed',
+        text2: err instanceof Error ? err.message : 'Please try again',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  const handleDelete = (url: string) => {
+    const fileName = url.split('/').pop() || 'this document';
+
+    Alert.alert(
+      'Delete Material',
+      `Are you sure you want to permanently delete "${fileName}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => processDeletion(url),
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+  const filteredData = combinedResources.filter(
+    item =>
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.url
         .split('/')
@@ -1064,23 +1110,41 @@ export const RenderMaterials = ({
         const fileName = item.url.split('/').pop() || 'document.pdf';
         return (
           <View style={CourseActionStyles.materialCard}>
-            <Icon name="file-pdf-box" size={32} color={PRIMARY_COLOR} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <MaterialIcons
+              name="picture-as-pdf-outlined"
+              size={32}
+              color={PRIMARY_COLOR}
+            />
+            <View style={{ flex: 1, marginLeft: 12, paddingHorizontal: 4 }}>
               <Text style={CourseActionStyles.materialTitle}>{item.title}</Text>
               <Text style={CourseActionStyles.materialSub} numberOfLines={1}>
                 {item.url.split('/').pop()}
               </Text>
+              <View style={CourseActionStyles.rowButtons}>
+                <TouchableOpacity
+                  style={CourseActionStyles.downloadCircle}
+                  onPress={() => handleDownload(item.url, fileName)}
+                >
+                  <MaterialIcons
+                    name="file-download-outlined"
+                    size={20}
+                    color={PRIMARY_COLOR_TINT}
+                  />
+                </TouchableOpacity>
+                {userRole === 'lecturer' && (
+                  <TouchableOpacity
+                    style={CourseActionStyles.downloadCircle}
+                    onPress={() => handleDelete(item.url)}
+                  >
+                    <MaterialIcons
+                      name="delete-outlined"
+                      size={20}
+                      color={PRIMARY_COLOR_TINT}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-            <TouchableOpacity
-              style={CourseActionStyles.downloadCircle}
-              onPress={() => handleDownload(item.url, fileName)}
-            >
-              <Icon
-                name="download-outline"
-                size={20}
-                color={PRIMARY_COLOR_TINT}
-              />
-            </TouchableOpacity>
           </View>
         );
       }}
@@ -3811,14 +3875,19 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#fadccc',
     borderRadius: 14,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
   },
   materialTitle: { fontSize: 15, fontWeight: '600', color: '#333' },
   materialSub: { fontSize: 12, color: '#999', marginTop: 2 },
+  rowButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   downloadCircle: {
     width: 36,
     height: 36,

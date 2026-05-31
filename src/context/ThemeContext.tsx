@@ -1,23 +1,34 @@
 import React, { createContext, useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux'; 
-import { toggleTheme } from '../components/UserSlice'; 
+import { toggleTheme } from '../components/UserSlice';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from '../assets/styles/colors';
 
 export const lightPalette = {
   background: '#FFFFFF',
-  text: '#111827',
+  backgroundSecondary: '#fadccc',
+  text: '#333333',
+  textDarker: '#222222',
   tint: '#6B7280',
-  border: '#E5E7EB',
-  primary: '#007AFF',       
-  primaryTint: '#E0F2FE',   
+  inputTextHolder: PRIMARY_COLOR_TINT,
+  border: PRIMARY_COLOR_TINT,
+  primary: PRIMARY_COLOR,
+  primaryTint: PRIMARY_COLOR_TINT,
 };
 
 export const darkPalette = {
-  background: '#111827',
-  text: '#F9FAFB',
+  background: '#111',
+  backgroundSecondary: '#222',
+  text: PRIMARY_COLOR_TINT_MAIN,
+  textDarker: PRIMARY_COLOR_TINT_MAIN,
   tint: '#9CA3AF',
-  border: '#374151',
-  primary: '#38BDF8',       
-  primaryTint: '#1E293B',
+  inputTextHolder: PRIMARY_COLOR_TINT_MAIN,
+  border: PRIMARY_COLOR_TINT,
+  primary: PRIMARY_COLOR,
+  primaryTint: PRIMARY_COLOR_TINT,
 };
 
 export type ColorsType = typeof lightPalette;

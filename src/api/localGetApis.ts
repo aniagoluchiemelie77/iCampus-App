@@ -1228,3 +1228,28 @@ export const searchCourses = async (query: string): Promise<SearchCoursesRespons
     return [];
   }
 };
+export const searchAcademicResources = async (query: string): Promise<any[]> => {
+  try {
+    const encodedQuery = encodeURIComponent(query);
+    const response = await fetch(
+      `${baseUrl}users/courses/resources/search?q=${encodedQuery}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+    if (response.ok && result.success) {
+      return result.resources;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error("Client side searchAcademicResources failed: ", error);
+    return [];
+  }
+};

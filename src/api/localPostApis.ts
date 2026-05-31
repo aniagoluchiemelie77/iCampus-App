@@ -53,6 +53,10 @@ interface VerifyFaceResponse {
   message?: string;
   similarity?: number;
 }
+interface UploadMaterialPayload {
+  materialUrl: string;
+  title?: string;
+}
 
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
@@ -1577,6 +1581,41 @@ export const verifyFacialIdentity = async (
     return {
       verified: false,
       message: "Network communication timeout. Is your internet active?",
+    };
+  }
+};
+export const saveCourseMaterial = async (
+  courseId: string,
+  payload: UploadMaterialPayload
+): Promise<{ success: boolean; message?: string; error?: string }> => {
+  try {
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/courses/uploadMaterial/${courseId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Failed to sync material with backend servers.',
+      };
+    }
+    return {
+      success: true,
+      message: result.message || 'Material synchronized successfully.',
+    };
+  } catch (error) {
+    console.error("Save Material Utility Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown network error occurred',
     };
   }
 };
