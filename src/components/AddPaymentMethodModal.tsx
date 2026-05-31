@@ -2,21 +2,17 @@ import React, { useState, useEffect, FC } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   ScrollView,
   TextInput,
   Dimensions,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
-import {
-  PRIMARY_COLOR,
-} from '@components/Classroomcomponent';
+import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
-import {PRIMARY_COLOR_TINT} from './Classroomcomponent.tsx'
+import { PRIMARY_COLOR_TINT } from './Classroomcomponent.tsx';
 import { SvgProps } from 'react-native-svg';
 import { initiatePaymentCharge } from '../api/localPostApis.ts';
 import {
@@ -38,6 +34,9 @@ import {
 import { User } from 'types/firebase';
 import { fetchSupportedBanks } from 'api/localGetApis.ts';
 const { width } = Dimensions.get('window');
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Modal from 'react-native-modal';
 export const CARD_WIDTH = width * 0.75;
 
 interface AddPaymentModalProps {
@@ -70,6 +69,7 @@ interface CardFormProps {
   BrandIcon: React.FC<any> | null;
   requiresPin: boolean;
   isInternational: boolean;
+  colors: any;
 }
 interface BankFormProps {
   bankData: {
@@ -79,6 +79,7 @@ interface BankFormProps {
   };
   setBankData: React.Dispatch<React.SetStateAction<any>>;
   bankItems: { label: string; value: string }[];
+  colors: any;
 }
 const COUNTRY_CODE_MAP: Record<string, string> = {
   Nigeria: 'NG',
@@ -92,12 +93,21 @@ const COUNTRY_CODE_MAP: Record<string, string> = {
   'South Africa': 'ZA',
   'United States of America': 'US',
 };
-const BankForm = ({ bankData, setBankData, bankItems }: BankFormProps) => {
+const BankForm = ({
+  bankData,
+  setBankData,
+  bankItems,
+  colors,
+}: BankFormProps) => {
   const [openBank, setOpenBank] = useState(false);
   return (
     <>
       <View style={AddPaymentMethodStyles.inputGroup}>
-        <Text style={AddPaymentMethodStyles.label}>Select Bank</Text>
+        <Text
+          style={[AddPaymentMethodStyles.label, { color: colors.textDarker }]}
+        >
+          Select Bank
+        </Text>
         <DropDownPicker
           open={openBank}
           value={bankData.bankCode}
@@ -108,17 +118,31 @@ const BankForm = ({ bankData, setBankData, bankItems }: BankFormProps) => {
             setBankData((prev: any) => ({ ...prev, bankCode: value }));
           }}
           placeholder="Select your bank"
-          style={AddPaymentMethodStyles.dropdown}
-          dropDownContainerStyle={AddPaymentMethodStyles.dropdownContainer}
+          style={[
+            AddPaymentMethodStyles.dropdown,
+            { borderBottomColor: colors.border },
+          ]}
+          dropDownContainerStyle={[
+            AddPaymentMethodStyles.dropdownContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
           searchable={true}
           zIndex={3000}
         />
       </View>
       <View style={AddPaymentMethodStyles.inputGroup}>
-        <Text style={AddPaymentMethodStyles.label}>Account Number</Text>
+        <Text
+          style={[AddPaymentMethodStyles.label, { color: colors.textDarker }]}
+        >
+          Account Number
+        </Text>
         <TextInput
-          style={AddPaymentMethodStyles.input}
+          style={[
+            AddPaymentMethodStyles.input,
+            { borderColor: colors.border, color: colors.text },
+          ]}
           placeholder="0123456789"
+          placeholderTextColor={colors.inputTextHolder}
           keyboardType="numeric"
           maxLength={10}
           value={bankData.accountNumber}
@@ -129,8 +153,17 @@ const BankForm = ({ bankData, setBankData, bankItems }: BankFormProps) => {
       </View>
       {bankData.accountName ? (
         <View style={AddPaymentMethodStyles.accountVerifiedBox}>
-          <Icon name="check-circle" size={16} color={PRIMARY_COLOR} />
-          <Text style={AddPaymentMethodStyles.accountNameText}>
+          <MaterialIcons
+            name="check-circle-outlined"
+            size={16}
+            color={colors.primary}
+          />
+          <Text
+            style={[
+              AddPaymentMethodStyles.accountNameText,
+              { color: colors.text },
+            ]}
+          >
             {bankData.accountName}
           </Text>
         </View>
@@ -144,15 +177,25 @@ const CardForm = ({
   handleCardChange,
   BrandIcon,
   requiresPin,
+  colors,
   isInternational,
 }: CardFormProps) => (
   <>
     <View style={AddPaymentMethodStyles.inputGroup}>
-      <Text style={AddPaymentMethodStyles.label}>Card Number</Text>
-      <View style={AddPaymentMethodStyles.cardInputWrapper}>
+      <Text
+        style={[AddPaymentMethodStyles.label, { color: colors.textDarker }]}
+      >
+        Card Number
+      </Text>
+      <View
+        style={[
+          AddPaymentMethodStyles.cardInputWrapper,
+          { borderColor: colors.btnColor },
+        ]}
+      >
         <TextInput
-          style={AddPaymentMethodStyles.flexInput}
-          placeholderTextColor={PRIMARY_COLOR_TINT}
+          style={[AddPaymentMethodStyles.flexInput, { color: colors.text }]}
+          placeholderTextColor={colors.inputTextHolder}
           placeholder="0000 0000 0000 0000"
           keyboardType="numeric"
           value={cardData.number}
@@ -168,29 +211,47 @@ const CardForm = ({
           { flex: 2, marginRight: 10 },
         ]}
       >
-        <Text style={AddPaymentMethodStyles.label}>Expiry Date</Text>
-        <View style={AddPaymentMethodStyles.expiryWrapper}>
+        <Text
+          style={[AddPaymentMethodStyles.label, { color: colors.textDarker }]}
+        >
+          Expiry Date
+        </Text>
+        <View
+          style={[
+            AddPaymentMethodStyles.expiryWrapper,
+            { borderColor: colors.border },
+          ]}
+        >
           <TextInput
-            style={AddPaymentMethodStyles.smallInput}
+            style={[AddPaymentMethodStyles.smallInput, { color: colors.text }]}
             placeholder="MM"
             keyboardType="numeric"
             onChangeText={v => setCardData({ ...cardData, month: v })}
+            placeholderTextColor={colors.inputTextHolder}
           />
           <Text style={AddPaymentMethodStyles.divider}>/</Text>
           <TextInput
-            style={AddPaymentMethodStyles.smallInput}
+            style={[AddPaymentMethodStyles.smallInput, { color: colors.text }]}
             placeholder="YY"
             keyboardType="numeric"
             onChangeText={v => setCardData({ ...cardData, year: v })}
+            placeholderTextColor={colors.inputTextHolder}
           />
         </View>
       </View>
       <View style={[AddPaymentMethodStyles.inputGroup, { flex: 1 }]}>
-        <Text style={AddPaymentMethodStyles.label}>CVV</Text>
+        <Text
+          style={[AddPaymentMethodStyles.label, { color: colors.textDarker }]}
+        >
+          CVV
+        </Text>
         <TextInput
-          style={AddPaymentMethodStyles.input}
+          style={[
+            AddPaymentMethodStyles.input,
+            { borderColor: colors.border, color: colors.text },
+          ]}
           placeholder="123"
-          placeholderTextColor={PRIMARY_COLOR_TINT}
+          placeholderTextColor={colors.inputTextHolder}
           secureTextEntry
           keyboardType="numeric"
           onChangeText={v => setCardData({ ...cardData, cvv: v })}
@@ -200,8 +261,11 @@ const CardForm = ({
         <View style={AddPaymentMethodStyles.inputGroup}>
           <Text style={AddPaymentMethodStyles.label}>Card PIN</Text>
           <TextInput
-            style={AddPaymentMethodStyles.input}
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            style={[
+              AddPaymentMethodStyles.input,
+              { borderColor: colors.border, color: colors.text },
+            ]}
+            placeholderTextColor={colors.inputTextHolder}
             placeholder="****"
             secureTextEntry
             maxLength={4}
@@ -215,16 +279,19 @@ const CardForm = ({
         <Text
           style={[
             AddPaymentMethodStyles.label,
-            { marginBottom: 10, color: PRIMARY_COLOR_TINT },
+            { marginBottom: 10, color: colors.textDarker },
           ]}
         >
           Billing Address (Required for International Cards)
         </Text>
         <View style={AddPaymentMethodStyles.inputGroup}>
           <TextInput
-            style={AddPaymentMethodStyles.input}
+            style={[
+              AddPaymentMethodStyles.input,
+              { borderColor: colors.border, color: colors.text },
+            ]}
             placeholder="Street Address"
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            placeholderTextColor={colors.inputTextHolder}
             value={cardData.address}
             onChangeText={v => setCardData({ ...cardData, address: v })}
           />
@@ -237,9 +304,12 @@ const CardForm = ({
             ]}
           >
             <TextInput
-              style={AddPaymentMethodStyles.input}
+              style={[
+                AddPaymentMethodStyles.input,
+                { borderColor: colors.border, color: colors.text },
+              ]}
               placeholder="City"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
               value={cardData.city}
               onChangeText={v => setCardData({ ...cardData, city: v })}
             />
@@ -251,18 +321,24 @@ const CardForm = ({
             ]}
           >
             <TextInput
-              style={AddPaymentMethodStyles.input}
+              style={[
+                AddPaymentMethodStyles.input,
+                { borderColor: colors.border, color: colors.text },
+              ]}
               placeholder="State/Province"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
               value={cardData.state}
               onChangeText={v => setCardData({ ...cardData, state: v })}
             />
           </View>
           <View style={[AddPaymentMethodStyles.inputGroup, { flex: 1 }]}>
             <TextInput
-              style={AddPaymentMethodStyles.input}
+              style={[
+                AddPaymentMethodStyles.input,
+                { borderColor: colors.border, color: colors.text },
+              ]}
               placeholder="Zip Code"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
               keyboardType="numeric"
               value={cardData.zipcode}
               onChangeText={v => setCardData({ ...cardData, zipcode: v })}
@@ -300,6 +376,7 @@ export const AddPaymentModal = ({
     zipcode: '',
     country: '',
   });
+  const { colors } = useTheme();
   const [bankData, setBankData] = useState({
     bankCode: '',
     accountNumber: '',
@@ -483,14 +560,25 @@ export const AddPaymentModal = ({
   const BrandIcon = cardData.brand ? cardBrandLogos[cardData.brand] : null;
   const isInternational = user?.country !== 'Nigeria';
   return (
-    <Modal visible={visible} animationType="slide">
-      <View style={AddPaymentMethodStyles.container}>
+    <Modal
+      isVisible={visible}
+      onBackdropPress={() => onClose()}
+      swipeDirection="down"
+      onSwipeComplete={() => onClose()}
+      style={AddPaymentMethodStyles.modalOverride}
+    >
+      <View
+        style={[
+          AddPaymentMethodStyles.container,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <PageHeader
           title="Add Payment Method"
           showBackButton={false}
           rightElement={
-            <Icon
-              name="close"
+            <MaterialIcons
+              name="cancel-outlined"
               size={28}
               onPress={onClose}
               color={PRIMARY_COLOR}
@@ -503,15 +591,22 @@ export const AddPaymentModal = ({
               <TouchableOpacity
                 style={[
                   AddPaymentMethodStyles.tab,
-                  activeTab === 'card' && AddPaymentMethodStyles.activeTab,
+                  activeTab === 'card' && {
+                    borderBottomColor: colors.primary,
+                  },
                 ]}
                 onPress={() => setActiveTab('card')}
               >
                 <Text
                   style={[
                     AddPaymentMethodStyles.tabText,
-                    activeTab === 'card' &&
-                      AddPaymentMethodStyles.activeTabText,
+                    activeTab === 'card'
+                      ? {
+                          color: colors.primary,
+                        }
+                      : {
+                          color: colors.textDarker,
+                        },
                   ]}
                 >
                   CARD
@@ -520,15 +615,22 @@ export const AddPaymentModal = ({
               <TouchableOpacity
                 style={[
                   AddPaymentMethodStyles.tab,
-                  activeTab === 'bank' && AddPaymentMethodStyles.activeTab,
+                  activeTab === 'bank' && {
+                    borderBottomColor: colors.primary,
+                  },
                 ]}
                 onPress={() => setActiveTab('bank')}
               >
                 <Text
                   style={[
                     AddPaymentMethodStyles.tabText,
-                    activeTab === 'bank' &&
-                      AddPaymentMethodStyles.activeTabText,
+                    activeTab === 'bank'
+                      ? {
+                          color: colors.primary,
+                        }
+                      : {
+                          color: colors.textDarker,
+                        },
                   ]}
                 >
                   BANK
@@ -546,19 +648,21 @@ export const AddPaymentModal = ({
               BrandIcon={BrandIcon}
               requiresPin={requiresPin}
               isInternational={isInternational}
+              colors={colors}
             />
           ) : (
             <BankForm
               bankData={bankData}
               setBankData={setBankData}
               bankItems={bankItems}
+              colors={colors}
             />
           )}
 
           <TouchableOpacity
             style={[
               AddPaymentMethodStyles.submitBtn,
-              isLoading && { opacity: 0.7 },
+              { backgroundColor: colors.btnColor },
             ]}
             onPress={() => {
               if (activeTab === 'card') {
@@ -569,7 +673,12 @@ export const AddPaymentModal = ({
             }}
             disabled={isLoading}
           >
-            <Text style={AddPaymentMethodStyles.submitBtnText}>
+            <Text
+              style={[
+                AddPaymentMethodStyles.submitBtnText,
+                { color: colors.btnTextColor },
+              ]}
+            >
               {isLoading
                 ? 'Processing...'
                 : `Link ${activeTab === 'card' ? 'Card' : 'Account'}`}
@@ -583,12 +692,10 @@ export const AddPaymentModal = ({
 export const AddPaymentMethodStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   label: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2222',
     marginVertical: 10,
   },
   divider: {
@@ -599,39 +706,33 @@ export const AddPaymentMethodStyles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    margin: 20,
-    backgroundColor: '#fadccc',
-    borderRadius: 12,
-    padding: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 },
-  activeTab: {
-    backgroundColor: PRIMARY_COLOR_TINT,
-    elevation: 2,
-    shadowOpacity: 0.1,
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
   },
-  tabText: { fontWeight: '700', color: '#2222', fontSize: 12 },
-  activeTabText: { color: PRIMARY_COLOR },
-  formContent: { paddingHorizontal: 20 },
+  tabText: { fontWeight: '700', fontSize: 14 },
+  formContent: { paddingHorizontal: 15 },
   inputGroup: { marginBottom: 20 },
   cardInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
   },
-  flexInput: { flex: 1, fontSize: 16, fontWeight: '600', color: '#2222' },
+  flexInput: { flex: 1, fontSize: 16, fontWeight: '600' },
   input: {
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 12,
     paddingHorizontal: 15,
     height: 55,
-    fontSize: 16,
-    color: '#2222',
+    fontSize: 14,
     fontWeight: '600',
   },
   row: { flexDirection: 'row' },
@@ -639,7 +740,6 @@ export const AddPaymentMethodStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 12,
     paddingHorizontal: 10,
     height: 55,
@@ -647,23 +747,21 @@ export const AddPaymentMethodStyles = StyleSheet.create({
   smallInput: {
     textAlign: 'center',
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#2222',
   },
   submitBtn: {
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 40,
   },
-  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  submitBtnText: { fontSize: 14, fontWeight: '700' },
   dropdown: {
-    borderColor: '#fadccc',
+    padding: 9,
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderBottomWidth: 0.8,
   },
   dropdownContainer: {
     borderColor: '#fadccc',
@@ -680,7 +778,6 @@ export const AddPaymentMethodStyles = StyleSheet.create({
     marginBottom: 20,
   },
   accountNameText: {
-    color: PRIMARY_COLOR,
     fontWeight: '700',
     marginLeft: 8,
     fontSize: 14,
@@ -707,4 +804,7 @@ export const AddPaymentMethodStyles = StyleSheet.create({
     borderColor: PRIMARY_COLOR,
   },
   title: { fontSize: 16, fontWeight: '600', color: PRIMARY_COLOR },
+  modalOverride: {
+    margin: 0,
+  },
 });

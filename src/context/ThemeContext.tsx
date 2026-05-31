@@ -14,6 +14,8 @@ export const lightPalette = {
   textDarker: '#222222',
   tint: '#9b9999cf',
   inputTextHolder: PRIMARY_COLOR_TINT,
+  btnColor: PRIMARY_COLOR,
+  btnTextColor: '#fff',
   border: PRIMARY_COLOR_TINT,
   primary: PRIMARY_COLOR,
   primaryTint: PRIMARY_COLOR_TINT,
@@ -27,6 +29,8 @@ export const darkPalette = {
   tint: '#9CA3AF',
   inputTextHolder: PRIMARY_COLOR_TINT_MAIN,
   border: PRIMARY_COLOR_TINT,
+  btnTextColor: '#fff',
+  btnColor: PRIMARY_COLOR,
   primary: PRIMARY_COLOR,
   primaryTint: PRIMARY_COLOR_TINT,
 };

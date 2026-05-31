@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { formatTime } from '../utils/ChatTimestampFormatter';
 import { Attachment } from '../types/firebase';
 import { downloadFile } from '../utils/downloadHelper';
+import { useTheme } from 'context/ThemeContext';
 
 interface MessageBubbleProps {
   content: string;
@@ -22,6 +23,8 @@ export const MessageBubble = ({
   status,
   attachments,
 }: MessageBubbleProps) => {
+  const { colors } = useTheme();
+  console.log(type);
   return (
     <View
       style={[
@@ -33,13 +36,16 @@ export const MessageBubble = ({
         style={[
           styles.bubble,
           isUser
-            ? styles.userBubble
-            : type === 'ai'
-            ? styles.aiBubble
-            : styles.p2pBubble,
+            ? {
+                backgroundColor: colors.primary,
+                borderBottomRightRadius: 2,
+              }
+            : {
+                backgroundColor: colors.backgroundSecondary,
+                borderBottomLeftRadius: 2,
+              },
         ]}
       >
-        {/* Render Attachments first so text follows beneath them */}
         {attachments && attachments.length > 0 && (
           <View style={styles.attachmentContainer}>
             {attachments.map((file, index) =>
@@ -61,16 +67,13 @@ export const MessageBubble = ({
               ) : (
                 <TouchableOpacity
                   key={index}
-                  style={[
-                    styles.fileRow,
-                    isUser ? styles.fileRowUser : styles.fileRowUserNotUser,
-                  ]}
+                  style={[styles.fileRow]}
                   onPress={() =>
                     downloadFile(file.url, file.fileName || 'file')
                   }
                 >
                   <MaterialIcons
-                    name="file-download"
+                    name="file-download-outlined"
                     size={20}
                     color={isUser ? '#fff' : PRIMARY_COLOR}
                   />
@@ -89,9 +92,7 @@ export const MessageBubble = ({
           </View>
         )}
 
-        <Text style={isUser ? styles.userText : styles.otherText}>
-          {content}
-        </Text>
+        <Text style={[styles.text, { color: '#fff' }]}>{content}</Text>
 
         {(timestamp || status) && (
           <View style={styles.footer}>
@@ -99,7 +100,7 @@ export const MessageBubble = ({
               <Text
                 style={[
                   styles.timeText,
-                  isUser ? styles.userTimeText : styles.otherTimeText,
+                  { color: isUser ? 'rgba(255, 255, 255, 0.7)' : '#fff' },
                 ]}
               >
                 {formatTime(timestamp)}
@@ -109,10 +110,8 @@ export const MessageBubble = ({
               <MaterialIcons
                 name={status === 'seen' ? 'done-all' : 'done'}
                 size={14}
-                style={[
-                  styles.statusIcon,
-                  isUser ? styles.userTimeText : styles.otherTimeText,
-                ]}
+                style={[styles.statusIcon]}
+                color={'#fff'}
               />
             )}
           </View>
@@ -123,7 +122,7 @@ export const MessageBubble = ({
           style={[
             styles.tail,
             isUser ? styles.userTail : styles.otherTail,
-            { backgroundColor: isUser ? PRIMARY_COLOR : '#fadccc' },
+            { backgroundColor: colors.primary },
           ]}
         />
       </View>
@@ -136,20 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     position: 'relative',
   },
-  userBubble: {
-    backgroundColor: PRIMARY_COLOR,
-    borderBottomRightRadius: 2,
-  },
-  aiBubble: {
-    backgroundColor: '#fadccc',
-    borderBottomLeftRadius: 2,
-  },
-  p2pBubble: {
-    backgroundColor: '#fadccc',
-    borderBottomLeftRadius: 2,
-  },
-  userText: { color: '#fff', fontSize: 15 },
-  otherText: { color: '#333', fontSize: 15 },
+  text: { fontSize: 14 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -158,8 +144,6 @@ const styles = StyleSheet.create({
   },
   timeText: { fontSize: 10 },
   statusIcon: { marginLeft: 3 },
-  userTimeText: { color: 'rgba(255, 255, 255, 0.7)' },
-  otherTimeText: { color: '#888' },
 
   // Tail Styling
   tail: {
@@ -168,7 +152,7 @@ const styles = StyleSheet.create({
     height: 10,
     bottom: 0,
     transform: [{ rotate: '45deg' }],
-    zIndex: -1, // Keep it behind the bubble content
+    zIndex: -1,
   },
   userTail: {
     right: -4,
@@ -195,12 +179,6 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     marginBottom: 4,
-  },
-  fileRowUser: {
-    backgroundColor: PRIMARY_COLOR,
-  },
-  fileRowUserNotUser: {
-    backgroundColor: '#fadccc',
   },
   fileName: {
     fontSize: 13,

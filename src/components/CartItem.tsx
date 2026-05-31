@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Product, CartItem as CartItemType } from '../types/firebase'; 
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from 'context/ThemeContext';
 
 interface CartItemProps {
   cartEntry: CartItemType;
@@ -18,9 +18,10 @@ export const CartItem: React.FC<CartItemProps> = ({
   onRemove,
 }) => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.border}]}
       onPress={() =>
         navigation.navigate('ProductDetails', {
           productId: product.productId,
@@ -32,19 +33,19 @@ export const CartItem: React.FC<CartItemProps> = ({
       <View style={styles.details}>
         <View style={styles.detailSubdiv}>
           <View style={styles.headerRow}>
-            <Text style={styles.typeTag}>{product.type.toUpperCase()}</Text>
+            <Text style={[styles.typeTag, {color: colors.primary}]}>{product.niche.toUpperCase()}</Text>
             {cartEntry.quantity > 1 && (
-              <Text style={styles.quantityBadge}>x{cartEntry.quantity}</Text>
+              <Text style={[styles.quantityBadge, {color: colors.text}]}>x{cartEntry.quantity}</Text>
             )}
           </View>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, {color: colors.textDarker}]} numberOfLines={1}>
             {product.title}
           </Text>
           {(cartEntry.selectedSize || cartEntry.selectedColor) && (
             <View style={styles.variationRow}>
               {cartEntry.selectedSize && (
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>
+                  <Text style={[styles.chipText, {color: colors.text}]}>
                     Size: {cartEntry.selectedSize}
                   </Text>
                 </View>
@@ -59,7 +60,7 @@ export const CartItem: React.FC<CartItemProps> = ({
                       },
                     ]}
                   />
-                  <Text style={styles.chipText}>{cartEntry.selectedColor}</Text>
+                  <Text style={[styles.chipText, {color: colors.text}]}>{cartEntry.selectedColor}</Text>
                 </View>
               )}
             </View>
@@ -74,7 +75,7 @@ export const CartItem: React.FC<CartItemProps> = ({
             onPress={() => onRemove && onRemove(product)}
             style={styles.removeButton}
           >
-            <MaterialIcons name="delete-outlined" size={18} color="#fff" />
+            <MaterialIcons name="delete-outlined" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -85,12 +86,10 @@ export const CartItem: React.FC<CartItemProps> = ({
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: '#fadccc',
     borderRadius: 20,
     padding: 10,
     marginBottom: 15,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
+    borderBottomWidth: 0.8,
     width: '90%',
   },
   image: {
@@ -111,8 +110,6 @@ const styles = StyleSheet.create({
   typeTag: {
     fontSize: 10,
     fontWeight: '800',
-    color: PRIMARY_COLOR,
-    backgroundColor: '#fff',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -121,12 +118,10 @@ const styles = StyleSheet.create({
   quantityBadge: {
     fontSize: 10,
     fontWeight: '800',
-    color: PRIMARY_COLOR,
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#222',
     marginTop: 4,
   },
   variationRow: {
@@ -140,7 +135,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 11,
-    color: '#2222',
     fontWeight: '600',
   },
   colorDot: {
@@ -148,8 +142,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginRight: 4,
-    borderWidth: 0.5,
-    borderColor: PRIMARY_COLOR,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -163,13 +155,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: PRIMARY_COLOR,
-  },
-  removeText: {
-    fontSize: 12,
-    color: '#FF4D4D',
-    fontWeight: '600',
-    marginLeft: 4,
   },
   detailSubdiv: {
     width: '100%',
