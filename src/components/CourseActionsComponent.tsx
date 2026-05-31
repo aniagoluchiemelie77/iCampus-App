@@ -64,6 +64,10 @@ import { saveCourseMaterial } from '../api/localPostApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { deleteCourseMaterial } from '../api/localDeleteApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {updateCourseContent} from '../api/localPutApis';
+import {createCourseContent} from '../api/localPostApis';
+import {deleteCourseContent} from '../api/localDeleteApis';
+import { useTheme } from '../context/ThemeContext';
 const { width } = Dimensions.get('window');
 const math = create(all);
 
@@ -601,7 +605,6 @@ export const DetailHeader = ({
     </View>
   );
 };
-// 2. Course Contents View
 export const RenderContents = ({
   course,
   userRole,
@@ -613,72 +616,29 @@ export const RenderContents = ({
   searchQuery: string;
   onRefresh: () => void;
 }) => {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [contents, setContents] = useState<string[]>(
     course.courseContents || [],
   );
-  const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [indexToDelete, setIndexToDelete] = useState<number | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
   const filteredData = contents.filter(
     (item: any) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
       item.url
-        .split('/')
+        ?.split('/')
         .pop()
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()),
   );
-  const isTopicCompleted = (topicName: string) => {
-    return course.Lectures?.some(
-      lecture =>
-        lecture.topicName.toLowerCase() === topicName.toLowerCase() &&
-        (lecture.status === 'completed' || lecture.isTaught),
-    );
-  };
 
   const openModal = (index: number | null = null) => {
     setEditingIndex(index);
     setCurrentText(index !== null ? contents[index] : '');
     setModalVisible(true);
-  };
-  const syncContentWithBackend = async (updatedList: string[]) => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/updateContent/${course.courseId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ updatedContents: updatedList }),
-        },
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        Toast.show({
-          type: 'error',
-          text1: 'Sync Error',
-          text2: data.message || 'Could not save course changes, please retry.',
-          position: 'bottom',
-          bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
-        });
-      }
-      setContents(updatedList);
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Sync Error',
-        text2: error.message || 'Could not save changes to server',
-        position: 'bottom',
-        bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
-      });
-      setContents(course.courseContents ?? []);
-    }
   };
   const handleSave = async () => {
     if (!currentText.trim()) {
@@ -686,43 +646,79 @@ export const RenderContents = ({
         type: 'error',
         text1: 'Empty Topic',
         position: 'bottom',
-        bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+        bottomOffset: insets.bottom || 20,
       });
       return;
     }
-    let updated = [...contents];
-    if (editingIndex !== null) {
-      updated[editingIndex] = currentText;
-    } else {
-      updated.push(currentText);
-    }
-    setModalVisible(false);
-    await syncContentWithBackend(updated);
-    Toast.show({
-      type: 'success',
-      text1: editingIndex !== null ? 'Topic Updated' : 'Topic Added',
-      position: 'bottom',
-      bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
-    });
-  };
 
-  const executeDelete = async () => {
-    if (indexToDelete !== null) {
-      const updated = contents.filter((_, i) => i !== indexToDelete);
-      setDeleteModalVisible(false);
-      await syncContentWithBackend(updated);
+    let result;
+    if (editingIndex !== null) {
+      result = await updateCourseContent(
+        course.courseId,
+        editingIndex,
+        currentText,
+      );
+    } else {
+      result = await createCourseContent(course.courseId, currentText);
+    }
+
+    if (result.success) {
+      setContents(
+        result.data ||
+          (editingIndex !== null
+            ? contents.map((t, idx) => (idx === editingIndex ? currentText : t))
+            : [...contents, currentText]),
+      );
+
+      setModalVisible(false);
       Toast.show({
         type: 'success',
-        text1: 'Topic Removed',
+        text1: editingIndex !== null ? 'Topic Updated' : 'Topic Added',
         position: 'bottom',
-        bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+        bottomOffset: insets.bottom || 20,
       });
-      setIndexToDelete(null);
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Sync Error',
+        text2: result.error,
+        position: 'bottom',
+        bottomOffset: insets.bottom || 20,
+      });
     }
   };
   const confirmDelete = (index: number) => {
-    setIndexToDelete(index);
-    setDeleteModalVisible(true);
+    Alert.alert(
+      'Delete Topic?',
+      `Are you sure you want to remove "${contents[index]}" from ${course.courseTitle}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteCourseContent(course.courseId, index);
+            if (result.success) {
+              setContents(contents.filter((_, i) => i !== index));
+              Toast.show({
+                type: 'success',
+                text1: 'Topic Removed',
+                position: 'bottom',
+                bottomOffset: insets.bottom || 20,
+              });
+            } else {
+              Toast.show({
+                type: 'error',
+                text1: 'Delete Failed',
+                text2: result.error,
+                position: 'bottom',
+                bottomOffset: insets.bottom || 20,
+              });
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -735,25 +731,24 @@ export const RenderContents = ({
           { paddingBottom: insets.bottom + 20 },
         ]}
         ListHeaderComponent={
-          <Text style={CourseActionStyles.sectionSubtitle}>
+          <Text style={[CourseActionStyles.sectionSubtitle, {color: colors.textDarker}]}>
             {userRole === 'lecturer'
               ? 'Curriculum Management'
               : 'Syllabus Overview'}
           </Text>
         }
         renderItem={({ item, index }) => {
-          const completed = isTopicCompleted(item);
           return (
-            <View style={CourseActionStyles.contentRow}>
+            <View style={[CourseActionStyles.contentRow, {backgroundColor: colors.backgroundSecondary}]}>
               <View style={CourseActionStyles.numberCircle}>
-                <Text style={CourseActionStyles.numberText}>
+                <Text style={[CourseActionStyles.numberText, {color: colors.text}]}>
                   Wk {index + 1}
                 </Text>
               </View>
               <Text
                 style={[
                   CourseActionStyles.topicText,
-                  completed && CourseActionStyles.completedTopicText,
+                  {color: colors.text}
                 ]}
               >
                 {item}
@@ -765,20 +760,20 @@ export const RenderContents = ({
                     onPress={() => openModal(index)}
                     style={CourseActionStyles.iconBtn}
                   >
-                    <Icon
-                      name="pencil-outline"
+                    <MaterialIcons
+                      name="edit"
                       size={20}
-                      color={PRIMARY_COLOR_TINT}
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => confirmDelete(index)}
                     style={CourseActionStyles.iconBtn}
                   >
-                    <Icon
-                      name="trash-can-outline"
+                    <MaterialIcons
+                      name="delete-outlined"
                       size={20}
-                      color={PRIMARY_COLOR_TINT}
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
                 </View>
@@ -789,11 +784,11 @@ export const RenderContents = ({
         ListFooterComponent={
           userRole === 'lecturer' ? (
             <TouchableOpacity
-              style={CourseActionStyles.addContentBtn}
+              style={[CourseActionStyles.addContentBtn, { borderColor: colors.primary }]}
               onPress={() => openModal()}
             >
-              <Icon name="plus" size={20} color={PRIMARY_COLOR} />
-              <Text style={CourseActionStyles.addContentText}>
+              <MaterialIcons name="add" size={20} color={colors.primary} />
+              <Text style={[CourseActionStyles.addContentText, {color: colors.primary}]}>
                 Add New Topic
               </Text>
             </TouchableOpacity>
@@ -813,7 +808,6 @@ export const RenderContents = ({
           />
         }
       />
-
       <Modal visible={isModalVisible} transparent animationType="fade">
         <Pressable
           style={CourseActionStyles.modalOverlay}
@@ -821,85 +815,39 @@ export const RenderContents = ({
         >
           <TouchableWithoutFeedback>
             <View style={CourseActionStyles.centeredView}>
-              <View style={CourseActionStyles.editModalContent}>
-                <Text style={CourseActionStyles.modalTitle}>
+              <View style={[CourseActionStyles.editModalContent, { backgroundColor: colors.backgroundSecondary }]}>
+                <Text style={[CourseActionStyles.modalTitle, {color: colors.textDarker}]}>
                   {editingIndex !== null
                     ? 'Edit Existing Topic'
                     : 'Add New Topic'}
                 </Text>
-
                 <TextInput
-                  style={CourseActionStyles.input}
+                  style={[CourseActionStyles.input, { color: colors.text, borderColor: colors.border }]}
                   value={currentText}
                   onChangeText={setCurrentText}
                   placeholder="Enter topic name..."
                   autoFocus
+                  placeholderTextColor={colors.primaryTint}
                 />
-
                 <View style={CourseActionStyles.modalActions}>
                   <TouchableOpacity
-                    style={CourseActionStyles.cancelBtn}
+                    style={[CourseActionStyles.cancelBtn, { borderColor: colors.border }]}
                     onPress={() => setModalVisible(false)}
                   >
-                    <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
+                    <Text style={[CourseActionStyles.cancelBtnText, { color: colors.primary }]}>
+                      Cancel
+                    </Text>
                   </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[
                       CourseActionStyles.saveBtn,
-                      { backgroundColor: PRIMARY_COLOR },
+                      { backgroundColor: colors.btnColor },
                     ]}
                     onPress={handleSave}
                   >
-                    <Text style={CourseActionStyles.saveBtnText}>
+                    <Text style={[CourseActionStyles.saveBtnText, { color: colors.btnTextColor }]}>
                       Save Changes
                     </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </Pressable>
-      </Modal>
-      <Modal visible={isDeleteModalVisible} transparent animationType="fade">
-        <Pressable
-          style={CourseActionStyles.modalOverlay}
-          onPress={() => setDeleteModalVisible(false)}
-        >
-          <TouchableWithoutFeedback>
-            <View style={CourseActionStyles.centeredView}>
-              <View style={CourseActionStyles.deleteModalContent}>
-                <View style={CourseActionStyles.warningIconCircle}>
-                  <Icon
-                    name="alert-outline"
-                    size={40}
-                    color={PRIMARY_COLOR_TINT}
-                  />
-                </View>
-                <Text style={CourseActionStyles.modalTitle}>Delete Topic?</Text>
-                <Text style={CourseActionStyles.modalSubText}>
-                  Are you sure you want to remove{' '}
-                  <Text style={{ fontWeight: '700' }}>
-                    "{indexToDelete !== null ? contents[indexToDelete] : ''}"
-                  </Text>{' '}
-                  from{' '}
-                  <Text style={{ fontWeight: '700' }}>
-                    {course.courseTitle}
-                  </Text>
-                  ? This action cannot be undone.
-                </Text>
-                <View style={CourseActionStyles.modalActions}>
-                  <TouchableOpacity
-                    style={CourseActionStyles.cancelBtn}
-                    onPress={() => setDeleteModalVisible(false)}
-                  >
-                    <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={CourseActionStyles.deleteConfirmBtn}
-                    onPress={executeDelete}
-                  >
-                    <Text style={CourseActionStyles.saveBtnText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -3832,10 +3780,8 @@ export const CourseActionStyles = StyleSheet.create({
   body: { flex: 1 },
   listPadding: { paddingHorizontal: 20, paddingBottom: 30 },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
-    textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 20,
     marginBottom: 15,
@@ -3850,7 +3796,6 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#F7F9FC',
     borderRadius: 14,
     marginBottom: 12,
   },
@@ -3858,13 +3803,11 @@ export const CourseActionStyles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: PRIMARY_COLOR,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     marginRight: 12,
   },
-  numberText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  topicText: { flex: 1, fontSize: 15, fontWeight: '500', color: '#2222' },
+  numberText: { fontSize: 14, fontWeight: 'bold' },
+  topicText: { flex: 1, fontSize: 14 },
   topicText2: {
     fontSize: 16,
     fontWeight: '600',
@@ -3952,23 +3895,18 @@ export const CourseActionStyles = StyleSheet.create({
   addContentBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
-    borderStyle: 'dashed',
-    backgroundColor: '#fff7f4',
+    borderWidth: 2,
     marginTop: 20,
   },
   addContentText: {
-    color: PRIMARY_COLOR,
     fontWeight: '700',
     marginLeft: 8,
-    fontSize: 15,
+    fontSize: 14,
   },
   actionRow: { flexDirection: 'row', alignItems: 'center' },
-  iconBtn: { padding: 8, marginLeft: 4 },
+  iconBtn: { padding: 8 },
 
   // Centered Modal Styles
   modalOverlay: {
@@ -3984,14 +3922,12 @@ export const CourseActionStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   centeredView: {
-    width: '85%',
-    maxWidth: 400,
+    width: '90%'
   },
   editModalContent: {
-    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -4004,19 +3940,16 @@ export const CourseActionStyles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#2222',
     marginBottom: 16,
     textAlign: 'center',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#eee',
     borderRadius: 12,
     padding: 14,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    fontSize: 14,
     marginBottom: 20,
   },
   modalActions: {
@@ -4026,13 +3959,13 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBtn: {
-    flex: 1,
     paddingVertical: 14,
     marginRight: 8,
     alignItems: 'center',
+    borderWidth: 1
   },
   cancelBtnText: {
-    color: '#666',
+    fontSize: 14,
     fontWeight: '600',
   },
   saveBtn: {
@@ -4042,7 +3975,7 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnText: {
-    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
   deleteModalContent: {
@@ -4185,7 +4118,7 @@ export const CourseActionStyles = StyleSheet.create({
     color: '#666',
   },
   successTag: {
-    backgroundColor: '#48bb78', // Green for completed/submitted
+    backgroundColor: '#48bb78', 
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,

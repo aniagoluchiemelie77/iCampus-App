@@ -8,6 +8,12 @@ interface UpdateITagResponse {
   message?: string;
   data?: any;
 }
+const getAuthHeaders = async () => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
 export const updatePassword = async (newPassword: string) => {
   try {
     const response = await fetch(`${baseUrl}users/password/update`, {
@@ -60,5 +66,24 @@ export const customizeItag = async (
       text2: 'Could not connect to the system configurations server.',
     });
     return { success: false, message: error.message };
+  }
+};
+export const updateCourseContent = async (
+  courseId: string,
+  index: number,
+  updatedTopic: string
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/lecturers/class/courses/editCourseContent/${courseId}`, {
+      method: 'PUT', 
+      headers,
+      body: JSON.stringify({ index, updatedTopic }),
+    });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.message || 'Failed to edit topic.' };
+    return { success: true, data: result.updatedContents };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred' };
   }
 };

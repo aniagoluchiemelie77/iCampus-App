@@ -12,6 +12,12 @@ interface DeleteLectureResponse {
 interface DeleteMaterialPayload {
   materialUrl: string;
 }
+const getAuthHeaders = async () => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
 export const handleFinalDelete = async ({navigation, reason}: {navigation: any, reason?: string}) => {
   try {
     const response = await fetch(`${baseUrl}users/account/delete`, {
@@ -241,5 +247,23 @@ export const deleteCourseMaterial = async (
       success: false,
       error: error instanceof Error ? error.message : 'Unknown network error occurred',
     };
+  }
+};
+export const deleteCourseContent = async (
+  courseId: string,
+  index: number
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/lecturers/class/courses/deleteCourseContent/${courseId}`, {
+      method: 'DELETE', 
+      headers,
+      body: JSON.stringify({ index }),
+    });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.message || 'Failed to delete topic.' };
+    return { success: true, data: result.updatedContents };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred' };
   }
 };

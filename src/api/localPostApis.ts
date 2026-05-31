@@ -11,6 +11,12 @@ import {
 } from 'react-native';
 
 const token = await AsyncStorage.getItem('accessToken');
+const getAuthHeaders = async () => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
 
 interface ServiceResponse {
   success: boolean;
@@ -1617,5 +1623,23 @@ export const saveCourseMaterial = async (
       success: false,
       error: error instanceof Error ? error.message : 'Unknown network error occurred',
     };
+  }
+};
+export const createCourseContent = async (
+  courseId: string,
+  topic: string
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/lecturers/class/courses/addCourseContent/${courseId}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ topic }),
+    });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.message || 'Failed to add topic.' };
+    return { success: true, data: result.updatedContents };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred' };
   }
 };
