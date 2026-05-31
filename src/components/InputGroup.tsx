@@ -1,37 +1,50 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, TextInputProps} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR } from './Classroomcomponent';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { useTheme } from 'context/ThemeContext';
 
 interface InputGroupProps extends TextInputProps {
   label: string;
   isLocked?: boolean;
   defaultValue: string;
-  type?: 'text' | 'phone'; 
-  countryCode?: string;  
+  type?: 'text' | 'phone';
+  countryCode?: string;
   onChangeText?: (text: string) => void;
 }
 
-export const InputGroup = ({countryCode, type, label, isLocked, defaultValue, onChangeText, ...textInputProps }: InputGroupProps) => {
+export const InputGroup = ({
+  countryCode,
+  type,
+  label,
+  isLocked,
+  defaultValue,
+  onChangeText,
+  ...textInputProps
+}: InputGroupProps) => {
+  const { colors } = useTheme();
   return (
     <View style={styles.groupContainer}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         {isLocked && (
           <View style={styles.lockBadge}>
-            <MaterialIcons name="lock" size={14} color={PRIMARY_COLOR} />
+            <MaterialIcons
+              name="lock-outlined"
+              size={14}
+              color={colors.primary}
+            />
           </View>
         )}
       </View>
-      <View style={[
-        styles.inputWrapper, 
-        isLocked && styles.lockedBackground
-      ]}>
+      <View style={[styles.inputWrapper, { borderColor: colors.border }]}>
         {type === 'phone' && (
           <View style={styles.countrySelector}>
-            <Text style={styles.countryText}>{countryCode || '+234'}</Text>
-            <View style={styles.divider} />
+            <Text style={[styles.countryText, { color: colors.text }]}>
+              {countryCode || '+234'}
+            </Text>
+            <View
+              style={[styles.divider, { backgroundColor: colors.border }]}
+            />
           </View>
         )}
 
@@ -39,16 +52,20 @@ export const InputGroup = ({countryCode, type, label, isLocked, defaultValue, on
           {...textInputProps}
           editable={!isLocked}
           defaultValue={defaultValue}
-          keyboardType={type === 'phone' ? 'phone-pad' : textInputProps.keyboardType}
+          keyboardType={
+            type === 'phone' ? 'phone-pad' : textInputProps.keyboardType
+          }
           style={[
-            styles.input, 
-            type === 'phone' && { flex: 1 } 
+            styles.input,
+            { color: colors.text },
+            type === 'phone' && { flex: 1 },
           ]}
           onChangeText={onChangeText}
+          placeholderTextColor={colors.inputTextHolder}
         />
       </View>
       {isLocked && (
-        <Text style={styles.helperText}>
+        <Text style={[styles.helperText, { color: colors.text }]}>
           Contact support to update verified details.
         </Text>
       )}
@@ -57,15 +74,18 @@ export const InputGroup = ({countryCode, type, label, isLocked, defaultValue, on
 };
 const styles = StyleSheet.create({
   groupContainer: { marginBottom: 15, paddingHorizontal: 13 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' },
-  label: { fontSize: 15, fontWeight: '600', color: '#222' },
-  lockBadge: { alignContent: 'center'},
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    justifyContent: 'space-between',
+  },
+  label: { fontSize: 15, fontWeight: '600' },
+  lockBadge: { alignContent: 'center' },
   lockText: { fontSize: 10, color: '#888', marginLeft: 4 },
   inputWrapper: {
     borderRadius: 8,
-    borderWidth: .8,
-    borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#fff',
+    borderWidth: 0.8,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -76,16 +96,13 @@ const styles = StyleSheet.create({
   },
   countryText: {
     fontSize: 14,
-    color: '#2222',
     fontWeight: '500',
   },
   divider: {
     width: 1,
     height: 20,
-    backgroundColor: PRIMARY_COLOR_TINT,
     marginLeft: 6,
   },
-  input: { padding: 12, fontSize: 14, color: '#2222', minHeight: 48, flex: 1 },
-  lockedBackground: { backgroundColor: '#fadccc' },
-  helperText: { fontSize: 11, color: PRIMARY_COLOR_TINT, marginTop: 4 },
+  input: { padding: 12, fontSize: 14, minHeight: 48, flex: 1 },
+  helperText: { fontSize: 11, marginTop: 4, fontWeight: '700' },
 });

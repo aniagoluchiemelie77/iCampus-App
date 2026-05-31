@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   FlatList,
-  Image,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -19,6 +18,8 @@ import {
   toggleBlockUserFromProfile,
 } from '../api/localPostApis';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { useTheme } from 'context/ThemeContext';
+import { UserAvatar } from './UserAvatar.tsx';
 
 interface FollowModalProps {
   visible: boolean;
@@ -30,7 +31,7 @@ interface FollowModalProps {
 interface UserRowProps {
   item: any;
   navigation: any;
-  type: 'followers' | 'following'; // Identifies the context layout
+  type: 'followers' | 'following';
 }
 const UserRow = ({ item, navigation, type }: UserRowProps) => {
   const [isActiveState, setIsActiveState] = useState(
@@ -54,7 +55,7 @@ const UserRow = ({ item, navigation, type }: UserRowProps) => {
     } else {
       const result = await toggleBlockUserFromProfile(item.uid);
       if (result.success) {
-        setIsActiveState(result.action !== 'blocked'); // If blocked, remove active follower visual status
+        setIsActiveState(result.action !== 'blocked');
         Toast.show({
           type: 'success',
           text1:
@@ -82,7 +83,13 @@ const UserRow = ({ item, navigation, type }: UserRowProps) => {
       style={styles.userRow}
       onPress={() => navigation.push('Profile', { uid: item.uid })}
     >
-      <Image source={{ uri: item.profilePic?.[0] }} style={styles.avatar} />
+      <UserAvatar
+        profilePic={item.profilePic}
+        firstName={item.firstname}
+        lastName={item.lastname}
+        organizationName={item.organizationName}
+        style={styles.avatar}
+      />
       <View style={styles.userInfo}>
         <UserIdentity
           firstname={item.firstname}
@@ -107,7 +114,7 @@ const UserRow = ({ item, navigation, type }: UserRowProps) => {
             : styles.buttonBlocked,
         ]}
         onPress={handleToggle}
-        disabled={loading || (!isActiveState && type === 'followers')} // Prevent toggling once blocked
+        disabled={loading || (!isActiveState && type === 'followers')}
       >
         <Text
           style={[
@@ -134,6 +141,7 @@ export const FollowersListModal: React.FC<FollowModalProps> = ({
   data,
   navigation,
 }) => {
+  const { colors } = useTheme();
   return (
     <Modal
       animationType="slide"
@@ -142,16 +150,19 @@ export const FollowersListModal: React.FC<FollowModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{title}</Text>
+            <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
+              {title}
+            </Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={PRIMARY_COLOR_TINT}
-              />
+              <MaterialIcons name="close" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -182,6 +193,7 @@ export const FollowingListModal: React.FC<FollowModalProps> = ({
   data,
   navigation,
 }) => {
+  const { colors } = useTheme();
   return (
     <Modal
       animationType="slide"
@@ -190,16 +202,19 @@ export const FollowingListModal: React.FC<FollowModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{title}</Text>
+            <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
+              {title}
+            </Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={PRIMARY_COLOR_TINT}
-              />
+              <MaterialIcons name="close" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -232,7 +247,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 20,
@@ -250,7 +264,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
   },
   userRow: {
     flexDirection: 'row',
@@ -261,7 +274,6 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#f0f0f0',
   },
   userInfo: {
     flex: 1,
@@ -306,7 +318,6 @@ const styles = StyleSheet.create({
   textBlocked: {
     color: PRIMARY_COLOR,
   },
-  // State: Already Following (Outline)
   buttonFollowing: {
     backgroundColor: 'inherit',
   },

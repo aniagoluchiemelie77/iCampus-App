@@ -3,10 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { UserIdentity } from './UserIdentity';
 import { searchUsersByUid } from '../api/localGetApis';
 import { useAppSelector } from '../components/hooks';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { UserAvatar } from './UserAvatar';
+import { useTheme } from 'context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { formatCount } from '../utils/followCountFormatter';
 
 export const CommentItem = ({ comment, onLike, onReply }: any) => {
+  const { colors } = useTheme();
   const [userDetails, setUserDetails] = useState<any>(null);
   const currentUser = useAppSelector(state => state.user);
 
@@ -33,11 +37,16 @@ export const CommentItem = ({ comment, onLike, onReply }: any) => {
     }
     return typeof userDetails?.profilePic === 'string'
       ? userDetails.profilePic
-      : 'https://via.placeholder.com/150';
+      : '';
   };
 
   return (
-    <View style={styles.commentContainer}>
+    <View
+      style={[
+        styles.commentContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <View style={styles.row}>
         <UserAvatar
           profilePic={getProfilePic()}
@@ -60,19 +69,36 @@ export const CommentItem = ({ comment, onLike, onReply }: any) => {
           ) : (
             <Text style={styles.author}>Loading...</Text>
           )}
-          <Text>{comment.comment}</Text>
+          <Text style={[styles.commentText, { color: colors.text }]}>
+            {comment.comment}
+          </Text>
         </View>
       </View>
-
-      {/* Comment Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity onPress={() => onLike(comment.commentId)}>
-          <Text style={styles.actionText}>
-            Like ({comment.likes?.length || 0})
+        <TouchableOpacity
+          onPress={() => onLike(comment.commentId)}
+          style={[styles.actionsBtn, { marginRight: 10 }]}
+        >
+          <MaterialIcons
+            name={
+              comment.likes?.includes(currentUser.uid)
+                ? 'favorite'
+                : 'favorite-outlined'
+            }
+            size={16}
+            color={colors.primary}
+          />
+          <Text style={[styles.actionText, { color: colors.text }]}>
+            ({formatCount(comment.likes?.length || 0)})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => onReply(comment.commentId)}>
-          <Text style={styles.actionText}>Reply</Text>
+          <MaterialIcons
+            name="comment-outlined"
+            size={16}
+            color={colors.primary}
+          />
+          <Text style={[styles.actionText, { color: colors.text }]}>Reply</Text>
         </TouchableOpacity>
       </View>
       {comment.replies?.length > 0 && (
@@ -94,11 +120,9 @@ const styles = StyleSheet.create({
   commentContainer: {
     paddingVertical: 10,
     paddingHorizontal: 5,
-    backgroundColor: '#fadccc',
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
     padding: 4,
   },
   miniAvatar: {
@@ -106,10 +130,10 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     marginRight: 10,
-    backgroundColor: PRIMARY_COLOR_TINT,
   },
   textBubble: {
     flex: 1,
+    marginLeft: 10,
   },
   author: {
     fontWeight: 'bold',
@@ -119,13 +143,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    marginLeft: 52,
+    alignItems: 'center',
+    marginLeft: 8,
     marginTop: 5,
   },
   actionText: {
-    marginRight: 20,
+    marginLeft: 4,
     fontSize: 12,
-    color: PRIMARY_COLOR,
     fontWeight: '600',
   },
   replyThread: {
@@ -134,5 +158,12 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     borderLeftWidth: 1.5,
     borderLeftColor: PRIMARY_COLOR_TINT,
+  },
+  commentText: {
+    fontSize: 14,
+  },
+  actionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

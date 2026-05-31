@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { useTheme } from 'context/ThemeContext';
 
 interface EmptyStateProps {
   iconName?: string;
@@ -20,15 +20,29 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onPress,
   style,
 }) => {
+  const { colors } = useTheme();
   return (
-    <View style={[styles.container, style]}>
-      <MaterialIcons name={iconName} size={80} color={PRIMARY_COLOR_TINT} />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+    <View
+      style={[
+        styles.container,
+        style,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <MaterialIcons name={iconName} size={80} color={colors.primary} />
+      <Text style={[styles.title, { color: colors.primary }]}>{title}</Text>
+      <Text style={[styles.subtitle, { color: colors.primaryTint }]}>
+        {subtitle}
+      </Text>
 
       {buttonText && onPress && (
-        <TouchableOpacity style={styles.button} onPress={onPress}>
-          <Text style={styles.buttonText}>{buttonText}</Text>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.btnColor }]}
+          onPress={onPress}
+        >
+          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+            {buttonText}
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -41,18 +55,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    marginTop: 50, 
+    marginTop: 50,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: PRIMARY_COLOR,
     marginTop: 15,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
@@ -62,10 +74,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: PRIMARY_COLOR,
   },
   buttonText: {
-    color: '#FFF',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

@@ -2,9 +2,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Animated, ActivityIndicator, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import Toast from 'react-native-toast-message';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { verifyICashPin, requestPinReset } from '../api/localPostApis';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useTheme } from 'context/ThemeContext';
 const rnBiometrics = new ReactNativeBiometrics();
 
 interface PinVerificationProps {
@@ -21,6 +21,7 @@ export const IcashPinOrFingerprintVerifyModal = ({
   title,
   onClose,
 }: PinVerificationProps) => {
+  const { colors } = useTheme();
   const [pin, setPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
@@ -50,8 +51,6 @@ export const IcashPinOrFingerprintVerifyModal = ({
       }),
     ]).start();
   };
-
-  // --- 2. Biometric Logic ---
   const handleBiometricAuth = useCallback(async () => {
     const { available } = await rnBiometrics.isSensorAvailable();
     if (!available) return;
@@ -65,8 +64,6 @@ export const IcashPinOrFingerprintVerifyModal = ({
       console.log('Biometrics cancelled');
     }
   }, [onSuccess]);
-
-  // --- 3. API Logic ---
   const verifyPin = async (code: string) => {
     setIsProcessing(true);
     try {
@@ -131,15 +128,28 @@ export const IcashPinOrFingerprintVerifyModal = ({
   return (
     <Modal visible={isVisible} animationType="slide" transparent={true}>
       <View style={styles.modalOverlay}>
-        <View style={styles.bottomSheet}>
+        <View
+          style={[
+            styles.bottomSheet,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
+            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+              {title}
+            </Text>
             <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color={PRIMARY_COLOR_TINT} />
+              <MaterialIcons
+                name="close-outlined"
+                size={24}
+                color={colors.text}
+              />
             </TouchableOpacity>
           </View>
           <View style={styles.pinContainer}>
-            <Text style={styles.pinSubtitle}>Enter your 6-digit iCash PIN</Text>
+            <Text style={[styles.pinSubtitle, { color: colors.text }]}>
+              Enter your 6-digit iCash PIN
+            </Text>
             <TextInput
               ref={inputRef}
               value={pin}
@@ -165,8 +175,14 @@ export const IcashPinOrFingerprintVerifyModal = ({
                     key={i}
                     style={[
                       styles.dot,
-                      pin.length > i && styles.dotFilled,
-                      pin.length === i && styles.dotActive,
+                      { borderColor: colors.border },
+                      pin.length > i && {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                      },
+                      pin.length === i && {
+                        borderColor: colors.primary,
+                      },
                     ]}
                   />
                 ))}
@@ -177,17 +193,25 @@ export const IcashPinOrFingerprintVerifyModal = ({
                 onPress={handleBiometricAuth}
                 style={styles.iconBtn}
               >
-                <Icon name="fingerprint" size={28} color={PRIMARY_COLOR} />
-                <Text style={styles.iconBtnText}>Use Fingerprint</Text>
+                <MaterialIcons
+                  name="fingerprint"
+                  size={28}
+                  color={colors.primary}
+                />
+                <Text style={[styles.iconBtnText, { color: colors.primary }]}>
+                  Use Fingerprint
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleRequestReset}>
-                <Text style={styles.forgotText}>Forgot PIN?</Text>
+                <Text style={[styles.forgotText, { color: colors.primary }]}>
+                  Forgot PIN?
+                </Text>
               </TouchableOpacity>
             </View>
             {isProcessing && (
               <ActivityIndicator
                 style={{ marginTop: 20 }}
-                color={PRIMARY_COLOR}
+                color={colors.primary}
               />
             )}
           </View>
@@ -197,7 +221,7 @@ export const IcashPinOrFingerprintVerifyModal = ({
   );
 };
 export const styles = StyleSheet.create({
-    pinInput: {
+  pinInput: {
     letterSpacing: 20,
     fontSize: 24,
     textAlign: 'center',
@@ -224,15 +248,7 @@ export const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: PRIMARY_COLOR_TINT,
     backgroundColor: 'transparent',
-  },
-  dotFilled: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
-  dotActive: {
-    borderColor: PRIMARY_COLOR,
   },
   pinActionRow: {
     flexDirection: 'row',
@@ -246,11 +262,11 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   iconBtnText: {
-    color: PRIMARY_COLOR,
+    fontSize: 14,
+    marginLeft: 4,
     fontWeight: '600',
   },
   forgotText: {
-    color: PRIMARY_COLOR,
     fontSize: 14,
   },
   pinContainer: {
@@ -259,7 +275,6 @@ export const styles = StyleSheet.create({
   },
   pinSubtitle: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
     marginBottom: 10,
     textAlign: 'center',
   },
@@ -269,7 +284,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -283,7 +297,6 @@ export const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    color: PRIMARY_COLOR_TINT,
     fontWeight: 'bold',
   },
-})
+});

@@ -606,21 +606,21 @@ export const HomeScreenComponentStyles = StyleSheet.create({
 },
 notificationContainer:{
   position: 'relative',
+  alignContent: 'center',
+  paddingVertical: 8,
+  paddingHorizontal: 10,
 },
 badge: {
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: PRIMARY_COLOR,
     width: 18,
     height: 18,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#fff',
   },
-  badgeText: { color: '#fff',
+  badgeText: {
     fontSize: 10,
     fontWeight: 'bold', },
   blurBackground: {
@@ -688,10 +688,6 @@ badge: {
     alignItems: 'center',
     justifyContent: 'space-evenly',
   },
-  activityIcons: {
-    padding: 10,
-    margin: 4,
-  },
   activityIconsb: {
     padding: 10,
     position: 'absolute',
@@ -701,10 +697,6 @@ badge: {
   },
   activityIcons3: {
     padding: 8,
-  },
-  activityIcons2: {
-    borderRadius: '50%',
-    backgroundColor: '#fff',
   },
   activityIcons2b: {
     borderRadius: '50%',
@@ -1472,17 +1464,14 @@ export const SignupScreenStyles = StyleSheet.create({
 export const homeStyles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#fadccc',
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    borderBottomWidth: 0.5
   },
   headerContainerDiv:{
     flexDirection: 'row',
@@ -1495,7 +1484,7 @@ export const homeStyles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 25,
+    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR, 
     width: 56,
@@ -1504,7 +1493,7 @@ export const homeStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5, 
-    shadowColor: '#222', // Shadow for iOS
+    shadowColor: PRIMARY_COLOR_TINT, 
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1539,13 +1528,6 @@ export const homeStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(252, 249, 246, 0.3)', 
     zIndex: 10,
-  },
-  iconItem: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: 'rgba(253, 249, 245, 0.4)', 
-    borderRadius: 20,
   },
   activeIconItem: {
     backgroundColor: PRIMARY_COLOR_TINT,
@@ -2603,7 +2585,6 @@ export const modalStyles = StyleSheet.create({
     left: 0,
     width: '70%',
     height: '100%',
-    backgroundColor: '#fff',
     borderBottomRightRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 10,
@@ -2623,8 +2604,7 @@ export const modalStyles = StyleSheet.create({
     marginBottom: 5,
   },
   userSubtext: {
-    fontSize: 13,
-    color: '#2222',
+    fontSize: 14,
     marginTop: 3,
   },
 separator: {
@@ -2643,7 +2623,7 @@ separator: {
   },
   itemText: {
     marginLeft: 6,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
 })

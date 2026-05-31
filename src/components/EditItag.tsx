@@ -21,6 +21,7 @@ import { debounce } from 'lodash';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { checkITagAvailability } from '../api/localGetApis';
 import { customizeItag } from '../api/localPutApis';
+import { useTheme } from 'context/ThemeContext';
 
 const PRESET_COLORS = [
   '#672a0e',
@@ -42,6 +43,7 @@ export const EditiTagModal = ({
   iTagData,
   onSave,
 }: EditiTagModalProps) => {
+  const { colors } = useTheme();
   const isPremium = iTagData.tier === 'premium';
   const isPro = iTagData.tier === 'pro';
 
@@ -170,14 +172,22 @@ export const EditiTagModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Customize iTag</Text>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+            Customize iTag
+          </Text>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Username Input with Validation Feedback */}
             {(isPro || isPremium) && (
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.label}>iTag Username</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>
+                    iTag Username
+                  </Text>
                 </View>
                 <View style={styles.inputContainer}>
                   {!isChecking && !usernameError && username.length >= 3 && (
@@ -185,7 +195,7 @@ export const EditiTagModal = ({
                       <MaterialIcons
                         name="check-circle"
                         size={20}
-                        color={PRIMARY_COLOR}
+                        color={colors.primary}
                       />
                     </View>
                   )}
@@ -193,20 +203,27 @@ export const EditiTagModal = ({
                     style={[
                       styles.input,
                       usernameError ? styles.inputError : null,
+                      { color: colors.text },
                     ]}
                     value={username}
                     onChangeText={setUsername}
                     autoCapitalize="none"
+                    placeholder="Enter iTag username"
+                    placeholderTextColor={colors.inputTextHolder}
                   />
                 </View>
                 {usernameError && (
-                  <Text style={styles.errorText}>{usernameError}</Text>
+                  <Text style={[styles.errorText, { color: colors.primary }]}>
+                    {usernameError}
+                  </Text>
                 )}
               </View>
             )}
             {isPremium && (
               <>
-                <Text style={styles.label}>Background Color</Text>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Background Color
+                </Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -225,13 +242,15 @@ export const EditiTagModal = ({
                   ))}
                 </ScrollView>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Background Image</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>
+                    Background Image
+                  </Text>
                   <TouchableOpacity
                     style={styles.imagePickerBtn}
                     onPress={pickImage}
                   >
                     <MaterialIcons
-                      name="photo-library"
+                      name="photo-library-outlined"
                       size={20}
                       color="#fff"
                     />
@@ -241,7 +260,9 @@ export const EditiTagModal = ({
                   </TouchableOpacity>
                   {bgImage && (
                     <TouchableOpacity onPress={() => setBgImage(undefined)}>
-                      <Text style={styles.removePhotoText}>Remove Photo</Text>
+                      <Text style={[styles.removePhotoText, { color: colors.primary }]}>
+                        Remove Photo
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -267,12 +288,15 @@ export const EditiTagModal = ({
           </ScrollView>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity style={[styles.cancelBtn, {borderColor: colors.primary}]} onPress={onClose}>
+              <Text style={[styles.cancelBtnText, { color: colors.primary }]}>
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.saveBtn,
+                { backgroundColor: colors.btnColor },
                 (!!usernameError || loading) && { opacity: 0.5 },
               ]}
               onPress={handleSave}
@@ -281,7 +305,9 @@ export const EditiTagModal = ({
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.saveBtnText}>Save Changes</Text>
+                <Text style={[styles.saveBtnText, { color: colors.btnTextColor }]}>
+                  Save Changes
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -298,7 +324,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 20,
@@ -307,7 +332,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
   },
   previewContainer: {
     marginBottom: 25,
@@ -319,7 +343,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2222',
     marginBottom: 9,
   },
   inputContainer: {
@@ -334,10 +357,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   input: {
-    backgroundColor: '#fadccc',
     padding: 12,
-    fontSize: 15,
-    color: '#2222',
+    fontSize: 14,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -351,21 +372,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 15,
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR,
   },
   cancelBtnText: {
-    color: PRIMARY_COLOR,
     fontWeight: '600',
     fontSize: 14,
   },
   saveBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
   },
   saveBtnText: {
-    color: '#fff',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -402,7 +420,6 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   errorText: {
-    color: PRIMARY_COLOR,
     fontSize: 11,
     marginTop: 5,
     fontWeight: '600',
@@ -412,7 +429,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   removePhotoText: {
-    color: PRIMARY_COLOR,
     textAlign: 'right',
     marginTop: 10,
     fontSize: 13,

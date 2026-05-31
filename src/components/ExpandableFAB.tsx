@@ -3,9 +3,10 @@ import { Modal, StyleSheet, TouchableOpacity, View, Text } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-import { PRIMARY_COLOR } from './Classroomcomponent';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { Lecture } from 'types/firebase';
 import { useAppSelector } from './hooks';
+import { useTheme } from 'context/ThemeContext';
 
 interface FABProps {
   isVisible: boolean;
@@ -17,7 +18,6 @@ interface FABProps {
   onChatOpen?: () => void;
   onWave?: () => void;
 }
-// 1. Define the configuration mapping
 const ACTION_CONFIG: Record<
   string,
   { icon: string; route: string; params?: any; category?: string }
@@ -29,7 +29,7 @@ const ACTION_CONFIG: Record<
     params: { type: 'poll' },
   },
   iAssistant: {
-    icon: 'assistant', // For outlined, ensure your library supports it or use 'robot-outline' if using MaterialCommunityIcons
+    icon: 'assistant',
     route: 'Assistant',
     params: {
       contextType: 'general',
@@ -38,7 +38,7 @@ const ACTION_CONFIG: Record<
     },
   },
   'Create Post': {
-    icon: 'edit', // 'edit-note' looks more like an outlined 'edit'
+    icon: 'edit',
     route: 'CreatePost',
     params: { type: 'post' },
   },
@@ -62,7 +62,7 @@ const ACTION_CONFIG: Record<
     params: {},
     category: 'premium',
   },
-  'Live Chat': { icon: 'chat', route: 'Modal' }, // Explicitly outlined
+  'Live Chat': { icon: 'chat', route: 'Modal' },
   'Hand Wave': { icon: 'waving-hand', route: 'Socket' },
   Library: {
     icon: 'align-vertical-bottom',
@@ -75,7 +75,7 @@ const ACTION_CONFIG: Record<
     icon: 'favorite',
     route: 'FavoritesScreen',
     params: {},
-  }, // 'favorite-border' is the outline
+  },
   'View Cart': { icon: 'shopping-cart', route: 'CartScreen', params: {} },
 
   // --- Additional ---
@@ -91,6 +91,7 @@ const ExpandableFAB = ({
   onChatOpen,
   onWave,
 }: FABProps) => {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user);
   if (!isVisible) return null;
@@ -121,7 +122,7 @@ const ExpandableFAB = ({
             : undefined,
       });
       return;
-    }else if (label === 'iCash') {
+    } else if (label === 'iCash') {
       navigation.navigate('ICashDashboard', {
         refresh: true,
       });
@@ -157,40 +158,57 @@ const ExpandableFAB = ({
       <View style={styles.fabMenuContainer}>
         {actions.map((label: string, index: number) => {
           const config = ACTION_CONFIG[label];
-
-          // Logic: If user is not 'lecturer' (unsubscribed/student), show a lock or redirect
           const isRestricted =
             label === 'Create Course' && !user?.hasSubscribed;
 
           return (
-            <View key={index} style={styles.menuItemWrapper}>
-              <Text style={styles.menuLabel}>{label}</Text>
+            <View
+              key={index}
+              style={[
+                styles.menuItemWrapper,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
+              <Text style={[styles.menuLabel, { color: colors.primary }]}>
+                {label}
+              </Text>
               <TouchableOpacity
-                style={styles.miniFab}
+                style={[styles.miniFab, { backgroundColor: colors.btnColor }]}
                 onPress={() => {
                   if (isRestricted) {
                     onClose();
-                    navigation.navigate('SubscriptionScreen'); // Redirect to upgrade
+                    navigation.navigate('SubscriptionScreen');
                   } else {
                     handleAction(label);
                   }
                 }}
               >
-                <MaterialIcons name={config.icon} size={24} color={'#fff'} />
+                <MaterialIcons
+                  name={config.icon}
+                  size={24}
+                  color={colors.btnTextColor}
+                />
               </TouchableOpacity>
             </View>
           );
         })}
         {unreadCount && unreadCount > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
+          <View style={[styles.badge, { backgroundColor: colors.btnColor }]}>
+            <Text style={[styles.badgeText, { color: colors.btnTextColor }]}>
               {unreadCount > 9 ? '9+' : unreadCount}
             </Text>
           </View>
         ) : null}
 
-        <TouchableOpacity style={styles.mainFabActive} onPress={onClose}>
-          <MaterialIcons name="close" size={30} color={PRIMARY_COLOR} />
+        <TouchableOpacity
+          style={[styles.mainFabActive, { backgroundColor: colors.btnColor }]}
+          onPress={onClose}
+        >
+          <MaterialIcons
+            name="close-outlined"
+            size={30}
+            color={colors.btnTextColor}
+          />
         </TouchableOpacity>
       </View>
     </Modal>
@@ -204,7 +222,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
@@ -217,7 +234,7 @@ const styles = StyleSheet.create({
   },
   fabMenuContainer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 20,
     right: 20,
     alignItems: 'flex-end',
   },
@@ -230,10 +247,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginRight: 15,
     fontSize: 15,
-    color: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
     overflow: 'hidden',
     elevation: 3,
   },
@@ -241,11 +254,10 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -254,18 +266,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#fff',
     minWidth: 20,
     height: 20,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
     zIndex: 10,
   },
   badgeText: {
-    color: PRIMARY_COLOR,
     fontSize: 10,
     fontWeight: 'bold',
     paddingHorizontal: 4,

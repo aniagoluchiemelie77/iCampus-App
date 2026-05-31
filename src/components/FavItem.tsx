@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Product } from '../types/firebase'; 
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from 'context/ThemeContext';
 
 interface FavItemProps {
   product: Product;
@@ -13,9 +13,10 @@ interface FavItemProps {
 
 export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.border }]}
       onPress={() =>
         navigation.navigate('ProductDetails', {
           productId: product.productId,
@@ -27,9 +28,11 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
       <View style={styles.details}>
         <View style={styles.detailSubdiv}>
           <View style={styles.headerRow}>
-            <Text style={styles.typeTag}>{product.type.toUpperCase()}</Text>
+            <Text style={[styles.typeTag, { color: colors.primary }]}>
+              {product.niche.toUpperCase()}
+            </Text>
           </View>
-          <Text style={styles.title} numberOfLines={2}>
+          <Text style={[styles.title, { color: colors.textDarker }]} numberOfLines={2}>
             {product.title}
           </Text>
         </View>
@@ -38,9 +41,9 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
           <CurrencyDisplay value={product.priceInPoints} size="medium" />
           <TouchableOpacity
             onPress={() => onRemove(product)}
-            style={styles.removeButton}
+            style={[styles.removeButton, { backgroundColor: colors.btnColor }]}
           >
-            <MaterialIcons name="delete-outlined" size={18} color="#fff" />
+            <MaterialIcons name="delete-outlined" size={18} color={colors.btnTextColor} />
           </TouchableOpacity>
         </View>
       </View>
@@ -51,13 +54,12 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: '#fadccc',
     borderRadius: 20,
     padding: 10,
     marginBottom: 15,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
+    borderBottomWidth: 0.8,
     width: '90%',
+    alignSelf: 'center',
   },
   image: {
     width: 100,
@@ -76,17 +78,13 @@ const styles = StyleSheet.create({
   typeTag: {
     fontSize: 10,
     fontWeight: '800',
-    color: PRIMARY_COLOR,
-    backgroundColor: '#fff',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    textTransform: 'capitalize',
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#222',
     marginTop: 4,
   },
   bottomRow: {
@@ -101,13 +99,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: PRIMARY_COLOR,
-  },
-  removeText: {
-    fontSize: 12,
-    color: '#FF4D4D',
-    fontWeight: '600',
-    marginLeft: 4,
   },
   detailSubdiv: {
     width: '100%',

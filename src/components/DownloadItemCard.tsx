@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { EnrichedCourseProduct } from '../types/firebase';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { formatDistanceToNow } from 'date-fns';
 import { formatTime } from '../utils/durationFormatter';
+import { useTheme } from 'context/ThemeContext';
 
 interface DownloadItemCardProps {
   product: EnrichedCourseProduct;
@@ -15,6 +16,7 @@ export const DownloadItemCard: React.FC<DownloadItemCardProps> = ({
   product,
   onPress,
 }) => {
+  const { colors } = useTheme();
   const progress = product.progress ?? 0;
   const isFirstVisit = !product.lastAccessed || product.progress === 0;
   const lastVisitedText = isFirstVisit
@@ -29,7 +31,11 @@ export const DownloadItemCard: React.FC<DownloadItemCardProps> = ({
     ) || 0;
   const durationDisplay = formatTime(totalDuration);
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <View style={styles.imageContainer}>
         <Image
           source={{
@@ -37,21 +43,20 @@ export const DownloadItemCard: React.FC<DownloadItemCardProps> = ({
           }}
           style={styles.thumbnail}
         />
-        {/* Play icon overlay to signal "Video Content" */}
-        <View style={styles.playOverlay}>
-          <MaterialIcons
-            name="play-circle-filled-outlined"
-            size={24}
-            color="#fff"
-          />
-        </View>
       </View>
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text
+          style={[styles.title, { color: colors.textDarker }]}
+          numberOfLines={2}
+        >
           {product.title}
         </Text>
         {product.description && (
-          <Text style={styles.subtitle} numberOfLines={2} ellipsizeMode="tail">
+          <Text
+            style={[styles.subtitle, { color: colors.text }]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
             {product.description}
           </Text>
         )}
@@ -59,24 +64,33 @@ export const DownloadItemCard: React.FC<DownloadItemCardProps> = ({
           <MaterialIcons
             name="access-time-outlined"
             size={14}
-            color={PRIMARY_COLOR_TINT}
+            color={colors.primaryTint}
           />
           <Text style={styles.metaText}>{durationDisplay}</Text>
-          <Text style={[styles.metaText, isFirstVisit && styles.newStatus]}>
+          <Text
+            style={[
+              styles.metaText,
+              isFirstVisit ? { color: colors.primary } : { color: colors.text },
+            ]}
+          >
             {lastVisitedText}
           </Text>
         </View>
         <View style={styles.progressSection}>
-          <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressTrack,
+              { backgroundColor: colors.primaryTint },
+            ]}
+          >
             <View
               style={[
                 styles.progressBar,
-                { width: `${progress}%` },
-                progress === 100 && { backgroundColor: PRIMARY_COLOR },
+                { width: `${progress}%`, backgroundColor: colors.primary },
               ]}
             />
           </View>
-          <Text style={styles.progressText}>
+          <Text style={[styles.progressText, { color: colors.text }]}>
             {progress === 100 ? 'Completed' : `${progress}% complete`}
           </Text>
         </View>
@@ -85,7 +99,7 @@ export const DownloadItemCard: React.FC<DownloadItemCardProps> = ({
       <MaterialIcons
         name="chevron-right"
         size={28}
-        color={PRIMARY_COLOR_TINT}
+        color={colors.primary}
       />
     </TouchableOpacity>
   );
@@ -94,7 +108,6 @@ export const DownloadItemCard: React.FC<DownloadItemCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: '#fadccc',
     borderRadius: 12,
     padding: 12,
     marginBottom: 15,
@@ -106,7 +119,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   imageContainer: {
-    position: 'relative',
     alignContent: 'center',
   },
   thumbnail: {
@@ -114,26 +126,18 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 6,
   },
-  playOverlay: {
-    position: 'absolute',
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 20,
-    padding: 4,
-  },
   info: {
     flex: 1,
     marginLeft: 12,
     marginRight: 8,
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#222',
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
     marginBottom: 6,
   },
   metaRow: {
@@ -144,16 +148,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 11,
-    color: PRIMARY_COLOR_TINT,
     marginLeft: 3,
-  },
-  metaDot: {
-    fontSize: 11,
-    color: '#6A6F73',
-  },
-  newStatus: {
-    color: PRIMARY_COLOR,
-    fontWeight: '600',
   },
   progressSection: {
     marginTop: 4,
@@ -161,18 +156,15 @@ const styles = StyleSheet.create({
   progressTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: PRIMARY_COLOR_TINT,
     borderRadius: 2,
     maxWidth: 100,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 2,
   },
   progressText: {
     fontSize: 11,
-    color: PRIMARY_COLOR,
     marginTop: 3,
     fontWeight: '500',
   },

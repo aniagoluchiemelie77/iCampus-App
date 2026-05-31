@@ -15,7 +15,6 @@ import { useAppDataContext } from './EventContext';
 import type { User, Posts } from '../types/firebase';
 import {
   HomeScreenComponentStyles,
-  PRIMARY_COLOR,
   homeStyles,
   modalStyles,
 } from '../assets/styles/colors';
@@ -31,11 +30,13 @@ import { fetchPostsAPI } from '../api/localGetApis.ts';
 import { UserAvatar } from './UserAvatar.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 import { useAppSelector } from '../components/hooks';
+import { useTheme } from 'context/ThemeContext.tsx';
 
 interface Props {
   navigation: StackNavigationProp<any>;
   initialCount?: number;
   uid?: string;
+  colors: any
 }
 const hapticOptions = {
   enableVibrateFallback: true,
@@ -45,14 +46,16 @@ const hapticOptions = {
 interface ProfileModalProps {
   visible: boolean;
   onClose: () => void;
-  currentUser: User; // Ideally use your User type here
+  currentUser: User;
   navigation: any;
+  colors: any;
 }
 const ProfileModal = ({
   visible,
   onClose,
   currentUser,
   navigation,
+  colors,
 }: ProfileModalProps) => (
   <Modal
     visible={visible}
@@ -66,7 +69,12 @@ const ProfileModal = ({
       onPress={onClose}
     />
 
-    <View style={modalStyles.drawer}>
+    <View
+      style={[
+        modalStyles.drawer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <TouchableOpacity
         style={modalStyles.userInfo}
         onPress={() =>
@@ -91,11 +99,12 @@ const ProfileModal = ({
           organizationName={currentUser?.organizationName}
         />
         {currentUser.headline && (
-          <Text style={modalStyles.userSubtext}>{currentUser.headline}</Text>
+          <Text style={[modalStyles.userSubtext, { color: colors.textDarker }]}>
+            {currentUser.headline}
+          </Text>
         )}
       </TouchableOpacity>
 
-      {/* 1. PERSONAL SECTION */}
       <TouchableOpacity
         style={modalStyles.item}
         onPress={() => {
@@ -105,8 +114,14 @@ const ProfileModal = ({
           });
         }}
       >
-        <MaterialIcons name="account-balance-wallet" size={24} color="#333" />
-        <Text style={modalStyles.itemText}>iCash</Text>
+        <MaterialIcons
+          name="account-balance-wallet"
+          size={24}
+          color={colors.text}
+        />
+        <Text style={[modalStyles.itemText, { color: colors.text }]}>
+          iCash
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={modalStyles.item}
@@ -115,8 +130,14 @@ const ProfileModal = ({
           navigation.navigate('SalesHub');
         }}
       >
-        <MaterialIcons name="store-front-outlined" size={24} color="#333" />
-        <Text style={modalStyles.itemText}>Sales Hub</Text>
+        <MaterialIcons
+          name="store-front-outlined"
+          size={24}
+          color={colors.text}
+        />
+        <Text style={[modalStyles.itemText, { color: colors.text }]}>
+          Sales Hub
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={modalStyles.item}
@@ -125,8 +146,10 @@ const ProfileModal = ({
           navigation.navigate('DownloadsScreen');
         }}
       >
-        <MaterialIcons name="folder-special" size={24} color="#333" />
-        <Text style={modalStyles.itemText}>My Downloads</Text>
+        <MaterialIcons name="folder-special" size={24} color={colors.text} />
+        <Text style={[modalStyles.itemText, { color: colors.text }]}>
+          My Downloads
+        </Text>
       </TouchableOpacity>
 
       {/* 2. SETTINGS SECTION */}
@@ -139,8 +162,10 @@ const ProfileModal = ({
           navigation.navigate('Subscription');
         }}
       >
-        <MaterialIcons name="verified" size={24} color={PRIMARY_COLOR} />
-        <Text style={modalStyles.itemText}>Manage Subscription</Text>
+        <MaterialIcons name="verified-outlined" size={24} color={colors.text} />
+        <Text style={[modalStyles.itemText, { color: colors.text }]}>
+          Manage Subscription
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={modalStyles.item}
@@ -149,8 +174,10 @@ const ProfileModal = ({
           navigation.navigate('Settings');
         }}
       >
-        <MaterialIcons name="settings" size={24} color="#333" />
-        <Text style={modalStyles.itemText}>Settings</Text>
+        <MaterialIcons name="settings-outlined" size={24} color={colors.text} />
+        <Text style={[modalStyles.itemText, { color: colors.text }]}>
+          Settings
+        </Text>
       </TouchableOpacity>
     </View>
   </Modal>
@@ -158,6 +185,7 @@ const ProfileModal = ({
 export const NotificationBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,
+  colors,
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
   const socketContext = useSocket();
@@ -180,22 +208,22 @@ export const NotificationBell: React.FC<Props> = ({
         setUnreadCount(0);
         navigation.navigate('Notifications');
       }}
-      style={[
-        homeStyles.iconItem,
-        HomeScreenComponentStyles.activityIcons,
-        HomeScreenComponentStyles.activityIcons2,
-        HomeScreenComponentStyles.notificationContainer,
-      ]}
+      style={[HomeScreenComponentStyles.notificationContainer]}
     >
       <MaterialIcons
         name="notifications-outlined"
         size={23}
-        color={PRIMARY_COLOR}
+        color={colors.primary}
       />
 
       {unreadCount > 0 && (
-        <View style={HomeScreenComponentStyles.badge}>
-          <Text style={HomeScreenComponentStyles.badgeText}>
+        <View
+          style={[
+            HomeScreenComponentStyles.badge,
+            { backgroundColor: colors.primary },
+          ]}
+        >
+          <Text style={[HomeScreenComponentStyles.badgeText, { color: colors.btnTextColor }]}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </Text>
         </View>
@@ -207,6 +235,7 @@ export const MessageBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,
   uid,
+  colors
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
   const socketContext = useSocket();
@@ -231,17 +260,19 @@ export const MessageBell: React.FC<Props> = ({
         navigation.navigate('MessagesList');
       }}
       style={[
-        homeStyles.iconItem,
-        HomeScreenComponentStyles.activityIcons,
-        HomeScreenComponentStyles.activityIcons2,
         HomeScreenComponentStyles.notificationContainer,
         { marginLeft: 3 },
       ]}
     >
-      <MaterialIcons name="chat-outlined" size={23} color={PRIMARY_COLOR} />
+      <MaterialIcons name="chat-outlined" size={23} color={colors.primary} />
       {unreadCount > 0 && (
-        <View style={HomeScreenComponentStyles.badge}>
-          <Text style={HomeScreenComponentStyles.badgeText}>
+        <View
+          style={[
+            HomeScreenComponentStyles.badge,
+            { backgroundColor: colors.primary },
+          ]}
+        >
+          <Text style={[HomeScreenComponentStyles.badgeText, { color: colors.btnTextColor }]}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </Text>
         </View>
@@ -252,6 +283,7 @@ export const MessageBell: React.FC<Props> = ({
 
 export function Home() {
   const { posts, setPosts, incrementImpression } = useAppDataContext();
+  const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
   const socketContext = useSocket();
   const socket = socketContext?.socket;
@@ -305,25 +337,18 @@ export function Home() {
         return [newPost, ...prevPosts];
       });
     });
-
-    // B. Listen for STAT updates (Likes, Reposts, Bookmarks, Impressions)
     socket?.on('post_stats_updated', (data: { postId: string; stats: any }) => {
       setPosts(prevPosts =>
         prevPosts.map(post => {
           if (post.postId === data.postId) {
-            // --- HAPTIC LOGIC ---
-            // 1. Check if this is a "Like" increase
             const isNewLike =
               data.stats.likes?.length > (post.likes?.length || 0);
 
-            // 2. Check if the logged-in user is the author of this post
             const isMyPost = post.userId.uid === currentUser.uid;
 
             if (isNewLike && isMyPost) {
-              // Trigger a "Impact Light" thump
               ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
             }
-            // --------------------
             return {
               ...post,
               ...data.stats,
@@ -333,8 +358,6 @@ export function Home() {
         }),
       );
     });
-
-    // C. CLEANUP: Very important to prevent memory leaks and duplicate listeners
     return () => {
       socket?.off('new_post');
       socket?.off('post_stats_updated');
@@ -350,12 +373,10 @@ export function Home() {
       changed: ViewToken[];
     }) => {
       changed.forEach((viewToken: ViewToken) => {
-        // Type defined here
         if (viewToken.isViewable && viewToken.item) {
           incrementImpression(viewToken.item.postId);
         }
       });
-
       if (viewableItems.length > 0 && viewableItems[0].item) {
         setActivePostId(viewableItems[0].item.postId);
       }
@@ -367,8 +388,18 @@ export function Home() {
   }).current;
 
   return (
-    <View style={homeStyles.mainWrapper}>
-      <View style={homeStyles.headerContainer}>
+    <View
+      style={[homeStyles.mainWrapper, { backgroundColor: colors.background }]}
+    >
+      <View
+        style={[
+          homeStyles.headerContainer,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
           <UserAvatar
             profilePic={currentUser?.profilePic}
@@ -380,11 +411,16 @@ export function Home() {
         </TouchableOpacity>
         <Logo />
         <View style={homeStyles.headerContainerDiv}>
-          <NotificationBell navigation={navigation} initialCount={0} />
+          <NotificationBell
+            navigation={navigation}
+            initialCount={0}
+            colors={colors}
+          />
           <MessageBell
             navigation={navigation}
             initialCount={0}
             uid={currentUser.uid}
+            colors={colors}
           />
         </View>
       </View>
@@ -400,18 +436,17 @@ export function Home() {
         onEndReached={() => loadPosts(false)}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          loadingMore ? <ActivityIndicator style={{ margin: 20 }} /> : null
+          loadingMore ? (
+            <ActivityIndicator style={{ margin: 20 }} color={colors.primary} />
+          ) : null
         }
-        // Refresh Props
         refreshing={refreshing}
         onRefresh={() => loadPosts(true)}
-        // Performance Optimization
         removeClippedSubviews={true}
         initialNumToRender={5}
         maxToRenderPerBatch={10}
         windowSize={5}
       />
-      {/* 3. UPDATED FAB LOGIC */}
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={homeStyles.fab}
@@ -420,8 +455,6 @@ export function Home() {
           <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
         </TouchableOpacity>
       )}
-
-      {/* 4. EXPANDABLE MENU MODAL */}
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
@@ -429,12 +462,12 @@ export function Home() {
         actions={['iCash', 'Create Post', 'Create Poll', 'iAssistant']}
       />
 
-      {/* 4. PROFILE POPUP (LinkedIn Style Modal) */}
       <ProfileModal
         visible={isProfilePopupVisible}
         onClose={() => setProfilePopupVisible(false)}
         currentUser={currentUser}
         navigation={navigation}
+        colors={colors}
       />
       <Toast config={toastConfig} />
     </View>

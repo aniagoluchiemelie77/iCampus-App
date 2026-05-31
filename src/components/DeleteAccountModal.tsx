@@ -9,9 +9,9 @@ import {
 import { handleFinalDelete } from '../api/localDeleteApis';
 import { useAppSelector } from '../components/hooks';
 import Modal from 'react-native-modal';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import { useTheme } from 'context/ThemeContext';
 
 interface DeleteModalProps {
   visible: boolean;
@@ -25,7 +25,8 @@ export const DeleteAccountModal = ({
   navigation,
 }: DeleteModalProps) => {
   const user = useAppSelector(state => state.user);
-  const [step, setStep] = useState(0); // 0 to 4
+  const { colors } = useTheme();
+  const [step, setStep] = useState(0); 
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -47,13 +48,8 @@ export const DeleteAccountModal = ({
       setEmailError('Please enter a valid email format.');
       return;
     }
-
     const inputEmail = email.toLowerCase();
-
-    // Check Primary
     const isPrimaryMatch = inputEmail === user.email.toLowerCase();
-
-    // Check Alternates (default to empty array if null/undefined)
     const alternates = user.recoveryEmails || [];
     const isAlternateMatch = alternates.some(
       alt => alt.email.toLowerCase() === inputEmail.toLowerCase(),
@@ -76,26 +72,26 @@ export const DeleteAccountModal = ({
             <Text style={styles.modalSubtitle}>
               To continue, please enter your email address:
             </Text>
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { borderColor: colors.border }]}>
               <MaterialIcons
                 name="mail-outlined"
                 size={14}
-                color={PRIMARY_COLOR}
+                color={colors.primary}
               />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="email@campus.com"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                style={styles.input}
+                placeholderTextColor={colors.inputTextHolder}
+                style={[styles.input, {color: colors.text }]}
               />
             </View>
-            {emailError && <Text style={styles.errorText}>{emailError}</Text>}
+            {emailError && <Text style={[styles.errorText, { color: colors.primary }]}>{emailError}</Text>}
             <TouchableOpacity
               onPress={validateEmailAndProceed}
-              style={styles.continueBtn}
+              style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}
             >
-              <Text style={styles.continueBtnText}>Continue</Text>
+              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
         );
@@ -105,20 +101,24 @@ export const DeleteAccountModal = ({
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
           >
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               Why are you leaving us? Help us improve (Optional)
             </Text>
             <View style={styles.chipContainer}>
               {popularReasons.map(item => (
                 <TouchableOpacity
                   key={item}
-                  style={[styles.chip, reason === item && styles.selectedChip]}
+                  style={[styles.chip, reason === item && {backgroundColor: colors.primary}]}
                   onPress={() => setReason(item)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      reason === item && styles.selectedChipText,
+                      reason === item ? {
+                        color: '#fff'
+                      }:{
+                        color: colors.text
+                      }
                     ]}
                   >
                     {item}
@@ -130,14 +130,14 @@ export const DeleteAccountModal = ({
               <TextInput
                 value={reason}
                 onChangeText={setReason}
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                style={styles.input}
+                placeholderTextColor={colors.inputTextHolder}
+                style={[styles.input, {color: colors.text }]}
                 placeholder="Tell us more..."
                 multiline
               />
             </View>
-            <TouchableOpacity onPress={nextStep} style={styles.continueBtn}>
-              <Text style={styles.continueBtnText}>Continue</Text>
+            <TouchableOpacity onPress={nextStep} style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}>
+              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
         );
@@ -150,15 +150,15 @@ export const DeleteAccountModal = ({
             <MaterialIcons
               name="error-outline-outlined"
               size={40}
-              color="#222"
+              color={colors.primary}
               style={styles.errorIcon}
             />
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               Deleting your account is permanent. You will lose all your iCampus
               credits and history.
             </Text>
-            <TouchableOpacity onPress={nextStep} style={styles.continueBtn}>
-              <Text style={styles.continueBtnText}>I Understand</Text>
+            <TouchableOpacity onPress={nextStep} style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}>
+              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>I Understand</Text>
             </TouchableOpacity>
           </Animated.View>
         );
@@ -168,17 +168,17 @@ export const DeleteAccountModal = ({
             <MaterialIcons
               name="sentiment-dissatisfied-outlined"
               size={40}
-              color="#222"
+              color={colors.primary}
               style={styles.errorIcon}
             />
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               We're sad to see you go. iCampus won't be the same without you.
             </Text>
             <TouchableOpacity
               onPress={() => handleFinalDelete({ navigation, reason })}
-              style={styles.continueBtn}
+              style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}
             >
-              <Text style={styles.continueBtnText}>
+              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>
                 Delete my account forever
               </Text>
             </TouchableOpacity>
@@ -195,8 +195,8 @@ export const DeleteAccountModal = ({
       onSwipeComplete={() => onClose()}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Delete Account</Text>
+        <View style={[styles.modalContent, { backgroundColor: colors.backgroundSecondary }]}>
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>Delete Account</Text>
           {renderStep()}
         </View>
       </View>
@@ -210,22 +210,20 @@ const styles = StyleSheet.create({
     alignContent: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderRadius: 25,
     padding: 20,
-    width: '80%',
-    alignContent: 'center',
+    width: '90%',
+    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
     marginBottom: 15,
+    textAlign: 'center',
   },
   modalSubtitle: {
     marginBottom: 15,
     fontSize: 14,
-    color: '#222',
     width: '100%',
   },
   errorIcon: {
@@ -241,18 +239,10 @@ const styles = StyleSheet.create({
   chip: {
     padding: 10,
     margin: 1,
-    backgroundColor: 'fadccc',
     borderRadius: 12,
-  },
-  selectedChip: {
-    backgroundColor: PRIMARY_COLOR,
   },
   chipText: {
     fontSize: 14,
-    color: '#2222',
-  },
-  selectedChipText: {
-    color: '#fff',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -260,59 +250,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 15,
   },
-  cancelBtn: {
-    padding: 16,
-    alignItems: 'center',
-    borderRadius: 15,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR,
-  },
-  cancelBtnText: {
-    color: PRIMARY_COLOR,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  saveBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     marginBottom: 15,
   },
   input: {
     padding: 10,
     flex: 1,
     marginLeft: 5,
-    color: '#2222',
     fontSize: 14,
-    backgroundColor: '#fadccc',
   },
   errorText: {
     fontSize: 11,
-    color: PRIMARY_COLOR,
     fontWeight: 'bold',
   },
   continueBtn: {
-    width: '80%',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: PRIMARY_COLOR,
     marginVertical: 20,
   },
   continueBtnText: {
-    fontSize: 14,
-    color: '#fff',
+    fontSize: 14
   },
 });
