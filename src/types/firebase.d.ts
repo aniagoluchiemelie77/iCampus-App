@@ -566,8 +566,10 @@ export interface Review {
 }
 export interface Assignment {
   _id?: string;
+  id: string;
   title: string;
   description?: string;
+  submissionInfo?: string;
   courseId: Course['courseId'];
   lectureId?: Lecture['id'];
   fileUrl?: string;

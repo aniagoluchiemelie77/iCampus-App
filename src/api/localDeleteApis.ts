@@ -12,6 +12,11 @@ interface DeleteLectureResponse {
 interface DeleteMaterialPayload {
   materialUrl: string;
 }
+interface ApiResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
 const getAuthHeaders = async () => {
   return {
     'Content-Type': 'application/json',
@@ -265,5 +270,24 @@ export const deleteCourseContent = async (
     return { success: true, data: result.updatedContents };
   } catch (error: any) {
     return { success: false, error: error.message || 'Network error occurred' };
+  }
+};
+export const deleteAssignment = async (courseId: string, assignmentId: string): Promise<ApiResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/lecturers/class/courses/${courseId}/assignments/${assignmentId}`, {
+      method: 'DELETE',
+      headers: {
+        ...headers,
+      }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to delete assignment.' };
+    }
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred.' };
   }
 };

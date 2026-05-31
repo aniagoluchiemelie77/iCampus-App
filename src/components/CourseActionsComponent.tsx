@@ -60,14 +60,17 @@ import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
 import { BarChart } from 'react-native-chart-kit';
 import { OngoingLectureModal } from './OngoingLiveLecturesModal';
-import { saveCourseMaterial } from '../api/localPostApis';
+import { createAssignment, saveCourseMaterial } from '../api/localPostApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { deleteCourseMaterial } from '../api/localDeleteApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {updateCourseContent} from '../api/localPutApis';
-import {createCourseContent} from '../api/localPostApis';
-import {deleteCourseContent} from '../api/localDeleteApis';
+import { updateCourseContent } from '../api/localPutApis';
+import { createCourseContent } from '../api/localPostApis';
+import { deleteCourseContent, deleteAssignment } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
+import { formatDate } from '../utils/dateFormatter';
+import { fetchAllAssignments } from 'api/localGetApis';
+import { launchImageLibrary } from 'react-native-image-picker';
 const { width } = Dimensions.get('window');
 const math = create(all);
 
@@ -145,8 +148,9 @@ interface HeaderProps {
 interface CreateAssignmentProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (formData: FormData) => void;
-  isSaving: boolean;
+  courseId: string;
+  onRefresh?: () => void;
+  colors: any
 }
 interface StudentTestProps {
   test: CreateTestPayload;
@@ -232,17 +236,18 @@ export const chartConfig = {
 const CreateAssignmentModal = ({
   visible,
   onClose,
-  onSave,
-  isSaving,
+  courseId,
+  onRefresh,
+  colors
 }: CreateAssignmentProps) => {
   const [title, setTitle] = useState('');
-  const [submissionMethod, setSubmissionMethod] = useState<
-    'Online' | 'Physical' | 'Both'
-  >('Online');
   const [description, setDescription] = useState('');
+  const [submissionInfo, setSubmissionInfo] = useState('Submit to your course rep'); 
   const [date, setDate] = useState(new Date());
   const [open, setOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handlePickFile = async () => {
     try {
@@ -253,64 +258,130 @@ const CreateAssignmentModal = ({
           DocumentPicker.types.docx,
         ],
       });
-      setSelectedFile(res);
+      setSelectedFile({
+        uri: res.uri,
+        name: res.name || 'document.pdf',
+        type: res.type || 'application/pdf',
+      });
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) console.log(err);
     }
   };
 
-  const handleCreate = () => {
-    if (!title.trim())
+  const handlePickImage = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, (response) => {
+      if (response.didCancel || response.errorCode) return;
+      if (response.assets && response.assets[0]) {
+        const asset = response.assets[0];
+        setSelectedFile({
+          uri: asset.uri || '',
+          name: asset.fileName || `${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+        });
+      }
+    });
+  };
+  const handleCreate = async () => {
+    if (!title.trim()) {
       return Toast.show({ type: 'error', text1: 'Title required' });
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('dueDate', date.toISOString());
-
-    if (selectedFile) {
-      formData.append('file', {
-        uri:
-          Platform.OS === 'android'
-            ? selectedFile.uri
-            : selectedFile.uri.replace('file://', ''),
-        name: selectedFile.name,
-        type: selectedFile.type,
-      } as any);
     }
-    onSave(formData);
+    setIsSaving(true);
+    try {
+      let cloudStorageUrl = null;
+      if (selectedFile) {
+        setIsUploadingMedia(true);
+        const uploadResult = await uploadFileToFirebaseClient(selectedFile.uri, "assignments-briefs");
+        if (uploadResult.success && uploadResult.data) {
+          cloudStorageUrl = uploadResult.data.permanentUrl;
+          setIsUploadingMedia(false);
+        } else {
+          setIsSaving(false);
+          return Toast.show({
+            type: 'error',
+            text1: 'Media Upload Failed',
+            text2: uploadResult.message || 'Could not verify remote attachment reference.'
+          });
+        }
+      }
+      const formData = new FormData();
+      formData.append('title', title.trim());
+      formData.append('description', description.trim());
+      formData.append('dueDate', date.toISOString());
+      formData.append('submissionMethod', 'Physical');
+      formData.append('submissionInfo', submissionInfo.trim());
+      if (cloudStorageUrl) {
+        formData.append('fileUrl', cloudStorageUrl);
+      }
+      const result = await createAssignment(courseId, formData);
+      if (result.success) {
+        Toast.show({ type: 'success', text1: 'Assignment Posted' });
+        setTitle('');
+        setDescription('');
+        setSubmissionInfo('Submit to your course rep');
+        setSelectedFile(null);
+        setDate(new Date());
+        if (onRefresh) onRefresh(); 
+        onClose();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Creation Failed',
+          text2: result.error || 'Server error occurred while executing.'
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'System Error',
+        text2: error.message || 'An unexpected execution thread failure occurred.'
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={CourseActionStyles.modalOverlay}>
-        <View style={CourseActionStyles.assignmentModalContent}>
-          <Text style={CourseActionStyles.modalTitle}>
+        <View style={[CourseActionStyles.assignmentModalContent, {backgroundColor: colors.backgroundSecondary}]}>
+          <Text style={[CourseActionStyles.modalTitle, {color: colors.textDarker}]}>
             Create New Assignment
           </Text>
 
           <TextInput
-            style={CourseActionStyles.input}
+            style={[CourseActionStyles.input, {color: colors.text, borderColor: colors.border}]}
             placeholder="Assignment Title (e.g. Mid-term Project)"
             value={title}
             multiline
             onChangeText={setTitle}
+            placeholderTextColor={colors.inputTextHolder}
           />
-
+          <Text style={[CourseActionStyles.label, {color: colors.text}]}>Description:</Text>
           <TextInput
-            style={[CourseActionStyles.input, { height: 80 }]}
+            style={[CourseActionStyles.input, {color: colors.text, borderColor: colors.border}]}
             placeholder="Instructions / Description (Optional)"
             multiline
             value={description}
             onChangeText={setDescription}
+            placeholderTextColor={colors.inputTextHolder}
+          />
+
+          {/* Submission Info Input Field */}
+          <Text style={[CourseActionStyles.label, {color: colors.text}]}>Submission Routing Instructions:</Text>
+          <TextInput
+            style={[CourseActionStyles.input, {color: colors.text, borderColor: colors.border}]}
+            placeholder="e.g. Submit to your course rep"
+            value={submissionInfo}
+            onChangeText={setSubmissionInfo}
+            placeholderTextColor={colors.inputTextHolder}
           />
 
           <TouchableOpacity
-            style={CourseActionStyles.dateSelector}
+            style={[CourseActionStyles.dateSelector, {backgroundColor: colors.btnColor}]}
             onPress={() => setOpen(true)}
           >
-            <Icon name="calendar-clock" size={20} color={PRIMARY_COLOR} />
-            <Text style={CourseActionStyles.dateText}>
+            <MaterialIcons name="calendar-month-outlined" size={20} color={colors.btnTextColor} />
+            <Text style={[CourseActionStyles.dateText, {color: colors.btnTextColor}]}>
               Due: {date.toDateString()}
             </Text>
           </TouchableOpacity>
@@ -327,58 +398,55 @@ const CreateAssignmentModal = ({
             }}
             onCancel={() => setOpen(false)}
           />
-          <Text style={CourseActionStyles.label}>Submission Method:</Text>
-          <View style={CourseActionStyles.methodRow}>
-            {['Online', 'Physical', 'Both'].map(method => (
-              <TouchableOpacity
-                key={method}
-                style={[
-                  CourseActionStyles.methodBtn,
-                  submissionMethod === method &&
-                    CourseActionStyles.methodBtnActive,
-                ]}
-                onPress={() => setSubmissionMethod(method as any)}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.methodBtnText,
-                    submissionMethod === method && { color: '#fff' },
-                  ]}
-                >
-                  {method}
-                </Text>
-              </TouchableOpacity>
-            ))}
+
+          {/* Fixed Submission Mode View */}
+          <Text style={[CourseActionStyles.label, {color: colors.text}]}>Submission Method:</Text>
+          <Text style={[CourseActionStyles.methodBtnText, { color: colors.primary }]}>
+            Physical Submission Only
+          </Text>
+
+          {/* Asset Attachment Actions Panel */}
+          <Text style={[CourseActionStyles.label, {color: colors.text}]}>Attachment Brief (Optional):</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 15 }}>
+            <TouchableOpacity
+              style={[CourseActionStyles.filePickerBtn, {borderColor: colors.primary }]}
+              onPress={handlePickFile}
+            >
+              <MaterialIcons name="insert-drive-file-outlined" size={18} color={colors.primary} />
+              <Text style={[CourseActionStyles.filePickerText, {color: colors.primary}]} numberOfLines={1} ellipsizeMode="tail">
+                {selectedFile && selectedFile.type.includes('application') ? selectedFile.name : 'Pick Document'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[CourseActionStyles.filePickerBtn, {borderColor: colors.primary }]}
+              onPress={handlePickImage}
+            >
+              <MaterialIcons name="image-outlined" size={18} color={colors.primary} />
+              <Text style={[CourseActionStyles.filePickerText, {color: colors.primary}]} numberOfLines={1} ellipsizeMode="tail">
+                {selectedFile && selectedFile.type.includes('image') ? selectedFile.name : 'Pick Image'}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={CourseActionStyles.filePickerBtn}
-            onPress={handlePickFile}
-          >
-            <Icon name="paperclip" size={20} color={PRIMARY_COLOR_TINT} />
-            <Text style={CourseActionStyles.filePickerText}>
-              {selectedFile
-                ? selectedFile.name
-                : 'Attach Brief (Optional PDF/Doc)'}
-            </Text>
-          </TouchableOpacity>
 
           <View style={CourseActionStyles.modalActions}>
             <TouchableOpacity
-              style={CourseActionStyles.cancelBtn}
+              style={[CourseActionStyles.cancelBtn, {borderColor: colors.primary }]}
               onPress={onClose}
+              disabled={isSaving || isUploadingMedia}
             >
-              <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
+              <Text style={[CourseActionStyles.cancelBtnText, {color: colors.primary}]}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 CourseActionStyles.saveBtn,
-                { backgroundColor: PRIMARY_COLOR },
+                { backgroundColor: colors.btnColor },
               ]}
               onPress={handleCreate}
-              disabled={isSaving}
+              disabled={isUploadingMedia}
             >
-              <Text style={CourseActionStyles.saveBtnText}>
-                {isSaving ? 'Creating...' : 'Add Assignment'}
+              <Text style={[CourseActionStyles.saveBtnText, {color: colors.btnTextColor}]}>
+                {isUploadingMedia ? 'Uploading Asset...' : isSaving ? 'Creating...' : 'Add Assignment'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -627,7 +695,7 @@ export const RenderContents = ({
 
   const filteredData = contents.filter(
     (item: any) =>
-      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.url
         ?.split('/')
         .pop()
@@ -731,7 +799,12 @@ export const RenderContents = ({
           { paddingBottom: insets.bottom + 20 },
         ]}
         ListHeaderComponent={
-          <Text style={[CourseActionStyles.sectionSubtitle, {color: colors.textDarker}]}>
+          <Text
+            style={[
+              CourseActionStyles.sectionSubtitle,
+              { color: colors.textDarker },
+            ]}
+          >
             {userRole === 'lecturer'
               ? 'Curriculum Management'
               : 'Syllabus Overview'}
@@ -739,17 +812,24 @@ export const RenderContents = ({
         }
         renderItem={({ item, index }) => {
           return (
-            <View style={[CourseActionStyles.contentRow, {backgroundColor: colors.backgroundSecondary}]}>
+            <View
+              style={[
+                CourseActionStyles.contentRow,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
               <View style={CourseActionStyles.numberCircle}>
-                <Text style={[CourseActionStyles.numberText, {color: colors.text}]}>
+                <Text
+                  style={[
+                    CourseActionStyles.numberText,
+                    { color: colors.text },
+                  ]}
+                >
                   Wk {index + 1}
                 </Text>
               </View>
               <Text
-                style={[
-                  CourseActionStyles.topicText,
-                  {color: colors.text}
-                ]}
+                style={[CourseActionStyles.topicText, { color: colors.text }]}
               >
                 {item}
               </Text>
@@ -784,11 +864,19 @@ export const RenderContents = ({
         ListFooterComponent={
           userRole === 'lecturer' ? (
             <TouchableOpacity
-              style={[CourseActionStyles.addContentBtn, { borderColor: colors.primary }]}
+              style={[
+                CourseActionStyles.addContentBtn,
+                { borderColor: colors.primary },
+              ]}
               onPress={() => openModal()}
             >
               <MaterialIcons name="add" size={20} color={colors.primary} />
-              <Text style={[CourseActionStyles.addContentText, {color: colors.primary}]}>
+              <Text
+                style={[
+                  CourseActionStyles.addContentText,
+                  { color: colors.primary },
+                ]}
+              >
                 Add New Topic
               </Text>
             </TouchableOpacity>
@@ -815,14 +903,27 @@ export const RenderContents = ({
         >
           <TouchableWithoutFeedback>
             <View style={CourseActionStyles.centeredView}>
-              <View style={[CourseActionStyles.editModalContent, { backgroundColor: colors.backgroundSecondary }]}>
-                <Text style={[CourseActionStyles.modalTitle, {color: colors.textDarker}]}>
+              <View
+                style={[
+                  CourseActionStyles.editModalContent,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.modalTitle,
+                    { color: colors.textDarker },
+                  ]}
+                >
                   {editingIndex !== null
                     ? 'Edit Existing Topic'
                     : 'Add New Topic'}
                 </Text>
                 <TextInput
-                  style={[CourseActionStyles.input, { color: colors.text, borderColor: colors.border }]}
+                  style={[
+                    CourseActionStyles.input,
+                    { color: colors.text, borderColor: colors.border },
+                  ]}
                   value={currentText}
                   onChangeText={setCurrentText}
                   placeholder="Enter topic name..."
@@ -831,10 +932,18 @@ export const RenderContents = ({
                 />
                 <View style={CourseActionStyles.modalActions}>
                   <TouchableOpacity
-                    style={[CourseActionStyles.cancelBtn, { borderColor: colors.border }]}
+                    style={[
+                      CourseActionStyles.cancelBtn,
+                      { borderColor: colors.border },
+                    ]}
                     onPress={() => setModalVisible(false)}
                   >
-                    <Text style={[CourseActionStyles.cancelBtnText, { color: colors.primary }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.cancelBtnText,
+                        { color: colors.primary },
+                      ]}
+                    >
                       Cancel
                     </Text>
                   </TouchableOpacity>
@@ -845,7 +954,12 @@ export const RenderContents = ({
                     ]}
                     onPress={handleSave}
                   >
-                    <Text style={[CourseActionStyles.saveBtnText, { color: colors.btnTextColor }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.saveBtnText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
                       Save Changes
                     </Text>
                   </TouchableOpacity>
@@ -871,6 +985,7 @@ export const RenderMaterials = ({
   userRole: string;
   onRefresh: () => void;
 }) => {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [isUploading, setIsUploading] = useState(false);
   const [refreshing, _setRefreshing] = useState(false);
@@ -929,7 +1044,6 @@ export const RenderMaterials = ({
       });
 
       setIsUploading(true);
-      Toast.show({ type: 'info', text1: 'Uploading to cloud storage...' });
       const firebaseResult = await uploadFileToFirebaseClient(
         pickerResult.uri,
         'course-materials',
@@ -974,8 +1088,6 @@ export const RenderMaterials = ({
   const processDeletion = async (url: string) => {
     try {
       setIsUploading(true);
-      Toast.show({ type: 'info', text1: 'Removing material...' });
-
       const apiResult = await deleteCourseMaterial(course.courseId, {
         materialUrl: url,
       });
@@ -1037,17 +1149,35 @@ export const RenderMaterials = ({
         { paddingBottom: insets.bottom + 20 },
       ]}
       ListHeaderComponent={
-        <View style={CourseActionStyles.rowBetween}>
-          <Text style={CourseActionStyles.sectionSubtitle}>
-            Downloadable Course Materials
+        <View
+          style={[
+            CourseActionStyles.rowBetween,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text
+            style={[
+              CourseActionStyles.sectionSubtitle,
+              { color: colors.textDarker },
+            ]}
+          >
+            Course Materials
           </Text>
           {userRole === 'lecturer' && (
             <TouchableOpacity
-              style={CourseActionStyles.addButton}
+              style={[
+                CourseActionStyles.addButton,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={handleAddMaterial}
               disabled={isUploading}
             >
-              <Text style={CourseActionStyles.addBtnText}>
+              <Text
+                style={[
+                  CourseActionStyles.addBtnText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
                 {isUploading ? 'Uploading...' : 'Add Material'}
               </Text>
             </TouchableOpacity>
@@ -1057,16 +1187,26 @@ export const RenderMaterials = ({
       renderItem={({ item }) => {
         const fileName = item.url.split('/').pop() || 'document.pdf';
         return (
-          <View style={CourseActionStyles.materialCard}>
+          <View
+            style={[
+              CourseActionStyles.materialCard,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <MaterialIcons
               name="picture-as-pdf-outlined"
               size={32}
-              color={PRIMARY_COLOR}
+              color={colors.primary}
             />
             <View style={{ flex: 1, marginLeft: 12, paddingHorizontal: 4 }}>
-              <Text style={CourseActionStyles.materialTitle}>{item.title}</Text>
-              <Text style={CourseActionStyles.materialSub} numberOfLines={1}>
-                {item.url.split('/').pop()}
+              <Text
+                style={[
+                  CourseActionStyles.materialTitle,
+                  { color: colors.textDarker },
+                ]}
+                numberOfLines={2}
+              >
+                {item.title}
               </Text>
               <View style={CourseActionStyles.rowButtons}>
                 <TouchableOpacity
@@ -1076,7 +1216,7 @@ export const RenderMaterials = ({
                   <MaterialIcons
                     name="file-download-outlined"
                     size={20}
-                    color={PRIMARY_COLOR_TINT}
+                    color={colors.primary}
                   />
                 </TouchableOpacity>
                 {userRole === 'lecturer' && (
@@ -1087,7 +1227,7 @@ export const RenderMaterials = ({
                     <MaterialIcons
                       name="delete-outlined"
                       size={20}
-                      color={PRIMARY_COLOR_TINT}
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
                 )}
@@ -1112,7 +1252,6 @@ export const RenderMaterials = ({
     />
   );
 };
-// 4. Assignments View
 export const RenderAssignments = ({
   course,
   userRole,
@@ -1122,7 +1261,7 @@ export const RenderAssignments = ({
   userRole: string;
   searchQuery: string;
 }) => {
-  const user = useAppSelector(state => state.user);
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [isModalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1144,49 +1283,31 @@ export const RenderAssignments = ({
   };
   const fetchAssignments = async () => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/courses/${course.courseId}/assignments`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      if (response.ok) {
-        const data: Assignment[] = await response.json();
-        setLocalAssignments(data);
+      const response = await fetchAllAssignments(course.courseId);
+      if (response.success) {
+        setLocalAssignments(response.data);
       }
     } catch (error) {
       console.error('Refresh assignments failed:', error);
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
   const handleSaveAssignment = async (formData: FormData) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${course.courseId}/assignments`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        },
-      );
-
-      if (response.ok) {
-        Toast.show({ type: 'success', text1: 'Assignment Posted' });
+      const result = await createAssignment(course.courseId, formData);
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Assignment Posted Successfully',
+        });
         setModalVisible(false);
-        // refresh data logic here
+        fetchAssignments();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Post Failed',
+          text2: result.error,
+        });
       }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Failed to post assignment' });
@@ -1199,97 +1320,184 @@ export const RenderAssignments = ({
     await fetchAssignments();
     setRefreshing(false);
   };
+  const handleAssignmentDelete = (
+    assignmentId: string,
+    assignmentTitle: string,
+  ) => {
+    Alert.alert(
+      'Delete Assignment?',
+      `Are you sure you want to permanently delete "${assignmentTitle}"? This will also remove all student submissions and cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await deleteAssignment(
+                course.courseId,
+                assignmentId,
+              );
+              if (result.success) {
+                Toast.show({
+                  type: 'success',
+                  text1: 'Assignment Removed',
+                  position: 'bottom',
+                  bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+                });
+                if (onRefresh) onRefresh();
+              } else {
+                Toast.show({
+                  type: 'error',
+                  text1: 'Deletion Failed',
+                  text2:
+                    result.error ||
+                    'Could not remove assignment, please try again.',
+                  position: 'bottom',
+                  bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+                });
+              }
+            } catch (error: any) {
+              Toast.show({
+                type: 'error',
+                text1: 'Network Error',
+                text2: error.message || 'Server connection timed out.',
+                position: 'bottom',
+                bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+              });
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
 
   return (
-    <FlatList
-      data={filteredData || []}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      keyExtractor={(item, i) => item._id || i.toString()}
-      contentContainerStyle={[
-        CourseActionStyles.listPadding,
-        { paddingBottom: insets.bottom + 20 },
-      ]}
-      ListHeaderComponent={
-        <View style={CourseActionStyles.rowBetween}>
-          <Text style={CourseActionStyles.sectionSubtitle}>
-            Assignments & Tasks
-          </Text>
-          {userRole === 'lecturer' && (
-            <TouchableOpacity
-              style={CourseActionStyles.addButton}
-              onPress={() => setModalVisible(true)}
-            >
-              <Text style={CourseActionStyles.addBtnText}>Create</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      }
-      renderItem={({ item }) => {
-        const overdue = isPastDue(item.dueDate);
-        const hasSubmitted = item.submissions?.some(
-          s => s.studentId === user.uid,
-        );
-
-        return (
-          <View style={CourseActionStyles.assignmentCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={CourseActionStyles.assignmentName}>
-                {item.title}
-              </Text>
-              <Text style={CourseActionStyles.methodText}>
-                Method: {item.submissionMethod}
-              </Text>
-              <Text
-                style={[
-                  CourseActionStyles.dueDate,
-                  overdue && { color: '#ff4d4d' },
-                ]}
-              >
-                {overdue ? 'Past Due: ' : 'Due: '} {formatDate(item.dueDate)}
-              </Text>
-            </View>
-            <View
+    <>
+      <FlatList
+        data={filteredData || []}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        keyExtractor={(item, i) => item.id || i.toString()}
+        contentContainerStyle={[
+          CourseActionStyles.listPadding,
+          { paddingBottom: insets.bottom + 20 },
+        ]}
+        ListHeaderComponent={
+          <View
+            style={[
+              CourseActionStyles.rowBetween,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text
               style={[
-                CourseActionStyles.statusTag,
-                userRole === 'lecturer'
-                  ? CourseActionStyles.lecturerStatus
-                  : hasSubmitted
-                  ? CourseActionStyles.successTag
-                  : CourseActionStyles.pendingTag,
+                CourseActionStyles.sectionSubtitle,
+                { color: colors.textDarker },
               ]}
             >
-              <Text style={CourseActionStyles.statusText}>
-                {userRole === 'lecturer'
-                  ? `${item.submissions?.length || 0} Records`
-                  : hasSubmitted
-                  ? 'Turned In'
-                  : item.submissionMethod === 'Physical'
-                  ? 'Hand-in'
-                  : overdue
-                  ? 'Missed'
-                  : 'Submit'}
-              </Text>
-            </View>
-            <CreateAssignmentModal
-              visible={isModalVisible}
-              onClose={() => setModalVisible(false)}
-              onSave={handleSaveAssignment}
-              isSaving={loading}
-            />
+              Assignments & Tasks
+            </Text>
+            {userRole === 'lecturer' && (
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.addButton,
+                  { backgroundColor: colors.btnColor },
+                ]}
+                onPress={() => setModalVisible(true)}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.addBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  Create
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        );
-      }}
-      ListEmptyComponent={
-        <EmptyState
-          iconName="content-paste-off-outlined"
-          title="No Assignments Posted"
-          subtitle="Check back later for upcoming tasks and deadlines."
-          buttonText={userRole === 'lecturer' ? 'Create Assignment' : undefined}
-          onPress={() => setModalVisible(true)}
-        />
-      }
-    />
+        }
+        renderItem={({ item }) => {
+          const overdue = isPastDue(item.dueDate);
+
+          return (
+            <View
+              style={[
+                CourseActionStyles.assignmentCard,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    CourseActionStyles.assignmentName,
+                    { color: colors.text },
+                  ]}
+                >
+                  {item.title}
+                </Text>
+                <Text
+                  style={[
+                    CourseActionStyles.methodText,
+                    { color: colors.text },
+                  ]}
+                >
+                  Method of Submission: {item.submissionMethod}
+                </Text>
+                <Text
+                  style={[
+                    CourseActionStyles.dueDate,
+                    overdue
+                      ? { color: colors.primary }
+                      : { color: colors.text },
+                  ]}
+                >
+                  {overdue ? 'Past Due: ' : 'Due: '} {formatDate(item.dueDate)}
+                </Text>
+              </View>
+              {userRole === 'lecturer' && !overdue && (
+                <TouchableOpacity
+                  style={[
+                    CourseActionStyles.statusTag,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                  onPress={() => handleAssignmentDelete(item.id, item.title)}
+                >
+                  <MaterialIcons
+                    name="delete-outlined"
+                    color={colors.primary}
+                    size={20}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            iconName="content-paste-off-outlined"
+            title="No Assignments Posted"
+            subtitle="Check back later for upcoming tasks and deadlines."
+            buttonText={
+              userRole === 'lecturer' ? 'Create Assignment' : undefined
+            }
+            onPress={() => setModalVisible(true)}
+          />
+        }
+      />
+      <CreateAssignmentModal
+        visible={isModalVisible}
+        courseId={course.courseId}
+        onClose={() => setModalVisible(false)}
+        onRefresh={onRefresh}
+        colors={colors}
+      />
+    </>
   );
 };
 export const RenderStudentExceptions = ({
@@ -3818,69 +4026,48 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fadccc',
     borderRadius: 14,
     marginBottom: 12,
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
   },
-  materialTitle: { fontSize: 15, fontWeight: '600', color: '#333' },
-  materialSub: { fontSize: 12, color: '#999', marginTop: 2 },
+  materialTitle: { fontSize: 14, fontWeight: '600' },
   rowButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   downloadCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
   },
   assignmentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 18,
-    backgroundColor: '#fff',
     borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  assignmentName: { fontSize: 16, fontWeight: '700', color: '#333' },
+  assignmentName: { fontSize: 14, fontWeight: '700' },
   dueDate: {
-    fontSize: 12,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
     marginTop: 5,
     fontWeight: '500',
   },
 
   statusTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#FFF4F0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  lecturerStatus: {
-    backgroundColor: '#e3f2fd',
-    borderColor: PRIMARY_COLOR_TINT,
-    borderWidth: 1,
-  },
-  statusText: { fontSize: 11, fontWeight: 'bold', color: PRIMARY_COLOR },
   addButton: {
-    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 10,
   },
-  addBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  addBtnText: { fontSize: 14, fontWeight: 'bold' },
   addBtnText3: {
     marginLeft: 10,
     color: PRIMARY_COLOR_TINT,
@@ -3922,7 +4109,7 @@ export const CourseActionStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   centeredView: {
-    width: '90%'
+    width: '90%',
   },
   editModalContent: {
     borderRadius: 20,
@@ -3962,7 +4149,7 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 14,
     marginRight: 8,
     alignItems: 'center',
-    borderWidth: 1
+    borderWidth: 1,
   },
   cancelBtnText: {
     fontSize: 14,
@@ -4034,16 +4221,9 @@ export const CourseActionStyles = StyleSheet.create({
     borderColor: '#ffccd2',
     backgroundColor: '#fffdfd',
   },
-  pendingTag: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
   assignmentModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     padding: 25,
     width: '100%',
     position: 'absolute',
@@ -4054,15 +4234,11 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderRadius: 12,
-    backgroundColor: '#f8f9fa',
     marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   dateText: {
-    marginLeft: 10,
-    fontSize: 15,
-    color: '#2222',
+    marginLeft: 5,
+    fontSize: 14,
     fontWeight: '500',
   },
   dateText2: {
@@ -4070,70 +4246,29 @@ export const CourseActionStyles = StyleSheet.create({
     color: '#2222',
   },
   filePickerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 15,
-    borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 12,
     marginBottom: 25,
+    alignItems: 'center'
   },
   filePickerText: {
-    marginLeft: 10,
-    color: '#666',
+    marginTop: 4,
     fontSize: 14,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#444',
     marginBottom: 8,
-    marginTop: 10,
-  },
-  methodRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f3f5',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
-  },
-  methodBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  methodBtnActive: {
-    backgroundColor: PRIMARY_COLOR,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
   methodBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
-  },
-  successTag: {
-    backgroundColor: '#48bb78', 
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: '600'
   },
   methodText: {
     fontSize: 11,
-    color: PRIMARY_COLOR,
     fontWeight: '600',
-    backgroundColor: '#eef2ff',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
     marginTop: 4,
-    textTransform: 'uppercase',
   },
   searchBarWrapper: {
     paddingHorizontal: 16,

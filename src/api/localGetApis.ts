@@ -54,6 +54,17 @@ interface SearchCoursesResponse {
   courses?: any[]; 
   error?: string;
 }
+interface ApiResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+const getAuthHeaders = async () => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
 
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
@@ -1251,5 +1262,22 @@ export const searchAcademicResources = async (query: string): Promise<any[]> => 
   } catch (error) {
     console.error("Client side searchAcademicResources failed: ", error);
     return [];
+  }
+};
+export const fetchAllAssignments = async (courseId: string): Promise<ApiResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/courses/${courseId}/assignments`, {
+      method: 'GET',
+      headers,
+    });
+    
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to fetch assignments.' };
+    }
+    return { success: true, data: result.assignments };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred.' };
   }
 };

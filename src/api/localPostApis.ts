@@ -11,12 +11,6 @@ import {
 } from 'react-native';
 
 const token = await AsyncStorage.getItem('accessToken');
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 
 interface ServiceResponse {
   success: boolean;
@@ -63,7 +57,18 @@ interface UploadMaterialPayload {
   materialUrl: string;
   title?: string;
 }
+interface ApiResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
 
+const getAuthHeaders = async () => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
   Toast.show({
@@ -1641,5 +1646,25 @@ export const createCourseContent = async (
     return { success: true, data: result.updatedContents };
   } catch (error: any) {
     return { success: false, error: error.message || 'Network error occurred' };
+  }
+};
+export const createAssignment = async (courseId: string, formData: FormData): Promise<ApiResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/lecturers/class/courses/${courseId}/assignments`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+      },
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to post assignment.' };
+    }
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
