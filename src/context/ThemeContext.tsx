@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
-import { useSelector, useDispatch } from 'react-redux'; 
-import { toggleTheme } from '../components/UserSlice';
+import { useColorScheme } from 'react-native';
+import { useSelector } from 'react-redux';
+import { ThemeType } from '../types/firebase';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -40,25 +41,32 @@ export const darkPalette = {
 export type ColorsType = typeof lightPalette;
 
 interface ThemeContextProps {
+  themeMode: ThemeType;
   isDarkMode: boolean;
   colors: ColorsType;
-  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const dispatch = useDispatch();
-  const isDarkMode = useSelector((state: any) => state.theme.isDarkMode);
-
-  const handleToggle = () => {
-    dispatch(toggleTheme()); 
-  };
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const themeMode = useSelector((state: any) => state.user.theme || 'system');
+  const deviceColorScheme = useColorScheme();
+  const isDarkMode =
+    themeMode === 'dark' ||
+    (themeMode === 'system' && deviceColorScheme === 'dark');
 
   const colors = isDarkMode ? darkPalette : lightPalette;
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, colors, toggleTheme: handleToggle }}>
+    <ThemeContext.Provider
+      value={{
+        themeMode,
+        isDarkMode,
+        colors,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

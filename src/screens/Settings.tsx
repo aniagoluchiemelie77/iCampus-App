@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  useColorScheme,
 } from 'react-native';
 import { SettingItem } from '../components/SettingsItem';
 import Toast from 'react-native-toast-message';
@@ -23,7 +24,10 @@ import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '@env';
 import { LogoutModal } from '../components/LogoutModal.tsx';
 import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';
-import { useTheme } from '../context/ThemeContext';
+import { updateThemeState } from '../components/UserSlice.ts';
+import { useAppSelector } from '../components/hooks';
+import { useDispatch } from 'react-redux';
+import { updateUserThemePreference } from '../api/localPutApis.ts';
 
 const rnBiometrics = new ReactNativeBiometrics();
 
@@ -43,10 +47,12 @@ export const throttle = (func: Function, limit: number) => {
 };
 
 export const Settings = () => {
-  const DarkThemedStyles = 'Dark';
-  const { isDarkMode, toggleTheme } = useTheme();
-  const colors = isDarkMode ? DarkThemedStyles : styles;
-  console.log(colors);
+  const user = useAppSelector(state => state.user);
+  const dispatch = useDispatch();
+  const deviceColorScheme = useColorScheme();
+  const isCurrentlyDark =
+    user.theme === 'dark' ||
+    (user.theme === 'system' && deviceColorScheme === 'dark');
   const navigation = useNavigation<any>();
   const [isResetting, setIsResetting] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
@@ -101,6 +107,29 @@ export const Settings = () => {
       console.error(error);
     } finally {
       setIsResetting(false);
+    }
+  };
+  const handleThemeToggle = async () => {
+    const newTheme = isCurrentlyDark ? 'light' : 'dark';
+    dispatch(updateThemeState(newTheme));
+    try {
+      const result = await updateUserThemePreference(newTheme);
+      if (!result.success) {
+        dispatch(updateThemeState(isCurrentlyDark ? 'dark' : 'light'));
+        Toast.show({
+          type: 'error',
+          text1: 'Sync Connection Loss',
+          text2: result.error,
+        });
+      }
+    } catch (error) {
+      console.error('Theme cloud sync error fallback executed:', error);
+      dispatch(updateThemeState(isCurrentlyDark ? 'dark' : 'light'));
+      Toast.show({
+        type: 'error',
+        text1: 'Sync Connection Loss',
+        text2: 'Theme could not be saved to your account cloud.',
+      });
     }
   };
   const throttledReset = throttle(handlePinReset, 2000);
@@ -200,10 +229,16 @@ export const Settings = () => {
           <SettingItem
             icon="palette-outlined"
             title="Theme"
-            subtitle={isDarkMode ? 'Dark Mode' : 'Light Mode'}
+            subtitle={
+              user.theme === 'system'
+                ? 'System Default'
+                : isCurrentlyDark
+                ? 'Dark Mode'
+                : 'Light Mode'
+            }
             toggle
-            value={isDarkMode}
-            onPress={toggleTheme}
+            value={isCurrentlyDark}
+            onPress={handleThemeToggle}
           />
           <SettingItem
             icon="auto-awesome-outlined"

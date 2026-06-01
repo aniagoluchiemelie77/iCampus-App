@@ -1,6 +1,7 @@
 import { baseUrl } from '@components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import {ThemeType} from '../types/firebase';
 
 const token = await AsyncStorage.getItem('accessToken');
 interface UpdateITagResponse {
@@ -85,5 +86,33 @@ export const updateCourseContent = async (
     return { success: true, data: result.updatedContents };
   } catch (error: any) {
     return { success: false, error: error.message || 'Network error occurred' };
+  }
+};
+export const updateUserThemePreference = async (
+  theme: ThemeType
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/preferences/toggleTheme`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ theme }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: result.message || 'Failed to synchronize theme state with the server.' 
+      };
+    }
+    return { 
+      success: true, 
+      data: result 
+    };
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || 'A network error occurred while updating theme profiles.' 
+    };
   }
 };

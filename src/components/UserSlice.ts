@@ -1,9 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '../types/firebase'; 
-
+export type ThemeType = 'light' | 'dark' | 'system';
 const initialState: User = {
   uid: '',
-  isDarkMode: false,
+  theme: 'system',
   firstname: '',
   lastname: '',
   isFirstLogin: true,
@@ -28,11 +28,8 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    toggleTheme(state) {
-      state.isDarkMode = !state.isDarkMode;
-    },
-    setTheme(state, action: PayloadAction<boolean>) {
-      state.isDarkMode = action.payload;
+    updateThemeState(state, action: PayloadAction<ThemeType>) {
+      state.theme = action.payload;
     },
     setUser(state, action: PayloadAction<User>) {
       return { ...state, ...action.payload };
@@ -79,6 +76,6 @@ const userSlice = createSlice({
 
   },
 });
-export const {toggleTheme, 
-  setTheme, setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, updateBlockedUsers} = userSlice.actions;
+export const { 
+  updateThemeState, setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, updateBlockedUsers} = userSlice.actions;
 export default userSlice.reducer;

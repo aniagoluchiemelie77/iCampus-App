@@ -7,6 +7,7 @@ export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
 export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
+export type ThemeType = 'light' | 'dark' | 'system';
 
 export interface UserSession {
   deviceId: string;
@@ -39,7 +40,7 @@ export interface User {
   bio?: string;
   providerId?: string;
   schoolAvatarUrl?: string;
-  isDarkMode?: boolean;
+  theme: ThemeType;
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;
