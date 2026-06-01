@@ -107,7 +107,7 @@ interface TestFormState {
   dueDate: string;
   scheduledStart: string;
   totalMarks: string;
-  questions: Question[]; // Uses the strict Question interface we defined
+  questions: Question[];
 }
 interface LecturerTestManageProps {
   course: Course;
@@ -175,27 +175,49 @@ export const FloatingCalculator = ({
   result,
   handlePress,
   buttons,
-  colors
+  colors,
 }: any) => {
   if (!visible) return null;
   return (
-    <View style={[CourseActionStyles.miniCalculator, {backgroundColor: colors.backgroundSecondary}]}>
+    <View
+      style={[
+        CourseActionStyles.miniCalculator,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <View style={CourseActionStyles.miniCalculatorHeader}>
-        <Text style={[CourseActionStyles.miniCalculatorHeaderText, {color: colors.text}]}>Calc</Text>
+        <Text
+          style={[
+            CourseActionStyles.miniCalculatorHeaderText,
+            { color: colors.text },
+          ]}
+        >
+          Calc
+        </Text>
         <TouchableOpacity onPress={onClose}>
-          <MaterialIcons name="cancel-outlined" size={20} color={colors.primary} />
+          <MaterialIcons
+            name="cancel-outlined"
+            size={20}
+            color={colors.primary}
+          />
         </TouchableOpacity>
       </View>
       <View style={CourseActionStyles.miniCalcDisplay}>
         <Text
           numberOfLines={1}
-          style={[CourseActionStyles.miniCalcDisplayExpressionText, {color: colors.text}]}
+          style={[
+            CourseActionStyles.miniCalcDisplayExpressionText,
+            { color: colors.text },
+          ]}
         >
           {expression || '0'}
         </Text>
         <Text
           numberOfLines={1}
-          style={[CourseActionStyles.miniCalcDisplayResultsText, {color: colors.text}]}
+          style={[
+            CourseActionStyles.miniCalcDisplayResultsText,
+            { color: colors.text },
+          ]}
         >
           {result || ''}
         </Text>
@@ -215,7 +237,9 @@ export const FloatingCalculator = ({
                 <Text
                   style={[
                     CourseActionStyles.miniBtnText,
-                    btn === '=' ? { color: colors.btnTextColor } : {color: colors.text}
+                    btn === '='
+                      ? { color: colors.btnTextColor }
+                      : { color: colors.text },
                   ]}
                 >
                   {btn}
@@ -2310,7 +2334,6 @@ export const RenderLecturerTestManage = ({
         questionText: '',
         options: ['', '', '', ''],
         correctAnswer: '',
-        points: 5,
       },
     ],
   };
@@ -2346,7 +2369,6 @@ export const RenderLecturerTestManage = ({
           questionText: '',
           options: ['', '', '', ''],
           correctAnswer: '',
-          points: 5,
         },
       ],
     });
@@ -2772,29 +2794,6 @@ export const RenderLecturerTestManage = ({
                   >
                     Question {idx + 1}
                   </Text>
-                  <View style={CourseActionStyles.sideBySide}>
-                    <TextInput
-                      style={[
-                        CourseActionStyles.pointsInput,
-                        { color: colors.text },
-                      ]}
-                      keyboardType="numeric"
-                      value={q.points.toString()}
-                      onChangeText={p =>
-                        updateQuestion(q.id, { points: Number(p) })
-                      }
-                      placeholder="eg. 5"
-                      placeholderTextColor={colors.inputTextHolder}
-                    />
-                    <Text
-                      style={[
-                        CourseActionStyles.pointsLabel,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Marks
-                    </Text>
-                  </View>
                   <TouchableOpacity onPress={() => removeQuestion(q.id)}>
                     <MaterialIcons
                       name="cancel-outlined"
@@ -3107,7 +3106,8 @@ export const RenderStudentTest = ({
   const startTestWithSecurity = async () => {
     try {
       const currentDeviceId = await getUniqueId();
-      const isRecognizedDevice = user.sessions?.deviceType?.includes(currentDeviceId);
+      const isRecognizedDevice =
+        user.sessions?.deviceType?.includes(currentDeviceId);
       if (!isRecognizedDevice) {
         Toast.show({
           type: 'error',
@@ -3187,8 +3187,6 @@ export const RenderStudentTest = ({
             base64Image,
             user.schoolAvatarUrl,
           );
-
-          // If the API explicitly returns verified: false, trigger the block
           if (verificationResult.verified === false) {
             isImpersonator = true;
             verificationErrorMessage =
@@ -3213,10 +3211,19 @@ export const RenderStudentTest = ({
       setIsSubmitting(false);
       return;
     }
+    const totalQuestionsCount = activeQuestions.length;
+    const pointsPerQuestion =
+      totalQuestionsCount > 0
+        ? Number((test.totalMarks / totalQuestionsCount).toFixed(2))
+        : 0;
+    const normalizedQuestions = activeQuestions.map(q => ({
+      ...q,
+      points: pointsPerQuestion,
+    }));
     const { gradedAnswers, totalScore } = runAutoGrade();
     const shortAnswersToGrade = gradedAnswers
       .filter(ans => {
-        const question = activeQuestions.find(q => q.id === ans.questionId);
+        const question = normalizedQuestions.find(q => q.id === ans.questionId);
         return question?.type === 'ShortAnswer';
       })
       .map(ans => ({
@@ -3237,7 +3244,9 @@ export const RenderStudentTest = ({
           );
           if (aiResult) {
             const isCorrect = aiResult.similarityScore >= 0.85;
-            const targetQ = activeQuestions.find(q => q.id === ans.questionId);
+            const targetQ = normalizedQuestions.find(
+              q => q.id === ans.questionId,
+            );
             const points = isCorrect ? targetQ?.points || 0 : 0;
 
             finalTotalScore = finalTotalScore - ans.pointsEarned + points;
@@ -3254,6 +3263,9 @@ export const RenderStudentTest = ({
         console.error('AI Grading fallback executed.', error);
       }
     }
+    const sanitizedScore = Number(
+      Math.min(finalTotalScore, test.totalMarks).toFixed(2),
+    );
 
     const finalPayload: Partial<TestSubmission> = {
       testId: test.id || test._id,
@@ -3261,7 +3273,7 @@ export const RenderStudentTest = ({
       studentName: `${user.firstname} ${user.lastname}`,
       matricNumber: user.matricNumber || 'N/A',
       answers: finalGradedAnswers,
-      score: finalTotalScore,
+      score: sanitizedScore,
       totalPossibleScore: test.totalMarks,
       status: 'submitted',
       submittedAt: new Date().toISOString(),
@@ -3275,7 +3287,7 @@ export const RenderStudentTest = ({
     };
     await onSubmit(finalPayload);
     setFinalResult({
-      score: finalTotalScore,
+      score: sanitizedScore,
       total: test.totalMarks,
     });
     setIsFinished(true);
@@ -3417,7 +3429,12 @@ export const RenderStudentTest = ({
   }, [cheatingCount, handleFinalSubmit, navigation]);
   const warningCount = MAX_GRACES - cheatingCount;
   return (
-    <SafeAreaView style={[CourseActionStyles.container, {backgroundColor: colors.backgroundSecondary}]}>
+    <SafeAreaView
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <Modal visible={!isStarted} animationType="fade" transparent>
         <View style={CourseActionStyles.modalOverlay}>
           <View style={CourseActionStyles.modalContainer}>
@@ -3431,31 +3448,44 @@ export const RenderStudentTest = ({
                 color={colors.primary}
                 style={CourseActionStyles.centerIcon}
               />
-              <Text style={[CourseActionStyles.modalTitle, {color: colors.textDarker}]}>
+              <Text
+                style={[
+                  CourseActionStyles.modalTitle,
+                  { color: colors.textDarker },
+                ]}
+              >
                 Test Instructions
               </Text>
 
               <View style={CourseActionStyles.instructionBox}>
-                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
+                <Text
+                  style={[CourseActionStyles.insText, { color: colors.text }]}
+                >
                   <Text style={CourseActionStyles.boldText}>
                     Identity Verification:
                   </Text>{' '}
-                  Your front camera will stay on throughout the test to make sure it's really you
-                  taking the test.
+                  Your front camera will stay on throughout the test to make
+                  sure it's really you taking the test.
                 </Text>
-                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
+                <Text
+                  style={[CourseActionStyles.insText, { color: colors.text }]}
+                >
                   <Text style={CourseActionStyles.boldText}>Stay Focused:</Text>
                   Try not to look away from the screen for too long, as the
                   system monitors your attention.
                 </Text>
-                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
+                <Text
+                  style={[CourseActionStyles.insText, { color: colors.text }]}
+                >
                   <Text style={CourseActionStyles.boldText}>
                     App Switching/minimizing:{' '}
                   </Text>
                   If you leave this app or minimize it, your assessment wil
                   auto-submit.
                 </Text>
-                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
+                <Text
+                  style={[CourseActionStyles.insText, { color: colors.text }]}
+                >
                   Goodluck and we hope you have a good test!
                 </Text>
               </View>
@@ -3470,9 +3500,17 @@ export const RenderStudentTest = ({
                 disabled={isUploading}
               >
                 {isUploading ? (
-                  <ActivityIndicator color={colors.btnTextColor} size={'small'} />
+                  <ActivityIndicator
+                    color={colors.btnTextColor}
+                    size={'small'}
+                  />
                 ) : (
-                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
+                  <Text
+                    style={[
+                      CourseActionStyles.startBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
                     Verify Identity & Start
                   </Text>
                 )}
@@ -3483,37 +3521,49 @@ export const RenderStudentTest = ({
       </Modal>
       <View style={CourseActionStyles.header}>
         <View style={CourseActionStyles.sideBySideCenteredRow}>
-          <MaterialIcons name="access-time-outlined" size={20} color={colors.text} />
+          <MaterialIcons
+            name="access-time-outlined"
+            size={20}
+            color={colors.text}
+          />
           <Text
             style={[
               CourseActionStyles.timer,
-              {marginLeft: 3},
-              timeLeft < 600 ? CourseActionStyles.timerUrgent : {color: colors.text},
+              { marginLeft: 3 },
+              timeLeft < 600
+                ? CourseActionStyles.timerUrgent
+                : { color: colors.text },
             ]}
           >
             {Math.floor(timeLeft / 60)}:{' '}
             {(timeLeft % 60).toString().padStart(2, '0')}
           </Text>
         </View>
-        <Text 
+        <Text
           style={[
-            CourseActionStyles.cheatCount, 
-            { color: warningCount <= 2 ? colors.primary : colors.text }
+            CourseActionStyles.cheatCount,
+            { color: warningCount <= 2 ? colors.primary : colors.text },
           ]}
         >
           {warningCount} {warningCount === 1 ? 'grace' : 'graces'} left
         </Text>
-        <Text style={[CourseActionStyles.progress, {color: colors.text}]}>
+        <Text style={[CourseActionStyles.progress, { color: colors.text }]}>
           Question {currentIndex + 1} of {activeQuestions.length}
         </Text>
         <TouchableOpacity onPress={() => setIsCalcVisible(true)}>
-          <MaterialIcons name="calculate-outlined" size={22} color={colors.primary} />
+          <MaterialIcons
+            name="calculate-outlined"
+            size={22}
+            color={colors.primary}
+          />
         </TouchableOpacity>
       </View>
       {isStarted && !isFinished && (
         <>
           <View style={CourseActionStyles.questionCard}>
-            <Text style={[CourseActionStyles.qText, {color: colors.textDarker}]}>
+            <Text
+              style={[CourseActionStyles.qText, { color: colors.textDarker }]}
+            >
               {activeQuestions[currentIndex].questionText}
             </Text>
             {/* Conditional Rendering Logic */}
@@ -3539,7 +3589,7 @@ export const RenderStudentTest = ({
                       <Text
                         style={[
                           CourseActionStyles.optionText,
-                          {color: colors.text},
+                          { color: colors.text },
                           answers[activeQuestions[currentIndex].id] ===
                             option && CourseActionStyles.selectedOptionText,
                         ]}
@@ -3552,7 +3602,10 @@ export const RenderStudentTest = ({
               </View>
             ) : (
               <TextInput
-                style={[CourseActionStyles.input, {color: colors.text, borderColor: colors.border}]}
+                style={[
+                  CourseActionStyles.input,
+                  { color: colors.text, borderColor: colors.border },
+                ]}
                 value={answers[activeQuestions[currentIndex].id] || ''}
                 onChangeText={val =>
                   setAnswers({
@@ -3568,29 +3621,57 @@ export const RenderStudentTest = ({
 
           <View style={CourseActionStyles.testSideBySide}>
             <TouchableOpacity
-              style={[CourseActionStyles.submitBtn, {backgroundColor: colors.btnColor}]}
+              style={[
+                CourseActionStyles.submitBtn,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={() =>
                 currentIndex > 0 && setCurrentIndex(currentIndex - 1)
               }
             >
-              <Text style={[CourseActionStyles.submitBtnText, {color: colors.btnTextColor}]}>Prev</Text>
+              <Text
+                style={[
+                  CourseActionStyles.submitBtnText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Prev
+              </Text>
             </TouchableOpacity>
 
             {currentIndex === activeQuestions.length - 1 ? (
               <TouchableOpacity
-                style={[CourseActionStyles.submitBtn, {backgroundColor: colors.btnColor}]}
+                style={[
+                  CourseActionStyles.submitBtn,
+                  { backgroundColor: colors.btnColor },
+                ]}
                 onPress={handleFinalSubmit}
               >
-                <Text style={[CourseActionStyles.submitBtnText, {color: colors.btnTextColor}]}>
+                <Text
+                  style={[
+                    CourseActionStyles.submitBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
                   Submit Test
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[CourseActionStyles.submitBtn, {backgroundColor: colors.btnColor}]}
+                style={[
+                  CourseActionStyles.submitBtn,
+                  { backgroundColor: colors.btnColor },
+                ]}
                 onPress={() => setCurrentIndex(currentIndex + 1)}
               >
-                <Text style={[CourseActionStyles.submitBtnText, {color: colors.btnTextColor}]}>Next</Text>
+                <Text
+                  style={[
+                    CourseActionStyles.submitBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  Next
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -3598,10 +3679,19 @@ export const RenderStudentTest = ({
       )}
       <Modal visible={isFinished} transparent animationType="slide">
         <View style={CourseActionStyles.modalOverlay}>
-          <View style={[CourseActionStyles.resultCard, {backgroundColor: colors.backgroundSecondary}]}>
+          <View
+            style={[
+              CourseActionStyles.resultCard,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             {impersonationError ? (
               <>
-                <MaterialIcons name="cancel-outlined" size={60} color={colors.primary} />
+                <MaterialIcons
+                  name="cancel-outlined"
+                  size={60}
+                  color={colors.primary}
+                />
                 <Text
                   style={[
                     CourseActionStyles.scoreTitle,
@@ -3621,57 +3711,116 @@ export const RenderStudentTest = ({
                     'Your identity could not be verified on suspicions of impersonation.'}
                 </Text>
                 <TouchableOpacity
-                  style={[CourseActionStyles.startBtn, {backgroundColor: colors.btnColor}]}
+                  style={[
+                    CourseActionStyles.startBtn,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                   onPress={startTestWithSecurity}
                 >
-                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
+                  <Text
+                    style={[
+                      CourseActionStyles.startBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
                     Redo Test (Contact Admin if issue persists)
                   </Text>
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <MaterialIcons name="check-circle-outlined" size={50} color={colors.primary} />
+                <MaterialIcons
+                  name="check-circle-outlined"
+                  size={50}
+                  color={colors.primary}
+                />
                 <View style={CourseActionStyles.scoreCircle}>
-                  <Text style={[CourseActionStyles.scoreBig, {color: colors.primary}]}>
+                  <Text
+                    style={[
+                      CourseActionStyles.scoreBig,
+                      { color: colors.primary },
+                    ]}
+                  >
                     {finalResult.score}
                   </Text>
-                  <Text style={[CourseActionStyles.scoreSmall, {color: colors.primaryTint}]}>
+                  <Text
+                    style={[
+                      CourseActionStyles.scoreSmall,
+                      { color: colors.primaryTint },
+                    ]}
+                  >
                     / {finalResult.total}
                   </Text>
                 </View>
-                <Text style={[CourseActionStyles.scoreTitle, {color: colors.textDarker}]}>
+                <Text
+                  style={[
+                    CourseActionStyles.scoreTitle,
+                    { color: colors.textDarker },
+                  ]}
+                >
                   {
                     getAdvice((finalResult.score / finalResult.total) * 100)
                       .title
                   }
                 </Text>
-                <Text style={[CourseActionStyles.adviceText, {color: colors.text}]}>
+                <Text
+                  style={[
+                    CourseActionStyles.adviceText,
+                    { color: colors.text },
+                  ]}
+                >
                   {getAdvice((finalResult.score / finalResult.total) * 100).msg}
                 </Text>
                 <View style={CourseActionStyles.sideBySideCenteredRowSB}>
-                <TouchableOpacity
-                  style={[CourseActionStyles.startBtn, {backgroundColor: colors.btnColor}]}
-                  onPress={() => {
-                    navigation.navigate('Home');
-                  }}
-                >
-                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
-                    Back to Home
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.startBtn,
-                    { backgroundColor: colors.btnColor }
-                  ]}
-                  onPress={downloadStudentResultSheet}
-                >
-                  <MaterialIcons name="download-outlined" size={20} color={colors.btnTextColor} />
-                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
-                    Download Test Review
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      CourseActionStyles.startBtn,
+                      { backgroundColor: colors.btnColor },
+                    ]}
+                    onPress={() => {
+                      navigation.reset({
+                        index: 0,
+                        routes: [
+                          {
+                            name: 'Home',
+                            params: {
+                              activeTab: 'classroom',
+                            },
+                          },
+                        ],
+                      });
+                    }}
+                  >
+                    <Text
+                      style={[
+                        CourseActionStyles.startBtnText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
+                      Back to Home
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      CourseActionStyles.startBtn,
+                      { backgroundColor: colors.btnColor },
+                    ]}
+                    onPress={downloadStudentResultSheet}
+                  >
+                    <MaterialIcons
+                      name="download-outlined"
+                      size={20}
+                      color={colors.btnTextColor}
+                    />
+                    <Text
+                      style={[
+                        CourseActionStyles.startBtnText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
+                      Download Test Review
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </>
             )}
@@ -3785,7 +3934,6 @@ export const RenderViewLectureSchedule = ({
       });
     }
   };
-
   const renderLectureItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
     const isClickable =

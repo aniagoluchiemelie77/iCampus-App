@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import {handleLogout} from '../api/localPostApis';
 import Modal from 'react-native-modal';
-import {PRIMARY_COLOR} from '../assets/styles/colors';
+import { useTheme } from 'context/ThemeContext';
 
 interface LogoutModalProps {
   visible: boolean;
@@ -26,6 +26,7 @@ export const LogoutModal = ({
       console.log('Server logout failed, clearing local session anyway.');
     }
   };
+  const { colors } = useTheme();
 
   return (
     <Modal
@@ -36,21 +37,35 @@ export const LogoutModal = ({
       style={styles.modalOverride}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Logout</Text>
-          <Text style={styles.modalSubtitle}>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+            Logout
+          </Text>
+          <Text style={[styles.modalSubtitle, { color: colors.text }]}>
             Are you sure you want to logout from this device? This action can
             not be reversed.
           </Text>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: colors.border }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.cancelBtnText, { color: colors.primary }]}>
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.saveBtn}
+              style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
               onPress={handleLogoutAction}
             >
-              <Text style={styles.saveBtnText}>Logout</Text>
+              <Text style={[styles.saveBtnText, { color: colors.btnTextColor }]}>
+                Logout
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -65,7 +80,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 20,
@@ -73,12 +87,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
   },
   modalSubtitle: {
     marginVertical: 15,
     fontSize: 14,
-    color: '#222',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -87,25 +99,22 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
   },
   cancelBtn: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     alignItems: 'center',
     borderRadius: 15,
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR,
   },
   cancelBtnText: {
-    color: PRIMARY_COLOR,
     fontWeight: '600',
     fontSize: 14,
   },
   saveBtn: {
-    backgroundColor: PRIMARY_COLOR,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   saveBtnText: {
-    color: '#fff',
     fontWeight: '700',
     fontSize: 14,
   },

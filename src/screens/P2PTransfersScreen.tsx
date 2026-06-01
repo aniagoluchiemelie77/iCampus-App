@@ -234,14 +234,14 @@ export const IcashP2PScreen = () => {
               <FeatureCard
                 title="Scan QR Code"
                 sub="Scan to pay instantly"
-                icon="qrcode-scan"
+                icon="qr-code-outlined"
                 onPress={() => setScannerVisible(true)}
               />
               \
               <FeatureCard
                 title="Send via iTag"
                 sub="Search @username"
-                icon="at"
+                icon="alternate-email-outlined"
                 onPress={() => setStep('tagInput')}
               />
             </View>

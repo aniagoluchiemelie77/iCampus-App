@@ -24,16 +24,14 @@ import { PRIMARY_COLOR } from './Classroomcomponent';
 import { UserIdentity } from './UserIdentity';
 import { UserAvatar } from './UserAvatar';
 import { searchUsersByUid } from '../api/localGetApis';
-import {
-  PRIMARY_COLOR_TINT,
-  PRIMARY_COLOR_TINT_MAIN,
-} from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { User } from '../types/firebase';
 const { width } = Dimensions.get('window');
 import { formatEventDate } from '../utils/dateFormatter';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import Toast from 'react-native-toast-message';
 import toastConfig from '../components/ToastConfig';
+import { useTheme } from 'context/ThemeContext';
 export interface PostCardProps {
   post: Posts;
   isVisible?: boolean;
@@ -42,6 +40,7 @@ interface LinkedTextProps {
   content: string;
   onTagPress?: (tag: string) => void;
   onMentionPress?: (mention: string) => void;
+  colors: any;
 }
 export const MediaSection = ({ post, isVisible }: PostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -117,11 +116,13 @@ const PollView = ({
   currentUserId,
   postId,
   onVote,
+  colors,
 }: {
   poll: any;
   currentUserId: string;
   postId: string;
   onVote: (postId: string, optionId: string) => void;
+  colors: any;
 }) => {
   const hasVoted = poll.options.some((opt: any) =>
     opt.votes.includes(currentUserId),
@@ -142,33 +143,48 @@ const PollView = ({
             key={option.optionId}
             style={[
               styles.optionButton,
-              hasVoted && styles.optionButtonDisabled,
               isMyVote && styles.optionButtonSelected,
+              { borderColor: colors.primary },
             ]}
             disabled={hasVoted}
             onPress={() => onVote(postId, option.optionId)}
           >
-            {/* Progress Bar background fills behind the text */}
             {hasVoted && (
-              <View style={[styles.progressBg, { width: `${percentage}%` }]} />
+              <View
+                style={[
+                  styles.progressBg,
+                  {
+                    width: `${percentage}%`,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              />
             )}
-
             <View style={styles.optionContent}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[styles.optionText, isMyVote && styles.boldText]}>
+                <Text
+                  style={[
+                    styles.optionText,
+                    isMyVote
+                      ? { fontWeight: 'bold', color: colors.primary }
+                      : { color: colors.text },
+                  ]}
+                >
                   {option.text}
                 </Text>
                 {isMyVote && (
                   <MaterialIcons
-                    name="check-circle"
+                    name="check-circle-outlined"
                     size={14}
-                    color={PRIMARY_COLOR}
+                    color={colors.primary}
                     style={{ marginLeft: 5 }}
                   />
                 )}
               </View>
               {hasVoted && (
-                <Text style={styles.percentageText}>{percentage}%</Text>
+                <Text style={[styles.percentageText, { color: colors.text }]}>
+                  {percentage}%
+                </Text>
               )}
             </View>
           </TouchableOpacity>
@@ -176,19 +192,38 @@ const PollView = ({
       })}
 
       <View style={styles.pollFooter}>
-        <Text style={styles.voteCount}>{poll.totalVotes} votes</Text>
-        <Text style={styles.dotSeparator}>•</Text>
-        <Text style={styles.pollStatus}>
+        <Text style={[styles.voteCount, { color: colors.text }]}>
+          {poll.totalVotes} votes
+        </Text>
+        <Text style={[styles.pollStatus, { color: colors.text }]}>
           {hasVoted ? 'Final results' : '1 day left'}
         </Text>
       </View>
     </View>
   );
 };
-const LinkedText = ({
+const formatDisplayUrl = (url: string): string => {
+  let cleanPath = url.replace(/^(https?:\/\/)?(www\.)?/, '');
+  const slashIndex = cleanPath.indexOf('/');
+  if (slashIndex === -1 || slashIndex === cleanPath.length - 1) {
+    return 'icps.link/visit';
+  }
+  let path = cleanPath.slice(slashIndex + 1);
+  path = path.split('?')[0]; 
+  if (path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+  
+  if (path.length > 7) {
+    path = `${path.slice(0, 7)}...`;
+  }
+  return `icps.link/${path.toLowerCase()}`;
+};
+export const LinkedText = ({
   content,
   onTagPress,
   onMentionPress,
+  colors,
 }: LinkedTextProps) => {
   if (!content) return null;
 
@@ -196,51 +231,55 @@ const LinkedText = ({
   const parts = content.split(regex);
 
   const handleLinkPress = async (url: string) => {
-    const fullUrl = url.startsWith('www') ? `https://${url}` : url;
-    const supported = await Linking.canOpenURL(fullUrl);
-    if (supported) await Linking.openURL(fullUrl);
+    const fullUrl = url.startsWith('www.') ? `https://${url}` : url;
+    try {
+      const supported = await Linking.canOpenURL(fullUrl);
+      if (supported) {
+        await Linking.openURL(fullUrl);
+      }
+    } catch (err) {
+      console.error('Failed to open parsed deep link interaction:', err);
+    }
   };
-
   return (
-    <Text style={styles.baseText}>
+    <Text style={[styles.baseText, { color: colors.text }]}>
       {parts.map((part, index) => {
-        // Handle Links
-        if (part.match(/^https?:\/\/|www\./)) {
+        if (part.match(/^(https?:\/\/|www\.)/i)) {
           return (
             <Text
-              key={index}
-              style={styles.link}
+              key={`url-${index}`}
+              style={[styles.link, { color: colors.primary }]} 
               onPress={() => handleLinkPress(part)}
             >
-              {part}
+              {formatDisplayUrl(part)}
             </Text>
           );
         }
-        // Handle Hashtags
         if (part.startsWith('#')) {
           return (
             <Text
-              key={index}
-              style={styles.hashtag}
+              key={`tag-${index}`}
+              style={[styles.hashtag, { color: colors.primary || '#0A66C2' }]}
               onPress={() => onTagPress?.(part)}
             >
               {part}
             </Text>
           );
         }
-        // Handle Mentions
         if (part.startsWith('@')) {
           return (
             <Text
-              key={index}
-              style={styles.mention}
+              key={`mention-${index}`}
+              style={[
+                styles.mention,
+                { color: colors.primary, fontWeight: '600' },
+              ]}
               onPress={() => onMentionPress?.(part)}
             >
               {part}
             </Text>
           );
         }
-        // Normal Text
         return part;
       })}
     </Text>
@@ -248,6 +287,7 @@ const LinkedText = ({
 };
 export const PostCard = React.memo(
   ({ post, isVisible }: PostCardProps) => {
+    const { colors } = useTheme();
     const user = post.originalAuthor;
     const [isExpanded, setIsExpanded] = useState(false);
     const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -365,18 +405,28 @@ export const PostCard = React.memo(
       }
     }, [user, currentUser?.tier, currentUser?.usertype]);
     const eventDate = formatEventDate(post.eventMetadata?.startDate);
+    const reposterIsOrganization = !post.userId?.organizationName;
+    const reposterName = reposterIsOrganization
+      ? post.userId?.organizationName
+      : `${post.userId?.firstname} ${post.userId?.lastname}`;
 
     return (
       <Pressable
         onLongPress={() => setIsMenuVisible(true)}
         delayLongPress={400}
-        style={styles.container}
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderBottomColor: colors.text,
+          },
+        ]}
       >
         {post.isRepost && (
           <View style={styles.repostHeader}>
-            <MaterialIcons name="repeat" size={14} color={PRIMARY_COLOR_TINT} />
-            <Text style={styles.repostText}>
-              {`${post.userId?.firstname} ${post.userId?.lastname} reposted`}
+            <MaterialIcons name="repeat" size={14} color={colors.text} />
+            <Text style={[styles.repostText, { color: colors.text }]}>
+              {`${reposterName} reposted`}
             </Text>
           </View>
         )}
@@ -403,15 +453,15 @@ export const PostCard = React.memo(
             </Text>
           </View>
         </View>
-
-        {/* Post Content */}
         <View style={styles.contentContainer}>
           {post.postType === 'job' && (
             <View style={{ marginBottom: 10 }}>
-              <Text style={styles.jobTitleLarge}>
+              <Text
+                style={[styles.jobTitleLarge, { color: colors.textDarker }]}
+              >
                 {post.jobMetadata?.title}
               </Text>
-              <Text style={styles.jobCompanySub}>
+              <Text style={[styles.jobCompanySub, { color: colors.text }]}>
                 {post.jobMetadata?.company} • {post.jobMetadata?.location}
               </Text>
             </View>
@@ -422,17 +472,23 @@ export const PostCard = React.memo(
                 <MaterialIcons
                   name="calendar-month-outlined"
                   size={16}
-                  color={PRIMARY_COLOR_TINT}
+                  color={colors.text}
                   style={{ marginRight: 3 }}
                 />
-                <Text style={styles.calMonth}>{eventDate.month}</Text>
-                <Text style={styles.calDay}>{eventDate.day}</Text>
+                <Text style={[styles.calMonth, { color: colors.text }]}>
+                  {eventDate.month}
+                </Text>
+                <Text style={[styles.calDay, { color: colors.text }]}>
+                  {eventDate.day}
+                </Text>
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.eventTitleText}>
+                <Text style={[styles.eventTitleText, { color: colors.text }]}>
                   {post.eventMetadata?.title}
                 </Text>
-                <Text style={styles.eventLocationText}>
+                <Text
+                  style={[styles.eventLocationText, { color: colors.text }]}
+                >
                   {post.eventMetadata?.location}
                 </Text>
               </View>
@@ -440,10 +496,10 @@ export const PostCard = React.memo(
           )}
           <LinkedText
             content={displayText ?? ''}
+            colors={colors}
             onTagPress={(tag: string) => {
               const cleanTag = tag.replace('#', '');
               console.log(cleanTag);
-              //navigation.navigate('SearchScreen', { query: cleanTag });
             }}
             onMentionPress={(mention: string) => {
               const name = mention.replace('@', '');
@@ -452,7 +508,7 @@ export const PostCard = React.memo(
             }}
           />
           {shouldShowSeeMore && !isExpanded && (
-            <Text style={styles.content}>...</Text>
+            <Text style={[styles.content, { color: colors.text }]}>...</Text>
           )}
           {shouldShowSeeMore && (
             <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
@@ -465,45 +521,43 @@ export const PostCard = React.memo(
             <TouchableOpacity
               style={[
                 styles.primaryActionButton,
-                { marginHorizontal: 15, marginBottom: 10 },
+                { backgroundColor: colors.btnColor },
               ]}
               onPress={() => handleJobApply(post.jobMetadata!.applicationLink)}
             >
-              <Text style={styles.primaryActionText}>Apply Now</Text>
+              <Text
+                style={[
+                  styles.primaryActionText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Apply Now
+              </Text>
               <MaterialIcons
                 name="launch-outlined"
                 size={16}
-                color="white"
-                style={{ marginLeft: 8 }}
+                color={colors.btnTextColor}
+                style={{ marginLeft: 3 }}
               />
             </TouchableOpacity>
           )}
-
           {post.postType === 'event' && (
-            <TouchableOpacity
-              style={[
-                styles.rsvpButtonOutline,
-                { marginHorizontal: 15, marginBottom: 10 },
-              ]}
-            >
+            <TouchableOpacity style={styles.rsvpButtonOutline}>
               <Text style={styles.rsvpText}>RSVP for Event</Text>
             </TouchableOpacity>
           )}
         </View>
-
-        {/* 3. Conditional: Show Poll OR Media */}
         {post.poll ? (
           <PollView
             poll={post.poll}
             currentUserId={currentUser?.uid}
             postId={post.postId}
             onVote={handleVote}
+            colors={colors}
           />
         ) : (
           <MediaSection post={post} isVisible={isVisible} />
         )}
-
-        {/* Footer: Interactions */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.statGroup}
@@ -514,9 +568,9 @@ export const PostCard = React.memo(
             <MaterialIcons
               name="chatbubble-outline"
               size={18}
-              color={PRIMARY_COLOR_TINT}
+              color={colors.primaryTint}
             />
-            <Text style={styles.statText}>
+            <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.commentsCount ?? 0)}
             </Text>
           </TouchableOpacity>
@@ -525,11 +579,11 @@ export const PostCard = React.memo(
             onPress={() => toggleLike(post.postId)}
           >
             <MaterialIcons
-              name={isLiked ? 'heart' : 'heart-outline'}
+              name={isLiked ? 'heart' : 'heart-outlined'}
               size={18}
-              color={isLiked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
+              color={isLiked ? colors.primary : colors.primaryTint}
             />
-            <Text style={styles.statText}>
+            <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.likes?.length || 0)}
             </Text>
           </TouchableOpacity>
@@ -540,9 +594,9 @@ export const PostCard = React.memo(
             <MaterialIcons
               name="repeat"
               size={18}
-              color={post.isRepost ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
+              color={post.isRepost ? colors.primary : colors.primaryTint}
             />
-            <Text style={styles.statText}>
+            <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.repostsCount ?? 0)}
             </Text>
           </TouchableOpacity>
@@ -551,11 +605,11 @@ export const PostCard = React.memo(
             onPress={() => toggleBookmark(post.postId)}
           >
             <MaterialIcons
-              name={isBookmarked ? 'bookmark' : 'bookmark-border'}
+              name={isBookmarked ? 'bookmark' : 'bookmark-border-outlined'}
               size={18}
-              color={isBookmarked ? PRIMARY_COLOR : PRIMARY_COLOR_TINT}
+              color={isBookmarked ? colors.primary : colors.primaryTint}
             />
-            <Text style={styles.statText}>
+            <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.bookmarks?.length || 0)}
             </Text>
           </TouchableOpacity>
@@ -563,9 +617,9 @@ export const PostCard = React.memo(
             <MaterialIcons
               name="bar-chart"
               size={18}
-              color={PRIMARY_COLOR_TINT}
+              color={colors.primaryTint}
             />
-            <Text style={styles.statText}>
+            <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.impressions || 0)}
             </Text>
           </View>
@@ -573,10 +627,7 @@ export const PostCard = React.memo(
             style={styles.statGroup}
             onPress={() => handleExternalShare(post)}
           >
-            <MaterialIcons name="share" size={18} color={PRIMARY_COLOR_TINT} />
-            <Text style={styles.statText}>
-              {formatStatNumber(post.shares?.length || 0)}
-            </Text>
+            <MaterialIcons name="share" size={18} color={colors.primaryTint} />
           </TouchableOpacity>
         </View>
         <Modal
@@ -589,35 +640,46 @@ export const PostCard = React.memo(
             style={styles.backdrop}
             onPress={() => setIsMenuVisible(false)}
           >
-            <View style={styles.sheetContainer}>
+            <View
+              style={[
+                styles.sheetContainer,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
               <View style={styles.dragIndicator} />
 
               <TouchableOpacity
-                style={styles.menuItem}
+                style={[styles.menuItem, { borderBottomColor: colors.text }]}
                 onPress={handleCopyLink}
               >
-                <MaterialIcons name="link" size={22} color="#333" />
-                <Text style={styles.menuText}>Copy link</Text>
+                <MaterialIcons name="link" size={22} color={colors.text} />
+                <Text style={[styles.menuText, { color: colors.text }]}>
+                  Copy link
+                </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={styles.menuItem}
+                style={[styles.menuItem, { borderBottomColor: colors.text }]}
                 onPress={() => handleExternalShare(post)}
               >
-                <MaterialIcons name="share" size={22} color="#333" />
-                <Text style={styles.menuText}>Share via...</Text>
+                <MaterialIcons name="share" size={22} color={colors.text} />
+                <Text style={[styles.menuText, { color: colors.text }]}>
+                  Share via...
+                </Text>
               </TouchableOpacity>
-
               {isOwner && (
                 <>
                   <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[
+                      styles.menuItem,
+                      { borderBottomColor: colors.text },
+                    ]}
                     onPress={handleEditNavigate}
                   >
-                    <MaterialIcons name="edit" size={22} color="#333" />
-                    <Text style={styles.menuText}>Edit post</Text>
+                    <MaterialIcons name="edit" size={22} color={colors.text} />
+                    <Text style={[styles.menuText, { color: colors.text }]}>
+                      Edit post
+                    </Text>
                   </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[styles.menuItem]}
                     onPress={confirmDelete}
@@ -625,9 +687,9 @@ export const PostCard = React.memo(
                     <MaterialIcons
                       name="delete-outlined"
                       size={22}
-                      color={PRIMARY_COLOR}
+                      color={colors.text}
                     />
-                    <Text style={[styles.menuText, { color: PRIMARY_COLOR }]}>
+                    <Text style={[styles.menuText, { color: colors.text }]}>
                       Delete post
                     </Text>
                   </TouchableOpacity>
@@ -650,10 +712,8 @@ export const PostCard = React.memo(
 );
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     padding: 15,
     borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
   },
   repostHeader: {
     flexDirection: 'row',
@@ -661,10 +721,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   repostText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
-    marginLeft: 10,
   },
   header: {
     flexDirection: 'row',
@@ -705,11 +763,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   content: {
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 20,
-    color: '#333',
   },
   seeMoreText: {
+    fontSize: 12,
     color: PRIMARY_COLOR,
     fontWeight: '600',
     marginTop: 4,
@@ -730,7 +788,6 @@ const styles = StyleSheet.create({
   statText: {
     marginLeft: 5,
     fontSize: 12,
-    color: '#666',
   },
   pagination: {
     flexDirection: 'row',
@@ -766,17 +823,12 @@ const styles = StyleSheet.create({
     height: 45,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
     justifyContent: 'center',
     marginBottom: 8,
     overflow: 'hidden',
     position: 'relative',
   },
-  optionButtonDisabled: {
-    borderColor: PRIMARY_COLOR_TINT_MAIN,
-  },
   optionButtonSelected: {
-    borderColor: PRIMARY_COLOR,
     borderWidth: 1.5,
   },
   progressBg: {
@@ -784,7 +836,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    backgroundColor: PRIMARY_COLOR_TINT, // Light brand color fill
   },
   optionContent: {
     flexDirection: 'row',
@@ -795,40 +846,29 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 14,
-    color: PRIMARY_COLOR,
+    flex: 1,
   },
   percentageText: {
     fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT_MAIN,
   },
   pollFooter: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 5,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   voteCount: {
     fontSize: 13,
-    color: PRIMARY_COLOR_TINT,
-  },
-  dotSeparator: {
-    marginHorizontal: 5,
-    color: '#666',
   },
   pollStatus: {
     fontSize: 13,
-    color: PRIMARY_COLOR_TINT,
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: PRIMARY_COLOR_TINT_MAIN,
   },
   baseText: {
     fontSize: 14,
-    color: '#2222',
     lineHeight: 20,
   },
   link: {
-    color: PRIMARY_COLOR, // LinkedIn Blue
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
@@ -841,14 +881,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   jobTitleLarge: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#222',
   },
   jobCompanySub: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 2,
+    marginTop: 4,
   },
   eventBody: {
     padding: 15,
@@ -859,8 +897,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   calendarMini: {
-    backgroundColor: '#fadccc',
-    borderRadius: 8,
     padding: 8,
     alignItems: 'center',
     width: 50,
@@ -868,52 +904,47 @@ const styles = StyleSheet.create({
   },
   calMonth: {
     fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
     fontWeight: 'bold',
     marginRight: 3,
   },
   calDay: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR_TINT,
   },
   eventTitleText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#222',
   },
   eventLocationText: {
     fontSize: 12,
-    color: '#2222',
     marginTop: 2,
   },
   primaryActionButton: {
-    backgroundColor: PRIMARY_COLOR,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    marginTop: 15,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginVertical: 15,
   },
   primaryActionText: {
-    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 14,
   },
   rsvpButtonOutline: {
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    borderRadius: 13,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    marginVertical: 15,
   },
   rsvpText: {
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 14,
   },
   backdrop: {
     flex: 1,
@@ -921,7 +952,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#fadccc',
     position: 'absolute',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -942,14 +972,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 15,
-    borderBottomColor: PRIMARY_COLOR_TINT,
     borderBottomWidth: 0.8,
     marginBottom: 15,
   },
   menuText: {
     fontSize: 14,
-    marginLeft: 15,
-    color: '#333',
+    marginLeft: 10,
     fontWeight: '500',
   },
 });

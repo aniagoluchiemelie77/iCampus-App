@@ -416,6 +416,8 @@ export interface Posts {
     firstname: string;
     lastname: string;
     profilePic?: string;
+    organizationName?: string;
+    tier?: UserTier
   };
   content?: string;
   media?: {
@@ -584,7 +586,6 @@ export interface Assignment {
     isReceived: boolean; 
   }[];
 }
-// This type requires the core fields but ignores the ones the backend generates
 export type CreateLecturePayload = Omit<
   Lecture, 
   'id' | '_id' | 'isTaught' | 'attendance' | 'status'
@@ -596,8 +597,7 @@ export interface Question {
   type: 'MCQ' | 'ShortAnswer' | 'TrueFalse';
   questionText: string;
   options?: string[];
-  correctAnswer: string; // Used for auto-grading
-  points: number;
+  correctAnswer: string; 
 }
 export interface CreateTestPayload {
   id?: string;

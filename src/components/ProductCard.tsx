@@ -9,13 +9,10 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppDataContext } from './EventContext';
 import { Product } from '../types/firebase';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-  PRIMARY_COLOR_TINT_MAIN,
-} from 'assets/styles/colors';
+import { PRIMARY_COLOR } from 'assets/styles/colors';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { CurrencyDisplay } from './CurrencyFormatter';
+import { useTheme } from 'context/ThemeContext';
 
 const AnimatedThumbnail = ({ urls }: { urls: string[] }) => {
   const [index, setIndex] = useState(0);
@@ -56,6 +53,7 @@ export const ProductCard = ({
   product: Product;
   onPress: () => void;
 }) => {
+  const { colors } = useTheme();
   const { handleToggleFavorite, handleCartItemToggle, currentUser } =
     useAppDataContext();
   const isFavorited =
@@ -72,31 +70,62 @@ export const ProductCard = ({
         ).toFixed(1)
       : 'New';
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.backgroundSecondary,
+          borderColor: colors.text,
+          shadowColor: colors.text,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
       <View style={styles.imageContainer}>
         <AnimatedThumbnail urls={product.mediaUrls} />
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeText}>{product.category.toUpperCase()}</Text>
+        <View
+          style={[
+            styles.typeBadge,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.typeText, { color: colors.primary }]}>
+            {product.niche?.toUpperCase()}
+          </Text>
         </View>
         {!product.isAvailable && (
-          <View style={styles.soldOutOverlay}>
-            <Text style={styles.soldOutText}>OUT OF STOCK</Text>
+          <View
+            style={[
+              styles.soldOutOverlay,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text style={[styles.soldOutText, { color: colors.text }]}>
+              OUT OF STOCK
+            </Text>
           </View>
         )}
-        <View style={styles.priceBadge}>
+        <View
+          style={[
+            styles.priceBadge,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <CurrencyDisplay value={product.priceInPoints} size="small" />
         </View>
       </View>
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text
+          style={[styles.title, { color: colors.textDarker }]}
+          numberOfLines={2}
+        >
           {product.title}
         </Text>
-
-        {/* Ratings & FavCount Row */}
         <View style={styles.statsRow}>
           <View style={styles.inlineStat}>
             <Text style={styles.statText}>{avgRating}</Text>
-            <MaterialIcons name="star" size={14} color={PRIMARY_COLOR} />
+            <MaterialIcons name="star" size={14} color={colors.primary} />
           </View>
           <View style={styles.inlineStat}>
             <Text style={styles.statText}>
@@ -105,28 +134,22 @@ export const ProductCard = ({
             <MaterialIcons name="favorite" size={14} color={PRIMARY_COLOR} />
           </View>
         </View>
-
-        {/* 3. Action Row */}
         <View style={styles.actionRow}>
           <TouchableOpacity
             onPress={() => handleToggleFavorite(product.productId)}
-            style={[styles.iconBtn, isFavorited && styles.iconBtnSelected]}
           >
             <MaterialIcons
               name={isFavorited ? 'favorite' : 'favorite-border'}
               size={22}
-              color={isFavorited ? '#fff' : PRIMARY_COLOR}
+              color={colors.primary}
             />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => handleCartItemToggle(product)}
-            style={[styles.iconBtn, isInCart && styles.iconBtnSelected]}
-          >
+          <TouchableOpacity onPress={() => handleCartItemToggle(product)}>
             <MaterialIcons
               name={isInCart ? 'shopping-cart' : 'add-shopping-cart'}
               size={20}
-              color={isInCart ? '#fff' : PRIMARY_COLOR}
+              color={colors.primary}
             />
           </TouchableOpacity>
         </View>
@@ -136,28 +159,23 @@ export const ProductCard = ({
 };
 const styles = StyleSheet.create({
   info: { padding: 8 },
-  title: { fontSize: 14, fontWeight: 'bold', color: '#222' },
+  title: { fontSize: 14, fontWeight: 'bold' },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 10,
     alignItems: 'center',
   },
-  iconBtn: { padding: 4 },
-  iconBtnSelected: {
-    backgroundColor: PRIMARY_COLOR,
-  },
   card: {
-    backgroundColor: '#fadccc',
     borderRadius: 16,
     width: '47%',
     margin: '1.5%',
     overflow: 'hidden',
     elevation: 3,
-    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderWidth: 0.8,
   },
   imageContainer: {
     width: '100%',
@@ -173,7 +191,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     left: 5,
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -182,26 +199,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 5,
     bottom: -7,
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   typeText: {
-    color: PRIMARY_COLOR,
     fontSize: 10,
     fontWeight: '800',
   },
   soldOutOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     alignContent: 'center',
     position: 'absolute',
     top: 3,
     right: 3,
   },
   soldOutText: {
-    color: PRIMARY_COLOR,
     fontWeight: 'bold',
     fontSize: 12,
   },

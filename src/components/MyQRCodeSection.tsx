@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { MarketplaceOrder } from '../types/firebase';
 import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { CurrencyDisplay } from './CurrencyFormatter';
+import { useTheme } from 'context/ThemeContext';
 
 interface OrderProps {
   order: {
@@ -47,22 +48,41 @@ const handleDownload = (url: string) => {
   );
 };
 export const MyQRCodeSection = ({ itagusername }: { itagusername: string }) => {
+  const { colors } = useTheme();
   return (
-    <View style={QRCodeStyles.qrSection}>
-      <Text style={QRCodeStyles.sectionLabel}>Your Receiving iTag</Text>
-      <View style={QRCodeStyles.qrWrapper}>
+    <View
+      style={[
+        QRCodeStyles.qrSection,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <Text style={[QRCodeStyles.sectionLabel, { color: colors.text }]}>
+        Your Receiving iTag
+      </Text>
+      <View
+        style={[
+          QRCodeStyles.qrWrapper,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+      >
         <QRCode
           value={itagusername}
           size={200}
-          color={PRIMARY_COLOR}
-          backgroundColor="white"
+          color={colors.text}
+          backgroundColor={colors.backgroundSecondary}
         />
       </View>
-      <Text style={QRCodeStyles.iTagText}>@{itagusername}</Text>
+      <Text style={[QRCodeStyles.iTagText, { color: colors.text }]}>
+        @{itagusername}
+      </Text>
     </View>
   );
 };
 export const OrderAccordion = ({ order }: OrderProps) => {
+  const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const navigation = useNavigation<any>();
 
@@ -74,7 +94,15 @@ export const OrderAccordion = ({ order }: OrderProps) => {
   const isPending = order.status === 'pending_delivery';
 
   return (
-    <View style={QRCodeStyles.cardContainer}>
+    <View
+      style={[
+        QRCodeStyles.cardContainer,
+        {
+          backgroundColor: colors.backgroundSecondary,
+          shadowColor: colors.border,
+        },
+      ]}
+    >
       <TouchableOpacity
         onPress={toggleAccordion}
         activeOpacity={0.7}
@@ -85,36 +113,51 @@ export const OrderAccordion = ({ order }: OrderProps) => {
             style={[
               QRCodeStyles.statusDot,
               {
-                backgroundColor: isPending ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
+                backgroundColor: isPending ? colors.primary : colors.text,
               },
             ]}
           />
           <View>
-            <Text style={QRCodeStyles.productTitle} numberOfLines={1}>
+            <Text
+              style={[QRCodeStyles.productTitle, { color: colors.textDarker }]}
+              numberOfLines={1}
+            >
               {order.productName}
             </Text>
-            <Text style={QRCodeStyles.orderIdText}>Order #{order.orderId}</Text>
+            <Text style={[QRCodeStyles.orderIdText, { color: colors.text }]}>
+              Order #{order.orderId}
+            </Text>
           </View>
         </View>
         <MaterialIcons
           name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
           size={24}
-          color={PRIMARY_COLOR}
+          color={colors.text}
         />
       </TouchableOpacity>
       {expanded && (
         <View style={QRCodeStyles.expandedContent}>
           {isPending ? (
             <View style={QRCodeStyles.qrSection2}>
-              <View style={QRCodeStyles.qrWrapper2}>
+              <View
+                style={[
+                  QRCodeStyles.qrWrapper2,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.text,
+                  },
+                ]}
+              >
                 <QRCode
                   value={order.orderId}
                   size={160}
-                  color={PRIMARY_COLOR}
-                  backgroundColor="white"
+                  color={colors.text}
+                  backgroundColor={colors.backgroundSecondary}
                 />
               </View>
-              <Text style={QRCodeStyles.instructionText}>
+              <Text
+                style={[QRCodeStyles.instructionText, { color: colors.text }]}
+              >
                 Show this QR code to the{' '}
                 {order.selectedStation ? 'Agent' : 'Seller'}
               </Text>
@@ -124,9 +167,11 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                   <MaterialIcons
                     name="local-shipping-outlined"
                     size={16}
-                    color={PRIMARY_COLOR_TINT}
+                    color={colors.text}
                   />
-                  <Text style={QRCodeStyles.stationText}>
+                  <Text
+                    style={[QRCodeStyles.stationText, { color: colors.text }]}
+                  >
                     {order.selectedStation.name}
                   </Text>
                 </View>
@@ -137,28 +182,48 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               <MaterialIcons
                 name="check-circle-outlined"
                 size={40}
-                color={PRIMARY_COLOR}
+                color={colors.text}
               />
               <Text style={QRCodeStyles.completedText}>
                 Transaction Completed
               </Text>
               {order.productType === 'file' && order.fileUrl && (
                 <TouchableOpacity
-                  style={QRCodeStyles.downloadButton}
+                  style={[
+                    QRCodeStyles.downloadButton,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                   onPress={() => handleDownload(order.fileUrl!)}
                 >
-                  <MaterialIcons name="file-download" size={20} color="white" />
-                  <Text style={QRCodeStyles.downloadButtonText}>
+                  <MaterialIcons
+                    name="file-download"
+                    size={20}
+                    color={colors.btnTextColor}
+                  />
+                  <Text
+                    style={[
+                      QRCodeStyles.downloadButtonText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
                     Download File
                   </Text>
                 </TouchableOpacity>
               )}
               {order.productType === 'course' && (
                 <TouchableOpacity
-                  style={QRCodeStyles.accessButton}
+                  style={[
+                    QRCodeStyles.accessButton,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                   onPress={() => navigation.navigate('MyDownloads')}
                 >
-                  <Text style={QRCodeStyles.accessButtonText}>
+                  <Text
+                    style={[
+                      QRCodeStyles.accessButtonText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
                     Go to My Courses
                   </Text>
                 </TouchableOpacity>
@@ -300,29 +365,38 @@ const DetailItem = ({
 );
 
 export const FAQItem = ({ question, answer }: FAQItemProps) => {
+  const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const toggleAccordion = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
   return (
-    <View style={QRCodeStyles.cardContainer}>
+    <View
+      style={[
+        QRCodeStyles.cardContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <TouchableOpacity
         onPress={toggleAccordion}
         activeOpacity={0.7}
         style={[QRCodeStyles.header, expanded && QRCodeStyles.headerExpanded]}
       >
-        <Text style={QRCodeStyles.questionText}>Q: {question}</Text>
+        <Text style={[QRCodeStyles.questionText, { color: colors.textDarker }]}>
+          Q: {question}
+        </Text>
         <MaterialIcons
           name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
           size={24}
-          color={PRIMARY_COLOR_TINT}
+          color={colors.text}
         />
       </TouchableOpacity>
-
       {expanded && (
         <View style={QRCodeStyles.expandedContent}>
-          <Text style={QRCodeStyles.answerText}>{answer}</Text>
+          <Text style={[QRCodeStyles.answerText, { color: colors.text }]}>
+            {answer}
+          </Text>
         </View>
       )}
     </View>
@@ -344,12 +418,10 @@ const QRCodeStyles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 18,
-    color: '#2222',
     fontWeight: 'bold',
   },
   qrWrapper: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     marginTop: 10,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -358,11 +430,9 @@ const QRCodeStyles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
     borderWidth: 1,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   qrWrapper2: {
     padding: 10,
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 10 },
@@ -370,21 +440,18 @@ const QRCodeStyles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   iTagText: {
     marginTop: 15,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
-    color: PRIMARY_COLOR,
     letterSpacing: 0.5,
     textAlign: 'center',
   },
   cardContainer: {
-    backgroundColor: '#fadccc',
     width: '100%',
     borderRadius: 12,
-    marginVertical: 8,
+    marginVertical: 10,
     marginHorizontal: 4,
     elevation: 3,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -418,11 +485,10 @@ const QRCodeStyles = StyleSheet.create({
   productTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222',
   },
   orderIdText: {
     fontSize: 10,
-    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
     marginTop: 2,
   },
   expandedContent: {
@@ -431,7 +497,6 @@ const QRCodeStyles = StyleSheet.create({
   },
   instructionText: {
     fontSize: 14,
-    color: PRIMARY_COLOR,
     textAlign: 'center',
     marginBottom: 15,
   },
@@ -444,8 +509,7 @@ const QRCodeStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   stationText: {
-    fontSize: 13,
-    color: PRIMARY_COLOR_TINT,
+    fontSize: 14,
     marginLeft: 5,
     fontWeight: '500',
   },
@@ -460,28 +524,24 @@ const QRCodeStyles = StyleSheet.create({
   },
   accessButton: {
     marginTop: 15,
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 13,
   },
   accessButtonText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
   },
   downloadButton: {
     flexDirection: 'row',
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 13,
     alignItems: 'center',
     marginTop: 15,
-    gap: 8,
+    gap: 5,
   },
   downloadButtonText: {
-    color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -522,15 +582,13 @@ const QRCodeStyles = StyleSheet.create({
     flex: 1,
   },
   questionText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#222',
     flex: 1,
     paddingRight: 8,
   },
   answerText: {
     fontSize: 14,
-    color: '#2222',
     lineHeight: 20,
   },
 });

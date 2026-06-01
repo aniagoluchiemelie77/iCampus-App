@@ -49,15 +49,23 @@ export const OrderScannerModal = ({ isVisible, onClose, onSuccess, instructionTe
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scanFrame: {
     width: 250,
     height: 250,
     borderWidth: 2,
-    borderColor: '#FFF',
     borderRadius: 20,
     backgroundColor: 'transparent',
   },
-  instruction: { color: '#FFF', marginTop: 40, fontSize: 14, fontWeight: '600' },
+  instruction: {
+    color: '#FFF',
+    marginTop: 40,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   closeBtn: { position: 'absolute', top: 50, right: 20, padding: 10 },
 });
