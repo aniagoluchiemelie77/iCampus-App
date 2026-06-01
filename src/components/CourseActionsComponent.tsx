@@ -42,7 +42,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { create, all } from 'mathjs';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Logo from '../assets/images/Logo';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
@@ -183,41 +183,39 @@ export const FloatingCalculator = ({
       <View style={CourseActionStyles.miniCalculatorHeader}>
         <Text style={[CourseActionStyles.miniCalculatorHeaderText, {color: colors.text}]}>Calc</Text>
         <TouchableOpacity onPress={onClose}>
-          <Icon name="close-circle" size={16} color={PRIMARY_COLOR} />
+          <MaterialIcons name="cancel-outlined" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
-
       <View style={CourseActionStyles.miniCalcDisplay}>
         <Text
           numberOfLines={1}
-          style={CourseActionStyles.miniCalcDisplayExpressionText}
+          style={[CourseActionStyles.miniCalcDisplayExpressionText, {color: colors.text}]}
         >
           {expression || '0'}
         </Text>
         <Text
           numberOfLines={1}
-          style={CourseActionStyles.miniCalcDisplayResultsText}
+          style={[CourseActionStyles.miniCalcDisplayResultsText, {color: colors.text}]}
         >
           {result || ''}
         </Text>
       </View>
-
       <View>
         {buttons.map((row: string[], i: number) => (
-          <View key={i} style={{ flexDirection: 'row' }}>
+          <View key={i} style={CourseActionStyles.btnContainer}>
             {row.map(btn => (
               <TouchableOpacity
                 key={btn}
                 style={[
                   CourseActionStyles.miniButton,
-                  btn === '=' && { backgroundColor: PRIMARY_COLOR },
+                  btn === '=' && { backgroundColor: colors.btnColor },
                 ]}
                 onPress={() => handlePress(btn)}
               >
                 <Text
                   style={[
                     CourseActionStyles.miniBtnText,
-                    btn === '=' && { color: '#fff' },
+                    btn === '=' ? { color: colors.btnTextColor } : {color: colors.text}
                   ]}
                 >
                   {btn}
@@ -5725,39 +5723,34 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 5,
+    alignItems: 'center'
   },
   miniCalculatorHeaderText: {
     fontSize: 14,
     fontWeight: '700',
   },
   miniCalcDisplay: {
-    backgroundColor: '#f8f9fa',
     borderRadius: 5,
-    padding: 4,
+    padding: 5,
     marginBottom: 8,
     alignItems: 'flex-end',
   },
   miniCalcDisplayExpressionText: {
     fontSize: 10,
-    color: '#6c6c6c22',
   },
   miniCalcDisplayResultsText: {
     fontSize: 14,
-    color: '#2222',
     fontWeight: 'bold',
   },
   miniBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#2222',
   },
   miniButton: {
     flex: 1,
     height: 30,
     margin: 1,
-    backgroundColor: '#eeeeee',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     borderRadius: 4,
   },
   downloadTestBtn: {
@@ -5785,5 +5778,8 @@ export const CourseActionStyles = StyleSheet.create({
   cheatCount:{
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  btnContainer:{
+    flexDirection: 'row',
   }
 });

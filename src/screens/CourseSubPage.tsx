@@ -9,10 +9,7 @@ import {
 } from '../types/firebase';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '../components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { useAppSelector } from '../components/hooks';
 import {
