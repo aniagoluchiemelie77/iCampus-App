@@ -31,7 +31,6 @@ import {
   Assignment,
   User,
   CourseException,
-  LecturerExceptionView,
   Question,
   CreateLecturePayload,
   CreateTestPayload,
@@ -65,12 +64,19 @@ import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { deleteCourseMaterial } from '../api/localDeleteApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { updateCourseContent } from '../api/localPutApis';
-import { createCourseContent } from '../api/localPostApis';
+import {
+  createCourseContent,
+  verifyFacialIdentity,
+} from '../api/localPostApis';
 import { deleteCourseContent, deleteAssignment } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
 import { formatDate } from '../utils/dateFormatter';
-import { fetchAllAssignments } from 'api/localGetApis';
+import {
+  fetchAllAssignments,
+  getAssessmentAnalysisUrl,
+} from 'api/localGetApis';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants';
 const { width } = Dimensions.get('window');
 const math = create(all);
 
@@ -85,12 +91,8 @@ type PageType =
   | 'View Assessment Report'
   | 'AI Assisted Learning'
   | 'Library';
-interface AIScoreResult {
-  questionId: string;
-  similarityScore: number;
-}
 interface LecturerManageProps {
-  exceptions: LecturerExceptionView[];
+  exceptions: CourseException[];
   searchQuery: string;
   refreshing: boolean;
   onRefresh: () => void;
@@ -136,6 +138,7 @@ interface AddExceptionProps {
   user: User;
   onSave: (data: Partial<CourseException>) => void;
   isSaving: boolean;
+  lectures: Lecture[];
 }
 interface HeaderProps {
   onBack: () => void;
@@ -155,8 +158,16 @@ interface CreateAssignmentProps {
 interface StudentTestProps {
   test: CreateTestPayload;
   user: any;
-  onSubmit: (payload: any) => Promise<void>; // Use 'onSave' to match your JSX
+  onSubmit: (payload: any) => Promise<void>;
 }
+const shuffleArray = (array: any[]) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
 export const FloatingCalculator = ({
   visible,
   onClose,
@@ -164,13 +175,13 @@ export const FloatingCalculator = ({
   result,
   handlePress,
   buttons,
+  colors
 }: any) => {
   if (!visible) return null;
-
   return (
-    <View style={CourseActionStyles.miniCalculator}>
+    <View style={[CourseActionStyles.miniCalculator, {backgroundColor: colors.backgroundSecondary}]}>
       <View style={CourseActionStyles.miniCalculatorHeader}>
-        <Text style={CourseActionStyles.miniCalculatorHeaderText}>Calc</Text>
+        <Text style={[CourseActionStyles.miniCalculatorHeaderText, {color: colors.text}]}>Calc</Text>
         <TouchableOpacity onPress={onClose}>
           <Icon name="close-circle" size={16} color={PRIMARY_COLOR} />
         </TouchableOpacity>
@@ -229,7 +240,7 @@ export const chartConfig = {
     borderRadius: 16,
   },
   propsForBackgroundLines: {
-    strokeDasharray: '', // solid background lines
+    strokeDasharray: '',
     stroke: '#ECEFF1',
   },
 };
@@ -569,13 +580,15 @@ export const AddExceptionModal = ({
   user,
   onSave,
   isSaving,
+  lectures,
 }: AddExceptionProps) => {
+  const { colors } = useTheme();
   const [category, setCategory] =
     useState<CourseException['reasonCategory']>('Personal');
   const [reason, setReason] = useState('');
   const [lectureId, setLectureId] = useState('');
   const futureLectures =
-    course.Lectures?.filter(l => {
+    lectures.filter(l => {
       const lectureDate = new Date(l.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -608,7 +621,6 @@ export const AddExceptionModal = ({
       status: 'pending',
       date: new Date().toISOString(),
     };
-
     onSave(newException);
   };
 
@@ -616,22 +628,43 @@ export const AddExceptionModal = ({
     <Modal visible={visible} animationType="slide" transparent>
       <Pressable style={CourseActionStyles.modalOverlay} onPress={onClose}>
         <TouchableWithoutFeedback>
-          <View style={CourseActionStyles.exceptionModalContent}>
-            <Text style={CourseActionStyles.modalTitle}>Request Exception</Text>
-            <Text style={CourseActionStyles.modalSubtitle}>
+          <View
+            style={[
+              CourseActionStyles.exceptionModalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text
+              style={[
+                CourseActionStyles.modalTitle,
+                { color: colors.textDarker },
+              ]}
+            >
+              Request Exception
+            </Text>
+            <Text
+              style={[CourseActionStyles.modalSubtitle, { color: colors.text }]}
+            >
               {course.courseTitle}
             </Text>
-
-            {/* Lecture Selector */}
-            <Text style={CourseActionStyles.label}>
+            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
               Which lecture will you be missing?
             </Text>
-            <View style={CourseActionStyles.pickerContainer}>
+            <View
+              style={[
+                CourseActionStyles.pickerContainer,
+                { borderColor: colors.border },
+              ]}
+            >
               <Picker
                 selectedValue={lectureId}
                 onValueChange={itemValue => setLectureId(itemValue)}
               >
-                <Picker.Item label="Select lecture..." value="" />
+                <Picker.Item
+                  label="Select lecture..."
+                  value=""
+                  color={colors.inputTextHolder}
+                />
                 {futureLectures.map(l => (
                   <Picker.Item
                     key={l.id}
@@ -639,13 +672,14 @@ export const AddExceptionModal = ({
                       l.date,
                     ).toLocaleDateString()})`}
                     value={l.id}
+                    color={colors.text}
                   />
                 ))}
               </Picker>
             </View>
-
-            {/* Category Selector */}
-            <Text style={CourseActionStyles.label}>Reason Category</Text>
+            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
+              Reason Category
+            </Text>
             <View style={CourseActionStyles.categoryGrid}>
               {(
                 [
@@ -660,6 +694,7 @@ export const AddExceptionModal = ({
                   key={cat}
                   style={[
                     CourseActionStyles.catBtn,
+                    { borderColor: colors.border },
                     category === cat && CourseActionStyles.catBtnActive,
                   ]}
                   onPress={() => setCategory(cat)}
@@ -667,7 +702,9 @@ export const AddExceptionModal = ({
                   <Text
                     style={[
                       CourseActionStyles.catBtnText,
-                      category === cat && { color: '#fff' },
+                      category === cat
+                        ? { color: '#fff' }
+                        : { color: colors.text },
                     ]}
                   >
                     {cat}
@@ -677,36 +714,54 @@ export const AddExceptionModal = ({
             </View>
 
             <TextInput
-              style={CourseActionStyles.textArea}
+              style={[CourseActionStyles.textArea, { color: colors.text }]}
               placeholder="Explain your reason in detail..."
               multiline
               numberOfLines={5}
               value={reason}
               onChangeText={setReason}
+              placeholderTextColor={colors.inputTextHolder}
             />
 
-            <View style={CourseActionStyles.costWarning}>
-              <Icon
-                name="information-outline"
+            <View
+              style={[
+                CourseActionStyles.costWarning,
+                { borderLeftColor: colors.primary },
+              ]}
+            >
+              <MaterialIcons
+                name="info-outlined"
                 size={16}
-                color={PRIMARY_COLOR_TINT}
+                color={colors.primary}
               />
-              <Text style={CourseActionStyles.costText}>
-                1 iCash will be deducted upon submission.
+              <Text
+                style={[CourseActionStyles.costText, { color: colors.primary }]}
+              >
+                0.5 iCash will be deducted upon submission.
               </Text>
             </View>
 
             <View style={CourseActionStyles.modalActions}>
               <TouchableOpacity
-                style={CourseActionStyles.cancelBtn}
+                style={[
+                  CourseActionStyles.cancelBtn,
+                  { borderColor: colors.btnColor },
+                ]}
                 onPress={onClose}
               >
-                <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
+                <Text
+                  style={[
+                    CourseActionStyles.cancelBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   CourseActionStyles.saveBtn,
-                  { backgroundColor: PRIMARY_COLOR },
+                  { backgroundColor: colors.btnColor },
                 ]}
                 onPress={handleSubmit}
                 disabled={isSaving}
@@ -722,7 +777,6 @@ export const AddExceptionModal = ({
     </Modal>
   );
 };
-// 1. Static Header: Shows only the current page context
 export const DetailHeader = ({
   onBack,
   title,
@@ -1590,9 +1644,9 @@ export const RenderStudentExceptions = ({
   refreshing,
   onRefresh,
 }: StudentExceptionsProps) => {
-  const limits = { free: 2, pro: 4, premium: 6 };
+  const { colors } = useTheme();
   const currentPlan = user.tier || 'free';
-  const planLimit = limits[currentPlan];
+  const planLimit = EXCEPTION_ACCOUNT_LIMITS[currentPlan];
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
     const code = item.courseInfo?.courseCode?.toLowerCase() ?? '';
@@ -1628,69 +1682,103 @@ export const RenderStudentExceptions = ({
       keyExtractor={item => item.id}
       contentContainerStyle={CourseActionStyles.listPadding}
       ListHeaderComponent={
-        <View style={CourseActionStyles.headerWrapper}>
+        <View
+          style={[
+            CourseActionStyles.headerWrapper,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={CourseActionStyles.tierInfoCard}>
             <View style={CourseActionStyles.usageHeader}>
-              <Text style={CourseActionStyles.tierLabel}>
+              <Text
+                style={[
+                  CourseActionStyles.tierLabel,
+                  { color: colors.textDarker },
+                ]}
+              >
                 {currentPlan.toUpperCase()} plan
               </Text>
-              <Text style={CourseActionStyles.usageText}>
+              <Text
+                style={[CourseActionStyles.usageText, { color: colors.text }]}
+              >
                 {usedThisMonth} / {planLimit} used
               </Text>
             </View>
-            <Text style={CourseActionStyles.resetText}>
-              Resets on the 1st of next month
+            <Text
+              style={[CourseActionStyles.resetText, { color: colors.primary }]}
+            >
+              {isDisabled
+                ? getDisabledReason()
+                : 'Resets on the 1st of next month'}
             </Text>
           </View>
           {!isDisabled && (
             <TouchableOpacity
-              style={CourseActionStyles.addBtn}
+              style={[
+                CourseActionStyles.addBtn,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={onAddPress}
             >
-              <Icon name="plus-circle" size={20} color={PRIMARY_COLOR_TINT} />
-              <Text style={CourseActionStyles.addBtnText2}>
+              <MaterialIcons name="add" size={20} color={colors.primary} />
+              <Text
+                style={[
+                  CourseActionStyles.addBtnText2,
+                  { color: colors.btnTextColor },
+                ]}
+              >
                 Request Exception
               </Text>
             </TouchableOpacity>
           )}
-          {isDisabled && (
-            <View style={CourseActionStyles.errorContainer}>
-              <Icon name="alert-circle-outline" size={14} color="#fff" />
-              <Text style={CourseActionStyles.errorText}>
-                {getDisabledReason()}
-              </Text>
-            </View>
-          )}
         </View>
       }
       renderItem={({ item }) => (
-        <View style={CourseActionStyles.exceptionCard}>
+        <View
+          style={[
+            CourseActionStyles.exceptionCard,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={{ flex: 1 }}>
-            <Text style={CourseActionStyles.courseIdText}>
-              {item.courseInfo.courseCode}: {item.courseInfo.courseTitle}
+            <Text
+              style={[CourseActionStyles.courseIdText, { color: colors.text }]}
+            >
+              {item.courseInfo.courseTitle}
             </Text>
-            <Text style={CourseActionStyles.reasonText} numberOfLines={2}>
-              <Text style={{ fontWeight: '700' }}>{item.reasonCategory}: </Text>
-              {item.reason}
+            <Text
+              style={[CourseActionStyles.reasonText, { color: colors.text }]}
+              numberOfLines={2}
+            >
+              {item.reasonCategory}: {item.reason}
             </Text>
-            <Text style={CourseActionStyles.dateText2}>
+            <Text
+              style={[CourseActionStyles.dateText2, { color: colors.text }]}
+            >
               {new Date(item.date).toLocaleDateString()}
             </Text>
           </View>
           <View style={CourseActionStyles.statusBadge}>
-            <Icon
+            <MaterialIcons
               name={
                 item.status === 'approved'
-                  ? 'check-decagram'
+                  ? 'check-circle-outlined'
                   : item.status === 'rejected'
-                  ? 'close-octagon'
-                  : 'clock-fast'
+                  ? 'error-outline-outlined'
+                  : 'access-time-outlined'
               }
               size={14}
-              color={PRIMARY_COLOR_TINT}
+              color={colors.primary}
               style={{ marginRight: 4 }}
             />
-            <Text style={CourseActionStyles.statusLabel}>{item.status}</Text>
+            <Text
+              style={[
+                CourseActionStyles.statusLabel,
+                { color: colors.primary },
+              ]}
+            >
+              {item.status}
+            </Text>
           </View>
         </View>
       )}
@@ -1711,6 +1799,7 @@ export const RenderLecturerExceptionsManage = ({
   refreshing,
   onRefresh,
 }: LecturerManageProps) => {
+  const { colors } = useTheme();
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
     const code = item.courseInfo?.courseCode?.toLowerCase() ?? '';
@@ -1727,32 +1816,43 @@ export const RenderLecturerExceptionsManage = ({
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
       renderItem={({ item }) => (
-        <View style={CourseActionStyles.manageCard}>
+        <View
+          style={[
+            CourseActionStyles.manageCard,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
           <View style={CourseActionStyles.rowBetween}>
-            <View>
-              <Text style={CourseActionStyles.studentName}>
-                {item.studentName || 'Unknown Student'}
-              </Text>
-              <Text style={CourseActionStyles.matricText}>
-                {item.matricNumber}
-              </Text>
-            </View>
-            {item.status === 'pending' && (
-              <View style={CourseActionStyles.pendingIndicator} />
-            )}
-          </View>
-
-          <View style={CourseActionStyles.infoRow}>
-            <Text style={CourseActionStyles.exceptionDetails}>
-              {item.courseId}
+            <Text
+              style={[
+                CourseActionStyles.studentName,
+                { color: colors.textDarker },
+              ]}
+            >
+              {item.studentInfo.fullname || 'Unknown Student'}
             </Text>
-            <View style={CourseActionStyles.dot} />
-            <Text style={CourseActionStyles.categoryLabel}>
+            <Text
+              style={[CourseActionStyles.matricText, { color: colors.text }]}
+            >
+              {item.studentInfo.matricNumber}
+            </Text>
+          </View>
+          {item.reasonCategory && (
+            <Text
+              style={[
+                CourseActionStyles.categoryLabel,
+                { color: colors.primary },
+              ]}
+            >
               {item.reasonCategory}
             </Text>
-          </View>
-
-          <Text style={CourseActionStyles.reasonBody}>{item.reason}</Text>
+          )}
+          <Text style={[CourseActionStyles.reasonBody, { color: colors.text }]}>
+            {item.reason}
+          </Text>
 
           {item.status === 'pending' ? (
             <View style={CourseActionStyles.actionRow2}>
@@ -1760,27 +1860,58 @@ export const RenderLecturerExceptionsManage = ({
                 style={CourseActionStyles.approveBtn}
                 onPress={() => onUpdateStatus(item.id, 'approved')}
               >
-                <Text style={CourseActionStyles.btnText}>Approve</Text>
+                <MaterialIcons
+                  name="check-circle-outlined"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.btnText,
+                    { color: colors.primary, marginTop: 4 },
+                  ]}
+                >
+                  Approve
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={CourseActionStyles.rejectBtn}
                 onPress={() => onUpdateStatus(item.id, 'rejected')}
               >
-                <Text style={CourseActionStyles.btnText}>Reject</Text>
+                <MaterialIcons
+                  name="cancel-outlined"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.btnText,
+                    { color: colors.primary, marginTop: 4 },
+                  ]}
+                >
+                  Reject
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={CourseActionStyles.finalStatusContainer}>
-              <Icon
+              <MaterialIcons
                 name={
-                  item.status === 'approved' ? 'check-circle' : 'close-circle'
+                  item.status === 'approved'
+                    ? 'check-circle-outlined'
+                    : 'cancel-outlined'
                 }
-                size={20}
-                color={PRIMARY_COLOR_TINT}
+                size={22}
+                color={colors.primary}
                 style={{ marginRight: 8 }}
               />
-              <Text style={CourseActionStyles.finalStatusText}>
+              <Text
+                style={[
+                  CourseActionStyles.finalStatusText,
+                  { color: colors.primary },
+                ]}
+              >
                 {item.status === 'approved' ? 'Approved' : 'Rejected'}
               </Text>
             </View>
@@ -2162,6 +2293,7 @@ export const RenderLecturerTestManage = ({
   searchQuery,
   setSearchQuery,
 }: LecturerTestManageProps) => {
+  const { colors } = useTheme();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [pickerMode, setPickerMode] = useState<
     'date' | 'startTime' | 'endTime' | null
@@ -2176,7 +2308,7 @@ export const RenderLecturerTestManage = ({
     questions: [
       {
         id: Date.now().toString(),
-        type: 'MCQ' as const, // Strict type for literal
+        type: 'MCQ' as const,
         questionText: '',
         options: ['', '', '', ''],
         correctAnswer: '',
@@ -2189,14 +2321,18 @@ export const RenderLecturerTestManage = ({
   const filteredTests = tests.filter(t =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const formRef = useRef(testForm);
+  useEffect(() => {
+    formRef.current = testForm;
+  }, [testForm]);
   const openEditModal = (test: CreateTestPayload) => {
     setTestForm({
       title: test.title,
-      duration: (test.duration ?? 0).toString(), // Safety for duration
-      dueDate: test.dueDate ?? '', // Fallback to empty string
+      duration: (test.duration ?? 0).toString(),
+      dueDate: test.dueDate ?? '',
       totalMarks: (test.totalMarks ?? 0).toString(),
-      questions: test.questions ?? [], // Fallback to empty array
-      scheduledStart: test.scheduledStart ?? '', // FIX: Fallback to empty string
+      questions: test.questions ?? [],
+      scheduledStart: test.scheduledStart ?? '',
     });
     setEditingId(test.id ?? null);
     setIsModalVisible(true);
@@ -2207,8 +2343,8 @@ export const RenderLecturerTestManage = ({
       questions: [
         ...testForm.questions,
         {
-          id: (Date.now() + Math.random()).toString(), // Ensure unique ID
-          type: 'MCQ' as const, // Fixed type casting
+          id: (Date.now() + Math.random()).toString(),
+          type: 'MCQ' as const,
           questionText: '',
           options: ['', '', '', ''],
           correctAnswer: '',
@@ -2270,25 +2406,22 @@ export const RenderLecturerTestManage = ({
   };
   const autoSaveDraft = useCallback(async () => {
     try {
+      const currentForm = formRef.current;
       const payload: CreateTestPayload = {
-        ...testForm,
-        courseId: course.courseId,
+        ...currentForm,
+        courseId: Array.isArray(course) ? course[0]?.courseId : course.courseId,
         status: 'draft',
         isPublished: false,
         createdAt: new Date().toISOString(),
-        duration: Number(testForm.duration),
-        totalMarks: Number(testForm.totalMarks),
-        questions: testForm.questions as Question[],
+        duration: Number(currentForm.duration),
+        totalMarks: Number(currentForm.totalMarks),
+        questions: currentForm.questions as Question[],
       };
       onSaveTest(payload);
     } catch (err: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Sync Failed',
-        text2: 'Draft could not be auto-saved. Check your connection.',
-      });
+      console.error('Auto-save sync failure', err);
     }
-  }, [testForm, course.courseId, onSaveTest]);
+  }, [course, onSaveTest]);
   const removeQuestion = (id: string) => {
     setTestForm(prev => ({
       ...prev,
@@ -2322,18 +2455,15 @@ export const RenderLecturerTestManage = ({
     if (event.type === 'set' && selectedDate) {
       if (pickerMode === 'date') {
         const dateString = selectedDate.toISOString().split('T')[0];
-        // Set date for both
         setTestForm(prev => ({ ...prev, date: dateString }));
         setTimeout(() => setPickerMode('startTime'), 500);
       } else if (pickerMode === 'startTime') {
-        // Set Start Time
         setTestForm(prev => ({
           ...prev,
           scheduledStart: selectedDate.toISOString(),
         }));
         setTimeout(() => setPickerMode('endTime'), 500);
       } else if (pickerMode === 'endTime') {
-        // Set Deadline
         setTestForm(prev => ({ ...prev, dueDate: selectedDate.toISOString() }));
       }
     }
@@ -2343,9 +2473,6 @@ export const RenderLecturerTestManage = ({
     testTitle: string,
   ) => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const { config, fs } = ReactNativeBlobUtil;
-
       if (Platform.OS === 'android' && Platform.Version < 29) {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
@@ -2359,87 +2486,77 @@ export const RenderLecturerTestManage = ({
           return;
         }
       }
+      const apiResponse = await getAssessmentAnalysisUrl(testId);
+      if (!apiResponse.success || !apiResponse.data?.downloadUrl) {
+        Toast.show({
+          type: 'error',
+          text1: 'Generation Failed',
+          text2:
+            apiResponse.error || 'Could not retrieve report download link.',
+        });
+        return;
+      }
+      const fileUrl = apiResponse.data.downloadUrl;
+      const { config, fs } = ReactNativeBlobUtil;
       const dateStr = new Date().toISOString().split('T')[0];
       const fileName = `Analysis_${testTitle.replace(
         /\s+/g,
         '_',
       )}_${dateStr}.pdf`;
-      const path = `${fs.dirs.DownloadDir}/${fileName}`;
-
-      // 3. Trigger Download
+      const localSavePath = `${fs.dirs.DownloadDir}/${fileName}`;
       config({
         fileCache: true,
         addAndroidDownloads: {
-          useDownloadManager: true, // Shows download progress in system UI
+          useDownloadManager: true,
           notification: true,
-          path: path,
-          description: 'Generating Academic Analysis Report',
+          path: localSavePath,
+          description: 'Downloading Academic Analysis Report',
           mime: 'application/pdf',
           mediaScannable: true,
         },
       })
-        .fetch(
-          'GET',
-          `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis`,
-          {
-            Authorization: `Bearer ${token}`, // Cleaner than putting token in query string
-          },
-        )
+        .fetch('GET', fileUrl)
         .then(() => {
           Toast.show({
             type: 'success',
-            text1: 'Download Error',
-            text2: 'Assessment Report saved to Downloads:',
+            text1: 'Download Complete',
+            text2: 'Assessment Report saved to your Downloads directory.',
           });
         })
         .catch(err => {
-          console.error(err);
+          console.error('File Download Engine Exception:', err);
           Toast.show({
             type: 'error',
             text1: 'Download Error',
-            text2: 'Could not download the analysis report.',
+            text2: 'Could not successfully write the file to system storage.',
           });
         });
     } catch (error) {
       console.error('Download Logic Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Unexpected Error',
+        text2: 'An unexpected execution issue occurred.',
+      });
     }
   };
   useEffect(() => {
+    if (testForm.title.trim().length === 0) return;
+
     const delayDebounceFn = setTimeout(() => {
-      if (testForm.title.trim().length > 0) {
-        autoSaveDraft();
-      }
+      autoSaveDraft();
     }, 2000);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [testForm, autoSaveDraft]);
+  }, [testForm.title, testForm.questions.length, autoSaveDraft]);
 
   return (
-    <View style={CourseActionStyles.container}>
-      <View style={CourseActionStyles.rowBetween}>
-        <Text style={CourseActionStyles.sectionTitle}>Past Assessments</Text>
-        <TouchableOpacity
-          style={CourseActionStyles.createCard}
-          onPress={() => {
-            setEditingId(null);
-            setTestForm({
-              title: '',
-              duration: '',
-              dueDate: '',
-              totalMarks: '',
-              questions: [],
-              scheduledStart: '',
-            });
-            setIsModalVisible(true);
-          }}
-        >
-          <Icon name="plus-circle" size={24} color="#fff" />
-          <Text style={CourseActionStyles.createCardText}>
-            Create New Assessment
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+    <View
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <FlatList
         data={filteredTests}
         refreshing={refreshing}
@@ -2461,63 +2578,58 @@ export const RenderLecturerTestManage = ({
               <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() => !isPastDue && openEditModal(item)}
-                activeOpacity={isPastDue ? 1 : 0.7} // Visual feedback: no "tap" look if past due
+                activeOpacity={isPastDue ? 1 : 0.7}
               >
-                <Text style={CourseActionStyles.testTitle}>{item.title}</Text>
+                <Text
+                  style={[
+                    CourseActionStyles.testTitle,
+                    { color: colors.textDarker },
+                  ]}
+                >
+                  {item.title}
+                </Text>
                 <Text style={CourseActionStyles.testMeta}>
                   {item.questions.length} Questions •{' '}
-                  <Text style={{ color: PRIMARY_COLOR_TINT }}>
-                    {item.isPublished ? 'Published' : 'Draft'}
-                  </Text>
+                  {item.isPublished ? 'Published' : 'Draft'}
                 </Text>
-                {isPastDue && (
-                  <Text
-                    style={[
-                      CourseActionStyles.testMeta,
-                      { color: PRIMARY_COLOR_TINT },
-                    ]}
-                  >
-                    Locked (Past Due)
-                  </Text>
-                )}
               </TouchableOpacity>
               {isPastDue && item.isPublished ? (
                 <TouchableOpacity
-                  style={{
-                    borderWidth: 0.8,
-                    borderColor: PRIMARY_COLOR_TINT,
-                    paddingVertical: 12,
-                    paddingHorizontal: 7,
-                    borderRadius: 8,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: PRIMARY_COLOR_TINT, // Subtle background to make it look clickable
-                  }}
-                  // FIXED: Changed 'test.testid' to 'item.id'
+                  style={[
+                    CourseActionStyles.downloadTestBtn,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                   onPress={() =>
                     downloadAssessmentReport(item.id!, item.title!)
                   }
                 >
-                  <Icon
-                    name="chart-bar"
+                  <MaterialIcons
+                    name="assessment-outlined"
                     size={20}
-                    color={PRIMARY_COLOR}
-                    style={{ marginRight: 4 }}
+                    color={colors.btnTextColor}
                   />
                   <Text
-                    style={{
-                      color: PRIMARY_COLOR,
-                      fontSize: 12,
-                      fontWeight: 'bold',
-                    }}
+                    style={[
+                      CourseActionStyles.downloadBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
                   >
-                    Analysis Report
+                    Download Assessment Analysis
                   </Text>
                 </TouchableOpacity>
               ) : (
-                <View style={{ opacity: 0.5, alignItems: 'flex-end' }}>
-                  <Icon name="clock-outline" size={20} color="#888" />
-                  <Text style={{ fontSize: 10, color: '#888' }}>
+                <View style={[CourseActionStyles.downloadTestBtn]}>
+                  <MaterialIcons
+                    name="access-time-outlined"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[
+                      CourseActionStyles.downloadBtnText,
+                      { color: colors.primary },
+                    ]}
+                  >
                     Report pending
                   </Text>
                 </View>
@@ -2525,71 +2637,128 @@ export const RenderLecturerTestManage = ({
             </View>
           );
         }}
+        ListHeaderComponent={
+          <View
+            style={[
+              CourseActionStyles.rowBetween,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                CourseActionStyles.sectionTitle,
+                { color: colors.textDarker },
+              ]}
+            >
+              Past Assessments
+            </Text>
+            <TouchableOpacity
+              style={[
+                CourseActionStyles.createCard,
+                { backgroundColor: colors.btnColor },
+              ]}
+              onPress={() => {
+                setEditingId(null);
+                setTestForm({
+                  title: '',
+                  duration: '',
+                  dueDate: '',
+                  totalMarks: '',
+                  questions: [],
+                  scheduledStart: '',
+                });
+                setIsModalVisible(true);
+              }}
+            >
+              <MaterialIcons name="add" size={24} color={colors.btnTextColor} />
+              <Text
+                style={[
+                  CourseActionStyles.createCardText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Create New Assessment
+              </Text>
+            </TouchableOpacity>
+          </View>
+        }
       />
-
-      {/* CREATION MODAL */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
         presentationStyle="fullScreen"
       >
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={CourseActionStyles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setIsModalVisible(false)}
-              style={{ width: 40, justifyContent: 'center' }}
-            >
-              <Icon name="chevron-left" size={26} color={PRIMARY_COLOR_TINT} />
-            </TouchableOpacity>
-
-            <Text style={CourseActionStyles.headerTitle}>Build Assessment</Text>
-
-            <TouchableOpacity
-              onPress={() => handleFinalize(true)}
-              disabled={loading}
-              style={CourseActionStyles.publishHeaderBtn}
-            >
-              <Text style={CourseActionStyles.publishHeaderText}>Publish</Text>
-            </TouchableOpacity>
-          </View>
-
+        <SafeAreaView
+          style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
+        >
+          <Text
+            style={[
+              CourseActionStyles.headerTitle,
+              { color: colors.textDarker },
+            ]}
+          >
+            Build Assessment
+          </Text>
           <ScrollView
             style={CourseActionStyles.modalBody}
             showsVerticalScrollIndicator={false}
           >
-            {/* Settings Card */}
             <View style={CourseActionStyles.settingsCard}>
               <TextInput
-                style={CourseActionStyles.titleInput}
+                style={[CourseActionStyles.titleInput, { color: colors.text }]}
                 placeholder="Assessment Title (e.g. Test 1)"
-                placeholderTextColor="#999999e2"
+                placeholderTextColor={colors.inputTextHolder}
                 value={testForm.title}
                 onChangeText={t => setTestForm({ ...testForm, title: t })}
               />
               <View style={CourseActionStyles.settingsRow}>
                 <View style={CourseActionStyles.settingItem}>
-                  <Text style={CourseActionStyles.microLabel2}>Minutes</Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.microLabel2,
+                      { color: colors.text },
+                    ]}
+                  >
+                    Duration (Minutes)
+                  </Text>
                   <TextInput
-                    style={CourseActionStyles.settingInput}
+                    style={[
+                      CourseActionStyles.settingInput,
+                      { color: colors.text },
+                    ]}
                     keyboardType="numeric"
                     value={testForm.duration}
                     onChangeText={val =>
                       setTestForm({ ...testForm, duration: val })
                     }
+                    placeholder="eg. 30"
+                    placeholderTextColor={colors.inputTextHolder}
                   />
                 </View>
                 <View style={CourseActionStyles.settingItem}>
-                  <Text style={CourseActionStyles.microLabel2}>
+                  <Text
+                    style={[
+                      CourseActionStyles.microLabel2,
+                      { color: colors.text },
+                    ]}
+                  >
                     Total Marks
                   </Text>
                   <TextInput
-                    style={CourseActionStyles.settingInput}
+                    style={[
+                      CourseActionStyles.settingInput,
+                      { color: colors.text },
+                    ]}
                     keyboardType="numeric"
-                    placeholder="Score"
+                    placeholder="eg. 30"
                     value={testForm.totalMarks}
                     onChangeText={val =>
                       setTestForm({ ...testForm, totalMarks: val })
                     }
+                    placeholderTextColor={colors.inputTextHolder}
                   />
                 </View>
               </View>
@@ -2597,40 +2766,60 @@ export const RenderLecturerTestManage = ({
             {testForm.questions.map((q, idx) => (
               <View key={q.id} style={CourseActionStyles.questionCard}>
                 <View style={CourseActionStyles.qHeader}>
-                  <Text style={CourseActionStyles.qNumber}>
+                  <Text
+                    style={[
+                      CourseActionStyles.qNumber,
+                      { color: colors.textDarker },
+                    ]}
+                  >
                     Question {idx + 1}
                   </Text>
                   <View style={CourseActionStyles.sideBySide}>
                     <TextInput
-                      style={CourseActionStyles.pointsInput}
+                      style={[
+                        CourseActionStyles.pointsInput,
+                        { color: colors.text },
+                      ]}
                       keyboardType="numeric"
                       value={q.points.toString()}
                       onChangeText={p =>
                         updateQuestion(q.id, { points: Number(p) })
                       }
+                      placeholder="eg. 5"
+                      placeholderTextColor={colors.inputTextHolder}
                     />
-                    <Text style={CourseActionStyles.pointsLabel}>pts</Text>
+                    <Text
+                      style={[
+                        CourseActionStyles.pointsLabel,
+                        { color: colors.text },
+                      ]}
+                    >
+                      Marks
+                    </Text>
                   </View>
                   <TouchableOpacity onPress={() => removeQuestion(q.id)}>
-                    <Icon
-                      name="delete-outline"
+                    <MaterialIcons
+                      name="cancel-outlined"
                       size={22}
-                      color={PRIMARY_COLOR_TINT}
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
                 </View>
                 <TextInput
-                  style={CourseActionStyles.qInput}
+                  style={[CourseActionStyles.qInput, { color: colors.text }]}
                   placeholder="Type your question here..."
                   multiline
                   value={q.questionText}
                   onChangeText={t => updateQuestion(q.id, { questionText: t })}
+                  placeholderTextColor={colors.inputTextHolder}
                 />
                 <View style={CourseActionStyles.typeGroup}>
                   <TouchableOpacity
                     style={[
                       CourseActionStyles.typeBtn,
-                      q.type === 'MCQ' && CourseActionStyles.activeTypeBtn,
+                      q.type === 'MCQ' && {
+                        backgroundColor: colors.btnColor,
+                      },
                     ]}
                     onPress={() =>
                       updateQuestion(q.id, {
@@ -2642,17 +2831,20 @@ export const RenderLecturerTestManage = ({
                     <Text
                       style={[
                         CourseActionStyles.typeText,
-                        q.type === 'MCQ' && CourseActionStyles.activeTypeText,
+                        q.type === 'MCQ'
+                          ? { color: colors.btnTextColor }
+                          : { color: colors.text },
                       ]}
                     >
-                      Multiple Choice
+                      Multiple Choice Options
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
                       CourseActionStyles.typeBtn,
-                      q.type === 'ShortAnswer' &&
-                        CourseActionStyles.activeTypeBtn,
+                      q.type === 'ShortAnswer' && {
+                        backgroundColor: colors.btnColor,
+                      },
                     ]}
                     onPress={() =>
                       updateQuestion(q.id, {
@@ -2664,8 +2856,9 @@ export const RenderLecturerTestManage = ({
                     <Text
                       style={[
                         CourseActionStyles.typeText,
-                        q.type === 'ShortAnswer' &&
-                          CourseActionStyles.activeTypeText,
+                        q.type === 'ShortAnswer'
+                          ? { color: colors.btnTextColor }
+                          : { color: colors.text },
                       ]}
                     >
                       Text
@@ -2691,19 +2884,23 @@ export const RenderLecturerTestManage = ({
                           )}
                         </TouchableOpacity>
                         <TextInput
-                          style={CourseActionStyles.optInput}
-                          placeholder={`Option ${oIdx + 1}`}
+                          style={[
+                            CourseActionStyles.optInput,
+                            { color: colors.text },
+                          ]}
+                          placeholder={`Option ${oIdx + 1} value...`}
                           value={opt}
+                          placeholderTextColor={colors.inputTextHolder}
                           onChangeText={v => updateOption(q.id, oIdx, v)}
                         />
-                        {(q.options?.length ?? 0) > 3 && ( // Keep at least 3 options
+                        {(q.options?.length ?? 0) > 3 && (
                           <TouchableOpacity
                             onPress={() => removeOption(q.id, oIdx)}
                           >
-                            <Icon
-                              name="minus-circle-outline"
+                            <MaterialIcons
+                              name="cancel-outlined"
                               size={22}
-                              color={PRIMARY_COLOR_TINT}
+                              color={colors.primary}
                             />
                           </TouchableOpacity>
                         )}
@@ -2711,28 +2908,39 @@ export const RenderLecturerTestManage = ({
                     ))}
                     <TouchableOpacity
                       onPress={() => addOption(q.id)}
-                      style={CourseActionStyles.addOptionBtn}
+                      style={[
+                        CourseActionStyles.addOptionBtn,
+                        { backgroundColor: colors.btnColor },
+                      ]}
                     >
-                      <Text style={CourseActionStyles.addOptionText}>
-                        {' '}
-                        Add Options
+                      <Text
+                        style={[
+                          CourseActionStyles.addOptionText,
+                          { color: colors.btnTextColor },
+                        ]}
+                      >
+                        Add More Options
                       </Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
                     <View style={CourseActionStyles.shortAnswerPreview}>
-                      <Text style={CourseActionStyles.previewLabel}>
-                        Student Response Area
+                      <Text
+                        style={[
+                          CourseActionStyles.previewLabel,
+                          { color: colors.text },
+                        ]}
+                      >
+                        Expected Answer
                       </Text>
-                      <View style={CourseActionStyles.disabledInputPlaceholder}>
-                        <Text style={CourseActionStyles.placeholderText}>
-                          Students will type their answer here...
-                        </Text>
-                      </View>
                       <TextInput
-                        style={CourseActionStyles.correctAnswerInput}
+                        style={[
+                          CourseActionStyles.correctAnswerInput,
+                          { color: colors.text },
+                        ]}
                         placeholder="Set correct answer/keywords (optional for auto-grade)"
+                        placeholderTextColor={colors.inputTextHolder}
                         value={q.correctAnswer}
                         onChangeText={t =>
                           updateQuestion(q.id, { correctAnswer: t })
@@ -2743,24 +2951,31 @@ export const RenderLecturerTestManage = ({
                 )}
               </View>
             ))}
-            <View style={CourseActionStyles.settingItem}>
-              <Text style={CourseActionStyles.labelTitle}>Deadline</Text>
+            <View style={CourseActionStyles.settingsCard}>
+              <Text
+                style={[CourseActionStyles.labelTitle, { color: colors.text }]}
+              >
+                Set Deadline
+              </Text>
               <TouchableOpacity
-                style={CourseActionStyles.datePickerTrigger}
+                style={[
+                  CourseActionStyles.datePickerTrigger,
+                  { backgroundColor: colors.btnColor },
+                ]}
                 onPress={() => setPickerMode('date')}
               >
                 <Text
                   style={[
                     CourseActionStyles.dateText,
-                    !testForm.dueDate && { color: PRIMARY_COLOR_TINT }, // Dim color if empty
+                    { color: colors.btnTextColor },
                   ]}
                 >
                   {testForm.dueDate || 'Set deadline...'}
                 </Text>
-                <Icon
-                  name="calendar-clock"
+                <MaterialIcons
+                  name="calendar-month-outlined"
                   size={22}
-                  color={PRIMARY_COLOR_TINT}
+                  color={colors.btnTextColor}
                 />
               </TouchableOpacity>
             </View>
@@ -2773,15 +2988,41 @@ export const RenderLecturerTestManage = ({
                 onChange={handleConfirm}
               />
             )}
-
             <TouchableOpacity
-              style={CourseActionStyles.addBtn}
+              style={[
+                CourseActionStyles.addBtn,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={addQuestion}
             >
-              <Icon name="plus" size={22} color={PRIMARY_COLOR_TINT} />
-              <Text style={CourseActionStyles.addBtnText3}>Add Question</Text>
+              <MaterialIcons name="add" size={22} color={colors.btnTextColor} />
+              <Text
+                style={[
+                  CourseActionStyles.addBtnText3,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Add Question
+              </Text>
             </TouchableOpacity>
-            <View style={{ height: 100 }} />
+            <TouchableOpacity
+              onPress={() => handleFinalize(true)}
+              disabled={loading}
+              style={[
+                CourseActionStyles.publishHeaderBtn,
+                { backgroundColor: colors.btnColor },
+              ]}
+            >
+              <Text
+                style={[
+                  CourseActionStyles.publishHeaderText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Publish
+              </Text>
+            </TouchableOpacity>
+            <View style={{ height: 30 }} />
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -2793,8 +3034,10 @@ export const RenderStudentTest = ({
   user,
   onSubmit,
 }: StudentTestProps) => {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [shuffledQuestions, setShuffledQuestions] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isStarted, setIsStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
@@ -2804,15 +3047,18 @@ export const RenderStudentTest = ({
   const [isCalcVisible, setIsCalcVisible] = useState(false);
   const [expression, setExpression] = useState('');
   const [result, setResult] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const MAX_GRACES = 3;
+  const activeQuestions =
+    shuffledQuestions.length > 0 ? shuffledQuestions : test.questions;
+  const [impersonationError, setImpersonationError] = useState<string | null>(
+    null,
+  );
 
-  const [selfieUrl, setSelfieUrl] = useState<string>('');
-
-  // 2. To store the session metadata (Device ID, Start Time, etc.)
   const [submissionMetadata, setSubmissionMetadata] = useState<{
     deviceId: string;
-    entrySelfie: string;
     startTime: string;
+    isUnrecognizedDevice: boolean;
   } | null>(null);
 
   const appState = useRef(AppState.currentState);
@@ -2832,8 +3078,6 @@ export const RenderStudentTest = ({
     
     Data: ${JSON.stringify(shortAnswerPairs)}
   `;
-
-    // Call your Gemini API / Backend here
     const response = await callGeminiAPI(prompt);
     return JSON.parse(response);
   };
@@ -2854,8 +3098,6 @@ export const RenderStudentTest = ({
       setExpression(prev => prev + val);
     }
   };
-
-  // Engineering-focused button layout
   const buttons = [
     ['sin(', 'cos(', 'log(', '^'],
     ['7', '8', '9', '/'],
@@ -2864,84 +3106,24 @@ export const RenderStudentTest = ({
     ['0', '.', 'AC', '+'],
     ['pi', 'e', '⌫', '='],
   ];
-  const uploadSelfieToStorage = async (path: string): Promise<string> => {
-    setIsUploading(true);
-    try {
-      const uri =
-        Platform.OS === 'android' ? path : path.replace('file://', '');
-      /** * --- FIREBASE LOGIC (Commented Out) ---
-       * * // 1. Create a reference in your storage bucket
-       * const fileName = `selfies/${user.uid}_${Date.now()}.jpg`;
-       * const reference = storage().ref(fileName);
-       * * // 2. Upload the file from the local disk path
-       * await reference.putFile(path);
-       * * // 3. Get the public download URL
-       * const url = await reference.getDownloadURL();
-       * return url;
-       */
-      const formData = new FormData();
-      formData.append('file', {
-        uri: uri,
-        type: 'image/jpeg',
-        name: `proctor_${user.uid}_${Date.now()}.jpg`,
-      } as any);
-      formData.append('upload_preset', 'presetOne');
-      formData.append('cloud_name', 'dbdw3zftx');
-      const response = await fetch(
-        'https://api.cloudinary.com/v1_1/dbdw3zftx/image/upload',
-        {
-          method: 'POST',
-          body: formData,
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'multipart/form-data',
-          },
-        },
-      );
-
-      const data = await response.json();
-
-      if (data.secure_url) {
-        return data.secure_url;
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Upload Error',
-          text2: 'Upload failed, please retry.',
-        });
-        throw new Error(data.error?.message || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('Upload failed:', error);
-      throw new Error('Failed to upload proctoring image.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
   const startTestWithSecurity = async () => {
     try {
       const currentDeviceId = await getUniqueId();
-      if (!user.deviceType?.includes(currentDeviceId)) {
+      const isRecognizedDevice = user.sessions?.deviceType?.includes(currentDeviceId);
+      if (!isRecognizedDevice) {
         Toast.show({
           type: 'error',
           text1: 'Identity Verification',
           text2:
             'This device is not recognized. Please contact your administrator.',
         });
-        return;
       }
-      let finalSelfieUrl = '';
-      if (cameraRef.current) {
-        const photo = await cameraRef.current.takePhoto({ flash: 'off' });
-        finalSelfieUrl = await uploadSelfieToStorage(photo.path);
-        setSelfieUrl(finalSelfieUrl);
-      }
+      setShuffledQuestions(shuffleArray(test.questions));
       setSubmissionMetadata({
         deviceId: currentDeviceId,
-        entrySelfie: finalSelfieUrl,
         startTime: new Date().toISOString(),
+        isUnrecognizedDevice: !isRecognizedDevice,
       });
-
       setIsStarted(true);
     } catch (error) {
       Toast.show({
@@ -2953,8 +3135,7 @@ export const RenderStudentTest = ({
   };
   const runAutoGrade = useCallback(() => {
     let totalScore = 0;
-
-    const gradedAnswers = test.questions.map((q: Question) => {
+    const gradedAnswers = activeQuestions.map((q: any) => {
       const sAns = (answers[q.id] || '').trim();
       let isCorrect = false;
 
@@ -2974,6 +3155,8 @@ export const RenderStudentTest = ({
 
       return {
         questionId: q.id,
+        questionText: q.questionText,
+        correctAnswer: q.correctAnswer,
         studentAnswer: sAns,
         isCorrect,
         pointsEarned,
@@ -2981,43 +3164,85 @@ export const RenderStudentTest = ({
     });
 
     return { gradedAnswers, totalScore };
-  }, [test.questions, answers]);
+  }, [activeQuestions, answers]);
   const handleFinalSubmit = useCallback(async () => {
+    if (isSubmitting) return;
+    setImpersonationError(null);
+    setIsSubmitting(true);
+    let facialVerificationStatus = 'Not Verified / Snap Failed';
+    let isImpersonator = false;
+    let verificationErrorMessage = '';
+    try {
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePhoto({
+          flash: 'off',
+          enableShutterSound: false,
+        });
+        const base64Image = await ReactNativeBlobUtil.fs.readFile(
+          photo.path,
+          'base64',
+        );
+
+        setIsUploading(true);
+        if (user.schoolAvatarUrl) {
+          const verificationResult = await verifyFacialIdentity(
+            base64Image,
+            user.schoolAvatarUrl,
+          );
+
+          // If the API explicitly returns verified: false, trigger the block
+          if (verificationResult.verified === false) {
+            isImpersonator = true;
+            verificationErrorMessage =
+              verificationResult.message || 'Face mismatch detected.';
+            facialVerificationStatus = `FRAUD_BLOCKED: ${verificationErrorMessage}`;
+          } else {
+            facialVerificationStatus = `Verified Successfully (Match Confidence: ${verificationResult.similarity})`;
+          }
+        } else {
+          facialVerificationStatus =
+            'Skipped: Missing baseline profile configuration picture.';
+        }
+        setIsUploading(false);
+      }
+    } catch (picErr) {
+      console.error('Silent authentication background error:', picErr);
+    }
+    if (isImpersonator) {
+      setImpersonationError(verificationErrorMessage);
+      setFinalResult({ score: 0, total: test.totalMarks });
+      setIsFinished(true);
+      setIsSubmitting(false);
+      return;
+    }
     const { gradedAnswers, totalScore } = runAutoGrade();
     const shortAnswersToGrade = gradedAnswers
       .filter(ans => {
-        const question = test.questions.find(q => q.id === ans.questionId);
+        const question = activeQuestions.find(q => q.id === ans.questionId);
         return question?.type === 'ShortAnswer';
       })
       .map(ans => ({
         questionId: ans.questionId,
         studentAnswer: ans.studentAnswer,
-        correctAnswer: test.questions.find(q => q.id === ans.questionId)
-          ?.correctAnswer,
+        correctAnswer: ans.correctAnswer,
       }));
 
     let finalGradedAnswers = [...gradedAnswers];
     let finalTotalScore = totalScore;
+
     if (shortAnswersToGrade.length > 0) {
       try {
         const aiScores = await gradeShortAnswersWithAI(shortAnswersToGrade);
-
-        // 4. Update the scores based on AI feedback
         finalGradedAnswers = gradedAnswers.map(ans => {
-          // Explicitly type 'res' here, or type the array itself
           const aiResult = aiScores.find(
-            (res: AIScoreResult) => res.questionId === ans.questionId,
+            (res: any) => res.questionId === ans.questionId,
           );
-
           if (aiResult) {
             const isCorrect = aiResult.similarityScore >= 0.85;
-            const points = isCorrect
-              ? test.questions.find(q => q.id === ans.questionId)?.points || 0
-              : 0;
+            const targetQ = activeQuestions.find(q => q.id === ans.questionId);
+            const points = isCorrect ? targetQ?.points || 0 : 0;
 
-            // Update the running total
             finalTotalScore = finalTotalScore - ans.pointsEarned + points;
-
             return {
               ...ans,
               isCorrect,
@@ -3028,10 +3253,7 @@ export const RenderStudentTest = ({
           return ans;
         });
       } catch (error) {
-        console.error(
-          'AI Grading failed, falling back to literal match',
-          error,
-        );
+        console.error('AI Grading fallback executed.', error);
       }
     }
 
@@ -3047,7 +3269,7 @@ export const RenderStudentTest = ({
       submittedAt: new Date().toISOString(),
       proctoringData: {
         deviceId: submissionMetadata?.deviceId || 'Unknown Device',
-        entrySelfieUrl: submissionMetadata?.entrySelfie || selfieUrl || '',
+        entrySelfieUrl: facialVerificationStatus,
         tabSwitchCount: cheatingCount,
         ipAddress: user.ipAddress?.[0] || '',
       },
@@ -3059,17 +3281,16 @@ export const RenderStudentTest = ({
       total: test.totalMarks,
     });
     setIsFinished(true);
+    setIsSubmitting(false);
   }, [
-    submissionMetadata?.entrySelfie,
-    submissionMetadata?.deviceId,
-    submissionMetadata?.startTime,
     test,
+    activeQuestions,
     user,
     runAutoGrade,
-    selfieUrl,
     cheatingCount,
+    submissionMetadata,
     onSubmit,
-    setIsFinished,
+    isSubmitting,
   ]);
   const onFaceStatusChange = (isLookingAtScreen: boolean) => {
     if (!isLookingAtScreen) {
@@ -3090,7 +3311,6 @@ export const RenderStudentTest = ({
       }
     }
   };
-
   const getAdvice = (percent: number) => {
     if (percent >= 80)
       return {
@@ -3106,6 +3326,54 @@ export const RenderStudentTest = ({
       title: 'Keep Practicing',
       msg: 'Review the course materials and try again.',
     };
+  };
+  const downloadStudentResultSheet = async () => {
+    try {
+      const { gradedAnswers } = runAutoGrade();
+      const dateString = new Date().toISOString().split('T')[0];
+
+      let txtContent = `==================================================\n`;
+      txtContent += `ASSESSMENT REVIEW SHEET: ${test.title}\n`;
+      txtContent += `Student: ${user.firstname} ${user.lastname} (${
+        user.matricNumber || 'N/A'
+      })\n`;
+      txtContent += `Score Captured: ${finalResult.score} / ${finalResult.total}\n`;
+      txtContent += `Date: ${dateString}\n`;
+      txtContent += `==================================================\n\n`;
+
+      gradedAnswers.forEach((item, index) => {
+        txtContent += `Q${index + 1}: ${item.questionText}\n`;
+        txtContent += `Your Answer: ${
+          item.studentAnswer || '[No Answer Provided]'
+        }\n`;
+        txtContent += `Correct Answer: ${item.correctAnswer}\n`;
+        txtContent += `Outcome: ${item.isCorrect ? 'CORRECT' : 'INCORRECT'} (+${
+          item.pointsEarned
+        } Marks)\n`;
+        txtContent += `--------------------------------------------------\n`;
+      });
+
+      const { fs } = ReactNativeBlobUtil;
+      const sanitizeTitle = test.title.replace(/\s+/g, '_');
+      const targetPath = `${
+        fs.dirs.DownloadDir
+      }/${sanitizeTitle}_Review_${Date.now()}.txt`;
+
+      await fs.writeFile(targetPath, txtContent, 'utf8');
+
+      Toast.show({
+        type: 'success',
+        text1: 'Saved Successfully',
+        text2: 'Review paper stored inside your Downloads directory.',
+      });
+    } catch (err) {
+      console.error('File compilation error:', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Download Failed',
+        text2: 'Could not construct script record file.',
+      });
+    }
   };
   // 1. Detect App Switching (Minimize/Tab-out)
   useEffect(() => {
@@ -3126,8 +3394,6 @@ export const RenderStudentTest = ({
     });
     return () => subscription.remove();
   }, []);
-
-  // 2. Auto-Submit Watcher
   useEffect(() => {
     if (cheatingCount >= 3 || (isStarted && timeLeft === 0)) {
       handleFinalSubmit();
@@ -3151,10 +3417,9 @@ export const RenderStudentTest = ({
       navigation.navigate('Home', { activeTab: 'classroom' });
     }
   }, [cheatingCount, handleFinalSubmit, navigation]);
-
+  const warningCount = MAX_GRACES - cheatingCount;
   return (
-    <SafeAreaView style={CourseActionStyles.container}>
-      {/* INSTRUCTIONS MODAL */}
+    <SafeAreaView style={[CourseActionStyles.container, {backgroundColor: colors.backgroundSecondary}]}>
       <Modal visible={!isStarted} animationType="fade" transparent>
         <View style={CourseActionStyles.modalOverlay}>
           <View style={CourseActionStyles.modalContainer}>
@@ -3162,45 +3427,37 @@ export const RenderStudentTest = ({
               contentContainerStyle={CourseActionStyles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <Icon
-                name="information-outline"
+              <MaterialIcons
+                name="info-outlined"
                 size={50}
-                color={PRIMARY_COLOR}
+                color={colors.primary}
                 style={CourseActionStyles.centerIcon}
               />
-              <Text style={CourseActionStyles.modalTitle}>
+              <Text style={[CourseActionStyles.modalTitle, {color: colors.textDarker}]}>
                 Test Instructions
               </Text>
 
               <View style={CourseActionStyles.instructionBox}>
-                <Text style={CourseActionStyles.insText}>
+                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
                   <Text style={CourseActionStyles.boldText}>
                     Identity Verification:
                   </Text>{' '}
-                  Your front camera will stay on to make sure it's really you
+                  Your front camera will stay on throughout the test to make sure it's really you
                   taking the test.
                 </Text>
-                <Text style={CourseActionStyles.insText}>
+                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
                   <Text style={CourseActionStyles.boldText}>Stay Focused:</Text>
                   Try not to look away from the screen for too long, as the
                   system monitors your attention.
                 </Text>
-                <Text style={CourseActionStyles.insText}>
-                  No Switching Apps/minimizing:
+                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
                   <Text style={CourseActionStyles.boldText}>
-                    No Switching Apps/minimization:{' '}
+                    App Switching/minimizing:{' '}
                   </Text>
                   If you leave this app or minimize it, your assessment wil
                   auto-submit.
                 </Text>
-                <Text style={CourseActionStyles.insText}>
-                  <Text style={CourseActionStyles.boldText}>
-                    Identity Check (Selfie):
-                  </Text>
-                  We’ll take a quick photo of you now to verify your identity
-                  before the test starts.
-                </Text>
-                <Text style={CourseActionStyles.insText}>
+                <Text style={[CourseActionStyles.insText, {color: colors.text}]}>
                   Goodluck and we hope you have a good test!
                 </Text>
               </View>
@@ -3208,15 +3465,16 @@ export const RenderStudentTest = ({
               <TouchableOpacity
                 style={[
                   CourseActionStyles.startBtn,
+                  { backgroundColor: colors.btnColor },
                   isUploading && CourseActionStyles.disabledBtn,
                 ]}
                 onPress={startTestWithSecurity}
                 disabled={isUploading}
               >
                 {isUploading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.btnTextColor} size={'small'} />
                 ) : (
-                  <Text style={CourseActionStyles.startBtnText}>
+                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
                     Verify Identity & Start
                   </Text>
                 )}
@@ -3225,173 +3483,203 @@ export const RenderStudentTest = ({
           </View>
         </View>
       </Modal>
-
-      {/* QUIZ HEADER */}
       <View style={CourseActionStyles.header}>
-        <Text
+        <View style={CourseActionStyles.sideBySideCenteredRow}>
+          <MaterialIcons name="access-time-outlined" size={20} color={colors.text} />
+          <Text
+            style={[
+              CourseActionStyles.timer,
+              {marginLeft: 3},
+              timeLeft < 600 ? CourseActionStyles.timerUrgent : {color: colors.text},
+            ]}
+          >
+            {Math.floor(timeLeft / 60)}:{' '}
+            {(timeLeft % 60).toString().padStart(2, '0')}
+          </Text>
+        </View>
+        <Text 
           style={[
-            CourseActionStyles.timer,
-            timeLeft < 600 && CourseActionStyles.timerUrgent,
+            CourseActionStyles.cheatCount, 
+            { color: warningCount <= 2 ? colors.primary : colors.text }
           ]}
         >
-          <Icon name="clock-outline" size={20} color="#2222" />
-          {Math.floor(timeLeft / 60)}:{' '}
-          {(timeLeft % 60).toString().padStart(2, '0')}
+          {warningCount} {warningCount === 1 ? 'grace' : 'graces'} left
         </Text>
-        <View
-          style={{
-            flexDirection: 'row',
-            marginHorizontal: 5,
-            alignItems: 'center',
-          }}
-        >
-          {[...Array(MAX_GRACES)].map((_, i) => (
-            <Icon
-              key={i}
-              name={
-                i < MAX_GRACES - cheatingCount ? 'shield-check' : 'shield-off'
-              }
-              size={18}
-              color={
-                i < MAX_GRACES - cheatingCount
-                  ? PRIMARY_COLOR_TINT
-                  : PRIMARY_COLOR
-              }
-              style={{ marginRight: 2 }}
-            />
-          ))}
-          <Text style={{ fontSize: 10, color: '#2222' }}>Security Status</Text>
-        </View>
-        <Text style={CourseActionStyles.progress}>
-          Question {currentIndex + 1} of {test.questions.length}
+        <Text style={[CourseActionStyles.progress, {color: colors.text}]}>
+          Question {currentIndex + 1} of {activeQuestions.length}
         </Text>
         <TouchableOpacity onPress={() => setIsCalcVisible(true)}>
-          <Icon name="calculator" size={20} color={PRIMARY_COLOR} />
+          <MaterialIcons name="calculate-outlined" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
-
-      {/* QUESTION UI */}
       {isStarted && !isFinished && (
         <>
           <View style={CourseActionStyles.questionCard}>
-            <Text style={CourseActionStyles.qText}>
-              {test.questions[currentIndex].questionText}
+            <Text style={[CourseActionStyles.qText, {color: colors.textDarker}]}>
+              {activeQuestions[currentIndex].questionText}
             </Text>
             {/* Conditional Rendering Logic */}
-            {test.questions[currentIndex].type === 'MCQ' ||
-            test.questions[currentIndex].type === 'TrueFalse' ? (
+            {activeQuestions[currentIndex].type === 'MCQ' ||
+            activeQuestions[currentIndex].type === 'TrueFalse' ? (
               <View style={CourseActionStyles.optionsContainer}>
-                {test.questions[currentIndex].options?.map((option, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      CourseActionStyles.optionButton,
-                      answers[test.questions[currentIndex].id] === option &&
-                        CourseActionStyles.selectedOption,
-                    ]}
-                    onPress={() =>
-                      setAnswers({
-                        ...answers,
-                        [test.questions[currentIndex].id]: option,
-                      })
-                    }
-                  >
-                    <Text
+                {activeQuestions[currentIndex].options?.map(
+                  (option: any, index: any) => (
+                    <TouchableOpacity
+                      key={index}
                       style={[
-                        CourseActionStyles.optionText,
-                        answers[test.questions[currentIndex].id] === option &&
-                          CourseActionStyles.selectedOptionText,
+                        CourseActionStyles.optionButton,
+                        answers[activeQuestions[currentIndex].id] === option &&
+                          CourseActionStyles.selectedOption,
                       ]}
+                      onPress={() =>
+                        setAnswers({
+                          ...answers,
+                          [activeQuestions[currentIndex].id]: option,
+                        })
+                      }
                     >
-                      {option}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          CourseActionStyles.optionText,
+                          {color: colors.text},
+                          answers[activeQuestions[currentIndex].id] ===
+                            option && CourseActionStyles.selectedOptionText,
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  ),
+                )}
               </View>
             ) : (
-              /* Fallback to ShortAnswer / TextInput */
               <TextInput
-                style={CourseActionStyles.input}
-                value={answers[test.questions[currentIndex].id] || ''}
+                style={[CourseActionStyles.input, {color: colors.text, borderColor: colors.border}]}
+                value={answers[activeQuestions[currentIndex].id] || ''}
                 onChangeText={val =>
                   setAnswers({
                     ...answers,
-                    [test.questions[currentIndex].id]: val,
+                    [activeQuestions[currentIndex].id]: val,
                   })
                 }
                 placeholder="Type your answer here..."
-                placeholderTextColor={'#999'}
+                placeholderTextColor={colors.inputTextHolder}
               />
             )}
           </View>
 
           <View style={CourseActionStyles.testSideBySide}>
             <TouchableOpacity
-              style={CourseActionStyles.submitBtn}
+              style={[CourseActionStyles.submitBtn, {backgroundColor: colors.btnColor}]}
               onPress={() =>
                 currentIndex > 0 && setCurrentIndex(currentIndex - 1)
               }
             >
-              <Text style={CourseActionStyles.submitBtnText}>Prev</Text>
+              <Text style={[CourseActionStyles.submitBtnText, {color: colors.btnTextColor}]}>Prev</Text>
             </TouchableOpacity>
 
-            {currentIndex === test.questions.length - 1 ? (
+            {currentIndex === activeQuestions.length - 1 ? (
               <TouchableOpacity
-                style={CourseActionStyles.submitBtn}
+                style={[CourseActionStyles.submitBtn, {backgroundColor: colors.btnColor}]}
                 onPress={handleFinalSubmit}
               >
-                <Text style={CourseActionStyles.submitBtnText}>
+                <Text style={[CourseActionStyles.submitBtnText, {color: colors.btnTextColor}]}>
                   Submit Test
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
+                style={[CourseActionStyles.submitBtn, {backgroundColor: colors.btnColor}]}
                 onPress={() => setCurrentIndex(currentIndex + 1)}
               >
-                <Text style={CourseActionStyles.submitBtnText}>Next</Text>
+                <Text style={[CourseActionStyles.submitBtnText, {color: colors.btnTextColor}]}>Next</Text>
               </TouchableOpacity>
             )}
           </View>
         </>
       )}
-
-      {/* FINAL SCORE MODAL */}
       <Modal visible={isFinished} transparent animationType="slide">
         <View style={CourseActionStyles.modalOverlay}>
-          <View style={CourseActionStyles.resultCard}>
-            <Icon name="trophy-outline" size={50} color={PRIMARY_COLOR} />
+          <View style={[CourseActionStyles.resultCard, {backgroundColor: colors.backgroundSecondary}]}>
+            {impersonationError ? (
+              <>
+                <MaterialIcons name="cancel-outlined" size={60} color={colors.primary} />
+                <Text
+                  style={[
+                    CourseActionStyles.scoreTitle,
+                    { color: colors.primary },
+                  ]}
+                >
+                  Test Submission Rejected
+                </Text>
 
-            <View style={CourseActionStyles.scoreCircle}>
-              <Text style={CourseActionStyles.scoreBig}>
-                {finalResult.score}
-              </Text>
-              <Text style={CourseActionStyles.scoreSmall}>
-                / {finalResult.total}
-              </Text>
-            </View>
-
-            <Text style={CourseActionStyles.scoreTitle}>
-              {getAdvice((finalResult.score / finalResult.total) * 100).title}
-            </Text>
-
-            <Text style={CourseActionStyles.adviceText}>
-              {getAdvice((finalResult.score / finalResult.total) * 100).msg}
-            </Text>
-
-            <TouchableOpacity
-              style={CourseActionStyles.startBtn}
-              onPress={() => {
-                navigation.navigate('Home');
-              }}
-            >
-              <Text style={CourseActionStyles.startBtnText}>
-                Back to Courses
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    CourseActionStyles.adviceText,
+                    { textAlign: 'center', marginVertical: 15 },
+                  ]}
+                >
+                  {impersonationError ||
+                    'Your identity could not be verified on suspicions of impersonation.'}
+                </Text>
+                <TouchableOpacity
+                  style={[CourseActionStyles.startBtn, {backgroundColor: colors.btnColor}]}
+                  onPress={startTestWithSecurity}
+                >
+                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
+                    Redo Test (Contact Admin if issue persists)
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <MaterialIcons name="check-circle-outlined" size={50} color={colors.primary} />
+                <View style={CourseActionStyles.scoreCircle}>
+                  <Text style={[CourseActionStyles.scoreBig, {color: colors.primary}]}>
+                    {finalResult.score}
+                  </Text>
+                  <Text style={[CourseActionStyles.scoreSmall, {color: colors.primaryTint}]}>
+                    / {finalResult.total}
+                  </Text>
+                </View>
+                <Text style={[CourseActionStyles.scoreTitle, {color: colors.textDarker}]}>
+                  {
+                    getAdvice((finalResult.score / finalResult.total) * 100)
+                      .title
+                  }
+                </Text>
+                <Text style={[CourseActionStyles.adviceText, {color: colors.text}]}>
+                  {getAdvice((finalResult.score / finalResult.total) * 100).msg}
+                </Text>
+                <View style={CourseActionStyles.sideBySideCenteredRowSB}>
+                <TouchableOpacity
+                  style={[CourseActionStyles.startBtn, {backgroundColor: colors.btnColor}]}
+                  onPress={() => {
+                    navigation.navigate('Home');
+                  }}
+                >
+                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
+                    Back to Home
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    CourseActionStyles.startBtn,
+                    { backgroundColor: colors.btnColor }
+                  ]}
+                  onPress={downloadStudentResultSheet}
+                >
+                  <MaterialIcons name="download-outlined" size={20} color={colors.btnTextColor} />
+                  <Text style={[CourseActionStyles.startBtnText, {color: colors.btnTextColor}]}>
+                    Download Test Review
+                  </Text>
+                </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
-      {/* SCIENTIFIC CALCULATOR MODAL */}
       <FloatingCalculator
         visible={isCalcVisible}
         onClose={() => setIsCalcVisible(false)}
@@ -3399,6 +3687,7 @@ export const RenderStudentTest = ({
         result={result}
         handlePress={handlePress}
         buttons={buttons}
+        colors={colors}
       />
       {device != null && (
         <Camera
@@ -4080,7 +4369,9 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 15,
     marginBottom: 10,
+    borderBottomWidth: 0.8,
   },
   contentRow: {
     flexDirection: 'row',
@@ -4151,15 +4442,13 @@ export const CourseActionStyles = StyleSheet.create({
   },
   addBtnText: { fontSize: 14, fontWeight: 'bold' },
   addBtnText3: {
-    marginLeft: 10,
-    color: PRIMARY_COLOR_TINT,
-    fontWeight: 'bold',
-    fontSize: 12,
+    marginLeft: 4,
+    fontSize: 14,
   },
   addBtnText2: {
-    color: PRIMARY_COLOR_TINT,
+    marginLeft: 4,
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 14,
   },
   addContentBtn: {
     flexDirection: 'row',
@@ -4217,7 +4506,7 @@ export const CourseActionStyles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 12,
-    padding: 14,
+    padding: 15,
     fontSize: 14,
     marginBottom: 20,
   },
@@ -4228,9 +4517,10 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBtn: {
-    paddingVertical: 14,
-    marginRight: 8,
-    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    alignContent: 'center',
     borderWidth: 1,
   },
   cancelBtnText: {
@@ -4238,10 +4528,10 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: '600',
   },
   saveBtn: {
-    flex: 2,
-    paddingVertical: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 12,
-    alignItems: 'center',
+    alignContent: 'center',
   },
   saveBtnText: {
     fontSize: 14,
@@ -4319,13 +4609,12 @@ export const CourseActionStyles = StyleSheet.create({
     marginBottom: 15,
   },
   dateText: {
-    marginLeft: 5,
+    marginRight: 5,
     fontSize: 14,
     fontWeight: '500',
   },
   dateText2: {
     fontSize: 11,
-    color: '#2222',
   },
   filePickerBtn: {
     padding: 15,
@@ -4374,184 +4663,117 @@ export const CourseActionStyles = StyleSheet.create({
     height: '100%',
   },
   manageCard: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: PRIMARY_COLOR_TINT,
+    borderBottomWidth: 0.8,
   },
   studentName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#222',
-  },
-  pendingIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: PRIMARY_COLOR,
-  },
-  exceptionDetails: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: PRIMARY_COLOR,
-    marginBottom: 6,
   },
   reasonBody: {
     fontSize: 14,
-    color: '#2222',
     lineHeight: 20,
-    backgroundColor: '#f8f9fa',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 16,
-    fontStyle: 'italic',
+    marginBottom: 15,
   },
   actionRow2: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: 12,
   },
   approveBtn: {
-    flex: 1,
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: PRIMARY_COLOR,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignContent: 'center',
   },
   rejectBtn: {
-    flex: 1,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    alignContent: 'center',
   },
   btnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-    color: PRIMARY_COLOR,
-  },
-  // Overriding text color for the outline button
-  rejectBtnText: {
-    color: '#e53e3e',
   },
   finalStatusText: {
     fontSize: 14,
     fontWeight: '700',
-    textAlign: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
-    color: PRIMARY_COLOR_TINT,
     textTransform: 'capitalize',
   },
   matricText: {
     fontSize: 12,
-    color: '#888',
     fontWeight: '500',
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    marginHorizontal: 8,
-  },
   categoryLabel: {
+    marginBottom: 10,
     fontSize: 12,
-    color: PRIMARY_COLOR,
     fontWeight: 'bold',
   },
   finalStatusContainer: {
     paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
     alignItems: 'center',
   },
   headerWrapper: {
     marginBottom: 20,
-    backgroundColor: '#f4f1f1',
-  },
-  tierInfoCard: {
-    backgroundColor: PRIMARY_COLOR, // Dark slate
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  usageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    padding: 13,
+  },
+  tierInfoCard: {
+    flex: 1,
+  },
+  usageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
   },
   tierLabel: {
-    color: '#fff',
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: 1,
   },
   usageText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 14,
+    marginLeft: 10,
   },
   resetText: {
-    color: '#fff',
-    fontSize: 11,
-    marginTop: 8,
-    textAlign: 'center',
+    fontSize: 12,
   },
   addBtn: {
-    backgroundColor: 'inherit',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 12,
-    gap: 8,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    gap: 4,
-  },
-  errorText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
   },
   exceptionCard: {
-    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   courseIdText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2d3748',
   },
   reasonText: {
-    fontSize: 13,
-    color: '#4a5568',
+    fontSize: 14,
     marginVertical: 4,
   },
   statusBadge: {
@@ -4563,22 +4785,20 @@ export const CourseActionStyles = StyleSheet.create({
   statusLabel: {
     fontSize: 10,
     fontWeight: 'bold',
-    textTransform: 'uppercase',
-    color: PRIMARY_COLOR_TINT,
+    textTransform: 'capitalize',
+    marginTop: 4,
   },
   exceptionModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     padding: 24,
     width: '100%',
     position: 'absolute',
     bottom: 0,
-    maxHeight: '90%',
+    maxHeight: '80%',
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#718096',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -4592,56 +4812,48 @@ export const CourseActionStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#edf2f7',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderWidth: 0.8,
   },
   catBtnActive: {
     backgroundColor: PRIMARY_COLOR,
     borderColor: PRIMARY_COLOR,
   },
   catBtnText: {
-    fontSize: 12,
-    color: '#4a5568',
+    fontSize: 14,
     fontWeight: '600',
   },
   textArea: {
-    backgroundColor: '#f7fafc',
     borderRadius: 12,
     padding: 12,
     height: 100,
     textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderWidth: 0.8,
     marginBottom: 15,
   },
   costWarning: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ebf8ff',
     padding: 10,
     borderRadius: 8,
     marginBottom: 20,
-    gap: 8,
+    borderLeftWidth: 1,
   },
   costText: {
     fontSize: 12,
-    color: '#2b6cb0',
+    marginLeft: 6,
     fontWeight: '600',
   },
   pickerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR_TINT,
-    marginBottom: 20,
+    marginBottom: 15,
     overflow: 'hidden',
     justifyContent: 'center',
+    padding: 6,
+    borderWidth: 0.8,
   },
   pickerContainer2: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     padding: 25,
     maxHeight: '70%',
   },
@@ -4681,10 +4893,7 @@ export const CourseActionStyles = StyleSheet.create({
     marginTop: 7,
   },
   labelTitle: {
-    fontSize: 15,
-    color: '#2222',
-    textTransform: 'capitalize',
-    letterSpacing: 0.5,
+    fontSize: 14,
     fontWeight: '700',
   },
   dateTimeText: {
@@ -4894,38 +5103,32 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  container: { flex: 1, padding: 15, backgroundColor: '#fff' },
+  container: { flex: 1 },
   formHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#2222' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
   draftText: { color: '#2D5A5A', fontWeight: 'bold' },
   titleInput: {
-    fontSize: 22,
-    fontWeight: '800',
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingBottom: 10,
+    fontSize: 14,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    padding: 10,
     marginBottom: 20,
   },
   questionCard: {
-    backgroundColor: 'inherit',
-    padding: 15,
-    borderRadius: 15,
     marginBottom: 15,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
+    padding: 15
   },
   qNumber: {
-    fontSize: 12,
-    color: '#2222',
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 5,
   },
-  qInput: { fontSize: 16, color: '#2222', marginBottom: 15 },
+  qInput: { fontSize: 14, marginBottom: 15 },
   optionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   radio: {
     width: 18,
@@ -4935,12 +5138,13 @@ export const CourseActionStyles = StyleSheet.create({
     borderColor: PRIMARY_COLOR_TINT,
     marginRight: 10,
   },
-  radioActive: { backgroundColor: PRIMARY_COLOR_TINT },
+  radioActive: { backgroundColor: PRIMARY_COLOR },
   optInput: {
     flex: 1,
-    borderBottomWidth: 0.8,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    padding: 5,
+    padding: 10,
+    fontSize: 14,
   },
   publishBtn: {
     backgroundColor: '#2D5A5A',
@@ -4951,25 +5155,20 @@ export const CourseActionStyles = StyleSheet.create({
   },
   publishBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   sectionTitle: {
-    fontSize: 19,
-    color: '#2222',
-    marginLeft: 5,
+    fontSize: 18,
     fontWeight: '700',
   },
   createCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 15,
-    marginBottom: 20,
-    marginRight: 5,
   },
   createCardText: {
-    marginLeft: 15,
-    fontSize: 16,
+    marginLeft: 5,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#fff',
   },
   pastTestCard: {
     flexDirection: 'row',
@@ -4980,62 +5179,40 @@ export const CourseActionStyles = StyleSheet.create({
     borderBottomColor: PRIMARY_COLOR_TINT,
   },
   testTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#2222',
     marginBottom: 10,
   },
-  testMeta: { fontSize: 12, color: '#2222' },
+  testMeta: { fontSize: 12, color: PRIMARY_COLOR_TINT },
   settingsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 15,
-    marginBottom: 20,
-    backgroundColor: 'inherit',
-    padding: 15,
-    borderRadius: 12,
+    marginBottom: 15,
   },
   settingItem: {
     flex: 1,
   },
   microLabel2: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#2222',
-    textTransform: 'capitalize',
-    marginBottom: 5,
+    fontSize: 14,
+    marginBottom: 8,
   },
   settingInput: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
-    borderBottomWidth: 1,
-    borderBottomColor: PRIMARY_COLOR_TINT,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
   publishHeaderBtn: {
-    backgroundColor: PRIMARY_COLOR, // Your iCampus primary green
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 13,
+    alignContent: 'center',
+    width: '80%',
+    alignSelf: 'center',
+    marginTop: 20,
   },
   publishHeaderText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -5047,17 +5224,10 @@ export const CourseActionStyles = StyleSheet.create({
     color: '#999',
   },
   modalBody: {
-    flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
   },
   settingsCard: {
-    backgroundColor: 'inherit',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderBottomColor: '#EEE',
+    marginBottom: 15,
   },
   qHeader: {
     flexDirection: 'row',
@@ -5066,20 +5236,15 @@ export const CourseActionStyles = StyleSheet.create({
     marginBottom: 15,
   },
   pointsInput: {
-    backgroundColor: 'inherit',
     borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    padding: 10,
     width: 40,
     textAlign: 'center',
-    fontWeight: 'bold',
-    marginLeft: 'auto',
     borderColor: PRIMARY_COLOR_TINT,
-    borderWidth: 0.7,
+    borderWidth: 0.8,
   },
   pointsLabel: {
-    fontSize: 12,
-    color: '#2222',
+    fontSize: 14,
     marginLeft: 4,
     fontWeight: '600',
   },
@@ -5087,7 +5252,6 @@ export const CourseActionStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: PRIMARY_COLOR_TINT, // Matches your iCampus theme
   },
   sideBySide: {
     flexDirection: 'row',
@@ -5099,75 +5263,50 @@ export const CourseActionStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   addOptionBtn: {
-    marginTop: 10,
-    padding: 8,
-    alignItems: 'flex-start',
-    backgroundColor: PRIMARY_COLOR_TINT,
+    marginTop: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignContent: 'center',
   },
   addOptionText: {
-    color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   shortAnswerPreview: {
-    marginTop: 10,
-    padding: 12,
-    backgroundColor: 'inherit',
-    borderRadius: 8,
-    borderStyle: 'dashed',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
+    marginBottom: 15,
   },
   previewLabel: {
-    fontSize: 11,
-    color: '#2222',
-    textTransform: 'capitalize',
+    fontSize: 14,
     marginBottom: 8,
     fontWeight: '700',
   },
-  disabledInputPlaceholder: {
-    height: 40,
-    backgroundColor: '#efeded',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  placeholderText: {
-    color: '#2222',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
   correctAnswerInput: {
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
-    paddingVertical: 5,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    padding: 10,
     fontSize: 14,
-    color: '#2222',
   },
   typeGroup: {
     flexDirection: 'row',
-    backgroundColor: 'inherit',
     alignItems: 'center',
     marginBottom: 15,
   },
   typeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 6,
-  },
-  activeTypeBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    shadowColor: '#000',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 13,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
   typeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
   },
   activeTypeText: {
     color: '#fff', // Highlight the text of the active one
@@ -5176,9 +5315,9 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'inherit',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 10,
+    borderRadius: 12,
     marginTop: 4,
   },
   cameraMiniPreview: {
@@ -5197,8 +5336,7 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   resultCard: {
-    width: '85%',
-    backgroundColor: '#fff',
+    width: '95%',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center',
@@ -5208,31 +5346,27 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'baseline',
     marginVertical: 20,
   },
-  scoreBig: { fontSize: 40, fontWeight: 'bold', color: PRIMARY_COLOR },
-  scoreSmall: { fontSize: 20, color: PRIMARY_COLOR_TINT, fontWeight: 'bold' },
+  scoreBig: { fontSize: 40, fontWeight: 'bold', },
+  scoreSmall: { fontSize: 20, fontWeight: 'bold' },
   adviceText: {
-    textAlign: 'center',
-    color: PRIMARY_COLOR_TINT,
-    marginBottom: 30,
+    marginBottom: 20,
     fontSize: 14,
     fontWeight: '700',
+    width: '100%'
   },
   submitBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    borderRadius: 12,
   },
-  submitBtnText: { color: '#fff', fontWeight: 'bold' },
+  submitBtnText: { fontSize: 14, fontWeight: 'bold' },
   //
   modalContainer: {
-    width: '88%',
-    maxHeight: '80%',
-    backgroundColor: '#fff',
+    width: '90%',
     borderRadius: 20,
     padding: 20,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -5246,26 +5380,21 @@ export const CourseActionStyles = StyleSheet.create({
   },
   instructionBox: {
     width: '100%',
-    backgroundColor: 'inherit',
-    padding: 8,
     marginBottom: 20,
   },
   insText: {
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 22,
-    color: '#2222',
     marginBottom: 10,
   },
   startBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 13,
     alignItems: 'center',
   },
   startBtnText: {
-    color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   startBtnText2: {
@@ -5276,20 +5405,17 @@ export const CourseActionStyles = StyleSheet.create({
   },
   boldText: {
     fontWeight: 'bold',
-    color: '#222',
   },
   //
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
+    padding: 15,
   },
   timer: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -5297,22 +5423,19 @@ export const CourseActionStyles = StyleSheet.create({
     color: PRIMARY_COLOR,
   },
   progress: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#2222',
-    overflow: 'hidden',
   },
   qText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
   },
   optionsContainer: {
     gap: 12,
   },
   optionButton: {
     borderWidth: 0.8,
-    borderColor: '#2222',
+    width: '100%',
     borderRadius: 8,
     padding: 15,
     flexDirection: 'row',
@@ -5320,22 +5443,21 @@ export const CourseActionStyles = StyleSheet.create({
   },
   selectedOption: {
     borderColor: PRIMARY_COLOR,
-    backgroundColor: PRIMARY_COLOR_TINT,
+    backgroundColor: PRIMARY_COLOR,
     borderWidth: 2,
   },
   optionText: {
-    fontSize: 15,
-    color: '#2222',
+    fontSize: 14,
   },
   selectedOptionText: {
-    color: PRIMARY_COLOR,
+    color: '#fff',
     fontWeight: 'bold',
   },
   scoreTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR_TINT,
     marginBottom: 9,
+    width: '100%'
   },
   fullCamera: {
     flex: 1,
@@ -5349,8 +5471,8 @@ export const CourseActionStyles = StyleSheet.create({
     height: 130,
     borderRadius: 15,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
     zIndex: 999,
   },
   centered: {
@@ -5589,13 +5711,12 @@ export const CourseActionStyles = StyleSheet.create({
     left: 20,
     width: 160,
     padding: 10,
-    backgroundColor: '#FFFFFF',
     borderRadius: 15,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
     zIndex: 900,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -5604,12 +5725,10 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 5,
-    paddingHorizontal: 5,
   },
   miniCalculatorHeaderText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
   },
   miniCalcDisplay: {
     backgroundColor: '#f8f9fa',
@@ -5641,4 +5760,30 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 4,
   },
+  downloadTestBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  downloadBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  sideBySideCenteredRow:{
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  sideBySideCenteredRowSB:{
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%'
+  },
+  cheatCount:{
+    fontSize: 14,
+    fontWeight: 'bold',
+  }
 });

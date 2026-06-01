@@ -14,8 +14,6 @@ import {
   PRIMARY_COLOR_TINT,
 } from '../components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
-import { baseUrl } from '../components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppSelector } from '../components/hooks';
 import {
   RenderViewLectureSchedule,
@@ -40,11 +38,13 @@ import {
   checkAssessmentStatus,
   getCourseExceptions,
   getCourseAssessments,
+  fetchAllLecturesByCourseId,
 } from '../api/localGetApis';
 import {
   submitLectureException,
   createLectureSchedule,
   saveCourseAssessment,
+  submitStudentTest,
 } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
@@ -135,29 +135,22 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const handleTestSubmission = async (payload: any) => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/student/class/test/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (response.ok) {
+      const result = await submitStudentTest(payload);
+      if (result.success) {
         Toast.show({
           type: 'success',
           text1: 'Test Submitted!',
           text2: 'Your grade has been recorded.',
         });
-        fetchTests();
+        if (typeof fetchTests === 'function') {
+          fetchTests();
+        }
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Submission failed');
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failure',
+          text2: result.message,
+        });
       }
     } catch (error: any) {
       Toast.show({
@@ -282,6 +275,19 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       setLoading(false);
     }
   }, [course.courseId]);
+  const handleFetchCourseLectures = useCallback(async () => {
+    if (!course.courseId) return;
+    const result = await fetchAllLecturesByCourseId(course.courseId);
+    if (result.success) {
+      setAllLectures(result.data);
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.error || 'Failed to fetch course lectures',
+      });
+    }
+  }, [course.courseId]);
   // --- LECTURER: Handle Creating a New Lecture ---
   const handleUpdateStatus = async (
     id: string,
@@ -363,7 +369,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               : 'Draft Saved',
             text2: `Successfully stored "${testData.title}"`,
           });
-          setModalVisible(false);
         }
         fetchTests();
       } else {
@@ -485,6 +490,11 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       }
     }
   }, [title, lectures, fetchTimeline]);
+  useEffect(() => {
+    if (title === 'Exceptions') {
+      handleFetchCourseLectures();
+    }
+  }, [title, handleFetchCourseLectures]);
   useEffect(() => {
     if (
       title === 'Assessments' &&
@@ -609,10 +619,8 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               }
               const now = Date.now();
               const startTime = new Date(activeTest.scheduledStart).getTime();
-              const buffer = 30000; // 30-second buffer for network/clock sync
-
+              const buffer = 30000;
               const isTimeReady = now >= startTime - buffer;
-
               if (isTimeReady) {
                 return (
                   <RenderStudentTest
@@ -677,6 +685,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         onClose={() => setModalVisible(false)}
         course={course}
         user={user}
+        lectures={allLectures}
         onSave={handleSaveException}
         isSaving={loading}
       />

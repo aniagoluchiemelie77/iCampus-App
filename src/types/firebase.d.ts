@@ -584,10 +584,6 @@ export interface Assignment {
     isReceived: boolean; 
   }[];
 }
-export interface LecturerExceptionView extends CourseException {
-  studentName?: string; 
-  matricNumber?: string;
-}
 // This type requires the core fields but ignores the ones the backend generates
 export type CreateLecturePayload = Omit<
   Lecture, 

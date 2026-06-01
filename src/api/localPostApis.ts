@@ -62,6 +62,11 @@ interface ApiResponse {
   data?: any;
   error?: string;
 }
+ interface SubmitTestResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
 
 const getAuthHeaders = async () => {
   return {
@@ -1666,5 +1671,45 @@ export const createAssignment = async (courseId: string, formData: FormData): Pr
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || 'Network error occurred.' };
+  }
+};
+export const submitStudentTest = async (
+  payload: any
+): Promise<SubmitTestResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/student/class/test/submit`, {
+      method: 'POST',
+      ...headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      return { 
+        success: false, 
+        message: "Session expired. Please log back in." 
+      };
+    }
+
+    const result = await response.json();
+
+    if (response.ok) {
+      return {
+        success: true,
+        message: result.message || 'Test submitted successfully.',
+        data: result
+      };
+    } else {
+      return {
+        success: false,
+        message: result.message || 'Submission failed on server validation.'
+      };
+    }
+  } catch (error) {
+    console.error("API Utility Network Exception (submitStudentTest):", error);
+    return {
+      success: false,
+      message: "Network communication timeout. Is your internet active?",
+    };
   }
 };

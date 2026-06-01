@@ -1281,3 +1281,45 @@ export const fetchAllAssignments = async (courseId: string): Promise<ApiResponse
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
+export const fetchAllLecturesByCourseId = async (courseId: string): Promise<ApiResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/courses/${courseId}/fetch-all-lectures`, {
+      method: 'GET',
+      headers,
+    });
+    
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: result.error || result.message || 'Failed to fetch lectures.' 
+      };
+    }
+    return { success: true, data: Array.isArray(result.lectures) ? result.lectures : [] };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred.' };
+  }
+};
+export const getAssessmentAnalysisUrl = async (testId: string): Promise<ApiResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis`, 
+      {
+        method: 'GET',
+        headers
+      }
+    );
+    const result = await response.json();  
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: result.error || result.message || 'Failed to generate report URL.' 
+      };
+    }
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error occurred.' };
+  }
+};
