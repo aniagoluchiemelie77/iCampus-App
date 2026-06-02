@@ -655,7 +655,11 @@ export const LiveClassSessionStyles = StyleSheet.create({
     height: '100%',
   },
   infoSection: { padding: 15 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   courseTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -1068,14 +1072,13 @@ export const LiveClassSessionStyles = StyleSheet.create({
     fontSize: 14,
   },
   reviewModalBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 13,
+    borderWidth: 1,
   },
   reviewModalBtnText: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: 'bold',
   },
   modalReviewContainer: {
@@ -1085,23 +1088,19 @@ export const LiveClassSessionStyles = StyleSheet.create({
     marginVertical: 20,
   },
   modalContainer: {
-    backgroundColor: '#fff',
     padding: 20,
     borderRadius: 12,
-    alignItems: 'center',
+    alignContent: 'center',
     width: '80%',
-    zIndex: 10,
+    zIndex: 120,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: PRIMARY_COLOR,
   },
   modalSubText: {
-    fontSize: 13,
-    color: PRIMARY_COLOR,
-    textAlign: 'center',
+    fontSize: 14,
     marginBottom: 15,
   },
   modalButtonRow: {

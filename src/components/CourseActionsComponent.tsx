@@ -43,7 +43,6 @@ import {
 } from 'react-native-safe-area-context';
 import { create, all } from 'mathjs';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import Logo from '../assets/images/Logo';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -63,7 +62,7 @@ import { createAssignment, saveCourseMaterial } from '../api/localPostApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { deleteCourseMaterial } from '../api/localDeleteApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { updateCourseContent } from '../api/localPutApis';
+import { updateCourseContent, postponeLecture } from '../api/localPutApis';
 import {
   createCourseContent,
   verifyFacialIdentity,
@@ -79,6 +78,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants';
 const { width } = Dimensions.get('window');
 const math = create(all);
+import { PageHeader } from './PageHeader';
 
 type PageType =
   | 'Course Contents'
@@ -88,9 +88,7 @@ type PageType =
   | 'Assessments'
   | 'Set Lecture Schedule'
   | 'View Lecture Schedule'
-  | 'View Assessment Report'
-  | 'AI Assisted Learning'
-  | 'Library';
+  | 'View Assessment Report';
 interface LecturerManageProps {
   exceptions: CourseException[];
   searchQuery: string;
@@ -128,8 +126,8 @@ interface StudentExceptionsProps {
   user: User;
   onAddPress: () => void;
   searchQuery: string;
-  refreshing: boolean; // <-- Add this
-  onRefresh: () => void; // <-- Add this
+  refreshing: boolean;
+  onRefresh: () => void;
 }
 interface AddExceptionProps {
   visible: boolean;
@@ -141,7 +139,7 @@ interface AddExceptionProps {
   lectures: Lecture[];
 }
 interface HeaderProps {
-  onBack: () => void;
+  onBack?: () => void;
   title: PageType;
   searchQuery: string;
   setSearchQuery: (text: string) => void;
@@ -800,60 +798,59 @@ export const AddExceptionModal = ({
   );
 };
 export const DetailHeader = ({
-  onBack,
   title,
   searchQuery,
   setSearchQuery,
   placeholder,
-  userRole, // Destructure userRole
+  userRole,
 }: HeaderProps) => {
-  // Logic: Hide search bar ONLY if it's Assessments AND user is a student
+  const { colors } = useTheme();
   const shouldShowSearch = !(title === 'Assessments' && userRole === 'student');
 
   return (
-    <View style={CourseActionStyles.headerContainer}>
-      <View style={CourseActionStyles.headerTop}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={CourseActionStyles.backButton}
-        >
-          <Icon name="chevron-left" size={32} color={PRIMARY_COLOR} />
-        </TouchableOpacity>
-
-        <View style={CourseActionStyles.titleContainer}>
-          <Text style={CourseActionStyles.headerPageTitle}>{title}</Text>
-          <Logo />
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
-
+    <>
+      <PageHeader title={title} />
       {shouldShowSearch && (
-        <View style={CourseActionStyles.searchBarWrapper}>
-          <View style={CourseActionStyles.searchBarInner}>
-            <Icon
-              name="magnify"
+        <View
+          style={[
+            CourseActionStyles.searchBarWrapper,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View
+            style={[
+              CourseActionStyles.searchBarInner,
+              { borderColor: colors.border },
+            ]}
+          >
+            <MaterialIcons
+              name="search"
               size={20}
-              color="#888"
+              color={colors.inputTextHolder}
               style={CourseActionStyles.searchIcon}
             />
             <TextInput
-              style={CourseActionStyles.searchInput}
+              style={[CourseActionStyles.searchInput, { color: colors.text }]}
               placeholder={placeholder || `Search ${title}...`}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.inputTextHolder}
               clearButtonMode="while-editing"
             />
             {/* Android Clear Button Logic */}
             {searchQuery.length > 0 && Platform.OS === 'android' && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Icon name="close-circle" size={18} color="#999" />
+                <MaterialIcons
+                  name="cancel-outlined"
+                  size={18}
+                  color={colors.inputTextHolder}
+                />
               </TouchableOpacity>
             )}
           </View>
         </View>
       )}
-    </View>
+    </>
   );
 };
 export const RenderContents = ({
@@ -3861,6 +3858,7 @@ export const RenderViewLectureSchedule = ({
   lectures: Lecture[];
   onPress: (item: Lecture) => void;
 }) => {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const user = useAppSelector(state => state.user);
@@ -3956,36 +3954,59 @@ export const RenderViewLectureSchedule = ({
         onPress={handlePress}
         style={[
           CourseActionStyles.lectureCard,
-          isOngoing && { borderColor: PRIMARY_COLOR, borderWidth: 2 },
+          { backgroundColor: colors.backgroundSecondary },
+          isOngoing && { borderLeftColor: colors.primary },
         ]}
       >
         <View style={CourseActionStyles.lectureInfoColumn}>
           <View style={CourseActionStyles.rowBetween}>
-            <Text style={CourseActionStyles.topicText}>{item.topicName}</Text>
-            <View style={[CourseActionStyles.badge]}>
-              <Text style={CourseActionStyles.badgeText}>
-                {item.lectureType}
-              </Text>
-            </View>
+            <Text
+              style={[CourseActionStyles.topicText, { color: colors.text }]}
+            >
+              {item.topicName}
+            </Text>
+            <Text
+              style={[CourseActionStyles.badgeText, { color: colors.primary }]}
+            >
+              {item.lectureType}
+            </Text>
           </View>
-
-          <Text style={CourseActionStyles.locationText}>
+          <Text style={[CourseActionStyles.locationText, {color: colors.text}]}>
             {item.lectureType === 'Physical'
-              ? ` ${item.location}`
+              ? `Venue: ${item.location}`
               : ` ${item.lectureType} Class Session`}
           </Text>
-
           {isOngoing && (
             <View style={CourseActionStyles.ongoingIndicator}>
-              <View style={CourseActionStyles.pulseDot} />
-              <Text style={CourseActionStyles.ongoingText}>Happening Now</Text>
+              <View
+                style={[
+                  CourseActionStyles.pulseDot,
+                  { backgroundColor: colors.primary },
+                ]}
+              />
+              <Text
+                style={[
+                  CourseActionStyles.ongoingText,
+                  { color: colors.primary },
+                ]}
+              >
+                Happening Now
+              </Text>
             </View>
           )}
         </View>
         <View style={CourseActionStyles.lectureTimeColumn}>
-          <Text style={CourseActionStyles.timeText}>{item.startTime}</Text>
-          <View style={CourseActionStyles.timeLine} />
-          <Text style={CourseActionStyles.timeTextSmall}>{item.endTime}</Text>
+          <Text style={[CourseActionStyles.timeText, { color: colors.text }]}>
+            {formatDate(item.startTime)}
+          </Text>
+          <Text
+            style={[
+              CourseActionStyles.timeText,
+              { color: colors.text, marginTop: 3 },
+            ]}
+          >
+            {formatDate(item.endTime)}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -3999,8 +4020,18 @@ export const RenderViewLectureSchedule = ({
         keyExtractor={item => item.id}
         renderItem={renderLectureItem}
         renderSectionHeader={({ section: { title } }) => (
-          <View style={CourseActionStyles.sectionHeader}>
-            <Text style={CourseActionStyles.sectionHeaderText}>
+          <View
+            style={[
+              CourseActionStyles.sectionHeader,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text
+              style={[
+                CourseActionStyles.sectionHeaderText,
+                { color: colors.textDarker },
+              ]}
+            >
               {title === today ? "Today's Lectures" : title}
             </Text>
           </View>
@@ -4008,8 +4039,20 @@ export const RenderViewLectureSchedule = ({
         stickySectionHeadersEnabled
       />
 
-      <TouchableOpacity style={CourseActionStyles.fab} onPress={jumpToToday}>
-        <Icon name="calendar-today" size={24} color="#fff" />
+      <TouchableOpacity
+        style={[CourseActionStyles.fab, { backgroundColor: colors.btnColor }]}
+        onPress={jumpToToday}
+      >
+        <Text
+          style={[CourseActionStyles.fabText, { color: colors.btnTextColor }]}
+        >
+          Back to Today
+        </Text>
+        <MaterialIcons
+          name="calendar-today"
+          size={24}
+          color={colors.btnTextColor}
+        />
       </TouchableOpacity>
       <OngoingLectureModal
         visible={!!ongoingLecture}
@@ -4029,6 +4072,7 @@ export const LecturerLectureScheduleView = ({
   onUpdateLecture: (updated: Lecture) => void;
   onDeleteLecture: (id: string) => void;
 }) => {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const user = useAppSelector(state => state.user);
@@ -4038,8 +4082,6 @@ export const LecturerLectureScheduleView = ({
   const [newDate, setNewDate] = useState(new Date());
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
-
-  // Memoized sections remain the same as your student view
   const sections = useMemo(() => {
     const groups = lectures.reduce((acc, lecture) => {
       const date = lecture.date;
@@ -4055,50 +4097,36 @@ export const LecturerLectureScheduleView = ({
         data: groups[date],
       }));
   }, [lectures]);
-
   const handlePostponeSave = async () => {
     if (!selectedLecture) return;
-
     const formattedDate = newDate.toISOString().split('T')[0];
     const formattedTime = newDate.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false, // Ensure 24hr format if your DB expects it
+      hour12: false, 
     });
-
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/courses/${selectedLecture.courseId}/lectures/${selectedLecture.id}/postpone`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            newDate: formattedDate,
-            newStartTime: formattedTime,
-            topicName: selectedLecture.topicName,
-          }),
-        },
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
+      const payload = {
+        courseId: selectedLecture.courseId,
+        lectureId: selectedLecture.id,
+        newDate: formattedDate,
+        newStartTime: formattedTime,
+        topicName: selectedLecture.topicName
+      };
+      const result = await postponeLecture(payload);
+      if (result.success) {
         Toast.show({
           type: 'success',
           text1: 'Success',
           text2: 'Lecture postponed and students notified!',
         });
-        onUpdateLecture(result.updatedLecture);
+        onUpdateLecture(result.data);
         setShowPostponeModal(false);
       } else {
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: result.message,
+          text2: result.error, 
         });
       }
     } catch (error) {
@@ -4172,8 +4200,7 @@ export const LecturerLectureScheduleView = ({
         onPress={handlePress}
         style={[
           CourseActionStyles.lectureCard2,
-          isOngoing && { borderColor: PRIMARY_COLOR, borderWidth: 2 },
-          isPostponed && { opacity: 0.6, backgroundColor: '#f8f9fa' },
+          isOngoing && { borderLeftColor: colors.primary },
         ]}
       >
         <View style={CourseActionStyles.lectureInfoColumn}>
@@ -4181,12 +4208,11 @@ export const LecturerLectureScheduleView = ({
             <Text
               style={[
                 CourseActionStyles.topicText,
-                isPostponed && { textDecorationLine: 'line-through' },
+                {color: colors.text}
               ]}
             >
               {item.topicName}
             </Text>
-            {/* ACTION MENU: The key difference for lecturers */}
             <View
               style={{
                 flexDirection: 'row',
@@ -4200,48 +4226,27 @@ export const LecturerLectureScheduleView = ({
                   setShowPostponeModal(true);
                 }}
               >
-                <Icon name="calendar-clock" size={22} color="#fff" />
-                <Text style={CourseActionStyles.startBtnText2}>Postpone</Text>
+                <MaterialIcons name="restore-outlined" size={22} color={colors.primary} />
+                <Text style={[CourseActionStyles.startBtnText2, {color: colors.primary}]}>Postpone</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[CourseActionStyles.startBtn, { marginLeft: 10 }]}
+                style={[CourseActionStyles.startBtn, { marginLeft: 7 }]}
                 onPress={() => {
                   setSelectedLecture(item);
                   setShowDeleteModal(true);
                 }}
               >
-                <Icon name="trash-can-outline" size={22} color="#fff" />
-                <Text style={CourseActionStyles.startBtnText2}>Delete</Text>
+                <Icon name="delete-outlined" size={22} color={colors.primary} />
+                <Text style={[CourseActionStyles.startBtnText2, {color: colors.primary}]}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
+          <Text style={[CourseActionStyles.badgeText, { marginTop: 4, color: colors.text, alignSelf: 'flex-end'}]}>
+            {item.lectureType.toUpperCase()}
+          </Text>
 
-          <View
-            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
-          >
-            <View
-              style={[CourseActionStyles.badge, { backgroundColor: '#eee' }]}
-            >
-              <Text style={CourseActionStyles.badgeText} numberOfLines={2}>
-                {item.lectureType}
-              </Text>
-            </View>
-            {isPostponed && (
-              <Text
-                style={{
-                  color: PRIMARY_COLOR,
-                  fontSize: 12,
-                  marginLeft: 8,
-                  fontWeight: 'bold',
-                }}
-              >
-                POSTPONED
-              </Text>
-            )}
-          </View>
-
-          <Text style={CourseActionStyles.locationText}>
+          <Text style={[CourseActionStyles.locationText, {color: colors.text}]}>
             {item.lectureType === 'Physical'
               ? ` ${item.location}`
               : ` Online Class Session`}
@@ -4249,9 +4254,8 @@ export const LecturerLectureScheduleView = ({
         </View>
 
         <View style={CourseActionStyles.lectureTimeColumn}>
-          <Text style={CourseActionStyles.timeText}>{item.startTime}</Text>
-          <View style={CourseActionStyles.timeLine} />
-          <Text style={CourseActionStyles.timeTextSmall}>{item.endTime}</Text>
+          <Text style={[CourseActionStyles.timeText, {color: colors.text}]}>{item.startTime}</Text>
+          <Text style={[CourseActionStyles.timeTextSmall, {color: colors.text, marginTop: 3}]}>{item.endTime}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -4265,8 +4269,8 @@ export const LecturerLectureScheduleView = ({
         keyExtractor={item => item.id}
         renderItem={renderLecturerItem}
         renderSectionHeader={({ section: { title } }) => (
-          <View style={CourseActionStyles.sectionHeader}>
-            <Text style={CourseActionStyles.sectionHeaderText}>
+          <View style={[CourseActionStyles.sectionHeader, {backgroundColor: colors.backgroundSecondary}]}>
+            <Text style={[CourseActionStyles.sectionHeaderText, {color: colors.textDarker}]}>
               {title === today ? 'Teaching Today' : title}
             </Text>
           </View>
@@ -4478,30 +4482,6 @@ export const AssessmentReportScreen = ({ route }: any) => {
 };
 export const CourseActionStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  headerContainer: {
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingBottom: 5,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-  },
-  titleContainer: { flex: 1, alignItems: 'center' },
-  headerPageTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
   body: { flex: 1 },
   listPadding: { paddingHorizontal: 20, paddingBottom: 30 },
   sectionSubtitle: {
@@ -4534,7 +4514,7 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 12,
   },
   numberText: { fontSize: 14, fontWeight: 'bold' },
-  topicText: { flex: 1, fontSize: 14 },
+  topicText: { fontSize: 14 },
   topicText2: {
     fontSize: 16,
     fontWeight: '600',
@@ -4788,25 +4768,22 @@ export const CourseActionStyles = StyleSheet.create({
     marginTop: 4,
   },
   searchBarWrapper: {
-    paddingHorizontal: 16,
-    marginTop: 5,
+    padding: 10,
   },
   searchBarInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f7fa',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    borderRadius: 13,
+    paddingHorizontal: 4,
+    height: 50,
+    borderWidth: 0.8,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 7,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
-    color: '#333',
-    height: '100%',
+    fontSize: 14,
   },
   manageCard: {
     borderRadius: 16,
@@ -5267,7 +5244,7 @@ export const CourseActionStyles = StyleSheet.create({
   },
   questionCard: {
     marginBottom: 15,
-    padding: 15
+    padding: 15,
   },
   qNumber: {
     fontSize: 14,
@@ -5492,13 +5469,13 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'baseline',
     marginVertical: 20,
   },
-  scoreBig: { fontSize: 40, fontWeight: 'bold', },
+  scoreBig: { fontSize: 40, fontWeight: 'bold' },
   scoreSmall: { fontSize: 20, fontWeight: 'bold' },
   adviceText: {
     marginBottom: 20,
     fontSize: 14,
     fontWeight: '700',
-    width: '100%'
+    width: '100%',
   },
   submitBtn: {
     paddingHorizontal: 15,
@@ -5544,8 +5521,7 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   startBtnText2: {
-    color: '#fff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     marginTop: 5,
   },
@@ -5603,7 +5579,7 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 9,
-    width: '100%'
+    width: '100%',
   },
   fullCamera: {
     flex: 1,
@@ -5640,117 +5616,93 @@ export const CourseActionStyles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
   },
-  // Add these to your CourseActionStyles object
   lectureCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 15,
     marginBottom: 15,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
-    borderLeftWidth: 4,
-    width: '95%',
+    borderLeftWidth: 2,
   },
   lectureCard2: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 15,
     marginBottom: 15,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
-    borderLeftWidth: 4,
-    width: '95%',
+    borderLeftWidth: 2,
+    flexDirection: 'row'
   },
   lectureTimeColumn: {
-    width: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderLeftWidth: 1,
-    borderLeftColor: PRIMARY_COLOR_TINT,
+    alignContent: 'center',
     marginLeft: 15,
   },
   timeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
   },
   timeTextSmall: {
     fontSize: 11,
     color: '#999',
   },
-  timeLine: {
-    height: 20,
-    width: 1,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    marginVertical: 4,
-  },
   lectureInfoColumn: {
     flex: 1,
   },
   locationText: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   sectionHeader: {
-    backgroundColor: '#F8F9FA',
     paddingVertical: 10,
     paddingHorizontal: 15,
   },
   sectionHeaderText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#888',
-    textTransform: 'capitalize',
     letterSpacing: 1,
   },
   fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 13,
+    zIndex: 100,
+    alignContent: 'center',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOpacity: 0.3,
+  },
+  fabText: {
+    marginRight: 3,
+    fontSize: 14,
   },
   ongoingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 15,
+    alignSelf: 'flex-end',
   },
   pulseDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: PRIMARY_COLOR,
     marginRight: 6,
   },
   ongoingText: {
-    fontSize: 12,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginLeft: 8,
-  },
   badgeText: {
-    color: PRIMARY_COLOR,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
@@ -5871,7 +5823,7 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 5,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   miniCalculatorHeaderText: {
     fontSize: 14,
@@ -5913,21 +5865,21 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
-  sideBySideCenteredRow:{
+  sideBySideCenteredRow: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  sideBySideCenteredRowSB:{
+  sideBySideCenteredRowSB: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%'
+    width: '100%',
   },
-  cheatCount:{
+  cheatCount: {
     fontSize: 14,
     fontWeight: 'bold',
   },
-  btnContainer:{
+  btnContainer: {
     flexDirection: 'row',
-  }
+  },
 });

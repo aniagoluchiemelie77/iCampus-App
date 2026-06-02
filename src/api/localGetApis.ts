@@ -1084,6 +1084,35 @@ export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse>
     };
   }
 };
+export const getLecturersLecturesTimeline = async (): Promise<GetTimelineResponse> => {
+  try {
+    const response = await fetch(`${baseUrl}users/lecturers/class/lectures/timeline`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: result.message || 'Failed to retrieve lecture timeline' 
+      };
+    }
+    return {
+      success: true,
+      data: result.data || []
+    };
+  } catch (error) {
+    console.error('Get Lectures Timeline Utility Error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'A network error occurred' 
+    };
+  }
+};
 export const checkAssessmentStatus = async (
   courseId: string,
   assessmentId: string

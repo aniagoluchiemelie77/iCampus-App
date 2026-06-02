@@ -116,3 +116,36 @@ export const updateUserThemePreference = async (
     };
   }
 };
+export const postponeLecture = async (
+  payload: any
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const {courseId, lectureId, newDate, newStartTime, topicName} = payload;
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/${lectureId}/postpone`,
+      {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          newDate,
+          newStartTime,
+          topicName,
+        }),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: result.message || 'Failed to postpone lecture.' 
+      };
+    }
+    return { success: true, data: result.updatedLecture };
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || 'Network error occurred' 
+    };
+  }
+};

@@ -35,6 +35,7 @@ import {
   getCourseExceptions,
   getCourseAssessments,
   fetchAllLecturesByCourseId,
+  getLecturersLecturesTimeline,
 } from '../api/localGetApis';
 import {
   submitLectureException,
@@ -83,6 +84,9 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   const [activeTest, setActiveTest] = useState<CreateTestPayload | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [allLectures, setAllLectures] = useState<Lecture[]>([]);
+  const [lecturersLectureTimeline, setLecturersLectureTimeline] = useState<
+    Lecture[]
+  >([]);
 
   // --- STUDENT: Submit New Exception ---
   const handleSaveException = async (
@@ -285,6 +289,26 @@ export const CourseSubPage = ({ route, navigation }: any) => {
     }
   }, [course.courseId]);
   // --- LECTURER: Handle Creating a New Lecture ---
+  const fetchLecturerLectureTimeline = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getLecturersLecturesTimeline();
+      if (result.success && result.data) {
+        setLecturersLectureTimeline(result.data);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Timeline Error',
+          text2: result.message || 'Could not load upcoming schedule.',
+          position: 'bottom',
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   const handleUpdateStatus = async (
     id: string,
     status: 'approved' | 'rejected',
@@ -445,13 +469,19 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   }, [lectures, allLectures]);
   const filteredLectures = useMemo(() => {
     if (!searchQuery) return displayLectures;
-
     return displayLectures.filter(
       (lecture: Lecture) =>
         lecture.topicName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         lecture.courseId.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [searchQuery, displayLectures]);
+  const filteredLecturersLectures = useMemo(() => {
+    return lecturersLectureTimeline.filter(
+      (lecture: Lecture) =>
+        lecture.topicName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lecture.courseId.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [searchQuery, lecturersLectureTimeline]);
   useEffect(() => {
     if (title === 'Exceptions') {
       fetchExceptions();
@@ -481,11 +511,13 @@ export const CourseSubPage = ({ route, navigation }: any) => {
   }, [title, userRole, route.params, fetchStudentTest, fetchTests]);
   useEffect(() => {
     if (title === 'View Lecture Schedule') {
-      if (!lectures || lectures.length === 0) {
+      if (userRole === 'student') {
         fetchTimeline();
+      } else {
+        fetchLecturerLectureTimeline();
       }
     }
-  }, [title, lectures, fetchTimeline]);
+  }, [title, userRole, fetchTimeline, fetchLecturerLectureTimeline]);
   useEffect(() => {
     if (title === 'Exceptions') {
       handleFetchCourseLectures();
@@ -664,7 +696,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         {title === 'View Lecture Schedule' &&
           (userRole === 'lecturer' ? (
             <LecturerLectureScheduleView
-              lectures={filteredLectures}
+              lectures={filteredLecturersLectures}
               onUpdateLecture={handlePostponeLecture}
               onDeleteLecture={handleDeleteLecture}
             />
