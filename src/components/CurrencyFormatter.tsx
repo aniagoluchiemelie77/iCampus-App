@@ -8,12 +8,14 @@ interface CurrencyDisplayProps {
   value: number;
   size?: 'small' | 'medium' | 'large';
   containerStyle?: ViewStyle;
+  isSuccess?: boolean;
 }
 
 export const CurrencyDisplay = ({
   value,
   size = 'medium',
   containerStyle,
+  isSuccess,
 }: CurrencyDisplayProps) => {
   const { colors } = useTheme();
   const formattedString = value.toLocaleString(undefined, {
@@ -32,20 +34,22 @@ export const CurrencyDisplay = ({
       <MaterialIcons
         name="diamond"
         size={icon}
-        color={colors.primary}
+        color={isSuccess ? colors.success : colors.primary}
         style={styles.diamondShadow}
       />
       <Text
         style={[
           styles.balanceValue,
-          { fontSize: intSize, marginLeft: spacing, color: colors.primary },
+          { fontSize: intSize, marginLeft: spacing },
+          { color: isSuccess ? colors.success : colors.primary },
         ]}
       >
         {integer}
         <Text
           style={[
             styles.decimalValue,
-            { fontSize: decSize, color: colors.primary },
+            { fontSize: decSize },
+            { color: isSuccess ? colors.success : colors.primary },
           ]}
         >
           .{decimal}

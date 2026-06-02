@@ -36,7 +36,6 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { formatTime } from '../utils/durationFormatter';
 import { verifyFacialIdentity } from '../api/localPostApis';
-import toastConfig from '../components/ToastConfig';
 import Modal from 'react-native-modal';
 
 const rnBiometrics = new ReactNativeBiometrics();
@@ -416,7 +415,6 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
           </View>
         </View>
       </Modal>
-      <Toast config={toastConfig} />
     </View>
   );
 };

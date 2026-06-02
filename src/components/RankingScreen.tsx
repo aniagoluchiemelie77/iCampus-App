@@ -34,7 +34,6 @@ import moment from 'moment';
 import LinearGradient from 'react-native-linear-gradient';
 import { DEFAULT_GRADIENT, rankColors } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { homeStyles } from '../assets/styles/colors.ts';
 import { BlurView } from '@react-native-community/blur';
@@ -514,7 +513,6 @@ export function RankingScreen() {
         onSuccess={handleSubSuccess}
         title="Unlock iScore Insights"
       />
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 }

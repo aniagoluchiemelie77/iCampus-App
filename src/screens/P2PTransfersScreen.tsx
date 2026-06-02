@@ -25,7 +25,6 @@ import {
 } from '@components/Classroomcomponent';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
 import { ITagCard } from '../components/iTag';
 import { MyQRCodeSection } from '../components/MyQRCodeSection';
@@ -356,7 +355,6 @@ export const IcashP2PScreen = () => {
         title="Confirm Transaction"
         navigation={navigation}
       />
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

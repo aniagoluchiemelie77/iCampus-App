@@ -19,7 +19,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors.ts';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import ExpandableFAB from '../components/ExpandableFAB';
 import { formatCount } from '../utils/followCountFormatter.ts';
 import { ProfileTabs } from '../components/ProfileTabs.tsx';
@@ -1029,7 +1028,6 @@ export const ProfileScreen = ({ route }: any) => {
           </TouchableOpacity>
         </View>
       </Modal>
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

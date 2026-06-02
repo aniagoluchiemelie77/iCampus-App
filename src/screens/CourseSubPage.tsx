@@ -28,7 +28,6 @@ import {
   LecturerLectureScheduleView,
 } from '../components/CourseActionsComponent';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import toastConfig from '../components/ToastConfig';
 import {
   getCourseDetails,
   getStudentLecturesTimeline,
@@ -737,8 +736,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
           </View>
         </View>
       </Modal>
-
-      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };

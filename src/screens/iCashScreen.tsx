@@ -18,8 +18,6 @@ import {
 } from '@components/Classroomcomponent';
 import { baseUrl } from '@components/HomeScreenComponents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { useDispatch } from 'react-redux';
 import { useRoute } from '@react-navigation/native';
 import { setUser } from '../components/userSlice';
@@ -172,7 +170,6 @@ export const ICashDashboard = () => {
         <ActionButton icon="send" label="Transfer" onPress={handleP2P} />
       </View>
       <TransactionList
-        user={user}
         variant="compact"
         limit={5}
         onViewAll={() =>
@@ -182,7 +179,6 @@ export const ICashDashboard = () => {
           })
         }
       />
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

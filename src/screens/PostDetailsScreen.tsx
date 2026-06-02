@@ -14,7 +14,6 @@ import { PostCard } from '../components/PostCard';
 import { CommentItem } from '../components/CommentSection';
 import { useAppDataContext } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { Posts } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 
@@ -161,7 +160,6 @@ export const PostDetailScreen = ({ route }: any) => {
           </TouchableOpacity>
         </View>
       </View>
-      <Toast config={toastConfig} />
     </KeyboardAvoidingView>
   );
 };

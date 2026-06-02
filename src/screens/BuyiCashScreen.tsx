@@ -16,7 +16,6 @@ import {
 } from '@components/Classroomcomponent';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import toastConfig from '@components/ToastConfig';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
@@ -275,7 +274,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
           </Text>
         </TouchableOpacity>
       </View>
-      <Toast config={toastConfig} />
       <AddPaymentModal
         visible={showAddCardModal}
         onClose={() => setShowAddCardModal(false)}

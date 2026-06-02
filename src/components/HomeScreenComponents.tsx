@@ -20,7 +20,6 @@ import {
 } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import Logo from '../assets/images/Logo.tsx';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import ExpandableFAB from './ExpandableFAB.tsx';
@@ -36,7 +35,7 @@ interface Props {
   navigation: StackNavigationProp<any>;
   initialCount?: number;
   uid?: string;
-  colors: any
+  colors: any;
 }
 const hapticOptions = {
   enableVibrateFallback: true,
@@ -223,7 +222,12 @@ export const NotificationBell: React.FC<Props> = ({
             { backgroundColor: colors.primary },
           ]}
         >
-          <Text style={[HomeScreenComponentStyles.badgeText, { color: colors.btnTextColor }]}>
+          <Text
+            style={[
+              HomeScreenComponentStyles.badgeText,
+              { color: colors.btnTextColor },
+            ]}
+          >
             {unreadCount > 9 ? '9+' : unreadCount}
           </Text>
         </View>
@@ -235,7 +239,7 @@ export const MessageBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,
   uid,
-  colors
+  colors,
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
   const socketContext = useSocket();
@@ -272,7 +276,12 @@ export const MessageBell: React.FC<Props> = ({
             { backgroundColor: colors.primary },
           ]}
         >
-          <Text style={[HomeScreenComponentStyles.badgeText, { color: colors.btnTextColor }]}>
+          <Text
+            style={[
+              HomeScreenComponentStyles.badgeText,
+              { color: colors.btnTextColor },
+            ]}
+          >
             {unreadCount > 9 ? '9+' : unreadCount}
           </Text>
         </View>
@@ -469,7 +478,6 @@ export function Home() {
         navigation={navigation}
         colors={colors}
       />
-      <Toast config={toastConfig} />
     </View>
   );
 }

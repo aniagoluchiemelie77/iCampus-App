@@ -150,14 +150,13 @@ export const AllTransactionsScreen = ({ route }: any) => {
             </TouchableOpacity>
           </View>
           <TransactionList
-            user={user}
             variant="full"
             limit={15}
             searchQuery={searchQuery}
           />
         </View>
       ) : (
-        <TransactionStats data={initialStats} userId={user.uid} />
+        <TransactionStats data={initialStats} />
       )}
 
       {/* Export Modal */}

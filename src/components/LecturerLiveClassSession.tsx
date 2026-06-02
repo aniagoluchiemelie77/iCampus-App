@@ -24,7 +24,6 @@ import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { mediaDevices, RTCPeerConnection, RTCView } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import { SpeakerToast, WavingToast } from './StudentLiveClassSession';
 import { User, Lecture } from 'types/firebase';
 import { baseUrl } from './HomeScreenComponents';
@@ -681,7 +680,6 @@ export const LecturerLiveClassSession = ({
           onHide={() => setCurrentSpeakerName(null)}
         />
       )}
-      <Toast config={toastConfig} />
       {/* Chat Modal  */}
       <Portal>
         <Modal

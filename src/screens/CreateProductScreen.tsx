@@ -26,7 +26,6 @@ import {
 } from '../assets/styles/colors';
 import DropDownPicker from 'react-native-dropdown-picker';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import {
   Product,
   DropOffStation,
@@ -1608,7 +1607,6 @@ export const CreateProductScreen = ({ route }: any) => {
           </View>
         </View>
       </Modal>
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

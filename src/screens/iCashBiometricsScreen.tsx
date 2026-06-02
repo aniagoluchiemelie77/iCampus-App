@@ -6,7 +6,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import { RootStackParamList } from '../../App';
 import Toast from 'react-native-toast-message';
-import toastConfig from '@components/ToastConfig';
 import {
   requestPinReset,
   setupICashPin,
@@ -268,7 +267,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
           <Text style={styles.bioText}>Use Biometrics</Text>
         </TouchableOpacity>
       )}
-      <Toast config={toastConfig} />
     </View>
   );
 };

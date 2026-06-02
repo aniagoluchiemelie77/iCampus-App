@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import toastConfig from '@components/ToastConfig';
 import { useAppSelector } from '../components/hooks';
 import { markAllMessagesRead } from '../api/localPostApis';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
@@ -183,7 +182,6 @@ export const MessagesListScreen = ({ navigation }: any) => {
           loading ? <ActivityIndicator style={{ margin: 20 }} /> : null
         }
       />
-      <Toast config={toastConfig} />
     </View>
   );
 };

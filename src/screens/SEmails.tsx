@@ -9,13 +9,15 @@ import {
   Alert
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { useAppSelector } from '../components/hooks';
-import { verifySignupEmail, verifySignupEmailCode } from '../api/localPostApis.ts';
-import {updateEmailRecord} from '../api/localPatchApis.ts';
+import {
+  verifySignupEmail,
+  verifySignupEmailCode,
+} from '../api/localPostApis.ts';
+import { updateEmailRecord } from '../api/localPatchApis.ts';
 import { deleteRecoveryEmailAPI } from '../api/localDeleteApis.ts';
 import { updateEmailData } from '../components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
@@ -258,7 +260,6 @@ export const EmailsScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

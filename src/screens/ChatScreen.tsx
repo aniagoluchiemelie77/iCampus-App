@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { searchUsers, fetchMessages } from '../api/localGetApis.ts';
-import toastConfig from '@components/ToastConfig';
 import { UserIdentity } from '../components/UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { MessageBubble } from '../components/ChatMessageBubble.tsx';
@@ -347,7 +346,6 @@ export const ChatScreen = ({ route, navigation }: Props) => {
         onPickDocument={handlePickDocument}
         placeholder={`Send ${recipient?.firstname} a message...`}
       />
-      <Toast config={toastConfig} />
     </KeyboardAvoidingView>
   );
 };

@@ -59,6 +59,15 @@ interface ApiResponse {
   data?: any;
   error?: string;
 }
+interface TransactionStatsParams {
+  month: string | number;
+  year: string | number;
+}
+ interface GetTransactionsParams {
+  page: number;
+  limit: number;
+  searchQuery?: string;
+}
 const getAuthHeaders = async () => {
   return {
     'Content-Type': 'application/json',
@@ -1321,5 +1330,68 @@ export const getAssessmentAnalysisUrl = async (testId: string): Promise<ApiRespo
     return { success: true, data: result };
   } catch (error: any) {
     return { success: false, error: error.message || 'Network error occurred.' };
+  }
+};
+export const getTransactionStats = async ({ 
+  month, 
+  year 
+}: TransactionStatsParams): Promise<ApiResponse> => {
+  try {
+     const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${baseUrl}user/transactions/stats?month=${month}&year=${year}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.error || result.message || 'Failed to fetch statistics.'
+      };
+    }
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || 'Network error occurred.' 
+    };
+  }
+};
+export const getMyTransactions = async ({
+  page,
+  limit,
+  searchQuery
+}: GetTransactionsParams): Promise<ApiResponse> => {
+  try {
+    let url = `${baseUrl}user/my-transactions?page=${page}&limit=${limit}`;
+    if (searchQuery) {
+      url += `&search=${encodeURIComponent(searchQuery)}`;
+    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      return {
+        success: false,
+        error: result.error || result.message || 'Failed to fetch transaction history.'
+      };
+    }
+    return { success: true, data: result };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Network error occurred.'
+    };
   }
 };

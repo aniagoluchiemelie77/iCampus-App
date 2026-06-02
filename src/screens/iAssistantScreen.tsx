@@ -15,11 +15,10 @@ import { MessageBubble } from '../components/ChatMessageBubble.tsx';
 import { ChatInput } from '../components/ChatInput.tsx';
 import { askIAssistantAgent } from '../api/localPostApis.ts';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper.ts';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper.ts';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker, { types } from 'react-native-document-picker';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { AssistantMessage } from '../types/firebase';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
@@ -75,7 +74,7 @@ export const Assistant = ({ route }: Props) => {
         loadingLabelText: 'Processing...',
       });
       if (image.path) {
-        const imageUrl = await uploadToCloudinary(image.path);
+        const imageUrl = await uploadToFirebase(image.path);
         sendAttachmentMessage(imageUrl, 'image');
       }
     } catch (error: any) {
@@ -140,7 +139,7 @@ export const Assistant = ({ route }: Props) => {
         type: [types.allFiles],
       });
       const { uri, name } = result;
-      const docUrl = await uploadToCloudinary(uri);
+      const docUrl = await uploadToFirebase(uri);
       sendAttachmentMessage(docUrl, 'file', name || 'Document');
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
@@ -202,7 +201,6 @@ export const Assistant = ({ route }: Props) => {
         onPickDocument={handlePickDocument}
         placeholder="Ask iAssistant anything..."
       />
-      <Toast config={toastConfig} />
     </KeyboardAvoidingView>
   );
 };

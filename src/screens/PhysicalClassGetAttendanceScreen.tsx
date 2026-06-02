@@ -27,7 +27,6 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { formatTime } from '../utils/durationFormatter';
 import Toast from 'react-native-toast-message';
-import toastConfig from '@components/ToastConfig';
 import { downloadAttendanceReport } from '../api/localPostApis';
 
 type AttendanceStatus = 'idle' | 'fetching' | 'completed';
@@ -358,7 +357,6 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
           </View>
         </>
       )}
-      <Toast config={toastConfig} />
     </View>
   );
 };

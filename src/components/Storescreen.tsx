@@ -14,8 +14,6 @@ import { PageHeader } from './PageHeader';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { OrderScannerModal } from './OrderQRScannerModal';
 import Toast from 'react-native-toast-message';
-import toastConfig from '@components/ToastConfig';
-
 
 interface IconButtonProps {
   onPress: () => void;
@@ -273,7 +271,6 @@ export const StoreScreen = () => {
         onClose={() => setIsScannerOpen(false)}
         onSuccess={handleCompleteOrder}
       />
-      <Toast config={toastConfig} />
     </View>
   );
 };

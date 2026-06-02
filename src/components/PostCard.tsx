@@ -30,7 +30,6 @@ const { width } = Dimensions.get('window');
 import { formatEventDate } from '../utils/dateFormatter';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { useTheme } from 'context/ThemeContext';
 export interface PostCardProps {
   post: Posts;
@@ -209,11 +208,11 @@ const formatDisplayUrl = (url: string): string => {
     return 'icps.link/visit';
   }
   let path = cleanPath.slice(slashIndex + 1);
-  path = path.split('?')[0]; 
+  path = path.split('?')[0];
   if (path.endsWith('/')) {
     path = path.slice(0, -1);
   }
-  
+
   if (path.length > 7) {
     path = `${path.slice(0, 7)}...`;
   }
@@ -248,7 +247,7 @@ export const LinkedText = ({
           return (
             <Text
               key={`url-${index}`}
-              style={[styles.link, { color: colors.primary }]} 
+              style={[styles.link, { color: colors.primary }]}
               onPress={() => handleLinkPress(part)}
             >
               {formatDisplayUrl(part)}
@@ -698,7 +697,6 @@ export const PostCard = React.memo(
             </View>
           </Pressable>
         </Modal>
-        <Toast config={toastConfig} />
       </Pressable>
     );
   },

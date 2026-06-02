@@ -15,7 +15,6 @@ import { toggleBlockUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
 import { updateBlockedUsers } from '@components/UserSlice';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { UserIdentity } from '../components/UserIdentity';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -116,7 +115,6 @@ export const BlockedUsersScreen = () => {
           );
         }}
       />
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

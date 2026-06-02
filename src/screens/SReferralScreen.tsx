@@ -8,65 +8,70 @@ import { PageHeader } from '../components/PageHeader.tsx';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 
 export const ReferralScreen = () => {
-    const cardRef = useRef<View>(null);
-    const {referralCode} = useAppSelector(state => state.user);
-    const handleShareImage = async () => {
-        try {
-            const uri = await captureRef(cardRef, {
-                format: "png",
-                quality: 1,
-            });
-            await Share.share({ url: uri, message: `Join me on iCampus! Code: ${referralCode}` });
-        } catch (err: any) {
-            console.error("Failed to share referral card:", err);
-            Toast.show({
-                type: 'error',
-                text1: 'Share Error',
-                text2: err || 'Failed to share referral card',
-            });
-        }
-    };
-    const handleCopyCode = () => {
-        Clipboard.setString(referralCode!);
-        Toast.show({
-            type: 'success',
-            text2: 'Referral code copied to clipboard!',
-        });
-    };
+  const cardRef = useRef<View>(null);
+  const { referralCode } = useAppSelector(state => state.user);
+  const handleShareImage = async () => {
+    try {
+      const uri = await captureRef(cardRef, {
+        format: 'png',
+        quality: 1,
+      });
+      await Share.share({
+        url: uri,
+        message: `Join me on iCampus! Code: ${referralCode}`,
+      });
+    } catch (err: any) {
+      console.error('Failed to share referral card:', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Share Error',
+        text2: err || 'Failed to share referral card',
+      });
+    }
+  };
+  const handleCopyCode = () => {
+    Clipboard.setString(referralCode!);
+    Toast.show({
+      type: 'success',
+      text2: 'Referral code copied to clipboard!',
+    });
+  };
 
   return (
     <View style={styles.container}>
-        <PageHeader
-            title="Referrals"    
-        />
-        <View ref={cardRef} collapsable={false} style={styles.card}>
-            <Text style={styles.cardBrand}>iCampus</Text>
-            <View style={styles.cardContent}>
-                <QRCode
-                    value={referralCode}
-                    size={120}
-                    color={PRIMARY_COLOR}
-                    backgroundColor="white"
-                    quietZone={10} 
-                />
-                <Text style={styles.codeLabel}>YOUR UNIQUE CODE</Text>
-                <Text style={styles.codeText}>{referralCode}</Text>
-            </View>
+      <PageHeader title="Referrals" />
+      <View ref={cardRef} collapsable={false} style={styles.card}>
+        <Text style={styles.cardBrand}>iCampus</Text>
+        <View style={styles.cardContent}>
+          <QRCode
+            value={referralCode}
+            size={120}
+            color={PRIMARY_COLOR}
+            backgroundColor="white"
+            quietZone={10}
+          />
+          <Text style={styles.codeLabel}>YOUR UNIQUE CODE</Text>
+          <Text style={styles.codeText}>{referralCode}</Text>
         </View>
-        <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleShareImage}>
-                <MaterialIcons name="share" size={24} color={PRIMARY_COLOR} />
-                <Text style={styles.buttonLabel}>Share</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]} onPress={handleCopyCode}>
-                <MaterialIcons name="content-copy" size={24} color={PRIMARY_COLOR} />
-                <Text style={styles.buttonLabel}>Copy Referral Code</Text>
-            </TouchableOpacity>
-        </View>
-        <Toast config={toastConfig} />
+      </View>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleShareImage}
+        >
+          <MaterialIcons name="share" size={24} color={PRIMARY_COLOR} />
+          <Text style={styles.buttonLabel}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={handleCopyCode}
+        >
+          <MaterialIcons name="content-copy" size={24} color={PRIMARY_COLOR} />
+          <Text style={styles.buttonLabel}>Copy Referral Code</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };

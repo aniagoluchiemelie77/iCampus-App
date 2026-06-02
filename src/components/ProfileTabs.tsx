@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { useTheme } from '../context/ThemeContext';
 
 interface ProfileTabsProps {
   activeTab: string;
@@ -16,14 +16,12 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   userType,
   isOwner,
 }) => {
+  const { colors } = useTheme();
   const getTabs = () => {
-    // 1. Everyone gets these
     const tabs = ['Posts', 'Media', 'Reposts'];
-    // 2. Enterprise specific tabs
     if (userType === 'enterprise') {
       tabs.push('Jobs', 'Events');
     }
-    // 4. CRITICAL: Only add Bookmarks if the viewer owns the profile
     if (isOwner) {
       tabs.push('Bookmarks');
     }
@@ -33,7 +31,7 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   const tabs = getTabs();
 
   return (
-    <View style={styles.tabWrapper}>
+    <View style={[styles.tabWrapper, {backgroundColor: colors.backgroundSecondary}]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -48,7 +46,7 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
             <Text
               style={[
                 styles.tabText,
-                activeTab === tab && styles.activeTabText,
+                activeTab === tab ? {color: colors.primary} : {color: colors.text}
               ]}
             >
               {tab}
@@ -63,17 +61,15 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
 const styles = StyleSheet.create({
   tabWrapper: {
     borderBottomWidth: .8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
   },
   container: {
     paddingHorizontal: 8,
-    height: 50,
     alignItems: 'center',
   },
   tabItem: {
-    marginRight: 15,
-    height: '100%',
-    justifyContent: 'center',
+    marginRight: 7,
+    padding: 10,
+    alignContent: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -81,12 +77,7 @@ const styles = StyleSheet.create({
     borderBottomColor: PRIMARY_COLOR,
   },
   tabText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
-    color: '#222',
-  },
-  activeTabText: {
-    color: PRIMARY_COLOR,
-    fontWeight: '700',
   },
 });

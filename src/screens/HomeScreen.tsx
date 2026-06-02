@@ -19,7 +19,6 @@ import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { playNotificationSound } from '../services/notificationSound';
 import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
@@ -27,7 +26,7 @@ import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { RankingScreen } from '@components/RankingScreen';
-import {SearchScreen} from '@components/SearchScreen';
+import { SearchScreen } from '@components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
 import {
   fetchOngoingLecture,
@@ -326,7 +325,6 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-      <Toast config={toastConfig} />
       <OngoingLectureModal
         visible={!!ongoingLecture}
         lecture={ongoingLecture}

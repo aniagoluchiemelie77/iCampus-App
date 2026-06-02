@@ -25,8 +25,6 @@ import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import LiveAudioStream from 'react-native-live-audio-stream';
-import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import { useNavigation } from '@react-navigation/native';
 import { RTCView } from 'react-native-webrtc';
 import { ReviewModal } from './ReviewsModal';
@@ -155,16 +153,16 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
         )}
       </View>
       <View style={LiveClassSessionStyles.otherSection}>
-      <View style={LiveClassSessionStyles.nameBadge}>
-        <Text style={LiveClassSessionStyles.nameText} numberOfLines={1}>
-          {lecturer?.firstname || 'Lecturer'}
-        </Text>
-      </View>
-      <IconButton
-        icon={lecturer?.isMuted ? 'microphone-off' : 'microphone'}
-        size={12}
-        iconColor={PRIMARY_COLOR}
-      />
+        <View style={LiveClassSessionStyles.nameBadge}>
+          <Text style={LiveClassSessionStyles.nameText} numberOfLines={1}>
+            {lecturer?.firstname || 'Lecturer'}
+          </Text>
+        </View>
+        <IconButton
+          icon={lecturer?.isMuted ? 'microphone-off' : 'microphone'}
+          size={12}
+          iconColor={PRIMARY_COLOR}
+        />
       </View>
     </View>
   );
@@ -273,9 +271,12 @@ export const StudentLiveClassSession = ({
       setRemoteStreamUrl(streamUrl);
       setLecturerData(prev => ({ ...prev, cameraStreamUrl: streamUrl }));
     });
-    socket.on('lecturer_camera_toggled', ({ isCameraOn }: {isCameraOn: boolean}) => {
-      setLecturerData(prev => ({ ...prev, isCameraOn }));
-    });
+    socket.on(
+      'lecturer_camera_toggled',
+      ({ isCameraOn }: { isCameraOn: boolean }) => {
+        setLecturerData(prev => ({ ...prev, isCameraOn }));
+      },
+    );
 
     // 2. Consolidated Listeners
     const handlers = {
@@ -602,8 +603,6 @@ export const StudentLiveClassSession = ({
           onHide={() => setActiveSpeaker(null)}
         />
       )}
-      <Toast config={toastConfig} />
-      {/* Review Modal for Post-Lecture Feedback */}
       <ReviewModal
         visible={reviewVisible}
         lectureData={lecture}

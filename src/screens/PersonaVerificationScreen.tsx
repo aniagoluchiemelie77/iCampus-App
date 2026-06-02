@@ -11,7 +11,6 @@ import { Inquiry } from 'react-native-persona';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { fetchInquiryFromBackend } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
 
@@ -104,7 +103,6 @@ export const PersonaVerificationScreen = () => {
           <Text style={styles.buttonText}>Start Verification</Text>
         )}
       </TouchableOpacity>
-      <Toast config={toastConfig} />
     </View>
   );
 };

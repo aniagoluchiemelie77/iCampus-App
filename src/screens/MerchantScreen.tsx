@@ -24,8 +24,6 @@ import {
   SalesScreen,
 } from '../components/SellerManagementComps.tsx';
 import { useAppSelector } from '../components/hooks';
-import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { useNavigation } from '@react-navigation/native';
 
 export const MerchantDashboard = () => {
@@ -115,7 +113,6 @@ export const MerchantDashboard = () => {
           {activeTab === 'Reviews' && <ReviewsSection />}
         </View>
       </ScrollView>
-      <Toast config={toastConfig} />
     </View>
   );
 };

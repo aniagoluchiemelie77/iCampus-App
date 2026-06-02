@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { SettingItem } from '../components/SettingsItem';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -323,7 +322,6 @@ export const Settings = () => {
         <Text style={styles.versionText}>
           App Version: {version} ({buildNumber})
         </Text>
-        <Toast config={toastConfig} />
         {/* Modals */}
         <LogoutModal
           visible={isLogoutModalVisible}

@@ -16,7 +16,6 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import toastConfig from '@components/ToastConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   fetchFeaturedBooksByDepartment,
@@ -46,14 +45,14 @@ export const LibraryScreen: React.FC = () => {
     if (!query) return;
     setIsSearching(true);
     try {
-  const result = await searchLibraryBooks(query);
+      const result = await searchLibraryBooks(query);
 
-  if (result.success) {
-    setBooks(result.books);
-  } else {
-    setBooks([]); 
-  }
-} catch (error) {
+      if (result.success) {
+        setBooks(result.books);
+      } else {
+        setBooks([]);
+      }
+    } catch (error) {
       Toast.show({
         type: 'error',
         text1: 'Search Error',
@@ -101,14 +100,14 @@ export const LibraryScreen: React.FC = () => {
     setLoading(true);
     const userDept = user?.department || '';
     try {
-  const result = await fetchFeaturedBooksByDepartment(userDept);
+      const result = await fetchFeaturedBooksByDepartment(userDept);
 
-  if (result.success) {
-    setBooks(result.books);
-  } else {
-    setBooks([]); 
-  }
-} catch (error) {
+      if (result.success) {
+        setBooks(result.books);
+      } else {
+        setBooks([]);
+      }
+    } catch (error) {
       Toast.show({
         type: 'error',
         text1: 'Library Fetch Error',
@@ -194,7 +193,6 @@ export const LibraryScreen: React.FC = () => {
           }
         />
       )}
-      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };

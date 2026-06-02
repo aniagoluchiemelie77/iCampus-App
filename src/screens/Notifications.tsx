@@ -24,7 +24,6 @@ import {
   PRIMARY_COLOR_TINT,
 } from '../components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 
 dayjs.extend(relativeTime);
@@ -277,7 +276,6 @@ const Notifications = () => {
           contentContainerStyle={styles.listContent}
         />
       )}
-      <Toast config={toastConfig} />
     </View>
   );
 };

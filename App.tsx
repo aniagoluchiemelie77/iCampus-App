@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/components/store'; 
 import { Provider } from 'react-redux';
 import { ThemeProvider } from './src/context/ThemeContext';
+import Toast from 'react-native-toast-message';
 import type {
   Posts,
   User,
@@ -95,6 +96,8 @@ import { ProductPublishSuccess } from './src/screens/ProductPublishSuccessScreen
 import { CreateReviewScreen } from './src/screens/ReviewsScreen.tsx';
 import { FAQScreen } from './src/screens/FAQScreen.tsx';
 import Intercom from '@intercom/intercom-react-native';
+import { useTheme } from './src/context/ThemeContext.tsx';
+import { getToastConfig } from './src/components/ToastConfig.tsx';
 import { PRIMARY_COLOR } from 'assets/styles/colors.ts';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
@@ -293,6 +296,8 @@ type RouteName = 'SignUp' | 'Welcome' | 'Home' | 'Login';
 const Stack = createStackNavigator<RootStackParamList>();
 
 const App = () => {
+  const { colors } = useTheme();
+  const toastConfig = getToastConfig(colors);
   const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
   const [initialParams, _setInitialParams] = useState<
     RootStackParamList['Welcome'] | undefined
@@ -699,6 +704,7 @@ const App = () => {
               />
             </Stack.Navigator>
           </NavigationContainer>
+          <Toast config={toastConfig} />
         </ThemeProvider>
       </Provider>
     </GestureHandlerRootView>

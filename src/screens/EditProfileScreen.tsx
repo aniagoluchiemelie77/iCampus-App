@@ -7,7 +7,6 @@ import { PageHeader } from '../components/PageHeader.tsx';
 import countries from 'i18n-iso-countries';
 import { patchUserProfile } from '../api/localPatchApis';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
@@ -171,7 +170,6 @@ export const EditProfileScreen = () => {
         placeholderTextColor={PRIMARY_COLOR_TINT}
         onChangeText={text => handleInputChange('email', text)}
       />
-      <Toast config={toastConfig} />
     </ScrollView>
   );
 };

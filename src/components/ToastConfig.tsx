@@ -1,23 +1,49 @@
-
+import React from 'react';
 import { BaseToast, ErrorToast } from 'react-native-toast-message';
-import { ToastPopupStyles } from '../assets/styles/colors';
+import { StyleSheet } from 'react-native';
 
-const toastConfig = {
+export const getToastConfig = (colors: any) => ({
   success: (props: any) => (
     <BaseToast
       {...props}
-      style={ToastPopupStyles.successToastDiv}
+      style={[
+        styles.toastDiv,
+        {
+          borderLeftColor: colors.success,
+          backgroundColor: colors.backgroundSecondary,
+        },
+      ]}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={ToastPopupStyles.successToastText}
+      text1Style={[styles.toastText, { color: colors.text }]}
+      text2Style={[styles.toastTextTwo, { color: colors.text }]}
     />
   ),
   error: (props: any) => (
     <ErrorToast
       {...props}
-      style={ToastPopupStyles.errorToastDiv}
-      text1Style={ToastPopupStyles.errorToastText}
+      style={[
+        styles.toastDiv,
+        {
+          borderLeftColor: colors.primary,
+          backgroundColor: colors.backgroundSecondary,
+        },
+      ]}
+      text1Style={[styles.toastText, { color: colors.text }]}
+      text2Style={[styles.toastTextTwo, { color: colors.text }]}
     />
   ),
-};
-
-export default toastConfig;
+});
+const styles = StyleSheet.create({
+  toastDiv: {
+    position: 'absolute',
+    bottom: 70,
+    left: 0,
+  },
+  toastText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  toastTextTwo: {
+    fontSize: 12,
+  },
+});

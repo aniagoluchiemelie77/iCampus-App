@@ -1,13 +1,8 @@
-import { PRO_BADGE_COLOR, PREMIUM_BADGE_COLOR, ENTERPRISE_BADGE_COLOR, PRIMARY_COLOR } from 'assets/styles/colors';
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-
-const TIER_COLORS: Record<string, string> = {
-  pro: PRO_BADGE_COLOR,     
-  premium: PREMIUM_BADGE_COLOR, 
-  enterprise: ENTERPRISE_BADGE_COLOR 
-};
+import { TIER_COLORS } from '../constants/inAppConstants';
+import { useTheme } from '../context/ThemeContext';
 
 interface UserIdentityProps {
   firstname: string;
@@ -34,6 +29,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
   isOrganization = false,
   organizationName = '',
 }) => {
+  const { colors } = useTheme();
   const isSmall = size === 'small';
   const isLarge = size === 'large';
   const tierColor = TIER_COLORS[tier] || TIER_COLORS.free;
@@ -42,18 +38,23 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
     : `${firstname} ${lastname}`;
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      {/* 1. Full Name / Username */}
+    <View
+      style={[
+        styles.container,
+        containerStyle,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <Text
         style={[
           styles.name,
+          { color: colors.text },
           isSmall ? styles.nameSmall : isLarge ? styles.nameLarge : null,
         ]}
         numberOfLines={1}
       >
         {displayName} {username ? `(@${username})` : ''}
       </Text>
-      {/* 2. Tier Badge (The Verified Checkmark style) */}
       {tier !== 'free' && (
         <MaterialIcons
           name="verified"
@@ -62,12 +63,11 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
           style={styles.iconMargin}
         />
       )}
-      {/* 3. Identity Verification (The Outline style - Profile Page only) */}
       {isVerified && showVerifyIcon && (
         <MaterialIcons
           name={isOrganization ? 'business' : 'outline-verified-user'}
           size={isLarge ? 20 : isSmall ? 13 : 16}
-          color={PRIMARY_COLOR}
+          color={colors.primary}
           style={styles.iconMargin}
         />
       )}
@@ -82,8 +82,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: '700',
-    color: '#222',
-    fontSize: 15
+    fontSize: 14,
   },
   nameSmall: { fontSize: 12 },
   nameLarge: { fontSize: 20, fontWeight: '800' },

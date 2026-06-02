@@ -1,12 +1,19 @@
-import { PRIMARY_COLOR } from 'assets/styles/colors';
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Dimensions,} from 'react-native';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Video, ResizeMode } from 'react-native-video';
+import { useTheme } from '../context/ThemeContext';
 const { width } = Dimensions.get('window');
 
 export const MediaGridItem = ({ post }: { post: any }) => {
   const isVideo = post.media?.mediaType === 'video';
+  const { colors } = useTheme();
   return (
     <TouchableOpacity style={styles.mediaGridItem} activeOpacity={0.9}>
       {isVideo ? (
@@ -14,31 +21,39 @@ export const MediaGridItem = ({ post }: { post: any }) => {
           source={{ uri: post.media.url[0] }}
           style={styles.mediaImage}
           resizeMode={ResizeMode.COVER}
-          repeat={true}       
-          paused={false}      
-          muted={true}        
-          controls={false}    
+          repeat={true}
+          paused={false}
+          muted={true}
+          controls={false}
           playInBackground={false}
           playWhenInactive={false}
         />
       ) : (
-        <Image 
-          source={{ uri: post.media.url[0] }} 
-          style={styles.mediaImage} 
-          resizeMode="cover" 
+        <Image
+          source={{ uri: post.media.url[0] }}
+          style={styles.mediaImage}
+          resizeMode="cover"
         />
       )}
-      
+
       {isVideo && (
-        <View style={styles.videoOverlay}>
-          <MaterialIcons name="videocam" size={16} color="white" />
+        <View
+          style={[
+            styles.videoOverlay,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <MaterialIcons
+            name="videocam-outlined"
+            size={16}
+            color={colors.text}
+          />
         </View>
       )}
     </TouchableOpacity>
   );
 };
 const styles = StyleSheet.create({
-  // Media Grid
   mediaGridItem: {
     width: width / 3 - 2,
     height: width / 3 - 2,
@@ -53,9 +68,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     right: 5,
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 12,
-    padding: 2,
+    borderRadius: 6,
+    padding: 5,
   },
 
   // General Card Styling

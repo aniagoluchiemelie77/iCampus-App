@@ -11,11 +11,13 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
 import { PageHeader } from '../components/PageHeader.tsx';
-import {getPasswordRequirements, isValidPassword} from '../utils/SignupHelpers.ts';
-import {verifyCurrentPassword} from '../api/localPostApis.ts';
-import {updatePassword} from '../api/localPutApis.ts';
+import {
+  getPasswordRequirements,
+  isValidPassword,
+} from '../utils/SignupHelpers.ts';
+import { verifyCurrentPassword } from '../api/localPostApis.ts';
+import { updatePassword } from '../api/localPutApis.ts';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 
 export const ResetPasswordScreen = ({ navigation }: any) => {
@@ -28,21 +30,24 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
   const [errorText, setErrorText] = useState('');
   const [showOld, setShowOld] = useState(false);
   const [isLoading, setLoading] = useState(false);
-  const requirements = useMemo(() => getPasswordRequirements(newPassword), [newPassword]);
-  const canSubmit = 
-  newPassword.length > 0 && 
-  confirmPassword.length > 0 && 
-  newPassword === confirmPassword && 
-  isValidPassword(newPassword);
+  const requirements = useMemo(
+    () => getPasswordRequirements(newPassword),
+    [newPassword],
+  );
+  const canSubmit =
+    newPassword.length > 0 &&
+    confirmPassword.length > 0 &&
+    newPassword === confirmPassword &&
+    isValidPassword(newPassword);
 
   const handleVerifyOld = async () => {
     setLoading(true);
     const response = await verifyCurrentPassword(oldPassword);
     setLoading(false);
     if (response.success) {
-        setStep(2); 
+      setStep(2);
     } else {
-        setErrorText(response.message);
+      setErrorText(response.message);
     }
   };
   const handleUpdatePassword = async () => {
@@ -51,114 +56,144 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
     const result = await updatePassword(newPassword);
     setLoading(false);
     if (result.success) {
-        Toast.show({ type: 'success', text1: 'Success', text2: 'Password changed!' });
-        navigation.navigate('Home', { activeTab: 'home' });
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Password changed!',
+      });
+      navigation.navigate('Home', { activeTab: 'home' });
     } else {
-        setErrorText(result.message);
+      setErrorText(result.message);
     }
   };
-  if (newPassword !== confirmPassword){
+  if (newPassword !== confirmPassword) {
     setErrorText('Passwords do not match...');
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-        <PageHeader
-            title="Reset Password"
-        />
-        {step === 1 ? (
-            <Animated.View
-                entering={FadeInRight.duration(400).springify()}
-                exiting={FadeOutLeft}
+      <PageHeader title="Reset Password" />
+      {step === 1 ? (
+        <Animated.View
+          entering={FadeInRight.duration(400).springify()}
+          exiting={FadeOutLeft}
+        >
+          <View style={styles.stepContainer}>
+            <MaterialIcons
+              name="verified-user-outlined"
+              size={40}
+              color="#222"
+            />
+            <Text style={styles.title}>Security Check</Text>
+            <Text style={styles.subtitle}>
+              Please enter your current password to continue.
+            </Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                secureTextEntry={!showOld}
+                value={oldPassword}
+                onChangeText={setOldPassword}
+                placeholder="Enter your current password..."
+                placeholderTextColor={PRIMARY_COLOR_TINT}
+              />
+              <TouchableOpacity onPress={() => setShowOld(!showOld)}>
+                <MaterialIcons
+                  name={
+                    showOld ? 'visibility-off-outlined' : 'visibility-outlined'
+                  }
+                  size={20}
+                  color={PRIMARY_COLOR_TINT}
+                />
+              </TouchableOpacity>
+            </View>
+            {errorText && <Text style={styles.errorText}>{errorText}</Text>}
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleVerifyOld}
             >
-            <View style={styles.stepContainer}>
-                <MaterialIcons name='verified-user-outlined' size={40} color="#222" />
-                <Text style={styles.title}>Security Check</Text>
-                <Text style={styles.subtitle}>Please enter your current password to continue.</Text>          
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.input}
-                        secureTextEntry={!showOld}
-                        value={oldPassword}
-                        onChangeText={setOldPassword}
-                        placeholder="Enter your current password..."
-                        placeholderTextColor={PRIMARY_COLOR_TINT}
-                    />
-                    <TouchableOpacity onPress={() => setShowOld(!showOld)}>
-                        <MaterialIcons name={showOld ? "visibility-off-outlined" : "visibility-outlined"} size={20} color={PRIMARY_COLOR_TINT} />
-                    </TouchableOpacity>
-                </View>
-                {errorText && (
-                    <Text style={styles.errorText}>{errorText}</Text>
-                )}
-                <TouchableOpacity style={styles.primaryButton} onPress={handleVerifyOld}>
-                    <Text style={styles.buttonText}>{isLoading ? 'Verifying...' : 'Verify Password'}</Text>
-                </TouchableOpacity>
-            </View>
-            </Animated.View>
-        ) : (
-            <View style={styles.stepContainer}>
-                <MaterialIcons name='verified-user-outlined' size={40} color="#222" />
-                <Text style={styles.title}>New Password</Text>
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.input}
-                        secureTextEntry={!showNew}
-                        value={newPassword}
-                        onChangeText={setNewPassword}
-                        placeholder="Enter your new password..."
-                        placeholderTextColor={PRIMARY_COLOR_TINT}
-                    />
-                    <TouchableOpacity onPress={() => setShowNew(!showNew)}>
-                        <MaterialIcons name={showNew ? "visibility-off-outlined" : "visibility-outlined"} size={20} color={PRIMARY_COLOR_TINT} />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.strengthBarContainer}>
-                    {[
-                        requirements.hasUppercase,
-                        requirements.hasLowercase,
-                        requirements.hasNumber,
-                        requirements.hasSymbol,
-                        requirements.hasMinLength
-                    ].map((met, index) => (
-                        <View 
-                            key={index} 
-                            style={[
-                                styles.strengthSegment, 
-                                { backgroundColor: met ? PRIMARY_COLOR : PRIMARY_COLOR_TINT }
-                            ]} 
-                        />
-                    ))}
-                </View>
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.input}
-                        secureTextEntry={!showConfirm}
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        placeholder="Confirm your new password..."
-                        placeholderTextColor={PRIMARY_COLOR_TINT}
-                    />
-                    <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
-                        <MaterialIcons name={showConfirm ? "visibility-off-outlined" : "visibility-outlined"} size={20} color={PRIMARY_COLOR_TINT} />
-                    </TouchableOpacity>
-                </View>
-                {errorText && (
-                    <Text style={styles.errorText}>{errorText}</Text>
-                )}
-                <TouchableOpacity 
-                    style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.6 }]} 
-                    onPress={handleUpdatePassword}
-                    disabled={!canSubmit}
-                >
-                    <Text style={styles.buttonText}>{isLoading ? 'Changing...' : 'Change Password'}</Text>
-                </TouchableOpacity>
-            </View>
-        )}
-      <Toast config={toastConfig} />
+              <Text style={styles.buttonText}>
+                {isLoading ? 'Verifying...' : 'Verify Password'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      ) : (
+        <View style={styles.stepContainer}>
+          <MaterialIcons name="verified-user-outlined" size={40} color="#222" />
+          <Text style={styles.title}>New Password</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              secureTextEntry={!showNew}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="Enter your new password..."
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+            />
+            <TouchableOpacity onPress={() => setShowNew(!showNew)}>
+              <MaterialIcons
+                name={
+                  showNew ? 'visibility-off-outlined' : 'visibility-outlined'
+                }
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.strengthBarContainer}>
+            {[
+              requirements.hasUppercase,
+              requirements.hasLowercase,
+              requirements.hasNumber,
+              requirements.hasSymbol,
+              requirements.hasMinLength,
+            ].map((met, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.strengthSegment,
+                  { backgroundColor: met ? PRIMARY_COLOR : PRIMARY_COLOR_TINT },
+                ]}
+              />
+            ))}
+          </View>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              secureTextEntry={!showConfirm}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm your new password..."
+              placeholderTextColor={PRIMARY_COLOR_TINT}
+            />
+            <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+              <MaterialIcons
+                name={
+                  showConfirm
+                    ? 'visibility-off-outlined'
+                    : 'visibility-outlined'
+                }
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+              />
+            </TouchableOpacity>
+          </View>
+          {errorText && <Text style={styles.errorText}>{errorText}</Text>}
+          <TouchableOpacity
+            style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.6 }]}
+            onPress={handleUpdatePassword}
+            disabled={!canSubmit}
+          >
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Changing...' : 'Change Password'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 };

@@ -13,7 +13,6 @@ import { Dropdown } from 'react-native-element-dropdown';
 import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import { selectImage } from './SelectImage';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -869,7 +868,6 @@ const StudentSignup = () => {
         message={alertMessage}
         type={alertType}
       />
-      <Toast config={toastConfig} />
       <ImageConfirmationModal
         isVisible={showModal}
         imageUri={selectedImage}

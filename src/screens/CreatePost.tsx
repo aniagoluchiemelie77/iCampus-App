@@ -22,7 +22,6 @@ import { UserAvatar } from '../components/UserAvatar';
 import { UserIdentity } from '../components/UserIdentity';
 import Video from 'react-native-video';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
-import toastConfig from '../components/ToastConfig';
 import { fetchUserConnections } from '../api/localGetApis';
 import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
@@ -436,7 +435,6 @@ const CreatePost = ({ route, navigation }: any) => {
             </View>
           </View>
         )}
-        <Toast config={toastConfig} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -26,7 +26,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Logo from '../assets/images/Logo.tsx';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
-import toastConfig from './ToastConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gem } from 'lucide-react-native';
 import * as Progress from 'react-native-progress';
@@ -1699,7 +1698,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           setDetailModalVisible(false);
         }}
       />
-      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };

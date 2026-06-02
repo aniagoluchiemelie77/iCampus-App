@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
-import toastConfig from '@components/ToastConfig';
 import Geolocation from 'react-native-geolocation-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '../components/hooks';
@@ -561,7 +560,6 @@ export const CheckoutScreen = ({ navigation }: any) => {
         onSuccess={onVerificationSuccess}
         title="Confirm Purchase"
       />
-      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };

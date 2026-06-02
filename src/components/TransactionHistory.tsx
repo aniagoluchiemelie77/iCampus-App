@@ -5,31 +5,32 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
-  FlatList
+  FlatList,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
-import { baseUrl } from '@components/HomeScreenComponents';
 import { Transactions } from 'types/firebase';
 import moment from 'moment';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getMyTransactions } from '../api/localGetApis';
 import Toast from 'react-native-toast-message';
-import toastConfig from '../components/ToastConfig';
-import { User } from 'types/firebase';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { CurrencyDisplay } from './CurrencyFormatter';
 
 interface Props {
-  user: User;
   refresh?: boolean;
-  limit?: number; 
-  variant: 'compact' | 'full'; 
+  limit?: number;
+  variant: 'compact' | 'full';
   onViewAll?: () => void;
   searchQuery?: string;
 }
-export const TransactionList = ({ user, refresh, limit = 5, variant, onViewAll, searchQuery }: Props) => {
+export const TransactionList = ({
+  refresh,
+  limit = 5,
+  variant,
+  onViewAll,
+  searchQuery,
+}: Props) => {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [history, setHistory] = useState<Transactions[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,39 +38,43 @@ export const TransactionList = ({ user, refresh, limit = 5, variant, onViewAll, 
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
 
-  const fetchTransactions = useCallback(async (pageNum: number, isInitial: boolean) => {
-    try {
-      if (isInitial) setLoading(true);
-      else setFetchingMore(true);
-      const token = await AsyncStorage.getItem('accessToken');
-      let url = `${baseUrl}user/my-transactions/${user.uid}?page=${pageNum}&limit=${limit}`;
-    if (searchQuery) {
-      url += `&search=${encodeURIComponent(searchQuery)}`;
-    }
+  const fetchTransactions = useCallback(
+    async (pageNum: number, isInitial: boolean) => {
+      try {
+        if (isInitial) setLoading(true);
+        else setFetchingMore(true);
+        const response = await getMyTransactions({
+          page: pageNum,
+          limit: limit,
+          searchQuery: searchQuery,
+        });
 
-    const response = await fetch(url, { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
-      const json = await response.json();
-      if (json.success) {
-        if (isInitial) {
-          setHistory(json.data);
+        if (response.success) {
+          const json = response.data;
+          if (isInitial) {
+            setHistory(json.data);
+          } else {
+            setHistory(prev => [...prev, ...json.data]);
+          }
+          setHasNextPage(json.pagination.hasNextPage);
         } else {
-          setHistory(prev => [...prev, ...json.data]);
+          console.error(response.error);
         }
-        setHasNextPage(json.pagination.hasNextPage);
+        setLoading(false);
+        setFetchingMore(false);
+      } catch (err: any) {
+        console.error(err);
+        Toast.show({
+          type: 'error',
+          text1: err.message || "Couldn't fetch transaction history",
+        });
+      } finally {
+        setLoading(false);
+        setFetchingMore(false);
       }
-    } catch (err: any) {
-      console.error(err);
-      Toast.show({
-        type: 'error',
-        text1: err.message || "Couldn't fetch transaction history",
-              });
-    } finally {
-      setLoading(false);
-      setFetchingMore(false);
-    }
-  }, [user.uid, limit, searchQuery]);
+    },
+    [limit, searchQuery],
+  );
 
   useEffect(() => {
     setPage(1);
@@ -84,52 +89,80 @@ export const TransactionList = ({ user, refresh, limit = 5, variant, onViewAll, 
     }
   };
   const renderFooter = useCallback(() => {
-  if (!fetchingMore) return null;
+    if (!fetchingMore) return null;
 
-  return (
-    <View style={{ paddingVertical: 20 }}>
-      <ActivityIndicator size="small" color={PRIMARY_COLOR} />
-    </View>
-  );
-}, [fetchingMore]);
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('TransactionDetailScreen', { transaction: item })}
-      style={styles.transactionItem}
-    >
-      <View style={styles.iconBackground}>
-        <Icon
-          name={item.payType === 'in' ? 'arrow-bottom-left' : 'arrow-top-right'}
-          size={22}
-          color={item.payType === 'in' ? '#4CAF50' : PRIMARY_COLOR}
-        />
+    return (
+      <View style={{ paddingVertical: 20 }}>
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
-      <View style={{ flex: 1, marginLeft: 15 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={styles.transactionTitle}>{item.title}</Text>
-          <Text style={styles.transactionTime}>
+    );
+  }, [fetchingMore, colors.primary]);
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => (
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate('TransactionDetailScreen', { transaction: item })
+        }
+        style={[
+          styles.transactionItem,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons
+          name={item.payType === 'in' ? 'call-received' : 'call-made'}
+          size={22}
+          color={item.payType === 'in' ? colors.success : colors.primary}
+        />
+        <View style={styles.transactionTitleDiv}>
+          <Text
+            style={[styles.transactionTitle, { color: colors.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.title}
+          </Text>
+          <Text style={[styles.transactionTime, { color: colors.text }]}>
             {moment(item.createdAt).format('hh:mm A')}
           </Text>
         </View>
-      </View>
-      <Text style={[
-        styles.transactionAmount, 
-        { color: item.payType === 'in' ? '#4CAF50' : PRIMARY_COLOR }
-      ]}>
-        {item.payType === 'in' ? '+' : '-'}{item.amountICash}
-      </Text>
-    </TouchableOpacity>
-  ), [navigation]);
+        <CurrencyDisplay
+          value={item.amountICash}
+          size="small"
+          isSuccess={item.payType === 'in' ? true : false}
+        />
+      </TouchableOpacity>
+    ),
+    [navigation, colors],
+  );
 
-  if (loading) return <ActivityIndicator size="small" color={PRIMARY_COLOR} style={{ margin: 20 }} />;
+  if (loading)
+    return (
+      <ActivityIndicator
+        size="large"
+        color={colors.primary}
+        style={{ margin: 20 }}
+      />
+    );
 
   return (
     <View style={styles.historyContainer}>
       {variant === 'compact' && (
-        <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          <TouchableOpacity onPress={onViewAll}>
-            <Text style={{ color: PRIMARY_COLOR, fontWeight: 'bold' }}>View All</Text>
+        <View
+          style={[
+            styles.historyHeader,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Recent Transactions
+          </Text>
+          <TouchableOpacity
+            onPress={onViewAll}
+            style={[{ backgroundColor: colors.btnColor }, styles.btnStyles]}
+          >
+            <Text style={[styles.btnText, { color: colors.btnTextColor }]}>
+              View All
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -137,13 +170,12 @@ export const TransactionList = ({ user, refresh, limit = 5, variant, onViewAll, 
       <FlatList
         data={history}
         renderItem={renderItem}
-        keyExtractor={(item) => item.transactionId}
+        keyExtractor={item => item.transactionId}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
-        scrollEnabled={variant === 'full'} 
+        scrollEnabled={variant === 'full'}
         ListFooterComponent={renderFooter}
       />
-      <Toast config={toastConfig} />
     </View>
   );
 };
@@ -151,7 +183,15 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
+  },
+  btnStyles: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignContent: 'center',
+  },
+  btnText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   historyContainer: {
     paddingHorizontal: 20,
@@ -162,40 +202,23 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
-    paddingVertical: 15,
-    paddingHorizontal: 10,
+    padding: 15,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f9f2ef',
-  },
-  iconBackground: {
-    backgroundColor: '#e1c4b8',
-    padding: 10,
-    borderRadius: 12,
+    padding: 15,
   },
   transactionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 2,
-  },
-  transactionAmount: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: PRIMARY_COLOR,
   },
   transactionTime: {
     fontSize: 11,
-    color: '#cb8d6e',
-    marginLeft: 8,
-    fontWeight: '400',
+    marginTop: 4,
+  },
+  transactionTitleDiv: {
+    flex: 1,
+    marginLeft: 15,
   },
 });
