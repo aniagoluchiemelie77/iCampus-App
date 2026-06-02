@@ -372,7 +372,6 @@ export function Home() {
       socket?.off('post_stats_updated');
     };
   }, [setPosts, currentUser.uid, socket]);
-
   const onViewableItemsChanged = useRef(
     ({
       viewableItems,
@@ -391,7 +390,6 @@ export function Home() {
       }
     },
   ).current;
-
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 60,
   }).current;

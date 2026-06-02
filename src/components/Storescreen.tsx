@@ -11,15 +11,17 @@ import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from './PageHeader';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { OrderScannerModal } from './OrderQRScannerModal';
 import Toast from 'react-native-toast-message';
+import { useTheme } from '../context/ThemeContext';
 
 interface IconButtonProps {
   onPress: () => void;
   count?: number;
   icon: string;
   badgeColor?: string;
+  colors: any;
 }
 
 const CATEGORIES = [
@@ -36,21 +38,22 @@ const HeaderActionButton = ({
   count,
   icon,
   badgeColor = PRIMARY_COLOR,
+  colors,
 }: IconButtonProps) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[styles.actionButtonContainer, { marginRight: 3 }]}
-  >
+  <TouchableOpacity onPress={onPress} style={[styles.actionButtonContainer]}>
     <MaterialIcons name={icon} size={28} color={PRIMARY_COLOR} />
     {count! > 0 && (
       <View style={[styles.badge, { backgroundColor: badgeColor }]}>
-        <Text style={styles.badgeText}>{count}</Text>
+        <Text style={[styles.badgeText, { color: colors.btnTextColor }]}>
+          {count}
+        </Text>
       </View>
     )}
   </TouchableOpacity>
 );
 
 export const StoreScreen = () => {
+  const { colors } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { pendingOrders } = useAppDataContext();
@@ -67,19 +70,23 @@ export const StoreScreen = () => {
       <HeaderActionButton
         icon="qr-code-scanner"
         onPress={() => setIsScannerOpen(true)}
+        colors={colors}
       />
       <HeaderActionButton
         icon="inventory"
         count={pendingOrders?.length || 0}
         onPress={() => navigation.navigate('PendingOrdersScreen')}
+        colors={colors}
       />
       <HeaderActionButton
         icon="shopping-cart-outlined"
         count={currentUser?.cart?.length || 0}
         onPress={() => navigation.navigate('CartScreen')}
+        colors={colors}
       />
       <HeaderActionButton
         icon="favorite"
+        colors={colors}
         count={currentUser?.favorites?.length || 0}
         onPress={() => navigation.navigate('FavoritesScreen')}
       />
@@ -173,35 +180,40 @@ export const StoreScreen = () => {
     }
   };
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="iCampus Store"
         subtitle="Marketplace"
         showBackButton={false}
         rightElement={headerRightElement}
       />
-      <View style={styles.searchBarContainer}>
+      <View
+        style={[
+          styles.searchBarContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <MaterialIcons
           name="search"
           size={20}
-          color={PRIMARY_COLOR_TINT}
+          color={colors.inputTextHolder}
           style={styles.searchIcon}
         />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, {color: colors.text}]}
           placeholder={`Search for ${CATEGORIES[placeholderIndex]}...`}
           value={searchQuery}
           onChangeText={setSearchQuery}
           returnKeyType="search"
           onSubmitEditing={() => debouncedSearch(searchQuery, selectedTab)}
-          placeholderTextColor={PRIMARY_COLOR_TINT}
+          placeholderTextColor={colors.inputTextHolder}
         />
       </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.tabsContainer}
-        contentContainerStyle={{ paddingRight: 20 }}
+        style={{backgroundColor: colors.backgroundSecondary}}
+        contentContainerStyle={styles.tabsContainer}
       >
         {STORE_TABS.map(tab => (
           <TouchableOpacity
@@ -215,7 +227,7 @@ export const StoreScreen = () => {
             <Text
               style={[
                 styles.tabText,
-                selectedTab === tab && styles.activeTabText,
+                selectedTab === tab ? {color: colors.primary} : {color: colors.text}
               ]}
             >
               {tab}
@@ -224,7 +236,7 @@ export const StoreScreen = () => {
         ))}
       </ScrollView>
       {loading && !isFetchingMore ? (
-        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+        <ActivityIndicator size="large" color={colors.primary} />
       ) : (
         <FlatList
           data={products}
@@ -275,33 +287,30 @@ export const StoreScreen = () => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   searchBarContainer: {
-    marginVertical: 15,
-    backgroundColor: '#fadccc',
+    marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 0.8,
     borderRadius: 10,
-    borderColor: PRIMARY_COLOR_TINT,
+    marginHorizontal: 10,
     padding: 4,
+    alignSelf: 'center',
   },
   searchIcon: {
     marginRight: 3,
   },
   searchInput: {
-    borderRadius: 13,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    fontSize: 14,
+    padding: 10,
     flex: 1,
   },
   tabsContainer: {
     paddingHorizontal: 10,
-    paddingVertical: 10,
-    backgroundColor: '#fadccc',
   },
   tabItem: {
-    padding: 5,
+    padding: 8,
     marginRight: 10,
     borderBottomColor: 'transparent',
     borderBottomWidth: 2,
@@ -311,15 +320,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: '#2222',
     fontWeight: '600',
-  },
-  activeTabText: {
-    color: PRIMARY_COLOR,
   },
   actionButtonContainer: {
     position: 'relative',
-    marginLeft: 15,
+    marginRight: 6,
     padding: 4,
   },
   badge: {
@@ -333,7 +338,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   badgeText: {
-    color: '#fff',
     fontSize: 9,
     fontWeight: 'bold',
   },
