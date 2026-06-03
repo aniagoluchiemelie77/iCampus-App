@@ -9,37 +9,36 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000;
 const API_KEY = EXCHANGERATE_API_KEY;
 const EXCHANGERATE_API_BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
 
+export const currencyMap: Record<string, { code: string; symbol: string }> = {
+  'Nigeria': { code: 'NGN', symbol: '₦' },
+  'Ghana': { code: 'GHS', symbol: 'GH₵' },
+  'USA': { code: 'USD', symbol: '$' },
+  'Brazil': { code: 'BRL', symbol: 'R$' },
+  'Mexico': { code: 'MXN', symbol: '$' },
+  'Argentina': { code: 'ARS', symbol: '$' },
+  'Russia': { code: 'RUB', symbol: '₽' },
+  'South Korea': { code: 'KRW', symbol: '₩' },
+  'Indonesia': { code: 'IDR', symbol: 'Rp' },
+  'Turkey': { code: 'TRY', symbol: '₺' },
+  'Saudi Arabia': { code: 'SAR', symbol: '﷼' },
+  'Switzerland': { code: 'CHF', symbol: 'CHF' },
+  'Sweden': { code: 'SEK', symbol: 'kr' },
+  'Norway': { code: 'NOK', symbol: 'kr' },
+  'Poland': { code: 'PLN', symbol: 'zł' },
+  'Singapore': { code: 'SGD', symbol: 'S$' },
+  'Malaysia': { code: 'MYR', symbol: 'RM' },
+  'Thailand': { code: 'THB', symbol: '฿' },
+  'Philippines': { code: 'PHP', symbol: '₱' },
+  'New Zealand': { code: 'NZD', symbol: 'NZ$' },
+  'Pakistan': { code: 'PKR', symbol: '₨' },
+  'Bangladesh': { code: 'BDT', symbol: '৳' },
+  'Vietnam': { code: 'VND', symbol: '₫' },
+  'Netherlands': { code: 'EUR', symbol: '€' },
+  'Spain': { code: 'EUR', symbol: '€' },
+  'Italy': { code: 'EUR', symbol: '€' },
+};
 export const fetchLiveRate = async (country: string) => {
-  const currencyMap: Record<string, { code: string; symbol: string }> = {
-    'Nigeria': { code: 'NGN', symbol: '₦' },
-    'Ghana': { code: 'GHS', symbol: 'GH₵' },
-    'USA': { code: 'USD', symbol: '$' },
-    'Brazil': { code: 'BRL', symbol: 'R$' },
-    'Mexico': { code: 'MXN', symbol: '$' },
-    'Argentina': { code: 'ARS', symbol: '$' },
-    'Russia': { code: 'RUB', symbol: '₽' },
-    'South Korea': { code: 'KRW', symbol: '₩' },
-    'Indonesia': { code: 'IDR', symbol: 'Rp' },
-    'Turkey': { code: 'TRY', symbol: '₺' },
-    'Saudi Arabia': { code: 'SAR', symbol: '﷼' },
-    'Switzerland': { code: 'CHF', symbol: 'CHF' },
-    'Sweden': { code: 'SEK', symbol: 'kr' },
-    'Norway': { code: 'NOK', symbol: 'kr' },
-    'Poland': { code: 'PLN', symbol: 'zł' },
-    'Singapore': { code: 'SGD', symbol: 'S$' },
-    'Malaysia': { code: 'MYR', symbol: 'RM' },
-    'Thailand': { code: 'THB', symbol: '฿' },
-    'Philippines': { code: 'PHP', symbol: '₱' },
-    'New Zealand': { code: 'NZD', symbol: 'NZ$' },
-    'Pakistan': { code: 'PKR', symbol: '₨' },
-    'Bangladesh': { code: 'BDT', symbol: '৳' },
-    'Vietnam': { code: 'VND', symbol: '₫' },
-    'Netherlands': { code: 'EUR', symbol: '€' },
-    'Spain': { code: 'EUR', symbol: '€' },
-    'Italy': { code: 'EUR', symbol: '€' },
-  };
-
-  const { code, symbol } = currencyMap[country] || currencyMap['USA'];
+  const { code, symbol } = currencyMap[country] || currencyMap.Nigeria;
 
   try {
     const cachedData = await AsyncStorage.getItem(CACHE_KEY);
@@ -156,14 +155,10 @@ export const validateCVV = (cvv: string): string | null => {
 export const getBin = (cardNumber: string): string => {
   return cardNumber.replace(/\D/g, '').slice(0, 6);
 };
-export const getP2PPrivileges = (plan: 'free' | 'pro' | 'premium') => {
-  return {
-    canSend: true, // Everyone can send
-    canReceive: plan !== 'free',
-    hasQRScanner: true, // Everyone gets the scanner
-    hasQRGenerator: plan === 'pro' || plan === 'premium',
-    hasITags: plan === 'pro' || plan === 'premium',
-    hasNFC: plan === 'premium',
-  };
+export const getCurrencyDetails = (countryName?: string) => {
+  if (!countryName || !currencyMap[countryName]) {
+    return currencyMap.Nigeria;
+  }
+  return currencyMap[countryName];
 };
 

@@ -101,7 +101,9 @@ export const TransactionList = ({
     ({ item }: { item: any }) => (
       <TouchableOpacity
         onPress={() =>
-          navigation.navigate('TransactionDetailScreen', { transaction: item })
+          navigation.navigate('TransactionDetail', {
+            transactionId: item.transactionId,
+          })
         }
         style={[
           styles.transactionItem,

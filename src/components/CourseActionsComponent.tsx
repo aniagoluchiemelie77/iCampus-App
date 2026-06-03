@@ -4555,7 +4555,7 @@ export const AssessmentReportScreen = ({ route }: any) => {
   const [loading, setLoading] = useState(true);
 
   const fetchReportData = useCallback(async () => {
-    setLoading(true); // Ensure loading state is set when called manually
+    setLoading(true);
     try {
       const token = await AsyncStorage.getItem('accessToken');
       const response = await fetch(
@@ -4571,7 +4571,7 @@ export const AssessmentReportScreen = ({ route }: any) => {
     } finally {
       setLoading(false);
     }
-  }, [testId]); // Memoizes the function
+  }, [testId]);
 
   useEffect(() => {
     fetchReportData();
@@ -5356,12 +5356,11 @@ export const CourseActionStyles = StyleSheet.create({
   successOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
+    alignContent: 'center',
     padding: 20,
   },
   successBox: {
-    backgroundColor: '#fff',
-    borderRadius: 30,
+    borderRadius: 25,
     padding: 30,
     alignItems: 'center',
     elevation: 20,
@@ -5375,21 +5374,10 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 15,
   },
-  linkShareBox: {
-    width: '100%',
-    backgroundColor: '#F0F5F5',
-    padding: 15,
-    borderRadius: 15,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#DDE7E7',
-  },
   linkSubtitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
-    color: PRIMARY_COLOR_TINT,
-    marginBottom: 5,
-    textTransform: 'uppercase',
+    marginBottom: 10,
   },
   linkRow: {
     flexDirection: 'row',
@@ -5398,8 +5386,7 @@ export const CourseActionStyles = StyleSheet.create({
   },
   linkText: {
     flex: 1,
-    fontSize: 13,
-    color: '#555',
+    fontSize: 14,
     marginRight: 10,
   },
   doneButton: {

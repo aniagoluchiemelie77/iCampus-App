@@ -1424,3 +1424,32 @@ export const getMyTransactions = async ({
     };
   }
 };
+export const getTransactionByIdAPI = async (transactionId: string) => {
+  try {
+    const response = await fetch(`${baseUrl}user/transactions/fetch-transaction/${transactionId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, 
+      },
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch transaction detail',
+      };
+    }
+    
+    return {
+      success: true,
+      data: data.data, // Accessing data sub-property based on your previous structures
+      message: 'Success',
+    };
+  } catch (error) {
+    console.error("getTransactionByIdAPI Error:", error);
+    return { success: false, data: null, message: 'Connection to server failed' };
+  }
+};

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   Lecture,
   CourseException,
@@ -719,7 +718,12 @@ export const CourseSubPage = ({ route, navigation }: any) => {
                       >
                         Wait a Moment
                       </Text>
-                      <Text style={CourseActionStyles.successText}>
+                      <Text
+                        style={[
+                          CourseActionStyles.successText,
+                          { color: colors.text },
+                        ]}
+                      >
                         This assessment is scheduled to start at {'\n'}
                         <Text style={{ fontWeight: 'bold' }}>
                           {new Date(
@@ -729,10 +733,18 @@ export const CourseSubPage = ({ route, navigation }: any) => {
                         .
                       </Text>
                       <TouchableOpacity
-                        style={CourseActionStyles.doneButton}
-                        onPress={fetchTests} // Allow them to manual refresh
+                        style={[
+                          CourseActionStyles.doneButton,
+                          { backgroundColor: colors.btnColor },
+                        ]}
+                        onPress={fetchTests}
                       >
-                        <Text style={CourseActionStyles.doneButtonText}>
+                        <Text
+                          style={[
+                            CourseActionStyles.doneButtonText,
+                            { color: colors.btnTextColor },
+                          ]}
+                        >
                           Refresh Status
                         </Text>
                       </TouchableOpacity>
@@ -770,26 +782,49 @@ export const CourseSubPage = ({ route, navigation }: any) => {
       />
       <Modal visible={showSuccessModal} transparent animationType="slide">
         <View style={CourseActionStyles.successOverlay}>
-          <View style={CourseActionStyles.successBox}>
-            <Icon
-              name="check-circle-outline"
+          <View
+            style={[
+              CourseActionStyles.successBox,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <MaterialIcons
+              name="check-circle-outlined"
               size={70}
-              color={PRIMARY_COLOR_TINT}
+              color={colors.primary}
             />
-            <Text style={CourseActionStyles.successTitle}>
+            <Text
+              style={[
+                CourseActionStyles.successTitle,
+                { color: colors.textDarker },
+              ]}
+            >
               Lecture Scheduled Set!
             </Text>
-            <Text style={CourseActionStyles.successText}>
+            <Text
+              style={[CourseActionStyles.successText, { color: colors.text }]}
+            >
               {scheduledLecture?.topicName} has been successfully added to the
               schedule.
             </Text>
             {scheduledLecture?.lectureType === 'Online' && (
-              <View style={CourseActionStyles.linkShareBox}>
-                <Text style={CourseActionStyles.linkSubtitle}>
+              <>
+                <Text
+                  style={[
+                    CourseActionStyles.linkSubtitle,
+                    { color: colors.text },
+                  ]}
+                >
                   Share Meeting Link
                 </Text>
                 <View style={CourseActionStyles.linkRow}>
-                  <Text numberOfLines={1} style={CourseActionStyles.linkText}>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      CourseActionStyles.linkText,
+                      { color: colors.text },
+                    ]}
+                  >
                     {scheduledLecture.location}
                   </Text>
                   <TouchableOpacity
@@ -798,20 +833,22 @@ export const CourseSubPage = ({ route, navigation }: any) => {
                       Toast.show({ type: 'success', text1: 'Link copied!' });
                     }}
                   >
-                    <Icon
-                      name="content-copy"
+                    <MaterialIcons
+                      name="content-copy-outlined"
                       size={20}
                       color={PRIMARY_COLOR_TINT}
                     />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </>
             )}
             <TouchableOpacity
               style={CourseActionStyles.doneButton}
               onPress={() => {
                 setShowSuccessModal(false);
-                navigation.goBack(); // Return to the main course page
+                navigation.navigate('Home', {
+                  activeTab: 'classroom',
+                });
               }}
             >
               <Text style={CourseActionStyles.doneButtonText}>Done</Text>

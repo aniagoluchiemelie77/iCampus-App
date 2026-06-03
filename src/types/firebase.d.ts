@@ -352,7 +352,8 @@ export interface Transactions {
       "p2p_sent" |
       "p2p_received" |
       "payment" |
-      "exceptionsDividend"
+      "exceptionsDividend" |
+      "refund"
   ;
   payType: 'in' | 'out';
   title: string;
@@ -360,12 +361,23 @@ export interface Transactions {
   amountLocal?: number;
   status?: "pending" | "success" | "failed";
   reference?: string,
-  metadata?: {
-    recipientId:  string;
-    bankName: string;
-  },
+  metadata?: TransactionMetadata,
   createdAt?: string
 };
+interface UserProfileSummary {
+  username: User['username'];
+  itagusername?: User['itagusername'];
+  email?: User['email'];
+}
+
+interface TransactionMetadata {
+  recipientId?: string;
+  senderId?: string;
+  note?: string;
+  senderItag?: string;
+  recipientItag?: string;
+  counterpartyProfile?: UserProfileSummary; 
+}
 export interface UserBillingAddressDetails {
   state?: string;
   city?: string;

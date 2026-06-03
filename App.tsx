@@ -99,6 +99,7 @@ import Intercom from '@intercom/intercom-react-native';
 import { useTheme } from './src/context/ThemeContext.tsx';
 import { getToastConfig } from './src/components/ToastConfig.tsx';
 import { PRIMARY_COLOR } from 'assets/styles/colors.ts';
+import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 
@@ -130,6 +131,9 @@ export type RootStackParamList = {
   CreatePost: {
     type?: 'post' | 'poll';
     post?: Posts;
+  };
+  TransactionDetail: {
+    transactionId: string;
   };
   ICashWithdrawPage: undefined;
   FAQScreen: undefined;
@@ -416,6 +420,11 @@ const App = () => {
               <Stack.Screen
                 name="CreateReviewScreen"
                 component={CreateReviewScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="TransactionDetail"
+                component={TransactionDetailScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

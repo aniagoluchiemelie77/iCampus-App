@@ -218,11 +218,11 @@ const SESSIONS = generateSessions();
 const getExceptionLimit = (plan: string) => {
   switch (plan) {
     case 'premium':
-      return 8;
+      return 3;
     case 'pro':
-      return 5;
+      return 2;
     default:
-      return 3; // free trial
+      return 1; // free trial
   }
 };
 const getStatusConfig = (status: Lecture['status']) => {
