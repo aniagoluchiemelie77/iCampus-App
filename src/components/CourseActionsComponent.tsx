@@ -62,7 +62,7 @@ import { createAssignment, saveCourseMaterial } from '../api/localPostApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { deleteCourseMaterial } from '../api/localDeleteApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { updateCourseContent, postponeLecture } from '../api/localPutApis';
+import { updateCourseContent, updateLectureDetails } from '../api/localPutApis';
 import {
   createCourseContent,
   verifyFacialIdentity,
@@ -77,6 +77,10 @@ import {
 import { launchImageLibrary } from 'react-native-image-picker';
 import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants';
 const { width } = Dimensions.get('window');
+import {
+  getCourseDetailsForOngoingLecture,
+  getAllExceptionsForOngoingLecture,
+} from '../api/localGetApis';
 const math = create(all);
 import { PageHeader } from './PageHeader';
 
@@ -3971,7 +3975,9 @@ export const RenderViewLectureSchedule = ({
               {item.lectureType}
             </Text>
           </View>
-          <Text style={[CourseActionStyles.locationText, {color: colors.text}]}>
+          <Text
+            style={[CourseActionStyles.locationText, { color: colors.text }]}
+          >
             {item.lectureType === 'Physical'
               ? `Venue: ${item.location}`
               : ` ${item.lectureType} Class Session`}
@@ -4079,7 +4085,12 @@ export const LecturerLectureScheduleView = ({
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [newDate, setNewDate] = useState(new Date());
+  const [editTopicName, setEditTopicName] = useState('');
+  const [editLectureType, setEditLectureType] = useState<
+    'Physical' | 'Online' | 'Recorded'
+  >('Physical');
+  const [editLocation, setEditLocation] = useState('');
+  const [editDate, setEditDate] = useState(new Date());
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
   const sections = useMemo(() => {
@@ -4097,28 +4108,32 @@ export const LecturerLectureScheduleView = ({
         data: groups[date],
       }));
   }, [lectures]);
-  const handlePostponeSave = async () => {
+  const handleEditSave = async () => {
     if (!selectedLecture) return;
-    const formattedDate = newDate.toISOString().split('T')[0];
-    const formattedTime = newDate.toLocaleTimeString([], {
+    const formattedDate = editDate.toISOString().split('T')[0];
+    const formattedTime = editDate.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false, 
+      hour12: false,
     });
+
     try {
       const payload = {
         courseId: selectedLecture.courseId,
         lectureId: selectedLecture.id,
+        topicName: editTopicName,
+        lectureType: editLectureType,
+        location: editLectureType === 'Physical' ? editLocation : undefined,
         newDate: formattedDate,
         newStartTime: formattedTime,
-        topicName: selectedLecture.topicName
       };
-      const result = await postponeLecture(payload);
+      const result = await updateLectureDetails(payload);
+
       if (result.success) {
         Toast.show({
           type: 'success',
           text1: 'Success',
-          text2: 'Lecture postponed and students notified!',
+          text2: 'Lecture updated successfully!',
         });
         onUpdateLecture(result.data);
         setShowPostponeModal(false);
@@ -4126,7 +4141,7 @@ export const LecturerLectureScheduleView = ({
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: result.error, 
+          text2: result.error,
         });
       }
     } catch (error) {
@@ -4136,6 +4151,18 @@ export const LecturerLectureScheduleView = ({
         text2: 'Failed to connect to server',
       });
     }
+  };
+  const handleOpenEditModal = (lecture: Lecture) => {
+    setSelectedLecture(lecture);
+    setEditTopicName(lecture.topicName);
+    setEditLectureType(lecture.lectureType);
+    setEditLocation(lecture.location || '');
+    if (lecture.date && lecture.startTime) {
+      setEditDate(new Date(`${lecture.date}T${lecture.startTime}`));
+    } else {
+      setEditDate(new Date());
+    }
+    setShowPostponeModal(true);
   };
   const handleJoinLecture = async () => {
     if (!ongoingLecture) return;
@@ -4149,18 +4176,30 @@ export const LecturerLectureScheduleView = ({
     }
     try {
       if (user.usertype === 'lecturer') {
-        const [courseRes, exceptionsRes] = await Promise.all([
-          fetch(`${baseUrl}users/courses/${ongoingLecture.courseId}`),
-          fetch(`${baseUrl}users/exceptions/lectures/${ongoingLecture.id}`),
+        const [courseResult, exceptionsResult] = await Promise.all([
+          getCourseDetailsForOngoingLecture(ongoingLecture.courseId),
+          getAllExceptionsForOngoingLecture(ongoingLecture.id),
         ]);
-        const courseData = await courseRes.json();
-        const exceptionsData = await exceptionsRes.json();
-
-        navigation.navigate('PhysicalAttendanceManager', {
-          lecture: ongoingLecture,
-          course: courseData,
-          exceptions: exceptionsData,
-        });
+        if (courseResult.success && exceptionsResult.success) {
+          navigation.navigate('PhysicalAttendanceManager', {
+            lecture: ongoingLecture,
+            course: courseResult.data!,
+            exceptions: exceptionsResult.data!,
+          });
+        } else {
+          const courseError = courseResult.error
+            ? `Course Err: ${courseResult.error}`
+            : '';
+          const exceptionsError = exceptionsResult.error
+            ? `Exceptions Err: ${exceptionsResult.error}`
+            : '';
+          console.error(`Data fetch failed. ${courseError} ${exceptionsError}`);
+          Toast.show({
+            type: 'error',
+            text1: 'Fetch Error',
+            text2: `Data fetch failed. ${courseError} ${exceptionsError}`,
+          });
+        }
       } else if (user.usertype === 'student') {
         navigation.navigate('StudentAttendanceScanner', {
           lecture: ongoingLecture,
@@ -4179,7 +4218,6 @@ export const LecturerLectureScheduleView = ({
   };
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
-    const isPostponed = item.status === 'postponed';
     const isClickable =
       item.lectureType === 'Online' || item.lectureType === 'Recorded';
     const handlePress = () => {
@@ -4206,10 +4244,7 @@ export const LecturerLectureScheduleView = ({
         <View style={CourseActionStyles.lectureInfoColumn}>
           <View style={CourseActionStyles.rowBetween}>
             <Text
-              style={[
-                CourseActionStyles.topicText,
-                {color: colors.text}
-              ]}
+              style={[CourseActionStyles.topicText, { color: colors.text }]}
             >
               {item.topicName}
             </Text>
@@ -4220,16 +4255,25 @@ export const LecturerLectureScheduleView = ({
               }}
             >
               <TouchableOpacity
-                style={[CourseActionStyles.startBtn]}
+                style={[CourseActionStyles.startBtn, { flexDirection: 'row' }]}
                 onPress={() => {
-                  setSelectedLecture(item);
-                  setShowPostponeModal(true);
+                  handleOpenEditModal(item);
                 }}
               >
-                <MaterialIcons name="restore-outlined" size={22} color={colors.primary} />
-                <Text style={[CourseActionStyles.startBtnText2, {color: colors.primary}]}>Postpone</Text>
+                <MaterialIcons
+                  name="edit-outlined"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.startBtnText2,
+                    { color: colors.primary },
+                  ]}
+                >
+                  Edit
+                </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[CourseActionStyles.startBtn, { marginLeft: 7 }]}
                 onPress={() => {
@@ -4237,30 +4281,54 @@ export const LecturerLectureScheduleView = ({
                   setShowDeleteModal(true);
                 }}
               >
-                <Icon name="delete-outlined" size={22} color={colors.primary} />
-                <Text style={[CourseActionStyles.startBtnText2, {color: colors.primary}]}>Delete</Text>
+                <MaterialIcons
+                  name="delete-outlined"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.startBtnText2,
+                    { color: colors.primary },
+                  ]}
+                >
+                  Delete
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={[CourseActionStyles.badgeText, { marginTop: 4, color: colors.text, alignSelf: 'flex-end'}]}>
+          <Text
+            style={[
+              CourseActionStyles.badgeText,
+              { marginTop: 4, color: colors.text, alignSelf: 'flex-end' },
+            ]}
+          >
             {item.lectureType.toUpperCase()}
           </Text>
-
-          <Text style={[CourseActionStyles.locationText, {color: colors.text}]}>
+          <Text
+            style={[CourseActionStyles.locationText, { color: colors.text }]}
+          >
             {item.lectureType === 'Physical'
               ? ` ${item.location}`
               : ` Online Class Session`}
           </Text>
         </View>
-
         <View style={CourseActionStyles.lectureTimeColumn}>
-          <Text style={[CourseActionStyles.timeText, {color: colors.text}]}>{item.startTime}</Text>
-          <Text style={[CourseActionStyles.timeTextSmall, {color: colors.text, marginTop: 3}]}>{item.endTime}</Text>
+          <Text style={[CourseActionStyles.timeText, { color: colors.text }]}>
+            {item.startTime}
+          </Text>
+          <Text
+            style={[
+              CourseActionStyles.timeTextSmall,
+              { color: colors.text, marginTop: 3 },
+            ]}
+          >
+            {item.endTime}
+          </Text>
         </View>
       </TouchableOpacity>
     );
   };
-
   return (
     <View style={{ flex: 1 }}>
       <SectionList
@@ -4269,50 +4337,150 @@ export const LecturerLectureScheduleView = ({
         keyExtractor={item => item.id}
         renderItem={renderLecturerItem}
         renderSectionHeader={({ section: { title } }) => (
-          <View style={[CourseActionStyles.sectionHeader, {backgroundColor: colors.backgroundSecondary}]}>
-            <Text style={[CourseActionStyles.sectionHeaderText, {color: colors.textDarker}]}>
+          <View
+            style={[
+              CourseActionStyles.sectionHeader,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text
+              style={[
+                CourseActionStyles.sectionHeaderText,
+                { color: colors.textDarker },
+              ]}
+            >
               {title === today ? 'Teaching Today' : title}
             </Text>
           </View>
         )}
         stickySectionHeadersEnabled
       />
-      {/* Postpone Modal */}
       <Modal visible={showPostponeModal} transparent animationType="slide">
         <Pressable
           style={CourseActionStyles.modalOverlay}
           onPress={() => setShowPostponeModal(false)}
         >
           <TouchableWithoutFeedback>
-            <View style={CourseActionStyles.modalContent}>
-              <Text style={CourseActionStyles.modalTitle}>
-                Postpone: {selectedLecture?.topicName}
+            <View
+              style={[
+                CourseActionStyles.modalContent,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
+              <Text
+                style={[
+                  CourseActionStyles.modalTitle,
+                  { color: colors.textDarker },
+                ]}
+              >
+                Edit Lecture Details
               </Text>
-
-              <Text style={CourseActionStyles.modalText}>
-                Select New Date & Time:
+              <Text
+                style={[CourseActionStyles.modalText, { color: colors.text }]}
+              >
+                Topic Name:
+              </Text>
+              <TextInput
+                style={[
+                  CourseActionStyles.input,
+                  { color: colors.text, borderColor: colors.border },
+                ]}
+                value={editTopicName}
+                onChangeText={setEditTopicName}
+                placeholder="Enter topic name"
+                placeholderTextColor={colors.inputTextHolder}
+              />
+              <Text
+                style={[CourseActionStyles.modalText, { color: colors.text }]}
+              >
+                Lecture Type:
+              </Text>
+              <View style={CourseActionStyles.editModalPicker}>
+                <Picker
+                  selectedValue={editLectureType}
+                  onValueChange={itemValue => setEditLectureType(itemValue)}
+                  dropdownIconColor={colors.text}
+                >
+                  <Picker.Item
+                    label="Physical"
+                    value="Physical"
+                    color={colors.text}
+                  />
+                  <Picker.Item
+                    label="Online"
+                    value="Online"
+                    color={colors.text}
+                  />
+                  <Picker.Item
+                    label="Recorded"
+                    value="Recorded"
+                    color={colors.text}
+                  />
+                </Picker>
+              </View>
+              {editLectureType === 'Physical' && (
+                <>
+                  <Text
+                    style={[
+                      CourseActionStyles.modalText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    Lecture Location:
+                  </Text>
+                  <TextInput
+                    style={[
+                      CourseActionStyles.input,
+                      { color: colors.text, borderColor: colors.border },
+                    ]}
+                    value={editLocation}
+                    onChangeText={setEditLocation}
+                    placeholder="e.g. Room 402, Science Block"
+                    placeholderTextColor={colors.inputTextHolder}
+                  />
+                </>
+              )}
+              <Text
+                style={[CourseActionStyles.modalText, { color: colors.text }]}
+              >
+                Date & Start Time:
               </Text>
               <DateTimePicker
-                value={newDate}
+                value={editDate}
                 mode="datetime"
                 display="default"
-                onChange={(event, date) => date && setNewDate(date)}
+                onChange={(event, date) => date && setEditDate(date)}
               />
-
-              <View style={CourseActionStyles.modalActions}>
+              <View
+                style={[CourseActionStyles.modalActions, { marginTop: 25 }]}
+              >
                 <TouchableOpacity
-                  onPress={handlePostponeSave}
-                  style={CourseActionStyles.approveBtn}
+                  onPress={() => setShowPostponeModal(false)}
+                  style={[CourseActionStyles.rejectBtn]}
                 >
-                  <Text style={CourseActionStyles.btnText}>Save</Text>
+                  <Text style={{ color: colors.primary }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleEditSave}
+                  style={[
+                    CourseActionStyles.approveBtn,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      CourseActionStyles.btnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Save Changes
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           </TouchableWithoutFeedback>
         </Pressable>
       </Modal>
-
-      {/* DELETE MODAL */}
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <Pressable
           style={CourseActionStyles.modalOverlay}
@@ -4320,8 +4488,17 @@ export const LecturerLectureScheduleView = ({
         >
           <TouchableWithoutFeedback>
             <View style={CourseActionStyles.modalContent}>
-              <Text style={CourseActionStyles.modalTitle}>Delete Lecture?</Text>
-              <Text style={CourseActionStyles.modalText}>
+              <Text
+                style={[
+                  CourseActionStyles.modalTitle,
+                  { color: colors.textDarker },
+                ]}
+              >
+                Delete Lecture?
+              </Text>
+              <Text
+                style={[CourseActionStyles.modalText, { color: colors.text }]}
+              >
                 Are you sure you want to delete "{selectedLecture?.topicName}
                 "? This action cannot be undone.
               </Text>
@@ -4330,16 +4507,33 @@ export const LecturerLectureScheduleView = ({
                   onPress={() => setShowDeleteModal(false)}
                   style={CourseActionStyles.rejectBtn}
                 >
-                  <Text style={CourseActionStyles.btnText}>Cancel</Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.btnText,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
                     onDeleteLecture(selectedLecture!.id);
                     setShowDeleteModal(false);
                   }}
-                  style={CourseActionStyles.approveBtn}
+                  style={[
+                    CourseActionStyles.approveBtn,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                 >
-                  <Text style={CourseActionStyles.btnText}>Confirm Delete</Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.btnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Confirm Delete
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -4591,15 +4785,12 @@ export const CourseActionStyles = StyleSheet.create({
   },
   actionRow: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: { padding: 8 },
-
-  // Centered Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Modals & Pickers
   modalOverlayEnd: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -4620,7 +4811,6 @@ export const CourseActionStyles = StyleSheet.create({
   modalText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2222',
     marginBottom: 16,
   },
   modalTitle: {
@@ -5177,15 +5367,12 @@ export const CourseActionStyles = StyleSheet.create({
     elevation: 20,
   },
   successTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
-    color: PRIMARY_COLOR,
     marginVertical: 15,
   },
   successText: {
-    fontSize: 15,
-    color: PRIMARY_COLOR,
-    textAlign: 'center',
+    fontSize: 14,
     marginBottom: 15,
   },
   linkShareBox: {
@@ -5216,15 +5403,13 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 10,
   },
   doneButton: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 14,
     alignItems: 'center',
   },
   doneButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
   },
   container: { flex: 1 },
   formHeader: {
@@ -5523,7 +5708,7 @@ export const CourseActionStyles = StyleSheet.create({
   startBtnText2: {
     fontSize: 12,
     fontWeight: 'bold',
-    marginTop: 5,
+    marginLeft: 4,
   },
   boldText: {
     fontWeight: 'bold',
@@ -5599,10 +5784,13 @@ export const CourseActionStyles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    backgroundColor: '#fff',
+    padding: 20,
+    alignContent: 'center',
+  },
+  centeredSecondary: {
+    padding: 20,
+    alignContent: 'center',
+    borderRadius: 15,
   },
   emptyDivContainer: {
     flex: 1,
@@ -5638,7 +5826,7 @@ export const CourseActionStyles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
     borderLeftWidth: 2,
-    flexDirection: 'row'
+    flexDirection: 'row',
   },
   lectureTimeColumn: {
     alignContent: 'center',
@@ -5708,9 +5896,8 @@ export const CourseActionStyles = StyleSheet.create({
   },
   modalContent: {
     padding: 15,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    width: '80%',
+    borderRadius: 25,
+    width: '90%',
   },
   //Start
   title: {
@@ -5881,5 +6068,10 @@ export const CourseActionStyles = StyleSheet.create({
   },
   btnContainer: {
     flexDirection: 'row',
+  },
+  editModalPicker: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
   },
 });

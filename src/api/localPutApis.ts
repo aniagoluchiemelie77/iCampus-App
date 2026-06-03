@@ -116,21 +116,19 @@ export const updateUserThemePreference = async (
     };
   }
 };
-export const postponeLecture = async (
+export const updateLectureDetails = async (
   payload: any
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const {courseId, lectureId, newDate, newStartTime, topicName} = payload;
+    const {courseId, lectureId} = payload;
     const headers = await getAuthHeaders();
     const response = await fetch(
-      `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/${lectureId}/postpone`,
+      `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/${lectureId}/edit`,
       {
         method: 'PUT',
         headers,
         body: JSON.stringify({
-          newDate,
-          newStartTime,
-          topicName,
+          payload
         }),
       }
     );

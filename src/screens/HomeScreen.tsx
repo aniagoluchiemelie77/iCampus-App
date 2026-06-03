@@ -43,8 +43,6 @@ interface SocketProviderProps {
   children: ReactNode;
   userUid: string;
 }
-
-// 2. Provide the default value (null as a fallback)
 export const SocketContext = createContext<SocketContextType | null>(null);
 export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
   const [socket, setSocket] = useState<Socket | null>(null);

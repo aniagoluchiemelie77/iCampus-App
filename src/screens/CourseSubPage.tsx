@@ -9,7 +9,8 @@ import {
 } from '../types/firebase';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { useAppSelector } from '../components/hooks';
 import {
@@ -47,6 +48,7 @@ import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
 import { updateExceptionStatus } from '../api/localPatchApis';
 import { deleteLectureSchedule } from '../api/localDeleteApis';
+import { useTheme } from '../context/ThemeContext';
 
 const EmptyState = ({ message }: { message: string }) => (
   <View style={CourseActionStyles.emptyDivContainer}>
@@ -59,6 +61,7 @@ const EmptyState = ({ message }: { message: string }) => (
   </View>
 );
 export const CourseSubPage = ({ route, navigation }: any) => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const dispatch = useDispatch();
   const {
@@ -557,7 +560,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         placeholder={`Search ${title.toLowerCase()}...`}
         userRole={userRole}
       />
-
       <View style={CourseActionStyles.body}>
         {title === 'Course Contents' && (
           <RenderContents
@@ -609,7 +611,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
             isLoading={loading}
           />
         )}
-
         {title === 'Assessments' &&
           (userRole === 'lecturer' ? (
             <RenderLecturerTestManage
@@ -622,23 +623,57 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               setSearchQuery={setSearchQuery}
             />
           ) : hasSubmitted ? (
-            <View style={CourseActionStyles.centered}>
-              <Icon name="check-circle" size={80} color={PRIMARY_COLOR} />
-              <Text style={CourseActionStyles.successTitle}>
-                Assessment Completed
-              </Text>
-              <Text style={CourseActionStyles.successText}>
-                You have already submitted this assessment. Multiple attempts
-                are not allowed.
-              </Text>
-              <TouchableOpacity
-                style={CourseActionStyles.doneButton}
-                onPress={() => navigation.goBack()}
+            <View
+              style={[
+                CourseActionStyles.centered,
+                { backgroundColor: colors.background },
+              ]}
+            >
+              <View
+                style={[
+                  CourseActionStyles.centeredSecondary,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
               >
-                <Text style={CourseActionStyles.doneButtonText}>
-                  Back to Course
+                <MaterialIcons
+                  name="check-circle-outlined"
+                  size={80}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.successTitle,
+                    { color: colors.textDarker },
+                  ]}
+                >
+                  Assessment Completed
                 </Text>
-              </TouchableOpacity>
+                <Text
+                  style={[
+                    CourseActionStyles.successText,
+                    { color: colors.text },
+                  ]}
+                >
+                  You have already submitted this assessment. Multiple attempts
+                  are not allowed.
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    CourseActionStyles.doneButton,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                  onPress={() => navigation.goBack()}
+                >
+                  <Text
+                    style={[
+                      CourseActionStyles.doneButtonText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Back to Course
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : activeTest ? (
             (() => {
@@ -659,32 +694,49 @@ export const CourseSubPage = ({ route, navigation }: any) => {
                 );
               } else {
                 return (
-                  <View style={CourseActionStyles.centered}>
-                    <Icon
-                      name="timer-sand"
-                      size={80}
-                      color={PRIMARY_COLOR_TINT}
-                    />
-                    <Text style={CourseActionStyles.successTitle}>
-                      Wait a Moment
-                    </Text>
-                    <Text style={CourseActionStyles.successText}>
-                      This assessment is scheduled to start at {'\n'}
-                      <Text style={{ fontWeight: 'bold' }}>
-                        {new Date(
-                          activeTest.scheduledStart,
-                        ).toLocaleTimeString()}
-                      </Text>
-                      .
-                    </Text>
-                    <TouchableOpacity
-                      style={CourseActionStyles.doneButton}
-                      onPress={fetchTests} // Allow them to manual refresh
+                  <View
+                    style={[
+                      CourseActionStyles.centered,
+                      { backgroundColor: colors.background },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        CourseActionStyles.centeredSecondary,
+                        { backgroundColor: colors.backgroundSecondary },
+                      ]}
                     >
-                      <Text style={CourseActionStyles.doneButtonText}>
-                        Refresh Status
+                      <MaterialIcons
+                        name="timer-outlined"
+                        size={80}
+                        color={colors.primary}
+                      />
+                      <Text
+                        style={[
+                          CourseActionStyles.successTitle,
+                          { color: colors.textDarker },
+                        ]}
+                      >
+                        Wait a Moment
                       </Text>
-                    </TouchableOpacity>
+                      <Text style={CourseActionStyles.successText}>
+                        This assessment is scheduled to start at {'\n'}
+                        <Text style={{ fontWeight: 'bold' }}>
+                          {new Date(
+                            activeTest.scheduledStart,
+                          ).toLocaleTimeString()}
+                        </Text>
+                        .
+                      </Text>
+                      <TouchableOpacity
+                        style={CourseActionStyles.doneButton}
+                        onPress={fetchTests} // Allow them to manual refresh
+                      >
+                        <Text style={CourseActionStyles.doneButtonText}>
+                          Refresh Status
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 );
               }
@@ -707,7 +759,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
             />
           ))}
       </View>
-
       <AddExceptionModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
