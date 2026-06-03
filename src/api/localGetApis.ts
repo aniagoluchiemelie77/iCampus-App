@@ -1343,7 +1343,7 @@ export const getAssessmentAnalysisUrl = async (testId: string): Promise<ApiRespo
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(
-      `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis`, 
+      `${baseUrl}users/lecturers/class/tests/${testId}/analysis-data`, 
       {
         method: 'GET',
         headers

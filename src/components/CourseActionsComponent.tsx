@@ -45,7 +45,6 @@ import { create, all } from 'mathjs';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import DocumentPicker from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import { PermissionsAndroid, Platform, Linking } from 'react-native';
@@ -56,7 +55,7 @@ import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
-import { BarChart } from 'react-native-chart-kit';
+import { PieChart } from 'react-native-chart-kit';
 import { OngoingLectureModal } from './OngoingLiveLecturesModal';
 import { createAssignment, saveCourseMaterial } from '../api/localPostApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
@@ -254,20 +253,27 @@ export const FloatingCalculator = ({
     </View>
   );
 };
-export const chartConfig = {
-  backgroundGradientFrom: '#FFFFFF',
-  backgroundGradientTo: '#eee',
+// Put this in your theme config or utils file
+export const getChartConfig = (colors: any, isDarkMode: boolean) => ({
+  backgroundGradientFrom: isDarkMode ? colors.backgroundSecondary : '#FFFFFF',
+  backgroundGradientTo: isDarkMode ? colors.backgroundSecondary : '#EFEFEF',
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(44, 62, 80, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(52, 73, 94, ${opacity})`,
+  color: (opacity = 1) =>
+    isDarkMode
+      ? `rgba(255, 255, 255, ${opacity})`
+      : `rgba(44, 62, 80, ${opacity})`,
+  labelColor: (opacity = 1) =>
+    isDarkMode
+      ? `rgba(255, 255, 255, ${opacity})`
+      : `rgba(52, 73, 94, ${opacity})`,
   style: {
     borderRadius: 16,
   },
   propsForBackgroundLines: {
     strokeDasharray: '',
-    stroke: '#ECEFF1',
+    stroke: isDarkMode ? `${colors.text}20` : '#ECEFF1',
   },
-};
+});
 const CreateAssignmentModal = ({
   visible,
   onClose,
@@ -4550,38 +4556,71 @@ export const LecturerLectureScheduleView = ({
   );
 };
 export const AssessmentReportScreen = ({ route }: any) => {
+  const { colors, isDarkMode } = useTheme();
   const { testId } = route.params;
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  const fetchReportData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}users/lecturers/class/tests/${testId}/analysis-data`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const result = await response.json();
-      setReportData(result);
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'Could not load report data' });
-    } finally {
-      setLoading(false);
-    }
-  }, [testId]);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchReportData();
-  }, [fetchReportData]);
+    const fetchReportAndStats = async () => {
+      setLoading(true);
+      const response = await getAssessmentAnalysisUrl(testId);
+
+      if (response.success && response.data) {
+        setPdfUrl(response.data.downloadUrl);
+        if (response.data.assessmentAnalytics) {
+          setReportData(response.data.assessmentAnalytics);
+        }
+      } else {
+        Alert.alert(
+          'Error',
+          response.error || 'Could not retrieve report metrics.',
+        );
+      }
+      setLoading(false);
+    };
+
+    fetchReportAndStats();
+  }, [testId]);
 
   const handleDownloadPDF = async () => {
-    const token = await AsyncStorage.getItem('accessToken');
-    const downloadUrl = `${baseUrl}users/lecturers/class/tests/${testId}/download-analysis?token=${token}`;
-    Linking.openURL(downloadUrl);
+    if (!pdfUrl) {
+      Alert.alert('Hold on', 'The report download link is not ready yet.');
+      return;
+    }
+    try {
+      const supported = await Linking.canOpenURL(pdfUrl);
+      if (supported) {
+        await Linking.openURL(pdfUrl);
+      } else {
+        Alert.alert(
+          'Error',
+          'Your device cannot open this type of URL link directly.',
+        );
+      }
+    } catch (err) {
+      console.error('Failed to open download link:', err);
+    }
   };
+  const passed = reportData?.analytics?.passedCount || 0;
+  const failed = reportData?.analytics?.failedCount || 0;
+  const pieData = [
+    {
+      name: 'Passed',
+      population: passed,
+      color: colors.success || '#27ae60',
+      legendFontColor: colors.text || '#7F7F7F',
+      legendFontSize: 14,
+    },
+    {
+      name: 'Failed',
+      population: failed,
+      color: colors.primary || '#e74c3c',
+      legendFontColor: colors.text || '#7F7F7F',
+      legendFontSize: 14,
+    },
+  ];
 
   if (loading)
     return (
@@ -4593,84 +4632,111 @@ export const AssessmentReportScreen = ({ route }: any) => {
     );
 
   return (
-    <ScrollView style={CourseActionStyles.container}>
-      <View style={CourseActionStyles.header}>
-        <TouchableOpacity>
-          <Icon name="chevron-left" color={PRIMARY_COLOR} size={23} />
-        </TouchableOpacity>
-        <View style={CourseActionStyles.sideBySide}>
-          <Text style={CourseActionStyles.title}>{reportData.test.title}</Text>
+    <ScrollView
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <PageHeader
+        title={`Assessment Analyis Report for ${reportData.test.title}`}
+        rightElement={
           <TouchableOpacity
-            style={CourseActionStyles.downloadBtn}
+            style={[
+              CourseActionStyles.downloadBtn,
+              { backgroundColor: colors.btnColor },
+            ]}
             onPress={handleDownloadPDF}
           >
-            <Icon name="file-pdf-box" size={24} color="#fff" />
-            <Text style={CourseActionStyles.downloadText}>Download PDF</Text>
+            <MaterialIcons
+              name="file-download-outlined"
+              size={24}
+              color="#fff"
+            />
+            <Text
+              style={[
+                CourseActionStyles.downloadText,
+                { color: colors.btnTextColor },
+              ]}
+            >
+              Download Report
+            </Text>
           </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Summary Cards */}
+        }
+      />
       <View style={CourseActionStyles.row}>
         <View style={CourseActionStyles.card}>
-          <Text style={CourseActionStyles.cardLabel}>Pass Rate</Text>
-          <Text style={[CourseActionStyles.cardValue, { color: '#27ae60' }]}>
+          <Text style={[CourseActionStyles.cardLabel, { color: colors.text }]}>
+            Pass Rate
+          </Text>
+          <Text
+            style={[CourseActionStyles.cardValue, { color: colors.success }]}
+          >
             {reportData.passRate}%
           </Text>
         </View>
         <View style={CourseActionStyles.card}>
-          <Text style={CourseActionStyles.cardLabel}>Submissions</Text>
-          <Text style={CourseActionStyles.cardValue}>
+          <Text style={[CourseActionStyles.cardLabel, { color: colors.text }]}>
+            Total Submissions
+          </Text>
+          <Text style={[CourseActionStyles.cardValue, { color: colors.text }]}>
             {reportData.submissions.length}
           </Text>
         </View>
       </View>
-
-      {/* Performance Chart */}
-      <Text style={CourseActionStyles.sectionTitle2}>Performance Overview</Text>
-      <BarChart
-        data={{
-          labels: ['Passed', 'Failed'],
-          datasets: [
-            { data: [reportData.passedCount, reportData.failedCount] },
-          ],
-        }}
+      <Text style={[CourseActionStyles.sectionTitle2, { color: colors.text }]}>
+        Performance Overview
+      </Text>
+      <PieChart
+        data={pieData}
         width={350}
-        height={250}
-        yAxisLabel=""
-        yAxisSuffix=""
-        chartConfig={chartConfig}
-        verticalLabelRotation={0}
+        height={200}
+        chartConfig={getChartConfig(colors, isDarkMode)}
+        accessor={'population'}
+        backgroundColor={'transparent'}
+        paddingLeft={'15'}
+        center={[10, 0]}
+        absolute
       />
-
-      {/* Top Performers */}
-      <Text style={CourseActionStyles.sectionTitle2}>Top Performers</Text>
-      {reportData.topPerformers.map((s: any, i: number) => (
+      <Text
+        style={[
+          CourseActionStyles.sectionTitle2,
+          { color: colors.text, marginTop: 15 },
+        ]}
+      >
+        Top Performers
+      </Text>
+      {reportData?.analytics?.topPerformers?.map((s: any, i: number) => (
         <View key={i} style={CourseActionStyles.listItem}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {/* Trophy Icons for Top 3 */}
-            <Icon
-              name={
-                i === 0
-                  ? 'trophy'
-                  : i === 1
-                  ? 'trophy-outline'
-                  : 'medal-outline'
-              }
-              size={22}
-              color={i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : '#CD7F32'} // Gold, Silver, Bronze
-              style={{ marginRight: 8 }}
-            />
+            <View
+              style={[
+                CourseActionStyles.topPerformersdiv,
+                { backgroundColor: colors.btnColor },
+              ]}
+            >
+              <Text style={CourseActionStyles.topPerformersdivText}>
+                {i + 1}
+              </Text>
+            </View>
             <Text style={CourseActionStyles.sectionText}>{s.studentName}</Text>
           </View>
-
-          <View style={CourseActionStyles.scoreBadge}>
-            <Text style={CourseActionStyles.scoreText}>
-              {s.score}/{reportData.test.totalMarks}
-            </Text>
-          </View>
+          <Text style={[CourseActionStyles.scoreText, { color: colors.text }]}>
+            {s.score}/{reportData?.test?.totalMarks || 0}
+          </Text>
         </View>
       ))}
+      {(!reportData?.analytics?.topPerformers ||
+        reportData.analytics.topPerformers.length === 0) && (
+        <Text
+          style={[
+            CourseActionStyles.emptyTopPerformersdivText,
+            { color: colors.text },
+          ]}
+        >
+          No top performers available.
+        </Text>
+      )}
     </ScrollView>
   );
 };
@@ -5398,7 +5464,7 @@ export const CourseActionStyles = StyleSheet.create({
   doneButtonText: {
     fontSize: 14,
   },
-  container: { flex: 1 },
+  container: { flex: 1, paddingHorizontal: 15 },
   formHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -5547,10 +5613,6 @@ export const CourseActionStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  sideBySide: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   testSideBySide: {
     flexDirection: 'row',
@@ -5895,86 +5957,68 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 10,
   },
   downloadBtn: {
-    backgroundColor: PRIMARY_COLOR, // Professional Red for PDF/Action
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 13,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     marginLeft: 8,
   },
   downloadText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    marginLeft: 6,
-    fontSize: 12,
+    marginLeft: 5,
+    fontSize: 14,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 15,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     width: (width - 48) / 2,
     padding: 16,
     borderRadius: 12,
-    borderLeftWidth: 5, // The color-coded accent
+    borderLeftWidth: 5,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
+    alignItems: 'center',
   },
   cardLabel: {
-    fontSize: 12,
-    color: '#7F8C8D',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    fontSize: 14,
+    marginBottom: 10,
   },
   cardValue: {
     fontSize: 20,
     fontWeight: '800',
   },
   sectionTitle2: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
     marginBottom: 16,
-    marginTop: 8,
   },
   listItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   sectionText: {
     fontSize: 15,
     fontWeight: '500',
     color: '#2222',
   },
-  scoreBadge: {
-    backgroundColor: '#F0F3F4',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
   scoreText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
   },
   //
   miniCalculator: {
@@ -6060,5 +6104,21 @@ export const CourseActionStyles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
+  },
+  topPerformersdiv: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignContent: 'center',
+    marginRight: 7,
+  },
+  topPerformersdivText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyTopPerformersdivText: {
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 14,
   },
 });
