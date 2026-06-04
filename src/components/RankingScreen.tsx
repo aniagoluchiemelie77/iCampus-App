@@ -39,6 +39,7 @@ import { homeStyles } from '../assets/styles/colors.ts';
 import { BlurView } from '@react-native-community/blur';
 import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
 import { setUser } from './UserSlice';
+import { useTheme } from 'context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = 160;
@@ -55,6 +56,7 @@ interface UserScoreHeaderProps {
 interface InstitutionItemProps {
   item: iCampusOperationalInstitutionSchema;
   index: number;
+  colors: any;
 }
 
 export const EliteCarousel: React.FC<RankCardCarouselProps> = ({
@@ -235,39 +237,40 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
   );
 };
 
-const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
+const InstitutionItem: React.FC<InstitutionItemProps> = ({
+  item,
+  index,
+  colors,
+}) => {
   const isTopThree = index < 3;
   return (
     <TouchableOpacity activeOpacity={0.8} style={styles.instRow}>
-      {/* 1. Rank Medallion/Number */}
-      <View style={styles.rankContainer}>
+      <View
+        style={[
+          styles.rankContainer,
+          isTopThree && { backgroundColor: rankColors[index] },
+        ]}
+      >
         {isTopThree ? (
-          <View
-            style={[styles.medallion, { backgroundColor: rankColors[index] }]}
-          >
-            <Text style={styles.rankText}>{index + 1}</Text>
-          </View>
+          <Text style={styles.rankText}>{index + 1}</Text>
         ) : (
-          <Text style={styles.rankNumber}># {index + 1}</Text>
+          <Text style={[styles.rankNumber, { color: colors.text }]}>
+            # {index + 1}
+          </Text>
         )}
       </View>
-      {/* 2. Logo with Shadow */}
-      <View style={styles.logoContainer}>
-        <Image
-          source={{ uri: item.logo || 'https://via.placeholder.com/150' }}
-          style={styles.instLogo}
-        />
-      </View>
-      {/* 3. Content Area */}
-      <View style={styles.contentArea}>
-        <Text style={styles.instName} numberOfLines={3}>
-          {item.schoolName}
-        </Text>
-      </View>
-      {/* 4. Glassmorphism Score Badge */}
+      <Image
+        source={{ uri: item.logo || 'https://via.placeholder.com/150' }}
+        style={styles.instLogo}
+      />
+      <Text style={[styles.instName, { color: colors.text }]} numberOfLines={3}>
+        {item.schoolName}
+      </Text>
       <View style={styles.instScoreBadge}>
-        <Text style={styles.scoreLabel}>Avg. iScore</Text>
-        <Text style={styles.instScoreText}>
+        <Text style={[styles.scoreLabel, { color: colors.text }]}>
+          Avg. iScore
+        </Text>
+        <Text style={[styles.instScoreText, { color: colors.primary }]}>
           {(item.currentiScoreAvg ?? 0).toFixed(1)}
         </Text>
       </View>
@@ -275,6 +278,7 @@ const InstitutionItem: React.FC<InstitutionItemProps> = ({ item, index }) => {
   );
 };
 export function RankingScreen() {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const userRole = user.usertype;
   const dispatch = useDispatch();
@@ -402,7 +406,7 @@ export function RankingScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -427,54 +431,42 @@ export function RankingScreen() {
           onUpgradePress={() => setSubscriptionModalVisible(true)}
         />
       </LinearGradient>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Our Elite Students</Text>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+          Our Elite Students
+        </Text>
+        <EliteCarousel
+          data={eliteStudents}
+          userRole={userRole!}
+          navigation={navigation}
+        />
+        <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+          Our Elite Instructors
+        </Text>
+        <EliteCarousel
+          data={eliteLecturers}
+          userRole={userRole!}
+          navigation={navigation}
+        />
+        <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+          Top Ranking Institutions
+        </Text>
+        <View style={styles.instListContainer}>
+          {leaderboard.institutions.map((inst, index) => (
+            <InstitutionItem
+              key={inst.schoolCode || index}
+              item={inst}
+              index={index}
+              colors={colors}
+            />
+          ))}
+        </View>
       </View>
-      <EliteCarousel
-        data={eliteStudents}
-        userRole={userRole!}
-        navigation={navigation}
-      />
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Our Elite Instructors</Text>
-      </View>
-      <EliteCarousel
-        data={eliteLecturers}
-        userRole={userRole!}
-        navigation={navigation}
-      />
-
-      {/* 4. Vertical Institution List */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Top Ranking Institutions</Text>
-      </View>
-      <View style={styles.instListContainer}>
-        {leaderboard.institutions.map((inst, index) => (
-          <InstitutionItem
-            key={inst.schoolCode || index}
-            item={inst}
-            index={index}
-          />
-        ))}
-      </View>
-
-      {/* 5. Enterprise CTA */}
-      {userRole === 'enterprise' && (
-        <TouchableOpacity
-          style={styles.hireBanner}
-          onPress={() => navigation.navigate('EnterpriseSearch')} // Assuming you have a filtered search view
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.hireText}>Looking for top talent?</Text>
-            <Text style={styles.hireText}>
-              Filter specifically by iScore metrics.
-            </Text>
-          </View>
-          <View style={styles.hireButton}>
-            <Text style={styles.hireButtonText}>Try Now</Text>
-          </View>
-        </TouchableOpacity>
-      )}
       {isSearchFocused && (
         <UserSearchOverlay
           isRanking={true}
@@ -494,7 +486,7 @@ export function RankingScreen() {
           style={homeStyles.fab}
           onPress={() => setIsSearchFocused(true)}
         >
-          <MaterialIcons name="search" size={28} color="#fff" />
+          <MaterialIcons name="search" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <SubscriptionSelectionModal
@@ -516,16 +508,22 @@ export function RankingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    position: 'relative',
+    alignContent: 'center',
+    paddingHorizontal: 15,
+  },
+  subContainer: {
+    alignContent: 'center',
+    padding: 10,
+    borderRadius: 15,
   },
   linearGradContainer: {
     borderBottomRightRadius: 20,
     borderBottomLeftRadius: 20,
     padding: 20,
     marginBottom: 10,
+    marginHorizontal: -15,
+    position: 'relative',
   },
-  // Personal Score Card
   userScoreCard: {
     elevation: 5,
     alignContent: 'center',
@@ -630,13 +628,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  // Institution List
   instRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 10,
-    borderRadius: 20,
-    marginBottom: 12,
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 15,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -647,15 +643,9 @@ const styles = StyleSheet.create({
   },
   rankContainer: {
     width: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  medallion: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 35,
+    borderRadius: 17.5,
+    alignContent: 'center',
   },
   rankText: {
     color: '#FFF',
@@ -665,48 +655,30 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 14,
     fontWeight: '700',
-    color: PRIMARY_COLOR,
-  },
-  logoContainer: {
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   instLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: '#fadccc',
-  },
-  contentArea: {
-    flex: 1,
-    paddingHorizontal: 6,
-    justifyContent: 'center',
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    marginLeft: 7,
   },
   instName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#222',
-    marginBottom: 4,
+    marginHorizontal: 4,
+    flex: 1,
   },
   instScoreBadge: {
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
-    borderRadius: 14,
     alignItems: 'center',
   },
   scoreLabel: {
-    fontSize: 9,
-    color: '#2222',
+    fontSize: 10,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   instScoreText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
-    color: PRIMARY_COLOR,
   },
   searchHeaderRow: {
     flexDirection: 'row',
@@ -738,44 +710,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Header Row handles the "Title" and "View All" positioning
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-  },
-
   sectionHeaderLight: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 15,
   },
-
-  // The Main Title (e.g., "Elite Students")
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#222',
+    marginBottom: 15,
   },
   sectionTitleLight: {
     fontSize: 18,
     fontWeight: '800',
     color: PRIMARY_COLOR_TINT_MAIN,
   },
-
-  // The "View All" interactive text
   viewAllText: {
     fontSize: 14,
     fontWeight: '600',
     color: PRIMARY_COLOR,
-    marginBottom: 2, // Fine-tuning alignment with the larger title text
+    marginBottom: 2,
   },
   horizontalListPadding: {
     paddingRight: 20,
   },
   carouselContainer: {
-    padding: 20,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 15,
   },
   horizontalSearchCard: {
     width: '80%',
@@ -788,38 +748,5 @@ const styles = StyleSheet.create({
   },
   instListContainer: {
     padding: 20,
-  },
-  hireBanner: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingBottom: 40,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    // Glow effect
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
-  },
-  hireText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '700',
-    flex: 1,
-    lineHeight: 20,
-  },
-  hireButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginLeft: 10,
-  },
-  hireButtonText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '800',
   },
 });
