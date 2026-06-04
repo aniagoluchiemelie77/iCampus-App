@@ -31,10 +31,11 @@ import {
   useRoute,
   //useNavigation
 } from '@react-navigation/native';
-
-const TRANSACTION_TAX_RATE = 0.02;
-const HOME_DELIVERY_RATE = 0.02;
-const DROP_OFF_FEE = 0.06;
+import {
+  TRANSACTION_TAX_RATE,
+  HOME_DELIVERY_RATE,
+  DROP_OFF_FEE,
+} from '../constants/inAppConstants';
 
 const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
@@ -132,8 +133,6 @@ export const CheckoutScreen = ({ navigation }: any) => {
   const dropOffItems = checkoutItems.filter(
     item => itemDeliveryMethods[item.productId] !== 'home_delivery',
   );
-
-  // --- Purchase Logic ---
   const handleProceedToVerify = () => {
     if (!canAfford) {
       Toast.show({
@@ -141,7 +140,7 @@ export const CheckoutScreen = ({ navigation }: any) => {
         text1: 'Insufficient Balance',
         text2: `You need ${grandTotal.toFixed(
           1,
-        )} diamonds, but you have ${userBalance.toFixed(1)}`,
+        )} iCash, but you have ${userBalance.toFixed(1)}`,
       });
       return;
     }

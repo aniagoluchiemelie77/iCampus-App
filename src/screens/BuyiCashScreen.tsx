@@ -14,7 +14,6 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
@@ -23,18 +22,23 @@ import { UserBankOrCardDetails } from 'types/firebase';
 const { width } = Dimensions.get('window');
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 import { getUserPaymentMethods } from 'api/localGetApis.ts';
-export const CARD_WIDTH = width * 0.75;
+import { useTheme } from '../context/ThemeContext';
+import { CurrencyDisplay } from '../components/CurrencyFormatter';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+export const CARD_WIDTH = width * 0.6;
 
 interface PaymentMethodCardProps {
   item: UserBankOrCardDetails;
   isSelected: boolean;
   onSelect: () => void;
+  colors: any;
 }
 
 export const PaymentMethodCard = ({
   item,
   isSelected,
   onSelect,
+  colors,
 }: PaymentMethodCardProps) => {
   const isCard = item.method === 'card';
   return (
@@ -42,22 +46,33 @@ export const PaymentMethodCard = ({
       onPress={onSelect}
       style={[
         iCashActionsStyles.card,
-        isSelected && iCashActionsStyles.selectedCard,
+        isSelected
+          ? {
+              backgroundColor: colors.primary,
+              borderColor: colors.primary,
+              shadowColor: colors.border,
+            }
+          : {
+              borderColor: colors.text,
+              shadowColor: colors.text,
+            },
       ]}
     >
-      <View style={iCashActionsStyles.iconContainer}>
-        <Icon
-          name={isCard ? 'card-outline' : 'business-outline'}
-          size={24}
-          color={isSelected ? '#FFF' : PRIMARY_COLOR}
-        />
-      </View>
+      <MaterialIcons
+        name={isCard ? 'credit-card-outlined' : 'account-balance-outlined'}
+        size={28}
+        color={isSelected ? colors.btnTextColor : colors.text}
+      />
       <View style={iCashActionsStyles.details}>
         <Text
           style={[
             iCashActionsStyles.title,
-            isSelected && iCashActionsStyles.whiteText,
+            isSelected
+              ? { color: colors.btnTextColor }
+              : { color: colors.text },
           ]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
         >
           {isCard
             ? `${item.cardBrand} **** ${item.lastFourDigits}`
@@ -66,7 +81,9 @@ export const PaymentMethodCard = ({
         <Text
           style={[
             iCashActionsStyles.subtitle,
-            isSelected && iCashActionsStyles.lightText,
+            isSelected
+              ? { color: colors.btnTextColor }
+              : { color: colors.text },
           ]}
         >
           {isCard
@@ -74,11 +91,11 @@ export const PaymentMethodCard = ({
             : item.bankAccNumber}
         </Text>
       </View>
-      {isSelected && <Icon name="checkmark-circle" size={20} color="#FFF" />}
     </TouchableOpacity>
   );
 };
 export const ICashBuyPage = ({ navigation }: any) => {
+  const { colors } = useTheme();
   const route = useRoute();
   const user = useAppSelector(state => state.user);
   const [amount, setAmount] = useState('');
@@ -89,7 +106,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
     rate: 1550,
     code: 'NGN',
   });
-  // Use your interface here
   const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
   const [selectedMethod, setSelectedMethod] =
     useState<UserBankOrCardDetails | null>(null);
@@ -203,39 +219,74 @@ export const ICashBuyPage = ({ navigation }: any) => {
     }
   };
   return (
-    <ScrollView style={iCashActionsStyles.container}>
+    <ScrollView
+      style={[
+        iCashActionsStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="Buy iCash" />
-      <View style={iCashActionsStyles.bodyContainer}>
-        <Text style={iCashActionsStyles.label}>Enter Amount to Buy</Text>
+      <View
+        style={[
+          iCashActionsStyles.bodyContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[iCashActionsStyles.label, { color: colors.text }]}>
+          Enter Amount to Buy
+        </Text>
         <View style={iCashActionsStyles.inputContainer}>
-          <Text style={iCashActionsStyles.currencyPrefix}>{localCurrency}</Text>
+          <Text
+            style={[iCashActionsStyles.currencyPrefix, { color: colors.text }]}
+          >
+            {localCurrency}
+          </Text>
           <TextInput
-            style={iCashActionsStyles.inputBorderless}
+            style={[iCashActionsStyles.inputBorderless, { color: colors.text }]}
             placeholder="0.00"
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
+            placeholderTextColor={colors.inputTextHolder}
           />
         </View>
-        <View style={iCashActionsStyles.exchangeCard}>
-          <View style={iCashActionsStyles.exchangeRow}>
-            <Text style={iCashActionsStyles.exchangeText}>Exchange Rate</Text>
-            <Text style={iCashActionsStyles.exchangeValue}>
-              1 iCash ≈ {localCurrency}
-              {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
-            </Text>
-          </View>
-          <View style={iCashActionsStyles.divider} />
-          <Text style={iCashActionsStyles.resultLabel}>You will receive:</Text>
-          <View style={iCashActionsStyles.resultDiv}>
-            <Icon name="diamond" size={26} color={PRIMARY_COLOR} />
-          </View>
-          <Text style={iCashActionsStyles.resultValue}>{iCashEquivalent}</Text>
+        <View style={iCashActionsStyles.exchangeRow}>
+          <Text
+            style={[iCashActionsStyles.exchangeText, { color: colors.text }]}
+          >
+            Exchange Rate
+          </Text>
+          <Text
+            style={[
+              iCashActionsStyles.exchangeValue,
+              { color: colors.primary },
+            ]}
+          >
+            1 iCash ≈ {localCurrency}
+            {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
+          </Text>
         </View>
+        <Text style={[iCashActionsStyles.resultLabel, { color: colors.text }]}>
+          You will receive:
+        </Text>
+        <CurrencyDisplay
+          value={+iCashEquivalent}
+          size="medium"
+          isSuccess={true}
+        />
         {!hasPaymentMethod && (
           <View style={iCashActionsStyles.warningBox}>
-            <Icon name="alert-circle" size={20} color={PRIMARY_COLOR} />
-            <Text style={iCashActionsStyles.warningText}>
+            <MaterialIcons
+              name="error-outline-outlined"
+              size={20}
+              color={colors.primary}
+            />
+            <Text
+              style={[
+                iCashActionsStyles.warningText,
+                { color: colors.primary },
+              ]}
+            >
               You haven't added a payment method. Please add a bank account or
               card to continue.
             </Text>
@@ -245,7 +296,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={iCashActionsStyles.horizontalScrollPadding}
-          snapToInterval={CARD_WIDTH + 15} // Card width + margin
+          snapToInterval={CARD_WIDTH + 15}
           decelerationRate="fast"
         >
           {savedMethods.map(method => (
@@ -254,18 +305,25 @@ export const ICashBuyPage = ({ navigation }: any) => {
               item={method}
               isSelected={selectedMethod?.id === method.id}
               onSelect={() => setSelectedMethod(method)}
+              colors={colors}
             />
           ))}
         </ScrollView>
         <TouchableOpacity
           style={[
             iCashActionsStyles.buyBtn,
+            { backgroundColor: colors.btnColor },
             (!amount || parseFloat(amount) <= 0) && { opacity: 0.5 },
           ]}
           onPress={handleProceed}
           disabled={!amount || parseFloat(amount) <= 0}
         >
-          <Text style={iCashActionsStyles.buyBtnText}>
+          <Text
+            style={[
+              iCashActionsStyles.buyBtnText,
+              { color: colors.btnTextColor },
+            ]}
+          >
             {!hasPaymentMethod
               ? 'Add Payment Method'
               : !selectedMethod
@@ -286,37 +344,26 @@ export const ICashBuyPage = ({ navigation }: any) => {
 export const iCashActionsStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 15,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#2222',
-    marginVertical: 10,
+    marginBottom: 15,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fadccc',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    height: 70,
+    borderRadius: 14,
+    paddingHorizontal: 5,
+    height: 60,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
   },
   currencyPrefix: {
-    fontSize: 28,
+    fontSize: 23,
     fontWeight: 'bold',
-    color: '#332117',
     marginRight: 10,
-  },
-  exchangeCard: {
-    backgroundColor: '#f9e7dd',
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 30,
-    borderWidth: 0.8,
-    borderColor: '#fdd5bf',
   },
   exchangeRow: {
     flexDirection: 'row',
@@ -325,35 +372,18 @@ export const iCashActionsStyles = StyleSheet.create({
     marginBottom: 15,
   },
   exchangeText: {
-    fontSize: 13,
-    color: '#332117',
-    fontWeight: '500',
+    fontSize: 14,
   },
   exchangeValue: {
-    fontSize: 13,
-    color: PRIMARY_COLOR,
-    fontWeight: '700',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#fadccc',
-    marginVertical: 10,
-    opacity: 0.5,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   resultLabel: {
     fontSize: 14,
-    color: '#332117',
-    marginBottom: 6,
-  },
-  resultValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: PRIMARY_COLOR,
-    marginLeft: 7,
+    marginBottom: 15,
   },
   warningBox: {
     flexDirection: 'row',
-    backgroundColor: '#fadccc',
     padding: 15,
     borderRadius: 12,
     marginTop: 25,
@@ -362,19 +392,15 @@ export const iCashActionsStyles = StyleSheet.create({
     alignItems: 'center',
   },
   warningText: {
-    flex: 1,
-    fontSize: 13,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
     marginLeft: 10,
-    lineHeight: 18,
   },
   buyBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 30,
+    marginTop: 20,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -382,40 +408,30 @@ export const iCashActionsStyles = StyleSheet.create({
     elevation: 3,
   },
   buyBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
   flexInput: { flex: 1, fontSize: 16, fontWeight: '600', color: '#2222' },
   inputBorderless: {
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 55,
-    fontSize: 16,
-    fontWeight: '600',
+    flex: 1,
+    fontSize: 14,
   },
   row: { flexDirection: 'row' },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   bodyContainer: {
-    paddingHorizontal: 16,
-  },
-  resultDiv: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    padding: 15,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
   },
   card: {
     width: CARD_WIDTH,
     marginRight: 15,
-    flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#fadccc',
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     marginBottom: 12,
     elevation: 3,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -424,20 +440,9 @@ export const iCashActionsStyles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
     borderColor: PRIMARY_COLOR,
   },
-  iconContainer: {
-    width: 45,
-    height: 45,
-    borderRadius: 10,
-    backgroundColor: PRIMARY_COLOR,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  details: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '600', color: PRIMARY_COLOR },
-  subtitle: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginTop: 2 },
-  whiteText: { color: '#FFF' },
-  lightText: { color: 'rgba(255, 255, 255, 0.8)' },
+  details: { marginTop: 8 },
+  title: { fontSize: 14, fontWeight: '600' },
+  subtitle: { fontSize: 12, marginTop: 4 },
   horizontalScrollPadding: {
     paddingHorizontal: 20,
     paddingVertical: 10,

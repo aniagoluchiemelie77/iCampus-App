@@ -32,7 +32,7 @@ export const CurrencyDisplay = ({
   return (
     <View style={[styles.balanceContainer, containerStyle]}>
       <MaterialIcons
-        name="diamond"
+        name="diamond-outlined"
         size={icon}
         color={isSuccess ? colors.success : colors.primary}
         style={styles.diamondShadow}

@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Image,
   Text,
   Alert,
   Linking,
@@ -23,15 +22,18 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import { ChatMessage, User } from '../types/firebase';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors.ts';
+import { PRIMARY_COLOR, } from 'assets/styles/colors.ts';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper.ts';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker, { types } from 'react-native-document-picker';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
+import { UserAvatar } from '../components/UserAvatar';
+import { useTheme } from '../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
 export const ChatScreen = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const { recipientId } = route.params;
   const currentUser = useAppSelector(state => state.user);
   const socketRef = useRef<Socket | null>(null);
@@ -149,7 +151,6 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       });
       const { uri, name } = result;
       const docUrl = await uploadToFirebase(uri);
-      // 2. Send the message
       sendAttachmentMessage(docUrl, 'file', name || 'Document');
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
@@ -192,8 +193,6 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   }, [recipientId, currentUser?.tier, currentUser?.usertype]);
   useEffect(() => {
     loadHistory(1);
-
-    // Listen for seen updates
     socketRef.current?.on(
       'messages_seen',
       ({ readerId }: { readerId: string }) => {
@@ -230,11 +229,8 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       transports: ['websocket'],
       query: { userId: currentUser.uid },
     });
-    // 2. Join a private room for these two users
     const roomId = [currentUser.uid, recipientId].sort().join('_');
     socketRef.current.emit('join_chat', { roomId });
-
-    // 3. Listen for incoming messages
     socketRef.current.on('receive_message', (newMessage: any) => {
       setMessages(prev => [...prev, newMessage]);
       socketRef.current?.emit('msg_delivered', {
@@ -249,8 +245,6 @@ export const ChatScreen = ({ route, navigation }: Props) => {
 
   const sendMessage = () => {
     if (inputText.trim().length === 0 || !recipient) return;
-
-    // 1. Explicitly type the object as ChatMessage
     const messageData: ChatMessage = {
       id: Date.now().toString(),
       text: inputText,
@@ -272,23 +266,21 @@ export const ChatScreen = ({ route, navigation }: Props) => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, {backgroundColor: colors.background}]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
-      {/* 1. Header with Identity */}
-      <View style={styles.header}>
+      <View style={[styles.header, {backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.text}]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={24} color={PRIMARY_COLOR} />
+          <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         {!loading && recipient ? (
           <View style={styles.profileSummary}>
-            <Image
-              source={{
-                uri:
-                  recipient.profilePic?.at(-1) ||
-                  'https://via.placeholder.com/40',
-              }}
+            <UserAvatar
+              profilePic={recipient.profilePic}
+              firstName={recipient?.firstname}
+              lastName={recipient?.username}
+              organizationName={recipient?.organizationName}
               style={styles.headerAvatar}
             />
             <UserIdentity
@@ -308,8 +300,6 @@ export const ChatScreen = ({ route, navigation }: Props) => {
           </View>
         )}
       </View>
-
-      {/* 2. Message List */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -336,8 +326,6 @@ export const ChatScreen = ({ route, navigation }: Props) => {
           />
         }
       />
-
-      {/* 3. Input Area */}
       <ChatInput
         value={inputText}
         onChangeText={setInputText}
@@ -350,26 +338,23 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' }, // LinkedIn Light Grey
+  container: { flex: 1, paddingHorizontal: 15 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#fadccc',
+    padding: 10,
     borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    marginHorizontal: -15
   },
   profileSummary: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 10,
+    flex: 1
   },
   headerAvatar: {
     width: 35,
     height: 35,
     borderRadius: 17.5,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
   },
 });

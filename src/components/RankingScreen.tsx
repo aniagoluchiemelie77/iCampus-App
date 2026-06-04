@@ -11,6 +11,7 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
+  Share,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {
@@ -40,6 +41,7 @@ import { BlurView } from '@react-native-community/blur';
 import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
 import { setUser } from './UserSlice';
 import { useTheme } from 'context/ThemeContext';
+import ViewShot, { captureRef } from 'react-native-view-shot';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = 160;
@@ -52,6 +54,7 @@ interface UserScoreHeaderProps {
   isEnterpriseView: boolean;
   isViewingSelf: boolean;
   onUpgradePress: () => void;
+  colors: any;
 }
 interface InstitutionItemProps {
   item: iCampusOperationalInstitutionSchema;
@@ -147,78 +150,86 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
   isEnterpriseView,
   isViewingSelf,
   onUpgradePress,
+  colors,
 }) => {
+  const viewShotRef = useRef<any>(null);
   if (isEnterpriseView && isViewingSelf) {
-    return (
-      <View style={styles.userScoreCard}>
-        <Text style={styles.headerLabel}>iScore Observer</Text>
-        <Text style={styles.timerText}>
-          You have full access to view Elite student/instructor analytics.
-        </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('EnterpriseHelp')}>
-          <Text style={styles.learnMore}>Recruitment Tools →</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return;
   }
 
-  // 2. Score Calculation for Individual (Self or Searched User)
   const score = user?.currentIScore ?? 0;
   const previousScore = user?.previousIScore ?? 0;
   const isRising = score >= previousScore;
   const daysUntilUpdate = moment(nextUpdateDate).diff(moment(), 'days');
   const isScoreLocked = user?.displayScore === 'Locked';
+  const handleShareiScore = async () => {
+    try {
+      const uri = await captureRef(viewShotRef, {
+        format: 'png',
+        quality: 0.9,
+        result: 'tmpfile',
+      });
+      await Share.share({
+        url: uri,
+        message: 'My iScore',
+      });
+    } catch (err) {
+      console.error('Error capturing or sharing receipt shot: ', err);
+    }
+  };
 
   return (
     <View style={styles.userScoreCard}>
-      {/* Dynamic Header Label */}
-      <Text style={styles.headerLabel}>
+      <TouchableOpacity style={styles.shareBtn} onPress={handleShareiScore}>
+        <MaterialIcons name="share" size={22} color={colors.btnTextColor} />
+      </TouchableOpacity>
+      <Text style={[styles.headerLabel, { color: colors.btnTextColor }]}>
         {isViewingSelf ? 'Your iScore' : `${user?.firstname}'s iScore`}
       </Text>
 
-      <TouchableOpacity
-        activeOpacity={isScoreLocked ? 0.8 : 1}
-        onPress={() => isScoreLocked && onUpgradePress()}
-        disabled={!isScoreLocked}
-      >
-        <View style={styles.scoreRow}>
-          <View style={styles.scoreCircle}>
-            <Text style={styles.bigScore}>
-              {isScoreLocked ? '88' : user?.displayScore ?? Math.round(score)}
-            </Text>
-
-            {isScoreLocked && (
-              <BlurView
-                style={StyleSheet.absoluteFill}
-                blurType="light"
-                blurAmount={10}
-                reducedTransparencyFallbackColor="white"
+      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
+        <TouchableOpacity
+          activeOpacity={isScoreLocked ? 0.8 : 1}
+          onPress={() => isScoreLocked && onUpgradePress()}
+          disabled={!isScoreLocked}
+        >
+          <View style={styles.scoreRow}>
+            <View
+              style={[styles.scoreCircle, { borderColor: colors.btnTextColor }]}
+            >
+              <Text style={[styles.bigScore, { color: colors.btnTextColor }]}>
+                {isScoreLocked ? '5' : user?.displayScore ?? Math.round(score)}
+              </Text>
+              {isScoreLocked && (
+                <BlurView
+                  style={StyleSheet.absoluteFill}
+                  blurType="light"
+                  blurAmount={10}
+                  reducedTransparencyFallbackColor={colors.backgroundSecondary}
+                />
+              )}
+            </View>
+            <View style={styles.badgeContainer}>
+              <MaterialIcons
+                name={isRising ? 'trending-up' : 'speed'}
+                size={16}
+                color="#fff"
+                style={{ marginRight: 4 }}
               />
-            )}
+              <Text style={styles.badgeText}>
+                {isRising ? 'Rising Star' : 'Needs Momentum'}
+              </Text>
+            </View>
           </View>
-
-          <View style={styles.badgeContainer}>
-            <MaterialIcons
-              name={isRising ? 'trending-up' : 'speed'}
-              size={16}
-              color="#fff"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.badgeText}>
-              {isRising ? 'Rising Star' : 'Needs Momentum'}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {/* Show timer only when looking at yourself */}
+        </TouchableOpacity>
+      </ViewShot>
       {isViewingSelf ? (
-        <Text style={styles.timerText}>
+        <Text style={[styles.timerText, { color: colors.btnTextColor }]}>
           Next update in: {daysUntilUpdate} days
         </Text>
       ) : (
-        <Text style={styles.timerText}>
-          Tier: {user?.tier?.toUpperCase() || 'FREE'}
+        <Text style={[styles.timerText, { color: colors.btnTextColor }]}>
+          {user?.tier?.toUpperCase() || 'FREE'}
         </Text>
       )}
 
@@ -229,7 +240,7 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
             : navigation.navigate('Profile', { uid: user.uid })
         }
       >
-        <Text style={styles.learnMore}>
+        <Text style={[styles.learnMore, { color: colors.btnTextColor }]}>
           {isViewingSelf ? 'How iScore is calculated?' : 'View Full Profile'}
         </Text>
       </TouchableOpacity>
@@ -429,6 +440,7 @@ export function RankingScreen() {
           nextUpdateDate={nextUpdate}
           isViewingSelf={!selectedUser}
           onUpgradePress={() => setSubscriptionModalVisible(true)}
+          colors={colors}
         />
       </LinearGradient>
       <View
@@ -522,35 +534,31 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 10,
     marginHorizontal: -15,
-    position: 'relative',
   },
   userScoreCard: {
     elevation: 5,
     alignContent: 'center',
+    position: 'relative',
   },
   headerLabel: {
-    color: PRIMARY_COLOR_TINT_MAIN,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 1,
   },
   scoreRow: {
-    marginVertical: 10,
+    marginVertical: 15,
     position: 'relative',
     alignItems: 'center',
+    width: '100%',
   },
   scoreCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
     borderWidth: 2,
-    borderColor: PRIMARY_COLOR_TINT_MAIN,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     overflow: 'hidden',
   },
   bigScore: {
-    color: PRIMARY_COLOR_TINT_MAIN,
     fontSize: 45,
     fontWeight: 'bold',
   },
@@ -573,25 +581,20 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: PRIMARY_COLOR_TINT_MAIN,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   timerText: {
-    color: PRIMARY_COLOR_TINT_MAIN,
-    opacity: 0.8,
-    fontSize: 12,
-    marginTop: 10,
+    fontSize: 14,
+    marginVertical: 15,
   },
   learnMore: {
-    color: PRIMARY_COLOR_TINT_MAIN,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 15,
     textAlign: 'right',
     textDecorationLine: 'underline',
   },
-  // Search Overlay Results
   searchOverlay: {
     borderRadius: 20,
     padding: 15,
@@ -749,4 +752,9 @@ const styles = StyleSheet.create({
   instListContainer: {
     padding: 20,
   },
+  shareBtn: {
+    position: 'absolute',
+    top: 20,
+    right: 10
+  }
 });

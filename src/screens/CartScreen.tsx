@@ -5,11 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {EmptyState} from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../components/hooks';
 import {PageHeader} from '../components/PageHeader';
-import { PRIMARY_COLOR } from 'assets/styles/colors';
 import { useAppDataContext } from '../components/EventContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
+import { useTheme } from '../context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
 
 export const CartScreen = () => {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
   const { handleCartItemToggle, allProducts, handleClearCart } =
     useAppDataContext();
@@ -22,7 +25,9 @@ export const CartScreen = () => {
   }, 0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <PageHeader
         title="My Cart"
         subtitle={`${itemCount} ${
@@ -30,8 +35,11 @@ export const CartScreen = () => {
         } in your basket`}
         showBackButton={true}
         rightElement={
-          <TouchableOpacity onPress={handleClearCart} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>Clear Cart</Text>
+          <TouchableOpacity
+            onPress={handleClearCart}
+            style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
+          >
+            <Text style={[styles.headerBtnText, {color: colors.btnTextColor}]}>Clear Cart</Text>
           </TouchableOpacity>
         }
       />
@@ -63,13 +71,25 @@ export const CartScreen = () => {
         }
       />
       {cartData.length > 0 && (
-        <View style={styles.footer}>
+        <View
+          style={[
+            styles.footer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Balance</Text>
+            <Text style={[styles.totalLabel, { color: colors.text }]}>
+              Total Balance
+            </Text>
             <CurrencyDisplay value={totalPrice} size="large" />
           </View>
-          <TouchableOpacity style={styles.checkoutBtn}>
-            <Text style={styles.checkoutText}>Proceed to Checkout</Text>
+          <TouchableOpacity
+            style={[styles.checkoutBtn, { backgroundColor: colors.btnColor }]}
+            onPress={() => navigation.navigate('Checkout')}
+          >
+            <Text style={[styles.checkoutText, { color: colors.btnTextColor }]}>
+              Proceed to Checkout
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -78,16 +98,15 @@ export const CartScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, paddingHorizontal: 15 },
   headerBtn: {
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 14,
     alignContent: 'center',
   },
   headerBtnText: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: 'bold',
   },
   listContent: {
@@ -103,22 +122,23 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingVertical: 15,
+    marginHorizontal: -15,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 15,
     width: '100%',
-    padding: 20,
+    padding: 10,
   },
-  totalLabel: { color: '#222', fontSize: 15, fontWeight: 'bold' },
+  totalLabel: { fontSize: 14, fontWeight: 'bold' },
   checkoutBtn: {
     width: '80%',
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
     alignContent: 'center',
+    alignSelf: 'center',
   },
-  checkoutText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  checkoutText: { fontSize: 14, fontWeight: '700' },
 });

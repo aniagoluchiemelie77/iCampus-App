@@ -52,6 +52,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
           isSmall ? styles.nameSmall : isLarge ? styles.nameLarge : null,
         ]}
         numberOfLines={1}
+        ellipsizeMode="tail"
       >
         {displayName} {username ? `(@${username})` : ''}
       </Text>
