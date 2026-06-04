@@ -23,7 +23,6 @@ import {
   SectionList,
   Alert,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   TestSubmission,
   Course,
@@ -253,7 +252,6 @@ export const FloatingCalculator = ({
     </View>
   );
 };
-// Put this in your theme config or utils file
 export const getChartConfig = (colors: any, isDarkMode: boolean) => ({
   backgroundGradientFrom: isDarkMode ? colors.backgroundSecondary : '#FFFFFF',
   backgroundGradientTo: isDarkMode ? colors.backgroundSecondary : '#EFEFEF',
@@ -1963,6 +1961,7 @@ export const RenderScheduleLecture = ({
   onSave,
   isLoading,
 }: RenderScheduleProps) => {
+  const { colors } = useTheme();
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [repeatWeeks, setRepeatWeeks] = useState(1);
@@ -1978,7 +1977,7 @@ export const RenderScheduleLecture = ({
   const getPlaceholder = () => {
     switch (form.lectureType) {
       case 'Online':
-        return 'Paste iCampus or Google Meet link';
+        return 'Auto generating icampus link...';
       case 'Recorded':
         return 'Paste lectures link';
       case 'Physical':
@@ -2046,7 +2045,7 @@ export const RenderScheduleLecture = ({
   >(null);
   const [showTopicPicker, setShowTopicPicker] = useState(false);
   const handleConfirm = (event: any, selectedDate?: Date) => {
-    setPickerMode(null); // Hide picker
+    setPickerMode(null);
     if (!selectedDate) return;
 
     if (pickerMode === 'date') {
@@ -2075,7 +2074,7 @@ export const RenderScheduleLecture = ({
   useEffect(() => {
     if (form.lectureType === 'Online') {
       const randomHash = Math.random().toString(36).substring(7);
-      const generatedLink = `https://live.icampus.com/${course.courseId}/${randomHash}`;
+      const generatedLink = `https://live.useicampus.edu/${course.courseId}/${randomHash}`;
       setForm(prev => ({
         ...prev,
         location: generatedLink,
@@ -2087,35 +2086,54 @@ export const RenderScheduleLecture = ({
   }, [form.lectureType, course.courseId]);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      <Text style={CourseActionStyles.labelMain}>Set Lecture Schedule</Text>
-      <Text style={CourseActionStyles.inputLabel}>Select Lecture Topic</Text>
+    <ScrollView
+      contentContainerStyle={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <Text
+        style={[CourseActionStyles.labelMain, { color: colors.textDarker }]}
+      >
+        Set Lecture Schedule
+      </Text>
+      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
+        Select Lecture Topic
+      </Text>
       <TouchableOpacity
-        style={CourseActionStyles.textInput}
+        style={[CourseActionStyles.textInput, { borderColor: colors.border }]}
         onPress={() => setShowTopicPicker(true)}
       >
-        <Text style={{ color: form.topicName ? PRIMARY_COLOR_TINT : '#999' }}>
+        <Text
+          style={[
+            CourseActionStyles.textInputText,
+            { color: form.topicName ? colors.inputTextHolder : colors.text },
+          ]}
+        >
           {form.topicName || 'Choose a topic from syllabus'}
         </Text>
-        <Icon name="chevron-down" size={20} color="#666" />
+        <MaterialIcons name="expand-more" size={20} color={colors.text} />
       </TouchableOpacity>
 
-      <Text style={CourseActionStyles.inputLabel}>Lecture Type</Text>
+      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
+        Lecture Type
+      </Text>
       <View style={CourseActionStyles.typeToggleContainer}>
         {(['Physical', 'Online', 'Recorded'] as const).map(type => (
           <TouchableOpacity
             key={type}
             style={[
               CourseActionStyles.typeOption,
-              form.lectureType === type && CourseActionStyles.typeOptionActive,
+              form.lectureType === type && { backgroundColor: colors.btnColor },
             ]}
             onPress={() => setForm({ ...form, lectureType: type })}
           >
             <Text
               style={[
                 CourseActionStyles.typeOptionText,
-                form.lectureType === type &&
-                  CourseActionStyles.typeOptionTextActive,
+                form.lectureType === type
+                  ? { color: colors.btnTextColor }
+                  : { color: colors.text },
               ]}
             >
               {type}
@@ -2123,16 +2141,23 @@ export const RenderScheduleLecture = ({
           </TouchableOpacity>
         ))}
       </View>
-      {/* 2. Dynamic Input Field */}
-      <Text style={CourseActionStyles.inputLabel}>{getLabel()}</Text>
-      <View style={CourseActionStyles.inputContainer}>
+      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
+        {getLabel()}
+      </Text>
+      <View
+        style={[
+          CourseActionStyles.inputContainer,
+          { borderColor: colors.border },
+        ]}
+      >
         <TextInput
           style={[
             CourseActionStyles.textInput,
             form.lectureType === 'Online' && {
-              backgroundColor: '#E0EAEA',
-              color: PRIMARY_COLOR_TINT,
+              backgroundColor: colors.btnColor,
+              color: colors.btnTextColor,
             },
+            { color: colors.text },
           ]}
           placeholder={getPlaceholder()}
           value={
@@ -2146,112 +2171,124 @@ export const RenderScheduleLecture = ({
               setForm({ ...form, location: val });
             }
           }}
+          placeholderTextColor={colors.inputTextHolder}
         />
-        {form.lectureType === 'Recorded' &&
-          form.videoUrl.includes('icampus.com') && (
-            <View
-              style={{
-                backgroundColor: PRIMARY_COLOR,
-                padding: 10,
-                borderRadius: 10,
-              }}
-            >
-              <Icon name="medal" size={16} color="#fff" />
-            </View>
+        {form.lectureType === 'Online' &&
+          form.videoUrl.includes('useicampus.edu') && (
+            <MaterialIcons
+              name="check-circle-outlined"
+              size={17}
+              color={colors.btnTextColor}
+            />
           )}
       </View>
 
       <View style={CourseActionStyles.dateTimeRow}>
         <TouchableOpacity
-          style={CourseActionStyles.dateTimeBox}
+          style={[
+            CourseActionStyles.dateTimeBox,
+            { borderColor: colors.border },
+          ]}
           onPress={() => setPickerMode('date')}
         >
-          <Icon name="calendar-month" size={22} color="#fff" />
-          <View>
-            <Text style={CourseActionStyles.microLabel}>Date</Text>
-            <Text style={CourseActionStyles.dateTimeText}>
-              {form.date || 'Select'}
-            </Text>
-          </View>
+          <MaterialIcons
+            name="calendar-month-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
+            Date
+          </Text>
+          <Text
+            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
+          >
+            {form.date || 'Select Date'}
+          </Text>
         </TouchableOpacity>
-
-        {/* START TIME */}
         <TouchableOpacity
-          style={CourseActionStyles.dateTimeBox}
+          style={[
+            CourseActionStyles.dateTimeBox,
+            { borderColor: colors.border },
+          ]}
           onPress={() => setPickerMode('startTime')}
         >
-          <Icon name="clock-start" size={22} color="#fff" />
-          <View>
-            <Text style={CourseActionStyles.microLabel}>Starts</Text>
-            <Text style={CourseActionStyles.dateTimeText}>
-              {form.startTime || '00:00'}
-            </Text>
-          </View>
+          <MaterialIcons
+            name="schedule-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
+            Start Time
+          </Text>
+          <Text
+            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
+          >
+            {form.startTime || '00:00'}
+          </Text>
         </TouchableOpacity>
-
-        {/* END TIME */}
         <TouchableOpacity
-          style={CourseActionStyles.dateTimeBox}
+          style={[
+            CourseActionStyles.dateTimeBox,
+            { borderColor: colors.border },
+          ]}
           onPress={() => setPickerMode('endTime')}
         >
-          <Icon name="clock-end" size={22} color="#fff" />
-          <View>
-            <Text style={CourseActionStyles.microLabel}>Ends</Text>
-            <Text style={CourseActionStyles.dateTimeText}>
-              {form.endTime || '00:00'}
-            </Text>
-          </View>
+          <MaterialIcons
+            name="schedule-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
+            Ends
+          </Text>
+          <Text
+            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
+          >
+            {form.endTime || '00:00'}
+          </Text>
         </TouchableOpacity>
       </View>
-
-      {pickerMode && (
-        <DateTimePicker
-          value={new Date()} // Current date as starting point for picker
-          mode={pickerMode === 'date' ? 'date' : 'time'}
-          is24Hour={true}
-          display="default"
-          onChange={handleConfirm}
-        />
-      )}
-      <View style={CourseActionStyles.repeatContainer}>
-        <Text style={CourseActionStyles.inputLabel}>Set Recursion?</Text>
-        <View style={CourseActionStyles.repeatCounter}>
-          <TouchableOpacity
-            onPress={() => setRepeatWeeks(Math.max(1, repeatWeeks - 1))}
-          >
-            <Icon
-              name="minus-circle-outline"
-              size={30}
-              color={PRIMARY_COLOR_TINT}
-            />
-          </TouchableOpacity>
-          <Text style={CourseActionStyles.repeatValue}>
-            {repeatWeeks} {repeatWeeks > 1 ? 'Weeks' : 'Week'}
-          </Text>
-          <TouchableOpacity
-            onPress={() => setRepeatWeeks(Math.min(12, repeatWeeks + 1))}
-          >
-            <Icon
-              name="plus-circle-outline"
-              size={30}
-              color={PRIMARY_COLOR_TINT}
-            />
-          </TouchableOpacity>
-        </View>
+      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
+        Set Recursion?
+      </Text>
+      <View style={CourseActionStyles.repeatCounter}>
+        <TouchableOpacity
+          onPress={() => setRepeatWeeks(Math.max(1, repeatWeeks - 1))}
+        >
+          <MaterialIcons
+            name="remove-outlined"
+            size={24}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+        <Text style={[CourseActionStyles.repeatValue, { color: colors.text }]}>
+          {repeatWeeks} {repeatWeeks > 1 ? 'Weeks' : 'Week'}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setRepeatWeeks(Math.min(12, repeatWeeks + 1))}
+        >
+          <MaterialIcons name="add-outlined" size={24} color={colors.primary} />
+        </TouchableOpacity>
       </View>
-      {/* Main Confirm Button */}
       <TouchableOpacity
         style={[
           CourseActionStyles.submitButton,
-          isLoading && CourseActionStyles.submitButtonDisabled,
+          { backgroundColor: colors.btnColor },
         ]}
-        onPress={validateAndSave} // Trigger the validation first
+        onPress={validateAndSave}
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.btnTextColor} size={'small'} />
         ) : (
-          <Text style={CourseActionStyles.submitText}>Confirm Schedule</Text>
+          <Text
+            style={[
+              CourseActionStyles.submitText,
+              { color: colors.btnTextColor },
+            ]}
+          >
+            Save Lecture Schedule
+          </Text>
         )}
       </TouchableOpacity>
       <Modal visible={showTopicPicker} transparent animationType="fade">
@@ -2259,8 +2296,20 @@ export const RenderScheduleLecture = ({
           style={CourseActionStyles.modalOverlayEnd}
           onPress={() => setShowTopicPicker(false)}
         >
-          <View style={CourseActionStyles.pickerContainer2}>
-            <Text style={CourseActionStyles.pickerTitle}>Course Syllabus</Text>
+          <View
+            style={[
+              CourseActionStyles.pickerContainer2,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text
+              style={[
+                CourseActionStyles.pickerTitle,
+                { color: colors.textDarker },
+              ]}
+            >
+              Course Syllabus
+            </Text>
             <FlatList
               data={course.courseContents || []}
               keyExtractor={(item, index) => index.toString()}
@@ -2272,12 +2321,19 @@ export const RenderScheduleLecture = ({
                     setShowTopicPicker(false);
                   }}
                 >
-                  <Text style={CourseActionStyles.pickerItemText}>{item}</Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.pickerItemText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    {item}
+                  </Text>
                   {form.topicName === item && (
-                    <Icon
-                      name="check-circle"
-                      size={20}
-                      color={PRIMARY_COLOR_TINT}
+                    <MaterialIcons
+                      name="check-circle-outlined"
+                      size={18}
+                      color={colors.primary}
                     />
                   )}
                 </TouchableOpacity>
@@ -2295,21 +2351,58 @@ export const RenderScheduleLecture = ({
       </Modal>
       <Modal visible={showErrorModal} transparent animationType="fade">
         <View style={CourseActionStyles.alertOverlay}>
-          <View style={CourseActionStyles.alertBox}>
-            <Icon name="alert-circle-outline" size={50} color={PRIMARY_COLOR} />
-            <Text style={CourseActionStyles.alertTitle}>
+          <View
+            style={[
+              CourseActionStyles.alertBox,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <MaterialIcons
+              name="error-outline-outlined"
+              size={50}
+              color={colors.primary}
+            />
+            <Text
+              style={[
+                CourseActionStyles.alertTitle,
+                { color: colors.textDarker },
+              ]}
+            >
               Missing Information
             </Text>
-            <Text style={CourseActionStyles.alertText}>{errorMessage}</Text>
+            <Text
+              style={[CourseActionStyles.alertText, { color: colors.text }]}
+            >
+              {errorMessage}
+            </Text>
             <TouchableOpacity
-              style={CourseActionStyles.alertButton}
+              style={[
+                CourseActionStyles.alertButton,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={() => setShowErrorModal(false)}
             >
-              <Text style={CourseActionStyles.alertButtonText}>Got it</Text>
+              <Text
+                style={[
+                  CourseActionStyles.alertButtonText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Got it
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+      {pickerMode && (
+        <DateTimePicker
+          value={new Date()}
+          mode={pickerMode === 'date' ? 'date' : 'time'}
+          is24Hour={true}
+          display="default"
+          onChange={handleConfirm}
+        />
+      )}
     </ScrollView>
   );
 };
@@ -5230,7 +5323,6 @@ export const CourseActionStyles = StyleSheet.create({
     borderWidth: 0.8,
   },
   pickerContainer2: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 25,
@@ -5239,37 +5331,26 @@ export const CourseActionStyles = StyleSheet.create({
   dateTimeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
-    marginVertical: 15,
-  },
-  repeatContainer: {
-    marginVertical: 15,
+    alignItems: 'center',
+    marginBottom: 15,
   },
   repeatCounter: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
     alignItems: 'center',
   },
   repeatValue: {
-    color: '#2222',
-    marginHorizontal: 7,
+    fontSize: 14,
+    marginHorizontal: 10,
   },
   dateTimeBox: {
-    flex: 1,
     alignItems: 'center',
-    backgroundColor: PRIMARY_COLOR,
-    padding: 10,
-    borderRadius: 12,
+    padding: 15,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E0E5E5',
   },
   microLabel: {
-    fontSize: 10,
-    color: '#fff',
-    textTransform: 'capitalize',
-    letterSpacing: 0.5,
-    fontWeight: '700',
-    marginTop: 7,
+    fontSize: 12,
+    marginVertical: 6,
   },
   labelTitle: {
     fontSize: 14,
@@ -5277,48 +5358,38 @@ export const CourseActionStyles = StyleSheet.create({
   },
   dateTimeText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
-    marginTop: 20,
-    marginBottom: 8,
-    marginLeft: 4,
+    marginBottom: 15,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
     justifyContent: 'space-between',
+    marginBottom: 15,
+    borderWidth: 0.8,
+    borderRadius: 15,
+    paddingRight: 5,
   },
   textInput: {
-    backgroundColor: '#999',
-    borderRadius: 15,
-    padding: 15,
+    padding: 10,
+    flex: 1,
     fontSize: 14,
-    color: '#333',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
-
-  // Type Toggle (Physical | Online | Recorded)
+  textInputText: {
+    fontSize: 14,
+  },
   typeToggleContainer: {
     flexDirection: 'row',
-    borderRadius: 15,
-    padding: 4,
+    alignItems: 'center',
   },
   typeOption: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
+    padding: 15,
+    alignContent: 'center',
     borderRadius: 12,
-  },
-  typeOptionActive: {
-    backgroundColor: PRIMARY_COLOR,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -5326,85 +5397,67 @@ export const CourseActionStyles = StyleSheet.create({
     shadowRadius: 4,
   },
   typeOptionText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
-  },
-  typeOptionTextActive: {
-    color: '#fff',
   },
   pickerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#2222',
     marginBottom: 20,
-    textAlign: 'center',
   },
   pickerItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 18,
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
     borderBottomWidth: 0.8,
     borderBottomColor: PRIMARY_COLOR_TINT,
   },
   pickerItemText: {
-    fontSize: 16,
-    color: '#2222',
+    fontSize: 14,
     flex: 1,
   },
-
-  // Action Button
   submitButton: {
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 18,
-    padding: 18,
-    marginTop: 35,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginTop: 10,
     marginBottom: 30,
-    alignItems: 'center',
-    elevation: 4,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#A0B2B2',
-    elevation: 0,
+    alignContent: 'center',
+    width: '80%',
+    alignSelf: 'center',
   },
   submitText: {
-    color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
   },
-  // Alert Modal
   alertOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    padding: 25,
+    alignContent: 'center',
   },
   alertBox: {
-    backgroundColor: '#fff',
     borderRadius: 25,
     padding: 30,
     alignItems: 'center',
   },
   alertTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 15,
-  },
-  alertText: {
-    fontSize: 15,
-    color: PRIMARY_COLOR_TINT,
-    textAlign: 'center',
     marginVertical: 15,
   },
+  alertText: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
   alertButton: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 14,
-    paddingHorizontal: 45,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 14,
+    alignContent: 'center',
   },
   alertButtonText: {
-    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
   emptyText: {
@@ -5416,8 +5469,7 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     alignSelf: 'center',
-    paddingTop: 13,
-    color: '#2222',
+    paddingVertical: 20,
   },
   successOverlay: {
     flex: 1,

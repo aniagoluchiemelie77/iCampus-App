@@ -6,7 +6,7 @@ import { useTheme } from 'context/ThemeContext';
 interface EmptyStateProps {
   iconName?: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   buttonText?: string;
   onPress?: () => void;
   style?: ViewStyle;

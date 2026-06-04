@@ -41,7 +41,7 @@ import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx'
 import { setUser } from './UserSlice';
 
 const { width } = Dimensions.get('window');
-const ITEM_WIDTH = 160; // Card width
+const ITEM_WIDTH = 160;
 const ITEM_SPACING = (width - ITEM_WIDTH) / 2;
 
 interface UserScoreHeaderProps {
@@ -65,8 +65,6 @@ export const EliteCarousel: React.FC<RankCardCarouselProps> = ({
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const [index, setIndex] = useState(0);
-
-  // --- Auto-Scroll Logic ---
   useEffect(() => {
     const timer = setInterval(() => {
       if (data && data.length > 0) {
@@ -100,7 +98,6 @@ export const EliteCarousel: React.FC<RankCardCarouselProps> = ({
         )}
         keyExtractor={item => item.uid}
         renderItem={({ item, index: i }) => {
-          // --- Animation Logic ---
           const inputRange = [
             (i - 1) * ITEM_WIDTH,
             i * ITEM_WIDTH,
@@ -109,13 +106,13 @@ export const EliteCarousel: React.FC<RankCardCarouselProps> = ({
 
           const scale = scrollX.interpolate({
             inputRange,
-            outputRange: [0.85, 1.05, 0.85], // Center is 105% size, sides are 85%
+            outputRange: [0.85, 1.05, 0.85],
             extrapolate: 'clamp',
           });
 
           const opacity = scrollX.interpolate({
             inputRange,
-            outputRange: [0.6, 1, 0.6], // Dim the side cards
+            outputRange: [0.6, 1, 0.6],
             extrapolate: 'clamp',
           });
 

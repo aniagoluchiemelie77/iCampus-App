@@ -27,7 +27,6 @@ import {
   CourseActionStyles,
   LecturerLectureScheduleView,
 } from '../components/CourseActionsComponent';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   getCourseDetails,
   getStudentLecturesTimeline,
@@ -48,17 +47,8 @@ import { setUser } from '../components/UserSlice';
 import { updateExceptionStatus } from '../api/localPatchApis';
 import { deleteLectureSchedule } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 
-const EmptyState = ({ message }: { message: string }) => (
-  <View style={CourseActionStyles.emptyDivContainer}>
-    <MaterialCommunityIcons
-      name="clipboard-text-off-outline"
-      size={60}
-      color={PRIMARY_COLOR_TINT}
-    />
-    <Text style={CourseActionStyles.emptyDivContainerText}>{message}</Text>
-  </View>
-);
 export const CourseSubPage = ({ route, navigation }: any) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
@@ -677,7 +667,12 @@ export const CourseSubPage = ({ route, navigation }: any) => {
           ) : activeTest ? (
             (() => {
               if (!activeTest.scheduledStart) {
-                return <EmptyState message="Assessment start time not set." />;
+                return (
+                  <EmptyState
+                    iconName="search-off"
+                    title="Assessment start time not set"
+                  />
+                );
               }
               const now = Date.now();
               const startTime = new Date(activeTest.scheduledStart).getTime();
@@ -754,7 +749,7 @@ export const CourseSubPage = ({ route, navigation }: any) => {
               }
             })()
           ) : (
-            <EmptyState message="No assessments currently available." />
+            <EmptyState iconName="search-off" title="Assessment not found" />
           ))}
 
         {title === 'View Lecture Schedule' &&
