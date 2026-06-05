@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-na
 import { WebView } from 'react-native-webview'; 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import RNBlobUtil from 'react-native-blob-util'; 
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../context/ThemeContext';
 
 export const CertificateScreen = ({ route }: {route: any}) => {
+    const { colors } = useTheme();
     const { certificateUrl, certificateId, details } = route.params;
     const navigation = useNavigation<any>();
 
@@ -42,33 +44,33 @@ export const CertificateScreen = ({ route }: {route: any}) => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, {backgroundColor: colors.background}]}>
             <WebView
                 source={{ uri: certificateUrl }}
                 style={styles.fullWebview}
                 scalesPageToFit={true}
                 startInLoadingState={true}
-                backgroundColor="#ffffff" 
+                backgroundColor={colors.backgroundSecondary} 
             />
-            <SafeAreaView style={styles.floatingActionContainer}>
+            <SafeAreaView style={[styles.floatingActionContainer, {backgroundColor: colors.backgroundSecondary}]}>
                 <View style={styles.glassBar}>          
                     <TouchableOpacity 
                         style={styles.iconButton} 
                         onPress={() => navigation.navigate('Home', { activeTab: 'home' })}
                     >
-                        <MaterialIcons name="home-outlined" size={26} color={PRIMARY_COLOR} />
-                        <Text style={styles.buttonText}>Home</Text>
+                        <MaterialIcons name="home-outlined" size={26} color={colors.primary} />
+                        <Text style={[styles.buttonText, {color: colors.text}]}>Home</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
-                        <MaterialIcons name="share" size={26} color={PRIMARY_COLOR} />
-                        <Text style={styles.buttonText}>Share</Text>
+                        <MaterialIcons name="share" size={26} color={colors.primary} />
+                        <Text style={[styles.buttonText, {color: colors.text}]}>Share</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={styles.iconButton} 
                         onPress={handleDownload}
                     >
-                        <MaterialIcons name="file-download-outlined" size={26} color={PRIMARY_COLOR} />
-                        <Text style={styles.buttonText}>Save</Text>
+                        <MaterialIcons name="file-download-outlined" size={26} color={colors.primary} />
+                        <Text style={[styles.buttonText, {color: colors.text}]}>Save</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -79,12 +81,14 @@ export const CertificateScreen = ({ route }: {route: any}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
     alignContent: 'center',
+    paddingHorizontal: 15,
     position: 'relative'
   },
   fullWebview: {
     flex: 1,
+    padding: 15,
+    borderRadius: 15
   },
   floatingActionContainer: {
     position: 'absolute',
@@ -95,7 +99,6 @@ const styles = StyleSheet.create({
   },
   glassBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(26, 26, 26, 0.95)', 
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 40,
@@ -106,16 +109,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    borderWidth: .8,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   iconButton: {
     alignContent: 'center',
   },
   buttonText: {
-    color: PRIMARY_COLOR,
-    fontSize: 10,
-    marginTop: 4,
-    fontFamily: 'Inter-Medium',
+    fontSize: 12,
+    marginTop: 5,
   },
 });

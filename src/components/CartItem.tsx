@@ -21,7 +21,7 @@ export const CartItem: React.FC<CartItemProps> = ({
   const { colors } = useTheme();
   return (
     <TouchableOpacity
-      style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.border}]}
+      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
       onPress={() =>
         navigation.navigate('ProductDetails', {
           productId: product.productId,
@@ -33,19 +33,26 @@ export const CartItem: React.FC<CartItemProps> = ({
       <View style={styles.details}>
         <View style={styles.detailSubdiv}>
           <View style={styles.headerRow}>
-            <Text style={[styles.typeTag, {color: colors.primary}]}>{product.niche.toUpperCase()}</Text>
+            <Text style={[styles.typeTag, { color: colors.primary }]}>
+              {product.niche.toUpperCase()}
+            </Text>
             {cartEntry.quantity > 1 && (
-              <Text style={[styles.quantityBadge, {color: colors.text}]}>x{cartEntry.quantity}</Text>
+              <Text style={[styles.quantityBadge, { color: colors.text }]}>
+                x{cartEntry.quantity}
+              </Text>
             )}
           </View>
-          <Text style={[styles.title, {color: colors.textDarker}]} numberOfLines={1}>
+          <Text
+            style={[styles.title, { color: colors.textDarker }]}
+            numberOfLines={1}
+          >
             {product.title}
           </Text>
           {(cartEntry.selectedSize || cartEntry.selectedColor) && (
             <View style={styles.variationRow}>
               {cartEntry.selectedSize && (
                 <View style={styles.chip}>
-                  <Text style={[styles.chipText, {color: colors.text}]}>
+                  <Text style={[styles.chipText, { color: colors.text }]}>
                     Size: {cartEntry.selectedSize}
                   </Text>
                 </View>
@@ -60,7 +67,9 @@ export const CartItem: React.FC<CartItemProps> = ({
                       },
                     ]}
                   />
-                  <Text style={[styles.chipText, {color: colors.text}]}>{cartEntry.selectedColor}</Text>
+                  <Text style={[styles.chipText, { color: colors.text }]}>
+                    {cartEntry.selectedColor}
+                  </Text>
                 </View>
               )}
             </View>
@@ -75,7 +84,11 @@ export const CartItem: React.FC<CartItemProps> = ({
             onPress={() => onRemove && onRemove(product)}
             style={styles.removeButton}
           >
-            <MaterialIcons name="delete-outlined" size={18} color={colors.primary} />
+            <MaterialIcons
+              name="delete-outlined"
+              size={18}
+              color={colors.primary}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -86,11 +99,9 @@ export const CartItem: React.FC<CartItemProps> = ({
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    borderRadius: 20,
+    borderRadius: 15,
     padding: 10,
     marginBottom: 15,
-    borderBottomWidth: 0.8,
-    width: '90%',
   },
   image: {
     width: 100,

@@ -27,20 +27,27 @@ import PhoneInput from 'react-native-phone-number-input';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { initializeCheckoutTransaction } from '../api/localPostApis';
 import { DropOffStation } from '../types/firebase';
-import {
-  useRoute,
-  //useNavigation
-} from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
+import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
+import { useDispatch } from 'react-redux';
+import { verifySubscriptionOnBackend } from '../api/localPostApis';
+import { setUser } from '../components/UserSlice.ts';
 import {
   TRANSACTION_TAX_RATE,
   HOME_DELIVERY_RATE,
   DROP_OFF_FEE,
 } from '../constants/inAppConstants';
+import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
 
 const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
 export const CheckoutScreen = ({ navigation }: any) => {
+  const { colors } = useTheme();
   const route = useRoute();
+  const dispatch = useDispatch();
+  const [isSubscriptionModalVisible, setSubscriptionModalVisible] =
+    useState(false);
   const [userCoords, setUserCoords] = useState<{
     lat: number;
     lng: number;
@@ -56,6 +63,11 @@ export const CheckoutScreen = ({ navigation }: any) => {
   const [countryCode, _setCountryCode] = useState<any>(
     currentUser.country || 'NG',
   );
+  const [exchangeData, setExchangeData] = useState({
+    rate: 1,
+    symbol: '$',
+    code: 'USD',
+  });
   const [formattedValue, setFormattedValue] = useState('');
   const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState(
@@ -271,15 +283,41 @@ export const CheckoutScreen = ({ navigation }: any) => {
       console.log('Permission is blocked. User must enable it manually.');
     }
   }, []);
+  const handleSubSuccess = async (data: any) => {
+    setSubscriptionModalVisible(false);
+    const res = await verifySubscriptionOnBackend(
+      data.transaction_id || data.flw_ref,
+      'pro',
+      exchangeData.rate,
+    );
+    if (res.success) {
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Upgrade to Pro user successful.',
+      });
+      dispatch(
+        setUser({
+          ...currentUser,
+          tier: 'pro',
+          hasSubscribed: true,
+        }),
+      );
+    }
+  };
 
   useEffect(() => {
     checkLocationPermission();
   }, [checkLocationPermission]);
+  useEffect(() => {
+    fetchLiveRate(currentUser?.country!).then(setExchangeData);
+  }, [currentUser?.country]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <PageHeader title="Checkout" showBackButton={true} />
-
       <FlatList
         data={checkoutItems}
         keyExtractor={(item, index) => item.productId + index}
@@ -303,65 +341,80 @@ export const CheckoutScreen = ({ navigation }: any) => {
                 <View style={styles.itemDeliveryContainer}>
                   {canShowHomeToggle ? (
                     <View style={styles.miniToggleRow}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          toggleDelivery(item.productId, 'drop_off')
-                        }
+                      <View
                         style={[
-                          styles.miniBtn,
-                          selectedMethod === 'drop_off' && styles.miniBtnActive,
+                          styles.miniToggleBtnRow,
+                          { borderColor: colors.border },
                         ]}
                       >
-                        <MaterialIcons
-                          name="local-shipping-outlined"
-                          size={14}
-                          color={
-                            selectedMethod === 'drop_off'
-                              ? '#fff'
-                              : PRIMARY_COLOR_TINT
+                        <TouchableOpacity
+                          onPress={() =>
+                            toggleDelivery(item.productId, 'drop_off')
                           }
-                        />
-                        <Text
                           style={[
-                            styles.miniBtnText,
-                            selectedMethod === 'drop_off' && styles.whiteText,
+                            styles.miniBtn,
+                            selectedMethod === 'drop_off' && {
+                              backgroundColor: colors.btnColor,
+                            },
                           ]}
                         >
-                          Drop-off
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() =>
-                          toggleDelivery(item.productId, 'home_delivery')
-                        }
-                        style={[
-                          styles.miniBtn,
-                          selectedMethod === 'home_delivery' &&
-                            styles.miniBtnActive,
-                          { marginLeft: 5 },
-                        ]}
-                      >
-                        <MaterialIcons
-                          name="home-outlined"
-                          size={14}
-                          color={
-                            selectedMethod === 'home_delivery'
-                              ? '#fff'
-                              : PRIMARY_COLOR_TINT
+                          <MaterialIcons
+                            name="local-shipping-outlined"
+                            size={14}
+                            color={
+                              selectedMethod === 'drop_off'
+                                ? colors.btnTextColor
+                                : colors.text
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.miniBtnText,
+                              selectedMethod === 'drop_off'
+                                ? { color: colors.btnTextColor }
+                                : { color: colors.text },
+                            ]}
+                          >
+                            Drop-off
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
+                            toggleDelivery(item.productId, 'home_delivery')
                           }
-                        />
-                        <Text
                           style={[
-                            styles.miniBtnText,
-                            selectedMethod === 'home_delivery' &&
-                              styles.whiteText,
+                            styles.miniBtn,
+                            selectedMethod === 'home_delivery' && {
+                              backgroundColor: colors.btnColor,
+                            },
                           ]}
                         >
-                          Home Delivery
-                        </Text>
-                      </TouchableOpacity>
+                          <MaterialIcons
+                            name="home-outlined"
+                            size={14}
+                            color={
+                              selectedMethod === 'home_delivery'
+                                ? colors.btnTextColor
+                                : colors.text
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.miniBtnText,
+                              selectedMethod === 'home_delivery'
+                                ? { color: colors.btnTextColor }
+                                : { color: colors.text },
+                            ]}
+                          >
+                            Home Delivery
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                       <Text
-                        style={[styles.defaultDeliveryText, { marginLeft: 5 }]}
+                        style={[
+                          styles.defaultDeliveryText,
+                          { margin: 0, color: colors.text },
+                        ]}
                       >
                         {toPercentLabel(currentItemFee)}
                       </Text>
@@ -370,18 +423,39 @@ export const CheckoutScreen = ({ navigation }: any) => {
                     <View style={styles.defaultDeliveryInfo}>
                       <MaterialIcons
                         name="local-shipping-outlined"
-                        size={14}
-                        color={PRIMARY_COLOR_TINT}
+                        size={16}
+                        color={colors.text}
                       />
-                      <Text style={styles.defaultDeliveryText}>
+                      <Text
+                        style={[
+                          styles.defaultDeliveryText,
+                          { color: colors.text },
+                        ]}
+                      >
                         Delivery: Drop-off Station Only
                       </Text>
-                      <Text style={styles.defaultDeliveryText}>
+                      <Text
+                        style={[
+                          styles.defaultDeliveryText,
+                          { color: colors.text },
+                        ]}
+                      >
                         {toPercentLabel(currentItemFee)}
                       </Text>
                       {!isProUser && (
-                        <TouchableOpacity style={styles.proBanner}>
-                          <Text style={styles.proBannerText}>
+                        <TouchableOpacity
+                          style={[
+                            styles.proBanner,
+                            { backgroundColor: colors.btnColor },
+                          ]}
+                          onPress={() => setSubscriptionModalVisible(true)}
+                        >
+                          <Text
+                            style={[
+                              styles.proBannerText,
+                              { color: colors.btnTextColor },
+                            ]}
+                          >
                             Upgrade to Pro to unlock Home Delivery
                           </Text>
                         </TouchableOpacity>
@@ -394,32 +468,27 @@ export const CheckoutScreen = ({ navigation }: any) => {
           );
         }}
         ListFooterComponent={
-          <View style={styles.summaryContainer}>
+          <View
+            style={[
+              styles.summaryContainer,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text style={[styles.summaryTitle, { color: colors.textDarker }]}>
+              Order Summary
+            </Text>
             {(dropOffItems.length > 0 || homeItems.length > 0) && (
               <View style={styles.deliveryInfoCard}>
                 {dropOffItems.length > 0 && (
-                  <View style={styles.stationNoticeContainer}>
-                    <Text style={styles.sectionTitle}>Pick-up Information</Text>
+                  <>
+                    <Text style={[styles.sectionTitle, {color: colors.text}]}>Pick-up Information</Text>
                     {dropOffItems.map(item => (
-                      <View key={item.productId} style={styles.stationRow}>
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            width: '100%',
-                          }}
-                        >
-                          <MaterialIcons
-                            name="inventory-outlined"
-                            size={16}
-                            color={PRIMARY_COLOR_TINT}
-                          />
-                          <Text style={styles.stationText}>
+                      <View key={item.productId} >
+                          <Text style={[styles.stationText, {color: colors.text}]}>
                             Available delivery stations for{' '}
                             {item.product?.title}:
                           </Text>
-                        </View>
-                        <View style={{ marginVertical: 6, width: '100%' }}>
+                        <View style={{ marginVertical: 6 }}>
                           {item.product?.physicalDetails?.dropOffAddress?.map(
                             (station, index) => {
                               const isSelected =
@@ -445,17 +514,13 @@ export const CheckoutScreen = ({ navigation }: any) => {
                                   onPress={() =>
                                     handleStationSelect(item.productId, station)
                                   }
-                                  style={[
-                                    styles.stationOption,
-                                    isSelected && styles.selectedStationOption,
-                                  ]}
+                                  style={styles.stationOption}
                                 >
                                   <Text
                                     key={station.id || index}
                                     style={[
                                       styles.stationText2,
-                                      isSelected &&
-                                        styles.selectedStationOptionText,
+                                      isSelected ? {color: colors.primary} : {color: colors.text}
                                     ]}
                                   >
                                     {station.name}, {station.address}
@@ -467,9 +532,9 @@ export const CheckoutScreen = ({ navigation }: any) => {
                                   ) : locationPermission === RESULTS.BLOCKED ? (
                                     <TouchableOpacity
                                       onPress={handleOpenSettings}
-                                      style={styles.enableBtn}
+                                      style={[styles.enableBtn, {backgroundColor: colors.btnColor}]}
                                     >
-                                      <Text style={styles.enableLocationText}>
+                                      <Text style={[styles.enableLocationText, {color: colors.btnTextColor}]}>
                                         Enable location to see distance
                                       </Text>
                                     </TouchableOpacity>
@@ -481,14 +546,16 @@ export const CheckoutScreen = ({ navigation }: any) => {
                         </View>
                       </View>
                     ))}
-                  </View>
+                  </>
                 )}
                 {homeItems.length > 0 && (
                   <View style={styles.homeDeliveryForm}>
-                    <Text style={styles.sectionTitle}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
                       Home Delivery Details
                     </Text>
-                    <Text style={styles.label}>Recipient Phone Number</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                      Enter your phone number
+                    </Text>
                     <PhoneInput
                       defaultValue={phoneNumber}
                       defaultCode={countryCode}
@@ -498,53 +565,63 @@ export const CheckoutScreen = ({ navigation }: any) => {
                       containerStyle={styles.phoneInputContainer}
                       textContainerStyle={styles.phoneTextContainer}
                       withShadow
+                      textInputStyle={{ color: colors.text, fontSize: 14 }}
                     />
                     {!isValid && phoneNumber.length > 0 && (
                       <Text style={styles.errorText}>
                         Invalid number for {countryCode}
                       </Text>
                     )}
-                    <Text style={[styles.label, { marginTop: 10 }]}>
+                    <Text
+                      style={[
+                        styles.label,
+                        { marginTop: 10, color: colors.text },
+                      ]}
+                    >
                       Delivery Address
                     </Text>
                     <TextInput
-                      style={styles.addressInput}
+                      style={[styles.addressInput, { color: colors.text }]}
                       placeholder="Room No, Hostel Name, or Faculty building..."
                       value={deliveryAddress}
                       onChangeText={setDeliveryAddress}
-                      placeholderTextColor={PRIMARY_COLOR_TINT}
+                      placeholderTextColor={colors.inputTextHolder}
                       multiline
                     />
                   </View>
                 )}
               </View>
             )}
-            <Text style={styles.summaryTitle}>Order Summary</Text>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={[styles.summaryLabel, { color: colors.text }]}>
+                Subtotal
+              </Text>
               <CurrencyDisplay value={subtotal} size="small" />
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Transaction Tax (2%)</Text>
+              <Text style={[styles.summaryLabel, { color: colors.text }]}>
+                Transaction Tax (2%)
+              </Text>
               <CurrencyDisplay value={transactionTax} size="small" />
             </View>
-            <View style={styles.divider} />
             <View style={styles.summaryRow}>
-              <Text style={styles.grandTotalLabel}>Grand Total</Text>
+              <Text style={[styles.grandTotalLabel, { color: colors.text }]}>
+                Grand Total
+              </Text>
               <CurrencyDisplay value={grandTotal} size="large" />
             </View>
-            <View
-              style={[styles.balanceCard, !canAfford && styles.balanceError]}
-            >
-              <Text style={styles.balanceText}>Your Balance:</Text>
+            <View style={styles.balanceCard}>
+              <Text style={[styles.balanceText, { color: colors.text }]}>
+                Your Balance:
+              </Text>
               <CurrencyDisplay value={userBalance} size="small" />
             </View>
             <TouchableOpacity
-              style={[styles.buyBtn, !canAfford && styles.disabledBtn]}
+              style={[styles.buyBtn, { backgroundColor: colors.btnColor }]}
               onPress={handleProceedToVerify}
               disabled={!canAfford}
             >
-              <Text style={styles.buyBtnText}>
+              <Text style={[styles.buyBtnText, { color: colors.btnTextColor }]}>
                 {canAfford ? 'Confirm & Pay' : 'Insufficient Balance'}
               </Text>
             </TouchableOpacity>
@@ -559,18 +636,30 @@ export const CheckoutScreen = ({ navigation }: any) => {
         onSuccess={onVerificationSuccess}
         title="Confirm Purchase"
       />
+      <SubscriptionSelectionModal
+        isVisible={isSubscriptionModalVisible}
+        onClose={() => setSubscriptionModalVisible(false)}
+        targetTier="pro"
+        userContext={{
+          email: currentUser.email,
+          name: `${currentUser.firstname} ${currentUser.lastname}`,
+          country: currentUser.country!,
+        }}
+        exchangeData={exchangeData}
+        onSuccess={handleSubSuccess}
+        title="Upgrade to enable home delivery"
+      />
     </SafeAreaView>
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, paddingHorizontal: 15 },
   itemWrapper: {
     paddingHorizontal: 15,
     marginTop: 10,
   },
   summaryContainer: {
     padding: 20,
-    backgroundColor: '#FFF',
     marginTop: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -579,12 +668,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 5,
+    marginHorizontal: -15,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#222',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -592,122 +681,95 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  summaryLabel: { color: '#666', fontSize: 14 },
-  divider: { height: 1, backgroundColor: '#EEE', marginVertical: 15 },
-  grandTotalLabel: { fontSize: 16, fontWeight: 'bold', color: '#000' },
+  summaryLabel: { fontSize: 14 },
+  grandTotalLabel: { fontSize: 14, fontWeight: 'bold' },
   balanceCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#F0F9FF',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
+    alignItems: 'center',
+    marginBottom: 25,
   },
-  balanceError: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  balanceText: { fontSize: 14, fontWeight: '600', color: '#444' },
+  balanceText: { fontSize: 14, fontWeight: '600' },
   buyBtn: {
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 20,
+    width: '100%',
+    alignSelf: 'center',
   },
-  disabledBtn: { backgroundColor: '#A1A1AA' },
-  buyBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  buyBtnText: { fontSize: 14, fontWeight: 'bold' },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
   itemDeliveryContainer: {
-    paddingHorizontal: 10,
-    marginTop: -5,
+    marginTop: -9,
   },
   miniToggleRow: {
     flexDirection: 'row',
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  miniBtn: {
-    padding: 8,
+  miniToggleBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    height: 60,
+    overflow: 'hidden',
   },
-  miniBtnActive: {
-    backgroundColor: PRIMARY_COLOR,
+  miniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 8,
   },
   miniBtnText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
-    marginLeft: 3,
+    marginLeft: 4,
   },
-  whiteText: { color: '#fff' },
   defaultDeliveryInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
   },
   defaultDeliveryText: {
-    fontSize: 11,
-    color: PRIMARY_COLOR_TINT,
-    marginLeft: 5,
+    fontSize: 12,
+    marginLeft: 6,
     fontWeight: 'bold',
   },
   proBanner: {
-    marginLeft: 5,
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    marginLeft: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 13,
     alignContent: 'center',
   },
   proBannerText: {
-    fontSize: 11,
-    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
   deliveryInfoCard: {
     marginBottom: 15,
   },
-  stationNoticeContainer: {
-    marginBottom: 8,
-    borderLeftWidth: 2,
-    borderLeftColor: PRIMARY_COLOR,
-  },
-  stationRow: {
-    width: '100%',
-  },
   stationText: {
-    fontSize: 12,
-    color: PRIMARY_COLOR,
-    marginLeft: 6,
-    flex: 1,
+    fontSize: 14,
   },
   stationText2: {
-    fontSize: 12,
-    color: '#2222',
-    marginBottom: 4,
+    fontSize: 14,
+    marginBottom: 6,
   },
   distanceLabel: {
     fontSize: 10,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
   },
-  selectedStationOptionText: {
-    color: '#fff',
-  },
   homeDeliveryForm: {
     width: '100%',
   },
   addressInput: {
-    backgroundColor: '#fadccc',
     borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    padding: 15,
+    width: '100%',
     fontSize: 14,
-    color: '#222',
     textAlignVertical: 'top',
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
@@ -715,7 +777,6 @@ const styles = StyleSheet.create({
   phoneInputContainer: {
     width: '100%',
     height: 60,
-    backgroundColor: '#fadccc',
     borderRadius: 12,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
@@ -723,36 +784,29 @@ const styles = StyleSheet.create({
   },
   phoneTextContainer: {
     backgroundColor: 'transparent',
-    paddingVertical: 0,
   },
   errorText: {
     color: PRIMARY_COLOR,
     fontSize: 11,
     marginTop: 4,
-    marginLeft: 4,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2222',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   stationOption: {
     width: '100%',
     marginBottom: 6,
   },
-  selectedStationOption: {
-    backgroundColor: PRIMARY_COLOR,
-  },
+
   enableBtn: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 13,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
   },
   enableLocationText: {
-    fontSize: 11,
-    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

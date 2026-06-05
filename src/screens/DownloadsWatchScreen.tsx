@@ -9,8 +9,10 @@ import Toast from 'react-native-toast-message';
 import { generateCertificateAPI } from '../api/localPostApis';
 import { useNavigation } from '@react-navigation/native';
 import Modal from 'react-native-modal';
+import { useTheme } from '../context/ThemeContext';
 
 export const CourseLearningScreen = ({ route }: any) => {
+  const { colors } = useTheme();
   const { courseProduct, userProgress } = route.params;
   const navigation = useNavigation<any>();
   const videoPlayer = useRef<VideoRef>(null);
@@ -107,7 +109,7 @@ export const CourseLearningScreen = ({ route }: any) => {
     );
   };
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.playerWrapper}>
         <Video
           ref={videoPlayer}
@@ -121,10 +123,16 @@ export const CourseLearningScreen = ({ route }: any) => {
           playWhenInactive={false}
         />
       </View>
-      <View style={styles.header}>
-        <Text style={styles.courseTitle}>{courseProduct.title}</Text>
+      <View
+        style={[styles.header, { backgroundColor: colors.backgroundSecondary }]}
+      >
+        <Text style={[styles.courseTitle, { color: colors.textDarker }]}>
+          {courseProduct.title}
+        </Text>
         {courseProduct.description && (
-          <Text style={styles.courseTitle}>{courseProduct.description}</Text>
+          <Text style={[styles.subTitle, { color: colors.text }]}>
+            {courseProduct.description}
+          </Text>
         )}
         <View style={styles.progressRow}>
           <Progress.Bar
@@ -158,12 +166,19 @@ export const CourseLearningScreen = ({ route }: any) => {
         onSwipeComplete={() => {}}
       >
         <View style={styles.modalBackground}>
-          <View style={styles.modalContent}>
-            <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-            <Text style={styles.largeLoadingText}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text
+              style={[styles.largeLoadingText, { color: colors.textDarker }]}
+            >
               Preparing your official certificate...
             </Text>
-            <Text style={styles.subLoadingText}>
+            <Text style={[styles.subLoadingText, { color: colors.text }]}>
               Stamping your credentials on the iCampus ledger.
             </Text>
           </View>
@@ -173,20 +188,41 @@ export const CourseLearningScreen = ({ route }: any) => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  playerWrapper: { width: '100%', aspectRatio: 16 / 9, backgroundColor: PRIMARY_COLOR },
+  container: { flex: 1, paddingHorizontal: 15 },
+  playerWrapper: { width: '100%', aspectRatio: 16 / 9 },
   video: { width: '100%', height: '100%' },
-  header: { padding: 15, borderBottomWidth: .8, borderBottomColor: PRIMARY_COLOR_TINT, marginVertical: 8 },
-  courseTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#222' },
+  header: { padding: 15, marginBottom: 15 },
+  courseTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  subTitle: { fontSize: 14, marginBottom: 10 },
   courseSubtitle: { fontSize: 14, marginBottom: 10, color: '#2222' },
-  progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
-  percentageText: { fontWeight: 'bold', color: PRIMARY_COLOR_TINT, fontSize: 14 },
-  listHeader: { padding: 15, fontSize: 16, fontWeight: '600', backgroundColor: '#f9f9f9' },
-  lessonRow: { flexDirection: 'row', padding: 15, alignItems: 'center', borderBottomWidth: .8, borderBottomColor: PRIMARY_COLOR_TINT },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  percentageText: {
+    fontWeight: 'bold',
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 14,
+  },
+  listHeader: {
+    padding: 15,
+    fontSize: 16,
+    fontWeight: '600',
+    backgroundColor: '#f9f9f9',
+  },
+  lessonRow: {
+    flexDirection: 'row',
+    padding: 15,
+    alignItems: 'center',
+    borderBottomWidth: 0.8,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
   activeRow: { backgroundColor: '#fadccc' },
   activeText: { color: PRIMARY_COLOR, fontWeight: 'bold' },
   lessonInfo: { flex: 1 },
-  leftMargin: { marginLeft: 15},
+  leftMargin: { marginLeft: 15 },
   lessonTitle: { fontSize: 14, color: '#222' },
   lessonDuration: { fontSize: 11, color: PRIMARY_COLOR_TINT, marginTop: 3 },
   modalBackground: {
@@ -195,19 +231,16 @@ const styles = StyleSheet.create({
     alignContent: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderRadius: 25,
     padding: 20,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   largeLoadingText: {
-    fontSize: 20,
-    color: PRIMARY_COLOR,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15
+    marginVertical: 15,
   },
-  subLoadingText:{
+  subLoadingText: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT
-  }
+  },
 });

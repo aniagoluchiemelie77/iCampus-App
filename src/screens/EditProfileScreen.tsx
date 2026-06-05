@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useAppSelector } from '../components/hooks';
 import { InputGroup } from '../components/InputGroup';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import { PageHeader } from '../components/PageHeader.tsx';
 import countries from 'i18n-iso-countries';
 import { patchUserProfile } from '../api/localPatchApis';
@@ -10,10 +9,12 @@ import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
+import { useTheme } from '../context/ThemeContext';
 
 countries.registerLocale(require('i18n-iso-countries/langs/en.json'));
 
 export const EditProfileScreen = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
@@ -31,7 +32,7 @@ export const EditProfileScreen = () => {
     department: user.department || '',
     email: user.email || '',
   });
-  const isDirty =
+  const isChanged =
     formData.headline !== (user.headline || '') ||
     formData.organizationName !== (user.organizationName || '') ||
     formData.website !== (user.website || '') ||
@@ -76,13 +77,22 @@ export const EditProfileScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <PageHeader
         title="Edit Profile"
         rightElement={
-          isDirty && (
-            <TouchableOpacity onPress={handleSave}>
-              <Text>Save</Text>
+          isChanged && (
+            <TouchableOpacity
+              onPress={handleSave}
+              style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
+            >
+              <Text
+                style={[styles.saveBtnText, { color: colors.btnTextColor }]}
+              >
+                Save
+              </Text>
             </TouchableOpacity>
           )
         }
@@ -92,7 +102,7 @@ export const EditProfileScreen = () => {
         defaultValue={formData.headline}
         type="text"
         placeholder="Enter your headline"
-        placeholderTextColor={PRIMARY_COLOR_TINT}
+        placeholderTextColor={colors.inputTextHolder}
         onChangeText={text => handleInputChange('headline', text)}
       />
 
@@ -105,7 +115,7 @@ export const EditProfileScreen = () => {
             onChangeText={text => handleInputChange('organizationName', text)}
             type="text"
             placeholder="Your company name"
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            placeholderTextColor={colors.inputTextHolder}
           />
           <InputGroup
             label="Website"
@@ -114,7 +124,7 @@ export const EditProfileScreen = () => {
             onChangeText={text => handleInputChange('website', text)}
             type="text"
             placeholder="https://..."
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            placeholderTextColor={colors.inputTextHolder}
           />
         </>
       ) : (
@@ -126,7 +136,7 @@ export const EditProfileScreen = () => {
             onChangeText={text => handleInputChange('username', text)}
             type="text"
             placeholder="Enter your username"
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            placeholderTextColor={colors.inputTextHolder}
           />
           <InputGroup
             label="First Name"
@@ -135,7 +145,7 @@ export const EditProfileScreen = () => {
             onChangeText={text => handleInputChange('firstname', text)}
             type="text"
             placeholder="Enter your first name"
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            placeholderTextColor={colors.inputTextHolder}
           />
           <InputGroup
             label="Last Name"
@@ -143,7 +153,7 @@ export const EditProfileScreen = () => {
             defaultValue={formData.lastname}
             type="text"
             placeholder="Enter your last name"
-            placeholderTextColor={PRIMARY_COLOR_TINT}
+            placeholderTextColor={colors.inputTextHolder}
             onChangeText={text => handleInputChange('lastname', text)}
           />
         </>
@@ -155,7 +165,7 @@ export const EditProfileScreen = () => {
           defaultValue={formData.department}
           type="text"
           placeholder="Enter your department"
-          placeholderTextColor={PRIMARY_COLOR_TINT}
+          placeholderTextColor={colors.inputTextHolder}
           onChangeText={text => handleInputChange('department', text)}
         />
       )}
@@ -167,7 +177,7 @@ export const EditProfileScreen = () => {
         type="text"
         keyboardType="email-address"
         placeholder="Enter your email..."
-        placeholderTextColor={PRIMARY_COLOR_TINT}
+        placeholderTextColor={colors.inputTextHolder}
         onChangeText={text => handleInputChange('email', text)}
       />
     </ScrollView>
@@ -177,17 +187,16 @@ export const EditProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    paddingHorizontal: 15,
   },
-  content: {
-    paddingVertical: 20,
+  saveBtn: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 13,
+    alignContent: 'center',
   },
-  input: {
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-  },
-  disabledText: {
-    color: '#888',
+  saveBtnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

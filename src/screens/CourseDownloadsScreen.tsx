@@ -8,6 +8,7 @@ import { DownloadItemCard } from '../components/DownloadItemCard';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTheme } from 'context/ThemeContext';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -15,6 +16,7 @@ type NavigationProp = StackNavigationProp<
 >;
 
 export const DownloadsScreen = () => {
+  const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const [products, setProducts] = useState<EnrichedCourseProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +37,7 @@ export const DownloadsScreen = () => {
     fetchDownloads();
   };
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="My Downloads"
         subtitle={
@@ -83,6 +85,6 @@ export const DownloadsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    paddingHorizontal: 15,
   },
 });

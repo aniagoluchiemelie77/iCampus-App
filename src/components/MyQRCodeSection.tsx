@@ -451,13 +451,13 @@ const QRCodeStyles = StyleSheet.create({
   cardContainer: {
     width: '100%',
     borderRadius: 12,
-    marginVertical: 10,
-    marginHorizontal: 4,
+    marginBottom: 10,
     elevation: 3,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    padding: 10,
   },
   header: {
     flexDirection: 'row',

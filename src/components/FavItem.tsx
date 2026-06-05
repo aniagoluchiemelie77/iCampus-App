@@ -16,7 +16,7 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
   const { colors } = useTheme();
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.border }]}
+      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
       onPress={() =>
         navigation.navigate('ProductDetails', {
           productId: product.productId,
@@ -32,7 +32,10 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
               {product.niche.toUpperCase()}
             </Text>
           </View>
-          <Text style={[styles.title, { color: colors.textDarker }]} numberOfLines={2}>
+          <Text
+            style={[styles.title, { color: colors.textDarker }]}
+            numberOfLines={2}
+          >
             {product.title}
           </Text>
         </View>
@@ -43,7 +46,11 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
             onPress={() => onRemove(product)}
             style={[styles.removeButton, { backgroundColor: colors.btnColor }]}
           >
-            <MaterialIcons name="delete-outlined" size={18} color={colors.btnTextColor} />
+            <MaterialIcons
+              name="delete-outlined"
+              size={18}
+              color={colors.btnTextColor}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -57,9 +64,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 10,
     marginBottom: 15,
-    borderBottomWidth: 0.8,
-    width: '90%',
-    alignSelf: 'center',
   },
   image: {
     width: 100,

@@ -23,7 +23,12 @@ export const InputGroup = ({
 }: InputGroupProps) => {
   const { colors } = useTheme();
   return (
-    <View style={styles.groupContainer}>
+    <View
+      style={[
+        styles.groupContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <View style={styles.labelRow}>
         <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         {isLocked && (
@@ -73,7 +78,7 @@ export const InputGroup = ({
   );
 };
 const styles = StyleSheet.create({
-  groupContainer: { marginBottom: 15, paddingHorizontal: 13 },
+  groupContainer: { marginBottom: 15, padding: 10, borderRadius: 10 },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',

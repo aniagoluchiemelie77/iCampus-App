@@ -1,4 +1,9 @@
 import { PRO_BADGE_COLOR, PREMIUM_BADGE_COLOR, ENTERPRISE_BADGE_COLOR } from 'assets/styles/colors';
+import {
+  Product,
+} from '../types/firebase';
+
+type ItemCategory = Product['type'];
 
 export const USD_SUBSCRIPTION_PRICES = {
   Pro: 1.11,
@@ -19,6 +24,11 @@ export const TIER_COLORS: Record<string, string> = {
   pro: PRO_BADGE_COLOR,     
   premium: PREMIUM_BADGE_COLOR, 
   enterprise: ENTERPRISE_BADGE_COLOR 
+} as const;
+export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
+  file: 100,
+  course: 500,
+  physical: 1000,
 } as const;
 
 export type SubscriptionTier = keyof typeof USD_SUBSCRIPTION_PRICES;

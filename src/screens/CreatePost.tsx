@@ -25,7 +25,8 @@ import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
 import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { useTheme } from 'context/ThemeContext';
 interface MediaItem {
   uri: string;
   type: 'image' | 'video';
@@ -33,6 +34,7 @@ interface MediaItem {
 }
 
 const CreatePost = ({ route, navigation }: any) => {
+  const { colors } = useTheme();
   const editPostData = route.params?.post;
   const isEditMode = !!editPostData;
   const type = editPostData
@@ -40,8 +42,6 @@ const CreatePost = ({ route, navigation }: any) => {
       ? 'poll'
       : 'post'
     : route.params?.type || 'post';
-
-  // 1. INITIAL STATES (Pre-filled if editing)
   const [content, setContent] = useState(
     editPostData ? editPostData.content : '',
   );
@@ -59,7 +59,6 @@ const CreatePost = ({ route, navigation }: any) => {
         }))
       : [],
   );
-
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -224,10 +223,12 @@ const CreatePost = ({ route, navigation }: any) => {
       setIsUploading(false);
     }
   };
-  const canPost = content.trim().length > 0 || mediaList.length > 0;
+  const canPost = content.trim().length > 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -242,112 +243,122 @@ const CreatePost = ({ route, navigation }: any) => {
           }
           rightElement={
             <TouchableOpacity
-              style={[styles.postBtn, !canPost && styles.disabledBtn]}
+              style={[
+                styles.postBtn,
+                { backgroundColor: colors.btnColor },
+                !canPost && styles.disabledBtn,
+              ]}
               disabled={!canPost}
               onPress={handleCreateOrUpdatePost}
             >
-              <Text style={styles.postBtnText}>
+              <Text
+                style={[styles.postBtnText, { color: colors.btnTextColor }]}
+              >
                 {isEditMode ? 'Save' : 'Post'}
               </Text>
             </TouchableOpacity>
           }
         />
-        {/* Scroll Input Containers */}
-        <View style={{ flex: 1, padding: 15 }}>
-          <TextInput
-            placeholder={
-              type === 'poll' ? 'Ask a question...' : "What's happening?"
-            }
-            multiline
-            autoFocus
-            style={styles.input}
-            value={content}
-            onChangeText={handleContentChange}
-            placeholderTextColor={PRIMARY_COLOR_TINT}
-          />
-
-          {/* Poll Render Pipeline */}
-          {type === 'poll' && (
-            <View style={styles.pollWrapper}>
-              <Text style={styles.pollLabel}>Poll Options</Text>
-              {pollOptions.map((opt, index) => (
-                <View key={index} style={styles.pollInputContainer}>
-                  <TextInput
-                    style={styles.pollInput}
-                    placeholder={`Option ${index + 1}`}
-                    value={opt}
-                    onChangeText={val => {
-                      const newOpts = [...pollOptions];
-                      newOpts[index] = val;
-                      setPollOptions(newOpts);
-                    }}
-                  />
-                  {pollOptions.length > 2 && (
-                    <TouchableOpacity onPress={() => removeOption(index)}>
-                      <MaterialIcons
-                        name="cancel-outlined"
-                        size={20}
-                        color={PRIMARY_COLOR}
-                      />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-              {pollOptions.length < 4 && (
-                <TouchableOpacity
-                  style={styles.addOptionBtn}
-                  onPress={() => setPollOptions([...pollOptions, ''])}
-                >
-                  <Text style={styles.addOptionText}> Add another option</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-          {/* Media Grid Preview Panel */}
-          {mediaList.length > 0 && (
-            <View style={styles.mediaContainer}>
-              {mediaList.map((item, index) => (
-                <View key={index} style={styles.mediaPreviewWrapper}>
-                  {item.type === 'image' ? (
-                    <Image
-                      source={{ uri: item.uri }}
-                      style={styles.mediaPreview}
-                    />
-                  ) : (
-                    <Video
-                      source={{ uri: item.uri }}
-                      style={styles.mediaPreview}
-                      muted={true}
-                      repeat={true}
-                      resizeMode="cover"
-                      paused={false}
-                      controls={false}
-                      shutterColor="transparent"
-                    />
-                  )}
-
-                  {/* Remove Button Overlay */}
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() =>
-                      setMediaList(prev => prev.filter((_, i) => i !== index))
-                    }
-                  >
+        <TextInput
+          placeholder={
+            type === 'poll' ? 'Ask a question...' : "What's happening?"
+          }
+          multiline
+          autoFocus
+          style={[styles.input, { color: colors.text }]}
+          value={content}
+          onChangeText={handleContentChange}
+          placeholderTextColor={colors.inputTextHolder}
+        />
+        {type === 'poll' && (
+          <View style={styles.pollWrapper}>
+            <Text style={[styles.pollLabel, { color: colors.text }]}>
+              Poll Options
+            </Text>
+            {pollOptions.map((opt, index) => (
+              <View key={index} style={styles.pollInputContainer}>
+                <TextInput
+                  style={[styles.pollInput, { color: colors.text }]}
+                  placeholder={`Option ${index + 1}`}
+                  value={opt}
+                  placeholderTextColor={colors.inputTextHolder}
+                  onChangeText={val => {
+                    const newOpts = [...pollOptions];
+                    newOpts[index] = val;
+                    setPollOptions(newOpts);
+                  }}
+                />
+                {pollOptions.length > 2 && (
+                  <TouchableOpacity onPress={() => removeOption(index)}>
                     <MaterialIcons
                       name="cancel-outlined"
-                      size={22}
-                      color={PRIMARY_COLOR}
+                      size={20}
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* --- Floating Mentions List UI Overlay --- */}
+                )}
+              </View>
+            ))}
+            {pollOptions.length < 4 && (
+              <TouchableOpacity
+                style={[styles.addOptionBtn, { borderColor: colors.primary }]}
+                onPress={() => setPollOptions([...pollOptions, ''])}
+              >
+                <Text style={[styles.addOptionText, { color: colors.primary }]}>
+                  {' '}
+                  Add another option
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        {mediaList.length > 0 && (
+          <View style={styles.mediaContainer}>
+            {mediaList.map((item, index) => (
+              <View key={index} style={styles.mediaPreviewWrapper}>
+                {item.type === 'image' ? (
+                  <Image
+                    source={{ uri: item.uri }}
+                    style={styles.mediaPreview}
+                  />
+                ) : (
+                  <Video
+                    source={{ uri: item.uri }}
+                    style={styles.mediaPreview}
+                    muted={true}
+                    repeat={true}
+                    resizeMode="cover"
+                    paused={false}
+                    controls={false}
+                    shutterColor="transparent"
+                  />
+                )}
+                <TouchableOpacity
+                  style={[
+                    styles.removeButton,
+                    { backgroundColor: colors.tint },
+                  ]}
+                  onPress={() =>
+                    setMediaList(prev => prev.filter((_, i) => i !== index))
+                  }
+                >
+                  <MaterialIcons
+                    name="cancel-outlined"
+                    size={22}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
         {mentionSearchKeyword !== null && filteredUsers.length > 0 && (
-          <View style={styles.mentionOverlayContainer}>
+          <View
+            style={[
+              styles.mentionOverlayContainer,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <FlatList
               data={filteredUsers}
               keyExtractor={item => item.uid || item.id}
@@ -380,59 +391,62 @@ const CreatePost = ({ route, navigation }: any) => {
             />
           </View>
         )}
-
-        {/* Bottom Tool Bar */}
-        <View style={styles.toolbar}>
-          <TouchableOpacity
-            onPress={pickMedia}
-            style={[
-              styles.toolbarBtn,
-              (type === 'poll' || mediaList.length >= 4) && { opacity: 0.5 },
-            ]}
-            disabled={type === 'poll' || mediaList.length >= 4}
-          >
-            <MaterialIcons
-              name="image-outlined"
-              size={26}
-              color={PRIMARY_COLOR}
-            />
-            <Text style={styles.toolbarText}>Photo/Video</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Upload Progress Drawer */}
+        <TouchableOpacity
+          onPress={pickMedia}
+          style={[
+            styles.toolbarBtn,
+            (type === 'poll' || mediaList.length >= 4) && { opacity: 0.5 },
+          ]}
+          disabled={type === 'poll' || mediaList.length >= 4}
+        >
+          <MaterialIcons
+            name="image-outlined"
+            size={26}
+            color={colors.primary}
+          />
+          <Text style={[styles.toolbarText, { color: colors.primary }]}>
+            Photo/Video
+          </Text>
+        </TouchableOpacity>
         {isUploading && (
           <View style={styles.bottomToastContainer}>
-            <View>
-              <View style={styles.toastHeader}>
-                <Text
-                  style={[styles.toastTitle, isSuccess && styles.successTitle]}
-                >
-                  {isSuccess ? 'Post Action Completed!' : 'Processing...'}
-                </Text>
-                {isSuccess ? (
-                  <MaterialIcons
-                    name="check-circle-outlined"
-                    size={24}
-                    color={PRIMARY_COLOR}
-                  />
-                ) : (
-                  <Text style={styles.toastPercentage}>
-                    {Math.round(uploadProgress)}%
-                  </Text>
-                )}
-              </View>
-              {!isSuccess && (
-                <View style={styles.progressBarBackground}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      { width: `${uploadProgress}%` },
-                    ]}
-                  />
-                </View>
+            <View style={styles.toastHeader}>
+              <Text
+                style={[
+                  styles.toastTitle,
+                  isSuccess
+                    ? { color: colors.success }
+                    : { color: colors.text },
+                ]}
+              >
+                {isSuccess ? 'Post Action Completed!' : 'Processing...'}
+              </Text>
+              {isSuccess && (
+                <MaterialIcons
+                  name="check-circle-outlined"
+                  size={24}
+                  color={colors.success}
+                />
               )}
             </View>
+            {!isSuccess && (
+              <View
+                style={[
+                  styles.progressBarBackground,
+                  { backgroundColor: colors.primaryTint },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${uploadProgress}%`,
+                      backgroundColor: colors.primary,
+                    },
+                  ]}
+                />
+              </View>
+            )}
           </View>
         )}
       </KeyboardAvoidingView>
@@ -441,22 +455,20 @@ const CreatePost = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+  container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
   postBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 15,
   },
   disabledBtn: { opacity: 0.5 },
-  postBtnText: { color: '#fff', fontWeight: 'bold' },
-  input: { fontSize: 16, textAlignVertical: 'top', minHeight: 100 },
-  pollWrapper: { marginTop: 20 },
+  postBtnText: { fontSize: 14, fontWeight: 'bold' },
+  input: { fontSize: 14, textAlignVertical: 'top', minHeight: 100 },
+  pollWrapper: { marginVertical: 15 },
   pollLabel: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#222',
   },
   pollInputContainer: {
     flexDirection: 'row',
@@ -464,24 +476,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     width: '100%',
+    height: 60,
+    borderWidth: 0.8,
+    borderRadius: 10,
+    paddingHorizontal: 7,
   },
   pollInput: {
     flex: 1,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 8,
-    padding: 10,
     marginRight: 8,
-    color: '#333',
+    fontSize: 14,
   },
   addOptionBtn: {
     padding: 10,
     alignItems: 'center',
-    backgroundColor: '#fadccc',
+    borderWidth: 1,
     borderRadius: 15,
   },
-  addOptionText: { color: PRIMARY_COLOR, fontWeight: 'bold' },
-  mediaContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 15 },
+  addOptionText: { fontSize: 14, fontWeight: 'bold' },
+  mediaContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginVertical: 15,
+  },
   mediaPreviewWrapper: {
     position: 'relative',
     marginRight: 10,
@@ -493,32 +509,22 @@ const styles = StyleSheet.create({
     alignContent: 'center',
   },
   removeButton: {
-    position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: '#fff',
+    padding: 7,
+    borderRadius: 4,
   },
-  toolbar: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    paddingLeft: 15,
-  },
-  toolbarBtn: { alignContent: 'center' },
+  toolbarBtn: { alignContent: 'center', borderWidth: 1, padding: 9 },
   toolbarText: {
-    marginTop: 4,
-    color: PRIMARY_COLOR,
+    marginTop: 5,
     fontWeight: 'bold',
     fontSize: 14,
   },
   bottomToastContainer: {
     position: 'absolute',
-    bottom: 60,
-    left: 20,
-    right: 20,
-    backgroundColor: '#FADCCC',
+    bottom: 30,
+    left: 10,
+    right: 10,
     padding: 15,
     borderRadius: 10,
   },
@@ -526,35 +532,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingBottom: 15,
   },
-  toastTitle: { color: '#222', fontWeight: 'bold' },
-  successTitle: { color: PRIMARY_COLOR },
-  toastPercentage: { color: PRIMARY_COLOR },
+  toastTitle: { fontSize: 14, fontWeight: 'bold' },
   progressBarBackground: {
     height: 4,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    marginTop: 10,
     borderRadius: 2,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 2,
   },
   mentionOverlayContainer: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 30,
     left: 0,
     right: 0,
     maxHeight: 200,
-    backgroundColor: '#fadccc',
-    zIndex: 10,
+    zIndex: 100,
   },
   mentionUserItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
     width: '100%',
   },
   mentionAvatar: {

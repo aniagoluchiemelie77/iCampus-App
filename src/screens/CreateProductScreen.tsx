@@ -44,8 +44,11 @@ import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../components/hooks';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { PageHeader } from '../components/PageHeader';
+import {
+  CATEGORY_MAX_PRICES,
+  USD_EQUIVALENCE_OF_1_ICASH,
+} from '../constants/inAppConstants';
 
-type ItemCategory = Product['type'];
 interface VideoDurationExtractorProps {
   uri: string;
   onDurationExtracted: (duration: number) => void;
@@ -119,11 +122,6 @@ const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
   'Health & Beauty': 'physical',
   Crafts: 'physical',
 };
-const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
-  file: 100,
-  course: 500,
-  physical: 1000,
-};
 if (
   Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -184,10 +182,7 @@ export default function PriceSectionComponent({
     getMarketRates();
   }, [userCountry]);
 
-  const ICASH_TO_USD_ANCHOR = 0.74;
-  const localRatePerIcash = exchangeDetails.rate * ICASH_TO_USD_ANCHOR;
-
-  // Bind calculations directly to formInputs instead of local state
+  const localRatePerIcash = exchangeDetails.rate * USD_EQUIVALENCE_OF_1_ICASH;
   const icashEntered = parseFloat(formInputs.price) || 0;
   const maxAllowedIcash = CATEGORY_MAX_PRICES[formInputs.productType];
   const isOverpriced = icashEntered > maxAllowedIcash;
@@ -206,10 +201,8 @@ export default function PriceSectionComponent({
         style={[styles.input, isOverpriced && styles.inputWarning]}
         placeholder="0.00"
         keyboardType="numeric"
-        value={formInputs.price} // Read directly from master state
-        onChangeText={
-          text => setFormInputs(prev => ({ ...prev, price: text })) // Write directly to master state
-        }
+        value={formInputs.price}
+        onChangeText={text => setFormInputs(prev => ({ ...prev, price: text }))}
       />
       {isOverpriced && (
         <Text style={styles.warningText}>
@@ -239,7 +232,7 @@ export default function PriceSectionComponent({
       </View>
       <Text style={styles.rateHint}>
         Rate anchored at 1 iCash = {exchangeDetails.symbol}
-        {(exchangeDetails.rate * ICASH_TO_USD_ANCHOR).toFixed(2)}{' '}
+        {(exchangeDetails.rate * USD_EQUIVALENCE_OF_1_ICASH).toFixed(2)}{' '}
         {exchangeDetails.code}
       </Text>
     </View>
