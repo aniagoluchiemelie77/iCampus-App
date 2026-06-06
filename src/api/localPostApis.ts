@@ -1474,8 +1474,7 @@ export const saveCourseAssessment = async (
       duration: Number(testData.duration),
       totalMarks: Number(testData.totalMarks),
       questions: testData.questions.map(q => ({
-        ...q,
-        points: Number(q.points),
+        ...q
       })),
     };
     const response = await fetch(
@@ -1710,6 +1709,69 @@ export const submitStudentTest = async (
     return {
       success: false,
       message: "Network communication timeout. Is your internet active?",
+    };
+  }
+};
+export const verifyPaymentOtpAPI = async (payload: {
+  otpCode: string;
+  flw_ref: string;
+  type: string;
+}) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}user/payments/verify-otp`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'OTP verification failed',
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data,
+      message: result.message,
+    };
+  } catch (error) {
+    console.error("verifyPaymentOtpAPI Error:", error);
+    return { success: false, message: 'Server connection failed' };
+  }
+};
+export const submitOnlineClassAttendanceAPI = async (payload: any) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/student/class/submit-attendance`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        ...payload,
+        timestamp: new Date().toISOString(), 
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to submit class attendance.',
+      };
+    }
+    return {
+      success: true,
+      data: result.data,
+      message: result.message || 'Attendance submitted successfully!',
+    };
+
+  } catch (error: any) {
+    console.error("submitAttendanceAPI Error:", error);
+    return {
+      success: false,
+      message: error.message || 'Server connection failed. Please try again.',
     };
   }
 };

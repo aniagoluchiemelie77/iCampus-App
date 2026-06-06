@@ -1,12 +1,15 @@
-import React, { useEffect, useState,  } from 'react';
-import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from '../../App';
-import {
-  NotificationPageStyles,
-  NotificationDetailsStyles,
-} from '../assets/styles/colors';
+import { NotificationPageStyles } from '../assets/styles/colors';
 import { fetchNotificationDetails } from '../api/localGetApis';
 import { Notification } from '../types/firebase';
 import { PRIMARY_COLOR } from '../components/Classroomcomponent';
@@ -100,4 +103,41 @@ export default function NotificationDetails() {
     </ScrollView>
   );
 }
-
+const NotificationDetailsStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#eee', maxWidth: '100%' },
+  content: {
+    padding: 15,
+    width: '95%',
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginVertical: 7,
+    justifyContent: 'flex-start',
+  },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  message: { marginBottom: 10, color: '#2222', fontSize: 14 },
+  message1: {
+    paddingVertical: 10,
+    color: '#2222',
+    fontWeight: '700',
+    alignSelf: 'center',
+    fontSize: 17,
+  },
+  securityWarningBox: {
+    marginTop: 6,
+    padding: 15,
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    borderWidth: 0.8,
+  },
+  securityWarningText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  date: {
+    color: '#888',
+    alignSelf: 'flex-end',
+    marginVertical: 7,
+  },
+});

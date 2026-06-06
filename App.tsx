@@ -66,7 +66,7 @@ import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
-import { iCashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
+import { ICashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
 import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
 import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
 import { ChatScreen } from './src/screens/ChatScreen.tsx';
@@ -192,24 +192,21 @@ export type RootStackParamList = {
   };
   CourseSubPage: {
     title:
-      | 'Course Contents' //Both
-      | 'Course Materials' //Both
-      | 'Assignments' //Both
-      | 'Exceptions' //Both
-      | 'Set Lecture Schedule' //Lecturer
-      | 'Assessments' //Both
-      | 'View Lecture Schedule' //Student
-      | 'View Assessment Report'
-      | 'AI Assisted Learning'
-      | 'Library'; //Student
+      | 'Course Contents'
+      | 'Course Materials'
+      | 'Assignments'
+      | 'Exceptions'
+      | 'Set Lecture Schedule'
+      | 'Assessments'
+      | 'View Lecture Schedule'
+      | 'View Assessment Report';
     course: {
       courseId: string;
       courseCode: string;
       courseTitle: string;
-      // Add other course properties here
     };
     userRole: 'student' | 'lecturer';
-    lectures?: Lecture[]; // Optional because not all inlets provide this
+    lectures?: Lecture[];
     exceptions?: CourseException[];
   };
   FlutterwaveWebview: {
@@ -292,7 +289,6 @@ export type RootStackParamList = {
     quantity?: number;
   };
   IcashP2PScreen: undefined;
-  //TransactionPage: { transactionId: string };
   Login: undefined;
 };
 
@@ -620,7 +616,7 @@ const App = () => {
               />
               <Stack.Screen
                 name="iCashSuccessScreen"
-                component={iCashSuccessScreen}
+                component={ICashSuccessScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

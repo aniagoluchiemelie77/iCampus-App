@@ -395,15 +395,12 @@ export function Home() {
   }).current;
 
   return (
-    <View
-      style={[homeStyles.mainWrapper, { backgroundColor: colors.background }]}
-    >
+    <View style={homeStyles.mainWrapper}>
       <View
         style={[
           homeStyles.headerContainer,
           {
             backgroundColor: colors.backgroundSecondary,
-            borderBottomColor: colors.border,
           },
         ]}
       >

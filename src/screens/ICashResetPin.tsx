@@ -5,11 +5,13 @@ import { RootStackParamList } from '../../App';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import { resetICashPin } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type Props = StackScreenProps<RootStackParamList, 'ICashResetPin'>;
 
 export const ICashResetPin = ({ navigation }: Props) => {
+  const { colors } = useTheme();
   const [otp, setOtp] = useState('');
   const [newPin, setNewPin] = useState('');
   const [step, setStep] = useState<'otp' | 'pin'>('otp');
@@ -55,56 +57,82 @@ export const ICashResetPin = ({ navigation }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Icon name="lock-reset" size={60} color={PRIMARY_COLOR} />
-      <Text style={styles.title}>
-        {step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}
-      </Text>
-      <Text style={styles.subtitle}>
-        {step === 'otp'
-          ? 'Enter the 6-digit code sent to your email.'
-          : 'Create a new iCash security PIN'}
-      </Text>
-
-      <TextInput
-        ref={inputRef}
-        value={step === 'otp' ? otp : newPin}
-        onChangeText={handleTextChange}
-        maxLength={6}
-        keyboardType="number-pad"
-        style={styles.hiddenInput}
-      />
-
-      <Pressable
-        style={styles.pinRow}
-        onPress={() => inputRef.current?.focus()}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
       >
-        {[...Array(6)].map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              (step === 'otp' ? otp.length : newPin.length) > i &&
-                styles.dotFilled,
-            ]}
-          />
-        ))}
-      </Pressable>
+        <MaterialIcons
+          name="lock-reset-outlined"
+          size={60}
+          color={colors.primary}
+        />
+        <Text style={[styles.title, { color: colors.textDarker }]}>
+          {step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.text }]}>
+          {step === 'otp'
+            ? 'Enter the 6-digit code sent to your email.'
+            : 'Create a new iCash security PIN'}
+        </Text>
+        <TextInput
+          ref={inputRef}
+          value={step === 'otp' ? otp : newPin}
+          onChangeText={handleTextChange}
+          maxLength={6}
+          keyboardType="number-pad"
+          style={[styles.hiddenInput, { fontSize: 14, color: colors.primary }]}
+        />
 
+        <Pressable
+          style={styles.pinRow}
+          onPress={() => inputRef.current?.focus()}
+        >
+          {[...Array(6)].map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                (step === 'otp' ? otp.length : newPin.length) > i &&
+                  styles.dotFilled,
+              ]}
+            />
+          ))}
+        </Pressable>
+      </View>
       {loading && (
-        <ActivityIndicator color={PRIMARY_COLOR} style={{ marginTop: 20 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', color: PRIMARY_COLOR, marginTop: 20 },
-  subtitle: { fontSize: 14, color: PRIMARY_COLOR_TINT, textAlign: 'center', marginVertical: 10 },
+  container: { flex: 1, alignContent: 'center', padding: 15 },
+  subContainer: {
+    alignContent: 'center',
+    padding: 15,
+    borderRadius: 15,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 20,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginBottom: 15,
+  },
   hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-  pinRow: { flexDirection: 'row', marginTop: 40, gap: 10 },
-  dot: { width: 40, height: 50, borderRadius: 8, borderWidth: 2, borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#eee7e4' },
-  dotFilled: { backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR },
+  pinRow: { flexDirection: 'row', marginVertical: 30, gap: 10 },
+  dot: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  dotFilled: { borderColor: PRIMARY_COLOR },
 });

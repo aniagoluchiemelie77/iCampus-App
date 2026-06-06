@@ -180,9 +180,11 @@ const UserScoreHeader: React.FC<UserScoreHeaderProps> = ({
 
   return (
     <View style={styles.userScoreCard}>
-      <TouchableOpacity style={styles.shareBtn} onPress={handleShareiScore}>
-        <MaterialIcons name="share" size={22} color={colors.btnTextColor} />
-      </TouchableOpacity>
+      {isViewingSelf && (
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShareiScore}>
+          <MaterialIcons name="share" size={22} color={colors.btnTextColor} />
+        </TouchableOpacity>
+      )}
       <Text style={[styles.headerLabel, { color: colors.btnTextColor }]}>
         {isViewingSelf ? 'Your iScore' : `${user?.firstname}'s iScore`}
       </Text>
@@ -417,7 +419,7 @@ export function RankingScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={styles.container}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -521,7 +523,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignContent: 'center',
-    paddingHorizontal: 15,
   },
   subContainer: {
     alignContent: 'center',
@@ -755,6 +756,6 @@ const styles = StyleSheet.create({
   shareBtn: {
     position: 'absolute',
     top: 20,
-    right: 10
-  }
+    right: 10,
+  },
 });

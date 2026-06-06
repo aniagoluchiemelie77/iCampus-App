@@ -24,13 +24,13 @@ const ACTION_CONFIG: Record<
 > = {
   // --- Social / General ---
   'Create Poll': {
-    icon: 'poll',
+    icon: 'poll-outlined',
     route: 'CreatePost',
     params: { type: 'poll' },
   },
   iAssistant: {
     icon: 'assistant',
-    route: 'Assistant',
+    route: 'auto-awesome-outlined',
     params: {
       contextType: 'general',
       contextData: {},
@@ -45,27 +45,27 @@ const ACTION_CONFIG: Record<
 
   // --- Financial / Wallet ---
   iCash: {
-    icon: 'account-balance',
+    icon: 'account-balance-wallet-outlined',
     route: 'ICashDashboard',
     params: {},
   },
 
   // --- Classroom Page ---
   'View Lectures': {
-    icon: 'menu-book',
+    icon: 'menu-book-outlined',
     route: 'CourseSubPage',
     params: { title: 'View Lecture Schedule' },
   },
   'Create Course': {
-    icon: 'library-books',
+    icon: 'library-books-outlined',
     route: 'CreateCourse',
     params: {},
     category: 'premium',
   },
-  'Live Chat': { icon: 'chat', route: 'Modal' },
-  'Hand Wave': { icon: 'waving-hand', route: 'Socket' },
+  'Live Chat': { icon: 'chat-bubble-outline-outlined', route: 'Modal' },
+  'Hand Wave': { icon: 'waving-hand-outlined', route: 'Socket' },
   Library: {
-    icon: 'align-vertical-bottom',
+    icon: 'align-vertical-bottom-outlined',
     route: 'LibraryScreen',
     params: {},
   },
@@ -76,7 +76,16 @@ const ACTION_CONFIG: Record<
     route: 'FavoritesScreen',
     params: {},
   },
-  'View Cart': { icon: 'shopping-cart', route: 'CartScreen', params: {} },
+  'Sales Hub': {
+    icon: 'store-front-outlined',
+    route: 'SalesHub',
+    params: {},
+  },
+  'View Cart': {
+    icon: 'shopping-cart-outlined',
+    route: 'CartScreen',
+    params: {},
+  },
 
   // --- Additional ---
 };

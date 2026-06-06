@@ -25,7 +25,6 @@ import {
 } from '../api/localGetApis';
 import {
   PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
   PRIMARY_COLOR_TINT_MAIN,
 } from 'assets/styles/colors';
 import { useAppDataContext } from './EventContext';
@@ -381,10 +380,6 @@ export const SearchScreen = () => {
     <View
       style={[
         StyleSheet.absoluteFillObject,
-        styles.container,
-        {
-          backgroundColor: colors.background,
-        },
       ]}
     >
       <PageHeader title="iCampus Search" showBackButton={false} />
@@ -392,7 +387,6 @@ export const SearchScreen = () => {
         style={[
           styles.activeSearchHeader,
           {
-            borderBottomColor: colors.border,
             backgroundColor: colors.backgroundSecondary,
           },
         ]}
@@ -491,8 +485,8 @@ const styles = StyleSheet.create({
   activeSearchHeader: {
     alignContent: 'center',
     marginBottom: 15,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
+    padding: 15,
+    borderRadius: 15
   },
   headerSearchInput: {
     flex: 1,
@@ -509,6 +503,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
     alignItems: 'center',
+    padding: 8,
+    marginRight: 10
   },
   tabLabel: {
     fontSize: 14,
@@ -519,10 +515,10 @@ const styles = StyleSheet.create({
   },
   searchResultRow: {
     flexDirection: 'row',
-    padding: 16,
+    padding: 15,
     alignItems: 'center',
-    borderBottomWidth: 0.5,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    borderRadius: 15,
+    marginBottom: 15
   },
   miniAvatar: {
     width: 40,
@@ -546,13 +542,10 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     flexDirection: 'row',
-    padding: 16,
+    padding: 15,
     alignItems: 'center',
-    alignSelf: 'center',
-    borderBottomWidth: 0.5,
     marginBottom: 15,
-    marginHorizontal: 6,
-    borderRadius: 12,
+    borderRadius: 15,
   },
   thumbnailImg: {
     width: 64,
@@ -626,11 +619,9 @@ const styles = StyleSheet.create({
   cardContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    marginHorizontal: 5,
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
   },
   iconContainer: {
     width: 48,
@@ -673,8 +664,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabBarScrollContainer: {
-    paddingHorizontal: 16,
+    padding: 15,
     alignItems: 'center',
-    paddingVertical: 10,
+    borderRadius: 15
   },
 });

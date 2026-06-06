@@ -1,52 +1,76 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { View, ActivityIndicator, StyleSheet, BackHandler, Alert, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  BackHandler,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-const HeaderCloseButton = ({ onPress, color }: { onPress: () => void; color: string }) => (
+const HeaderCloseButton = ({
+  onPress,
+  color,
+}: {
+  onPress: () => void;
+  color: string;
+}) => (
   <TouchableOpacity onPress={onPress} style={{ marginLeft: 15 }}>
-    <Icon name="close" size={28} color={color} />
+    <MaterialIcons name="close-outlined" size={28} color={color} />
   </TouchableOpacity>
 );
 
 const FlutterwaveWebview = ({ route, navigation }: any) => {
+  const { colors } = useTheme();
   const { url } = route.params;
   const isProcessing = useRef(true);
 
-  // Memoize the callback so the reference stays the same
   const backAction = useCallback(() => {
     if (!isProcessing.current) return false;
 
     Alert.alert(
-      "Discard Payment?",
-      "Are you sure you want to cancel? Your transaction may not be completed.",
+      'Discard Payment?',
+      'Are you sure you want to cancel? Your transaction may not be completed.',
       [
-        { text: "No, Stay", onPress: () => null, style: "cancel" },
-        { text: "Yes, Cancel", onPress: () => navigation.goBack(), style: "destructive" }
-      ]
+        { text: 'No, Stay', onPress: () => null, style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          onPress: () => navigation.goBack(),
+          style: 'destructive',
+        },
+      ],
     );
     return true;
   }, [navigation]);
+  const renderHeaderLeft = useCallback(
+    () => <HeaderCloseButton onPress={backAction} color={colors.primary} />,
+    [backAction, colors],
+  );
 
-  // Pass the stable component to navigation options
-  useEffect(() => {
+  useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () => (
-        <HeaderCloseButton onPress={backAction} color={PRIMARY_COLOR} />
-      ),
+      headerLeft: renderHeaderLeft,
     });
-  }, [navigation, backAction]);
+  }, [navigation, renderHeaderLeft]);
 
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
     return () => backHandler.remove();
   }, [backAction]);
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     const { url: currentUrl } = navState;
 
-    if (currentUrl.includes('status=successful') || currentUrl.includes('tx_ref=')) {
+    if (
+      currentUrl.includes('status=successful') ||
+      currentUrl.includes('tx_ref=')
+    ) {
       isProcessing.current = false;
       setTimeout(() => {
         navigation.reset({
@@ -61,22 +85,29 @@ const FlutterwaveWebview = ({ route, navigation }: any) => {
           ],
         });
       }, 1500);
-    } 
-    
-    if (currentUrl.includes('status=cancelled') || currentUrl.includes('status=failed')) {
-      navigation.goBack(); 
+    }
+    if (
+      currentUrl.includes('status=cancelled') ||
+      currentUrl.includes('status=failed')
+    ) {
+      navigation.goBack();
     }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <WebView
         source={{ uri: url }}
         onNavigationStateChange={handleNavigationStateChange}
         startInLoadingState={true}
         renderLoading={() => (
-          <View style={styles.loader}>
-            <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+          <View
+            style={[
+              styles.loader,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         )}
         javaScriptEnabled={true}
@@ -88,12 +119,11 @@ const FlutterwaveWebview = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, paddingHorizontal: 15 },
   loader: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
+    alignContent: 'center',
+    flex: 1,
   },
 });
 

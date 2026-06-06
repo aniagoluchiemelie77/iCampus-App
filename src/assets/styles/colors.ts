@@ -14,26 +14,6 @@ const { width, height } = Dimensions.get('window');
 export const DEFAULT_GRADIENT = ['#241c18', '#70432e', '#e05515'];
 export const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32']; 
 
-export const lightTheme = {
-  background: '#ffffff',
-  surface: '#f8fafc',
-  text: '#1e293b',
-  textMuted: '#64748b',
-  primary: '#0066cc', 
-  secondary: '#f0f7ff',
-  border: '#e2e8f0',
-};
-export const darkTheme = {
-  background: '#0f172a', // Deep dark blue/grey
-  surface: '#1e293b',
-  text: '#f8fafc',
-  textMuted: '#94a3b8',
-  primary: '#38bdf8', // Slightly brighter primary for dark mode legibility
-  secondary: '#1e293b',
-  border: '#334155',
-};
-export type ThemeColors = typeof lightTheme;
-
 export const MainSignupStyles = StyleSheet.create({
   background: {
     width,
@@ -1313,7 +1293,7 @@ settingsBtnLeftdivText: {
 });
 export const WelcomeScreenStyles = StyleSheet.create({
   container: {
-    flex: 1, // or any color you want
+    flex: 1, 
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: PRIMARY_COLOR,
@@ -1469,9 +1449,9 @@ export const homeStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomWidth: 0.5
+    padding: 15,
+    marginHorizontal: -15,
+    marginBottom: 15
   },
   headerContainerDiv:{
     flexDirection: 'row',
@@ -1501,8 +1481,8 @@ export const homeStyles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff', 
-    position: 'relative'
+    position: 'relative',
+    paddingHorizontal: 15
   },
   centerContent: {
     flex: 1,
@@ -1510,14 +1490,14 @@ export const homeStyles = StyleSheet.create({
   },
   iconBar: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
-    height: 55,
+    height: 60,
     backgroundColor: 'rgba(250, 220, 204, 0.85)', 
     position: 'absolute',
-    bottom: 15,
-    left: 15, 
-    right: 15,
+    bottom: 10,
+    left: 10, 
+    right: 10,
     overflow: 'hidden', 
     elevation: 8,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -1526,14 +1506,14 @@ export const homeStyles = StyleSheet.create({
     shadowRadius: 8,
     borderRadius: 25, 
     borderWidth: 1,
-    borderColor: 'rgba(252, 249, 246, 0.3)', 
-    zIndex: 10,
+    zIndex: 90,
+    width: '100%'
   },
-  activeIconItem: {
-    backgroundColor: PRIMARY_COLOR_TINT,
+  iconItem:{
+    alignItems: 'center',
   },
   activeIconLabel: {
-    fontWeight: '700',
+    fontWeight: 'bold',
     fontSize: 11,
     color: PRIMARY_COLOR,
     marginTop: 4, 
@@ -1544,136 +1524,6 @@ export const homeStyles = StyleSheet.create({
     fontWeight: 700,
     color: '#222',
   },
-});
-export const EmailVerifyScreenStyles = StyleSheet.create({
-  bkg: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#eee',
-    flex: 1,
-    position: 'relative'
-  },
-  container: {
-    alignItems: 'center',
-    width: '90%',
-    height: '55%',
-    borderRadius: 10,
-    padding: 20,
-    justifyContent: 'space-evenly',
-    backgroundColor: '#fff',
-    zIndex: 5,
-  },
-  infoText: {
-    fontSize: 20,
-    color: '#222',
-    textAlign: 'center',
-  },
-});
-export const CalendarScreenStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#eee',
-    alignItems: 'center',
-  },
-  headerContainer: {
-    backgroundColor: '#fff',
-    width: '100%',
-    alignSelf: 'flex-start',
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerContainer2: {
-    backgroundColor: '#fff',
-    width: '100%',
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  backButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  backButton2: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flex: 1
-  },
-  callCenterbtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    color: PRIMARY_COLOR,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-    width: '93%',
-    backgroundColor: '#fff',
-    marginVertical: 3,
-    borderRadius: 6,
-  },
-  activeTabButton: {
-    backgroundColor: '#fff',
-  },
-  inactiveTabButton: {
-    backgroundColor: '#fff',
-  },
-  tabTextActive: {
-    color: PRIMARY_COLOR,
-    fontWeight: '700',
-  },
-  tabTextInactive: {
-    color: '#222',
-  },
-  tabContentsContainer:{
-    width: '93%',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 10,
-  },
-  inputGroup: {
-    width: '100%',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    marginBottom: 3,
-    alignItems: 'flex-start'
-  },
-  label: {
-    fontWeight: '700',
-    marginBottom: 2,
-    color: '#222'
-  },
-  input: {
-    width: '100%',
-    padding: 7,
-    borderWidth: 1,
-    borderColor: '#787777ff',
-    color: '#222'
-  },
-  inputGroupDate: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  inputGroupDateSubdiv: {
-    padding: 7,
-    alignItems: 'flex-start'
-  },
-  input2: {
-    width: '80%',
-  },
-  submitBtn: {
-    marginTop: 13,
-    backgroundColor: PRIMARY_COLOR,
-  }
-
 });
 export const SweetAlertPopupStyles = StyleSheet.create({
   bckg: {
@@ -1709,343 +1559,6 @@ export const SweetAlertPopupStyles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: '600',
-  },
-});
-export const ProductDetailsStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#eee',
-    flex: 1,
-    position: 'relative',
-  },
-  container2: {
-    padding: 6,
-  },
-  image: {
-    width: Dimensions.get('window').width,
-    height: 450,
-    resizeMode: 'cover',
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#222',
-  },
-  description: {
-    fontSize: 15,
-    color: '#222',
-    paddingVertical: 10,
-  },
-  price: {
-    color: PRIMARY_COLOR,
-    fontWeight: '700',
-    marginLeft: 4,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  largeText: {
-  fontSize: 30, // larger than icon
-  fontWeight: 'bold',
-},
-smallText: {
-  fontSize: 20, // same or slightly smaller than icon
-},
-  carouselContainer: { position: 'relative', borderRadius: 10 },
-  counter: {
-    position: 'absolute',
-    bottom: 15,
-    right: 15,
-    backgroundColor: '#fff',
-    color: PRIMARY_COLOR,
-    padding: 15,
-    borderRadius: 20,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  titleDiv: {
-    width: '100%',
-    flexDirection: 'row',
-    padding: 15,
-    backgroundColor: '#fff',
-  },
-  titleDivLeftDiv: {
-    width: '70%',
-  },
-  category: {
-    fontSize: 12,
-    color: '#8a8989ff',
-    paddingTop: 7,
-  },
-  quantityDiv: {
-    width: '100%',
-    paddingVertical: 7
-  },
-  quantityDivStockCount: {
-    fontSize: 12,
-    color: '#8a8989ff',
-    width: '100%',
-    marginBottom: 3,
-  },
-  quantityDivStockCount2: {
-    fontSize: 12,
-    color: '#222',
-    fontWeight: '600',
-    marginRight: 3,
-    width: '40%'
-  },
-  notStockCount: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  location: {
-    fontSize: 12,
-    color: '#8a8989ff',
-    marginRight: 4,
-  },
-  titleDivRightDiv: {
-    flex: 1,
-  },
-  titleDivRightDivSubdiv: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    width: '100%',
-  },
-  sizeAndColorsDiv: {
-    flexDirection: 'row',
-    marginVertical: 5,
-    width: '100%',
-  },
-  sizeDiv: {
-    padding: 15,
-    margin: 7,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  colorsDiv: {
-    padding: 15,
-    margin: 7,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  option: {
-    borderRadius: 10,
-    backgroundColor: '#eee',
-    marginRight: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 46,
-    height: 46,
-  },
-  optionColor: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    marginRight: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorSelectorsDiv: {
-    marginTop: 7,
-    flexDirection: 'row',
-    alignSelf: 'center',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#222',
-  },
-  label: {
-    fontWeight: 'bold',
-    marginBottom: 10,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  selectedOption: {
-    borderWidth: 2,
-    borderColor: PRIMARY_COLOR,
-  },
-  sellerCard: {
-    marginVertical: 5,
-    padding: 15,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  sellerTitleDiv: {
-    padding: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sellerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#222',
-  },
-  sellerInfo: {
-    flexDirection: 'row',
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationInfo2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 7
-  },
-  otherProductsPriceDivInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 6,
-    borderRadius: 10,
-    backgroundColor: PRIMARY_COLOR,
-    position: 'absolute',
-    zIndex: 1,
-    bottom: 5,
-    right: 5
-  },
-  sellerAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 10,
-  },
-  sellerDetailsDiv: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  sellerName: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sideBySide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sellerEmail: {
-    fontSize: 13,
-    color: '#555',
-    marginLeft: 4,
-  },
-  sellerPhone: {
-    fontSize: 13,
-    color: '#555',
-    marginLeft: 4,
-  },
-  sellerDept: {
-    fontSize: 13,
-    color: '#777',
-  },
-  footer: {
-    width: '100%',
-    position: 'absolute',
-    bottom: 0,
-    backgroundColor: '#fff',
-    padding: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 90,
-  },
-  leftFooter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 7,
-  },
-  RightFooter: {
-    width: '24%',
-    padding: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerBtn: {
-    padding: 10,
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 10,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerBtnText: {
-    fontWeight: '700',
-    color: '#eee',
-  },
-  fileInfoContainer: {
-    marginVertical: 5,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    padding: 10,
-  },
-  fileInfoText: {
-    fontSize: 16,
-    color: '#222',
-    fontWeight: '600',
-  },
-  fileInfoText2: {
-    fontSize: 14,
-    color: '#222',
-    padding: 10,
-  },
-  fileInfoContainerLeftDiv: {
-    width: '50%',
-    padding: 10,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fileInfoContainerRightDiv: {
-    alignItems: 'flex-start',
-  },
-  secondText: {
-    backgroundColor: '#eee',
-    padding: 10,
-  },
-  otherProductsContainer: {
-    marginVertical: 10,
-    backgroundColor: '#fff',
-    padding: 10,
-  },
-  otherProductsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-    padding: 10,
-  },
-  otherProductCard: {
-    width: 120,
-    marginRight: 13,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#eee',
-    paddingVertical: 3,
-  },
-  otherProductImage: {
-    width: '100%',
-    height: '100%',
-  },
-  otherProductImageDiv: {
-    width: 110,
-    height: 110,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative'
-  },
-  otherProductTitle: {
-    fontSize: 13,
-    padding: 7,
-    fontWeight: '700',
-    width: '100%',
-    justifyContent: 'flex-start',
-  },
-  otherProductPrice: {
-    fontSize: 13,
-    color: '#fff',
-    fontWeight: '700',
-    marginLeft: 3,
   },
 });
 export const NotificationPageStyles = StyleSheet.create({
@@ -2119,94 +1632,6 @@ export const NotificationPageStyles = StyleSheet.create({
     fontSize: 11,
     marginLeft: 5,
   },
-});
-export const CheckoutPageStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee' },
-  itemContainer: {
-    flexDirection: 'row',
-    marginVertical: 7,
-    padding: 10,
-    backgroundColor: '#fff',
-    width: '100%',
-    borderRadius: 10,
-  },
-  image: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    marginBottom: 5,
-  },
-  imageDiv: {
-    width: 100,
-    alignItems: 'center',
-  },
-  details: { flex: 1, padding: 10 },
-  name: { fontWeight: '700', fontSize: 15, color: '#222', marginBottom: 5 },
-  empty: { textAlign: 'center', marginTop: 50, fontSize: 18 },
-  footer: {
-    backgroundColor: '#fff',
-    padding: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-
-  categoryContainer: {
-    width: '100%',
-    padding: 7,
-  },
-  categoryText: { color: '#585858ff', fontSize: 12, fontWeight: '700' },
-  fileInfoDiv: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    justifyContent: 'flex-start',
-    padding: 7,
-  },
-  fileInfoText: {
-    color: '#484848ff',
-    fontSize: 13,
-  },
-  marginRight: {
-    marginRight: 5,
-  },
-  sizeContainer: {
-    padding: 7,
-    width: '100%',
-    justifyContent: 'flex-start',
-  },
-  sizeContainer2: {
-    padding: 7,
-    width: '100%',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  priceText: {
-    fontWeight: '700',
-    marginLeft: 5,
-    color: PRIMARY_COLOR,
-    fontSize: 13,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 5,
-  },
-  colorCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  payButton: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '95%',
-  },
-  payText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
 export const ProfileComponentStyles = StyleSheet.create({
   container: {
@@ -2520,40 +1945,6 @@ icon: {
     textAlign: 'center',
     color: '#5f5d5dff'
   }
-});
-export const NotificationDetailsStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee', maxWidth: '100%' },
-  content: { 
-    padding: 15,
-    width: '95%',
-    alignSelf: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginVertical: 7,
-    justifyContent: 'flex-start'
- },
-  title: { fontSize: 20, fontWeight: 'bold' },
-  message: { marginBottom: 10, color: '#2222', fontSize: 14 },
-  message1: { paddingVertical: 10, color: '#2222', fontWeight: '700', alignSelf: 'center', fontSize: 17 },
-  securityWarningBox: {
-      marginTop: 6,
-      padding: 15,
-      backgroundColor: '#fff5f5',
-      borderRadius: 8,
-      borderWidth: 0.8,
-      borderColor: PRIMARY_COLOR_TINT,
-    },
-    securityWarningText: {
-      flex: 1,
-      fontSize: 13,
-      color: PRIMARY_COLOR_TINT,
-      lineHeight: 18,
-    },
-    date:{
-      color: '#888',
-      alignSelf: 'flex-end',
-      marginVertical: 7
-    }
 });
 export const modalStyles = StyleSheet.create({
   overlay: {

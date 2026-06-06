@@ -30,5 +30,6 @@ export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
   course: 500,
   physical: 1000,
 } as const;
+export const ICASH_PIN_MAX_ATTEMPTS = 5 as const ;
 
 export type SubscriptionTier = keyof typeof USD_SUBSCRIPTION_PRICES;

@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, AppState, AppStateStatus, TextInput, Pressable } from 'react-native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import { StackScreenProps } from '@react-navigation/stack';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+} from '@components/Classroomcomponent';
 import { RootStackParamList } from '../../App';
 import Toast from 'react-native-toast-message';
 import {
@@ -11,11 +14,14 @@ import {
   setupICashPin,
   verifyICashPin,
 } from '../api/localPostApis';
+import { ICASH_PIN_MAX_ATTEMPTS } from '../constants/inAppConstants';
+import { useTheme } from '../context/ThemeContext';
 
 type Props = StackScreenProps<RootStackParamList, 'iCashSecurity'>;
 const rnBiometrics = new ReactNativeBiometrics();
 
 export const ICashSecurityGateway = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const [pin, setPin] = useState('');
   const inputRef = useRef<TextInput>(null);
   const [attempts, setAttempts] = useState(0);
@@ -25,7 +31,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   const shakeAnimation = useRef(new Animated.Value(0)).current;
   const isRegistration = route.params?.isRegistration;
   const appState = useRef(AppState.currentState);
-  const MAX_ATTEMPTS = 5;
 
   const handleTextChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
@@ -75,12 +80,10 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   }, [navigation]);
   const handleRegistrationFlow = (finalPin: string) => {
     if (!isConfirming) {
-      // Move to confirmation step
       setConfirmPin(finalPin);
       setPin('');
       setIsConfirming(true);
     } else {
-      // Check if both match
       if (finalPin === confirmPin) {
         registerNewPin(finalPin);
       } else {
@@ -112,7 +115,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       ? 'Confirm your iCash Security PIN'
       : 'Create iCash Security PIN';
   };
-
   const getSubtitle = () => {
     if (isRegistration)
       return isConfirming
@@ -122,7 +124,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       ? `${5 - attempts} attempts remaining`
       : 'Enter 6-Digit iCash Security PIN';
   };
-
   const triggerShake = () => {
     Animated.sequence([
       Animated.timing(shakeAnimation, {
@@ -160,7 +161,7 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
         setShowResetPin(true);
         setPin('');
         if (response.attemptsRemaining !== undefined) {
-          setAttempts(MAX_ATTEMPTS - response.attemptsRemaining);
+          setAttempts(ICASH_PIN_MAX_ATTEMPTS - response.attemptsRemaining);
         }
         Toast.show({
           type: 'error',
@@ -200,94 +201,108 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
     setTimeout(() => inputRef.current?.focus(), 500);
   }, []);
   return (
-    <View style={styles.container}>
-      <Icon
-        name={isRegistration ? 'shield-plus' : 'shield-lock'}
-        size={60}
-        color={PRIMARY_COLOR}
-        style={{ marginBottom: 20 }}
-      />
-      <Text style={styles.title}>{getHeaderTitle()}</Text>
-      <Text
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
         style={[
-          styles.subtitle,
-          attempts > 3 && { color: PRIMARY_COLOR, fontWeight: 'bold' },
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        {getSubtitle()}
-      </Text>
-      <TextInput
-        ref={inputRef}
-        value={pin}
-        onChangeText={handleTextChange}
-        maxLength={6}
-        keyboardType="number-pad"
-        secureTextEntry
-        style={styles.hiddenInput}
-        autoFocus={true}
-      />
-      <Pressable
-        onPress={() => inputRef.current?.focus()}
-        style={styles.pressableArea}
-      >
-        <Animated.View
+        <MaterialIcons
+          name="security-outlined"
+          size={60}
+          color={colors.primary}
+          style={{ marginBottom: 15 }}
+        />
+        <Text style={[styles.title, { color: colors.textDarker }]}>
+          {getHeaderTitle()}
+        </Text>
+        <Text
           style={[
-            styles.pinRow,
-            { transform: [{ translateX: shakeAnimation }] },
+            styles.subtitle,
+            attempts > 3 ? { color: colors.primary } : { color: colors.text },
           ]}
         >
-          {[...Array(6)].map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                pin.length > i && styles.dotFilled,
-                pin.length === i && styles.dotActive, // Optional: highlight current dot
-              ]}
+          {getSubtitle()}
+        </Text>
+        <TextInput
+          ref={inputRef}
+          value={pin}
+          onChangeText={handleTextChange}
+          maxLength={6}
+          keyboardType="number-pad"
+          secureTextEntry
+          style={[styles.hiddenInput, { color: colors.primary, fontSize: 14 }]}
+          autoFocus={true}
+        />
+        <Pressable
+          onPress={() => inputRef.current?.focus()}
+          style={styles.pressableArea}
+        >
+          <Animated.View
+            style={[
+              styles.pinRow,
+              { transform: [{ translateX: shakeAnimation }] },
+            ]}
+          >
+            {[...Array(6)].map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, pin.length === i && styles.dotActive]}
+              />
+            ))}
+          </Animated.View>
+        </Pressable>
+        {showResetPin && (
+          <TouchableOpacity
+            onPress={handleRequestReset}
+            style={{ alignSelf: 'flex-end' }}
+          >
+            <Text style={[styles.resetText, { color: colors.primary }]}>
+              Forgot PIN?
+            </Text>
+          </TouchableOpacity>
+        )}
+        {!isRegistration && (
+          <TouchableOpacity
+            style={styles.bioButton}
+            onPress={handleBiometricAuth}
+          >
+            <MaterialIcons
+              name="fingerprint-outlined"
+              size={32}
+              color={colors.primary}
             />
-          ))}
-        </Animated.View>
-      </Pressable>
-      {showResetPin && (
-        <TouchableOpacity
-          onPress={handleRequestReset}
-          style={{ marginTop: 20, width: '100%', alignSelf: 'flex-end' }}
-        >
-          <Text style={{ color: PRIMARY_COLOR, fontWeight: '600' }}>
-            Forgot PIN?
-          </Text>
-        </TouchableOpacity>
-      )}
-      {!isRegistration && (
-        <TouchableOpacity
-          style={styles.bioButton}
-          onPress={handleBiometricAuth}
-        >
-          <Icon name="fingerprint" size={32} color={PRIMARY_COLOR} />
-          <Text style={styles.bioText}>Use Biometrics</Text>
-        </TouchableOpacity>
-      )}
+            <Text style={[styles.bioText, { color: colors.primary }]}>
+              Use Biometrics
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    alignContent: 'center',
+    padding: 15,
+  },
+  subContainer: {
+    flex: 1,
+    alignContent: 'center',
+    padding: 15,
+    borderRadius: 15,
   },
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   subtitle: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
-    marginBottom: 40,
+    marginBottom: 20,
+    fontWeight: 'bold',
   },
   pinContainer: {
     flexDirection: 'row',
@@ -296,50 +311,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 60,
   },
-  cell: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-  },
-  cellActive: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
   keypad: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     width: '100%',
   },
-  key: {
-    width: '30%',
-    aspectRatio: 1,
-    alignItems: 'center',
+  pinRow: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    margin: 5,
+    gap: 15,
+    marginBottom: 30,
   },
-  keyText: {
-    fontSize: 28,
-    color: '#1e293b',
-    fontWeight: '600',
-  },
-  pinRow: { flexDirection: 'row', justifyContent: 'center', gap: 15, marginBottom: 60 },
   dot: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#eee7e4',
   },
-  dotFilled: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
-  numpad: { flexDirection: 'row', flexWrap: 'wrap', width: '80%', justifyContent: 'center' },
   hiddenInput: {
     position: 'absolute',
     width: 1,
@@ -347,26 +337,25 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   pressableArea: {
-    padding: 20,
     width: '100%',
     alignItems: 'center',
   },
   bioButton: {
-    marginTop: 40,
+    marginTop: 20,
     alignItems: 'center',
     flexDirection: 'row',
-    padding: 15,
-    borderRadius: 12,
-    backgroundColor: '#eee7e4',
   },
   bioText: {
-    marginLeft: 10,
-    color: PRIMARY_COLOR,
-    fontWeight: '600',
-    fontSize: 16,
+    marginLeft: 7,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   dotActive: {
     borderColor: PRIMARY_COLOR,
     borderWidth: 2,
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

@@ -15,6 +15,8 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { OrderScannerModal } from './OrderQRScannerModal';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
+import ExpandableFAB from './ExpandableFAB.tsx';
+import { homeStyles } from '../assets/styles/colors';
 
 interface IconButtonProps {
   onPress: () => void;
@@ -56,6 +58,7 @@ export const StoreScreen = () => {
   const { colors } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const { pendingOrders } = useAppDataContext();
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user);
@@ -65,6 +68,7 @@ export const StoreScreen = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedTab, setSelectedTab] = useState('All');
   const [cursor, setCursor] = useState<string | null>(null);
+  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const headerRightElement = (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <HeaderActionButton
@@ -180,7 +184,7 @@ export const StoreScreen = () => {
     }
   };
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <PageHeader
         title="iCampus Store"
         subtitle="Marketplace"
@@ -190,7 +194,10 @@ export const StoreScreen = () => {
       <View
         style={[
           styles.searchBarContainer,
-          { backgroundColor: colors.backgroundSecondary },
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
         ]}
       >
         <MaterialIcons
@@ -200,7 +207,7 @@ export const StoreScreen = () => {
           style={styles.searchIcon}
         />
         <TextInput
-          style={[styles.searchInput, {color: colors.text}]}
+          style={[styles.searchInput, { color: colors.text }]}
           placeholder={`Search for ${CATEGORIES[placeholderIndex]}...`}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -212,7 +219,7 @@ export const StoreScreen = () => {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{backgroundColor: colors.backgroundSecondary}}
+        style={{ backgroundColor: colors.backgroundSecondary }}
         contentContainerStyle={styles.tabsContainer}
       >
         {STORE_TABS.map(tab => (
@@ -227,7 +234,9 @@ export const StoreScreen = () => {
             <Text
               style={[
                 styles.tabText,
-                selectedTab === tab ? {color: colors.primary} : {color: colors.text}
+                selectedTab === tab
+                  ? { color: colors.primary }
+                  : { color: colors.text },
               ]}
             >
               {tab}
@@ -283,6 +292,20 @@ export const StoreScreen = () => {
         onClose={() => setIsScannerOpen(false)}
         onSuccess={handleCompleteOrder}
       />
+      {!isFabMenuVisible && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => setFabMenuVisible(true)}
+        >
+          <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+      <ExpandableFAB
+        isVisible={isFabMenuVisible}
+        onClose={toggleFab}
+        userRole={currentUser.usertype}
+        actions={['iCash', 'Sales Hub', 'View Cart', 'View Favorites']}
+      />
     </View>
   );
 };
@@ -293,10 +316,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 0.8,
-    borderRadius: 10,
+    borderRadius: 15,
     marginHorizontal: 10,
-    padding: 4,
-    alignSelf: 'center',
+    padding: 10,
   },
   searchIcon: {
     marginRight: 3,

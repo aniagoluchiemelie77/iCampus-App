@@ -712,6 +712,8 @@ const styles = StyleSheet.create({
   container: {
     padding: 15,
     borderBottomWidth: 0.8,
+    borderRadius: 15,
+    marginBottom: 5,
   },
   repostHeader: {
     flexDirection: 'row',

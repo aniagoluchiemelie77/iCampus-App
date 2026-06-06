@@ -60,8 +60,14 @@ interface ApiResponse {
   error?: string;
 }
 interface TransactionStatsParams {
-  month: string | number;
-  year: string | number;
+  month?: string | number;
+  year?: string | number;
+}
+interface SearchUserParams {
+  q?: string;
+  uid?: string;
+  viewerTier: string;
+  viewerRole: string;
 }
  interface GetTransactionsParams {
   page: number;
@@ -255,16 +261,24 @@ export const fetchMessages = async (
     return { success: false, data: [], hasMore: false };
   }
 };
-export const searchUsers = async (
-  query: string,
-  viewerTier: string,
-  viewerRole: string,
-): Promise<any[]> => {
-  if (!query || query.length < 2) return [];
-
+export const searchUsers = async ({
+  q,
+  uid,
+  viewerTier,
+  viewerRole,
+}: SearchUserParams): Promise<any> => {
+  if (!uid && (!q || q.length < 2)) return null;
   try {
+    const queryParams = new URLSearchParams({
+      viewerTier,
+      viewerRole,
+    });
+    
+    if (uid) queryParams.append('uid', uid);
+    if (q) queryParams.append('q', q);
+
     const response = await fetch(
-      `${baseUrl}users/search?q=${encodeURIComponent(query)}&viewerTier=${viewerTier}&viewerRole=${viewerRole}`,
+      `${baseUrl}users/search?${queryParams.toString()}`,
       {
         method: 'GET',
         headers: {
@@ -273,20 +287,19 @@ export const searchUsers = async (
         },
       }
     );
-
     const result = await response.json();
     if (!response.ok) {
       Toast.show({
         type: 'error',
-        text1: 'Fetch Error',
-        text2: result.message || 'Search failed',
+        text1: 'Search Error',
+        text2: result.message || 'Search execution failed',
       });
-      return [];
+      return null;
     }
-    return Array.isArray(result.data) ? result.data : [result.data];
+    return result.data;
   } catch (error) {
     console.error("Search API Error:", error);
-    return [];
+    return null;
   }
 };
 export const searchUsersByUid = async (
@@ -1361,28 +1374,32 @@ export const getAssessmentAnalysisUrl = async (testId: string): Promise<ApiRespo
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
-export const getTransactionStats = async ({ 
-  month, 
-  year 
-}: TransactionStatsParams): Promise<ApiResponse> => {
+export const getTransactionStats = async (
+  params?: TransactionStatsParams 
+): Promise<ApiResponse> => {
   try {
-     const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}user/transactions/stats?month=${month}&year=${year}`,
-      {
-        method: 'GET',
-        headers
-      }
-    );
-    const result = await response.json();
+    const headers = await getAuthHeaders();
+    const queryParams = new URLSearchParams();
+    if (params?.month) queryParams.append('month', params.month.toString());
+    if (params?.year) queryParams.append('year', params.year.toString());
 
+    const queryString = queryParams.toString();
+    const url = `${baseUrl}user/transactions/stats${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers
+    });
+    
+    const result = await response.json();
+    
     if (!response.ok) {
       return {
         success: false,
         error: result.error || result.message || 'Failed to fetch statistics.'
       };
     }
-
+    
     return { success: true, data: result };
   } catch (error: any) {
     return { 
@@ -1397,16 +1414,14 @@ export const getMyTransactions = async ({
   searchQuery
 }: GetTransactionsParams): Promise<ApiResponse> => {
   try {
+    const headers = await getAuthHeaders();
     let url = `${baseUrl}user/my-transactions?page=${page}&limit=${limit}`;
     if (searchQuery) {
       url += `&search=${encodeURIComponent(searchQuery)}`;
     }
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     const result = await response.json();
@@ -1451,5 +1466,36 @@ export const getTransactionByIdAPI = async (transactionId: string) => {
   } catch (error) {
     console.error("getTransactionByIdAPI Error:", error);
     return { success: false, data: null, message: 'Connection to server failed' };
+  }
+};
+export const refreshUserProfileAPI = async () => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/refresh-user-details`, {
+      method: 'GET',
+      headers
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to sync profile data',
+      };
+    }
+    return {
+      success: true,
+      user: data.user,         
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      message: data.message || 'Profile updated successfully',
+    };
+
+  } catch (error) {
+    console.error("fetchUserProfileAPI Error:", error);
+    return { 
+      success: false, 
+      message: 'Unable to connect to the server. Please check your internet.' 
+    };
   }
 };

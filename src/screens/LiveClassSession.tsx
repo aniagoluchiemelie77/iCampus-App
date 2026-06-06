@@ -4,10 +4,8 @@ import React, {
   useMemo,
   useCallback
 } from 'react';
-import { View, Text } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Text, StyleSheet } from 'react-native';
 import { useLiveSession } from '../hooks/useLiveSession';
-import { baseUrl } from '../components/HomeScreenComponents';
 import { LecturerLiveClassSession } from '../components/LecturerLiveClassSession';
 import {
   LiveLecturer,
@@ -20,29 +18,36 @@ import { runOnJS } from 'react-native-reanimated';
 import { scanFaces } from 'vision-camera-face-detector';
 import { User } from 'types/firebase';
 import { ActivityIndicator } from 'react-native-paper';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import Toast from 'react-native-toast-message';
+import { submitOnlineClassAttendanceAPI } from '../api/localPostApis';
+import { searchUsers } from '../api/localGetApis';
+import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
-const LoadingScreen = () => (
-  <View
-    style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#fff',
-    }}
-  >
-    <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-    <Text style={{ marginTop: 10, color: '#666' }}>
-      Initializing Class Session...
-    </Text>
-  </View>
-);
+const LoadingScreen = () => {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.subContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.loadingText, { color: colors.text }]}>
+        Initializing Class Session...
+      </Text>
+    </View>
+  );
+};
 
 export const LiveClassSessions = ({ route }: any) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const { lectureId, courseId } = route.params;
   const [lecturerUser, setLecturerUser] = useState<User | null>(null);
   const [faceDetected, setFaceDetected] = useState<boolean>(false);
-  const device = useCameraDevice('front'); // Use the front camera for students
+  const device = useCameraDevice('front');
   const [attendanceChecks, setAttendanceChecks] = useState<boolean[]>(
     new Array(7).fill(false),
   );
@@ -52,14 +57,13 @@ export const LiveClassSessions = ({ route }: any) => {
   );
   const lecturerData: LiveLecturer | null = lecturerUser
     ? {
-        ...lecturerUser, // This provides uid, email, etc.
+        ...lecturerUser,
         profilePic: lecturerUser?.profilePic || [],
         isMuted: lecture?.isLecturerMuted || false,
         isCameraOn: lecture?.isLecturerCameraOn || false,
         cameraStreamUrl: lecture?.location || lecture?.videoUrl,
       }
     : null;
-  // Guard: Check if user is Enrolled or a Lecturer
   const isLecturer = course?.lecturerIds?.includes(user?.uid);
   const isStudent = course?.studentsEnrolled?.includes(user?.uid);
   const canJoin = useMemo(() => {
@@ -67,25 +71,19 @@ export const LiveClassSessions = ({ route }: any) => {
     const hasStarted =
       lecture?.status === 'ongoing' ||
       lecture?.status === 'scheduled' ||
-      lecture?.status === 'completed'; // Allow the 'save' phase to finish
-    // Add a base check: if course/lecture don't exist yet, they can't join
+      lecture?.status === 'completed';
     if (!course || !lecture) return false;
     return (isLecturer || isEnrolled) && hasStarted;
   }, [course, lecture, user, isLecturer]);
 
   const isEligibleForAttendance = useMemo(() => {
-    // 1. Check for a specific approved exception for THIS student and THIS lecture
     const hasApprovedException = exceptions.some(
       ex =>
         ex.studentId === user?.uid &&
         ex.lectureId === lectureId &&
         ex.status === 'approved',
     );
-
-    // 2. If they have an exception, they are automatically eligible (Present)
     if (hasApprovedException) return true;
-
-    // 3. Otherwise, fall back to the "5 out of 7" + "Final Check" rule
     const totalPassed = attendanceChecks.filter(c => c).length;
     const endCheck = attendanceChecks[6];
     return totalPassed >= 5 && endCheck;
@@ -106,28 +104,35 @@ export const LiveClassSessions = ({ route }: any) => {
   );
   const saveAttendance = useCallback(async () => {
     try {
-      // 1. Guard: Only proceed if student is enrolled AND NOT an exception holder
-      // (Because the backend handles approved exceptions automatically)
       const hasApprovedException = exceptions.some(
         ex => ex.studentId === user?.uid && ex.status === 'approved',
       );
 
       if (!isStudent || !user?.uid || !lectureId || hasApprovedException)
         return;
-
-      // 2. Only submit for students who actually attended the live stream
-      await fetch(`${baseUrl}users/student/class/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: user.uid,
-          lectureId: lectureId,
-          courseId: courseId,
-          status: isEligibleForAttendance ? 'Present' : 'Absent',
-          checkData: attendanceChecks,
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const submissionPayload = {
+        lectureId: lectureId,
+        courseId: courseId,
+        status: isEligibleForAttendance ? 'Present' : 'Absent',
+        checkData: attendanceChecks,
+      };
+      const result = await submitOnlineClassAttendanceAPI(submissionPayload);
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: result.message,
+        });
+        navigation.navigate('Home', {
+          activeTab: 'classroom',
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failed',
+          text2: result.message,
+        });
+      }
     } catch (err) {
       console.error('iCampus: Failed to save attendance:', err);
     }
@@ -138,7 +143,8 @@ export const LiveClassSessions = ({ route }: any) => {
     courseId,
     isEligibleForAttendance,
     attendanceChecks,
-    exceptions, // Added to dependencies
+    exceptions,
+    navigation,
   ]);
   useEffect(() => {
     if (
@@ -180,42 +186,46 @@ export const LiveClassSessions = ({ route }: any) => {
     if (lecture?.status === 'completed' && isStudent) {
       saveAttendance();
     }
-    // Only trigger when the lecture status actually flips to 'completed'
   }, [lecture?.status, isStudent, saveAttendance]);
   useEffect(() => {
     const fetchLecturer = async () => {
       const lecturerId = course?.lecturerIds?.[0];
-      if (!lecturerId) return;
       try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await fetch(`${baseUrl}users/${lecturerId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`, // Use the token from your User interface
-          },
-        });
+        if (!lecturerId || !user?.tier || !user?.usertype) return;
 
-        const data = await response.json();
-        setLecturerUser(data);
-      } catch (err) {
+        const data = await searchUsers({
+          uid: lecturerId,
+          viewerTier: user.tier,
+          viewerRole: user.usertype,
+        });
+        if (data) {
+          setLecturerUser(data);
+        } else {
+          setLecturerUser(null);
+        }
+      } catch (err: any) {
         console.error('Failed to fetch lecturer for iCampus:', err);
+        Toast.show({
+          type: 'error',
+          text1: 'Network Error',
+          text2: err || 'Search failed',
+        });
       }
     };
 
     fetchLecturer();
-  }, [course?.lecturerIds]);
+  }, [course?.lecturerIds, user]);
 
   if (!canJoin) return <AccessDeniedScreen />;
   if (!isLecturer && !isStudent) {
     return <AccessDeniedScreen reason="You are not enrolled in this course." />;
   }
   if (!lecture || !course || !user) {
-    return <LoadingScreen />; // Create or use a simple View with an ActivityIndicator
+    return <LoadingScreen />;
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {isLecturer ? (
         <LecturerLiveClassSession lecture={lecture} socket={socket} />
       ) : (
@@ -231,7 +241,7 @@ export const LiveClassSessions = ({ route }: any) => {
       )}
       {isStudent && device && (
         <Camera
-          style={{ height: 1, width: 1, opacity: 0 }} // Hidden background tracker
+          style={{ height: 1, width: 1, opacity: 0 }}
           device={device}
           isActive={true}
           frameProcessor={frameProcessor}
@@ -240,3 +250,19 @@ export const LiveClassSessions = ({ route }: any) => {
     </View>
   );
 };
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  subContainer: {
+    padding: 20,
+    alignContent: 'center',
+    borderRadius: 15,
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 15,
+    fontWeight: 'bold',
+  },
+});

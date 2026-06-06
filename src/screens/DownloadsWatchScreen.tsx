@@ -3,8 +3,7 @@ import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, StyleSheet, 
 import Video, { VideoRef } from 'react-native-video';
 import * as Progress from 'react-native-progress'; 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
-import {updateCourseProgressAPI} from '../api/localPatchApis';
+import { updateCourseProgressAPI } from '../api/localPatchApis';
 import Toast from 'react-native-toast-message';
 import { generateCertificateAPI } from '../api/localPostApis';
 import { useNavigation } from '@react-navigation/native';
@@ -83,25 +82,37 @@ export const CourseLearningScreen = ({ route }: any) => {
     const isFinished = completedLessons.includes(item.title);
     return (
       <TouchableOpacity
-        style={[styles.lessonRow, isActive && styles.activeRow]}
+        style={[
+          styles.lessonRow,
+          isActive && { borderWidth: 1, borderColor: colors.primary },
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
         onPress={() => setActiveLessonIndex(index)}
       >
         {isFinished && (
           <MaterialIcons
             name={'check-circle-outlined'}
             size={24}
-            color={PRIMARY_COLOR}
+            color={colors.primary}
           />
         )}
         <View style={[styles.lessonInfo, isFinished && styles.leftMargin]}>
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
-            style={[styles.lessonTitle, isActive && styles.activeText]}
+            style={[
+              styles.lessonTitle,
+              isActive ? { color: colors.primary } : { color: colors.text },
+            ]}
           >
             {item.title}
           </Text>
-          <Text style={styles.lessonDuration}>
+          <Text
+            style={[
+              styles.lessonDuration,
+              isActive ? { color: colors.primary } : { color: colors.text },
+            ]}
+          >
             {Math.floor(item.duration / 60)} mins
           </Text>
         </View>
@@ -140,9 +151,9 @@ export const CourseLearningScreen = ({ route }: any) => {
               completedLessons.length / courseProduct.courseDetails.totalLessons
             }
             width={Dimensions.get('window').width - 100}
-            color={PRIMARY_COLOR}
+            color={colors.primary}
           />
-          <Text style={styles.percentageText}>
+          <Text style={[styles.percentageText, { color: colors.text }]}>
             {Math.round(
               (completedLessons.length /
                 courseProduct.courseDetails.totalLessons) *
@@ -157,7 +168,9 @@ export const CourseLearningScreen = ({ route }: any) => {
         keyExtractor={item => item.title}
         renderItem={renderLessonItem}
         ListHeaderComponent={
-          <Text style={styles.listHeader}>Course Content</Text>
+          <Text style={[styles.listHeader, { color: colors.text }]}>
+            Course Content
+          </Text>
         }
       />
       <Modal
@@ -191,10 +204,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
   playerWrapper: { width: '100%', aspectRatio: 16 / 9 },
   video: { width: '100%', height: '100%' },
-  header: { padding: 15, marginBottom: 15 },
+  header: { padding: 15, marginBottom: 15, borderRadius: 15 },
   courseTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   subTitle: { fontSize: 14, marginBottom: 10 },
-  courseSubtitle: { fontSize: 14, marginBottom: 10, color: '#2222' },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,28 +215,23 @@ const styles = StyleSheet.create({
   },
   percentageText: {
     fontWeight: 'bold',
-    color: PRIMARY_COLOR_TINT,
     fontSize: 14,
   },
   listHeader: {
     padding: 15,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    backgroundColor: '#f9f9f9',
   },
   lessonRow: {
     flexDirection: 'row',
     padding: 15,
     alignItems: 'center',
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    borderRadius: 15,
   },
-  activeRow: { backgroundColor: '#fadccc' },
-  activeText: { color: PRIMARY_COLOR, fontWeight: 'bold' },
   lessonInfo: { flex: 1 },
-  leftMargin: { marginLeft: 15 },
-  lessonTitle: { fontSize: 14, color: '#222' },
-  lessonDuration: { fontSize: 11, color: PRIMARY_COLOR_TINT, marginTop: 3 },
+  leftMargin: { marginLeft: 10 },
+  lessonTitle: { fontSize: 14 },
+  lessonDuration: { fontSize: 12, marginTop: 4 },
   modalBackground: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
 import {
   PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
 } from '@components/Classroomcomponent';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { CurrencyDisplay } from '../components/CurrencyFormatter';
 
-export const iCashSuccessScreen = ({ route, navigation }: any) => {
+export const ICashSuccessScreen = ({ route, navigation }: any) => {
+  const { colors } = useTheme();
   const {
     type,
     amount,
@@ -29,55 +31,65 @@ export const iCashSuccessScreen = ({ route, navigation }: any) => {
     : isWithdraw
     ? 'Amount to Receive'
     : 'Amount Paid';
-  const iconName = isP2P
-    ? 'swap-horizontal' // or 'send'
-    : isWithdraw
-    ? 'paper-plane-outline'
-    : 'checkmark';
   return (
-    <View style={styles.container}>
-      <View style={styles.iconCircle}>
-        <Icon name={iconName} size={85} color="#FFF" />
-      </View>
-
-      <Text style={styles.title}>{successTitle}</Text>
-      <View style={styles.amountContainer}>
-        <Text style={styles.miniLabel}>{mainLabel}</Text>
-        <View style={styles.diamondRow}>
-          <Icon
-            name="diamond"
-            size={32}
-            color={PRIMARY_COLOR}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={styles.amountValue}>
-            {isWithdraw || isP2P ? '-' : ''}
-            {/* Logic to choose which number to show */}
-            {isWithdraw || isP2P
-              ? amount?.toLocaleString()
-              : amountPurchased?.toLocaleString()}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons
+          name="check-circle-outlined"
+          size={60}
+          color={colors.success}
+        />
+        <Text style={[styles.title, { color: colors.textDarker }]}>
+          {successTitle}
+        </Text>
+        <View style={styles.amountContainer}>
+          <Text style={[styles.miniLabel, { color: colors.text }]}>
+            {mainLabel}
           </Text>
+          <View style={styles.diamondRow}>
+            <Text
+              style={[
+                styles.amountValue,
+                isWithdraw || isP2P
+                  ? { color: colors.primary }
+                  : { color: colors.success },
+              ]}
+            >
+              {isWithdraw || isP2P ? '-' : '+'}
+            </Text>
+            <CurrencyDisplay
+              value={
+                isWithdraw || isP2P
+                  ? amount?.toLocaleString()
+                  : amountPurchased?.toLocaleString()
+              }
+              size="large"
+              isSuccess={isWithdraw || isP2P ? false : true}
+            />
+          </View>
         </View>
-      </View>
-      <View style={styles.receiptContainer}>
-        <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>{subLabel}</Text>
-          <Text style={styles.receiptValue}>
+          <Text style={[styles.receiptLabel, {color: colors.text}]}>{subLabel}</Text>
+          <Text style={[styles.receiptValue, {color: colors.textDarker}]}>
             {isP2P
               ? `@${recipientUsername}`
               : `${currency} ${
                   isWithdraw ? payout.toLocaleString() : amountPaid
                 }`}
           </Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.button, {backgroundColor: colors.btnColor}]}
+          onPress={() =>
+            navigation.navigate('ICashDashboard', { refresh: true })
+          }
+        >
+          <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Back to Dashboard</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('ICashDashboard', { refresh: true })}
-      >
-        <Text style={styles.buttonText}>Go to Dashboard</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -85,58 +97,35 @@ export const iCashSuccessScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignContent: 'center',
     padding: 20,
-    backgroundColor: '#fff',
   },
-  iconCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30,
+  subContainer: {
+    alignContent: 'center',
+    padding: 20,
+    borderRadius: 15,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-    marginBottom: 10,
+    marginVertical: 15,
   },
   amountContainer: {
-    backgroundColor: '#fadccc',
-    padding: 24,
-    borderRadius: 20,
     width: '100%',
     alignItems: 'center',
     marginBottom: 20,
   },
   diamondRow: { flexDirection: 'row', alignItems: 'center' },
-  amountValue: { fontSize: 36, fontWeight: '800', color: PRIMARY_COLOR },
-
-  receiptContainer: {
-    width: '100%',
-    backgroundColor: '#fadccc',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 40,
-  },
-  receiptRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 4,
-  },
-  receiptLabel: { color: PRIMARY_COLOR_TINT, fontSize: 14 },
-  receiptValue: { fontWeight: '600', color: PRIMARY_COLOR_TINT, fontSize: 14 },
+  amountValue: { fontSize: 36, fontWeight: '800', marginRight: 5 },
+  receiptLabel: { fontSize: 14, marginBottom: 15 },
+  receiptValue: { fontWeight: 'bold', fontSize: 14, marginBottom: 15 },
   button: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 15,
-    paddingHorizontal: 60,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    alignContent: 'center'
   },
-  buttonText: { color: '#FFF', fontSize: 18, fontWeight: '600' },
+  buttonText: { fontSize: 14, fontWeight: '600' },
   miniLabel: {
     fontSize: 12,
     fontWeight: '600',

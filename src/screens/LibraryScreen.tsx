@@ -30,9 +30,12 @@ import { BookCard } from '../components/BookCard';
 import { Book } from 'types/firebase';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader.tsx';
+import { useTheme } from '../context/ThemeContext';
+
 const PLACEHOLDERS = ['book titles...', 'authors...', 'ISBN...', 'fields...'];
 
 export const LibraryScreen: React.FC = () => {
+  const { colors } = useTheme();
   const [query, setQuery] = useState('');
   const user = useAppSelector(state => state.user);
   const [books, setBooks] = useState<Book[]>([]);
@@ -139,15 +142,22 @@ export const LibraryScreen: React.FC = () => {
     return () => clearInterval(interval);
   }, [fadeAnim]);
   return (
-    <SafeAreaView style={LibraryScreenStyles.container}>
+    <SafeAreaView
+      style={[
+        LibraryScreenStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="iCampus Library" />
-      <View style={LibraryScreenStyles.searchBar}>
-        <View style={{ flex: 1, justifyContent: 'center' }}>
+      <View
+        style={[LibraryScreenStyles.searchBar, { borderColor: colors.border }]}
+      >
+        <View style={{ flex: 1 }}>
           {query.length === 0 && (
             <Animated.Text
               style={[
                 LibraryScreenStyles.placeholderOverlay,
-                { opacity: fadeAnim },
+                { opacity: fadeAnim, color: colors.inputTextHolder },
               ]}
             >
               Search {PLACEHOLDERS[placeholderIndex]}
@@ -158,17 +168,23 @@ export const LibraryScreen: React.FC = () => {
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSearch}
-            style={LibraryScreenStyles.input}
+            style={[LibraryScreenStyles.input, { color: colors.text }]}
           />
         </View>
         <TouchableOpacity onPress={handleSearch}>
-          <MaterialIcons name="search" size={24} color={PRIMARY_COLOR} />
+          <MaterialIcons
+            name="search"
+            size={24}
+            color={colors.inputTextHolder}
+          />
         </TouchableOpacity>
       </View>
       {loading || isSearching ? (
         <View style={LibraryScreenStyles.loaderContainer}>
-          <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-          <Text style={LibraryScreenStyles.loadingText}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text
+            style={[LibraryScreenStyles.loadingText, { color: colors.text }]}
+          >
             Searching iCampus Library...
           </Text>
         </View>
@@ -197,28 +213,26 @@ export const LibraryScreen: React.FC = () => {
   );
 };
 export const LibraryScreenStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, paddingHorizontal: 15 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
     margin: 15,
-    paddingHorizontal: 15,
+    paddingHorizontal: 6,
     borderRadius: 12,
-    height: 50,
+    height: 60,
     borderWidth: 1,
-    borderColor: '#EEE',
   },
   card: {
     flexDirection: 'row',
-    marginHorizontal: 15,
+    padding: 15,
     marginBottom: 15,
     borderRadius: 12,
     overflow: 'hidden',
     elevation: 2,
     alignItems: 'center',
   },
-  cover: { width: 100, height: 140 },
+  cover: { width: 50, height: 50, borderRadius: 10, overflow: 'hidden' },
   infoContainer: { flex: 1, padding: 12 },
   title: { fontSize: 14, fontWeight: '700' },
   author: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginTop: 4 },
@@ -242,30 +256,20 @@ export const LibraryScreenStyles = StyleSheet.create({
   downloadText: { fontSize: 14, fontWeight: '600', marginLeft: 6 },
   placeholderOverlay: {
     position: 'absolute',
-    left: 4, // Align with TextInput padding
-    fontSize: 15,
-    color: '#999',
+    left: 4,
+    fontSize: 14,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    color: '#333',
+    fontSize: 14,
     backgroundColor: 'transparent',
   },
   loaderContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
   },
   loadingText: {
     marginTop: 15,
-    color: PRIMARY_COLOR_TINT,
     fontSize: 14,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    color: '#999',
-    fontSize: 16,
   },
 });

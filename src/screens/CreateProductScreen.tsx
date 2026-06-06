@@ -1564,7 +1564,6 @@ export const CreateProductScreen = ({ route }: any) => {
               updated[activeExtractingUri.index].duration = durationInSeconds;
               return updated;
             });
-            // Kill the component instance immediately after extracting
             setActiveExtractingUri(null);
           }}
         />

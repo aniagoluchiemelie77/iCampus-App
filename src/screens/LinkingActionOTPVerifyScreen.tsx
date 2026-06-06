@@ -1,43 +1,31 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import OTPInputs from 'react-native-otp-inputs'; // Or your preferred OTP lib
+import OTPInputs from 'react-native-otp-inputs';
 import type { RootStackParamList } from '../../App';
 import Toast from 'react-native-toast-message';
-import { FLUTTERWAVE_CLIENT_SECRET } from '@env';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
+import { PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { verifyPaymentOtpAPI } from '../api/localPostApis';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyOTP'>;
 
 export const VerifyOTP = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const { flw_ref, type } = route.params;
   const [_otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const handleVerify = async (otpCode: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        'https://api.flutterwave.com/v3/validate-charge',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${FLUTTERWAVE_CLIENT_SECRET}`,
-          },
-          body: JSON.stringify({
-            otp: otpCode,
-            flw_ref: flw_ref,
-            type, // or 'account' based on the 'type' param
-          }),
-        },
-      );
-
-      const result = await response.json();
-
-      if (result.status === 'success') {
+      const result = await verifyPaymentOtpAPI({
+        otpCode,
+        flw_ref,
+        type,
+      });
+      setIsLoading(false);
+      if (result.success) {
         navigation.navigate('ICashBuyPage', { refresh: true });
       } else {
         Toast.show({
@@ -54,52 +42,76 @@ export const VerifyOTP = ({ route, navigation }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Icon
-        name={'shield-lock'}
-        size={60}
-        color={PRIMARY_COLOR}
-        style={{ marginBottom: 20 }}
-      />
-      <Text style={styles.title}>Verify Transaction</Text>
-      <Text style={styles.subtitle}>
-        Enter the OTP sent to your phone or email
-      </Text>
-      <OTPInputs
-        autofillFromClipboard={true}
-        handleChange={code => {
-          setOtp(code);
-          if (code.length === 6) handleVerify(code);
-        }}
-        numberOfInputs={6}
-        style={styles.otpContainer}
-        inputStyles={styles.otpInput}
-      />
-
-      {isLoading && (
-        <ActivityIndicator
-          size="large"
-          color={PRIMARY_COLOR}
-          style={{ marginTop: 20 }}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons
+          name="security-outlined"
+          size={60}
+          color={colors.primary}
         />
-      )}
+        <Text style={[styles.title, { color: colors.textDarker }]}>
+          Verify Transaction
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.text }]}>
+          Enter the OTP sent to your phone or email
+        </Text>
+        <OTPInputs
+          autofillFromClipboard={true}
+          handleChange={code => {
+            setOtp(code);
+            if (code.length === 6) handleVerify(code);
+          }}
+          numberOfInputs={6}
+          style={styles.otpContainer}
+          inputStyles={[styles.otpInput, { color: colors.primary }]}
+        />
+
+        {isLoading && (
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={{ marginTop: 20 }}
+          />
+        )}
+      </View>
     </View>
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#FFF', justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, color: PRIMARY_COLOR },
-  subtitle: { fontSize: 14, color: PRIMARY_COLOR_TINT, textAlign: 'center', marginBottom: 30 },
-  otpContainer: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 10 },
+  container: { flex: 1, padding: 15, alignContent: 'center' },
+  subContainer: {
+    padding: 20,
+    alignContent: 'center',
+    borderRadius: 15,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 15,
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    marginHorizontal: 10,
+  },
   otpInput: {
-    width: 45,
-    height: 50,
+    width: 30,
+    height: 30,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 8,
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
   },
 });

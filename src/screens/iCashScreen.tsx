@@ -7,40 +7,44 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
-import { baseUrl } from '@components/HomeScreenComponents';
+import { PRIMARY_COLOR, DEFAULT_GRADIENT } from '../assets/styles/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { useRoute } from '@react-navigation/native';
 import { setUser } from '../components/userSlice';
 import { TransactionList } from '../components/TransactionHistory';
 import { StatsData } from '../types/firebase';
+import {
+  refreshUserProfileAPI,
+  getTransactionStats,
+} from '../api/localGetApis';
+import Toast from 'react-native-toast-message';
+import { useTheme } from '../context/ThemeContext';
 
 const ActionButton = ({
   icon,
   label,
   onPress,
+  colors,
 }: {
   icon: string;
   label: string;
   onPress: () => void;
+  colors: any;
 }) => (
   <TouchableOpacity style={iCashScreenStyles.actionButton} onPress={onPress}>
-    <View style={iCashScreenStyles.actionIconContainer}>
-      <Icon name={icon} size={24} color={PRIMARY_COLOR} />
-    </View>
-    <Text style={iCashScreenStyles.actionLabel}>{label}</Text>
+    <MaterialIcons name={icon} size={26} color={colors.primary} />
+    <Text style={[iCashScreenStyles.actionLabel, { color: colors.primary }]}>
+      {label}
+    </Text>
   </TouchableOpacity>
 );
 export const ICashDashboard = () => {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute();
   const dispatch = useDispatch();
@@ -57,40 +61,55 @@ export const ICashDashboard = () => {
 
   const refreshUserData = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/my-profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) {
-        dispatch(setUser(data.user));
+      const result = await refreshUserProfileAPI();
+      if (result.success) {
+        dispatch(setUser(result.user));
+        if (result.accessToken) {
+          await AsyncStorage.setItem('accessToken', result.accessToken);
+          await AsyncStorage.setItem('refreshToken', result.refreshToken);
+        }
+      } else {
+        console.error(result.message);
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: result.message,
+        });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.log('Refresh failed', e);
+      Toast.show({
+        type: 'error',
+        text1: 'Refresh failed',
+        text2: e || 'Check your network connection',
+      });
     }
   }, [dispatch]);
   const fetchStats = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(
-        `${baseUrl}user/transactions/stats?userId=${user.uid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.stats);
+      const response = await getTransactionStats();
+      if (response.success) {
+        setStats(response.data);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Fetch Error',
+          text2: response.error,
+        });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.log('Failed to fetch stats', e);
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: e || 'Check your network and try again',
+      });
     }
-  }, [user.uid]);
+  }, []);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
-  // 2. Now the effect is stable
   useEffect(() => {
     if (needsRefresh) {
       const timer = setTimeout(() => {
@@ -107,38 +126,48 @@ export const ICashDashboard = () => {
   }, [navigation, user.twoFactorEnabled]);
 
   return (
-    <ScrollView style={iCashScreenStyles.container}>
+    <ScrollView
+      style={[
+        iCashScreenStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <LinearGradient
-        colors={['#3b2115', '#5a3c2e', '#e05515']}
+        colors={DEFAULT_GRADIENT}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={iCashScreenStyles.iCashCard}
       >
         <View style={iCashScreenStyles.cardHeader}>
           <View>
-            <Text style={iCashScreenStyles.cardLabel}>iCash Balance</Text>
-            <Text style={iCashScreenStyles.userName}>
-              {user.firstname?.toUpperCase()} {user.lastname?.toUpperCase()}
+            <Text style={[iCashScreenStyles.cardLabel, { color: colors.tint }]}>
+              iCash Balance
+            </Text>
+            <Text style={[iCashScreenStyles.userName, { color: colors.tint }]}>
+              @{user.itagusername}
             </Text>
           </View>
-          <Icon name="chip" size={38} color="#e0c8bd" />
+          <MaterialIcons
+            name="account-balance-wallet-oulined"
+            size={38}
+            color={colors.tint}
+          />
         </View>
         <View style={iCashScreenStyles.balance}>
           <View style={iCashScreenStyles.balanceContainer}>
             <MaterialIcons
-              name="diamond"
+              name="diamond-outlined"
               size={32}
-              color="#fff"
-              style={iCashScreenStyles.diamondShadow}
+              color={colors.tint}
             />
             {showBalance ? (
-              <Text style={iCashScreenStyles.balanceValue}>
+              <Text style={[iCashScreenStyles.balanceValue, {color: colors.tint}]}>
                 {integer}
-                <Text style={iCashScreenStyles.decimalValue}>.{decimal}</Text>
+                <Text style={[iCashScreenStyles.decimalValue, {color: colors.tint}]}>.{decimal}</Text>
               </Text>
             ) : (
               <Text
-                style={[iCashScreenStyles.balanceValue, { letterSpacing: 2 }]}
+                style={[iCashScreenStyles.balanceValue, { letterSpacing: 2, color: colors.tint }]}
               >
                 ****
               </Text>
@@ -150,28 +179,40 @@ export const ICashDashboard = () => {
                 showBalance ? 'visibility-outlined' : 'visibility-off-outlined'
               }
               size={24}
-              color="#fff"
+              color={colors.tint}
               style={iCashScreenStyles.balanceHideBtn}
             />
           </TouchableOpacity>
         </View>
+        <View
+          style={[
+            iCashScreenStyles.actionRow,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <ActionButton
+            icon="local-mall-outlined"
+            label="Buy iCash"
+            onPress={handleBuy}
+            colors={colors}
+          />
+          <ActionButton
+            icon="account-balance-outlined"
+            label="Withdraw iCash"
+            onPress={handleWithdraw}
+            colors={colors}
+          />
+          <ActionButton
+            icon="send-outlined"
+            label="Transfer"
+            onPress={handleP2P}
+            colors={colors}
+          />
+        </View>
       </LinearGradient>
-      <View style={iCashScreenStyles.actionRow}>
-        <ActionButton
-          icon="plus-circle"
-          label="Buy iCash"
-          onPress={handleBuy}
-        />
-        <ActionButton
-          icon="bank-transfer-out"
-          label="Withdraw"
-          onPress={handleWithdraw}
-        />
-        <ActionButton icon="send" label="Transfer" onPress={handleP2P} />
-      </View>
       <TransactionList
         variant="compact"
-        limit={5}
+        limit={7}
         onViewAll={() =>
           navigation.navigate('AllTransactions', {
             user,
@@ -185,35 +226,31 @@ export const ICashDashboard = () => {
 export const iCashScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    paddingHorizontal: 15,
   },
   iCashCard: {
-    margin: 20,
     padding: 25,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    height: 220,
-    justifyContent: 'space-between',
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     elevation: 10,
     shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 15,
+    marginHorizontal: -15,
+    position: 'relative',
+    marginBottom: 15,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    width: '100%',
   },
   cardLabel: {
-    color: '#e0c8bd',
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: '600',
-    letterSpacing: 1.2,
   },
   userName: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
     marginTop: 5,
@@ -223,16 +260,14 @@ export const iCashScreenStyles = StyleSheet.create({
     alignItems: 'baseline',
   },
   balance: {
-    marginVertical: 15,
+    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
   },
   balanceValue: {
-    color: '#fff',
-    fontSize: 42,
+    fontSize: 40,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginLeft: 7,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   balanceHideBtn: {
@@ -240,43 +275,28 @@ export const iCashScreenStyles = StyleSheet.create({
   },
   decimalValue: {
     fontSize: 22,
-    color: '#fff',
-  },
-  diamondShadow: {
-    textShadowColor: PRIMARY_COLOR,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  nairaEquivalent: {
-    color: '#cbd5e1',
-    fontSize: 16,
-    fontWeight: '500',
-  },
   actionRow: {
+    position: 'absolute',
+    bottom: -20,
+    right: 20,
+    left: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 20,
-    marginHorizontal: 20,
+    padding: 20,
     borderRadius: 15,
   },
   actionButton: {
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionIconContainer: {
-    backgroundColor: PRIMARY_COLOR_TINT,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
   },
   actionLabel: {
-    fontSize: 12,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
+    marginTop: 5,
     fontWeight: '600',
   },
 });

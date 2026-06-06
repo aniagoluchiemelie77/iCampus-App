@@ -24,7 +24,6 @@ import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from 'types/firebase';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { RankingScreen } from '@components/RankingScreen';
 import { SearchScreen } from '@components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
@@ -33,6 +32,7 @@ import {
   getCourseDetailsForOngoingLecture,
   getAllExceptionsForOngoingLecture,
 } from '../api/localGetApis';
+import { useTheme } from '../context/ThemeContext';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 export interface SocketContextType {
@@ -80,6 +80,7 @@ export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
   );
 };
 const HomeScreen = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const [activeIcon, setActiveIcon] = useState<string>('home');
@@ -92,15 +93,13 @@ const HomeScreen = () => {
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
-    return now - createdAt > 1000 * 60 * 60 * 24; // 24 hours
+    return now - createdAt > 1000 * 60 * 60 * 24;
   };
-  // Helper to check if user is allowed in the classroom
   const isClassroomAllowed =
     userType === 'student' ||
     userType === 'lecturer' ||
     userType === 'otherUser';
 
-  // ... (keep your useEffect for token expiry)
   useEffect(() => {
     if (user?.tokenCreatedAt) {
       const createdAtTime = new Date(user.tokenCreatedAt).getTime();
@@ -209,7 +208,9 @@ const HomeScreen = () => {
   };
   return (
     <AppDataProvider user={user}>
-      <View style={homeStyles.container}>
+      <View
+        style={[homeStyles.container, { backgroundColor: colors.background }]}
+      >
         <View style={homeStyles.centerContent}>
           {activeIcon === 'home' && <Home />}
 
@@ -223,69 +224,65 @@ const HomeScreen = () => {
           {activeIcon === 'ranking' && <RankingScreen />}
         </View>
 
-        <View style={homeStyles.iconBar}>
-          {/* Home Tab */}
+        <View
+          style={[
+            homeStyles.iconBar,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => setActiveIcon('home')}
-            style={[
-              homeStyles.iconItem,
-              activeIcon === 'home' && homeStyles.activeIconItem,
-            ]}
+            style={[homeStyles.iconItem]}
           >
             <MaterialIcons
               name={activeIcon === 'home' ? 'home' : 'home-outlined'}
-              size={23}
-              color={activeIcon === 'home' ? PRIMARY_COLOR : '#2222'}
+              size={24}
+              color={activeIcon === 'home' ? colors.primary : colors.textDarker}
             />
             {activeIcon === 'home' && (
               <Text style={homeStyles.activeIconLabel}>Home</Text>
             )}
           </TouchableOpacity>
-
-          {/* 2. UI Exclusion: Only render the Tab button if user is NOT enterprise */}
           {isClassroomAllowed && (
             <TouchableOpacity
               onPress={() => setActiveIcon('classroom')}
-              style={[
-                homeStyles.iconItem,
-                activeIcon === 'classroom' && homeStyles.activeIconItem,
-              ]}
+              style={[homeStyles.iconItem]}
             >
               <MaterialIcons
                 name={activeIcon === 'classroom' ? 'groups' : 'groups-outlined'}
                 size={23}
-                color={activeIcon === 'classroom' ? PRIMARY_COLOR : '#032820'}
+                color={
+                  activeIcon === 'classroom'
+                    ? colors.primary
+                    : colors.textDarker
+                }
               />
               {activeIcon === 'classroom' && (
                 <Text style={homeStyles.activeIconLabel}>Courses</Text>
               )}
             </TouchableOpacity>
           )}
-
-          {/* 3. Search */}
           <TouchableOpacity
             onPress={() => setActiveIcon('search')}
-            style={[
-              homeStyles.iconItem,
-              activeIcon === 'search' && homeStyles.activeIconItem,
-            ]}
+            style={[homeStyles.iconItem]}
           >
             <MaterialIcons
               name={activeIcon === 'search' ? 'search' : 'search-outlined'}
               size={23}
-              color={activeIcon === 'search' ? PRIMARY_COLOR : '#032820'}
+              color={
+                activeIcon === 'search' ? colors.primary : colors.textDarker
+              }
             />
             {activeIcon === 'search' && (
               <Text style={homeStyles.activeIconLabel}>Search</Text>
             )}
           </TouchableOpacity>
-          {/* Store and Ranking tabs remain visible for everyone */}
           <TouchableOpacity
             onPress={() => setActiveIcon('store')}
-            style={[
-              homeStyles.iconItem,
-              activeIcon === 'store' && homeStyles.activeIconItem,
-            ]}
+            style={[homeStyles.iconItem]}
           >
             <MaterialIcons
               name={
@@ -294,19 +291,17 @@ const HomeScreen = () => {
                   : 'shopping-cart-outlined'
               }
               size={23}
-              color={activeIcon === 'store' ? PRIMARY_COLOR : '#032820'}
+              color={
+                activeIcon === 'store' ? colors.primary : colors.textDarker
+              }
             />
             {activeIcon === 'store' && (
               <Text style={homeStyles.activeIconLabel}>Store</Text>
             )}
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={() => setActiveIcon('ranking')}
-            style={[
-              homeStyles.iconItem,
-              activeIcon === 'ranking' && homeStyles.activeIconItem,
-            ]}
+            style={[homeStyles.iconItem]}
           >
             <MaterialIcons
               name={
@@ -315,7 +310,9 @@ const HomeScreen = () => {
                   : 'emoji-events-outlined'
               }
               size={23}
-              color={activeIcon === 'ranking' ? PRIMARY_COLOR : '#032820'}
+              color={
+                activeIcon === 'ranking' ? colors.primary : colors.textDarker
+              }
             />
             {activeIcon === 'ranking' && (
               <Text style={homeStyles.activeIconLabel}>Ranking</Text>
