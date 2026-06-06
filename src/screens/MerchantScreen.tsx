@@ -8,11 +8,7 @@ import {
 } from 'react-native';
 import { UserAvatar } from '../components/UserAvatar';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {
-  PRIMARY_COLOR,
-  BACKGROUND_LIGHT,
-  PRIMARY_COLOR_TINT,
-} from '../assets/styles/colors.ts';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { UserIdentity } from '../components/UserIdentity';
 import {
@@ -25,34 +21,43 @@ import {
 } from '../components/SellerManagementComps.tsx';
 import { useAppSelector } from '../components/hooks';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export const MerchantDashboard = () => {
+  const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
   const [activeTab, setActiveTab] = useState('Overview');
   const navigation = useNavigation<any>();
   const isOrganization = currentUser.organizationName !== '';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Merchant Hub"
         subtitle="Manage your products & earnings"
         rightElement={
           <TouchableOpacity
             onPress={() => navigation.navigate('CreateProduct')}
-            style={styles.topBtn}
+            style={[styles.topBtn, { backgroundColor: colors.btnColor }]}
           >
-            <Text style={styles.topBtnText}>Add Product</Text>
+            <Text style={[styles.topBtnText, { color: colors.btnTextColor }]}>
+              Add Product
+            </Text>
             <MaterialIcons
               name="add-business-outlined"
-              size={25}
-              color="#fff"
+              size={24}
+              color={colors.btnTextColor}
             />
           </TouchableOpacity>
         }
       />
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.profileCard}>
+        <View
+          style={[
+            styles.profileCard,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <UserAvatar
             profilePic={currentUser?.profilePic}
             firstName={currentUser?.firstname}
@@ -78,7 +83,10 @@ export const MerchantDashboard = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabBarScrollContainer}
-          style={styles.tabBarWrapper}
+          style={[
+            styles.tabBarWrapper,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
         >
           {[
             'Overview',
@@ -96,7 +104,9 @@ export const MerchantDashboard = () => {
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === tab && styles.activeTabText,
+                  activeTab === tab
+                    ? { color: colors.primary }
+                    : { color: colors.text },
                 ]}
               >
                 {tab}
@@ -104,7 +114,12 @@ export const MerchantDashboard = () => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <View style={styles.content}>
+        <View
+          style={[
+            styles.content,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           {activeTab === 'Overview' && <OverviewsScreenComponent />}
           {activeTab === 'Orders' && <OrdersList />}
           {activeTab === 'Sales' && <SalesScreen />}
@@ -120,7 +135,7 @@ export const MerchantDashboard = () => {
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BACKGROUND_LIGHT,
+    paddingHorizontal: 15,
   },
   profileCard: {
     flexDirection: 'row',
@@ -135,40 +150,29 @@ export const styles = StyleSheet.create({
     alignContent: 'center',
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
-    marginRight: 5,
+    marginRight: 8,
   },
   activeTab: {
     borderBottomColor: PRIMARY_COLOR,
   },
   tabText: {
-    fontSize: 15,
-    color: '#222',
+    fontSize: 14,
     fontWeight: '500',
-  },
-  activeTabText: {
-    color: PRIMARY_COLOR,
   },
   tabBarWrapper: {
     marginBottom: 15,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#fadccc',
-    padding: 4,
   },
   content: {
     flex: 1,
   },
   tabBarScrollContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     alignItems: 'center',
   },
   merchantAvatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    backgroundColor: PRIMARY_COLOR,
     elevation: 5,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
@@ -178,12 +182,13 @@ export const styles = StyleSheet.create({
   topBtn: {
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: PRIMARY_COLOR,
     alignContent: 'center',
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   topBtnText: {
-    marginRight: 3,
+    marginRight: 4,
     fontSize: 14,
-    color: '#fff',
   },
 });

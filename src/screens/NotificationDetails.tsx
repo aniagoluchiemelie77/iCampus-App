@@ -55,7 +55,6 @@ export default function NotificationDetails() {
     }
   }, [notificationId, notification]);
 
-  // Logic to check if this is a sensitive security notification
   const isSecurityAlert =
     notification?.title?.toLowerCase().includes('password') ||
     notification?.title?.toLowerCase().includes('login') ||

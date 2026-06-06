@@ -18,8 +18,10 @@ import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { UserIdentity } from '../components/UserIdentity';
 import { getConversations } from '../api/localGetApis';
 import { UserAvatar } from '../components/UserAvatar';
+import { useTheme } from '../context/ThemeContext';
 
 export const MessagesListScreen = ({ navigation }: any) => {
+  const { colors } = useTheme();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'All' | 'Unread'>('All');
   const [page, setPage] = useState(1);
@@ -97,7 +99,12 @@ export const MessagesListScreen = ({ navigation }: any) => {
 
     return (
       <TouchableOpacity
-        style={[styles.convoItem, isUnread && styles.unreadBackground]}
+        style={[
+          styles.convoItem,
+          isUnread
+            ? { backgroundColor: colors.backgroundSecondary }
+            : { backgroundColor: colors.background },
+        ]}
         onPress={() =>
           navigation.navigate('ChatScreen', { recipientId: item.otherUser.uid })
         }
@@ -110,27 +117,28 @@ export const MessagesListScreen = ({ navigation }: any) => {
             organizationName={item.organizationName}
             style={styles.avatar}
           />
+          <UserIdentity
+            firstname={item.otherUser.firstname}
+            lastname={item.otherUser.lastname}
+            tier={item.otherUser.tier}
+            organizationName={item.otherUser.organizationName}
+            size="medium"
+            containerStyle={{ flex: 1 }}
+          />
           {isUnread && <View style={styles.unreadDot} />}
         </View>
         <View style={styles.textContainer}>
-          <View style={styles.row}>
-            <UserIdentity
-              firstname={item.otherUser.firstname}
-              lastname={item.otherUser.lastname}
-              tier={item.otherUser.tier}
-              organizationName={item.otherUser.organizationName}
-              size="medium"
-              containerStyle={{ flex: 1 }}
-            />
-            <Text style={styles.time}>
-              {formatTime(item.lastMessage.timestamp)}
-            </Text>
-          </View>
           <Text
             numberOfLines={1}
-            style={[styles.lastMsg, isUnread && styles.unreadText]}
+            style={[
+              styles.lastMsg,
+              isUnread ? { color: colors.primary } : { color: colors.text },
+            ]}
           >
             {getMessagePreview(item.lastMessage)}
+          </Text>
+          <Text style={[styles.time, { color: colors.text }]}>
+            {formatTime(item.lastMessage.timestamp)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -138,16 +146,36 @@ export const MessagesListScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Messages"
         rightElement={
-          <TouchableOpacity onPress={markAllAsRead}>
-            <MaterialIcons name="done-all" size={24} color={PRIMARY_COLOR} />
+          <TouchableOpacity
+            onPress={markAllAsRead}
+            style={[
+              styles.rightElementBtn,
+              { backgroundColor: colors.btnColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.rightElementBtnText,
+                { color: colors.btnTextColor },
+              ]}
+            >
+              Mark All As Read
+            </Text>
+            <MaterialIcons
+              name="done-all"
+              size={24}
+              color={colors.btnTextColor}
+            />
           </TouchableOpacity>
         }
       />
-      <View style={styles.tabBar}>
+      <View
+        style={[styles.tabBar, { backgroundColor: colors.backgroundSecondary }]}
+      >
         {['All', 'Unread'].map((tab: any) => (
           <TouchableOpacity
             key={tab}
@@ -157,7 +185,9 @@ export const MessagesListScreen = ({ navigation }: any) => {
             <Text
               style={[
                 styles.tabText,
-                activeTab === tab && styles.activeTabText,
+                activeTab === tab
+                  ? { color: colors.primary }
+                  : { color: colors.text },
               ]}
             >
               {tab}
@@ -186,85 +216,81 @@ export const MessagesListScreen = ({ navigation }: any) => {
   );
 };
 const styles = StyleSheet.create({
-  convoItem: {
+  container: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  rightElementBtn: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 15,
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  rightElementBtnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginRight: 4,
+  },
+  convoItem: {
+    padding: 15,
     borderBottomWidth: 0.5,
     borderBottomColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  unreadBackground: {
-    backgroundColor: '#fadccc', // Very subtle tint for unread
+    marginBottom: 10,
   },
   avatarContainer: {
     position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 15,
   },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#fff',
+    marginRight: 10,
   },
   unreadDot: {
     position: 'absolute',
     right: 2,
-    top: 2,
+    top: -4,
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: PRIMARY_COLOR,
   },
   textContainer: {
-    flex: 1,
-    marginLeft: 10,
-    justifyContent: 'center',
-  },
-  row: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
   boldText: {
     fontWeight: '800',
   },
   lastMsg: {
     fontSize: 14,
-    color: '#222',
-  },
-  unreadText: {
-    color: '#222',
-    fontWeight: '600',
   },
   time: {
-    fontSize: 11,
-    color: PRIMARY_COLOR_TINT,
-    marginLeft: 5,
+    fontSize: 12,
   },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
-    padding: 10,
+    marginVertical: 15,
   },
   tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignContent: 'center',
     borderBottomColor: 'transparent',
     borderBottomWidth: 2,
+    padding: 15,
+    marginRight: 6,
   },
   activeTabItem: {
     borderBottomColor: PRIMARY_COLOR,
   },
   tabText: {
-    color: '#2222',
     fontSize: 14,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: PRIMARY_COLOR,
     fontWeight: 'bold',
   },
 });

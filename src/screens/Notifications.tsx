@@ -25,10 +25,12 @@ import {
 } from '../components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { useTheme } from '../context/ThemeContext';
 
 dayjs.extend(relativeTime);
 
 const Notifications = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
   const { socket } = useSocket();
@@ -39,7 +41,6 @@ const Notifications = () => {
   );
   const [loading, setLoading] = useState(false);
 
-  // 1. Fetch Notifications with Filters
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
@@ -53,8 +54,6 @@ const Notifications = () => {
       setLoading(false);
     }
   }, [activeTab]);
-  // Notifications.tsx
-
   const markAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     try {
@@ -90,8 +89,6 @@ const Notifications = () => {
       socket.off('new_notification');
     };
   }, [socket]);
-
-  // 3. Navigation "Inlet" Logic
   const handleNotificationPress = async (item: any) => {
     if (!item.isRead) {
       markAsReadOnServer(item.notificationId);
@@ -102,7 +99,6 @@ const Notifications = () => {
       );
     }
     const { actionType, payload, relatedEntity } = item;
-    // Use the ID from relatedEntity (set by backend) or fallback to payload
     const entityId =
       relatedEntity?.entityId || payload?.postId || payload?.lectureId;
 
@@ -120,10 +116,10 @@ const Notifications = () => {
       case 'LECTURE_POSTPONED':
       case 'LECTURE_SCHEDULED':
         navigation.navigate('CourseSubPage', {
-          title: 'View Lecture Schedule', // Matches your conditional title check
-          course: { courseId: payload.courseId }, // Ensure backend sends courseId
-          userRole: user.usertype, // 'lecturer' or 'student'
-          initialLectureId: entityId, // Useful if you want to highlight the specific lecture
+          title: 'View Lecture Schedule',
+          course: { courseId: payload.courseId },
+          userRole: user.usertype,
+          initialLectureId: entityId,
         });
         break;
 
@@ -149,7 +145,7 @@ const Notifications = () => {
         break;
 
       case 'PURCHASE_DEBIT':
-        navigation.navigate('TransactionPage', { transactionId: entityId });
+        navigation.navigate('TransactionDetail', { transactionId: entityId });
         break;
 
       default:
@@ -173,50 +169,61 @@ const Notifications = () => {
 
   const renderNotificationItem = ({ item }: { item: any }) => {
     const getIcon = () => {
-      const iconColor = PRIMARY_COLOR;
-
       switch (item.category) {
         case 'finance':
-          return { name: 'account-balance-wallet', color: iconColor };
+          return { name: 'account-balance-wallet-outlined' };
+        case 'auth':
+          return { name: 'security-outlined' };
+        case 'store':
+          return { name: 'shopping-cart-outlined' };
+        case 'profile':
+          return { name: 'account-circle-outlined' };
         case 'security':
-          return { name: 'security', color: iconColor };
-        case 'academic':
-        case 'course':
-          return { name: 'school', color: iconColor };
+          return { name: 'security-outlined' };
+        case 'reminder':
+        case 'classroom':
+          return { name: 'school-outlined' };
         case 'social':
-          return { name: 'people', color: iconColor };
-        case 'announcement':
-          return { name: 'campaign', color: iconColor };
+          return { name: 'people-outlined' };
+        case 'subscription':
+          return { name: 'verified-outlined' };
         default:
-          return { name: 'notifications', color: iconColor };
+          return { name: 'notifications' };
       }
     };
-
     const iconConfig = getIcon();
 
     return (
       <TouchableOpacity
         onPress={() => handleNotificationPress(item)}
-        style={[styles.card, !item.isRead && styles.unreadCard]}
+        style={[
+          styles.card,
+          !item.isRead
+            ? { backgroundColor: colors.backgroundSecondary }
+            : { backgroundColor: colors.background },
+        ]}
       >
         <View style={styles.iconContainer}>
-          <MaterialIcons
-            name={iconConfig.name}
-            size={22}
-            color={iconConfig.color}
-          />
-          {!item.isRead && <View style={styles.unreadDot} />}
+          <MaterialIcons name={iconConfig.name} size={22} color={colors.text} />
         </View>
 
         <View style={styles.content}>
-          <View style={styles.row}>
-            <Text style={styles.title} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <Text style={styles.time}>{dayjs(item.createdAt).fromNow()}</Text>
-          </View>
-          <Text style={styles.message} numberOfLines={2}>
+          <Text
+            style={[styles.title, { color: colors.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.title}
+          </Text>
+          <Text
+            style={[styles.message, { color: colors.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {item.message}
+          </Text>
+          <Text style={[styles.time, { color: colors.text }]}>
+            {dayjs(item.createdAt).fromNow()}
           </Text>
         </View>
       </TouchableOpacity>
@@ -224,17 +231,36 @@ const Notifications = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Notifications"
         rightElement={
-          <TouchableOpacity onPress={markAllAsRead}>
-            <MaterialIcons name="done-all" size={24} color={PRIMARY_COLOR} />
+          <TouchableOpacity
+            onPress={markAllAsRead}
+            style={[
+              styles.rightElementBtn,
+              { backgroundColor: colors.btnColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.rightElementBtnText,
+                { color: colors.btnTextColor },
+              ]}
+            >
+              Mark All As Read
+            </Text>
+            <MaterialIcons
+              name="done-all"
+              size={24}
+              color={colors.btnTextColor}
+            />
           </TouchableOpacity>
         }
       />
-
-      <View style={styles.tabBar}>
+      <View
+        style={[styles.tabBar, { backgroundColor: colors.backgroundSecondary }]}
+      >
         {tabs.map(tab => (
           <TouchableOpacity
             key={tab}
@@ -244,7 +270,9 @@ const Notifications = () => {
             <Text
               style={[
                 styles.tabText,
-                activeTab === tab && styles.activeTabText,
+                activeTab === tab
+                  ? { color: colors.primary }
+                  : { color: colors.text },
               ]}
             >
               {tab.toUpperCase()}
@@ -256,8 +284,8 @@ const Notifications = () => {
       {loading && notifications.length === 0 ? (
         <ActivityIndicator
           size="large"
-          color={PRIMARY_COLOR}
-          style={{ marginTop: 50 }}
+          color={colors.primary}
+          style={{ marginTop: 30 }}
         />
       ) : (
         <FlatList
@@ -281,34 +309,28 @@ const Notifications = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, paddingHorizontal: 15 },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
-    padding: 10,
+    marginVertical: 15,
   },
   tab: {
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    padding: 10,
   },
   activeTab: { borderBottomColor: PRIMARY_COLOR },
-  tabText: { fontSize: 13, color: '#2222', fontWeight: '600' },
-  activeTabText: { color: PRIMARY_COLOR },
+  tabText: { fontSize: 14, fontWeight: '600' },
   listContent: { padding: 12 },
   card: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    marginBottom: 8,
+    marginBottom: 10,
     elevation: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 15,
     borderBottomWidth: 0.5,
     borderBottomColor: PRIMARY_COLOR_TINT,
     alignItems: 'center',
-  },
-  unreadCard: {
-    backgroundColor: '#fadccc',
   },
   iconContainer: { marginRight: 15, justifyContent: 'center' },
   unreadDot: {
@@ -321,14 +343,21 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
   },
   content: { flex: 1 },
-  row: {
+  title: { fontWeight: 'bold', fontSize: 14, marginBottom: 4 },
+  time: { fontSize: 11 },
+  message: { fontSize: 12, marginBottom: 4 },
+  rightElementBtn: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 15,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
   },
-  title: { fontWeight: 'bold', fontSize: 15, color: '#2222', flex: 1 },
-  time: { fontSize: 11, color: '#999' },
-  message: { fontSize: 13, color: '#666', lineHeight: 18 },
+  rightElementBtnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginRight: 4,
+  },
 });
 
 export default Notifications;
