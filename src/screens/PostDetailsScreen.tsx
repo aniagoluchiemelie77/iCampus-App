@@ -29,7 +29,6 @@ export const PostDetailScreen = ({ route }: any) => {
   const inputRef = useRef<TextInput>(null);
   const { addComment, toggleCommentLike, fetchPostById } = useAppDataContext();
 
-  // Fetch post if we only have the ID (from Notifications)
   useEffect(() => {
     let isMounted = true;
     if (!post && postId) {
@@ -90,7 +89,6 @@ export const PostDetailScreen = ({ route }: any) => {
       });
     }
   };
-  // 1. Loading State
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -98,8 +96,6 @@ export const PostDetailScreen = ({ route }: any) => {
       </View>
     );
   }
-
-  // 2. Not Found State
   if (!post) {
     return (
       <View style={styles.centered}>

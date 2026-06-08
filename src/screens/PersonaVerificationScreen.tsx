@@ -1,4 +1,3 @@
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
 import React, { useState } from 'react';
 import {
   View,
@@ -6,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Inquiry } from 'react-native-persona';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -13,8 +13,10 @@ import { fetchInquiryFromBackend } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
+import { useTheme } from '../context/ThemeContext';
 
 export const PersonaVerificationScreen = () => {
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user);
@@ -52,97 +54,99 @@ export const PersonaVerificationScreen = () => {
   const isEnterprise = user?.usertype === 'enterprise';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <MaterialIcons
-            name={isEnterprise ? 'business' : 'verified-user'}
-            size={80}
-            color={PRIMARY_COLOR}
-          />
-        </View>
-        <Text style={styles.title}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons
+          name={isEnterprise ? 'business-outlined' : 'verified-user-outlined'}
+          size={60}
+          color={colors.primary}
+        />
+        <Text style={[styles.title, {color: colors.textDarker}]}>
           {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
         </Text>
-        <Text style={styles.description}>
+        <Text style={[styles.description, {color: colors.text}]}>
           {isEnterprise
             ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
             : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
         </Text>
 
         <View style={styles.featureList}>
-          <View style={styles.featureItem}>
+          <View style={[styles.featureItem, {borderColor: colors.primary}]}>
             <MaterialIcons
-              name="check-circle"
-              size={20}
-              color={PRIMARY_COLOR}
+              name="check-circle-outlined"
+              size={30}
+              color={colors.primary}
             />
-            <Text style={styles.featureText}>
+            <Text style={[styles.featureText, {color: colors.primary}]}>
               {isEnterprise ? 'Official Business Review' : 'Secure & Encrypted'}
             </Text>
           </View>
-          <View style={styles.featureItem}>
+          <View style={[styles.featureItem, {borderColor: colors.primary}]}>
             <MaterialIcons
-              name="check-circle"
-              size={20}
-              color={PRIMARY_COLOR}
+              name="check-circle-outlined"
+              size={30}
+              color={colors.primary}
             />
-            <Text style={styles.featureText}>Takes less than 2 minutes</Text>
+            <Text style={[styles.featureText, {color: colors.primary}]}>Takes less than 2 minutes</Text>
           </View>
         </View>
+        <TouchableOpacity
+          style={[styles.button, {backgroundColor: colors.btnColor}]}
+          onPress={handleStartVerification}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.btnTextColor} size={'small'} />
+          ) : (
+            <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Start Verification</Text>
+          )}
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleStartVerification}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text style={styles.buttonText}>Start Verification</Text>
-        )}
-      </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    padding: 15,
     alignContent: 'center',
   },
-  content: { alignItems: 'center' },
-  iconContainer: {
-    marginBottom: 15,
+  subContainer: {
+    alignContent: 'center',
+    padding: 20,
+    borderRadius: 15,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-    marginBottom: 15,
+    marginVertical: 15,
   },
   description: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
-    textAlign: 'center',
+    marginBottom: 15
   },
   featureList: {
-    marginTop: 15,
+    marginBottom: 15,
     width: '100%',
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 15
   },
-  featureItem: { alignItems: 'center', padding: 10 },
-  featureText: { marginTop: 6, fontSize: 14, color: PRIMARY_COLOR_TINT },
+  featureItem: { alignItems: 'center', padding: 10, borderWidth: 1, borderRadius: 15 },
+  featureText: { marginTop: 6, fontSize: 14, },
   button: {
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 16,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
-  buttonText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  buttonText: { fontSize: 14, fontWeight: '600' },
 });

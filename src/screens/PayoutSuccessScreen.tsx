@@ -1,122 +1,117 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
+import { useTheme } from '../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PayoutSuccess'>;
 
 export const PayoutSuccess = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const { amount, transactionId } = route.params;
 
   return (
-    <View style={styles.container}>
-      <MaterialIcons
-        name="account-balance-wallet"
-        size={60}
-        color={PRIMARY_COLOR}
-      />
-      
-      <Text style={styles.congrats}>Payout Requested!</Text>
-      
-      <View style={styles.card}>
-        <Text style={styles.label}>Amount Disbursed</Text>
-        <CurrencyDisplay value={amount} size="large" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons
+          name="check-circle-outlined"
+          size={60}
+          color={colors.primary}
+        />
 
-        <View style={styles.divider} />
+        <Text style={[styles.congrats, { color: colors.textDarker }]}>
+          Payout Requested!
+        </Text>
 
-        <Text style={styles.details}>To Your iCash Wallet</Text>
-        <Text style={styles.details}>Ref: #{transactionId}</Text>
+        <Text style={[styles.label, { color: colors.text }]}>
+          Amount Disbursed
+        </Text>
+        <CurrencyDisplay value={amount} size="large" isSuccess={true} />
+
+        <Text style={[styles.details, { color: colors.text }]}>
+          Ref: #{transactionId}
+        </Text>
+
+        <Text style={[styles.infoText, { color: colors.text }]}>
+          Your payout has been successfully processed. It usually takes a few
+          seconds to reflect in your iCash dashboard.
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.btnColor }]}
+          onPress={() =>
+            navigation.navigate('ICashDashboard', { refresh: true })
+          }
+        >
+          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+            Go to Wallet
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('Home', {
+              activeTab: 'home',
+            })
+          }
+        >
+          <Text style={[styles.backHome, { color: colors.primary }]}>
+            Back to Home
+          </Text>
+        </TouchableOpacity>
       </View>
-
-      <Text style={styles.infoText}>
-        Your payout has been successfully processed. It usually takes a few seconds to reflect in your iCash dashboard.
-      </Text>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('ICashDashboard', { refresh: true })}
-      >
-        <Text style={styles.buttonText}>Go to Wallet</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => navigation.navigate('Home', {
-            activeTab: 'home'
-        })}
-      >
-        <Text style={styles.backHome}>Back to Home</Text>
-      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,  
-    alignContent: 'center', 
-    backgroundColor: '#fff', 
-    padding: 20 
+  container: {
+    flex: 1,
+    alignContent: 'center',
+    padding: 15,
   },
-  congrats: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
-    color: PRIMARY_COLOR, 
-    marginVertical: 20 
+  subContainer: {
+    borderRadius: 15,
+    alignContent: 'center',
+    padding: 20,
   },
-  card: { 
-    width: '100%', 
-    backgroundColor: '#fadccc',
-    borderWidth: .8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 20, 
-    padding: 25, 
-    alignItems: 'center', 
-    marginBottom: 20 
+  congrats: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 20,
   },
-  label: { 
-    fontSize: 13, 
-    color: PRIMARY_COLOR_TINT, 
-    letterSpacing: 1.2, 
-    marginBottom: 10 
+  label: {
+    fontSize: 14,
+    marginBottom: 15,
   },
-  divider: { 
-    height: 1, 
-    width: '100%', 
-    backgroundColor: '#eee', 
-    marginVertical: 15 
+  details: {
+    fontSize: 12,
+    marginBottom: 15,
   },
-  details: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 5 
-  },
-  infoText: { 
-    textAlign: 'center', 
-    color: '#888', 
-    paddingHorizontal: 20, 
+  infoText: {
     marginBottom: 30,
-    lineHeight: 20
+    fontSize: 14,
   },
-  button: { 
-    backgroundColor: PRIMARY_COLOR, 
-    width: '100%', 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    paddingVertical: 15, 
-    marginBottom: 15 
+  button: {
+    width: '80%',
+    borderRadius: 15,
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 15,
   },
-  buttonText: { 
-    color: '#fff', 
-    fontWeight: 'bold', 
-    fontSize: 16 
+  buttonText: {
+    fontWeight: 'bold',
+    fontSize: 14,
   },
-  backHome: { 
-    color: PRIMARY_COLOR, 
-    fontSize: 15, 
+  backHome: {
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 10
-  }
+  },
 });

@@ -19,11 +19,7 @@ import { useAppSelector } from '../components/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
 // @ts-ignore: runOnJS is deprecated in Reanimated but stable for Vision Camera
 import { runOnJS } from 'react-native-reanimated';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { ITagCard } from '../components/iTag';
@@ -31,6 +27,8 @@ import { MyQRCodeSection } from '../components/MyQRCodeSection';
 import { FeatureCard } from '../components/P2PFeatureCardComponent';
 import { searchUsersByITag } from '../api/localGetApis';
 import { executeP2PTransfer } from '../api/localPostApis';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 interface ITagSearchResult {
   userId: string;
@@ -68,6 +66,7 @@ export const AnimatedCardWrapper = ({
   );
 };
 export const IcashP2PScreen = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
@@ -80,21 +79,16 @@ export const IcashP2PScreen = () => {
   const [searchResult, setSearchResult] = useState<ITagSearchResult | null>(
     null,
   );
-
-  // Form States
   const [recipientTag, setRecipientTag] = useState('');
   const [amount, setAmount] = useState('');
-  // Inside your IcashP2PScreen component
+
   const numericAmount = parseFloat(amount) || 0;
   const hasSufficientFunds = user?.pointsBalance! >= numericAmount;
   const isInputValid =
     numericAmount > 0 && recipientTag.length > 0 && searchResult;
-  const isSendingToSelf = searchResult?.isUser === true; // Check the new backend flag
-
-  // The button is only enabled if all these are true
+  const isSendingToSelf = searchResult?.isUser === true;
   const canContinue = isInputValid && hasSufficientFunds && !isSendingToSelf;
 
-  // Determine the button label dynamically
   const getButtonText = () => {
     if (isSendingToSelf) return 'Cannot send to yourself';
     if (isLoading) return 'Processing...';
@@ -135,8 +129,6 @@ export const IcashP2PScreen = () => {
       setHasPermission(status === 'granted');
     })();
   }, []);
-
-  // 3. Define the Frame Processor to scan barcodes
   const frameProcessor = useFrameProcessor(
     frame => {
       'worklet';
@@ -202,7 +194,7 @@ export const IcashP2PScreen = () => {
       if (recipientTag.length >= 3) {
         handleSearch(recipientTag);
       } else {
-        setSearchResult(null); // Clear result if input is too short
+        setSearchResult(null);
       }
     }, 500);
 
@@ -210,33 +202,60 @@ export const IcashP2PScreen = () => {
   }, [recipientTag]);
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="iCash P2P Transfers" />
-      <View style={styles.tabWrapper}>
+      <View
+        style={[
+          styles.tabWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <TouchableOpacity
           style={[styles.tab, activeTab === 'send' && styles.activeTab]}
           onPress={() => setActiveTab('send')}
         >
-          <Text style={styles.tabText}>Send</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'send'
+                ? { color: colors.primary }
+                : { color: colors.text },
+            ]}
+          >
+            Send
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'receive' && styles.activeTab]}
           onPress={() => setActiveTab('receive')}
         >
-          <Text style={styles.tabText}>Receive</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'receive'
+                ? { color: colors.primary }
+                : { color: colors.text },
+            ]}
+          >
+            Receive
+          </Text>
         </TouchableOpacity>
       </View>
       {activeTab === 'send' ? (
         <>
           {step === 'selection' && (
-            <View style={{ marginTop: 20 }}>
+            <View style={styles.cardDiv}>
               <FeatureCard
                 title="Scan QR Code"
                 sub="Scan to pay instantly"
                 icon="qr-code-outlined"
                 onPress={() => setScannerVisible(true)}
               />
-              \
               <FeatureCard
                 title="Send via iTag"
                 sub="Search @username"
@@ -246,20 +265,27 @@ export const IcashP2PScreen = () => {
             </View>
           )}
           {step === 'tagInput' && (
-            <View style={styles.inputSection}>
-              <Text style={styles.sectionLabel}>Recipient iTag</Text>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.atSymbol}>@</Text>
+            <>
+              <Text style={[styles.sectionLabel, { color: colors.text }]}>
+                Recipient iTag
+              </Text>
+              <View
+                style={[styles.inputWrapper, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.atSymbol, { color: colors.primary }]}>
+                  @
+                </Text>
                 <TextInput
-                  style={styles.textInput}
-                  placeholder="username"
+                  style={[styles.textInput, { color: colors.text }]}
+                  placeholder="Recipient's itag username"
                   value={recipientTag}
                   onChangeText={setRecipientTag}
                   autoCapitalize="none"
+                  placeholderTextColor={colors.inputTextHolder}
                 />
               </View>
               {isSearching && (
-                <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+                <ActivityIndicator size="small" color={colors.primary} />
               )}
               {searchResult && (
                 <AnimatedCardWrapper>
@@ -272,35 +298,56 @@ export const IcashP2PScreen = () => {
               )}
               {searchResult && (
                 <>
-                  <Text style={styles.sectionLabel}>Amount (iCash)</Text>
-                  <View style={styles.inputWrapper}>
-                    <Icon
-                      name="diamond"
+                  <Text
+                    style={[
+                      styles.sectionLabel,
+                      { color: colors.text, marginTop: 15 },
+                    ]}
+                  >
+                    Amount (iCash)
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { borderColor: colors.border },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="diamond-outlined"
                       size={24}
-                      color={PRIMARY_COLOR}
-                      style={{ marginRight: 5 }}
+                      color={colors.primary}
+                      style={{ marginHorizontal: 5 }}
                     />
                     <TextInput
-                      style={styles.textInput}
+                      style={[styles.textInput, { color: colors.text }]}
                       placeholder="0.00"
                       keyboardType="numeric"
                       value={amount}
                       onChangeText={setAmount}
+                      placeholderTextColor={colors.inputTextHolder}
                     />
                   </View>
                   <TouchableOpacity
                     style={[
                       styles.sendButton,
                       !canContinue && styles.disabledButton,
+                      { backgroundColor: colors.btnColor },
                     ]}
                     onPress={handleContinue}
                     disabled={!canContinue}
                   >
-                    <Text style={styles.sendButtonText}>{getButtonText()}</Text>
+                    <Text
+                      style={[
+                        styles.sendButtonText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
+                      {getButtonText()}
+                    </Text>
                   </TouchableOpacity>
                 </>
               )}
-            </View>
+            </>
           )}
         </>
       ) : (
@@ -319,7 +366,6 @@ export const IcashP2PScreen = () => {
                   isActive={scannerVisible}
                   frameProcessor={frameProcessor}
                 />
-                {/* Visual Frame Overlay */}
                 <View style={styles.scanFrame} />
               </>
             ) : (
@@ -328,22 +374,20 @@ export const IcashP2PScreen = () => {
               </Text>
             )}
           </View>
-
           <TouchableOpacity
-            style={styles.closeScanner}
+            style={[
+              styles.closeScanner,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
             onPress={() => setScannerVisible(false)}
           >
-            <Icon name="close" size={30} color="#FFF" />
+            <MaterialIcons
+              name="cancel-outlined"
+              size={30}
+              color={colors.text}
+            />
           </TouchableOpacity>
-
-          <Text
-            style={{
-              color: '#FFF',
-              position: 'absolute',
-              bottom: 100,
-              textAlign: 'center',
-            }}
-          >
+          <Text style={[styles.qrText, { color: colors.btnTextColor }]}>
             Align QR code within the frame
           </Text>
         </View>
@@ -351,7 +395,7 @@ export const IcashP2PScreen = () => {
       <IcashPinOrFingerprintVerifyModal
         isVisible={isPinModalVisible}
         onClose={() => setIsPinModalVisible(false)}
-        onSuccess={handlePinSuccess} // Runs the final transaction
+        onSuccess={handlePinSuccess}
         title="Confirm Transaction"
         navigation={navigation}
       />
@@ -361,148 +405,43 @@ export const IcashP2PScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 15,
+    alignContent: 'center',
+    paddingBottom: 30,
   },
-  // --- Tab Switcher Styles ---
   tabWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fadccc',
-    margin: 20,
-    borderRadius: 12,
-    padding: 4,
+    justifyContent: 'space-around',
   },
   tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    alignContent: 'center',
+    padding: 15,
     borderRadius: 10,
-    gap: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   activeTab: {
-    backgroundColor: PRIMARY_COLOR,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderBottomColor: PRIMARY_COLOR,
   },
   tabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: PRIMARY_COLOR,
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-
-  // --- Feature Card Styles ---
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 15,
-    padding: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    // Standard iCampus card shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: PRIMARY_COLOR + '15', // 15% opacity version of primary
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 15,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  cardSub: {
-    fontSize: 13,
-    color: '#64748B',
-  },
-  lockedCard: {
-    opacity: 0.6,
-    backgroundColor: '#F8FAFC',
-  },
-
-  // --- Receive Section (QR & NFC) ---
-  qrSection: {
-    alignItems: 'center',
-    padding: 30,
-    marginTop: 10,
-  },
-  qrWrapper: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    // Extra pop for the QR code
-    shadowColor: PRIMARY_COLOR,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 5,
-  },
-  iTagText: {
-    marginTop: 15,
-    fontSize: 18,
-    fontWeight: '800',
-    color: PRIMARY_COLOR,
-    letterSpacing: 1,
-  },
-  nfcSection: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: '#F0F9FF', // Light blue for Premium feel
-    borderWidth: 1,
-    borderColor: '#B9E6FE',
-    alignItems: 'center',
-  },
-  nfcButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 10,
-    gap: 10,
-  },
-  nfcText: {
-    color: '#0369A1',
+    fontSize: 14,
     fontWeight: '600',
   },
-  inputSection: {
-    padding: 20,
+  cardDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    marginVertical: 20,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fadccc',
     borderRadius: 12,
-    paddingHorizontal: 15,
+    height: 60,
+    width: '100%',
     borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
+    marginBottom: 20,
   },
   resultContainer: {
     marginVertical: 20,
@@ -521,27 +460,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   sectionLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#222',
-    marginBottom: 8,
-    marginTop: 10,
+    marginBottom: 5,
   },
   fullScreenModal: {
     flex: 1,
     backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
+    alignContent: 'center',
+    zIndex: 10,
+    position: 'relative',
   },
   closeScanner: {
     position: 'absolute',
     top: 20,
     right: 20,
-    zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    padding: 5,
+    zIndex: 20,
+    borderRadius: 15,
+    padding: 6,
   },
   cameraPlaceholder: {
     flex: 1,
@@ -552,26 +488,21 @@ const styles = StyleSheet.create({
   },
   atSymbol: {
     fontSize: 14,
-    color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    marginRight: 5,
+    marginHorizontal: 5,
   },
   textInput: {
     flex: 1,
-    height: 50,
-    fontSize: 16,
-    color: '#2222',
+    fontSize: 14,
   },
   sendButton: {
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignContent: 'center',
+    marginTop: 15,
   },
   sendButtonText: {
-    color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -586,5 +517,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'transparent',
     position: 'absolute',
+  },
+  qrText: {
+    marginVertical: 15,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

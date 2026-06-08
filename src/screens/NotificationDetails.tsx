@@ -5,28 +5,19 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { EmptyState } from '@components/EmptyFlatlistComponent';
 import type { RootStackParamList } from '../../App';
-import { NotificationPageStyles } from '../assets/styles/colors';
 import { fetchNotificationDetails } from '../api/localGetApis';
 import { Notification } from '../types/firebase';
-import { PRIMARY_COLOR } from '../components/Classroomcomponent';
 import { formatDateWithSuffix } from '../utils/dateFormatter';
 import { PageHeader } from '../components/PageHeader';
-
-const EmptyNotification = () => (
-  <View style={NotificationPageStyles.emptyNotifications}>
-    <MaterialIcons name="notifications-off" size={20} color="#807f7fff" />
-    <Text style={NotificationPageStyles.emptyNotificationsText}>
-      Notification not found.
-    </Text>
-  </View>
-);
-// ... (keep existing imports)
+import { useTheme } from '../context/ThemeContext';
 
 export default function NotificationDetails() {
+  const { colors } = useTheme();
   const route =
     useRoute<RouteProp<RootStackParamList, 'NotificationDetails'>>();
   const { notificationId, notification: passedNotification } = route.params;
@@ -61,82 +52,101 @@ export default function NotificationDetails() {
     notification?.category === 'security';
 
   return (
-    <ScrollView contentContainerStyle={NotificationDetailsStyles.container}>
+    <ScrollView
+      contentContainerStyle={[
+        NotificationDetailsStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="Notification Details" />
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', marginTop: 100 }}>
-          <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : notification ? (
-        <View style={NotificationDetailsStyles.content}>
-          {/* Notification Title */}
-          <Text style={NotificationDetailsStyles.message1}>
+        <View
+          style={[
+            NotificationDetailsStyles.content,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text
+            style={[
+              NotificationDetailsStyles.message1,
+              { color: colors.textDarker },
+            ]}
+          >
             {notification.title}
           </Text>
-          {/* Notification Body */}
-          <Text style={NotificationDetailsStyles.message}>
+          <Text
+            style={[NotificationDetailsStyles.message, { color: colors.text }]}
+          >
             {notification.message}
           </Text>
-
-          {/* Security Warning Section */}
           {isSecurityAlert && (
-            <View style={NotificationDetailsStyles.securityWarningBox}>
-              <Text style={NotificationDetailsStyles.securityWarningText}>
+            <View
+              style={[
+                NotificationDetailsStyles.securityWarningBox,
+                { borderLeftColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[
+                  NotificationDetailsStyles.securityWarningText,
+                  { color: colors.text },
+                ]}
+              >
                 If this was not you, please immediately contact
-                <Text style={{ fontWeight: 'bold' }}> support@icampus.com</Text>
+                <TouchableOpacity>
+                  <Text style={{ color: colors.primary }}>
+                    {' '}
+                    support@icampus.com
+                  </Text>
+                </TouchableOpacity>
               </Text>
             </View>
           )}
-
-          {/* Timestamp */}
-          <Text style={NotificationDetailsStyles.date}>
+          <Text
+            style={[NotificationDetailsStyles.date, { color: colors.text }]}
+          >
             {notification?.createdAt
               ? formatDateWithSuffix(notification.createdAt)
               : 'Date not available'}
           </Text>
         </View>
       ) : (
-        <EmptyNotification />
+        <EmptyState
+          iconName="notifications-none"
+          title="Notification detail not Found"
+        />
       )}
     </ScrollView>
   );
 }
 const NotificationDetailsStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee', maxWidth: '100%' },
+  container: { flex: 1, paddingHorizontal: 15 },
   content: {
     padding: 15,
-    width: '95%',
-    alignSelf: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginVertical: 7,
-    justifyContent: 'flex-start',
+    borderRadius: 15,
+    marginVertical: 15,
   },
   title: { fontSize: 20, fontWeight: 'bold' },
-  message: { marginBottom: 10, color: '#2222', fontSize: 14 },
+  message: { marginBottom: 15, fontSize: 14 },
   message1: {
-    paddingVertical: 10,
-    color: '#2222',
+    marginBottom: 15,
     fontWeight: '700',
-    alignSelf: 'center',
-    fontSize: 17,
+    fontSize: 15,
   },
   securityWarningBox: {
-    marginTop: 6,
     padding: 15,
-    backgroundColor: '#fff5f5',
-    borderRadius: 8,
-    borderWidth: 0.8,
+    borderLeftWidth: 1,
   },
   securityWarningText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
   },
   date: {
-    color: '#888',
     alignSelf: 'flex-end',
-    marginVertical: 7,
+    fontSize: 12,
   },
 });

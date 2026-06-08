@@ -406,9 +406,8 @@ export const FAQItem = ({ question, answer }: FAQItemProps) => {
 const QRCodeStyles = StyleSheet.create({
   qrSection: {
     alignItems: 'center',
-    paddingTop: 30,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    padding: 20,
+    borderRadius: 15,
   },
   qrSection2: {
     alignItems: 'center',
@@ -449,9 +448,8 @@ const QRCodeStyles = StyleSheet.create({
     textAlign: 'center',
   },
   cardContainer: {
-    width: '100%',
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 15,
+    marginBottom: 15,
     elevation: 3,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
