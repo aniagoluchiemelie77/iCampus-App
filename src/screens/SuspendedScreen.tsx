@@ -2,16 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { getUserAccountState } from '../api/localGetApis';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type Props = StackScreenProps<RootStackParamList, 'SuspendedScreen'>;
 
 export const SuspendedScreen = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const { reason } = route.params;
   const [checking, setChecking] = useState(false);
   const handleContactSupport = () => {
@@ -38,52 +36,83 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Icon name="account-cancel" size={100} color={PRIMARY_COLOR} />
-      <Text style={styles.title}>Account Restricted</Text>
-      <Text style={styles.reasonText}>
-        {reason || 'Security protocol triggered.'}
-      </Text>
-
-      <View style={styles.infoBox}>
-        <Text style={styles.infoText}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons name="info-outlined" size={60} color={colors.primary} />
+        <Text style={[styles.title, { color: colors.textDarker }]}>
+          Account Restricted
+        </Text>
+        <Text style={[styles.reasonText, { color: colors.text }]}>
+          {reason || 'Security protocol triggered.'}
+        </Text>
+        <Text style={[styles.infoText, { color: colors.text }]}>
           Your iCampus account has been restricted. This usually happens after
           multiple failed iCash PIN attempts or suspicious activity. You cannot
           access services until this is resolved.
         </Text>
+
+        <TouchableOpacity
+          style={[styles.primaryBtn, { backgroundColor: colors.btnColor }]}
+          onPress={checkAccountStatus}
+          disabled={checking}
+        >
+          {checking ? (
+            <ActivityIndicator color={colors.btnTextColor} size="small" />
+          ) : (
+            <Text
+              style={[styles.primaryBtnText, { color: colors.btnTextColor }]}
+            >
+              Refresh Account Status
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.supportLink}
+          onPress={handleContactSupport}
+        >
+          <MaterialIcons
+            name="email-outlined"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={[styles.supportLinkText, { color: colors.primary }]}>
+            Contact iCampus Security
+          </Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={styles.primaryBtn}
-        onPress={checkAccountStatus}
-        disabled={checking}
-      >
-        {checking ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryBtnText}>Refresh Account Status</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.supportLink}
-        onPress={handleContactSupport}
-      >
-        <Icon name="email-outline" size={20} color={PRIMARY_COLOR} />
-        <Text style={styles.supportLinkText}>Contact iCampus Security</Text>
-      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 30, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 26, fontWeight: 'bold', color: PRIMARY_COLOR, marginTop: 20 },
-  reasonText: { fontSize: 16, color: PRIMARY_COLOR_TINT, fontWeight: '600', marginTop: 8 },
-  infoBox: { backgroundColor: '#eee7e4', padding: 20, borderRadius: 16, marginVertical: 30, borderLeftWidth: 4, borderLeftColor: PRIMARY_COLOR },
-  infoText: { fontSize: 14, color: PRIMARY_COLOR_TINT, textAlign: 'left', lineHeight: 22 },
-  primaryBtn: { backgroundColor: PRIMARY_COLOR, width: '80%', padding: 18, borderRadius: 14, alignItems: 'center', elevation: 2 },
-  primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  supportLink: { marginTop: 30, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  supportLinkText: { color: PRIMARY_COLOR, fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
+  container: { flex: 1, padding: 15, alignContent: 'center' },
+  subContainer: { borderRadius: 15, padding: 20, alignContent: 'center' },
+  title: { fontSize: 18, fontWeight: 'bold', marginVertical: 20 },
+  reasonText: { fontSize: 14, fontWeight: '600', marginBottom: 15 },
+  infoText: { fontSize: 14, marginBottom: 20 },
+  primaryBtn: {
+    width: '80%',
+    paddingVertical: 10,
+    borderRadius: 15,
+    alignItems: 'center',
+    elevation: 2,
+  },
+  primaryBtnText: { fontWeight: 'bold', fontSize: 14 },
+  supportLink: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  supportLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
 });

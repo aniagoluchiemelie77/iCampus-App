@@ -196,7 +196,6 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
   historyContainer: {
-    paddingHorizontal: 20,
     paddingBottom: 20,
   },
   historyHeader: {
@@ -205,6 +204,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
     padding: 15,
+    borderRadius: 15,
   },
   transactionItem: {
     flexDirection: 'row',

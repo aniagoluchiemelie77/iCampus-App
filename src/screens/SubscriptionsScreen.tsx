@@ -12,10 +12,12 @@ import Toast from 'react-native-toast-message';
 import {verifySubscriptionOnBackend} from '../api/localPostApis';
 import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
 import { USD_SUBSCRIPTION_PRICES } from '../constants/inAppConstants';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.85;
+const CARD_WIDTH = width * 0.80;
 type SubscriptionTier = User['tier'] | 'free';
+
 type FlutterwaveCurrency =
   | 'NGN'
   | 'USD'
@@ -47,6 +49,7 @@ export const FlutterwaveButton = ({
 );
 
 export const SubscriptionScreen = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const { tier, email, firstname, lastname, country } = useAppSelector(
     state => state.user,
   );
@@ -87,8 +90,8 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
       features: [
         'Basic Profile',
         '1x Post Impression Boost',
-        '2 Free Lectures Exceptions Per Month',
-        'Drop-off location for purchased items',
+        '1 Free Lecture Exceptions Per Month',
+        'Drop-off location only for purchased items',
         'Standard Search',
       ],
     },
@@ -98,7 +101,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
       features: [
         'Subscribed Badge',
         '2x Post Impression Boost',
-        '4 Free Lectures Exceptions Per Month',
+        '2 Free Lectures Exceptions Per Month',
         'Home Delivery or Drop-off location for purchased items',
         'Standard Search + AI Suggestions',
         'Create Paid Courses',
@@ -113,7 +116,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
       features: [
         'Premium Badge',
         '5x Post Impression Boost',
-        '6 Free Lectures Exceptions Per Month',
+        '3 Free Lectures Exceptions Per Month',
         'Free Shipping or Home Delivery or Drop-off location for purchased items',
         'Optimized Search + AI Suggestions + Ghost Mode',
         'Create Paid Courses',
@@ -173,7 +176,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, {backgroundColor: colors.background}]}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       <PageHeader title="Subscription Plans" />
@@ -196,24 +199,24 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                 key={plan.id}
                 style={[
                   styles.card,
-                  { width: CARD_WIDTH },
+                  { width: CARD_WIDTH, backgroundColor: colors.backgroundSecondary },
                   isSelected && styles.selectedCard,
-                  isCurrentPlan && styles.currentPlanBorder, // Primary color border
+                  isCurrentPlan && styles.currentPlanBorder,
                 ]}
               >
                 {isCurrentPlan && (
-                  <View style={styles.currentPlanLabel}>
-                    <Text style={styles.currentPlanLabelText}>
+                  <View style={[styles.currentPlanLabel, {backgroundColor: colors.btnColor}]}>
+                    <Text style={[styles.currentPlanLabelText, {color: colors.btnTextColor}]}>
                       Your current plan
                     </Text>
                   </View>
                 )}
                 <View style={styles.cardHeader}>
-                  <Text style={styles.planName}>{plan.name}</Text>
+                  <Text style={[styles.planName, {color: colors.text}]}>{plan.name}</Text>
                   {isCurrentPlan ? (
-                    <Text style={styles.badgeText}>Active</Text>
+                    <Text style={[styles.badgeText, {color: colors.primary}]}>Active</Text>
                   ) : (
-                    <Text style={styles.badgeText}>
+                    <Text style={[styles.badgeText, {color: colors.primary}]}>
                       {formatLocalPrice(plan.id!)}
                     </Text>
                   )}
@@ -224,9 +227,9 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                       <MaterialIcons
                         name="check-circle-outlined"
                         size={16}
-                        color={PRIMARY_COLOR}
+                        color={colors.primary}
                       />
-                      <Text style={styles.featureText}>{f}</Text>
+                      <Text style={[styles.featureText, {color: colors.text}]}>{f}</Text>
                     </View>
                   ))}
                 </View>
@@ -237,9 +240,9 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                       setPayModalVisible(true);
                     }}
                     disabled={isCurrentPlan}
-                    style={styles.payButton}
+                    style={[styles.payButton, {backgroundColor: colors.btnColor}]}
                   >
-                    <Text style={styles.payButtonText}>Select Plan</Text>
+                    <Text style={[styles.payButtonText, {color: colors.btnTextColor}]}>Select Plan</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -257,15 +260,15 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
         onSwipeComplete={() => setPayModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Confirm Subscription</Text>
-            <Text style={styles.modalSubTitle}>
+            <Text style={[styles.modalTitle, {color: colors.textDarker}]}>Confirm Subscription</Text>
+            <Text style={[styles.modalSubTitle, {color: colors.text}]}>
               You are upgrading to the {selectedTier?.toUpperCase()} plan.
             </Text>
             <View style={styles.priceBreakdown}>
-              <Text style={styles.priceLabel}>Total to pay:</Text>
-              <Text style={styles.priceValue}>
+              <Text style={[styles.priceLabel, {color: colors.text}]}>Total to pay:</Text>
+              <Text style={[styles.priceValue, {color: colors.text}]}>
                 {formatLocalPrice(selectedTier!)}
               </Text>
             </View>
@@ -288,7 +291,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
               style={styles.cancelButton}
               onPress={() => setPayModalVisible(false)}
             >
-              <Text style={styles.cancelButtonText}>Go Back</Text>
+              <Text style={[styles.cancelButtonText, {color: colors.primary}]}>Go Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -298,16 +301,14 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', },
+  container: { flex: 1, paddingHorizontal: 15 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  planName: { fontSize: 17, fontWeight: 'bold', color: '#222' },
-  price: { fontSize: 28, fontWeight: '800', marginVertical: 10 },
-  perMonth: { fontSize: 14, fontWeight: '400', color: '#666' },
-  featureRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  featureText: { marginLeft: 8, color: '#2222' },
-  badgeText: { color: PRIMARY_COLOR, fontSize: 12, fontWeight: 'bold' },
-  payButton: { backgroundColor: PRIMARY_COLOR, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10, width: '100%' },
-  payButtonText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+  planName: { fontSize: 14, fontWeight: 'bold' },
+  featureRow: { flexDirection: 'row', alignItems: 'center'},
+  featureText: { marginLeft: 8, fontSize: 14 },
+  badgeText: { fontSize: 12, fontWeight: 'bold' },
+  payButton: { paddingHorizontal: 16, borderRadius: 15, alignContent: 'center', marginTop: 8, width: '80%', paddingVertical: 10, alignSelf: 'center' },
+  payButtonText: { fontSize: 14, fontWeight: 'bold' },
   horizontalWrapper: {
     marginVertical: 20,
   },
@@ -315,11 +316,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
   },
   card: {
-    backgroundColor: '#fadccc',
     borderRadius: 20,
     padding: 20,
     marginRight: 20, 
-    height: 420,
+    height: 400,
     elevation: 4,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
@@ -338,33 +338,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -12,
     left: 20,
-    backgroundColor: PRIMARY_COLOR, 
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 7,
     borderRadius: 8,
     zIndex: 10,
   },
   currentPlanLabelText: {
-    color: '#FFF',
     fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'capitalize',
   },
   featureList: {
-    marginTop: 10,
-    flex: 1,
-  },
-  continueButton: {
-    backgroundColor: '#007AFF', // PRIMARY_COLOR
-    margin: 20,
-    padding: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
+    marginVertical: 15,
   },
   modalOverlay: {
     flex: 1,
@@ -372,10 +357,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
     paddingBottom: 40,
   },
   modalHandle: {
@@ -390,45 +374,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#222',
   },
   modalSubTitle: {
-    fontSize: 13,
-    color: '#2222',
+    fontSize: 12,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 15,
+    marginVertical: 15,
   },
   priceBreakdown: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    padding: 13,
-    borderRadius: 12,
     marginBottom: 15,
   },
   priceLabel: {
     fontSize: 14,
-    color: '#2222',
   },
   priceValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
   },
   cancelButton: {
-    marginTop: 16,
+    marginTop: 15,
     alignItems: 'center',
-    backgroundColor: '#fadccc',
-    padding: 18,    
-    borderRadius: 12,
+    padding: 15,    
+    borderRadius: 15,
     alignSelf: 'center',
     alignContent: 'center',
-    borderColor: PRIMARY_COLOR_TINT,
-    borderWidth: .8,
   },
   cancelButtonText: {
-    color: PRIMARY_COLOR,
     fontSize: 14,
     fontWeight: '600',
   },

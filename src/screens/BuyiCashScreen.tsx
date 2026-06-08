@@ -277,7 +277,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
         {!hasPaymentMethod && (
           <View style={iCashActionsStyles.warningBox}>
             <MaterialIcons
-              name="error-outline-outlined"
+              name="info-outlined"
               size={20}
               color={colors.primary}
             />
@@ -359,11 +359,16 @@ export const iCashActionsStyles = StyleSheet.create({
     height: 60,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
+    marginBottom: 15,
   },
   currencyPrefix: {
     fontSize: 23,
     fontWeight: 'bold',
     marginRight: 10,
+  },
+  resultValue: {
+    fontSize: 30,
+    fontWeight: 'bold',
   },
   exchangeRow: {
     flexDirection: 'row',
@@ -454,52 +459,50 @@ export const iCashActionsStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     padding: 20,
     paddingBottom: 40,
+    alignItems: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
+    width: '100%',
   },
   modalTitle: {
     fontSize: 18,
-    color: PRIMARY_COLOR_TINT,
     fontWeight: 'bold',
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 15,
     borderBottomWidth: 0.5,
     borderBottomColor: PRIMARY_COLOR_TINT,
+    width: '100%',
   },
   detailRowText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#2222',
   },
   detailRowSubrow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  totalRow: { borderBottomWidth: 0, marginTop: 10 },
-  totalText: { fontWeight: 'bold', fontSize: 15, color: PRIMARY_COLOR },
+  totalText: { fontWeight: 'bold', fontSize: 15 },
   payBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 16,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 15,
     alignItems: 'center',
-    marginTop: 20,
-    width: '100%',
+    marginTop: 10,
   },
   payBtnText: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: 'bold',
   },
   pinInput: {
@@ -513,5 +516,10 @@ export const iCashActionsStyles = StyleSheet.create({
     opacity: 0,
     width: 1,
     height: 1,
+  },
+  resultDiv: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    width: '100%',
   },
 });

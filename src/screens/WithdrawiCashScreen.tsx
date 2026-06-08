@@ -12,19 +12,18 @@ import {
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 import { initializeWithdrawTransaction } from '../api/localPostApis';
 import { useAppSelector } from '../components/hooks';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
 import { UserBankOrCardDetails } from 'types/firebase';
 import { getUserPaymentMethods } from 'api/localGetApis.ts';
+import { useTheme } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 export const ICashWithdrawPage = ({ navigation }: any) => {
+  const { colors } = useTheme();
   const route = useRoute();
   const user = useAppSelector(state => state.user);
   const [iCashAmount, setICashAmount] = useState('');
@@ -171,51 +170,84 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
     selectedMethod,
     navigation,
   ]);
-
   const withdrawalMethods = savedMethods.filter(type => type.method === 'bank');
   return (
-    <ScrollView style={iCashActionsStyles.container}>
+    <ScrollView
+      style={[
+        iCashActionsStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="Withdraw iCash" />
-      <View style={iCashActionsStyles.bodyContainer}>
-        <Text style={iCashActionsStyles.label}>Enter iCash to Withdraw</Text>
+      <View
+        style={[
+          iCashActionsStyles.bodyContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[iCashActionsStyles.label, { color: colors.text }]}>
+          Enter iCash to Withdraw
+        </Text>
         <View style={iCashActionsStyles.inputContainer}>
-          <Icon
-            name="diamond"
+          <MaterialIcons
+            name="diamond-outlined"
             size={20}
-            color={PRIMARY_COLOR}
-            style={{ marginRight: 8 }}
+            color={colors.primary}
+            style={{ marginRight: 5 }}
           />
           <TextInput
-            style={iCashActionsStyles.inputBorderless}
+            style={[iCashActionsStyles.inputBorderless, { color: colors.text }]}
             placeholder="0.00"
             keyboardType="numeric"
             value={iCashAmount}
             onChangeText={setICashAmount}
+            placeholderTextColor={colors.inputTextHolder}
           />
         </View>
-        <View style={iCashActionsStyles.exchangeCard}>
-          <View style={iCashActionsStyles.exchangeRow}>
-            <Text style={iCashActionsStyles.exchangeText}>Exchange Rate</Text>
-            <Text style={iCashActionsStyles.exchangeValue}>
-              1 iCash ≈ {localCurrency}{' '}
-              {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
-            </Text>
-          </View>
-          <View style={iCashActionsStyles.divider} />
-          <Text style={iCashActionsStyles.resultLabel}>You will receive:</Text>
-          <View style={iCashActionsStyles.resultDiv}>
-            <Text style={iCashActionsStyles.currencyPrefix}>
-              {localCurrency}
-            </Text>
-            <Text style={iCashActionsStyles.resultValue}>
-              {localCurrencyEquivalent}
-            </Text>
-          </View>
+        <View style={iCashActionsStyles.exchangeRow}>
+          <Text
+            style={[iCashActionsStyles.exchangeText, { color: colors.text }]}
+          >
+            Exchange Rate
+          </Text>
+          <Text
+            style={[
+              iCashActionsStyles.exchangeValue,
+              { color: colors.primary },
+            ]}
+          >
+            1 iCash ≈ {localCurrency}{' '}
+            {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
+          </Text>
+        </View>
+        <Text style={[iCashActionsStyles.resultLabel, { color: colors.text }]}>
+          You are withdrawing:
+        </Text>
+        <View style={iCashActionsStyles.resultDiv}>
+          <Text
+            style={[iCashActionsStyles.currencyPrefix, { color: colors.text }]}
+          >
+            {localCurrency}
+          </Text>
+          <Text
+            style={[iCashActionsStyles.resultValue, { color: colors.success }]}
+          >
+            {localCurrencyEquivalent}
+          </Text>
         </View>
         {!hasPaymentMethod && (
           <View style={iCashActionsStyles.warningBox}>
-            <Icon name="alert-circle" size={20} color={PRIMARY_COLOR} />
-            <Text style={iCashActionsStyles.warningText}>
+            <MaterialIcons
+              name="info-outlined"
+              size={20}
+              color={colors.primary}
+            />
+            <Text
+              style={[
+                iCashActionsStyles.warningText,
+                { color: colors.primary },
+              ]}
+            >
               You haven't added a withdrawal method. Please add a bank account
               to continue.
             </Text>
@@ -234,12 +266,14 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
               item={method}
               isSelected={selectedMethod?.id === method.id}
               onSelect={() => setSelectedMethod(method)}
+              colors={colors}
             />
           ))}
         </ScrollView>
         <TouchableOpacity
           style={[
             iCashActionsStyles.buyBtn,
+            { backgroundColor: colors.btnColor },
             (!iCashAmount ||
               parseFloat(iCashAmount) <= 0 ||
               parseFloat(iCashAmount) > (user?.pointsBalance || 0)) && {
@@ -253,7 +287,12 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
             parseFloat(iCashAmount) > (user?.pointsBalance || 0)
           }
         >
-          <Text style={iCashActionsStyles.buyBtnText}>
+          <Text
+            style={[
+              iCashActionsStyles.buyBtnText,
+              { color: colors.btnTextColor },
+            ]}
+          >
             {!iCashAmount || parseFloat(iCashAmount) <= 0
               ? 'Enter Amount'
               : parseFloat(iCashAmount) > (user?.pointsBalance || 0)
@@ -273,7 +312,6 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
         user={user}
         mode="withdraw"
       />
-      {/* Withdraw details or pay verification modal */}
       {step === 'details' ? (
         <>
           <Modal
@@ -282,60 +320,93 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
             transparent={true}
           >
             <View style={iCashActionsStyles.modalOverlay}>
-              <View style={iCashActionsStyles.bottomSheet}>
+              <View
+                style={[
+                  iCashActionsStyles.bottomSheet,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
+              >
                 <View style={iCashActionsStyles.modalHeader}>
-                  <Text style={iCashActionsStyles.modalTitle}>
+                  <Text
+                    style={[
+                      iCashActionsStyles.modalTitle,
+                      { color: colors.textDarker },
+                    ]}
+                  >
                     Confirm Withdrawal
                   </Text>
                   <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
-                    <Icon name="close" size={24} color={PRIMARY_COLOR_TINT} />
+                    <MaterialIcons
+                      name="cancel"
+                      size={24}
+                      color={colors.primary}
+                    />
                   </TouchableOpacity>
                 </View>
                 <View style={iCashActionsStyles.detailRow}>
-                  <Text style={iCashActionsStyles.detailRowText}>
+                  <Text
+                    style={[
+                      iCashActionsStyles.detailRowText,
+                      { color: colors.text },
+                    ]}
+                  >
                     Withdraw Amount:
                   </Text>
-                  <View style={iCashActionsStyles.detailRowSubrow}>
-                    <Icon
-                      name="diamond"
-                      size={19}
-                      color="#2222"
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={iCashActionsStyles.detailRowText}>
-                      {iCashAmount}
-                    </Text>
-                  </View>
+                  <CurrencyDisplay value={+iCashAmount} size="medium" />
                 </View>
                 <View style={iCashActionsStyles.detailRow}>
-                  <Text style={iCashActionsStyles.detailRowText}>
+                  <Text
+                    style={[
+                      iCashActionsStyles.detailRowText,
+                      { color: colors.text },
+                    ]}
+                  >
                     Charges (1%):
                   </Text>
-                  <Text style={iCashActionsStyles.detailRowText}>
+                  <Text
+                    style={[
+                      iCashActionsStyles.detailRowText,
+                      { color: colors.text },
+                    ]}
+                  >
                     {' '}
                     - {localCurrency}
                     {fee.toFixed(2)}
                   </Text>
                 </View>
-                <View
-                  style={[
-                    iCashActionsStyles.detailRow,
-                    iCashActionsStyles.totalRow,
-                  ]}
-                >
-                  <Text style={iCashActionsStyles.totalText}>
+                <View style={iCashActionsStyles.detailRow}>
+                  <Text
+                    style={[
+                      iCashActionsStyles.totalText,
+                      { color: colors.text },
+                    ]}
+                  >
                     Amount you will receive:
                   </Text>
-                  <Text style={iCashActionsStyles.totalText}>
-                    {localCurrency}
-                    {finalPayout.toFixed(2)}
+                  <Text
+                    style={[
+                      iCashActionsStyles.totalText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    {localCurrency} {finalPayout.toFixed(2)}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={iCashActionsStyles.payBtn}
+                  style={[
+                    iCashActionsStyles.payBtn,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                   onPress={() => setStep('pin')}
                 >
-                  <Text style={iCashActionsStyles.payBtnText}>Pay</Text>
+                  <Text
+                    style={[
+                      iCashActionsStyles.payBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Pay
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>

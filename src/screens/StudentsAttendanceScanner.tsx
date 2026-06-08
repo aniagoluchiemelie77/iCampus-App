@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import {
   Camera,
@@ -46,11 +47,11 @@ const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 
 export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
+  const { colors } = useTheme();
   const { lecture } = route.params;
   const user = useAppSelector(state => state.user);
   const socketContext = useContext(SocketContext);
   const [isScanning, setIsScanning] = useState(false);
-  const [message, setMessage] = useState('Ready to join attendance');
   const [status, setStatus] = useState<
     'idle' | 'joining' | 'verifying' | 'success' | 'error'
   >('idle');
@@ -70,8 +71,6 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
 
   const dispatchAttendancePayload = useCallback(() => {
     setStatus('joining');
-    setMessage('Identity secure. Emitting presence token...');
-
     socketContext?.socket?.emit('student_mark_attendance', {
       lectureId: detectedLectureIdRef.current,
       studentId: user.uid,
@@ -100,9 +99,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         flash: 'off',
         enableShutterSound: false,
       });
-      setMessage('Processing image bytes...');
       const base64Image = await RNFS.readFile(photoFile.path, 'base64');
-      setMessage('Comparing face with institutional profile...');
       const result = await verifyFacialIdentity(
         base64Image,
         user.schoolAvatarUrl!,
@@ -156,7 +153,6 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
     setStatus('joining');
     setSecondsLeft(300);
     setIsScanning(true);
-    setMessage("Searching for lecturer's signal...");
     try {
       timerRef.current = setInterval(() => {
         setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
@@ -225,15 +221,12 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       if (biometricsEnabled === 'true') {
         await executeBiometricVerification();
       } else {
-        setMessage('Identity confirmation required.');
         setStatus('verifying');
         await openIdentityCamera();
       }
     },
     [lecture.id, openIdentityCamera, executeBiometricVerification],
   );
-
-  // --- Core Lifecycle Bluetooth Listeners ---
   useEffect(() => {
     const handleDiscover = (data: any) => {
       const name = data.name || data.advertising?.localName;
@@ -252,9 +245,8 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
     if (!socketContext?.socket) return;
     const socket = socketContext.socket;
 
-    socket.on('attendance_success', (data: { message: string }) => {
+    socket.on('attendance_success', () => {
       setStatus('success');
-      setMessage(data.message);
       setTimeout(
         () => navigation.navigate('Home', { activeTab: 'home' }),
         4000,
@@ -275,91 +267,123 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
   const fetching = status === 'joining';
 
   return (
-    <View style={styles.container}>
-      <LogoBigger />
-      {idle && (
-        <>
-          <MaterialIcons
-            name="info-outlined"
-            size={80}
-            color={PRIMARY_COLOR}
-            style={styles.joinIcon}
-          />
-          <Text style={styles.joinText}>
-            {' '}
-            Attendance for {lecture.topicName} is ongoing, click the button
-            below to scan and join
-          </Text>
-          <TouchableOpacity
-            style={styles.joinBtn}
-            onPress={handleJoinAttendance}
-          >
-            <Text style={styles.joinBtnText}>Join Attendance</Text>
-          </TouchableOpacity>
-        </>
-      )}
-      {isScanning && fetching && (
-        <View style={GetAttendanceScreenStyles.fetchingContainer}>
-          <View style={GetAttendanceScreenStyles.pulseWrapper}>
-            <View style={GetAttendanceScreenStyles.timerCircle}>
-              <Text style={GetAttendanceScreenStyles.timerNumber}>
-                {formatTime(secondsLeft)}
-              </Text>
-              <Text style={GetAttendanceScreenStyles.timerLabel}>
-                Scanning...
-              </Text>
-            </View>
-            <ActivityIndicator
-              size={150}
-              color={PRIMARY_COLOR}
-              style={GetAttendanceScreenStyles.absoluteLoader}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <LogoBigger />
+        {idle && (
+          <>
+            <MaterialIcons
+              name="info-outlined"
+              size={80}
+              color={colors.primary}
             />
-          </View>
-          <TouchableOpacity
-            style={GetAttendanceScreenStyles.fetchBtn}
-            onPress={handleStopFetching}
-          >
-            <Text style={GetAttendanceScreenStyles.fetchBtnText}>
-              Stop Scan
+            <Text style={[styles.joinText, { color: colors.text }]}>
+              Attendance for {lecture.topicName} is ongoing, click the button
+              below to scan and join
             </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {/* SUCCESS STATE */}
-      {status === 'success' && !isScanning && (
-        <View style={styles.feedbackContainer}>
-          <MaterialIcons
-            name="check-circle-outlined"
-            size={80}
-            color={PRIMARY_COLOR}
-          />
-          <Text style={styles.successText}>Attendance Marked!</Text>
-          <Text style={styles.subText}>
-            Redirecting to home in 4 seconds...
-          </Text>
-        </View>
-      )}
-
-      {/* ERROR STATE */}
-      {status === 'error' && (
-        <View style={styles.feedbackContainer}>
-          <MaterialIcons
-            name="sync-problem-outlined"
-            size={100}
-            color={PRIMARY_COLOR}
-          />
-          <Text style={styles.errorText}>Failed to Mark Attendance</Text>
-          <Text style={styles.subText}>{errorMessage}</Text>
-
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={() => setStatus('idle')}
-          >
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      <Text style={styles.statusText}>{message}</Text>
+            <TouchableOpacity
+              style={[styles.joinBtn, { backgroundColor: colors.btnColor }]}
+              onPress={handleJoinAttendance}
+            >
+              <Text
+                style={[styles.joinBtnText, { color: colors.btnTextColor }]}
+              >
+                Join Attendance
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {isScanning && fetching && (
+          <>
+            <View style={GetAttendanceScreenStyles.pulseWrapper}>
+              <View style={GetAttendanceScreenStyles.timerCircle}>
+                <Text
+                  style={[
+                    GetAttendanceScreenStyles.timerNumber,
+                    { color: colors.primary },
+                  ]}
+                >
+                  {formatTime(secondsLeft)}
+                </Text>
+                <Text
+                  style={[
+                    GetAttendanceScreenStyles.timerLabel,
+                    { color: colors.primary },
+                  ]}
+                >
+                  Scanning...
+                </Text>
+              </View>
+              <ActivityIndicator
+                size={150}
+                color={colors.primary}
+                style={GetAttendanceScreenStyles.absoluteLoader}
+              />
+            </View>
+            <TouchableOpacity
+              style={[
+                GetAttendanceScreenStyles.fetchBtn,
+                { backgroundColor: colors.btnColor },
+              ]}
+              onPress={handleStopFetching}
+            >
+              <Text
+                style={[
+                  GetAttendanceScreenStyles.fetchBtnText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                Stop Scan
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {status === 'success' && !isScanning && (
+          <View style={styles.feedbackContainer}>
+            <MaterialIcons
+              name="check-circle-outlined"
+              size={80}
+              color={colors.success}
+            />
+            <Text style={[styles.successText, { color: colors.textDarker }]}>
+              Attendance Confirmed
+            </Text>
+            <Text style={[styles.subText, { color: colors.text }]}>
+              Redirecting to home in 4 seconds...
+            </Text>
+          </View>
+        )}
+        {status === 'error' && (
+          <View style={styles.feedbackContainer}>
+            <MaterialIcons
+              name="sync-problem-outlined"
+              size={100}
+              color={colors.primary}
+            />
+            <Text style={[styles.errorText, { color: colors.textDarker }]}>
+              Failed to Confirm Attendance
+            </Text>
+            <Text style={[styles.subText, { color: colors.text }]}>
+              {errorMessage}
+            </Text>
+            <TouchableOpacity
+              style={[styles.retryBtn, { backgroundColor: colors.btnColor }]}
+              onPress={() => setStatus('idle')}
+            >
+              <Text
+                style={[styles.retryBtnText, { color: colors.btnTextColor }]}
+              >
+                Retry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
       <Modal
         isVisible={showCamera}
         onBackdropPress={() => {}}
@@ -371,7 +395,11 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         style={styles.modalOverride}
       >
         <View style={styles.cameraContainer}>
-          <Text style={styles.cameraTitleHeader}>Identity Verification</Text>
+          <Text
+            style={[styles.cameraTitleHeader, { color: colors.btnTextColor }]}
+          >
+            Identity Verification
+          </Text>
           {device && hasPermission ? (
             <Camera
               ref={cameraRef}
@@ -381,26 +409,29 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
               photo={true}
             />
           ) : (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>
+            <View
+              style={[
+                styles.errorContainer,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: colors.text }]}>
                 {!device
                   ? 'Front camera device initialization failed.'
                   : 'Camera permission required.'}
               </Text>
             </View>
           )}
-
-          <View style={styles.cameraActionTray}>
+          <View
+            style={[
+              styles.cameraActionTray,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             {isProcessingAI ? (
-              <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+              <ActivityIndicator size="large" color={colors.primary} />
             ) : (
               <>
-                <TouchableOpacity
-                  style={styles.captureBtn}
-                  onPress={handleTakeSelfie}
-                >
-                  <Text style={styles.captureText}>Take Selfie</Text>
-                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.cancelBtn}
                   onPress={() => {
@@ -409,6 +440,19 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
                   }}
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.captureBtn,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                  onPress={handleTakeSelfie}
+                >
+                  <Text
+                    style={[styles.captureText, { color: colors.btnTextColor }]}
+                  >
+                    Take Selfie
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -420,63 +464,46 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, alignItems: 'center', backgroundColor: '#fff' },
-  statusText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#444',
-  },
+  container: { padding: 15, flex: 1, alignContent: 'center' },
+  subContainer: { padding: 20, borderRadius: 15, alignContent: 'center' },
   joinBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 20,
-    borderRadius: 12,
-    marginTop: 20,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    paddingVertical: 10,
   },
-  joinIcon: {
-    marginVertical: 20,
-  },
-  joinBtnText: { color: '#fff', fontWeight: 'bold' },
+  joinBtnText: { fontSize: 14, fontWeight: 'bold' },
   joinText: {
-    fontSize: 18,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
+    marginVertical: 25,
     fontWeight: 'bold',
   },
   feedbackContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    width: '100%',
     marginTop: 20,
   },
   successText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-    marginTop: 15,
+    marginVertical: 15,
   },
   errorText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-    marginTop: 15,
   },
   subText: {
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 10,
-    textAlign: 'center',
   },
   retryBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 15,
     marginTop: 20,
   },
   retryBtnText: {
-    color: '#fff',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 14,
   },
   modalOverride: {
     margin: 0,
@@ -484,20 +511,17 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
-    backgroundColor: '#222',
+    backgroundColor: '#000',
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    position: 'relative',
   },
-
-  // --- Header Elements ---
   cameraTitleHeader: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.5,
     textAlign: 'center',
     marginVertical: 16,
     zIndex: 10,
@@ -505,13 +529,8 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-
-  // --- Core Camera Viewport ---
-  // To keep human facial proportions looking natural without stretching distortion
   previewStyle: {
     flex: 1,
-    width: '100%',
-    height: '100%',
     position: 'absolute',
     top: 0,
     left: 0,
@@ -520,24 +539,23 @@ const styles = StyleSheet.create({
   },
   cameraActionTray: {
     width: '100%',
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
     flexDirection: 'row',
     alignContent: 'center',
-    gap: 16,
+    justifyContent: 'space-between',
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     zIndex: 10,
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    left: 10,
+    padding: 20,
+    borderRadius: 15,
   },
   captureBtn: {
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    borderRadius: 15,
     alignContent: 'center',
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
@@ -546,17 +564,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   captureText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 0.3,
   },
 
   cancelBtn: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    borderRadius: 15,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
     alignContent: 'center',
@@ -566,14 +581,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-
-  // --- Hardware Error/Fallback Interface States ---
   errorContainer: {
     flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    backgroundColor: '#fff',
+    alignContent: 'center',
+    padding: 32,
+    zIndex: 10,
   },
 });
