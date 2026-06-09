@@ -77,7 +77,6 @@ import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
 import { SubscriptionScreen } from './src/screens/SubscriptionsScreen.tsx';
 import { BlockedUsersScreen } from './src/screens/BlockedUsersScreen.tsx';
 import { NotificationSettings } from './src/screens/SNotificationScreen.tsx';
-import { ReferralScreen } from './src/screens/SReferralScreen.tsx';
 import { ResetPasswordScreen } from './src/screens/SResetPasswordScreen.tsx';
 import { EmailsScreen } from './src/screens/SEmails.tsx';
 import { PhoneScreen } from './src/screens/SPhoneNumberScreens.tsx';
@@ -160,7 +159,6 @@ export type RootStackParamList = {
   };
   Notifications: undefined;
   NotificationSettings: undefined;
-  ReferralScreen: undefined;
   ProductPublishSuccess: {
     productName: string;
     productType: string;
@@ -516,11 +514,6 @@ const App = () => {
               <Stack.Screen
                 name="OrderVerificationSuccess"
                 component={OrderVerificationSuccess}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ReferralScreen"
-                component={ReferralScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

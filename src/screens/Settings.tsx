@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR } from 'assets/styles/colors';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
@@ -27,12 +26,16 @@ import { updateThemeState } from '../components/UserSlice.ts';
 import { useAppSelector } from '../components/hooks';
 import { useDispatch } from 'react-redux';
 import { updateUserThemePreference } from '../api/localPutApis.ts';
+import { useTheme } from '../context/ThemeContext';
 
 const rnBiometrics = new ReactNativeBiometrics();
 
-export const SectionHeader = ({ title }: { title: string }) => (
-  <Text style={styles.sectionHeader}>{title}</Text>
-);
+export const SectionHeader = ({ title }: { title: string }) => {
+  const { colors } = useTheme();
+  return (
+    <Text style={[styles.sectionHeader, { color: colors.text }]}>{title}</Text>
+  );
+};
 
 export const throttle = (func: Function, limit: number) => {
   let inThrottle: boolean;
@@ -46,6 +49,7 @@ export const throttle = (func: Function, limit: number) => {
 };
 
 export const Settings = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const dispatch = useDispatch();
   const deviceColorScheme = useColorScheme();
@@ -153,7 +157,9 @@ export const Settings = () => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <PageHeader
           title="Settings"
@@ -162,7 +168,7 @@ export const Settings = () => {
               <MaterialIcons
                 name="help-outline-outlined"
                 size={24}
-                color={PRIMARY_COLOR_TINT}
+                color={colors.primaryTint}
               />
             </TouchableOpacity>
           }
@@ -221,8 +227,6 @@ export const Settings = () => {
             onPress={() => navigation.navigate('PhoneScreen')}
           />
         </View>
-
-        {/* App Settings */}
         <SectionHeader title="App Settings" />
         <View style={styles.group}>
           <SettingItem
@@ -258,8 +262,6 @@ export const Settings = () => {
             onPress={() => navigation.navigate('NotificationSettings')}
           />
         </View>
-
-        {/* Support & Legal */}
         <SectionHeader title="Support" />
         <View style={styles.group}>
           <SettingItem
@@ -278,16 +280,8 @@ export const Settings = () => {
             onPress={() => navigation.navigate('FAQScreen')}
           />
         </View>
-
-        {/* Growth & Feedback */}
         <SectionHeader title="Spread the Word" />
         <View style={styles.group}>
-          <SettingItem
-            icon="campaign-outlined"
-            title="Refer a Friend"
-            subtitle="Get iCampus credits"
-            onPress={() => navigation.navigate('ReferralScreen')}
-          />
           <SettingItem
             icon="star-rate-outlined"
             title="Rate iCampus"
@@ -304,25 +298,29 @@ export const Settings = () => {
             }}
           />
         </View>
-
-        {/* Danger Zone */}
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={() => setLogoutModalVisible(true)}
         >
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={[styles.logoutText, { color: colors.primary }]}>
+            Log Out
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={[
+            styles.logoutButton,
+            { backgroundColor: colors.btnColor, marginTop: 0 },
+          ]}
           onPress={() => setDeleteModalVisible(true)}
         >
-          <Text style={styles.deleteText}>Delete Account</Text>
+          <Text style={[styles.deleteText, { color: colors.btnTextColor }]}>
+            Delete Account
+          </Text>
         </TouchableOpacity>
 
-        <Text style={styles.versionText}>
+        <Text style={[styles.versionText, { color: colors.text }]}>
           App Version: {version} ({buildNumber})
         </Text>
-        {/* Modals */}
         <LogoutModal
           visible={isLogoutModalVisible}
           onClose={() => setLogoutModalVisible(false)}
@@ -340,47 +338,36 @@ export const Settings = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    paddingHorizontal: 15,
   },
   sectionHeader: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: PRIMARY_COLOR_TINT,
-    textTransform: 'capitalize',
-    marginLeft: 15,
-    marginVertical: 13,
+    marginLeft: 8,
+    marginVertical: 15,
   },
   group: {
-    backgroundColor: '#fadccc',
     borderBottomWidth: 0.5,
     borderColor: PRIMARY_COLOR_TINT,
   },
   logoutButton: {
-    marginTop: 30,
-    backgroundColor: PRIMARY_COLOR,
+    marginVertical: 20,
     paddingVertical: 15,
+    borderRadius: 15,
     alignContent: 'center',
+    width: '100%',
+    alignSelf: 'center',
   },
   logoutText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
   deleteText: {
-    color: PRIMARY_COLOR,
     fontSize: 14,
     fontWeight: '600',
   },
-  deleteButton: {
-    marginTop: 10,
-    backgroundColor: '#fadccc',
-    paddingVertical: 15,
-    alignContent: 'center',
-  },
   versionText: {
     textAlign: 'center',
-    color: PRIMARY_COLOR_TINT,
-    fontSize: 12,
-    marginVertical: 20,
+    fontSize: 14,
   },
 });

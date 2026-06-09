@@ -11,11 +11,10 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { exportTransactionsAPI } from '../api/localPostApis.ts';
 import { TransactionList } from '../components/TransactionHistory';
 import { TransactionStats } from '../components/TransactionStats';
 import { PRIMARY_COLOR } from '../components/Classroomcomponent';
-import { baseUrl } from '../components/HomeScreenComponents';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -52,26 +51,24 @@ export const AllTransactionsScreen = ({ route }: any) => {
 
     try {
       setIsExporting(true);
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${baseUrl}user/transactions/export`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-        }),
+      const result = await exportTransactionsAPI({
+        userId: user.uid,
+        startDate: startDate,
+        endDate: endDate,
       });
-
-      if (response.ok) {
+      setIsExporting(false);
+      if (result.success) {
         setModalVisible(false);
         Toast.show({
           type: 'success',
           text1: 'Processing',
-          text2: 'Statement sent to your email.',
+          text2: result.message,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Export Failed',
+          text2: result.message,
         });
       }
     } catch (error) {

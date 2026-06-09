@@ -7,8 +7,10 @@ import {PRIMARY_COLOR_TINT} from '../assets/styles/colors';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { updatePreferences } from '../api/localPatchApis.ts';
 import { useAppSelector } from '../components/hooks';
+import { useTheme } from '../context/ThemeContext';
 
 export const NotificationSettings = () => {
+  const { colors } = useTheme();
   const [prefs, setPrefs] = useState<userPreferences | null>(null);
   const user = useAppSelector(state => state.user);
   const handleToggle = async (
@@ -38,9 +40,10 @@ export const NotificationSettings = () => {
     }
   };
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <PageHeader title="Notification Settings" />
-      {/* CATEGORIES SECTION */}
       <SectionHeader title="Alert Categories" />
       <View style={styles.section}>
         <SettingItem
@@ -91,9 +94,8 @@ export const NotificationSettings = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  section: { 
-    backgroundColor: '#fadccc',
+  container: { flex: 1, paddingHorizontal: 15 },
+  section: {
     borderBottomWidth: 0.5,
     borderColor: PRIMARY_COLOR_TINT,
   },

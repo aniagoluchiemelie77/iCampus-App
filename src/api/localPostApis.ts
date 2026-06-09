@@ -1775,3 +1775,37 @@ export const submitOnlineClassAttendanceAPI = async (payload: any) => {
     };
   }
 };
+export const exportTransactionsAPI = async (payload: { userId: string; startDate: Date; endDate: Date }) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}user/transactions/export`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        userId: payload.userId,
+        startDate: payload.startDate.toISOString(),
+        endDate: payload.endDate.toISOString(),
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || 'Failed to export transactions.',
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data,
+      message: result.message || 'Statement sent to your email.',
+    };
+
+  } catch (error: any) {
+    console.error("exportTransactionsAPI Error:", error);
+    return {
+      success: false,
+      message: error.message || 'Server connection failed. Please try again.',
+    };
+  }
+};

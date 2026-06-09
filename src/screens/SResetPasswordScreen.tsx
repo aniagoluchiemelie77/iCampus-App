@@ -19,8 +19,10 @@ import {
 import { verifyCurrentPassword } from '../api/localPostApis.ts';
 import { updatePassword } from '../api/localPutApis.ts';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import { useTheme } from '../context/ThemeContext';
 
 export const ResetPasswordScreen = ({ navigation }: any) => {
+  const { colors } = useTheme();
   const [step, setStep] = useState(1);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -73,7 +75,7 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <PageHeader title="Reset Password" />
       {step === 1 ? (
@@ -85,20 +87,22 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
             <MaterialIcons
               name="verified-user-outlined"
               size={40}
-              color="#222"
+              color={colors.text}
             />
-            <Text style={styles.title}>Security Check</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: colors.textDarker }]}>
+              Security Check
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.text }]}>
               Please enter your current password to continue.
             </Text>
             <View style={styles.inputContainer}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 secureTextEntry={!showOld}
                 value={oldPassword}
                 onChangeText={setOldPassword}
                 placeholder="Enter your current password..."
-                placeholderTextColor={PRIMARY_COLOR_TINT}
+                placeholderTextColor={colors.inputTextHolder}
               />
               <TouchableOpacity onPress={() => setShowOld(!showOld)}>
                 <MaterialIcons
@@ -106,16 +110,16 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
                     showOld ? 'visibility-off-outlined' : 'visibility-outlined'
                   }
                   size={20}
-                  color={PRIMARY_COLOR_TINT}
+                  color={colors.inputTextHolder}
                 />
               </TouchableOpacity>
             </View>
             {errorText && <Text style={styles.errorText}>{errorText}</Text>}
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, {backgroundColor: colors.btnColor}]}
               onPress={handleVerifyOld}
             >
-              <Text style={styles.buttonText}>
+              <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>
                 {isLoading ? 'Verifying...' : 'Verify Password'}
               </Text>
             </TouchableOpacity>
@@ -123,16 +127,16 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
         </Animated.View>
       ) : (
         <View style={styles.stepContainer}>
-          <MaterialIcons name="verified-user-outlined" size={40} color="#222" />
-          <Text style={styles.title}>New Password</Text>
+          <MaterialIcons name="verified-user-outlined" size={40} color={colors.text} />
+          <Text style={[styles.title, { color: colors.textDarker }]}>New Password</Text>
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {color: colors.text}]}
               secureTextEntry={!showNew}
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="Enter your new password..."
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
             />
             <TouchableOpacity onPress={() => setShowNew(!showNew)}>
               <MaterialIcons
@@ -140,7 +144,7 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
                   showNew ? 'visibility-off-outlined' : 'visibility-outlined'
                 }
                 size={20}
-                color={PRIMARY_COLOR_TINT}
+                color={colors.inputTextHolder}
               />
             </TouchableOpacity>
           </View>
@@ -156,19 +160,19 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
                 key={index}
                 style={[
                   styles.strengthSegment,
-                  { backgroundColor: met ? PRIMARY_COLOR : PRIMARY_COLOR_TINT },
+                  { backgroundColor: met ? colors.primary : colors.primaryTint },
                 ]}
               />
             ))}
           </View>
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, {color: colors.text}]}
               secureTextEntry={!showConfirm}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your new password..."
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
             />
             <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
               <MaterialIcons
@@ -178,17 +182,17 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
                     : 'visibility-outlined'
                 }
                 size={20}
-                color={PRIMARY_COLOR_TINT}
+                color={colors.inputTextHolder}
               />
             </TouchableOpacity>
           </View>
           {errorText && <Text style={styles.errorText}>{errorText}</Text>}
           <TouchableOpacity
-            style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.6 }]}
+            style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.6 }, {backgroundColor: colors.btnColor}]}
             onPress={handleUpdatePassword}
             disabled={!canSubmit}
           >
-            <Text style={styles.buttonText}>
+            <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>
               {isLoading ? 'Changing...' : 'Change Password'}
             </Text>
           </TouchableOpacity>
@@ -200,38 +204,32 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 24,
+    paddingHorizontal: 15,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fadccc',
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 5,
+    borderRadius: 15,
     width: '100%',
+    height: 60,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
     fontSize: 14,
-    color: '#222',
   },
   stepContainer: {
     marginTop: 20,
     alignContent: 'center',
   },
   title: {
-    fontSize: 25,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
     marginVertical: 15,
   },
   subtitle: {
     fontSize: 14,
-    color: '#2222',
     marginBottom: 20,
     width: '100%',
   },
@@ -246,7 +244,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     height: 5,
-    marginTop: 10,
+    marginTop: 15,
     width: '100%',
   },
   strengthSegment: {
@@ -256,17 +254,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   primaryButton: {
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 12,
+    borderRadius: 15,
     paddingHorizontal: 15,
     paddingVertical: 10,
     alignContent: 'center',
     marginTop: 30,
     width: '80%',
+    alignSelf: 'center'
   },
   buttonText: {
-    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
   },
 });

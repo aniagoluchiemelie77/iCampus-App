@@ -62,10 +62,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 13,
-    marginBottom: 10,
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
   },
   iconBackground: {
     flexDirection: 'row',
@@ -77,7 +76,7 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     fontSize: 14,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   itemSubtitle: {
     fontSize: 12,

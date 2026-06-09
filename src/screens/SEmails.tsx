@@ -23,8 +23,10 @@ import { updateEmailData } from '../components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { isValidEmail } from '../utils/SignupHelpers.ts';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';
+import { useTheme } from '../context/ThemeContext';
 
 export const EmailsScreen = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const dispatch = useDispatch();
   const [step, setStep] = useState('idle');
@@ -141,27 +143,27 @@ export const EmailsScreen = () => {
     setEmailError('Invalid Email.');
   }
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <PageHeader title="Emails" />
-      <View style={styles.section}>
-        <Text style={styles.header}>Primary Email</Text>
+      <View style={[styles.section, {backgroundColor: colors.backgroundSecondary}]}>
+        <Text style={[styles.header, {color: colors.text}]}>Primary Email</Text>
         <TextInput
           value={user.email}
           editable={false}
-          style={styles.disabledInput}
+          style={[styles.disabledInput, {color: colors.text}]}
         />
         <TouchableOpacity
-          style={styles.inlineButton}
+          style={[styles.inlineButton, {backgroundColor: colors.btnColor}]}
           onPress={() => {
             setStep('primaryInput');
             setMode('primary');
           }}
         >
-          <Text style={styles.buttonText}>Change</Text>
+          <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Change</Text>
         </TouchableOpacity>
-      </View>
-      <View style={styles.section}>
-        <Text style={styles.header}>Recovery Emails</Text>
+        <Text style={[styles.header, {color: colors.text}]}>Recovery Emails</Text>
         {user.recoveryEmails ? (
           (user.recoveryEmails || []).map(item => (
             <>
@@ -170,7 +172,7 @@ export const EmailsScreen = () => {
                   key={item.email}
                   value={item.email}
                   editable={false}
-                  style={[styles.disabledInput, { marginBottom: 8 }]}
+                  style={[styles.disabledInput, {color: colors.text}]}
                 />
                 <TouchableOpacity
                   onPress={() => handleDeleteRecovery(item.email)}
@@ -178,173 +180,136 @@ export const EmailsScreen = () => {
                   <MaterialIcons
                     name="delete-outline-outlined"
                     size={16}
-                    color={PRIMARY_COLOR}
+                    color={colors.primary}
                   />
                 </TouchableOpacity>
               </View>
             </>
           ))
         ) : (
-          <Text style={styles.emptyEmailText}>No Recovery emails added</Text>
+          <Text style={[styles.emptyEmailText, {color: colors.text}]}>No Recovery emails added</Text>
         )}
         <TouchableOpacity
-          style={styles.inlineButton}
+          style={[styles.inlineButton, {backgroundColor: colors.btnColor}]}
           onPress={() => {
             setStep('recoveryInput');
             setMode('recovery');
           }}
         >
-          <Text style={styles.buttonText}>Add Recovery Email</Text>
+          <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Add Recovery Email</Text>
         </TouchableOpacity>
+        {step !== 'idle' && (
+          <>
+            <Text style={[styles.cardTitle, {color: colors.text}]}>
+              {step === 'verifyCode' ? 'Verify Code' : `Update ${mode} Email`}
+            </Text>
+            {(step === 'primaryInput' || step === 'recoveryInput') && (
+              <>
+                <TextInput
+                  style={[styles.disabledInput, {color: colors.text}]}
+                  placeholder="Enter your email address"
+                  placeholderTextColor={colors.inputTextHolder}
+                  onChangeText={setEmailInput}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                {emailError && (
+                  <Text style={styles.emailErrorText}>{emailError}</Text>
+                )}
+                <TouchableOpacity
+                  style={[[styles.inlineButton, {backgroundColor: colors.btnColor}], { marginTop: 10 }]}
+                  onPress={handleSendCode}
+                >
+                  <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Send Verification Code</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {step === 'verifyCode' && (
+              <>
+                <Text style={[styles.instructionText, {color: colors.text}]}>
+                  Enter the 6-digit code sent to {emailInput}
+                </Text>
+                <TextInput
+                  style={[styles.disabledInput, {color: colors.text}]}
+                  placeholder="000000"
+                  placeholderTextColor={colors.inputTextHolder}
+                  onChangeText={setCodeInput}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                <Text
+                  style={[
+                    styles.timerText,
+                    timer < 60 ? { color: colors.primary } : {color: colors.text}
+                  ]}
+                >
+                  Code expires in: {formatSignupTime(timer)}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.inlineButton, {backgroundColor: colors.btnColor}]}
+                  onPress={handleVerify}
+                >
+                  <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Verify & Update</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </>
+        )}
       </View>
-      {step !== 'idle' && (
-        <View style={styles.actionCard}>
-          <Text style={styles.cardTitle}>
-            {step === 'verifyCode' ? 'Verify Code' : `Update ${mode} Email`}
-          </Text>
-          {(step === 'primaryInput' || step === 'recoveryInput') && (
-            <>
-              <TextInput
-                style={styles.disabledInput}
-                placeholder="Enter your email address"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                onChangeText={setEmailInput}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              {emailError && (
-                <Text style={styles.emailErrorText}>{emailError}</Text>
-              )}
-              <TouchableOpacity
-                style={[styles.inlineButton, { marginTop: 10 }]}
-                onPress={handleSendCode}
-              >
-                <Text style={styles.buttonText}>Send Verification Code</Text>
-              </TouchableOpacity>
-            </>
-          )}
-          {step === 'verifyCode' && (
-            <View>
-              <Text style={styles.instructionText}>
-                Enter the 6-digit code sent to {emailInput}
-              </Text>
-              <TextInput
-                style={styles.disabledInput}
-                placeholder="000000"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                onChangeText={setCodeInput}
-                keyboardType="number-pad"
-                maxLength={6}
-              />
-              <Text
-                style={[
-                  styles.timerText,
-                  timer < 60 && { color: PRIMARY_COLOR },
-                ]}
-              >
-                Code expires in: {formatSignupTime(timer)}
-              </Text>
-              <TouchableOpacity
-                style={styles.inlineButton}
-                onPress={handleVerify}
-              >
-                <Text style={styles.buttonText}>Verify & Update</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          <TouchableOpacity
-            onPress={() => setStep('idle')}
-            style={styles.cancelButton}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </ScrollView>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    paddingHorizontal: 15,
   },
   section: {
-    marginVertical: 20,
-    padding: 16,
+    padding: 15,
+    borderRadius: 15
   },
   header: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#222',
     marginBottom: 15,
-    textTransform: 'capitalize',
-    letterSpacing: 0.5,
   },
   inlineButton: {
-    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 15,
     alignContent: 'center',
+    marginVertical: 10
   },
   buttonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
   },
-  actionCard: {
-    backgroundColor: '#fadccc',
-    padding: 20,
-    borderRadius: 15,
-  },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#212529',
-    marginBottom: 16,
+    marginBottom: 15,
   },
   disabledInput: {
-    borderRadius: 5,
+    borderRadius: 15,
     paddingHorizontal: 15,
     paddingVertical: 10,
-    color: '#222',
     fontSize: 14,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#fadccc',
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   instructionText: {
     fontSize: 14,
-    color: '#2222',
-    marginBottom: 12,
-  },
-  cancelButton: {
-    marginTop: 15,
-    alignContent: 'center',
-    width: '80%',
-    alignSelf: 'center',
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 13,
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    marginBottom: 14,
   },
   emailContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
     justifyContent: 'space-between',
   },
   emptyEmailText: {
-    padding: 15,
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
   },
   emailErrorText: {
     color: PRIMARY_COLOR,
@@ -352,7 +317,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   timerText: {
-    color: '#2222',
     fontWeight: 'bold',
     fontSize: 12,
   },

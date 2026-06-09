@@ -24,8 +24,10 @@ import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';
 import { handleDeletePhone } from '../api/localDeleteApis.ts';
 import { updatePhoneNumbersData } from '../components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
+import { useTheme } from '../context/ThemeContext';
 
 export const PhoneScreen = () => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [formattedValue, setFormattedValue] = useState('');
@@ -122,25 +124,35 @@ export const PhoneScreen = () => {
   }, [step, timer]);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <PageHeader title="Phone Numbers" />
-      <View style={styles.section}>
-        <Text style={styles.header}>Saved Numbers</Text>
+      <View
+        style={[
+          styles.section,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[styles.header, { color: colors.textDarker }]}>
+          Saved Numbers
+        </Text>
         {user.phoneNumbers ? (
           user.phoneNumbers?.map(item => (
             <View key={item.number} style={styles.phoneRow}>
               <MaterialIcons
                 name="smartphone-outlined"
                 size={20}
-                color="#222"
+                color={colors.text}
               />
-              <Text style={styles.phoneNumberText}>{item.number}</Text>
+              <Text style={[styles.phoneNumberText, { color: colors.text }]}>
+                {item.number}
+              </Text>
               {item.isVerified && (
                 <MaterialIcons
                   name="verified-user-outlined"
                   size={20}
-                  color={PRIMARY_COLOR}
-                  style={styles.verifiedIcon}
+                  color={colors.primary}
                 />
               )}
               <TouchableOpacity
@@ -149,25 +161,29 @@ export const PhoneScreen = () => {
                 <MaterialIcons
                   name="delete-outline"
                   size={20}
-                  color={PRIMARY_COLOR}
+                  color={colors.primary}
                 />
               </TouchableOpacity>
             </View>
           ))
         ) : (
-          <Text style={styles.emptyEmailText}>No phone numbers added.</Text>
+          <Text style={[styles.emptyEmailText, { color: colors.text }]}>
+            No phone numbers added.
+          </Text>
         )}
         <TouchableOpacity
-          style={styles.inlineButton}
+          style={[styles.inlineButton, { backgroundColor: colors.btnColor }]}
           onPress={() => {
             setStep('phoneInput');
           }}
         >
-          <Text style={styles.buttonText}>Add Phone Number</Text>
+          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+            Add Phone Number
+          </Text>
         </TouchableOpacity>
-      </View>
-      <View style={styles.actionCard}>
-        <Text style={styles.cardTitle}>Add WhatsApp Number</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>
+          Add WhatsApp Number
+        </Text>
         {step === 'phoneInput' && (
           <View>
             <PhoneInput
@@ -181,6 +197,7 @@ export const PhoneScreen = () => {
               textContainerStyle={styles.phoneTextContainer}
               withShadow
               autoFocus
+              textInputStyle={{ color: colors.text, fontSize: 14 }}
             />
             {!isValid && phoneNumber.length > 0 && (
               <Text style={styles.errorText}>
@@ -188,67 +205,89 @@ export const PhoneScreen = () => {
               </Text>
             )}
             <TouchableOpacity
-              style={[styles.primaryButton, !isValid && styles.disabledButton]}
+              style={[
+                styles.primaryButton,
+                !isValid && styles.disabledButton,
+                { backgroundColor: colors.btnColor },
+              ]}
               disabled={!isValid}
               onPress={sendWhatsappCode}
             >
-              <MaterialCommunityIcons name="whatsapp" size={20} color="#FFF" />
-              <Text style={styles.primaryButtonText}> Verify via WhatsApp</Text>
+              <MaterialCommunityIcons
+                name="whatsapp"
+                size={20}
+                color={colors.btnTextColor}
+              />
+              <Text
+                style={[
+                  styles.primaryButtonText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                {' '}
+                Verify via WhatsApp
+              </Text>
             </TouchableOpacity>
           </View>
         )}
         {step === 'verifyCode' && (
           <View>
-            <Text style={styles.instructionText}>
+            <Text style={[styles.instructionText, { color: colors.text }]}>
               Enter the 6-digit code sent to{formattedValue}
             </Text>
             <TextInput
-              style={styles.disabledInput}
+              style={[styles.disabledInput, { color: colors.text }]}
               placeholder="000000"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
               onChangeText={setCodeInput}
               keyboardType="number-pad"
               maxLength={6}
             />
             <Text
-              style={[styles.timerText, timer < 60 && { color: PRIMARY_COLOR }]}
+              style={[
+                styles.timerText,
+                timer < 60 ? { color: PRIMARY_COLOR } : { color: colors.text },
+              ]}
             >
               Code expires in: {formatSignupTime(timer)}
             </Text>
             <TouchableOpacity
-              style={styles.inlineButton}
+              style={[
+                styles.inlineButton,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={handleVerify}
             >
-              <Text style={styles.buttonText}>Verify & Update</Text>
+              <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+                Verify & Update
+              </Text>
             </TouchableOpacity>
           </View>
         )}
         <TouchableOpacity
           onPress={() => setStep('idle')}
-          style={styles.cancelButton}
+          style={[styles.cancelButton, {backgroundColor: colors.btnColor}]}
         >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={[styles.cancelButtonText, {color: colors.btnTextColor}]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 };
 const styles = StyleSheet.create({
-   container: {
+  container: {
     flex: 1,
-    backgroundColor: '#fff',
+    paddingHorizontal: 15,
   },
   section: {
-    marginVertical: 20,
-    padding: 16,
+    padding: 15,
+    borderRadius: 15,
+    alignContent: 'center',
   },
   header: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#222',
     marginBottom: 15,
-    textTransform: 'capitalize',
-    letterSpacing: 0.5,
   },
   phoneRow: {
     flexDirection: 'row',
@@ -257,33 +296,26 @@ const styles = StyleSheet.create({
   },
   phoneNumberText: {
     flex: 1,
-    marginLeft: 8,
+    marginHorizontal: 5,
     fontSize: 14,
-    color: '#222',
-  },
-  verifiedIcon: {
-    marginRight: 10,
   },
   phoneInputContainer: {
     width: '100%',
     height: 60,
-    borderRadius: 10,
-    borderWidth: .8,
+    borderRadius: 15,
+    borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    marginBottom: 10,
-    backgroundColor: '#fadccc'
+    marginBottom: 15,
   },
   phoneTextContainer: {
-    backgroundColor: '#FFF',
     borderTopRightRadius: 10,
     borderBottomRightRadius: 10,
   },
   primaryButton: {
-    backgroundColor: PRIMARY_COLOR, 
     flexDirection: 'row',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 15,
     alignContent: 'center',
     marginTop: 15,
   },
@@ -296,58 +328,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   inlineButton: {
-    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 15,
     alignContent: 'center',
+    marginVertical: 20,
   },
   buttonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
   },
   emptyEmailText: {
-    padding: 15,
     fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
-  },
-  actionCard: {
-    backgroundColor: '#fadccc',
-    padding: 20,
-    borderRadius: 15,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#212529',
-    marginBottom: 16,
+    marginBottom: 15,
   },
   primaryButtonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
-    marginLeft: 4
+    marginLeft: 4,
   },
   instructionText: {
     fontSize: 14,
-    color: '#2222',
-    marginBottom: 12,
+    marginBottom: 15,
   },
-   disabledInput: {
-    borderRadius: 5,
+  disabledInput: {
+    borderRadius: 15,
     paddingHorizontal: 15,
     paddingVertical: 10,
-    color: '#222',
     fontSize: 14,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#fadccc',
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 15,
   },
-   timerText: {
-    color: '#2222',
+  timerText: {
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -356,13 +374,12 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     width: '80%',
     alignSelf: 'center',
-    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 13,
+    borderRadius: 15,
   },
   cancelButtonText: {
-    color: '#fff',
+
     fontSize: 14,
     fontWeight: '600',
   },
