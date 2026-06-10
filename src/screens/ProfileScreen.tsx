@@ -29,7 +29,6 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
-import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { ITagCard } from '../components/iTag';
 import { Course, User } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
@@ -48,7 +47,7 @@ import { updateBlockedUsers } from '@components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { useTheme } from '../context/ThemeContext';
-import { CurrencyDisplay } from '../CurrencyFormatter';
+import { CurrencyDisplay } from '../components/CurrencyFormatter';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -122,12 +121,12 @@ const CourseCard = ({ item }: { item: any }) => {
         ) : (
           // --- ACADEMIC STYLE LAYOUT ---
           <>
-              <MaterialIcons
-                name="auto-stories-outlined"
-                size={24}
-                color={colors.text}
-                style={{alignSelf: 'center'}}
-              />
+            <MaterialIcons
+              name="auto-stories-outlined"
+              size={24}
+              color={colors.text}
+              style={{ alignSelf: 'center' }}
+            />
             <View style={styles.courseInfo}>
               <Text
                 style={[styles.courseName, { color: colors.text }]}
@@ -136,12 +135,22 @@ const CourseCard = ({ item }: { item: any }) => {
                 {item.courseTitle}
               </Text>
               {item.courseCode && (
-                <Text style={[styles.courseCode, {color: colors.text}]}>{item.courseCode}</Text>
+                <Text style={[styles.courseCode, { color: colors.text }]}>
+                  {item.courseCode}
+                </Text>
               )}
               <View style={styles.courseMeta}>
-                <Text style={[styles.courseMetaText, {color: colors.text}]}>{item.session}</Text>
-                <Text style={[styles.courseMetaSeparator, {color: colors.text}]}>|</Text>
-                <Text style={[styles.courseMetaText, {color: colors.text}]}>{item.semester}</Text>
+                <Text style={[styles.courseMetaText, { color: colors.text }]}>
+                  {item.session}
+                </Text>
+                <Text
+                  style={[styles.courseMetaSeparator, { color: colors.text }]}
+                >
+                  |
+                </Text>
+                <Text style={[styles.courseMetaText, { color: colors.text }]}>
+                  {item.semester}
+                </Text>
               </View>
             </View>
           </>
@@ -158,49 +167,49 @@ const CourseCard = ({ item }: { item: any }) => {
         style={styles.modalBottom}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <View style={styles.modalDivider} />
             <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
               {item.courseTitle}
             </Text>
-            <Text style={[styles.modalSubTitle, {color: colors.text}]}>
+            <Text style={[styles.modalSubTitle, { color: colors.text }]}>
               {item.courseCode || 'Professional Course'}
             </Text>
-            <Text style={[styles.modalDescription, {color: colors.text}]}>
+            <Text style={[styles.modalDescription, { color: colors.text }]}>
               {item.description ||
                 'Detailed course information and curriculum will appear here.'}
             </Text>
             <View style={styles.modalStatsRow}>
               <View style={styles.statItem}>
                 <MaterialIcons name="people" size={20} color={colors.text} />
-                <Text style={[styles.statText, {color: colors.text}]}>
+                <Text style={[styles.statText, { color: colors.text }]}>
                   {item.enrolledCount} Students
                 </Text>
               </View>
               {item.price && (
-                <View style={styles.statItem}>
-                  <MaterialIcons
-                    name="diamond"
-                    size={18}
-                    color={PRIMARY_COLOR}
-                  />
-                  <Text style={[styles.statText, {color: colors.text}]}>{item.price}</Text>
-                </View>
+                <CurrencyDisplay value={item.price} size="small" />
               )}
               <View
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor: item.isActive
-                      ? PRIMARY_COLOR
-                      : PRIMARY_COLOR_TINT_MAIN,
+                    backgroundColor: item.isActive && colors.btnColor,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.statusText,
-                    { color: item.isActive ? '#fff' : PRIMARY_COLOR },
+                    {
+                      color: item.isActive
+                        ? colors.btnTextColor
+                        : colors.primary,
+                    },
                   ]}
                 >
                   {item.isActive ? 'Active' : 'Archived'}
@@ -1328,7 +1337,7 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     fontSize: 14,
-    marginBottom: 15
+    marginBottom: 15,
   },
   courseCard: {
     width: CARD_WIDTH,
