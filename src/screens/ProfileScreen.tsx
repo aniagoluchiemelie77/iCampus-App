@@ -47,6 +47,7 @@ import { toggleBlockUser, toggleFollowUser } from 'api/localPostApis.ts';
 import { updateBlockedUsers } from '@components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -247,6 +248,7 @@ export const CoursesView = ({ courses }: { courses: Course[] }) => {
   );
 };
 export const ProfileScreen = ({ route }: any) => {
+  const { colors } = useTheme();
   const { identifier } = route.params;
   const currentUser = useAppSelector(state => state.user);
   const dispatch = useDispatch();
@@ -439,7 +441,7 @@ export const ProfileScreen = ({ route }: any) => {
       }
     };
 
-    const timer = setTimeout(fetchUniversalSkills, 400); // 400ms debounce
+    const timer = setTimeout(fetchUniversalSkills, 400);
     return () => clearTimeout(timer);
   }, [skillInput]);
   if (!profileData)
@@ -457,39 +459,46 @@ export const ProfileScreen = ({ route }: any) => {
   );
   if (isBlocked) {
     return (
-      <View style={styles.blockedContainer}>
-        <PageHeader title="Profile" />
+      <View
+        style={[
+          styles.blockedContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <MaterialIcons
-          name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
+          name={
+            isExplicitlyBlockedByMe
+              ? 'person-off-outlined'
+              : 'no-accounts-outlined'
+          }
           size={80}
-          color={PRIMARY_COLOR}
+          color={colors.primary}
         />
-        <Text style={styles.blockedTitle}>
+        <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
           {isExplicitlyBlockedByMe ? 'User Blocked' : 'User Not Found'}
         </Text>
-        <Text style={styles.blockedSubTitle}>
+        <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
           {isExplicitlyBlockedByMe
             ? `You have blocked this user. Unblock them to view their profile and posts.`
             : `This account is private or you have restricted access to this profile.`}
         </Text>
         <View style={styles.blockedBtnRow}>
           <TouchableOpacity
-            style={[
-              styles.blockBtn,
-              { borderColor: PRIMARY_COLOR, borderWidth: 1 },
-            ]}
+            style={[styles.blockBtn, { borderColor: colors.primary }]}
             onPress={() => navigation.goBack()}
           >
-            <Text style={[styles.blockBtnText, { color: PRIMARY_COLOR }]}>
+            <Text style={[styles.blockBtnText, { color: colors.primary }]}>
               Go Back
             </Text>
           </TouchableOpacity>
           {isExplicitlyBlockedByMe && (
             <TouchableOpacity
-              style={[styles.blockBtn, { backgroundColor: PRIMARY_COLOR }]}
+              style={[styles.blockBtn, { backgroundColor: colors.btnColor }]}
               onPress={handleBlockToggle}
             >
-              <Text style={[styles.blockBtnText, { color: '#fff' }]}>
+              <Text
+                style={[styles.blockBtnText, { color: colors.btnTextColor }]}
+              >
                 Unblock User
               </Text>
             </TouchableOpacity>
@@ -499,7 +508,10 @@ export const ProfileScreen = ({ route }: any) => {
     );
   }
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       {!isSearchFocused && (
         <PageHeader
           title="Profile"
@@ -507,9 +519,9 @@ export const ProfileScreen = ({ route }: any) => {
             <View style={styles.headerRightDiv}>
               <TouchableOpacity
                 onPress={() => setIsSearchFocused(true)}
-                style={{ marginRight: 15 }}
+                style={{ marginRight: 6 }}
               >
-                <MaterialIcons name="search" size={23} color={PRIMARY_COLOR} />
+                <MaterialIcons name="search" size={23} color={colors.primary} />
               </TouchableOpacity>
               {isOwner && (
                 <TouchableOpacity
@@ -518,7 +530,7 @@ export const ProfileScreen = ({ route }: any) => {
                   <MaterialIcons
                     name="settings"
                     size={23}
-                    color={PRIMARY_COLOR}
+                    color={colors.primary}
                   />
                 </TouchableOpacity>
               )}
@@ -878,7 +890,6 @@ export const ProfileScreen = ({ route }: any) => {
           <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
         </TouchableOpacity>
       )}
-      {/* Modals */}
       <FollowersListModal
         visible={followModal.visible}
         title={followModal.title}
@@ -1032,14 +1043,12 @@ export const ProfileScreen = ({ route }: any) => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF', position: 'relative' },
+  container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
   blockedContainer: {
-    flex: 1,
-    backgroundColor: '#FFF',
     position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
     padding: 20,
+    borderRadius: 15,
   },
   headerRightDiv: {
     flexDirection: 'row',
@@ -1262,22 +1271,17 @@ const styles = StyleSheet.create({
   blockedTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
     marginVertical: 15,
-    textAlign: 'center',
   },
   blockedSubTitle: {
-    fontSize: 13,
-    color: PRIMARY_COLOR_TINT,
-    marginVertical: 15,
-    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: 15,
   },
   blockedBtnRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
     alignItems: 'center',
-    paddingHorizontal: 15,
   },
   modalSubTitle: {
     fontSize: 13,
@@ -1367,10 +1371,11 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
   },
   blockBtn: {
-    flexDirection: 'row',
     alignContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: 15,
+    borderRadius: 15,
+    borderWidth: 1,
   },
   blockBtnText: {
     fontSize: 14,

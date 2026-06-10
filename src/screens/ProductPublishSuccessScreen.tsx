@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
@@ -42,16 +41,20 @@ export const ProductPublishSuccess = ({ route, navigation }: Props) => {
         </Text>
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, { backgroundColor: colors.btnColor }]}
           onPress={() => navigation.navigate('SalesHub')}
         >
-          <Text style={styles.buttonText}>Product Management Screen</Text>
+          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+            Product Management Screen
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
         >
-          <Text style={styles.backHome}>Back to Store</Text>
+          <Text style={[styles.backHome, { color: colors.primary }]}>
+            Back to Store
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -63,20 +66,18 @@ const styles = StyleSheet.create({
   subContainer: { padding: 20, alignContent: 'center', borderRadius: 15 },
   congrats: { fontSize: 18, fontWeight: 'bold', marginVertical: 15 },
   productTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
-  infoText: { marginBottom: 15, fontSize: 14 },
+  infoText: { marginBottom: 20, fontSize: 14 },
   button: {
-    backgroundColor: PRIMARY_COLOR,
-    width: '100%',
-    borderRadius: 10,
+    width: '80%',
+    borderRadius: 15,
     alignItems: 'center',
     paddingVertical: 14,
-    marginBottom: 15,
+    marginBottom: 20,
+    alignSelf: 'center',
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  buttonText: { fontWeight: 'bold', fontSize: 14 },
   backHome: {
-    color: PRIMARY_COLOR,
     fontSize: 14,
     fontWeight: '600',
-    paddingVertical: 10,
   },
 });

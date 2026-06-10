@@ -16,8 +16,13 @@ import { useAppDataContext } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
 import { Posts } from 'types/firebase';
 import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import { useTheme } from '../context/ThemeContext';
+import { PageHeader } from '../components/PageHeader';
+import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 export const PostDetailScreen = ({ route }: any) => {
+  const { colors } = useTheme();
   const { post: initialPost, postId } = route.params;
   const [post, setPost] = useState<Posts | null>(initialPost || null);
   const [loading, setLoading] = useState(!initialPost);
@@ -108,10 +113,11 @@ export const PostDetailScreen = ({ route }: any) => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#fff' }}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <PageHeader title="Post Detail" />
       <FlatList
         data={threadedComments}
         keyExtractor={item => item.commentId}
@@ -129,30 +135,38 @@ export const PostDetailScreen = ({ route }: any) => {
         contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      <View style={styles.inputWrapper}>
+      <View
+        style={[
+          styles.inputWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         {replyingTo && (
           <View style={styles.replyBar}>
-            <Text style={styles.replyText}>Replying to @{replyingTo.name}</Text>
+            <Text style={[styles.replyText, { color: colors.text }]}>
+              Replying to @{replyingTo.name}
+            </Text>
             <TouchableOpacity onPress={() => setReplyingTo(null)}>
-              <Text style={styles.cancelReply}>✕</Text>
+              <MaterialIcons name="cancel-outlined" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
         )}
         <View style={styles.inputContainer}>
           <TextInput
             ref={inputRef}
-            style={styles.input}
+            style={[styles.input, { color: colors.text }]}
             placeholder="Write a comment..."
             value={commentText}
             onChangeText={setCommentText}
             multiline
+            placeholderTextColor={colors.inputTextHolder}
           />
-          <TouchableOpacity onPress={handleSend} disabled={!commentText.trim()}>
-            <Text
-              style={[styles.sendBtn, !commentText.trim() && { opacity: 0.5 }]}
-            >
-              Post
-            </Text>
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!commentText.trim()}
+            style={[styles.sendBtn, { backgroundColor: colors.btnColor }]}
+          >
+            <MaterialIcons name="send" size={22} color={colors.btnTextColor} />
           </TouchableOpacity>
         </View>
       </View>
@@ -161,24 +175,30 @@ export const PostDetailScreen = ({ route }: any) => {
 };
 
 const styles = StyleSheet.create({
-  inputWrapper: {
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff',
+  container: {
+    flex: 1,
     paddingHorizontal: 15,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-    paddingTop: 10,
+    position: 'relative',
+  },
+  inputWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: PRIMARY_COLOR_TINT,
+    paddingVertical: 15,
+    paddingHorizontal: 8,
   },
   replyBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#f8f8f8',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 10,
   },
   replyText: {
     fontSize: 12,
-    color: '#666',
+    flex: 1
   },
   cancelReply: {
     fontSize: 12,
@@ -188,22 +208,17 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
   },
   input: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
     marginRight: 10,
-    maxHeight: 100,
+    maxHeight: 120,
+    fontSize: 14,
   },
   sendBtn: {
-    color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    fontSize: 16,
+    padding: 10,
+    borderRadius: 10,
   },
   centered: {
     flex: 1,

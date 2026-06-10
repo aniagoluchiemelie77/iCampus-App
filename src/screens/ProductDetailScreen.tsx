@@ -1,22 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, FlatList, Dimensions, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Animated,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../components/hooks';
 import { useAppDataContext } from '../components/EventContext';
-import {PageHeader} from '../components/PageHeader';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT, PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
+import { PageHeader } from '../components/PageHeader';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from 'assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {CurrencyDisplay} from '../components/CurrencyFormatter';
-import {formatTime} from '../utils/durationFormatter';
-import {formatCount} from '../utils/followCountFormatter';
+import { CurrencyDisplay } from '../components/CurrencyFormatter';
+import { formatTime } from '../utils/durationFormatter';
+import { formatCount } from '../utils/followCountFormatter';
 import { logProductImpressionAPI } from '../api/localPatchApis';
 import { searchUsersByUid } from '../api/localGetApis';
 import { UserIdentity } from '../components/UserIdentity';
 import { ProductCard } from '../components/ProductCard';
 import { UserAvatar } from '../components/UserAvatar';
-const { width } = Dimensions.get('window');
+import { useTheme } from '../context/ThemeContext';
 
 export const ProductDetailScreen = () => {
+  const { colors } = useTheme();
   const route = useRoute();
   const navigation = useNavigation<any>();
   const { productId } = route.params as { productId: string };
@@ -84,8 +98,8 @@ export const ProductDetailScreen = () => {
       0,
     ) || 0;
   return (
-    <View style={styles.container}>
-      <PageHeader title="Item Detail" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <PageHeader title="Product Detail" />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.productImageDiv}>
           <FlatList
@@ -103,30 +117,49 @@ export const ProductDetailScreen = () => {
             )}
             keyExtractor={(_, index) => index.toString()}
           />
-          <View style={styles.pagination}>
+          <View
+            style={[
+              styles.pagination,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             {product.mediaUrls.map((_, i) => (
               <View
                 key={i}
-                style={[styles.dot, activeImageIndex === i && styles.activeDot]}
+                style={[
+                  styles.dot,
+                  activeImageIndex === i
+                    ? { width: 18, backgroundColor: colors.primary }
+                    : { backgroundColor: colors.primaryTint },
+                ]}
               />
             ))}
           </View>
         </View>
-        <View style={styles.detailsContainer}>
+        <View
+          style={[
+            styles.detailsContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={styles.titleContainer}>
             <View>
-              <Text style={styles.title}>{product.title}</Text>
+              <Text style={[styles.title, { color: colors.textDarker }]}>
+                {product.title}
+              </Text>
               {product.description && (
-                <Text style={styles.description}>{product.description}</Text>
+                <Text style={[styles.description, { color: colors.text }]}>
+                  {product.description}
+                </Text>
               )}
             </View>
-            <View style={styles.priceDiv}>
-              <CurrencyDisplay value={product.priceInPoints} size="large" />
-            </View>
+            <CurrencyDisplay value={product.priceInPoints} size="large" />
           </View>
           {product.type === 'physical' && product.physicalDetails?.colors && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Select Color</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Select Color
+              </Text>
               <View style={styles.optionsRow}>
                 {product.physicalDetails.colors.map(color => (
                   <TouchableOpacity
@@ -144,7 +177,9 @@ export const ProductDetailScreen = () => {
           )}
           {product.type === 'physical' && product.physicalDetails?.sizes && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Select Size</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Select Size
+              </Text>
               <View style={styles.optionsRow}>
                 {product.physicalDetails.sizes.map(size => (
                   <TouchableOpacity
@@ -171,95 +206,110 @@ export const ProductDetailScreen = () => {
           )}
           {product.type === 'course' && product.courseDetails && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Course Info</Text>
-              <View style={styles.infoRow}>
-                <MaterialIcons
-                  name="schedule-outlined"
-                  size={20}
-                  color={PRIMARY_COLOR_TINT}
-                />
-                <Text style={styles.infoText}>
-                  Duration: {formatTime(totalDuration)}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons
-                  name="people-outlined"
-                  size={20}
-                  color={PRIMARY_COLOR_TINT}
-                />
-                <Text style={styles.infoText}>
-                  {formatCount(product.courseDetails.studentsEnrolled.length)}{' '}
-                  Students Enrolled
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons
-                  name="star-outline"
-                  size={20}
-                  color={PRIMARY_COLOR_TINT}
-                />
-                <Text style={styles.infoText}>
-                  {formatCount(product.courseDetails.totalReviews)} Reviews
-                </Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Course Info
+              </Text>
+              <View style={styles.rowDiv}>
+                <View style={styles.infoRow}>
+                  <MaterialIcons
+                    name="schedule-outlined"
+                    size={22}
+                    color={colors.text}
+                  />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
+                    Duration: {formatTime(totalDuration)}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <MaterialIcons
+                    name="people-outlined"
+                    size={20}
+                    color={colors.text}
+                  />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
+                    {formatCount(product.courseDetails.studentsEnrolled.length)}{' '}
+                    Students Enrolled
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <MaterialIcons
+                    name="star-outline"
+                    size={20}
+                    color={colors.text}
+                  />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
+                    {formatCount(product.courseDetails.totalReviews)} Reviews
+                  </Text>
+                </View>
               </View>
             </View>
           )}
           {product.type === 'file' && product.fileDetails && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>File Specifications</Text>
-              <View style={styles.fileCard}>
-                <MaterialIcons
-                  name="insert-drive-file-outlined"
-                  size={30}
-                  color={PRIMARY_COLOR_TINT}
-                />
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={styles.fileSubText}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                File Specifications
+              </Text>
+              <View style={styles.rowDiv}>
+                <View style={styles.infoRow}>
+                  <MaterialIcons
+                    name="insert-drive-file-outlined"
+                    size={20}
+                    color={colors.text}
+                  />
+                  <Text style={[styles.infoText, { color: colors.text }]}>
                     {product.fileDetails.fileFormat.toUpperCase()} •{' '}
                     {product.fileDetails.fileSizeInMB} MB
                   </Text>
                 </View>
-                {product.fileDetails.hasPassword && (
-                  <MaterialIcons
-                    name="lock-outlined"
-                    size={18}
-                    color={PRIMARY_COLOR_TINT}
-                    style={{ marginLeft: 'auto' }}
-                  />
-                )}
               </View>
             </View>
           )}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Quantity</Text>
-            <View style={styles.quantityRow}>
-              <TouchableOpacity
-                onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                style={styles.qtyBtn}
-              >
-                <Text style={styles.qtyBtnText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.qtyText}>{quantity}</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  if (quantity < product.amountInStock) {
-                    setQuantity(quantity + 1);
-                  }
-                }}
-                disabled={quantity >= product.amountInStock}
-                style={[
-                  styles.qtyBtn,
-                  quantity >= product.amountInStock && styles.disabledBtn,
-                ]}
-              >
-                <Text style={styles.qtyBtnText}>+</Text>
-              </TouchableOpacity>
+          {product.type === 'physical' && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Quantity
+              </Text>
+              <View style={styles.quantityRow}>
+                <TouchableOpacity
+                  onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                  style={[styles.qtyBtn, { borderColor: colors.primary }]}
+                >
+                  <Text style={[styles.qtyBtnText, { color: colors.primary }]}>
+                    -
+                  </Text>
+                </TouchableOpacity>
+                <Text style={[styles.qtyText, { color: colors.text }]}>
+                  {quantity}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (quantity < product.amountInStock) {
+                      setQuantity(quantity + 1);
+                    }
+                  }}
+                  disabled={quantity >= product.amountInStock}
+                  style={[
+                    [styles.qtyBtn, { borderColor: colors.primary }],
+                    quantity >= product.amountInStock && styles.disabledBtn,
+                  ]}
+                >
+                  <Text style={[styles.qtyBtnText, { color: colors.primary }]}>
+                    +
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
         </View>
-        <View style={styles.sellerSection}>
-          <Text style={styles.sectionTitle}>Seller Details</Text>
+        <View
+          style={[
+            styles.sellerSection,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Seller Details
+          </Text>
           <View style={styles.sellerRow}>
             <UserAvatar
               profilePic={seller?.profilePic}
@@ -281,14 +331,30 @@ export const ProductDetailScreen = () => {
           </View>
         </View>
         {moreProducts.length > 0 && (
-          <View style={styles.moreSection}>
+          <View
+            style={[
+              styles.moreSection,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <View style={styles.moreHeader}>
-              <Text style={styles.sectionTitle2}>More by this seller</Text>
+              <Text style={[styles.sectionTitle2, { color: colors.text }]}>
+                More by this seller
+              </Text>
               <TouchableOpacity
-                //onPress={() => {}}
-                style={styles.moreBtn}
+                onPress={() =>
+                  navigation.navigate('SellerProducts', {
+                    sellerId: product.sellerId,
+                    seller: seller,
+                  })
+                }
+                style={[styles.moreBtn, { backgroundColor: colors.btnColor }]}
               >
-                <Text style={styles.moreBtnText}>See All</Text>
+                <Text
+                  style={[styles.moreBtnText, { color: colors.btnTextColor }]}
+                >
+                  See All
+                </Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -310,8 +376,10 @@ export const ProductDetailScreen = () => {
           </View>
         )}
       </ScrollView>
-      <View style={styles.footer}>
-        <View style={styles.footerRow}>
+      <View
+        style={[styles.footer, { backgroundColor: colors.backgroundSecondary }]}
+      >
+        <View style={styles.footerSubDiv}>
           <TouchableOpacity
             onPress={() => handleToggleFavorite(product.productId)}
           >
@@ -320,7 +388,7 @@ export const ProductDetailScreen = () => {
                 isFavorite ? 'favorite-outlined' : 'favorite-border-outlined'
               }
               size={28}
-              color={PRIMARY_COLOR}
+              color={colors.primary}
             />
           </TouchableOpacity>
           {!isAlreadyInCart && (
@@ -333,13 +401,13 @@ export const ProductDetailScreen = () => {
               <MaterialIcons
                 name={'shopping-cart-outlined'}
                 size={28}
-                color={PRIMARY_COLOR}
+                color={colors.primary}
               />
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity
-          style={styles.checkoutBtn}
+          style={[styles.checkoutBtn, { backgroundColor: colors.btnColor }]}
           onPress={() =>
             navigation.navigate('Checkout', {
               productId,
@@ -349,7 +417,9 @@ export const ProductDetailScreen = () => {
             })
           }
         >
-          <Text style={styles.btnText}>Buy Now</Text>
+          <Text style={[styles.btnText, { color: colors.btnTextColor }]}>
+            Buy Now
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -358,10 +428,11 @@ export const ProductDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 15,
+    position: 'relative',
   },
   heroImage: {
-    width: width,
+    width: '100%',
     height: 400,
     resizeMode: 'cover',
   },
@@ -379,12 +450,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: PRIMARY_COLOR_TINT,
     marginHorizontal: 4,
-  },
-  activeDot: {
-    backgroundColor: PRIMARY_COLOR,
-    width: 18,
   },
   content: {
     flex: 1,
@@ -397,9 +463,8 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
     letterSpacing: -0.5,
   },
   label: {
@@ -478,19 +543,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FFFFFF',
+    padding: 15,
     borderTopWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    alignItems: 'center',
-    gap: 12,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  footerSubDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   iconBtn: {
     width: 54,
@@ -527,13 +594,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   detailsContainer: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
   },
   sellerSection: {
-    marginVertical: 15,
+    marginBottom: 15,
     padding: 15,
-    backgroundColor: '#fadccc',
+    borderRadius: 15,
   },
   sellerRow: {
     flexDirection: 'row',
@@ -543,24 +611,19 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    borderColor: PRIMARY_COLOR_TINT_MAIN,
-    borderWidth: 1,
-    marginRight: 4,
+    marginRight: 8,
   },
   section: {
     marginTop: 15,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#222',
-    marginBottom: 10,
-    textAlign: 'center',
+    marginBottom: 15,
   },
   sectionTitle2: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   optionsRow: {
     flexDirection: 'row',
@@ -605,46 +668,37 @@ const styles = StyleSheet.create({
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fadccc',
-    alignSelf: 'flex-start',
-    borderRadius: 12,
-    padding: 4,
   },
-  disabledBtn:{
-    opacity: 0.6
+  disabledBtn: {
+    opacity: 0.6,
   },
   qtyBtn: {
-    width: 38,
-    height: 38,
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 15,
+    borderRadius: 15,
+    alignContent: 'center',
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    borderWidth: 1,
   },
   qtyBtnText: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: 'bold',
   },
   qtyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     marginHorizontal: 20,
-    color: PRIMARY_COLOR,
   },
   description: {
     fontSize: 14,
-    color: '#2222',
-    marginTop: 7,
+    marginTop: 8,
   },
   productImageDiv: {
-    marginVertical: 10,
-    width: width,
+    marginBottom: 15,
+    width: '100%',
     height: 450,
     position: 'relative',
   },
@@ -654,58 +708,38 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   pagination: {
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
     flexDirection: 'row',
     position: 'absolute',
     bottom: 20,
     right: 10,
-    alignSelf: 'center',
     zIndex: 10,
   },
   titleContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     width: '100%',
-  },
-  priceDiv: {
-    paddingHorizontal: 5,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 10,
   },
   checkoutBtn: {
-    width: '100%',
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 12,
+    borderRadius: 15,
     alignContent: 'center',
   },
   btnText: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: 'bold',
   },
   infoRow: {
+    alignItems: 'center',
+  },
+  rowDiv: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
   },
   infoText: {
-    marginLeft: 8,
+    marginTop: 5,
     fontSize: 14,
-    color: '#2222',
-  },
-  fileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fadccc',
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   fileSubText: {
     fontSize: 13,
@@ -719,17 +753,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 15,
+    padding: 15,
   },
   moreBtn: {
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: PRIMARY_COLOR,
-    borderRadius: 13,
+    borderRadius: 15,
     alignContent: 'center',
   },
   moreBtnText: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: 'bold',
   },
 });

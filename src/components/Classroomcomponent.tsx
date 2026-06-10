@@ -39,7 +39,6 @@ export const PRIMARY_COLOR = '#f54b02';
 export const PRIMARY_COLOR_TINT = '#f5743d';
 export const PRIMARY_COLOR_TINT_MAIN = '#f9dccf';
 
-// --- Sub-Components ---
 interface CourseModalProps {
   isVisible: boolean;
   onClose: () => void;
@@ -51,17 +50,17 @@ interface CourseModalProps {
 }
 interface ForYouCardProps {
   course: Course;
-  onPress: (course: Course) => void; // Pass a generic onPress handler
+  onPress: (course: Course) => void;
 }
 interface CourseDetailModalProps {
   isVisible: boolean;
   onClose: () => void;
-  course: Course | null; // Change this to allow null
+  course: Course | null;
   onAddToCart: (course: Course) => void;
 }
 interface DashboardProps {
-  user: User; // Assuming User is your existing type
-  userRole: 'student' | 'lecturer' | 'otherUser'; // Add this line!
+  user: User;
+  userRole: 'student' | 'lecturer' | 'otherUser';
 }
 interface ClassroomProps {
   userRole: 'student' | 'lecturer' | 'otherUser';
@@ -72,18 +71,18 @@ interface SelectionModalProps {
   onSelect: (item: string) => void;
   onClose: () => void;
   title: string;
-  selectedValue?: string; // Added this so you know which one to highlight!
+  selectedValue?: string;
 }
 interface UploadProgressModalProps {
   visible: boolean;
-  progress: number; // 0 to 1
+  progress: number;
   statusText: string;
 }
 interface GridItemProps {
   label: string;
-  iconName: string; // Changed from 'icon' (emoji) to 'iconName' (MCI)
+  iconName: string;
   count?: number;
-  onPress?: () => void; // Added click handler
+  onPress?: () => void;
 }
 const GridItem = ({ label, iconName, count, onPress }: GridItemProps) => {
   const capitalize = (str: string = '') => {

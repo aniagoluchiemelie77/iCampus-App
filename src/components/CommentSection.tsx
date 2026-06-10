@@ -120,6 +120,7 @@ const styles = StyleSheet.create({
   commentContainer: {
     paddingVertical: 10,
     paddingHorizontal: 5,
+    borderRadius: 15,
   },
   row: {
     flexDirection: 'row',
