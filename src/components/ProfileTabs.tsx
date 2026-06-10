@@ -60,10 +60,9 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
 
 const styles = StyleSheet.create({
   tabWrapper: {
-    borderBottomWidth: .8,
+    borderBottomWidth: 0.8,
   },
   container: {
-    paddingHorizontal: 8,
     alignItems: 'center',
   },
   tabItem: {

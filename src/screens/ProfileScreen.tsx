@@ -48,6 +48,7 @@ import { updateBlockedUsers } from '@components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { useTheme } from '../context/ThemeContext';
+import { CurrencyDisplay } from '../CurrencyFormatter';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -68,6 +69,7 @@ const POPULAR_SKILLS = [
 const MAX_BIO_CHAR = 300;
 
 const CourseCard = ({ item }: { item: any }) => {
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const isProfessional = !!item.thumbnailUrl;
   return (
@@ -85,48 +87,66 @@ const CourseCard = ({ item }: { item: any }) => {
               resizeMode="cover"
             />
             <View style={styles.proInfo}>
-              <Text style={styles.courseName} numberOfLines={1}>
+              <Text
+                style={[styles.courseName, { color: colors.text }]}
+                numberOfLines={1}
+              >
                 {item.courseTitle}
               </Text>
-              <View style={styles.ratingRow}>
-                <MaterialIcons name="star" size={12} color={PRIMARY_COLOR} />
-                <Text style={styles.ratingText}>{item.rating || '4.5'}</Text>
-                <Text style={styles.durationText}>
-                  {formatTime(item.courseDuration)}
-                </Text>
-              </View>
-              <Text style={styles.description} numberOfLines={2}>
+              <Text
+                style={[styles.description, { color: colors.text }]}
+                numberOfLines={2}
+              >
                 {item.description || 'No description available.'}
               </Text>
+              <View style={styles.rowDiv}>
+                <View style={styles.ratingRow}>
+                  <MaterialIcons name="star" size={12} color={colors.text} />
+                  <Text style={[styles.ratingText, { color: colors.text }]}>
+                    {item.rating || '4.5'}
+                  </Text>
+                </View>
+                <View style={styles.ratingRow}>
+                  <MaterialIcons
+                    name="access-time"
+                    size={12}
+                    color={colors.text}
+                  />
+                  <Text style={[styles.durationText, { color: colors.text }]}>
+                    {formatTime(item.courseDuration)}
+                  </Text>
+                </View>
+              </View>
             </View>
           </>
         ) : (
           // --- ACADEMIC STYLE LAYOUT ---
           <>
-            <View style={styles.courseIconContainer}>
               <MaterialIcons
-                name="auto-stories"
+                name="auto-stories-outlined"
                 size={24}
-                color={PRIMARY_COLOR}
+                color={colors.text}
+                style={{alignSelf: 'center'}}
               />
-            </View>
             <View style={styles.courseInfo}>
-              <Text style={styles.courseName} numberOfLines={2}>
+              <Text
+                style={[styles.courseName, { color: colors.text }]}
+                numberOfLines={2}
+              >
                 {item.courseTitle}
               </Text>
               {item.courseCode && (
-                <Text style={styles.courseCode}>{item.courseCode}</Text>
+                <Text style={[styles.courseCode, {color: colors.text}]}>{item.courseCode}</Text>
               )}
               <View style={styles.courseMeta}>
-                <Text style={styles.courseMetaText}>{item.session}</Text>
-                <Text style={styles.courseMetaSeparator}>|</Text>
-                <Text style={styles.courseMetaText}>{item.semester}</Text>
+                <Text style={[styles.courseMetaText, {color: colors.text}]}>{item.session}</Text>
+                <Text style={[styles.courseMetaSeparator, {color: colors.text}]}>|</Text>
+                <Text style={[styles.courseMetaText, {color: colors.text}]}>{item.semester}</Text>
               </View>
             </View>
           </>
         )}
       </TouchableOpacity>
-      {/* Course Detail Modal */}
       <Modal
         isVisible={modalVisible}
         animationIn="slideInUp"
@@ -138,30 +158,22 @@ const CourseCard = ({ item }: { item: any }) => {
         style={styles.modalBottom}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
             <View style={styles.modalDivider} />
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={PRIMARY_COLOR_TINT}
-              />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{item.courseTitle}</Text>
-            <Text style={styles.modalSubTitle}>
+            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+              {item.courseTitle}
+            </Text>
+            <Text style={[styles.modalSubTitle, {color: colors.text}]}>
               {item.courseCode || 'Professional Course'}
             </Text>
-            <Text style={styles.modalDescription}>
+            <Text style={[styles.modalDescription, {color: colors.text}]}>
               {item.description ||
                 'Detailed course information and curriculum will appear here.'}
             </Text>
             <View style={styles.modalStatsRow}>
               <View style={styles.statItem}>
-                <MaterialIcons name="people" size={18} color={PRIMARY_COLOR} />
-                <Text style={styles.statText}>
+                <MaterialIcons name="people" size={20} color={colors.text} />
+                <Text style={[styles.statText, {color: colors.text}]}>
                   {item.enrolledCount} Students
                 </Text>
               </View>
@@ -172,7 +184,7 @@ const CourseCard = ({ item }: { item: any }) => {
                     size={18}
                     color={PRIMARY_COLOR}
                   />
-                  <Text style={styles.statText}>{item.price}</Text>
+                  <Text style={[styles.statText, {color: colors.text}]}>{item.price}</Text>
                 </View>
               )}
               <View
@@ -201,7 +213,13 @@ const CourseCard = ({ item }: { item: any }) => {
     </>
   );
 };
-export const CoursesView = ({ courses }: { courses: Course[] }) => {
+export const CoursesView = ({
+  courses,
+  colors,
+}: {
+  courses: Course[];
+  colors: any;
+}) => {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -223,15 +241,22 @@ export const CoursesView = ({ courses }: { courses: Course[] }) => {
   }, [currentIndex, courses.length]);
 
   return (
-    <View style={styles.sectionContainer}>
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Contributions {courses.length}</Text>
-      </View>
+    <View
+      style={[
+        styles.sectionContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <Text
+        style={[styles.sectionTitle, { color: colors.text, marginBottom: 15 }]}
+      >
+        Contributions {courses.length}
+      </Text>
 
       <FlatList
         ref={flatListRef}
         data={courses}
-        keyExtractor={item => item._id}
+        keyExtractor={item => item.courseId}
         renderItem={({ item }) => <CourseCard item={item} />}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -538,113 +563,148 @@ export const ProfileScreen = ({ route }: any) => {
           }
         />
       )}
-      <ProfileImageCarousel
-        images={profileData.profilePic}
-        isOwner={isOwner}
-        organizationName={profileData.organizationName}
-        firstName={profileData.firstname}
-        lastName={profileData.lastname}
-        username={profileData.username}
-      />
-      {/* 1. Essential Info Section */}
-      <View style={styles.profileInfoSection}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('EditProfile')}
-          style={styles.editButtonCircle}
-        >
-          <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
-        </TouchableOpacity>
-        {/* 1. Name section */}
-        <UserIdentity
-          firstname={profileData.firstname}
-          lastname={profileData.lastname}
-          username={profileData.username}
-          tier={profileData.tier}
-          isVerified={profileData.isVerified}
-          showVerifyIcon={true}
-          size="large"
-          isOrganization={profileData.usertype === 'enterprise'}
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <ProfileImageCarousel
+          images={profileData.profilePic}
+          isOwner={isOwner}
           organizationName={profileData.organizationName}
+          firstName={profileData.firstname}
+          lastName={profileData.lastname}
+          username={profileData.username}
         />
-        {/* 2. iSore section */}
-        {isOwner ||
-          (isIscoreViewEligible && (
-            <View style={styles.iScoreChip}>
-              <Text style={styles.iScoreLabel}>iScore</Text>
-              <Text style={styles.iScoreValue}>
-                {profileData.currentIScore}
+        <View style={styles.profileInfoSection}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditProfile')}
+            style={styles.editButtonCircle}
+          >
+            <MaterialIcons name="edit" size={23} color={colors.primary} />
+          </TouchableOpacity>
+          <UserIdentity
+            firstname={profileData.firstname}
+            lastname={profileData.lastname}
+            username={profileData.username}
+            tier={profileData.tier}
+            isVerified={profileData.isVerified}
+            showVerifyIcon={true}
+            size="large"
+            isOrganization={profileData.usertype === 'enterprise'}
+            organizationName={profileData.organizationName}
+            containerStyle={{ padding: 15 }}
+          />
+          <View style={styles.rowDiv}>
+            {isOwner ||
+              (isIscoreViewEligible && (
+                <View style={styles.iScoreChip}>
+                  <Text
+                    style={[styles.iScoreValue, { color: colors.textDarker }]}
+                  >
+                    {profileData.currentIScore}
+                  </Text>
+                  <Text style={[styles.iScoreLabel, { color: colors.text }]}>
+                    iScore
+                  </Text>
+                </View>
+              ))}
+            {isOwner && !isVerified && (
+              <TouchableOpacity
+                style={styles.verifyBtn}
+                onPress={() => navigation.navigate('PersonaVerify')}
+              >
+                <Text style={[styles.verifyBtnText, { color: colors.primary }]}>
+                  Get Verified
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={[styles.bioText, { color: colors.text }]}>
+            {profileData.headline
+              ? profileData.headline
+              : profileData.usertype === 'student'
+              ? `Student at ${profileData.schoolName}`
+              : profileData.usertype === 'lecturer'
+              ? `${profileData.jobTitle || 'Lecturer'} • ${
+                  profileData.department
+                } at ${profileData.schoolName}`
+              : profileData.usertype === 'enterprise'
+              ? `${profileData.organizationName} Global Organization`
+              : 'iCampus User'}
+          </Text>
+          <View style={styles.statsRow}>
+            <TouchableOpacity
+              style={styles.statCountDiv}
+              onPress={() =>
+                setFollowModal({
+                  visible: true,
+                  title: 'Followers',
+                  data: profileData.followersList,
+                })
+              }
+            >
+              <Text
+                style={[
+                  styles.statCount,
+                  { color: colors.primary },
+                  { marginRight: 4 },
+                ]}
+              >
+                {formatCount(profileData.followersCount)}
               </Text>
-            </View>
-          ))}
-        {/* 3. Verification CTA (Other Users) */}
-        {isOwner && !isVerified && (
-          <TouchableOpacity
-            style={styles.verifyBtn}
-            onPress={() => navigation.navigate('PersonaVerify')}
-          >
-            <Text style={styles.verifyBtnText}>Get Verified</Text>
-          </TouchableOpacity>
-        )}
-        {/* 4. Bio section */}
-        <Text style={styles.bioText}>
-          {profileData.headline
-            ? profileData.headline
-            : profileData.usertype === 'student'
-            ? `Student at ${profileData.schoolName}`
-            : profileData.usertype === 'lecturer'
-            ? `${profileData.jobTitle || 'Lecturer'} • ${
-                profileData.department
-              } at ${profileData.schoolName}`
-            : profileData.usertype === 'enterprise'
-            ? `${profileData.organizationName} Global Organization`
-            : 'iCampus User'}
-        </Text>
-        {!isOwner && !isFollowing && (
-          <TouchableOpacity
-            style={styles.followBtn}
-            onPress={handleFollowToggle}
-          >
-            <Text style={styles.followBtnText}>Follow</Text>
-          </TouchableOpacity>
-        )}
-        {/* 5. Follow section */}
-        <View style={styles.statsRow}>
-          <TouchableOpacity
-            style={styles.statCountDiv}
-            onPress={() =>
-              setFollowModal({
-                visible: true,
-                title: 'Followers',
-                data: profileData.followersList,
-              })
-            }
-          >
-            <Text style={[styles.statCount, { marginRight: 4 }]}>
-              {formatCount(profileData.followersCount)}
-            </Text>
-            <Text style={styles.statCount}>Followers</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.statCountDiv}
-            onPress={() =>
-              setFollowingModal({
-                visible: true,
-                title: 'Following',
-                data: profileData.followingList,
-              })
-            }
-          >
-            <Text style={[styles.statCount, { marginRight: 4 }]}>
-              {formatCount(profileData.followingCount)}
-            </Text>
-            <Text style={styles.statCount}>Following</Text>
-          </TouchableOpacity>
-        </View>
-        {/* 6. Contact info section*/}
-        <View style={styles.contactContainer}>
-          {/* Email Row */}
-          {isIscoreViewEligible && (
+              <Text style={[styles.statCount, { color: colors.primary }]}>
+                Followers
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statCountDiv}
+              onPress={() =>
+                setFollowingModal({
+                  visible: true,
+                  title: 'Following',
+                  data: profileData.followingList,
+                })
+              }
+            >
+              <Text
+                style={[
+                  styles.statCount,
+                  { color: colors.primary },
+                  { marginRight: 4 },
+                ]}
+              >
+                {formatCount(profileData.followingCount)}
+              </Text>
+              <Text style={[styles.statCount, { color: colors.primary }]}>
+                Following
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.statsRow, { marginBottom: 0 }]}>
+            <TouchableOpacity
+              onPress={handleBlockToggle}
+              style={[styles.blockBtn, { borderColor: colors.primary }]}
+            >
+              <Text style={[styles.blockBtnText, { color: colors.primary }]}>
+                Block User
+              </Text>
+            </TouchableOpacity>
+            {!isOwner && !isFollowing && (
+              <TouchableOpacity
+                style={[styles.followBtn, { backgroundColor: colors.btnColor }]}
+                onPress={handleFollowToggle}
+              >
+                <Text
+                  style={[styles.followBtnText, { color: colors.btnTextColor }]}
+                >
+                  Follow
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.contactContainer}>
             <TouchableOpacity
               style={styles.contactRow}
               onPress={() => {
@@ -655,46 +715,53 @@ export const ProfileScreen = ({ route }: any) => {
                 }
               }}
             >
-              <View style={styles.iconCircle}>
-                <MaterialIcons name="mail-outline" size={18} color="#fff" />
-              </View>
-              <View style={styles.contactTextContainer}>
-                <Text style={styles.contactValue} numberOfLines={1}>
-                  Email
+              <MaterialIcons
+                name="email-outlined"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.contactValue, { color: colors.primary }]}>
+                Send mail
+              </Text>
+            </TouchableOpacity>
+            {profileData.website && (
+              <TouchableOpacity
+                style={styles.contactRow}
+                onPress={() => {
+                  if (profileData.website) {
+                    const url = profileData.website.startsWith('http')
+                      ? profileData.website
+                      : `https://${profileData.website}`;
+                    Linking.openURL(url).catch(() =>
+                      Alert.alert('Error', "Couldn't open this website"),
+                    );
+                  }
+                }}
+              >
+                <MaterialIcons
+                  name="language"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={[styles.contactValue, { color: colors.primary }]}>
+                  View Portfolio
                 </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          {/* If User has a website (based on your schema) */}
-          {profileData.website && (
-            <TouchableOpacity
-              style={styles.contactRow}
-              onPress={() => {
-                if (profileData.website) {
-                  const url = profileData.website.startsWith('http')
-                    ? profileData.website
-                    : `https://${profileData.website}`;
-                  Linking.openURL(url).catch(() =>
-                    Alert.alert('Error', "Couldn't open this website"),
-                  );
-                }
-              }}
-            >
-              <View style={styles.iconCircle}>
-                <MaterialIcons name="language" size={18} color="#fff" />
-              </View>
-              <View style={styles.contactTextContainer}>
-                <Text style={styles.contactValue}>Website</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
-      {/* 2. About Section */}
       {profileData.bio && (
-        <View style={styles.sectionContainer}>
+        <View
+          style={[
+            styles.sectionContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={styles.sectionTitleDiv}>
-            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              About
+            </Text>
             {isOwner && (
               <TouchableOpacity
                 onPress={() => {
@@ -702,13 +769,13 @@ export const ProfileScreen = ({ route }: any) => {
                   setEditModalVisible(true);
                 }}
               >
-                <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
+                <MaterialIcons name="edit" size={20} color={colors.primary} />
               </TouchableOpacity>
             )}
           </View>
           <View style={styles.aboutContent}>
             <Text
-              style={styles.aboutText}
+              style={[styles.aboutText, { color: colors.text }]}
               numberOfLines={isExpanded ? undefined : 4}
               onTextLayout={onTextLayout}
             >
@@ -719,7 +786,7 @@ export const ProfileScreen = ({ route }: any) => {
                 onPress={() => setIsExpanded(!isExpanded)}
                 style={styles.seeMoreButton}
               >
-                <Text style={styles.seeMoreText}>
+                <Text style={[styles.seeMoreText, { color: colors.primary }]}>
                   {isExpanded ? 'Show Less' : 'See More'}
                 </Text>
               </TouchableOpacity>
@@ -727,11 +794,17 @@ export const ProfileScreen = ({ route }: any) => {
           </View>
         </View>
       )}
-      {/* 3. Skills Section */}
       {profileData.skills && profileData.skills.length > 0 && (
-        <View style={styles.sectionContainer}>
+        <View
+          style={[
+            styles.sectionContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={styles.sectionTitleDiv}>
-            <Text style={styles.sectionTitle}>Skills</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Skills
+            </Text>
             {isOwner && (
               <TouchableOpacity
                 onPress={() => {
@@ -739,21 +812,27 @@ export const ProfileScreen = ({ route }: any) => {
                   setEditModalVisible(true);
                 }}
               >
-                <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
+                <MaterialIcons name="edit" size={20} color={colors.primary} />
               </TouchableOpacity>
             )}
           </View>
           <View style={styles.skillsWrapper}>
             {profileData.skills.map((skill: string, index: number) => (
               <View key={index} style={styles.skillChip}>
-                <Text style={styles.skillText}>{skill}</Text>
+                <Text style={[styles.skillText, { color: colors.text }]}>
+                  {skill}
+                </Text>
               </View>
             ))}
           </View>
         </View>
       )}
-      {/* 4. iTag Section */}
-      <View style={styles.iTagDiv}>
+      <View
+        style={[
+          styles.iTagDiv,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <ITagCard
           iTagData={profileData.iTagData}
           isPremium={profileData.tier === 'premium'}
@@ -764,7 +843,7 @@ export const ProfileScreen = ({ route }: any) => {
             style={styles.editButtonCircle}
             onPress={() => setIsEditItagModalVisible(true)}
           >
-            <MaterialIcons name="edit" size={20} color={PRIMARY_COLOR} />
+            <MaterialIcons name="edit" size={20} color={colors.primary} />
           </TouchableOpacity>
         )}
         {!isOwner && (
@@ -780,99 +859,82 @@ export const ProfileScreen = ({ route }: any) => {
           </TouchableOpacity>
         )}
       </View>
-      {/* 5. Courses View */}
       {profileData.courses && profileData.courses.length > 0 && (
-        <CoursesView courses={profileData.courses} />
+        <CoursesView courses={profileData.courses} colors={colors} />
       )}
-
-      {/* 6. Tabs View (Posts / Courses / Bookmarks) */}
-      <View style={styles.sectionContainer}>
-        <ProfileTabs
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          userType={profileData.usertype}
-          isOwner={isOwner}
-        />
-        <View style={styles.tabContent}>
-          {activeTab === 'Posts' && (
-            <FlatList
-              data={profileData.posts.filter((p: any) => !p.isRepost)}
-              keyExtractor={item => item.postId}
-              renderItem={({ item }) => (
-                <PostCard post={item} isVisible={true} />
-              )}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No posts yet.</Text>
-              }
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-          {activeTab === 'Reposts' && (
-            <FlatList
-              data={profileData.posts.filter((p: any) => p.isRepost)}
-              keyExtractor={item => item.postId}
-              renderItem={({ item }) => (
-                <PostCard post={item} isVisible={true} />
-              )}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No reposts yet.</Text>
-              }
-            />
-          )}
-          {activeTab === 'Bookmarks' && (
-            <FlatList
-              data={profileData.bookmarkedPosts}
-              keyExtractor={item => item.postId}
-              renderItem={({ item }) => (
-                <PostCard post={item} isVisible={true} />
-              )}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No bookmarks yet.</Text>
-              }
-            />
-          )}
-          {activeTab === 'Media' && (
-            <FlatList
-              data={profileData.posts.filter(
-                (p: any) => p.media?.url?.length > 0,
-              )}
-              keyExtractor={item => item.postId}
-              numColumns={3}
-              renderItem={({ item }) => <MediaGridItem post={item} />}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No media found.</Text>
-              }
-            />
-          )}
-          {activeTab === 'Jobs' && (
-            <FlatList
-              data={profileData.posts.filter((p: any) => p.postType === 'job')}
-              keyExtractor={item => item.postId}
-              renderItem={({ item }) => (
-                <PostCard post={item} isVisible={true} />
-              )}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No job listings.</Text>
-              }
-            />
-          )}
-          {activeTab === 'Events' && (
-            <FlatList
-              data={profileData.posts.filter(
-                (p: any) => p.postType === 'event',
-              )}
-              keyExtractor={item => item.postId}
-              renderItem={({ item }) => (
-                <PostCard post={item} isVisible={true} />
-              )}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No upcoming events.</Text>
-              }
-            />
-          )}
-        </View>
+      <ProfileTabs
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        userType={profileData.usertype}
+        isOwner={isOwner}
+      />
+      <View style={styles.tabContent}>
+        {activeTab === 'Posts' && (
+          <FlatList
+            data={profileData.posts.filter((p: any) => !p.isRepost)}
+            keyExtractor={item => item.postId}
+            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No posts yet.</Text>
+            }
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+        {activeTab === 'Reposts' && (
+          <FlatList
+            data={profileData.posts.filter((p: any) => p.isRepost)}
+            keyExtractor={item => item.postId}
+            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No reposts yet.</Text>
+            }
+          />
+        )}
+        {activeTab === 'Bookmarks' && (
+          <FlatList
+            data={profileData.bookmarkedPosts}
+            keyExtractor={item => item.postId}
+            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No bookmarks yet.</Text>
+            }
+          />
+        )}
+        {activeTab === 'Media' && (
+          <FlatList
+            data={profileData.posts.filter(
+              (p: any) => p.media?.url?.length > 0,
+            )}
+            keyExtractor={item => item.postId}
+            numColumns={3}
+            renderItem={({ item }) => <MediaGridItem post={item} />}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No media found.</Text>
+            }
+          />
+        )}
+        {activeTab === 'Jobs' && (
+          <FlatList
+            data={profileData.posts.filter((p: any) => p.postType === 'job')}
+            keyExtractor={item => item.postId}
+            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No job listings.</Text>
+            }
+          />
+        )}
+        {activeTab === 'Events' && (
+          <FlatList
+            data={profileData.posts.filter((p: any) => p.postType === 'event')}
+            keyExtractor={item => item.postId}
+            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No upcoming events.</Text>
+            }
+          />
+        )}
       </View>
       {isSearchFocused && (
         <UserSearchOverlay
@@ -887,7 +949,11 @@ export const ProfileScreen = ({ route }: any) => {
           style={homeStyles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
+          <MaterialIcons
+            name="widgets-outlined"
+            size={28}
+            color={colors.btnTextColor}
+          />
         </TouchableOpacity>
       )}
       <FollowersListModal
@@ -922,14 +988,17 @@ export const ProfileScreen = ({ route }: any) => {
         onSwipeComplete={() => setEditModalVisible(false)}
         style={styles.modalBottom}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHandle} />
-
-          <Text style={[styles.modalTitle, { marginVertical: 10 }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
             {modalType === 'about' ? 'Edit About' : 'Edit Skills'}
           </Text>
           {modalType === 'about' ? (
-            <View>
+            <>
               <TextInput
                 style={styles.bioInput}
                 multiline
@@ -937,32 +1006,30 @@ export const ProfileScreen = ({ route }: any) => {
                 value={tempBio}
                 onChangeText={setTempBio}
                 placeholder="Tell people about yourself..."
+                placeholderTextColor={colors.inputTextHolder}
               />
-              <Text style={styles.charCount}>
+              <Text style={[styles.charCount, { color: colors.text }]}>
                 {tempBio.length} / {MAX_BIO_CHAR}
               </Text>
-            </View>
+            </>
           ) : (
-            /* --- SKILLS EDIT VIEW --- */
             <>
-              {/* Modern Search Bar */}
               <View style={styles.skillInputWrapper}>
                 <MaterialIcons
                   name="auto-fix-high"
                   size={20}
-                  color={PRIMARY_COLOR}
+                  color={colors.text}
                   style={styles.searchIcon}
                 />
                 <TextInput
-                  style={styles.skillSearchInput}
+                  style={[styles.skillSearchInput, { color: colors.text }]}
                   value={skillInput}
                   onChangeText={setSkillInput}
                   placeholder="Type in a skill..."
-                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  placeholderTextColor={colors.inputTextHolder}
                 />
                 {skillInput.length > 0 && (
                   <TouchableOpacity
-                    style={styles.addSkillBtn}
                     onPress={() => {
                       if (!tempSkills.includes(skillInput)) {
                         setTempSkills([...tempSkills, skillInput]);
@@ -970,7 +1037,11 @@ export const ProfileScreen = ({ route }: any) => {
                       }
                     }}
                   >
-                    <Text style={styles.addBtnText}>Add</Text>
+                    <Text
+                      style={[styles.addBtnText, { color: colors.primary }]}
+                    >
+                      Add
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -981,7 +1052,11 @@ export const ProfileScreen = ({ route }: any) => {
               >
                 {tempSkills.map((skill, index) => (
                   <View key={index} style={styles.activeSkillChip}>
-                    <Text style={styles.activeSkillText}>{skill}</Text>
+                    <Text
+                      style={[styles.activeSkillText, { color: colors.text }]}
+                    >
+                      {skill}
+                    </Text>
                     <TouchableOpacity
                       onPress={() =>
                         setTempSkills(tempSkills.filter(s => s !== skill))
@@ -990,24 +1065,22 @@ export const ProfileScreen = ({ route }: any) => {
                       <MaterialIcons
                         name="close"
                         size={14}
-                        color={PRIMARY_COLOR}
+                        color={colors.primary}
                       />
                     </TouchableOpacity>
                   </View>
                 ))}
               </ScrollView>
-
               <View style={styles.suggestionHeader}>
-                <Text style={styles.suggestionTitle}>
+                <Text style={[styles.suggestionTitle, { color: colors.text }]}>
                   {skillInput.length > 0
                     ? 'Global Results'
                     : 'Popular on iCampus'}
                 </Text>
                 {isLoading && (
-                  <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 )}
               </View>
-              {/* Unified Results Side */}
               <View style={styles.suggestionsWrapper}>
                 {(skillInput.length > 0 ? apiSuggestions : POPULAR_SKILLS).map(
                   (skill, index) => {
@@ -1021,11 +1094,18 @@ export const ProfileScreen = ({ route }: any) => {
                           setSkillInput('');
                         }}
                       >
-                        <Text style={styles.suggestionText}>{skill}</Text>
+                        <Text
+                          style={[
+                            styles.suggestionText,
+                            { color: colors.text },
+                          ]}
+                        >
+                          {skill}
+                        </Text>
                         <MaterialIcons
-                          name="add-circle-outline"
+                          name="add"
                           size={18}
-                          color={PRIMARY_COLOR}
+                          color={colors.primary}
                         />
                       </TouchableOpacity>
                     );
@@ -1034,8 +1114,15 @@ export const ProfileScreen = ({ route }: any) => {
               </View>
             </>
           )}
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: colors.btnColor }]}
+            onPress={handleSave}
+          >
+            <Text
+              style={[styles.saveButtonText, { color: colors.btnTextColor }]}
+            >
+              Save Changes
+            </Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -1044,6 +1131,12 @@ export const ProfileScreen = ({ route }: any) => {
 };
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
+  subContainer: {
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    marginHorizontal: -15,
+    marginBottom: 10,
+  },
   blockedContainer: {
     position: 'relative',
     alignContent: 'center',
@@ -1056,46 +1149,44 @@ const styles = StyleSheet.create({
   },
   profileInfoSection: {
     padding: 20,
-    borderRadius: 15,
-    backgroundColor: '#fadccc',
     position: 'relative',
     marginVertical: 15,
-    marginHorizontal: 5,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
   },
-  bioText: { fontSize: 13, color: '#222', marginVertical: 10 },
-  statsRow: { flexDirection: 'row', gap: 20 },
-  statCount: { fontWeight: 'bold', color: PRIMARY_COLOR, fontSize: 13 },
-
-  // Verify Button
+  bioText: { fontSize: 14, marginBottom: 10, paddingHorizontal: 15 },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  statCount: { fontWeight: 'bold', fontSize: 12 },
   verifyBtn: {
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
-    borderRadius: 20,
-    padding: 10,
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     alignItems: 'center',
   },
-  verifyBtnText: { color: PRIMARY_COLOR, fontWeight: 'bold', fontSize: 14 },
-
-  iScoreChip: {
-    backgroundColor: PRIMARY_COLOR,
-    marginVertical: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
+  verifyBtnText: { fontWeight: 'bold', fontSize: 14 },
+  rowDiv: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  iScoreChip: {
+    alignItems: 'center',
   },
   iScoreLabel: {
-    fontSize: 10,
-    color: '#fff',
+    fontSize: 12,
     fontWeight: '900',
-    marginRight: 5,
+    marginTop: 5,
   },
   iScoreValue: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   statCountDiv: {
     flexDirection: 'row',
@@ -1105,54 +1196,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
   },
   contactContainer: {
-    marginVertical: 15,
+    padding: 15,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   contactRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: PRIMARY_COLOR,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 0.8,
-    borderColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: PRIMARY_COLOR_TINT_MAIN,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  contactTextContainer: {
-    marginLeft: 8,
   },
   contactValue: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: '500',
-    marginTop: 1,
+    marginTop: 4,
   },
   iTagDiv: {
-    marginHorizontal: 5,
     position: 'relative',
     padding: 20,
     borderRadius: 15,
-    backgroundColor: '#fadccc',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
     marginBottom: 15,
   },
   courseCount: {
@@ -1168,29 +1230,17 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginBottom: 15,
     padding: 20,
-    marginHorizontal: 5,
     borderRadius: 15,
-    backgroundColor: '#fadccc',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
   },
   sectionTitleDiv: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 5,
     marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#222',
   },
   // Professional Specifics
   thumbnail: {
@@ -1203,70 +1253,54 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
   },
   ratingText: {
     fontSize: 12,
-    fontWeight: 'bold',
     marginLeft: 4,
-    color: '#444',
   },
   durationText: {
     fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
+    marginLeft: 4,
   },
   description: {
-    fontSize: 11,
-    color: '#777',
-    marginTop: 6,
-    lineHeight: 14,
+    fontSize: 12,
+    marginVertical: 5,
   },
-  // Shared & Academic Texts
   courseName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#222',
   },
   courseCode: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 2,
+    marginTop: 4,
   },
   courseMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 5,
   },
   courseMetaText: {
-    fontSize: 10,
-    color: PRIMARY_COLOR_TINT,
+    fontSize: 12,
   },
   courseMetaSeparator: {
     marginHorizontal: 5,
-    color: PRIMARY_COLOR_TINT,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 20,
     minHeight: '70%',
   },
-  closeButton: {
-    alignSelf: 'flex-end',
-    padding: 5,
-  },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
+    marginBottom: 15,
   },
   blockedTitle: {
     fontSize: 18,
@@ -1284,9 +1318,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSubTitle: {
-    fontSize: 13,
-    color: PRIMARY_COLOR_TINT,
-    marginVertical: 10,
+    fontSize: 12,
+    marginBottom: 15,
   },
   modalDivider: {
     height: 1,
@@ -1294,34 +1327,20 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   modalDescription: {
-    fontSize: 15,
-    color: '#555',
-    lineHeight: 22,
+    fontSize: 14,
+    marginBottom: 15
   },
   courseCard: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    backgroundColor: '#fadccc',
     borderRadius: 16,
     marginRight: 15,
-    overflow: 'hidden', // Clips image to border radius
+    overflow: 'hidden',
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-  },
-  // Academic Specifics
-  courseIconContainer: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   courseInfo: {
     padding: 15,
@@ -1330,17 +1349,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginVertical: 12,
-    paddingHorizontal: 5,
   },
   statItem: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   statText: {
-    fontSize: 13,
-    color: PRIMARY_COLOR,
-    marginLeft: 5,
+    fontSize: 12,
+    marginTop: 5,
     fontWeight: '600',
   },
   statusBadge: {
@@ -1360,15 +1375,10 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   followBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    marginVertical: 15,
-    marginHorizontal: 5,
-    borderWidth: 1.5,
-    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 15,
+    borderRadius: 15,
   },
   blockBtn: {
     alignContent: 'center',
@@ -1382,17 +1392,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   followBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginLeft: 8,
-    color: '#fff',
+    fontSize: 14,
   },
   aboutContent: {
     width: '100%',
   },
   aboutText: {
     fontSize: 14,
-    color: '#2222',
     lineHeight: 22,
   },
   seeMoreButton: {
@@ -1400,12 +1406,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   seeMoreText: {
-    color: PRIMARY_COLOR,
     fontWeight: '600',
     fontSize: 14,
   },
   tabContent: {
     marginVertical: 10,
+    flex: 1,
   },
   emptyText: {
     marginVertical: 15,
@@ -1419,37 +1425,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   skillChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    padding: 10,
   },
   skillText: {
-    fontSize: 13,
-    color: '#2222',
+    fontSize: 12,
     fontWeight: '500',
   },
   modalBottom: {
     justifyContent: 'flex-end',
+    backgroundColor: '#000',
     margin: 0,
   },
   modalContainer: {
-    backgroundColor: '#fff',
     padding: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    minHeight: '70%',
-  },
-  modalHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: '#ccc',
-    borderRadius: 10,
-    alignSelf: 'center',
-    marginBottom: 15,
+    minHeight: '80%',
   },
   bioInput: {
     height: 120,
-    backgroundColor: '#fadccc',
     borderRadius: 10,
     padding: 15,
     textAlignVertical: 'top',
@@ -1459,16 +1453,14 @@ const styles = StyleSheet.create({
   },
   charCount: {
     textAlign: 'right',
-    marginTop: 5,
-    color: PRIMARY_COLOR_TINT,
+    marginTop: 8,
     fontSize: 12,
   },
   skillInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#fadccc',
-    padding: 7,
+    height: 60,
     borderRadius: 10,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
@@ -1478,18 +1470,9 @@ const styles = StyleSheet.create({
   },
   skillSearchInput: {
     flex: 1,
-    padding: 7,
-  },
-  addSkillBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 5,
+    fontSize: 14,
   },
   addBtnText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -1508,27 +1491,27 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   saveButton: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 15,
+    paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 'auto', // Pushes to bottom of modal
+    marginTop: 'auto',
     marginBottom: 20,
+    width: '80%',
+    alignSelf: 'center',
   },
   saveButtonText: {
-    color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
   },
   activeScroll: {
-    maxHeight: 50,
-    marginVertical: 10,
+    maxHeight: 60,
+    marginVertical: 15,
   },
   suggestionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   suggestionChip: {
     alignItems: 'center',
@@ -1536,12 +1519,11 @@ const styles = StyleSheet.create({
     borderColor: PRIMARY_COLOR_TINT,
     padding: 10,
     borderRadius: 12,
-    width: '48%',
+    width: '45%',
     marginBottom: 8,
   },
   suggestionText: {
-    fontSize: 13,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
     marginBottom: 3,
   },
   suggestionsWrapper: {
@@ -1551,25 +1533,16 @@ const styles = StyleSheet.create({
   },
   activeSkillChip: {
     alignItems: 'center',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    padding: 8,
     marginRight: 8,
-    gap: 5,
   },
   activeSkillText: {
-    color: PRIMARY_COLOR,
     fontWeight: '600',
-    fontSize: 13,
-    marginBottom: 3,
+    fontSize: 14,
+    marginBottom: 4,
   },
   suggestionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#222',
-    textTransform: 'capitalize',
-    letterSpacing: 1,
   },
 });
