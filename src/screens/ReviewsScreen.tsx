@@ -17,6 +17,7 @@ import {uploadToFirebase} from '../utils/CloudinaryPresetHelper';
 import { submitReviewApi } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 interface ReviewAttributes {
   deliverySpeed?: number;
@@ -25,6 +26,7 @@ interface ReviewAttributes {
 }
 
 export const CreateReviewScreen = ({ route, navigation }: any) => {
+  const { colors } = useTheme();
   const { targetId, productType: targetType } = route.params;
   const [rating, setRating] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
@@ -185,7 +187,7 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
               <MaterialIcons
                 name={starIndex <= currentVal ? 'star' : 'star-border-outlined'}
                 size={32}
-                color={PRIMARY_COLOR}
+                color={colors.primary}
                 style={styles.starSpacing}
               />
             </TouchableOpacity>
@@ -215,78 +217,85 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContent}
     >
-      <Text style={styles.sectionTitle}>{config.headerTitle}</Text>
-      <MaterialIcons
-        name={TARGET_ICON_MAP[config.targetType] || 'rate-review'}
-        size={24}
-        color={PRIMARY_COLOR}
-      />
-      <Text style={styles.targetTypeText}>{targetType.toUpperCase()}</Text>
-      <View style={styles.block}>
-        <Text style={styles.blockHeading}>Overall Satisfaction *</Text>
+      <View
+        style={[
+          styles.subContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <MaterialIcons
+          name={TARGET_ICON_MAP[config.targetType] || 'rate-review'}
+          size={24}
+          color={colors.text}
+        />
+        <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+          {config.headerTitle}
+        </Text>
+        <Text style={[styles.blockHeading, { color: colors.text }]}>
+          Overall Satisfaction *
+        </Text>
         {renderStarRatingRow(rating, setRating)}
-      </View>
-
-      {/* Conditional Schema Attributes Section Blocks */}
-      <View style={styles.block}>
-        <Text style={styles.blockHeading}>Detailed Performance Metrics</Text>
-
+        <Text style={[styles.blockHeading, { color: colors.text }]}>
+          Detailed Performance Metrics
+        </Text>
         {attributes.accuracy !== undefined && (
-          <View style={styles.attributeRow}>
-            <Text style={styles.attributeLabel}>Item Accuracy</Text>
-            <Text style={styles.attributeDescription}>
+          <>
+            <Text style={[styles.attributeLabel, { color: colors.text }]}>
+              Item Accuracy
+            </Text>
+            <Text style={[styles.attributeDescription, { color: colors.text }]}>
               How well did the product description, files, or service details
               match what you actually received?
             </Text>
             {renderStarRatingRow(attributes.accuracy, val =>
               updateAttributeRating('accuracy', val),
             )}
-          </View>
+          </>
         )}
-
         {attributes.deliverySpeed !== undefined && (
-          <View style={styles.attributeRow}>
-            <Text style={styles.attributeLabel}>Fulfillment Speed</Text>
-            <Text style={styles.attributeDescription}>
+          <>
+            <Text style={[styles.attributeLabel, { color: colors.text }]}>
+              Fulfillment Speed
+            </Text>
+            <Text style={[styles.attributeDescription, { color: colors.text }]}>
               Rate the speed of delivery drop-off, agent handling times, or
               download availability.
             </Text>
             {renderStarRatingRow(attributes.deliverySpeed, val =>
               updateAttributeRating('deliverySpeed', val),
             )}
-          </View>
+          </>
         )}
-
         {attributes.clarity !== undefined && (
-          <View style={styles.attributeRow}>
-            <Text style={styles.attributeLabel}>Content Clarity</Text>
-            <Text style={styles.attributeDescription}>
+          <>
+            <Text style={[styles.attributeLabel, { color: colors.text }]}>
+              Content Clarity
+            </Text>
+            <Text style={[styles.attributeDescription, { color: colors.text }]}>
               Evaluate the video resolution, audio quality, instruction quality,
               or explanation breakdown.
             </Text>
             {renderStarRatingRow(attributes.clarity, val =>
               updateAttributeRating('clarity', val),
             )}
-          </View>
+          </>
         )}
-      </View>
-      <View style={styles.block}>
-        <Text style={styles.blockHeading}>Written Feedback (Optional)</Text>
+        <Text style={[styles.blockHeading, { color: colors.text }]}>
+          Written Feedback (Optional)
+        </Text>
         <TextInput
-          style={styles.textAreaInput}
+          style={[styles.textAreaInput, { color: colors.text }]}
           placeholder="Share your experience here to help others make informed decisions..."
-          placeholderTextColor={PRIMARY_COLOR_TINT}
+          placeholderTextColor={colors.inputTextHolder}
           multiline
           numberOfLines={4}
           value={comment}
           onChangeText={setComment}
         />
-      </View>
-      <View style={styles.block}>
-        <Text style={styles.blockHeading}>
+        <Text style={[styles.blockHeading, { color: colors.text }]}>
           Media Uploads ({localImageUris.length}/3)
         </Text>
         <View style={styles.mediaContainerStrip}>
@@ -294,79 +303,130 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
             <View key={index} style={styles.imagePreviewWrapper}>
               <Image source={{ uri }} style={styles.previewThumbnail} />
               <TouchableOpacity
-                style={styles.closeBadgeButton}
+                style={[
+                  styles.closeBadgeButton,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
                 onPress={() => removeSelectedImage(index)}
               >
-                <MaterialIcons name="cancel" size={18} color={PRIMARY_COLOR} />
+                <MaterialIcons
+                  name="cancel-outlined"
+                  size={18}
+                  color={colors.primary}
+                />
               </TouchableOpacity>
             </View>
           ))}
-
           {localImageUris.length < 3 && (
             <TouchableOpacity
               style={styles.addPhotosBoxButton}
               onPress={handlePickImages}
             >
               <MaterialIcons
-                name="add-a-photo"
+                name="add-a-photo-outlined"
                 size={24}
-                color={PRIMARY_COLOR}
+                color={colors.primary}
               />
-              <Text style={styles.addPhotosText}>Add Photo</Text>
+              <Text style={[styles.addPhotosText, {color: colors.primary}]}>Add Photo</Text>
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity
+          style={[styles.submitButton, isSubmitting && styles.disabledButton, {backgroundColor: colors.btnColor}]}
+          onPress={handleSubmitReview}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={colors.btnTextColor} size='small' />
+          ) : (
+            <Text style={[styles.submitButtonText, {color: colors.btnTextColor}]}>Publish Review</Text>
+          )}
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={[styles.submitButton, isSubmitting && styles.disabledButton]}
-        onPress={handleSubmitReview}
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text style={styles.submitButtonText}>Publish Review</Text>
-        )}
-      </TouchableOpacity>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', alignContent: 'center' },
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: '#222', marginBottom: 20 },
-  targetTypeText: { fontSize: 12, color: PRIMARY_COLOR_TINT, fontWeight: '500',  marginTop: 15 },
-  block: { backgroundColor: '#fadccc', borderRadius: 10, padding: 15, marginVertical: 15, borderWidth: .8, borderColor: PRIMARY_COLOR_TINT },
-  blockHeading: { fontSize: 14, fontWeight: '700', color: '#2222', marginBottom: 10, letterSpacing: 0.5 },
-  starRow: { flexDirection: 'row', alignItems: 'center' },
-  starSpacing: { marginRight: 8 },
-  attributeRow: { marginVertical: 8 },
-  attributeLabel: { fontSize: 13, color: '#2222', marginBottom: 4, fontWeight: '500' },
-  textAreaInput: {
-    borderWidth: .8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 8,
-    padding: 12,
+  container: { flex: 1, alignContent: 'center' },
+  subContainer: { padding: 20, borderRadius: 15, alignContent: 'center' },
+  scrollContent: { padding: 15 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 15,
+  },
+  blockHeading: {
     fontSize: 14,
-    color: '#322',
+    fontWeight: '700',
+    marginBottom: 15,
+  },
+  starRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  starSpacing: { marginRight: 8 },
+  attributeLabel: {
+    fontSize: 14,
+    marginBottom: 15,
+  },
+  textAreaInput: {
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 13,
+    padding: 15,
+    fontSize: 14,
     minHeight: 100,
     textAlignVertical: 'top',
+    marginBottom: 15,
   },
-  mediaContainerStrip: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 5 },
-  imagePreviewWrapper: { width: 80, height: 80, marginRight: 12, marginBottom: 12, position: 'relative' },
+  mediaContainerStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  imagePreviewWrapper: {
+    width: 80,
+    height: 80,
+    marginRight: 12,
+    marginBottom: 12,
+    position: 'relative',
+  },
   previewThumbnail: { width: '100%', height: '100%', borderRadius: 8 },
-  closeBadgeButton: { position: 'absolute', top: -4, right: -4, backgroundColor: '#FFF', borderRadius: 10 },
-  addPhotosBoxButton: { width: 80, height: 80, borderStyle: 'dashed', borderWidth: 1.5, borderColor: PRIMARY_COLOR, borderRadius: 8, alignContent: 'center' },
-  addPhotosText: { fontSize: 10, color: PRIMARY_COLOR, marginTop: 4, fontWeight: '500' },
-  submitButton: { backgroundColor: PRIMARY_COLOR, width: '80%', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 10, alignContent: 'center', marginTop: 15, shadowColor: PRIMARY_COLOR_TINT, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 3 },
+  closeBadgeButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    borderRadius: 15,
+  },
+  addPhotosBoxButton: {
+    width: 80,
+    height: 80,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    borderRadius: 12,
+    alignContent: 'center',
+  },
+  addPhotosText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  submitButton: {
+    width: '80%',
+    paddingVertical: 10,
+    borderRadius: 15,
+    alignContent: 'center',
+    marginTop: 15,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
+    alignSelf: 'center'
+  },
   disabledButton: { opacity: 0.6 },
-  submitButtonText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  submitButtonText: { fontSize: 14, fontWeight: '600' },
   attributeDescription: {
     fontSize: 12,
-    color: PRIMARY_COLOR_TINT,      
-    marginTop: 2,    
-    marginBottom: 8,      
-    lineHeight: 16, 
+    marginBottom: 15,
+    fontStyle: 'italic',
   },
 });
