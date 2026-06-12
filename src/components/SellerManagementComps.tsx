@@ -40,6 +40,7 @@ import Svg, {
   Path,
 } from 'react-native-svg';
 import { ReviewItem } from './ReviewItem';
+import { useTheme } from 'context/ThemeContext';
 
 interface StatusCardProps {
   label: string;
@@ -52,6 +53,7 @@ interface StatusCardMiniProps {
   count: number;
   color: string;
   icon: string;
+  isSuccess?: boolean;
 }
 interface TopBuyerProfile {
   uid: string;
@@ -71,17 +73,19 @@ const ProductListHeader = ({
 }: {
   count: number;
   onAdd: () => void;
-}) => (
-  <View style={styles.listHeader}>
-    <Text style={styles.countText}>
+}) => {
+  const { colors: themeColors } = useTheme();
+  return(
+  <View style={[styles.listHeader, {backgroundColor: themeColors.backgroundSecondary}]}>
+    <Text style={[styles.countText, {color: themeColors.textDarker}]}>
       {count} {count === 1 ? 'Product' : 'Products'}
     </Text>
-    <TouchableOpacity style={styles.addBtn} onPress={onAdd}>
-      <MaterialIcons name="add-business-outlined" size={20} color="#FFF" />
-      <Text style={styles.addBtnText}>New</Text>
+    <TouchableOpacity style={[styles.addBtn, {backgroundColor: themeColors.btnColor}]} onPress={onAdd}>
+      <MaterialIcons name="add-business-outlined" size={20} color={themeColors.btnTextColor} />
+      <Text style={[styles.addBtnText, {marginLeft: 4, color: themeColors.btnTextColor}]}>New</Text>
     </TouchableOpacity>
   </View>
-);
+)};
 const ProductEmptyState = ({ onAdd }: { onAdd: () => void }) => (
   <EmptyState
     iconName="store-front-outlined"
@@ -94,9 +98,11 @@ const ProductEmptyState = ({ onAdd }: { onAdd: () => void }) => (
 const LineGraph = ({
   trend,
   colorOverride,
+  themeBackgroundColor,
 }: {
   trend: 'up' | 'down';
   colorOverride?: string;
+  themeBackgroundColor: string;
 }) => {
   const isUp = trend === 'up';
   const color = colorOverride || (isUp ? '#4CAF50' : PRIMARY_COLOR);
@@ -114,8 +120,8 @@ const LineGraph = ({
       <Svg height="100%" width="100%" viewBox="0 0 100 50">
         <Defs>
           <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={color} stopOpacity="0.3" />
-            <Stop offset="1" stopColor={color} stopOpacity="0.01" />
+            <Stop offset="0" stopColor={color} stopOpacity="0.4" />
+            <Stop offset="1" stopColor={themeBackgroundColor} stopOpacity="1" />
           </LinearGradient>
         </Defs>
         <Path d={fillPath} fill="url(#grad)" />
@@ -147,19 +153,29 @@ export const StatusCardMini = ({
   count,
   color,
   icon,
-}: StatusCardMiniProps) => (
-  <View style={[styles.statusCard, { borderLeftColor: color }]}>
-    <View style={styles.statusIconContainer}>
-      <MaterialIcons name={icon} size={22} color={color} />
+  isSuccess,
+}: StatusCardMiniProps) => {
+  const { colors: themeColor } = useTheme();
+  return (
+    <View style={[styles.statusCard, { borderColor: color }]}>
+      <View style={styles.statusIconContainer}>
+        <MaterialIcons name={icon} size={22} color={color} />
+      </View>
+      <View>
+        <CurrencyDisplay value={count} size="medium" isSuccess={isSuccess} />
+        <Text
+          style={[styles.statusLabel, { marginTop: 4, color: themeColor.text }]}
+        >
+          {label}
+        </Text>
+      </View>
     </View>
-    <View>
-      <CurrencyDisplay value={count} size="medium" />
-      <Text style={[styles.statusLabel, { marginTop: 4 }]}>{label}</Text>
-    </View>
-  </View>
-);
+  );
+};
 export const OrdersList = () => {
-  const { pendingOrders, currentUser } = useAppDataContext();
+  const { colors: themeColors } = useTheme();
+  const { pendingOrders, currentUser, fetchPendingOrders } =
+    useAppDataContext();
   const sellerOrders = pendingOrders
     .filter(o => o.sellerId === currentUser.uid)
     .sort(
@@ -169,13 +185,20 @@ export const OrdersList = () => {
 
   if (sellerOrders.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View
+        style={[
+          styles.emptyContainer,
+          { backgroundColor: themeColors.backgroundSecondary },
+        ]}
+      >
         <MaterialIcons
           name="hourglass-disabled-outlined"
           size={50}
-          color={PRIMARY_COLOR}
+          color={themeColors.text}
         />
-        <Text style={styles.emptyText}>No orders found yet.</Text>
+        <Text style={[styles.emptyText, { color: themeColors.text }]}>
+          No orders found yet.
+        </Text>
       </View>
     );
   }
@@ -188,7 +211,7 @@ export const OrdersList = () => {
           count={formatStatNumber(
             sellerOrders.filter(o => o.status === 'pending_delivery').length,
           )}
-          color="#FF9800"
+          color={themeColors.pendingDelivery}
           icon="delivery-dining-outlined"
         />
         <StatusCard
@@ -196,7 +219,7 @@ export const OrdersList = () => {
           count={formatStatNumber(
             sellerOrders.filter(o => o.status === 'completed').length,
           )}
-          color="#4CAF50"
+          color={themeColors.success}
           icon="check-circle-outlined"
         />
         <StatusCard
@@ -204,21 +227,27 @@ export const OrdersList = () => {
           count={formatStatNumber(
             sellerOrders.filter(o => o.status === 'cancelled').length,
           )}
-          color={PRIMARY_COLOR}
+          color={themeColors.primary}
           icon="cancel-outlined"
         />
       </View>
       <FlatList
         data={sellerOrders}
         keyExtractor={item => item.orderId}
-        renderItem={({ item }) => <SellerOrderAccordion order={item} />}
-        contentContainerStyle={{ paddingBottom: 30, alignItems: 'center' }}
+        renderItem={({ item }) => (
+          <SellerOrderAccordion
+            order={item}
+            onStatusUpdated={fetchPendingOrders}
+          />
+        )}
+        contentContainerStyle={{ paddingBottom: 30 }}
         showsVerticalScrollIndicator={false}
       />
     </>
   );
 };
 export const OverviewsScreenComponent = () => {
+  const { colors: themeColors } = useTheme();
   const { allProducts, pendingOrders, sellerSales } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
@@ -253,93 +282,193 @@ export const OverviewsScreenComponent = () => {
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
       {!hasProducts ? (
-        <View style={styles.emptyStateCard}>
+        <View
+          style={[
+            styles.emptyStateCard,
+            { backgroundColor: themeColors.backgroundSecondary },
+          ]}
+        >
           <MaterialIcons
             name="add-shopping-cart"
-            size={45}
-            color={PRIMARY_COLOR}
+            size={60}
+            color={themeColors.primary}
           />
-          <Text style={styles.emptyStateTitle}>Start Selling</Text>
-          <Text style={styles.emptyStateSub}>
+          <Text
+            style={[styles.emptyStateTitle, { color: themeColors.textDarker }]}
+          >
+            Start Selling
+          </Text>
+          <Text style={[styles.emptyStateSub, { color: themeColors.text }]}>
             You haven't uploaded any products yet.
           </Text>
           <TouchableOpacity
-            style={styles.addBtnSmall}
+            style={[
+              styles.addBtnSmall,
+              { backgroundColor: themeColors.btnColor },
+            ]}
             onPress={() => navigation.navigate('CreateProduct')}
           >
-            <Text style={styles.addBtnText}>Upload First Product</Text>
+            <Text
+              style={[styles.addBtnText, { color: themeColors.btnTextColor }]}
+            >
+              Upload First Product
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
-          <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.sectionHeader,
+              { backgroundColor: themeColors.backgroundSecondary },
+            ]}
+          >
             <Text style={styles.sectionTitle}>Overview</Text>
             <Text style={styles.timeRange}>Total Reach</Text>
           </View>
           <View style={styles.statsOverviewRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>
+            <View
+              style={[
+                styles.statBox,
+                { backgroundColor: themeColors.backgroundSecondary },
+              ]}
+            >
+              <Text
+                style={[styles.statValue, { color: themeColors.textDarker }]}
+              >
                 {formatStatNumber(totalImpressions)}
               </Text>
-              <Text style={styles.statLabel}>Impressions</Text>
+              <Text style={[styles.statLabel, { color: themeColors.text }]}>
+                Impressions
+              </Text>
             </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>
+            <View
+              style={[
+                styles.statBox,
+                { backgroundColor: themeColors.backgroundSecondary },
+              ]}
+            >
+              <Text
+                style={[styles.statValue, { color: themeColors.textDarker }]}
+              >
                 {formatStatNumber(totalSalesCount)}
               </Text>
-              <Text style={styles.statLabel}>Total Sales</Text>
+              <Text style={[styles.statLabel, { color: themeColors.text }]}>
+                Total Sales
+              </Text>
             </View>
           </View>
           <View style={styles.gridContainer}>
             <View style={styles.leftColumn}>
-              <View style={styles.salesGraphBox}>
-                <View style={styles.graphHeader}>
-                  <Text style={styles.miniLabel}>Sales Growth</Text>
+              <View
+                style={[
+                  styles.salesGraphBox,
+                  { backgroundColor: themeColors.backgroundSecondary },
+                ]}
+              >
+                <View
+                  style={[styles.graphHeader, { padding: 0, borderRadius: 0 }]}
+                >
+                  <Text style={[styles.miniLabel, { color: themeColors.text }]}>
+                    Sales Growth
+                  </Text>
                   <MaterialIcons
                     name={totalSalesCount > 0 ? 'trending-up' : 'trending-flat'}
                     size={16}
-                    color={PRIMARY_COLOR}
+                    color={themeColors.primary}
                   />
                 </View>
-                <LineGraph trend={totalSalesCount > 5 ? 'up' : 'down'} />
+                <LineGraph
+                  trend={totalSalesCount > 5 ? 'up' : 'down'}
+                  themeBackgroundColor={themeColors.backgroundSecondary}
+                />
               </View>
-              <View style={styles.ratingMiniBox}>
-                <View style={styles.graphHeader}>
-                  <Text style={styles.miniLabel}>Rating</Text>
-                  <MaterialIcons name="star" size={16} color={PRIMARY_COLOR} />
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statValue}>{avgRating}</Text>
+              <View
+                style={[
+                  styles.ratingMiniBox,
+                  { backgroundColor: themeColors.backgroundSecondary },
+                ]}
+              >
+                <View
+                  style={[styles.graphHeader, { padding: 0, borderRadius: 0 }]}
+                >
+                  <Text style={[styles.miniLabel, { color: themeColors.text }]}>
+                    Rating
+                  </Text>
                   <MaterialIcons
                     name="star"
-                    size={19}
-                    color={PRIMARY_COLOR}
-                    style={{ marginLeft: 4 }}
+                    size={16}
+                    color={themeColors.primary}
+                  />
+                </View>
+                <View style={[styles.statBox, { padding: 0, borderRadius: 0 }]}>
+                  <Text
+                    style={[
+                      styles.statValue,
+                      { color: themeColors.textDarker },
+                    ]}
+                  >
+                    {avgRating}
+                  </Text>
+                  <MaterialIcons
+                    name="star"
+                    size={26}
+                    color={themeColors.primary}
+                    style={{ marginLeft: 5 }}
                   />
                 </View>
               </View>
             </View>
             <View style={styles.rightColumn}>
-              <View style={styles.impressionsTallBox}>
-                <View style={styles.graphHeader}>
-                  <Text style={styles.miniLabel}>Impressions</Text>
+              <View
+                style={[
+                  styles.impressionsTallBox,
+                  { backgroundColor: themeColors.backgroundSecondary },
+                ]}
+              >
+                <View
+                  style={[styles.graphHeader, { padding: 0, borderRadius: 0 }]}
+                >
+                  <Text
+                    style={[
+                      styles.miniLabel,
+                      { color: themeColors.textDarker },
+                    ]}
+                  >
+                    Impressions
+                  </Text>
                   <MaterialIcons
                     name="bar-chart"
                     size={16}
-                    color={PRIMARY_COLOR}
+                    color={themeColors.primary}
                   />
                 </View>
                 <LineGraph
                   trend={totalImpressions > 0 ? 'up' : 'down'}
                   colorOverride="rgba(255,255,255,0.8)"
+                  themeBackgroundColor={themeColors.backgroundSecondary}
                 />
-                <View style={styles.ratingMiniBox}>
-                  <View style={[styles.graphHeader, { marginBottom: 3 }]}>
-                    <Text style={styles.miniLabel}>Total Income</Text>
+                <View
+                  style={[
+                    styles.ratingMiniBox,
+                    { padding: 0, borderRadius: 0 },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.graphHeader,
+                      { marginBottom: 5, padding: 0, borderRadius: 0 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.miniLabel, { color: themeColors.text }]}
+                    >
+                      Total Generated Income
+                    </Text>
                     <MaterialIcons
-                      name="diamond"
+                      name="diamond-outlined"
                       size={16}
-                      color={PRIMARY_COLOR}
+                      color={themeColors.primary}
                     />
                   </View>
                   <CurrencyDisplay
@@ -347,66 +476,100 @@ export const OverviewsScreenComponent = () => {
                     size="medium"
                     containerStyle={styles.incomeCurrency}
                   />
-                  <View style={[styles.graphHeader, { marginVertical: 3 }]}>
-                    <Text style={styles.miniLabel}>Available For Payout</Text>
+                  <View
+                    style={[
+                      styles.graphHeader,
+                      { marginVertical: 5, padding: 0, borderRadius: 0 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.miniLabel, { color: themeColors.text }]}
+                    >
+                      Available For Payout
+                    </Text>
                     <MaterialIcons
-                      name="diamond"
+                      name="diamond-outlined"
                       size={16}
-                      color={PRIMARY_COLOR}
+                      color={themeColors.success}
                     />
                   </View>
                   <CurrencyDisplay
                     value={currentBalance}
                     size="medium"
                     containerStyle={styles.incomeCurrency}
+                    isSuccess={true}
                   />
                 </View>
               </View>
             </View>
           </View>
-          <View style={styles.statusRow}>
-            <StatusCard
-              label="Pending"
-              count={formatStatNumber(
-                sellerOrders.filter(o => o.status === 'pending_delivery')
-                  .length,
-              )}
-              color="#FF9800"
-              icon="delivery-dining-outlined"
-            />
-            <StatusCard
-              label="Completed"
-              count={formatStatNumber(
-                sellerOrders.filter(o => o.status === 'completed').length,
-              )}
-              color="#4CAF50"
-              icon="check-circle-outlined"
-            />
-            <StatusCard
-              label="Cancelled"
-              count={formatStatNumber(
-                sellerOrders.filter(o => o.status === 'cancelled').length,
-              )}
-              color={PRIMARY_COLOR}
-              icon="cancel-outlined"
-            />
-          </View>
-          <View style={styles.reviewHighlight}>
+          {sellerOrders.length > 0 && (
+            <View style={styles.statusRow}>
+              <StatusCard
+                label="Pending Orders"
+                count={formatStatNumber(
+                  sellerOrders.filter(o => o.status === 'pending_delivery')
+                    .length,
+                )}
+                color={themeColors.pendingDelivery}
+                icon="delivery-dining-outlined"
+              />
+              <StatusCard
+                label="Completed Orders"
+                count={formatStatNumber(
+                  sellerOrders.filter(o => o.status === 'completed').length,
+                )}
+                color={themeColors.success}
+                icon="check-circle-outlined"
+              />
+              <StatusCard
+                label="Cancelled Orders"
+                count={formatStatNumber(
+                  sellerOrders.filter(o => o.status === 'cancelled').length,
+                )}
+                color={themeColors.primary}
+                icon="cancel-outlined"
+              />
+            </View>
+          )}
+          <View
+            style={[
+              styles.reviewHighlight,
+              { backgroundColor: themeColors.backgroundSecondary },
+            ]}
+          >
             <View>
-              <Text style={styles.ratingTitle}>Customer Satisfaction</Text>
-              <Text style={styles.ratingSub}>
+              <Text style={[styles.ratingTitle, { color: themeColors.text }]}>
+                Customer Satisfaction
+              </Text>
+              <Text style={[styles.ratingSub, { color: themeColors.text }]}>
                 {allRatings.length}{' '}
                 {allRatings.length === 1 ? 'review' : 'reviews'}
               </Text>
             </View>
             <View style={styles.ratingValueBox}>
-              <Text style={styles.ratingText}>{avgRating}</Text>
-              <MaterialIcons name="star" size={16} color={PRIMARY_COLOR} />
+              <Text
+                style={[styles.ratingText, { color: themeColors.textDarker }]}
+              >
+                {avgRating}
+              </Text>
+              <MaterialIcons
+                name="star"
+                size={20}
+                color={themeColors.primary}
+              />
             </View>
           </View>
-          <View style={styles.newsCard}>
-            <Text style={styles.newsTag}>PRO TIP</Text>
-            <Text style={styles.newsText}>
+          <View
+            style={[
+              styles.newsCard,
+              { backgroundColor: themeColors.backgroundSecondary },
+            ]}
+          >
+            <Text style={[styles.newsTag, { color: themeColors.text }]}>
+              PRO TIP
+            </Text>
+            <Text style={[styles.newsText, { color: themeColors.text }]}>
               {totalImpressions > 0 && totalSalesCount === 0
                 ? 'High impressions but no sales? Try lowering your price or adding clearer descriptions.'
                 : "Keep your stock updated! Products marked 'In Stock' get 2x more clicks."}
@@ -418,6 +581,7 @@ export const OverviewsScreenComponent = () => {
   );
 };
 export const ProductList = () => {
+  const { colors: themeColors } = useTheme();
   const { allProducts, currentUser, deleteProductLocal } = useAppDataContext();
   const navigation = useNavigation<any>();
   const sellerProducts = allProducts.filter(
@@ -474,7 +638,7 @@ export const ProductList = () => {
     const isOutOfStock = isPhysical && item.amountInStock === 0;
 
     return (
-      <TouchableOpacity style={styles.card}>
+      <TouchableOpacity style={[styles.card, {backgroundColor: themeColors.backgroundSecondary}]}>
         <View style={styles.imageContainer}>
           <Image
             source={{
@@ -482,78 +646,68 @@ export const ProductList = () => {
             }}
             style={styles.thumbnail}
           />
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{item.type.toUpperCase()}</Text>
+          <View style={[styles.typeBadge, {backgroundColor: themeColors.backgroundSecondary}]}>
+            <Text style={[styles.typeText, {color: themeColors.text}]}>{item.niche}</Text>
           </View>
         </View>
         <View style={styles.infoContainer}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title} numberOfLines={2}>
+            <Text style={[styles.title, {color: themeColors.textDarker}]}>
               {item.title}
             </Text>
-          </View>
-          <Text style={styles.category}>{item.category}</Text>
           <View style={styles.detailsRow}>
+            <View style={styles.badge}>
             {isPhysical ? (
-              <View style={styles.badge}>
+              <>
                 <MaterialIcons
                   name="inventory-outlined"
-                  size={14}
+                  size={16}
                   color={
                     isOutOfStock
-                      ? PRIMARY_COLOR
+                      ? themeColors.primary
                       : isLowStock
-                      ? '#FF9800'
-                      : '#4CAF50'
+                      ? themeColors.primaryTint
+                      : themeColors.text
                   }
                 />
                 <Text
                   style={[
                     styles.detailText,
-                    isOutOfStock && { color: PRIMARY_COLOR },
+                    isOutOfStock ? { color: themeColors.primary } : {color: themeColors.text}
                   ]}
                 >
                   {isOutOfStock
                     ? 'Out of Stock'
                     : `${item.amountInStock} in Stock`}
                 </Text>
-              </View>
+              </>
             ) : item.type === 'course' ? (
-              <View style={styles.badge}>
+              <>
                 <MaterialIcons
                   name="play-circle-outline"
                   size={14}
-                  color={PRIMARY_COLOR}
+                  color={themeColors.text}
                 />
-                <Text style={styles.detailText}>
-                  {item.courseDetails?.totalLessons || 0} Lessons
+                <Text style={[styles.detailText, {color: themeColors.text}]}>
+                  {item.courseDetails?.content.length || 0} Lessons
                 </Text>
-              </View>
+              </>
             ) : (
-              <View style={styles.badge}>
+              <>
                 <MaterialIcons
                   name="insert-drive-file"
                   size={14}
-                  color={PRIMARY_COLOR}
+                  color={themeColors.text}
                 />
-                <Text style={styles.detailText}>
+                <Text style={[styles.detailText, {color: themeColors.text}]}>
                   {item.fileDetails?.fileFormat?.toUpperCase() || 'FILE'}
                 </Text>
-              </View>
+              </>
             )}
+            </View>
             <CurrencyDisplay value={item.priceInPoints} size="medium" />
           </View>
           <View style={styles.statsFooter}>
-            <View style={styles.statItem}>
-              <MaterialIcons
-                name="shopping-cart-outlined"
-                size={14}
-                color={PRIMARY_COLOR_TINT}
-              />
-              <Text style={styles.statLabel}>{item.sales || 0}</Text>
-            </View>
             <TouchableOpacity
-              style={styles.statItem}
               onPress={() =>
                 navigation.navigate('CreateProduct', {
                   product: item,
@@ -562,18 +716,17 @@ export const ProductList = () => {
             >
               <MaterialIcons
                 name="edit-outlined"
-                size={17}
-                color={PRIMARY_COLOR}
+                size={22}
+                color={themeColors.primary}
               />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.statItem}
               onPress={() => handleDeletePress(item.productId, item.title)}
             >
               <MaterialIcons
                 name="delete-outlined"
-                size={17}
-                color={PRIMARY_COLOR}
+                size={22}
+                color={themeColors.primary}
               />
             </TouchableOpacity>
           </View>
@@ -587,21 +740,21 @@ export const ProductList = () => {
   return (
     <ScrollView>
       {!hasProducts ? (
-        <View style={styles.emptyStateCard}>
+        <View style={[styles.emptyStateCard, {backgroundColor: themeColors.backgroundSecondary}]}>
           <MaterialIcons
             name="add-shopping-cart"
-            size={45}
-            color={PRIMARY_COLOR}
+            size={60}
+            color={themeColors.primary}
           />
-          <Text style={styles.emptyStateTitle}>Start Selling</Text>
-          <Text style={styles.emptyStateSub}>
+          <Text style={[styles.emptyStateTitle, {color: themeColors.textDarker}]}>Start Selling</Text>
+          <Text style={[styles.emptyStateSub, {color: themeColors.text}]}>
             You haven't uploaded any products yet.
           </Text>
           <TouchableOpacity
-            style={styles.addBtnSmall}
+            style={[styles.addBtnSmall, {backgroundColor: themeColors.btnColor}]}
             onPress={() => navigation.navigate('CreateProduct')}
           >
-            <Text style={styles.addBtnText}>Upload First Product</Text>
+            <Text style={[styles.addBtnText, {color: themeColors.btnTextColor}]}>Create Listing</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -610,7 +763,7 @@ export const ProductList = () => {
             <StatusCard
               label="Total Products Count"
               count={formatStatNumber(sellerProducts.length)}
-              color={PRIMARY_COLOR}
+              color={themeColors.textDarker}
               icon="store-front-outlined"
             />
           </View>
@@ -633,6 +786,7 @@ export const ProductList = () => {
   );
 };
 export const PayoutView = () => {
+  const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
   const [history, setHistory] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
@@ -642,8 +796,7 @@ export const PayoutView = () => {
   const dispatch = useDispatch();
 
   const currentBalance = currentUser?.pendingSalesBalance || 0;
-  const isVerified =
-    (currentUser?.isVerified && currentUser?.twoFactorEnabled) || false;
+  const isVerified = currentUser?.isVerified || false;
 
   useEffect(() => {
     loadHistory();
@@ -658,13 +811,16 @@ export const PayoutView = () => {
     if (!isVerified) {
       Alert.alert(
         'Verification Required',
-        'Your account must be verified and 2 factor authentification enabled...',
+        'Your account must be verified and Icash PIN created...',
       );
       return;
     }
     if (currentBalance < 5) {
       Alert.alert('Low Balance', 'Minimum payout amount is 5.00 iCash');
       return;
+    }
+    if (!currentUser.twoFactorEnabled) {
+      navigation.navigate('iCashSecurity');
     }
     setIsPinVisible(true);
   };
@@ -704,36 +860,41 @@ export const PayoutView = () => {
     setRequesting(false);
   };
   const renderHistoryItem = (item: Payout) => (
-    <View style={styles.historyCard}>
+    <View style={[styles.historyCard, {backgroundColor: themeColors.backgroundSecondary}]}>
       <View style={styles.historyInfo}>
-        <Text style={styles.historyMethod}>
-          {item.method || 'Internal Transfer'}
-        </Text>
-        <Text style={styles.historyDate}>
+        <Text style={[styles.refText, {color: themeColors.text}]}>{item.reference}</Text>
+        <Text style={[styles.historyDate, {color: themeColors.text}]}>
           {moment(item.createdAt).format('MMM DD, YYYY • HH:mm')}
         </Text>
-        <Text style={styles.refText}>{item.reference}</Text>
       </View>
       <View style={styles.historyRight}>
-        <CurrencyDisplay value={item.amount} size="small" />
-        <Text style={styles.statusBadge}>{item.status}</Text>
+        <CurrencyDisplay value={item.amount} size="small" isSuccess={true}/>
+        <Text style={[styles.statusBadge, {color: themeColors.success}]}>{item.status}</Text>
       </View>
     </View>
   );
   const renderHeader = () => (
     <View style={styles.balanceCard}>
-      <Text style={styles.balanceLabel}>Available for Payout</Text>
-      <CurrencyDisplay value={currentBalance} size="large" />
-      {!isVerified ? (
+      <Text style={[styles.balanceLabel, {color: themeColors.textDarker}]}>Available for Payout</Text>
+      <CurrencyDisplay value={currentBalance} size="large" isSuccess={true} />
+      {!isVerified || !currentUser.twoFactorEnabled ? (
         <>
-          <Text style={styles.warningText}>
-            Verification and 2-factor authentication is required for payout
+          <Text style={[styles.warningText, {color: themeColors.primary}]}>
+            {!isVerified ? 'Account verification' : 'Icash PIN' } is required for payout
           </Text>
           <TouchableOpacity
-            style={styles.verifyBtn}
-            onPress={() => navigation.navigate('PersonaVerify')}
+            style={[styles.verifyBtn, {backgroundColor: themeColors.btnColor}]}
+            onPress={() => {
+              if (!isVerified){
+                navigation.navigate('PersonaVerify');
+              }else {
+                navigation.navigate('iCashSecurity');
+              }
+            }}
           >
-            <Text style={styles.verifyBtnText}>Verify Identity</Text>
+            <Text style={[styles.verifyBtnText, {color: themeColors.btnTextColor}]}>
+              {!isVerified ? 'Verify Identity' : 'Create Icash PIN' }
+            </Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -741,25 +902,25 @@ export const PayoutView = () => {
           style={[
             styles.withdrawBtn,
             (currentBalance <= 0 || requesting) && styles.disabledBtn,
+            {backgroundColor: themeColors.btnColor}
           ]}
           onPress={handleWithdraw}
           disabled={currentBalance <= 0 || requesting}
         >
           {requesting ? (
-            <ActivityIndicator color={PRIMARY_COLOR} />
+            <ActivityIndicator color={themeColors.btnTextColor} size={'small'} />
           ) : (
             <>
               <MaterialIcons
                 name="account-balance-wallet-outlined"
                 size={20}
-                color={PRIMARY_COLOR}
+                color={themeColors.btnTextColor}
               />
-              <Text style={styles.withdrawBtnText}>Withdraw Funds</Text>
+              <Text style={[styles.withdrawBtnText, {color: themeColors.btnTextColor}]}>Withdraw Funds</Text>
             </>
           )}
         </TouchableOpacity>
       )}
-      <Text style={styles.sectionTitleInside}>Payout History</Text>
     </View>
   );
   return (
@@ -779,8 +940,8 @@ export const PayoutView = () => {
           ) : (
             <ActivityIndicator
               style={{ marginTop: 20 }}
-              color={PRIMARY_COLOR}
-              size="small"
+              color={themeColors.primary}
+              size="large"
             />
           )
         }
@@ -798,6 +959,7 @@ export const PayoutView = () => {
   );
 };
 export const SalesScreen = () => {
+  const { colors } = useTheme();
   const { sellerSales, currentUser } = useAppDataContext();
   const navigation = useNavigation<any>();
   const [topBuyersProfiles, setTopBuyersProfiles] = useState<TopBuyerProfile[]>(
@@ -906,21 +1068,30 @@ export const SalesScreen = () => {
   return (
     <ScrollView style={styles.container}>
       {!hasProducts ? (
-        <View style={styles.emptyStateCard}>
+        <View
+          style={[
+            styles.emptyStateCard,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <MaterialIcons
             name="add-shopping-cart"
-            size={45}
-            color={PRIMARY_COLOR}
+            size={60}
+            color={colors.primary}
           />
-          <Text style={styles.emptyStateTitle}>Start Selling</Text>
-          <Text style={styles.emptyStateSub}>
+          <Text style={[styles.emptyStateTitle, { color: colors.textDarker }]}>
+            Start Selling
+          </Text>
+          <Text style={[styles.emptyStateSub, { color: colors.text }]}>
             You haven't uploaded any products yet.
           </Text>
           <TouchableOpacity
-            style={styles.addBtnSmall}
+            style={[styles.addBtnSmall, { backgroundColor: colors.btnColor }]}
             onPress={() => navigation.navigate('CreateProduct')}
           >
-            <Text style={styles.addBtnText}>Upload First Product</Text>
+            <Text style={[styles.addBtnText, { color: colors.btnTextColor }]}>
+              Upload First Product
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -929,89 +1100,143 @@ export const SalesScreen = () => {
             <StatusCardMini
               label="Total Generated Income"
               count={totalIncome}
-              color="#FF9800"
+              color={colors.pendingDelivery}
               icon="diamond-outlined"
             />
             <StatusCardMini
               label="Available For Payout"
               count={currentBalance}
-              color="#4CAF50"
+              color={colors.success}
               icon="diamond-outlined"
+              isSuccess={true}
             />
           </View>
-          <View style={styles.graphCard}>
-            <View style={styles.graphHeader}>
-              <Text style={styles.chartTitle}>Revenue Trend</Text>
-              <CurrencyDisplay value={monthlyStats.total} size="medium" />
+          <View
+            style={[
+              styles.graphHeader,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text style={[styles.chartTitle, {color: colors.textDarker}]}>Revenue Trend</Text>
+            <CurrencyDisplay value={monthlyStats.total} size="medium" />
+          </View>
+          <View
+            style={[
+              styles.dropdownRow,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <View style={styles.pickerContainer}>
+              <Text style={[styles.pickerLabel, { color: colors.text }]}>
+                Year
+              </Text>
+              <RNPickerSelect
+                onValueChange={value => setSelectedYear(value)}
+                items={yearItems}
+                value={selectedYear}
+                style={{
+                  ...pickerSelectStyles,
+                  inputIOS: {
+                    ...pickerSelectStyles.inputIOS,
+                    color: colors.text,
+                  },
+                  inputAndroid: {
+                    ...pickerSelectStyles.inputAndroid,
+                    color: colors.text,
+                  },
+                  iconContainer: {
+                    top: 10,
+                    right: 12,
+                  },
+                }}
+                useNativeAndroidPickerStyle={false}
+              />
             </View>
-            <View style={styles.dropdownRow}>
-              <View style={styles.pickerContainer}>
-                <Text style={styles.pickerLabel}>Year</Text>
-                <RNPickerSelect
-                  onValueChange={value => setSelectedYear(value)}
-                  items={yearItems}
-                  value={selectedYear}
-                  style={pickerSelectStyles}
-                  useNativeAndroidPickerStyle={false}
-                />
-              </View>
-              <View style={styles.pickerContainer}>
-                <Text style={styles.pickerLabel}>Month</Text>
-                <RNPickerSelect
-                  onValueChange={value => setSelectedMonth(value)}
-                  items={availableMonths}
-                  value={selectedMonth}
-                  style={pickerSelectStyles}
-                  useNativeAndroidPickerStyle={false}
-                />
-              </View>
-            </View>
-            <View style={{ height: 120 }}>
-              <LineGraph trend={monthlyStats.trend as 'up' | 'down'} />
+            <View style={styles.pickerContainer}>
+              <Text style={[styles.pickerLabel, { color: colors.text }]}>
+                Month
+              </Text>
+              <RNPickerSelect
+                onValueChange={value => setSelectedMonth(value)}
+                items={availableMonths}
+                value={selectedMonth}
+                style={{
+                  ...pickerSelectStyles,
+                  inputIOS: {
+                    ...pickerSelectStyles.inputIOS,
+                    color: colors.text,
+                  },
+                  inputAndroid: {
+                    ...pickerSelectStyles.inputAndroid,
+                    color: colors.text,
+                  },
+                  iconContainer: {
+                    top: 10,
+                    right: 12,
+                  },
+                }}
+                useNativeAndroidPickerStyle={false}
+              />
             </View>
           </View>
-          <Text style={styles.sectionTitle}>Your Top Customers</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.buyerScroll}
+          <View style={{ height: 120 }}>
+            <LineGraph
+              trend={monthlyStats.trend as 'up' | 'down'}
+              themeBackgroundColor={colors.backgroundSecondary}
+            />
+          </View>
+          <View
+            style={[
+              styles.bodyCard,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
           >
-            {topBuyersProfiles.map(buyer => (
-              <TouchableOpacity
-                key={buyer.uid}
-                style={styles.buyerCard}
-                onPress={() =>
-                  navigation.navigate('Profile', {
-                    identifier: buyer.uid,
-                  })
-                }
-              >
-                <UserAvatar
-                  profilePic={buyer.profilePic}
-                  firstName={buyer.firstname}
-                  lastName={buyer.lastname}
-                  style={styles.avatar}
-                />
-                <UserIdentity
-                  firstname={buyer.firstname}
-                  lastname={buyer.lastname}
-                  tier={buyer?.tier || 'free'}
-                  organizationName={buyer.organizationName}
-                  size="small"
-                  containerStyle={{ marginTop: 8 }}
-                />
-                <View style={styles.spentText}>
-                  <CurrencyDisplay value={buyer.totalSpent} size="medium" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+              Your Top Customers
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {topBuyersProfiles.map(buyer => (
+                <TouchableOpacity
+                  key={buyer.uid}
+                  style={styles.buyerCard}
+                  onPress={() =>
+                    navigation.navigate('Profile', {
+                      identifier: buyer.uid,
+                    })
+                  }
+                >
+                  <View style={styles.buyerCardSubDiv}>
+                    <UserAvatar
+                      profilePic={buyer.profilePic}
+                      firstName={buyer.firstname}
+                      lastName={buyer.lastname}
+                      style={styles.avatar}
+                    />
+                    <UserIdentity
+                      firstname={buyer.firstname}
+                      lastname={buyer.lastname}
+                      tier={buyer?.tier || 'free'}
+                      organizationName={buyer.organizationName}
+                      size="small"
+                      containerStyle={{ marginLeft: 8 }}
+                    />
+                  </View>
+                  <CurrencyDisplay
+                    value={buyer.totalSpent}
+                    size="medium"
+                    isSuccess={true}
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         </>
       )}
     </ScrollView>
   );
 };
 export const ReviewsSection = () => {
+  const { colors } = useTheme();
   const { allReviews, refreshReviews } = useAppDataContext();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const currentUser = useAppSelector(state => state.user);
@@ -1026,7 +1251,11 @@ export const ReviewsSection = () => {
 
   const numericAvg = parseFloat(avgRating);
   const ratingColor =
-    numericAvg < 2 ? PRIMARY_COLOR : numericAvg < 3.5 ? '#FF9800' : '#4CAF50';
+    numericAvg < 2
+      ? colors.primary
+      : numericAvg < 3.5
+      ? colors.primaryTint
+      : colors.success;
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await refreshReviews();
@@ -1034,17 +1263,23 @@ export const ReviewsSection = () => {
   };
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View
+        style={[styles.header, { backgroundColor: colors.backgroundSecondary }]}
+      >
         <View style={styles.subheader}>
-          <Text style={styles.title}>Customer Feedback</Text>
-          <Text style={styles.count}>{totalReviews} Total Reviews</Text>
+          <Text style={[styles.title, { color: colors.textDarker }]}>
+            Customer Feedback
+          </Text>
+          <Text style={[styles.count, { color: colors.text }]}>
+            {totalReviews} Total Reviews
+          </Text>
         </View>
         <View style={styles.avgContainer}>
           <View style={styles.ratingRow}>
             <Text style={[styles.avgText, { color: ratingColor }]}>
               {avgRating}
             </Text>
-            <MaterialIcons name="star" size={20} color={ratingColor} />
+            <MaterialIcons name="star" size={28} color={ratingColor} />
           </View>
           <Text style={[styles.performanceLabel, { color: ratingColor }]}>
             {numericAvg < 2
@@ -1055,7 +1290,6 @@ export const ReviewsSection = () => {
           </Text>
         </View>
       </View>
-
       <FlatList
         data={sellerReviews}
         keyExtractor={item => item.reviewerId}
@@ -1083,8 +1317,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
+    padding: 15,
+    borderRadius: 15,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#222' },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   timeRange: { fontSize: 12, color: PRIMARY_COLOR_TINT },
   statusRow: {
     flexDirection: 'row',
@@ -1097,78 +1333,65 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusCard: {
-    backgroundColor: '#fadccc',
-    borderLeftWidth: 1,
-    width: '30%',
+    borderWidth: 1,
     padding: 12,
     borderRadius: 15,
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
   statusCount: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  statusLabel: { fontSize: 11, color: '#2222' },
+  statusLabel: { fontSize: 12 },
   reviewHighlight: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
+    borderRadius: 15,
     marginBottom: 15,
   },
-  ratingTitle: { fontWeight: '600', fontSize: 15, color: '#2222' },
-  ratingSub: { fontSize: 12, color: PRIMARY_COLOR, marginTop: 4 },
+  ratingTitle: { fontWeight: '600', fontSize: 14 },
+  ratingSub: { fontSize: 12, marginTop: 4 },
   ratingValueBox: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  ratingText: { fontWeight: 'bold', color: PRIMARY_COLOR, marginRight: 4 },
+  ratingText: { fontWeight: 'bold', fontSize: 16, marginRight: 5 },
   emptyStateCard: {
-    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 15,
     alignContent: 'center',
     flex: 1,
   },
   emptyStateTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     marginVertical: 15,
-    color: PRIMARY_COLOR,
   },
   emptyStateSub: {
-    color: PRIMARY_COLOR_TINT,
-    textAlign: 'center',
     marginBottom: 20,
     fontSize: 14,
   },
   addBtnSmall: {
-    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 15,
     paddingVertical: 10,
     alignContent: 'center',
-    borderRadius: 20,
+    borderRadius: 15,
   },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  newsCard: { backgroundColor: '#fadccc', padding: 15, borderRadius: 12 },
+  addBtnText: { fontWeight: '600', fontSize: 14 },
+  newsCard: { padding: 15, borderRadius: 15, alignItems: 'center' },
   newsTag: {
     fontWeight: '900',
-    color: '#222',
-    fontSize: 11,
-    marginBottom: 5,
-    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: 15,
   },
-  newsText: { color: PRIMARY_COLOR, fontSize: 13, lineHeight: 18 },
+  newsText: { fontSize: 14, width: '100%' },
   statsOverviewRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
     marginBottom: 15,
   },
   statBox: {
-    backgroundColor: '#fadccc',
-    padding: 16,
-    borderRadius: 12,
+    padding: 15,
+    borderRadius: 15,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -1177,23 +1400,21 @@ const styles = StyleSheet.create({
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#2222',
     marginLeft: 4,
-    letterSpacing: 0.5,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
   },
   gridContainer: {
     flexDirection: 'row',
-    marginHorizontal: 16,
+    width: '100%',
     height: 220,
     marginBottom: 20,
   },
@@ -1207,7 +1428,8 @@ const styles = StyleSheet.create({
   },
   salesGraphBox: {
     flex: 1.4,
-    padding: 12,
+    padding: 15,
+    borderRadius: 15,
     marginBottom: 10,
     elevation: 2,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -1216,7 +1438,8 @@ const styles = StyleSheet.create({
   },
   ratingMiniBox: {
     flex: 0.6,
-    padding: 12,
+    padding: 15,
+    borderRadius: 15,
     elevation: 2,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOpacity: 0.05,
@@ -1224,9 +1447,8 @@ const styles = StyleSheet.create({
   },
   impressionsTallBox: {
     flex: 1,
-    backgroundColor: '#fadccc',
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 15,
+    padding: 15,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -1235,6 +1457,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    padding: 15,
+    borderRadius: 15,
   },
   row: {
     width: '100%',
@@ -1242,25 +1466,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   miniLabel: {
-    fontSize: 11,
-    color: '#222',
+    fontSize: 12,
+    fontWeight: 'bold',
     fontFamily: 'Inter-Medium',
   },
   statusIconContainer: {
     marginBottom: 10,
-    padding: 5,
     alignContent: 'center',
   },
   incomeCurrency: {
     flex: 1,
   },
-  emptyContainer: { flex: 1, alignContent: 'center', backgroundColor: '#fff' },
-  emptyText: { color: PRIMARY_COLOR, fontSize: 15, marginTop: 15 },
+  emptyContainer: { flex: 1, alignContent: 'center', padding: 10 },
+  emptyText: { fontSize: 14, marginTop: 15 },
   header: {
-    alignItems: 'center',
     padding: 20,
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
     width: '100%',
   },
   subheader: {
@@ -1273,24 +1493,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    marginBottom: 15
   },
   count: {
-    fontSize: 13,
-    color: PRIMARY_COLOR,
+    fontSize: 12,
   },
   avgContainer: {
     alignContent: 'center',
     flexDirection: 'row',
-    padding: 15,
-    borderWidth: 1,
-    borderRadius: 15,
-    backgroundColor: '#fadccc',
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -1299,7 +1509,7 @@ const styles = StyleSheet.create({
   avgText: {
     fontSize: 22,
     fontWeight: '800',
-    marginRight: 4,
+    marginRight: 5,
   },
   performanceLabel: {
     fontSize: 11,
@@ -1307,205 +1517,156 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     marginLeft: 6,
   },
-  graphCard: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: '#fadccc',
-    elevation: 5,
-  },
-  chartTitle: { color: '#222', fontSize: 16 },
-  buyerScroll: { paddingLeft: 16, paddingVertical: 15, marginVertical: 15 },
+  chartTitle: {fontSize: 18, fontWeight: 'bold' },
   buyerCard: {
-    width: 140,
-    backgroundColor: '#fadccc',
-    borderRadius: 15,
-    padding: 15,
-    marginRight: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
+    justifyContent: 'space-between',
+    marginBottom: 15,
   },
-  avatar: { width: 60, height: 60, borderRadius: 30 },
-  spentText: {
-    marginTop: 6,
+  buyerCardSubDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
+  bodyCard: {
+    padding: 15,
+    borderRadius: 15,
+  },
+  avatar: { width: 45, height: 45, borderRadius: 22.5 },
   dropdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
     marginVertical: 15,
+    padding: 15,
+    borderRadius: 15,
   },
   pickerContainer: {
-    width: '48%', // Leaves a small gap in the middle
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pickerLabel: {
     fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
-    marginBottom: 4,
+    marginRight: 5,
     fontWeight: '600',
-    textAlign: 'center',
   },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 4,
-    alignSelf: 'flex-end',
+    marginBottom: 15,
+    padding: 15,
+    borderRadius: 15
   },
   countText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   addBtn: {
     flexDirection: 'row',
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 15,
     alignItems: 'center',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   card: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
     elevation: 3,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
+    alignItems: 'center'
   },
   imageContainer: {
     position: 'relative',
   },
   thumbnail: {
-    width: 90,
-    height: 90,
+    width: 60,
+    height: 60,
     borderRadius: 12,
-    backgroundColor: PRIMARY_COLOR,
   },
   typeBadge: {
     position: 'absolute',
-    bottom: -5,
-    alignSelf: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    backgroundColor: '#fff',
+    top: -5,
+    left: 5,
+    padding: 5,
+    borderRadius: 3,
+    alignContent: 'center'
   },
   typeText: {
     fontSize: 9,
-    fontWeight: '900',
-    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
   },
 
   infoContainer: {
     flex: 1,
     marginLeft: 15,
-    justifyContent: 'space-between',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  category: {
-    fontSize: 12,
-    color: PRIMARY_COLOR_TINT,
-    marginTop: -2,
-    marginBottom: 8,
   },
   detailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 15
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fadccc',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
   },
   detailText: {
     fontSize: 12,
     marginLeft: 4,
-    color: '#555',
     fontWeight: '500',
   },
   statsFooter: {
     flexDirection: 'row',
-    borderTopWidth: 0.8,
-    borderTopColor: PRIMARY_COLOR_TINT,
-    marginTop: 10,
-    paddingTop: 8,
-    gap: 15,
-  },
-  statItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-end'
   },
   listContainer: {
-    padding: 16,
-    backgroundColor: '#F8F9FB', // Light gray background
     paddingBottom: 40,
   },
   balanceCard: {
-    backgroundColor: '#fadccc',
-    borderBottomRightRadius: 24,
-    borderBottomLeftRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 20,
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
     elevation: 8,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
+    alignItems: 'center'
   },
   balanceLabel: {
-    color: '#222',
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 15,
   },
   withdrawBtn: {
-    backgroundColor: PRIMARY_COLOR,
     flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 16,
-    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    alignContent: 'center',
     marginTop: 20,
   },
   withdrawBtnText: {
-    color: '#fff',
-    fontWeight: '800',
+    fontWeight: 'bold',
     fontSize: 14,
-    marginLeft: 8,
+    marginLeft: 5,
   },
   verifyBtn: {
-    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 15,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    marginTop: 10,
     alignContent: 'center',
   },
   verifyBtnText: {
-    color: '#FFF',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1513,61 +1674,35 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   warningText: {
-    color: PRIMARY_COLOR,
-    fontSize: 12,
-    textAlign: 'center',
-    marginVertical: 15,
-    paddingHorizontal: 20,
-    lineHeight: 18,
-    opacity: 0.9,
-  },
-  // History Items
-  sectionTitleInside: {
-    alignSelf: 'flex-start',
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 30,
+    fontSize: 14,
+    marginBottom: 15,
   },
   historyCard: {
-    backgroundColor: '#fadccc',
-    padding: 16,
-    borderRadius: 16,
+    padding: 15,
+    borderRadius: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    marginBottom: 15,
   },
   historyInfo: {
     flex: 1,
   },
-  historyMethod: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#222',
-  },
   historyDate: {
-    fontSize: 12,
-    color: '#2222',
-    marginTop: 4,
+    fontSize: 11,
   },
   refText: {
-    fontSize: 9,
-    color: PRIMARY_COLOR,
-    fontFamily: 'monospace',
-    marginTop: 4,
+    fontSize: 14,
+    marginBottom: 5,
   },
   historyRight: {
-    alignItems: 'flex-end',
+    marginRight: 8,
+    alignItems: 'center'
   },
   statusBadge: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: '#2222',
-    marginTop: 6,
-    overflow: 'hidden',
+    marginTop: 5,
   },
 });
 
@@ -1579,19 +1714,16 @@ const pickerSelectStyles = {
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 8,
-    color: PRIMARY_COLOR,
-    backgroundColor: '#fadccc',
     paddingRight: 30,
+    color: PRIMARY_COLOR,
   },
   inputAndroid: {
+    paddingRight: 30,
     fontSize: 14,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 8,
-    color: PRIMARY_COLOR,
-    backgroundColor: '#fadccc',
-    paddingRight: 30,
   },
 };

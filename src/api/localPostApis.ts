@@ -1062,7 +1062,7 @@ export const generateCertificateAPI = async (productId: string) => {
 };
 export const requestPayoutAPI = async (amount: number) => {
   try {
-    const url = `${baseUrl}payouts/request-payout`;
+    const url = `${baseUrl}store/payouts/request-payout`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -1428,8 +1428,7 @@ export const createLectureSchedule = async (
     const finalPayload = {
       ...lectureData,
       courseId: courseId,
-      location: lectureData.lectureType === 'Recorded' ? '' : lectureData.location,
-      videoUrl: lectureData.lectureType === 'Recorded' ? lectureData.videoUrl : '',
+      location: lectureData.lectureType === 'Online' ? '' : lectureData.location,
     };
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/createSchedule`,

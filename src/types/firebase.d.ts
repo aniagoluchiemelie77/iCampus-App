@@ -273,7 +273,7 @@ export interface MarketplaceOrder {
   quantity: number;
   cancellationReason: string;
   amountPaid: number;
-  status: "pending_delivery" | "completed" | "cancelled";
+  status: "pending_delivery" | "completed" | "cancelled" | "dropped_off";
   selectedStation?: DropOffStation;
   fileUrl?: string;
   createdAt: string;
@@ -494,7 +494,7 @@ export interface Lecture {
   _id?: string;
   courseId: Course['courseId'];
   topicName: string;
-  lectureType: 'Physical' | 'Online' | 'Recorded';
+  lectureType: 'Physical' | 'Online';
   location?: string;
   startTime: string; 
   streamUrl?: string;

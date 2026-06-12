@@ -73,7 +73,10 @@ import {
   getAssessmentAnalysisUrl,
 } from 'api/localGetApis';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants';
+import {
+  EXCEPTION_ACCOUNT_LIMITS,
+  EXCEPTION_COST_IN_ICASH,
+} from '../constants/inAppConstants';
 const { width } = Dimensions.get('window');
 import {
   getCourseDetailsForOngoingLecture,
@@ -1674,6 +1677,7 @@ export const RenderStudentExceptions = ({
   const { colors } = useTheme();
   const currentPlan = user.tier || 'free';
   const planLimit = EXCEPTION_ACCOUNT_LIMITS[currentPlan];
+
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
     const code = item.courseInfo?.courseCode?.toLowerCase() ?? '';
@@ -1683,6 +1687,7 @@ export const RenderStudentExceptions = ({
       title.includes(query) || code.includes(query) || category.includes(query)
     );
   });
+
   const usedThisMonth = exceptions.filter(e => {
     const date = new Date(e.createdAt);
     const now = new Date();
@@ -1691,14 +1696,21 @@ export const RenderStudentExceptions = ({
       date.getFullYear() === now.getFullYear()
     );
   }).length;
-  const hasExceededLimit = usedThisMonth >= planLimit;
-  const hasInsufficientPoints = (user.pointsBalance || 0) < 1.0;
-  const isDisabled = hasExceededLimit || hasInsufficientPoints;
-  const getDisabledReason = () => {
-    if (hasExceededLimit)
-      return `Monthly ${currentPlan} tier limit reached (${planLimit}/${planLimit})`;
-    if (hasInsufficientPoints) return 'Insufficient iCash (0.5 iCash required)';
-    return '';
+
+  const isOverTierLimit = usedThisMonth >= planLimit;
+  const hasInsufficientPoints =
+    (user.pointsBalance || 0) < EXCEPTION_COST_IN_ICASH;
+
+  const isDisabled = isOverTierLimit && hasInsufficientPoints;
+
+  const getStatusReasonText = () => {
+    if (isDisabled) {
+      return 'Limit reached. Insufficient iCash to purchase extra requests (0.5 required).';
+    }
+    if (isOverTierLimit) {
+      return 'Free tier limit reached. Next requests will cost 0.5 iCash.';
+    }
+    return 'Resets on the 1st of next month';
   };
 
   return (
@@ -1707,7 +1719,6 @@ export const RenderStudentExceptions = ({
       refreshing={refreshing}
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
-      contentContainerStyle={CourseActionStyles.listPadding}
       ListHeaderComponent={
         <View
           style={[
@@ -1728,15 +1739,21 @@ export const RenderStudentExceptions = ({
               <Text
                 style={[CourseActionStyles.usageText, { color: colors.text }]}
               >
-                {usedThisMonth} / {planLimit} used
+                {usedThisMonth} / {planLimit} free used
               </Text>
             </View>
             <Text
-              style={[CourseActionStyles.resetText, { color: colors.primary }]}
+              style={[
+                CourseActionStyles.resetText,
+                {
+                  color:
+                    isOverTierLimit && !isDisabled
+                      ? colors.primary
+                      : colors.text,
+                },
+              ]}
             >
-              {isDisabled
-                ? getDisabledReason()
-                : 'Resets on the 1st of next month'}
+              {getStatusReasonText()}
             </Text>
           </View>
           {!isDisabled && (
@@ -1754,7 +1771,7 @@ export const RenderStudentExceptions = ({
                   { color: colors.btnTextColor },
                 ]}
               >
-                Request Exception
+                {isOverTierLimit ? 'Buy Extra Exception' : 'Request Exception'}
               </Text>
             </TouchableOpacity>
           )}
@@ -1827,6 +1844,7 @@ export const RenderLecturerExceptionsManage = ({
   onRefresh,
 }: LecturerManageProps) => {
   const { colors } = useTheme();
+
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
     const code = item.courseInfo?.courseCode?.toLowerCase() ?? '';
@@ -1836,6 +1854,7 @@ export const RenderLecturerExceptionsManage = ({
       title.includes(query) || code.includes(query) || category.includes(query)
     );
   });
+
   return (
     <FlatList
       data={filteredData}
@@ -1867,6 +1886,7 @@ export const RenderLecturerExceptionsManage = ({
               {item.studentInfo.matricNumber}
             </Text>
           </View>
+
           {item.reasonCategory && (
             <Text
               style={[
@@ -1877,6 +1897,7 @@ export const RenderLecturerExceptionsManage = ({
               {item.reasonCategory}
             </Text>
           )}
+
           <Text style={[CourseActionStyles.reasonBody, { color: colors.text }]}>
             {item.reason}
           </Text>
@@ -2019,7 +2040,7 @@ export const RenderScheduleLecture = ({
     const payload: CreateLecturePayload = {
       courseId: course.courseId,
       topicName: form.topicName!,
-      lectureType: form.lectureType as 'Physical' | 'Online' | 'Recorded',
+      lectureType: form.lectureType as 'Physical' | 'Online',
       location: form.location,
       videoUrl: form.videoUrl,
       startTime: form.startTime!,
@@ -4037,18 +4058,10 @@ export const RenderViewLectureSchedule = ({
   };
   const renderLectureItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
-    const isClickable =
-      item.lectureType === 'Online' || item.lectureType === 'Recorded';
+    const isClickable = item.lectureType === 'Online';
     const handlePress = async () => {
       if (isOngoing) {
         setOngoingLecture(item);
-      } else if (item.lectureType === 'Recorded') {
-        navigation.navigate('VideoPlayerScreen', {
-          lectureId: item.id,
-          url: item.videoUrl,
-          title: item.topicName,
-          userRole: user.usertype,
-        });
       }
     };
     return (
@@ -4317,18 +4330,10 @@ export const LecturerLectureScheduleView = ({
   };
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
-    const isClickable =
-      item.lectureType === 'Online' || item.lectureType === 'Recorded';
+    const isClickable = item.lectureType === 'Online';
     const handlePress = () => {
       if (isOngoing && item.lectureType === 'Online') {
         setOngoingLecture(item);
-      } else if (item.lectureType === 'Recorded') {
-        navigation.navigate('VideoPlayerScreen', {
-          lectureId: item.id,
-          url: item.videoUrl,
-          title: item.topicName,
-          userRole: user.usertype,
-        });
       }
     };
     return (
@@ -5201,11 +5206,11 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
   },
   headerWrapper: {
-    marginBottom: 20,
+    marginBottom: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 13,
+    padding: 15,
   },
   tierInfoCard: {
     flex: 1,

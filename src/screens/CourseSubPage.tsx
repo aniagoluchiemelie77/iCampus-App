@@ -182,11 +182,6 @@ export const CourseSubPage = ({ route, navigation }: any) => {
         topic: item.topicName,
         streamUrl: item.location,
       });
-    } else if (item.lectureType === 'Recorded') {
-      navigation.navigate('VideoPlayerScreen', {
-        url: item.videoUrl,
-        title: item.topicName,
-      });
     }
   };
   const fetchStudentTest = useCallback(

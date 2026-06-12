@@ -100,10 +100,9 @@ export const ReviewItem = ({ review }: ReviewItemProps) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
     elevation: 3,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,

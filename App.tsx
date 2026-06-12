@@ -54,7 +54,6 @@ import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
 import { CourseSubPage } from 'screens/CourseSubPage';
 import { LiveClassSessions } from './src/screens/LiveClassSession.tsx';
-import { VideoPlayerScreen } from './src/screens/RecordedLectureScreen.tsx';
 import BleManager from 'react-native-ble-manager';
 import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttendanceScreen.tsx';
 import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanner.tsx';
@@ -262,12 +261,6 @@ export type RootStackParamList = {
   PayoutSuccess: { amount: number; transactionId: string };
   Home: { activeTab?: 'home' | 'classroom' | 'search' | 'store' | 'ranking' };
   LiveClassSessions: { lectureId: string; courseId: string };
-  VideoPlayerScreen: {
-    lectureId: string;
-    url: string;
-    title: string;
-    userRole: 'student' | 'lecturer';
-  };
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
     email?: string;
@@ -634,14 +627,6 @@ const App = () => {
               <Stack.Screen
                 name="SignupPage"
                 component={SignupPage}
-                options={{
-                  headerShown: false,
-                  ...TransitionPresets.FadeFromRightAndroid,
-                }}
-              />
-              <Stack.Screen
-                name="VideoPlayerScreen"
-                component={VideoPlayerScreen}
                 options={{
                   headerShown: false,
                   ...TransitionPresets.FadeFromRightAndroid,

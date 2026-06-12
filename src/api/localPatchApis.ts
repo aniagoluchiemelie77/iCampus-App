@@ -14,13 +14,18 @@ interface UpdateExceptionStatusPayload {
   newIcashBalance?: number;
   error?: string;
 }
+const getAuthHeaders = async () => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
+
 export const patchUserProfile = async (data: Partial<User>) => {
+  const headers = await getAuthHeaders();
   const response = await fetch(`${baseUrl}/users/update-profile`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers,
     body: JSON.stringify(data),
   });
 
@@ -39,12 +44,10 @@ export const updatePreferences = async (
   update: Partial<userPreferences>,
 ) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/preferences/${userId}`, {
       method: 'PATCH', 
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(update),
     });
 
@@ -69,12 +72,10 @@ export const updatePreferences = async (
 };
 export const updateEmailRecord = async (email: string, type: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/update-emails`, {
       method: 'PATCH',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ email, type }),
     });
     const result = await response.json();
@@ -88,12 +89,10 @@ export const updateEmailRecord = async (email: string, type: string) => {
 };
 export const recordPostImpressionAPI = async (postId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/impression`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
     });
     const data = await response.json();
     if (!response.ok) {
@@ -113,12 +112,10 @@ export const recordPostImpressionAPI = async (postId: string) => {
 };
 export const castPollVoteAPI = async (postId: string, optionId: string, userId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/vote`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({
         optionId,
         userId,
@@ -144,12 +141,10 @@ export const castPollVoteAPI = async (postId: string, optionId: string, userId: 
 };
 export const toggleBookmarkAPI = async (postId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/bookmark`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const data = await response.json();
     if (!response.ok) {
@@ -173,12 +168,10 @@ export const updateCartAPI = async (
   details?: { selectedSize?: string; selectedColor?: string; quantity?: number }
 ) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/cart/toggle`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ productId, action, ...details }),
     });
     const result = await response.json();
@@ -200,9 +193,10 @@ export const updateCartAPI = async (
 };
 export const toggleFavoriteAPI = async (productId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/favorites/toggle`, {
       method: 'PATCH', 
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers,
       body: JSON.stringify({ productId }),
     });
 
@@ -229,12 +223,10 @@ export const updateCourseProgressAPI = async (
   completedLessons: string[]
 ) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/downloads/update-progress`, {
       method: 'PATCH', 
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers,
       body: JSON.stringify({
         productId,
         progress, 
@@ -264,12 +256,10 @@ export const updateCourseProgressAPI = async (
 };
 export const logProductImpressionAPI = async (productId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/product/toggle-impressions`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ productId }),
     });
     const result = await response.json();
@@ -287,14 +277,12 @@ export const logProductImpressionAPI = async (productId: string) => {
 export const markAllNotificationsAsRead = async (
 ): Promise<{ success: boolean; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/notifications/mark-all-read`,
       {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
       }
     );
 
@@ -324,12 +312,10 @@ export const markSingleNotificationAsRead = async (
   notificationId: string
 ): Promise<{ success: boolean; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/notifications/${notificationId}/read`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const result = response.status !== 204 ? await response.json() : {};
     if (!response.ok) {
@@ -352,14 +338,12 @@ export const updateExceptionStatus = async (
   payload: UpdateExceptionStatusPayload
 ): Promise<UpdateExceptionStatusResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
       {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(payload),
       }
     );
@@ -381,6 +365,37 @@ export const updateExceptionStatus = async (
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown network error',
+    };
+  }
+};
+export const markOrderAsDroppedOffAPI = async (orderId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}store/orders/mark-as-dropped-off`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ orderId }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || "Failed to update order status.",
+      };
+    }
+
+    return {
+      success: true,
+      status: result.status, 
+      message: result.message || "Order updated to dropped off.",
+    };
+  } catch (error) {
+    console.error("markOrderAsDroppedOffAPI Error:", error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Network error" 
     };
   }
 };

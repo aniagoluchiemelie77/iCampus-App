@@ -19,11 +19,7 @@ import Geolocation from '@react-native-community/geolocation';
 import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker from 'react-native-document-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-  PRIMARY_COLOR_TINT_MAIN,
-} from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import DropDownPicker from 'react-native-dropdown-picker';
 import Toast from 'react-native-toast-message';
 import {
@@ -48,6 +44,7 @@ import {
   CATEGORY_MAX_PRICES,
   USD_EQUIVALENCE_OF_1_ICASH,
 } from '../constants/inAppConstants';
+import { useTheme } from '../context/ThemeContext';
 
 interface VideoDurationExtractorProps {
   uri: string;
@@ -152,6 +149,7 @@ export default function PriceSectionComponent({
   formInputs,
   setFormInputs,
 }: PriceSectionProps) {
+  const { colors } = useTheme();
   const [exchangeDetails, setExchangeDetails] = useState<{
     rate: number;
     symbol: string;
@@ -195,29 +193,36 @@ export default function PriceSectionComponent({
   }).format(rawConvertedAmount);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Price (iCash)</Text>
+    <>
+      <Text style={[styles.label, { color: colors.text }]}>Price (iCash)</Text>
       <TextInput
-        style={[styles.input, isOverpriced && styles.inputWarning]}
+        style={[
+          styles.input,
+          isOverpriced && styles.inputWarning,
+          { color: colors.text },
+        ]}
         placeholder="0.00"
         keyboardType="numeric"
         value={formInputs.price}
         onChangeText={text => setFormInputs(prev => ({ ...prev, price: text }))}
+        placeholderTextColor={colors.inputTextHolder}
       />
       {isOverpriced && (
-        <Text style={styles.warningText}>
+        <Text style={[styles.warningText, { color: colors.primary }]}>
           This exceeds the maximum limit of {maxAllowedIcash} iCash allowed for
           a {formInputs.productType}.
         </Text>
       )}
 
-      <Text style={styles.label}>
+      <Text style={[styles.label, { color: colors.text }]}>
         Estimated Local Value ({exchangeDetails.code})
       </Text>
       <View style={styles.disabledInputWrapper}>
-        <Text style={styles.currencyPrefix}>{exchangeDetails.symbol}</Text>
+        <Text style={[styles.currencyPrefix, { color: colors.text }]}>
+          {exchangeDetails.symbol}
+        </Text>
         <TextInput
-          style={[styles.input, styles.disabledInput]}
+          style={[styles.disabledInput, { color: colors.text }]}
           value={formInputs.price ? formattedLocalCurrency : '0.00'}
           editable={false}
           selectTextOnFocus={false}
@@ -225,17 +230,17 @@ export default function PriceSectionComponent({
         {exchangeDetails.loading && (
           <ActivityIndicator
             size="small"
-            color={PRIMARY_COLOR}
+            color={colors.primary}
             style={styles.spinner}
           />
         )}
       </View>
-      <Text style={styles.rateHint}>
+      <Text style={[styles.rateHint, { color: colors.primaryTint }]}>
         Rate anchored at 1 iCash = {exchangeDetails.symbol}
         {(exchangeDetails.rate * USD_EQUIVALENCE_OF_1_ICASH).toFixed(2)}{' '}
         {exchangeDetails.code}
       </Text>
-    </View>
+    </>
   );
 }
 const StepHeader = ({
@@ -243,46 +248,54 @@ const StepHeader = ({
   title,
   currentStep,
   toggleStep,
-}: StepHeaderProps) => (
-  <TouchableOpacity
-    onPress={() => toggleStep(number)}
-    style={[
-      styles.stepHeader,
-      currentStep === number && styles.activeStepHeader,
-    ]}
-  >
-    <View style={styles.headerLead}>
-      <View
-        style={[styles.stepBadge, currentStep === number && styles.activeBadge]}
-      >
-        <Text
+}: StepHeaderProps) => {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity
+      onPress={() => toggleStep(number)}
+      style={styles.stepHeader}
+    >
+      <View style={styles.headerLead}>
+        <View
           style={[
-            styles.stepNumber,
-            currentStep === number && styles.activeStepNumber,
+            styles.stepBadge,
+            currentStep === number && { backgroundColor: colors.primary },
           ]}
         >
-          {number}
+          <Text
+            style={[
+              styles.stepNumber,
+              currentStep === number
+                ? { color: colors.btnTextColor }
+                : { color: colors.text },
+            ]}
+          >
+            {number}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.stepTitle,
+            currentStep === number
+              ? { color: colors.textDarker, fontWeight: 'bold' }
+              : { color: colors.text },
+          ]}
+        >
+          {title}
         </Text>
       </View>
-      <Text
-        style={[
-          styles.stepTitle,
-          currentStep === number && styles.activeStepTitle,
-        ]}
-      >
-        {title}
-      </Text>
-    </View>
-    <MaterialIcons
-      name={
-        currentStep === number ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
-      }
-      size={24}
-      color={PRIMARY_COLOR}
-    />
-  </TouchableOpacity>
-);
+      <MaterialIcons
+        name={
+          currentStep === number ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
+        }
+        size={24}
+        color={colors.text}
+      />
+    </TouchableOpacity>
+  );
+};
 export const CreateProductScreen = ({ route }: any) => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const { product: existingProduct } = route.params;
   const productId = existingProduct?.productId || existingProduct?._id;
@@ -860,12 +873,16 @@ export const CreateProductScreen = ({ route }: any) => {
   }, [initialFormInputs, existingProduct]);
   return (
     <ScrollView
-      style={styles.container}
+      style={[
+        styles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
       contentContainerStyle={styles.scrollContent}
     >
       <PageHeader title={isEditing ? 'Edit Listing' : 'Create New Listing'} />
-      {/* --- STEP 1: GENERAL INFO --- */}
-      <View style={styles.card}>
+      <View
+        style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      >
         <StepHeader
           number={1}
           title="General Information"
@@ -874,30 +891,36 @@ export const CreateProductScreen = ({ route }: any) => {
         />
         {activeStep === 1 && (
           <View style={styles.expandedContent}>
-            <Text style={styles.label}>Product Title</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Product Title
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text }]}
               value={formInputs.title}
               onChangeText={text =>
                 setFormInputs(prev => ({ ...prev, title: text }))
               }
               placeholder="e.g. Shoes, bags, wristwatch..."
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
             />
 
-            <Text style={styles.label}>Product Description</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Product Description
+            </Text>
             <TextInput
-              style={styles.bioInput}
+              style={[styles.bioInput, { color: colors.text }]}
               multiline
               value={formInputs.description}
               onChangeText={text =>
                 setFormInputs(prev => ({ ...prev, description: text }))
               }
               placeholder="A brief description of your listing (optional)."
-              placeholderTextColor={PRIMARY_COLOR_TINT}
+              placeholderTextColor={colors.inputTextHolder}
             />
 
-            <Text style={styles.label}>Niche (Category)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Niche (Category)
+            </Text>
             <View style={{ zIndex: 2000 }}>
               <DropDownPicker
                 open={nicheOpen}
@@ -918,16 +941,17 @@ export const CreateProductScreen = ({ route }: any) => {
                 }}
                 style={styles.dropdownPicker}
                 dropDownContainerStyle={styles.dropdownList}
-                textStyle={styles.dropdownText}
-                labelStyle={{ fontWeight: '600', color: PRIMARY_COLOR }}
-                placeholderStyle={{ color: PRIMARY_COLOR_TINT }}
+                textStyle={[styles.dropdownText, { color: colors.text }]}
+                labelStyle={{ fontWeight: '600', color: colors.text }}
+                placeholderStyle={{ color: colors.inputTextHolder }}
               />
             </View>
           </View>
         )}
       </View>
-      {/* --- STEP 2: MEDIA UPLOAD --- */}
-      <View style={styles.card}>
+      <View
+        style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      >
         <StepHeader
           number={2}
           title={
@@ -941,27 +965,17 @@ export const CreateProductScreen = ({ route }: any) => {
         {activeStep === 2 && (
           <View style={styles.expandedContent}>
             {formInputs.productType !== 'course' ? (
-              <View>
-                <TouchableOpacity
-                  style={styles.uploadPlaceholder}
-                  onPress={pickProductImages}
-                >
-                  <MaterialIcons
-                    name="cloud-upload-outlined"
-                    size={40}
-                    color={PRIMARY_COLOR}
-                  />
-                  <Text style={styles.uploadText}>
-                    Tap to upload product images
-                  </Text>
-                </TouchableOpacity>
+              <>
                 {images.length > 0 && (
                   <ScrollView horizontal style={styles.thumbnailContainer}>
                     {images.map((uri, idx) => (
                       <View key={idx} style={styles.thumbnailWrapper}>
                         <Image source={{ uri }} style={styles.thumbnail} />
                         <TouchableOpacity
-                          style={styles.removeBadge}
+                          style={[
+                            styles.removeBadge,
+                            { backgroundColor: colors.backgroundSecondary },
+                          ]}
                           onPress={() =>
                             setImages(prev => prev.filter((_, i) => i !== idx))
                           }
@@ -969,20 +983,35 @@ export const CreateProductScreen = ({ route }: any) => {
                           <MaterialIcons
                             name="cancel-outlined"
                             size={18}
-                            color={PRIMARY_COLOR}
+                            color={colors.primary}
                           />
                         </TouchableOpacity>
                       </View>
                     ))}
                   </ScrollView>
                 )}
-              </View>
+                <TouchableOpacity
+                  style={styles.uploadPlaceholder}
+                  onPress={pickProductImages}
+                >
+                  <MaterialIcons
+                    name="cloud-upload-outlined"
+                    size={29}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.uploadText, { color: colors.primary }]}>
+                    Tap to upload product images
+                  </Text>
+                </TouchableOpacity>
+              </>
             ) : (
-              <View>
-                <Text style={styles.sectionSubtitle}>
+              <>
+                <Text style={[styles.sectionSubtitle, { color: colors.text }]}>
                   Build your curriculum. Add lessons and attach video files.
                 </Text>
-                <Text style={styles.miniLabel}>Course Cover Thumbnail</Text>
+                <Text style={[styles.miniLabel, { color: colors.text }]}>
+                  Course Cover Thumbnail
+                </Text>
                 {courseThumbnail ? (
                   <View style={styles.courseThumbnailPreviewWrapper}>
                     <Image
@@ -990,17 +1019,17 @@ export const CreateProductScreen = ({ route }: any) => {
                       style={styles.courseThumbnailPreview}
                     />
                     <TouchableOpacity
-                      style={styles.courseThumbnailRemoveBtn}
+                      style={[
+                        styles.removeBadge,
+                        { backgroundColor: colors.backgroundSecondary },
+                      ]}
                       onPress={() => setCourseThumbnail(null)}
                     >
                       <MaterialIcons
-                        name="delete-outlined"
+                        name="cancel-outlined"
                         size={16}
-                        color={PRIMARY_COLOR}
+                        color={colors.primary}
                       />
-                      <Text style={styles.courseThumbnailRemoveText}>
-                        Remove Cover
-                      </Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -1011,19 +1040,30 @@ export const CreateProductScreen = ({ route }: any) => {
                     <MaterialIcons
                       name="image-search-outlined"
                       size={24}
-                      color={PRIMARY_COLOR}
+                      color={colors.primary}
                     />
-                    <Text style={styles.courseThumbnailPlaceholderText}>
+                    <Text
+                      style={[
+                        styles.courseThumbnailPlaceholderText,
+                        { color: colors.primary },
+                      ]}
+                    >
                       Upload Course Thumbnail
                     </Text>
                   </TouchableOpacity>
                 )}
-                <View style={styles.divider} />
-                <Text style={styles.miniLabel}>Lessons & Video Modules</Text>
+                <Text style={[styles.miniLabel, { color: colors.text }]}>
+                  Lessons & Video Modules
+                </Text>
                 {formInputs.lessons.map((lesson, index) => (
-                  <View key={index} style={styles.lessonCard}>
+                  <View key={index}>
                     <View style={styles.lessonHeaderRow}>
-                      <Text style={styles.lessonNumberLabel}>
+                      <Text
+                        style={[
+                          styles.lessonNumberLabel,
+                          { color: colors.text },
+                        ]}
+                      >
                         Lesson {index + 1}
                       </Text>
                       <TouchableOpacity
@@ -1037,13 +1077,13 @@ export const CreateProductScreen = ({ route }: any) => {
                         <MaterialIcons
                           name="delete-outlined"
                           size={20}
-                          color={PRIMARY_COLOR}
+                          color={colors.primary}
                         />
                       </TouchableOpacity>
                     </View>
-
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, { color: colors.text }]}
+                      placeholderTextColor={colors.inputTextHolder}
                       placeholder="Lesson Title (e.g., Intro to Programming)"
                       value={lesson.title}
                       onChangeText={text => {
@@ -1057,24 +1097,30 @@ export const CreateProductScreen = ({ route }: any) => {
                         });
                       }}
                     />
-
                     <View style={styles.lessonMetaRow}>
                       <TouchableOpacity
-                        style={styles.videoAttachBtn}
+                        style={[
+                          styles.videoAttachBtn,
+                          { backgroundColor: colors.btnColor },
+                        ]}
                         onPress={() => {
                           pickLessonVideo(index);
                         }}
                       >
                         <MaterialIcons
                           name="video-library-outlined"
-                          size={18}
-                          color="#fff"
+                          size={20}
+                          color={colors.btnTextColor}
                         />
-                        <Text style={styles.videoAttachText}>
+                        <Text
+                          style={[
+                            styles.videoAttachText,
+                            { color: colors.btnTextColor },
+                          ]}
+                        >
                           {lesson.videoUrl ? 'Video Attached' : 'Upload Video'}
                         </Text>
                       </TouchableOpacity>
-
                       <TouchableOpacity
                         style={[
                           styles.previewToggle,
@@ -1095,7 +1141,9 @@ export const CreateProductScreen = ({ route }: any) => {
                         <Text
                           style={[
                             styles.previewToggleText,
-                            lesson.isFreePreview && { color: PRIMARY_COLOR },
+                            lesson.isFreePreview
+                              ? { color: colors.primary }
+                              : { color: colors.text },
                           ]}
                         >
                           Free Preview
@@ -1121,16 +1169,21 @@ export const CreateProductScreen = ({ route }: any) => {
                     }))
                   }
                 >
-                  <MaterialIcons name="add" size={20} color={PRIMARY_COLOR} />
-                  <Text style={styles.addLessonBtnText}>Add New Lesson</Text>
+                  <MaterialIcons name="add" size={22} color={colors.primary} />
+                  <Text
+                    style={[styles.addLessonBtnText, { color: colors.primary }]}
+                  >
+                    Add New Lesson
+                  </Text>
                 </TouchableOpacity>
-              </View>
+              </>
             )}
           </View>
         )}
       </View>
-      {/* --- STEP 3: TYPE-SPECIFIC DETAILS --- */}
-      <View style={styles.card}>
+      <View
+        style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      >
         <StepHeader
           number={3}
           toggleStep={toggleStep}
@@ -1142,12 +1195,18 @@ export const CreateProductScreen = ({ route }: any) => {
         {activeStep === 3 && (
           <View style={styles.expandedContent}>
             {productType === 'physical' && (
-              <View style={styles.sectionContainer}>
+              <>
                 <View style={styles.row}>
                   <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.label}>Weight (Kg)</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                      Weight (Kg)
+                    </Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        { color: colors.text, width: 'auto' },
+                      ]}
+                      placeholderTextColor={colors.inputTextHolder}
                       placeholder="0.5"
                       keyboardType="numeric"
                       value={formInputs.physicalDetails.weightKg}
@@ -1165,12 +1224,17 @@ export const CreateProductScreen = ({ route }: any) => {
                       }}
                     />
                   </View>
-
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Stock Quantity</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                      Stock Quantity
+                    </Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        { color: colors.text, width: 'auto' },
+                      ]}
                       placeholder="10"
+                      placeholderTextColor={colors.inputTextHolder}
                       keyboardType="number-pad"
                       value={formInputs.physicalDetails.inStock}
                       onChangeText={text => {
@@ -1186,111 +1250,136 @@ export const CreateProductScreen = ({ route }: any) => {
                     />
                   </View>
                 </View>
-                <View style={styles.variantSection}>
-                  {/* A. Colors Tag Input */}
-                  <Text style={styles.label}>Available Colors (Optional)</Text>
-                  <View style={styles.tagInputContainer}>
-                    <TextInput
-                      style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                      placeholder="e.g. Red, Blue, Matte Black"
-                      value={colorInput}
-                      onChangeText={setColorInput}
-                      onSubmitEditing={handleAddColor}
-                    />
-                    <TouchableOpacity
-                      style={styles.addTagButton}
-                      onPress={handleAddColor}
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Available Colors (Optional)
+                </Text>
+                <View style={styles.tagInputContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { flex: 1, width: 'auto', color: colors.text },
+                    ]}
+                    placeholder="e.g. Red, Blue, Matte Black"
+                    value={colorInput}
+                    placeholderTextColor={colors.inputTextHolder}
+                    onChangeText={setColorInput}
+                    onSubmitEditing={handleAddColor}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.addTagButton,
+                      { backgroundColor: colors.btnColor },
+                    ]}
+                    onPress={handleAddColor}
+                  >
+                    <Text
+                      style={[
+                        styles.addTagButtonText,
+                        { color: colors.btnTextColor },
+                      ]}
                     >
-                      <Text style={styles.addTagButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.tagWrapper}>
-                    {(formInputs.physicalDetails?.colors || []).map(
-                      (color, index) => (
-                        <TouchableOpacity
-                          key={`color-${index}`}
-                          style={[
-                            styles.tagBadge,
-                            { backgroundColor: '#fadccc' },
-                          ]}
-                          onPress={() =>
-                            setFormInputs((prev: any) => {
-                              // Type the parameter as any directly
-                              const currentColors =
-                                prev.physicalDetails?.colors || [];
-                              return {
-                                ...prev,
-                                physicalDetails: {
-                                  ...prev.physicalDetails,
-                                  colors: currentColors.filter(
-                                    (c: string) => c !== color,
-                                  ),
-                                },
-                              };
-                            })
-                          }
-                        >
-                          <Text style={styles.tagText}>{color} ✕</Text>
-                        </TouchableOpacity>
-                      ),
-                    )}
-                  </View>
-                  <Text style={[styles.label, { marginTop: 8 }]}>
-                    Available Sizes (Optional)
-                  </Text>
-                  <View style={styles.tagInputContainer}>
-                    <TextInput
-                      style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                      placeholder="e.g. Medium, XL, 42, 10 inches"
-                      value={sizeInput}
-                      onChangeText={setSizeInput}
-                      onSubmitEditing={handleAddSize}
-                    />
-                    <TouchableOpacity
-                      style={styles.addTagButton}
-                      onPress={handleAddSize}
-                    >
-                      <Text style={styles.addTagButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.tagWrapper}>
-                    {(formInputs.physicalDetails?.sizes || []).map(
-                      (size, index) => (
-                        <TouchableOpacity
-                          key={`size-${index}`}
-                          style={[
-                            styles.tagBadge,
-                            { backgroundColor: '#e2f0d9' },
-                          ]}
-                          onPress={() =>
-                            setFormInputs((prev: any) => {
-                              // Typing 'prev' as any prevents any trailing syntax errors
-                              const currentSizes =
-                                prev.physicalDetails?.sizes || [];
-                              return {
-                                ...prev,
-                                physicalDetails: {
-                                  ...prev.physicalDetails,
-                                  sizes: currentSizes.filter(
-                                    (s: string) => s !== size,
-                                  ),
-                                },
-                              };
-                            })
-                          }
-                        >
-                          <Text style={styles.tagText}>{size} ✕</Text>
-                        </TouchableOpacity>
-                      ),
-                    )}
-                  </View>
+                      Add
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.label}>Fulfillment / Delivery Options</Text>
-                <Text style={styles.subLabel}>
+                <View style={styles.tagWrapper}>
+                  {(formInputs.physicalDetails?.colors || []).map(
+                    (color, index) => (
+                      <TouchableOpacity
+                        key={`color-${index}`}
+                        style={styles.tagBadge}
+                        onPress={() =>
+                          setFormInputs((prev: any) => {
+                            const currentColors =
+                              prev.physicalDetails?.colors || [];
+                            return {
+                              ...prev,
+                              physicalDetails: {
+                                ...prev.physicalDetails,
+                                colors: currentColors.filter(
+                                  (c: string) => c !== color,
+                                ),
+                              },
+                            };
+                          })
+                        }
+                      >
+                        <Text style={[styles.tagText, { color: colors.text }]}>
+                          {color} ✕
+                        </Text>
+                      </TouchableOpacity>
+                    ),
+                  )}
+                </View>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Available Sizes (Optional)
+                </Text>
+                <View style={styles.tagInputContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { flex: 1, marginBottom: 0, color: colors.text },
+                    ]}
+                    placeholder="e.g. Medium, XL, 42, 10 inches"
+                    value={sizeInput}
+                    placeholderTextColor={colors.inputTextHolder}
+                    onChangeText={setSizeInput}
+                    onSubmitEditing={handleAddSize}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.addTagButton,
+                      { backgroundColor: colors.btnColor },
+                    ]}
+                    onPress={handleAddSize}
+                  >
+                    <Text
+                      style={[
+                        styles.addTagButtonText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
+                      Add
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.tagWrapper}>
+                  {(formInputs.physicalDetails?.sizes || []).map(
+                    (size, index) => (
+                      <TouchableOpacity
+                        key={`size-${index}`}
+                        style={[styles.tagBadge]}
+                        onPress={() =>
+                          setFormInputs((prev: any) => {
+                            // Typing 'prev' as any prevents any trailing syntax errors
+                            const currentSizes =
+                              prev.physicalDetails?.sizes || [];
+                            return {
+                              ...prev,
+                              physicalDetails: {
+                                ...prev.physicalDetails,
+                                sizes: currentSizes.filter(
+                                  (s: string) => s !== size,
+                                ),
+                              },
+                            };
+                          })
+                        }
+                      >
+                        <Text style={[styles.tagText, { color: colors.text }]}>
+                          {size} ✕
+                        </Text>
+                      </TouchableOpacity>
+                    ),
+                  )}
+                </View>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Fulfillment / Delivery Options
+                </Text>
+                <Text style={[styles.subLabel, { color: colors.text }]}>
                   How will the buyer receive this item? Select all that apply.
                 </Text>
                 <View style={styles.gatewayRow}>
-                  {/* Drop-off Station Chip */}
                   <TouchableOpacity
                     activeOpacity={0.8}
                     style={[
@@ -1313,7 +1402,6 @@ export const CreateProductScreen = ({ route }: any) => {
                           ...prev,
                           physicalDetails: {
                             ...prev.physicalDetails,
-                            // Cast the array back to the expected specific type
                             sellerGateways:
                               updatedGateways as typeof currentGateways,
                             dropOffAddress: hasIt
@@ -1329,7 +1417,9 @@ export const CreateProductScreen = ({ route }: any) => {
                         styles.chipText,
                         formInputs.physicalDetails.sellerGateways.includes(
                           'drop_off',
-                        ) && styles.activeChipText,
+                        )
+                          ? { color: colors.primary }
+                          : { color: colors.text },
                       ]}
                     >
                       Drop-off Station
@@ -1357,7 +1447,6 @@ export const CreateProductScreen = ({ route }: any) => {
                           ...prev,
                           physicalDetails: {
                             ...prev.physicalDetails,
-                            // Cast the array back to the expected specific type
                             sellerGateways:
                               updatedGateways as typeof currentGateways,
                           },
@@ -1370,7 +1459,9 @@ export const CreateProductScreen = ({ route }: any) => {
                         styles.chipText,
                         formInputs.physicalDetails.sellerGateways.includes(
                           'home_delivery',
-                        ) && styles.activeChipText,
+                        )
+                          ? { color: colors.primary }
+                          : { color: colors.text },
                       ]}
                     >
                       Home Delivery
@@ -1380,13 +1471,13 @@ export const CreateProductScreen = ({ route }: any) => {
                 {formInputs.physicalDetails.sellerGateways.includes(
                   'drop_off',
                 ) && (
-                  <View style={styles.stationBlock}>
-                    <Text style={[styles.label, { marginTop: 12 }]}>
+                  <>
+                    <Text style={[styles.label, { color: colors.text }]}>
                       Select Drop-off Hubs Nearby
                     </Text>
-                    <Text style={styles.subLabel}>
-                      Choose where you will physically drop this package upon
-                      sale.
+                    <Text style={[styles.subLabel, { color: colors.text }]}>
+                      Choose where you can physically drop your products for
+                      pickup by the buyer upon sale.
                     </Text>
                     {stations.map(station => {
                       const isSelected =
@@ -1419,7 +1510,6 @@ export const CreateProductScreen = ({ route }: any) => {
                                 ...prev,
                                 physicalDetails: {
                                   ...prev.physicalDetails,
-                                  // explicitly casting ensures compatibility with CompleteFormInputs types
                                   dropOffAddress:
                                     updatedStations as typeof currentAddresses,
                                 },
@@ -1428,41 +1518,53 @@ export const CreateProductScreen = ({ route }: any) => {
                           }}
                         >
                           <View style={styles.stationInfo}>
-                            <Text style={styles.stationName}>
-                              {station.name}
-                            </Text>
-                            <Text style={styles.stationAddress}>
+                            <Text
+                              style={[
+                                styles.stationAddress,
+                                { color: colors.text },
+                              ]}
+                            >
                               {station.address}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.stationName,
+                                { color: colors.text },
+                              ]}
+                            >
+                              {station.name}
                             </Text>
                           </View>
                           {isSelected && (
                             <MaterialIcons
                               name="check-circle-outlined"
-                              size={15}
-                              color={PRIMARY_COLOR}
+                              size={18}
+                              color={colors.primary}
+                              style={{ marginLeft: 6 }}
                             />
                           )}
                         </TouchableOpacity>
                       );
                     })}
-                  </View>
+                  </>
                 )}
-              </View>
+              </>
             )}
             {productType === 'course' && (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.label}>
+              <>
+                <Text style={[styles.label, { color: colors.text }]}>
                   Co-Lecturers / Instructors (Optional)
                 </Text>
-                <Text style={styles.subLabel}>
+                <Text style={[styles.subLabel, { color: colors.text }]}>
                   You are automatically assigned as the primary instructor. Add
                   your co-creator's fullname if you are co-authoring this course
                   (Optional).
                 </Text>
 
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.text }]}
                   placeholder="e.g. John Mark"
+                  placeholderTextColor={colors.inputTextHolder}
                   value={(formInputs as any).additionalLecturersRaw || ''}
                   onChangeText={text =>
                     setFormInputs(
@@ -1475,66 +1577,74 @@ export const CreateProductScreen = ({ route }: any) => {
                   }
                   autoCorrect={false}
                 />
-              </View>
+              </>
             )}
             {productType === 'file' && (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.label}>Upload Digital Product Asset</Text>
-                <Text style={styles.subLabel}>
+              <>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Upload Digital Product Asset
+                </Text>
+                <Text style={[styles.subLabel, { color: colors.text }]}>
                   Upload the document, textbook, or source archive. Buyers will
                   instantly unlock download access post-checkout.
                 </Text>
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  style={[
-                    styles.fileUploadBox,
-                    formInputs.fileDetails.fileUrl
-                      ? styles.fileUploadedBox
-                      : null,
-                  ]}
+                  style={styles.fileUploadBox}
                   onPress={pickDigitalFile}
                   disabled={formInputs.fileDetails.isUploading}
                 >
                   {formInputs.fileDetails.isUploading ? (
-                    <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : formInputs.fileDetails.fileUrl ? (
-                    <View style={{ alignItems: 'center' }}>
+                    <>
                       <MaterialIcons
                         name="insert-drive-file-outlined"
                         size={25}
-                        color={PRIMARY_COLOR}
+                        color={colors.primary}
                       />
-                      <Text style={styles.fileNameText} numberOfLines={1}>
+                      <Text
+                        style={[styles.fileNameText, { color: colors.text }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
                         {formInputs.fileDetails.fileName}
                       </Text>
-                      <Text style={styles.fileMetaText}>
+                      <Text
+                        style={[styles.fileMetaText, { color: colors.text }]}
+                      >
                         {formInputs.fileDetails.fileFormat} •{' '}
                         {formInputs.fileDetails.fileSizeInMB} MB
                       </Text>
-                      <Text style={styles.reUploadText}>
+                      <Text
+                        style={[styles.reUploadText, { color: colors.primary }]}
+                      >
                         Tap to replace file
                       </Text>
-                    </View>
+                    </>
                   ) : (
-                    <View style={{ alignItems: 'center' }}>
+                    <>
                       <MaterialIcons
                         name="file-upload-outlined"
-                        size={20}
-                        color={PRIMARY_COLOR}
+                        size={25}
+                        color={colors.primary}
                       />
-                      <Text style={styles.uploadBoxText}>
+                      <Text
+                        style={[styles.uploadBoxText, { color: colors.text }]}
+                      >
                         Select PDF, ZIP, EPUB, or Source Document
                       </Text>
-                    </View>
+                    </>
                   )}
                 </TouchableOpacity>
-              </View>
+              </>
             )}
           </View>
         )}
       </View>
-      {/* --- STEP 4: Price --- */}
-      <View style={styles.card}>
+      <View
+        style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      >
         <StepHeader
           number={4}
           toggleStep={toggleStep}
@@ -1550,10 +1660,12 @@ export const CreateProductScreen = ({ route }: any) => {
         )}
       </View>
       <TouchableOpacity
-        style={styles.submitButton}
+        style={[styles.submitButton, { backgroundColor: colors.btnColor }]}
         onPress={handlePublishProduct}
       >
-        <Text style={styles.submitButtonText}>Publish Product</Text>
+        <Text style={[styles.submitButtonText, { color: colors.btnTextColor }]}>
+          Publish Product
+        </Text>
       </TouchableOpacity>
       {activeExtractingUri && (
         <VideoDurationExtractor
@@ -1604,59 +1716,50 @@ export const CreateProductScreen = ({ route }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, paddingHorizontal: 15 },
   scrollContent: { padding: 20, paddingBottom: 100 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 15,
     marginBottom: 15,
     overflow: 'hidden',
     elevation: 2,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOpacity: 0.05,
     shadowRadius: 10,
+    padding: 15,
   },
   stepHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 18,
   },
-  activeStepHeader: { backgroundColor: '#fadccc' },
-  headerLead: { flexDirection: 'row', alignItems: 'center' },
+  headerLead: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   stepBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    alignContent: 'center',
+    marginRight: 10,
   },
-  activeBadge: { backgroundColor: PRIMARY_COLOR },
-  stepNumber: { fontSize: 14, fontWeight: 'bold', color: PRIMARY_COLOR },
-  activeStepNumber: { color: '#fff' },
-  stepTitle: { fontSize: 14, fontWeight: '600', color: '#222', flex: 1 },
-  activeStepTitle: { color: PRIMARY_COLOR },
+  stepNumber: { fontSize: 14, fontWeight: 'bold' },
+  stepTitle: { fontSize: 14, fontWeight: '600' },
   expandedContent: {
-    padding: 18,
-    paddingTop: 0,
-    borderTopWidth: 0.8,
-    borderTopColor: PRIMARY_COLOR_TINT,
+    marginTop: 15,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#222',
-    marginVertical: 15,
+    marginBottom: 15,
   },
   input: {
-    backgroundColor: '#fadccc',
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 8,
-    padding: 15,
+    padding: 10,
     fontSize: 14,
+    width: '100%',
+    marginBottom: 15,
   },
   typeSelector: { flexDirection: 'row', marginTop: 5 },
   typeBtn: {
@@ -1677,27 +1780,24 @@ const styles = StyleSheet.create({
   },
   activeTypeBtnText: { color: PRIMARY_COLOR },
   uploadPlaceholder: {
-    height: 120,
-    borderStyle: 'dashed',
+    padding: 15,
     borderWidth: 2,
     borderColor: PRIMARY_COLOR,
-    borderRadius: 12,
+    borderRadius: 15,
     alignContent: 'center',
-    marginTop: 15,
   },
-  uploadText: { color: PRIMARY_COLOR_TINT, marginTop: 8, fontSize: 13 },
+  uploadText: { marginTop: 6, fontSize: 14 },
   submitButton: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 15,
     alignItems: 'center',
-    marginTop: 25,
-    width: '100%',
+    marginTop: 20,
+    width: '80%',
+    alignSelf: 'center',
   },
-  submitButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  submitButtonText: { fontWeight: 'bold', fontSize: 14 },
   bioInput: {
     height: 120,
-    backgroundColor: '#fadccc',
     padding: 15,
     textAlignVertical: 'top',
     fontSize: 14,
@@ -1714,7 +1814,6 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   dropdownList: {
-    backgroundColor: '#fadccc',
     borderColor: PRIMARY_COLOR_TINT,
     elevation: 5,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -1724,16 +1823,15 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: 14,
-    color: '#222',
   },
   sectionSubtitle: {
-    fontSize: 12,
-    color: '#222',
+    fontSize: 14,
     marginBottom: 15,
   },
   thumbnailContainer: {
     flexDirection: 'row',
-    marginTop: 15,
+    marginBottom: 15,
+    flexWrap: 'wrap',
   },
   thumbnailWrapper: {
     position: 'relative',
@@ -1742,22 +1840,14 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: 70,
     height: 70,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   removeBadge: {
     position: 'absolute',
     top: -6,
-    right: -6,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  lessonCard: {
-    backgroundColor: '#fadccc',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
+    right: 6,
+    padding: 8,
+    borderRadius: 5,
   },
   lessonHeaderRow: {
     flexDirection: 'row',
@@ -1768,32 +1858,28 @@ const styles = StyleSheet.create({
   lessonNumberLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#2222',
   },
   lessonMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
   },
   videoAttachBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 15,
   },
   videoAttachText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
-    marginLeft: 6,
+    marginLeft: 5,
   },
   previewToggle: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 15,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
   },
@@ -1801,29 +1887,20 @@ const styles = StyleSheet.create({
     borderColor: PRIMARY_COLOR,
   },
   previewToggleText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#666',
   },
   addLessonBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: PRIMARY_COLOR,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 14,
-    marginTop: 10,
+    borderRadius: 10,
+    padding: 10,
   },
   addLessonBtnText: {
-    color: PRIMARY_COLOR,
     fontWeight: '700',
     fontSize: 14,
-    marginLeft: 6,
-  },
-  sectionContainer: {
-    marginVertical: 10,
+    marginTop: 6,
   },
   row: {
     flexDirection: 'row',
@@ -1832,22 +1909,18 @@ const styles = StyleSheet.create({
   },
   subLabel: {
     fontSize: 12,
-    color: '#666',
     marginBottom: 12,
   },
   gatewayRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 15,
+    alignItems: 'center',
   },
   gatewayChip: {
-    flex: 1,
-    flexDirection: 'row',
     alignContent: 'center',
     borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginHorizontal: 4,
+    borderRadius: 10,
+    padding: 12,
   },
   activeChip: {
     backgroundColor: PRIMARY_COLOR,
@@ -1855,49 +1928,29 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: PRIMARY_COLOR_TINT,
-  },
-  activeChipText: {
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  stationBlock: {
-    backgroundColor: '#F7F9FC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#EEF2F6',
   },
   stationCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 14,
-    marginBottom: 8,
+    marginBottom: 15,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   activeStationCard: {
-    backgroundColor: '#fff',
     borderColor: PRIMARY_COLOR,
   },
   stationInfo: {
     flex: 1,
-    paddingRight: 12,
   },
   stationName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222',
   },
   stationAddress: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 3,
-  },
-  variantSection: {
-    padding: 14,
-    marginBottom: 16,
+    fontSize: 14,
+    marginBottom: 4,
   },
   tagInputContainer: {
     flexDirection: 'row',
@@ -1905,16 +1958,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   addTagButton: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     marginLeft: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
   },
   addTagButtonText: {
-    color: '#FFF',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1924,58 +1974,41 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   tagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignContent: 'center',
+    width: '100%',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 6,
     marginBottom: 6,
   },
   tagText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    color: PRIMARY_COLOR_TINT,
   },
   fileUploadBox: {
     borderWidth: 2,
     borderColor: PRIMARY_COLOR,
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: 24,
-    backgroundColor: '#fadccc',
+    borderRadius: 15,
+    padding: 15,
     alignContent: 'center',
-    marginBottom: 16,
-  },
-  fileUploadedBox: {
-    borderColor: PRIMARY_COLOR,
-    borderStyle: 'solid',
   },
   uploadBoxText: {
-    fontSize: 13,
-    color: PRIMARY_COLOR,
+    fontSize: 14,
     fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 3,
+    marginTop: 4,
   },
   fileNameText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222',
     textAlign: 'center',
-    marginTop: 3,
+    marginVertical: 4,
   },
   fileMetaText: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    marginBottom: 3,
   },
   reUploadText: {
     fontSize: 11,
-    color: PRIMARY_COLOR,
     fontWeight: '600',
-    marginTop: 8,
-    textTransform: 'uppercase',
   },
 
   priceHintText: {
@@ -1985,101 +2018,62 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   disabledInputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 60,
+    borderRadius: 8,
+    width: '100%',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    marginBottom: 15,
   },
   disabledInput: {
-    backgroundColor: '#EEF2F6', // Visually distinct greyed background
-    borderColor: '#D0D7DE',
-    color: '#57606A',
-    paddingLeft: 34, // Push text right to fit symbol prefix neatly
+    fontSize: 14,
+    flex: 1,
   },
   currencyPrefix: {
-    position: 'absolute',
-    left: 14,
-    top: 13,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#57606A',
-    zIndex: 1,
+    fontSize: 14,
   },
   spinner: {
-    position: 'absolute',
-    right: 14,
-    top: 14,
+    marginLeft: 4,
   },
   rateHint: {
     fontSize: 12,
-    color: '#666',
     fontStyle: 'italic',
-    marginTop: -4,
   },
   miniLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222',
-    marginTop: 10,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: 15,
   },
   courseThumbnailPlaceholder: {
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: PRIMARY_COLOR,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    height: 100,
-    justifyContent: 'center',
+    borderRadius: 10,
+    padding: 10,
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    marginBottom: 15,
   },
   courseThumbnailPlaceholderText: {
     fontSize: 14,
-    color: PRIMARY_COLOR,
     fontWeight: '500',
   },
   courseThumbnailPreviewWrapper: {
     position: 'relative',
-    borderRadius: 8,
-    overflow: 'hidden',
-    height: 150,
     marginBottom: 16,
-    backgroundColor: PRIMARY_COLOR,
   },
   courseThumbnailPreview: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    opacity: 0.85,
-  },
-  courseThumbnailRemoveBtn: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    width: 80,
+    height: 80,
+    borderRadius: 10,
   },
   courseThumbnailRemoveText: {
     color: PRIMARY_COLOR_TINT,
     fontSize: 12,
     fontWeight: '600',
   },
-  divider: {
-    height: 1,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    marginVertical: 14,
-  },
   inputWarning: { borderColor: PRIMARY_COLOR },
   warningText: {
-    color: PRIMARY_COLOR,
     fontSize: 11,
     marginTop: -8,
     marginBottom: 12,

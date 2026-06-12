@@ -9,15 +9,16 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-import { MarketplaceOrder } from '../types/firebase';
-import { PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from 'context/ThemeContext';
+import { markOrderAsDroppedOffAPI } from '../api/localPatchApis';
+import Toast from 'react-native-toast-message';
 
 interface OrderProps {
   order: {
@@ -30,9 +31,6 @@ interface OrderProps {
     fileUrl?: string;
     createdAt: string;
   };
-}
-interface SellerOrderProps {
-  order: MarketplaceOrder;
 }
 interface FAQItemProps {
   question: string;
@@ -106,7 +104,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
       <TouchableOpacity
         onPress={toggleAccordion}
         activeOpacity={0.7}
-        style={[QRCodeStyles.header, expanded && QRCodeStyles.headerExpanded]}
+        style={QRCodeStyles.header}
       >
         <View style={QRCodeStyles.headerLead}>
           <View
@@ -235,33 +233,99 @@ export const OrderAccordion = ({ order }: OrderProps) => {
     </View>
   );
 };
-export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
+export const SellerOrderAccordion = ({ order, onStatusUpdated }: any) => {
+  const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const toggleAccordion = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
-  const statusConfig = {
+
+  const handleMarkAsDroppedOff = async () => {
+    Alert.alert(
+      'Confirm Drop-off',
+      `Have you dropped off this item at ${order.selectedStation?.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Confirmed',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const result = await markOrderAsDroppedOffAPI(order.orderId);
+              if (result.success) {
+                Toast.show({
+                  type: 'success',
+                  text2:
+                    result.message ||
+                    'Product marked as delivered at drop off station',
+                });
+                if (onStatusUpdated) onStatusUpdated();
+              } else {
+                Toast.show({
+                  type: 'error',
+                  text1: 'Patch Error',
+                  text2:
+                    result.message || 'Action not successful, please retry.',
+                });
+              }
+            } catch (err: any) {
+              Toast.show({
+                type: 'error',
+                text1: 'Network Error',
+                text2: err.message || 'Something went wrong, please retry.',
+              });
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const statusConfig: Record<
+    string,
+    { color: string; label: string; icon: any }
+  > = {
     pending_delivery: {
-      color: '#FF9800',
+      color: colors.pendingDelivery,
       label: 'Awaiting Delivery',
-      icon: 'HourglassEmpty',
+      icon: 'hourglass-empty-outlined',
+    },
+    dropped_off: {
+      color: colors.primaryTint,
+      label: 'Dropped Off at Station',
+      icon: 'location-on-outlined',
     },
     completed: {
-      color: '#4CAF50',
+      color: colors.success,
       label: 'Delivered & Paid',
-      icon: 'CheckCircle',
+      icon: 'check-circle-outlined',
     },
-    cancelled: { color: PRIMARY_COLOR, label: 'Cancelled', icon: 'Cancel' },
+    cancelled: {
+      color: colors.primary,
+      label: 'Cancelled',
+      icon: 'cancel-outlined',
+    },
   };
-  const currentStatus = statusConfig[order.status];
+
+  const currentStatus =
+    statusConfig[order.status] || statusConfig.pending_delivery;
+
   return (
-    <View style={QRCodeStyles.cardContainer}>
+    <View
+      style={[
+        QRCodeStyles.cardContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <TouchableOpacity
         onPress={toggleAccordion}
         activeOpacity={0.7}
-        style={[QRCodeStyles.header, expanded && QRCodeStyles.headerExpanded]}
+        style={QRCodeStyles.header}
       >
         <View style={QRCodeStyles.headerLead}>
           <View
@@ -271,10 +335,13 @@ export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
             ]}
           />
           <View>
-            <Text style={QRCodeStyles.productTitle} numberOfLines={1}>
+            <Text
+              style={[QRCodeStyles.productTitle, { color: colors.textDarker }]}
+              numberOfLines={1}
+            >
               {order.productName}
             </Text>
-            <Text style={QRCodeStyles.orderIdText}>
+            <Text style={[QRCodeStyles.orderIdText, { color: colors.text }]}>
               Order #{order.orderId} • {order.quantity} qty
             </Text>
           </View>
@@ -282,7 +349,7 @@ export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
         <MaterialIcons
           name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
           size={24}
-          color={PRIMARY_COLOR_TINT}
+          color={colors.text}
         />
       </TouchableOpacity>
 
@@ -290,7 +357,7 @@ export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
         <View style={QRCodeStyles.expandedContent}>
           <View style={QRCodeStyles.detailsGrid}>
             <DetailItem
-              label="Total Earnings"
+              label="Total Order Payment"
               value={<CurrencyDisplay value={order.amountPaid} size="small" />}
             />
             <DetailItem
@@ -299,16 +366,70 @@ export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
             />
           </View>
           {order.status === 'pending_delivery' && (
+            <View>
+              <View style={QRCodeStyles.actionBox}>
+                <MaterialIcons
+                  name="delivery-dining"
+                  size={22}
+                  color={currentStatus.color}
+                />
+                <Text style={[QRCodeStyles.actionText, { color: colors.text }]}>
+                  {order.deliveryMethod === 'drop_off' && order.selectedStation
+                    ? `Please drop this off at: ${order.selectedStation.name}`
+                    : 'Buyer is currently awaiting for direct delivery.'}
+                </Text>
+              </View>
+              {order.deliveryMethod === 'drop_off' && (
+                <View style={[QRCodeStyles.actionBox, { marginTop: 15 }]}>
+                  <Text
+                    style={[
+                      QRCodeStyles.secondActionText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    Already dropped off?
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      QRCodeStyles.submitButton,
+                      {
+                        backgroundColor: colors.btnColor,
+                      },
+                    ]}
+                    onPress={handleMarkAsDroppedOff}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator
+                        color={colors.btnTextColor}
+                        size="small"
+                      />
+                    ) : (
+                      <Text
+                        style={[
+                          QRCodeStyles.submitButtonText,
+                          { color: colors.btnTextColor },
+                        ]}
+                      >
+                        Mark as Dropped Off
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+          {order.status === 'dropped_off' && (
             <View style={QRCodeStyles.actionBox}>
               <MaterialIcons
-                name="delivery-dining-outlined"
+                name="storefront-outlined"
                 size={20}
                 color={currentStatus.color}
               />
-              <Text style={QRCodeStyles.actionText}>
-                {order.selectedStation
-                  ? `Please drop this off at: ${order.selectedStation.name}`
-                  : 'Buyer is currently awaiting for direct delivery.'}
+              <Text style={[QRCodeStyles.actionText, { color: colors.text }]}>
+                Item package safely logged at{' '}
+                {order.selectedStation?.name || 'hub'}. Awaiting transaction
+                settlement upon buyer pick up scan.
               </Text>
             </View>
           )}
@@ -319,12 +440,7 @@ export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
                 size={20}
                 color={currentStatus.color}
               />
-              <Text
-                style={[
-                  QRCodeStyles.actionText,
-                  { color: currentStatus.color },
-                ]}
-              >
+              <Text style={[QRCodeStyles.actionText, { color: colors.text }]}>
                 Reason: {order.cancellationReason || 'No reason provided.'}
               </Text>
             </View>
@@ -336,8 +452,8 @@ export const SellerOrderAccordion = ({ order }: SellerOrderProps) => {
                 size={20}
                 color={currentStatus.color}
               />
-              <Text style={[QRCodeStyles.actionText, { color: '#2E7D32' }]}>
-                Order completed and verified via QR scan on{' '}
+              <Text style={[QRCodeStyles.actionText, { color: colors.text }]}>
+                Order completed and verified on{' '}
                 {new Date(order.completedAt!).toLocaleDateString()}
               </Text>
             </View>
@@ -353,16 +469,28 @@ const DetailItem = ({
 }: {
   label: string;
   value: React.ReactNode;
-}) => (
-  <View style={QRCodeStyles.detailItem}>
-    <Text style={QRCodeStyles.detailLabel}>{label}</Text>
-    {typeof value === 'string' ? (
-      <Text style={QRCodeStyles.detailValue}>{value}</Text>
-    ) : (
-      <View style={{ marginTop: 4 }}>{value}</View>
-    )}
-  </View>
-);
+}) => {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        QRCodeStyles.detailItem,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <Text style={[QRCodeStyles.detailLabel, { color: colors.text }]}>
+        {label}
+      </Text>
+      {typeof value === 'string' ? (
+        <Text style={[QRCodeStyles.detailValue, { color: colors.textDarker }]}>
+          {value}
+        </Text>
+      ) : (
+        <View>{value}</View>
+      )}
+    </View>
+  );
+};
 
 export const FAQItem = ({ question, answer }: FAQItemProps) => {
   const { colors } = useTheme();
@@ -381,7 +509,7 @@ export const FAQItem = ({ question, answer }: FAQItemProps) => {
       <TouchableOpacity
         onPress={toggleAccordion}
         activeOpacity={0.7}
-        style={[QRCodeStyles.header, expanded && QRCodeStyles.headerExpanded]}
+        style={QRCodeStyles.header}
       >
         <Text style={[QRCodeStyles.questionText, { color: colors.textDarker }]}>
           Q: {question}
@@ -455,43 +583,35 @@ const QRCodeStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    padding: 10,
+    padding: 15,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-  },
-  headerExpanded: {
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
   },
   headerLead: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 12,
+    marginRight: 10,
   },
   productTitle: {
     fontSize: 14,
     fontWeight: '600',
   },
   orderIdText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
-    marginTop: 2,
+    marginTop: 3,
   },
   expandedContent: {
-    padding: 20,
-    alignItems: 'center',
+    marginTop: 15,
   },
   instructionText: {
     fontSize: 14,
@@ -545,39 +665,43 @@ const QRCodeStyles = StyleSheet.create({
   },
   detailsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 15,
-    width: '100%',
   },
   detailItem: {
-    width: '48%',
-    marginBottom: 10,
+    padding: 10,
+    alignItems: 'center',
   },
   detailLabel: {
     fontSize: 12,
-    color: '#222',
-    textTransform: 'capitalize',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   detailValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: PRIMARY_COLOR,
   },
   actionBox: {
     flexDirection: 'row',
-    padding: 12,
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
-    borderRadius: 8,
     alignItems: 'center',
-    width: '100%',
   },
   actionText: {
-    fontSize: 13,
-    color: '#2222',
-    marginLeft: 10,
+    fontSize: 14,
+    marginLeft: 8,
     flex: 1,
+  },
+  secondActionText: {
+    fontSize: 14,
+    marginRight: 5,
+  },
+  submitButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 15,
+    alignContent: 'center',
+  },
+  submitButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   questionText: {
     fontSize: 14,

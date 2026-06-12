@@ -114,12 +114,7 @@ export const MerchantDashboard = () => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <View
-          style={[
-            styles.content,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
+        <View style={styles.content}>
           {activeTab === 'Overview' && <OverviewsScreenComponent />}
           {activeTab === 'Orders' && <OrdersList />}
           {activeTab === 'Sales' && <SalesScreen />}
