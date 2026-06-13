@@ -20,58 +20,95 @@ import ImagePicker from 'react-native-image-crop-picker';
 import DocumentPicker, { types } from 'react-native-document-picker';
 import Toast from 'react-native-toast-message';
 import { AssistantMessage } from '../types/firebase';
+import { useTheme } from '../context/ThemeContext';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
 export const Assistant = ({ route }: Props) => {
+  const { colors } = useTheme();
   const { contextType, contextData, initialMessage } = route.params;
   const user = useAppSelector(state => state.user);
   const flatListRef = useRef<FlatList>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       role: 'model',
       content:
         initialMessage ||
-        `Hi! I'm your iAssistant. I'm here to help. What would you like to know?`,
+        `Hello! I am your Academic AI Tutor. Ask me any questions about your courses, lectures, or study materials!`,
     },
   ]);
   const [input, setInput] = useState('');
+
   const handleSendMessage = async () => {
     if (!input.trim() || isProcessing) return;
+
     const userText = input;
     setIsProcessing(true);
     setInput('');
+
     const userMsg: AssistantMessage = { role: 'user', content: userText };
     setMessages(prev => [...prev, userMsg]);
+
     const result = await askIAssistantAgent({
       message: userText,
-      history: messages,
+      history: messages, // Sends current state history before appending new ones
       contextType: contextType,
       contextData: contextData,
       userState: user,
     });
-    if (result.success) {
+
+    if (result.success && result.reply) {
       setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
     } else {
       Toast.show({
         type: 'error',
-        text1: 'Assistant Offline',
-        text2: 'Try again shortly.',
+        text1: 'Tutor Offline',
+        text2: 'Could not reach academic server. Try again shortly.',
       });
     }
     setIsProcessing(false);
   };
+
+  const sendAttachmentMessage = async (
+    url: string,
+    type: 'image' | 'file',
+    fileName?: string,
+  ) => {
+    const attachmentMsg: AssistantMessage = {
+      role: 'user',
+      content:
+        type === 'image'
+          ? '[Sent an image for review]'
+          : `[Shared file: ${fileName}]`,
+      attachments: [{ url, type, fileName: fileName || 'attachment' }],
+    };
+
+    setMessages(prev => [...prev, attachmentMsg]);
+
+    const result = await askIAssistantAgent({
+      message: `I just uploaded an academic ${type} attachment for reference.`,
+      history: messages,
+      contextType: contextType,
+      contextData: { ...contextData, attachmentUrl: url },
+      userState: user,
+    });
+
+    if (result.success && result.reply) {
+      setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
+    }
+  };
+
   const handlePickImage = async () => {
     try {
       const image = await ImagePicker.openPicker({
         width: 400,
         height: 400,
         cropping: true,
-        cropperCircleOverlay: true,
         compressImageQuality: 0.8,
         mediaType: 'photo',
-        loadingLabelText: 'Processing...',
+        loadingLabelText: 'Processing reference image...',
       });
       if (image.path) {
         const imageUrl = await uploadToFirebase(image.path);
@@ -84,52 +121,15 @@ export const Assistant = ({ route }: Props) => {
       ) {
         Alert.alert(
           'Permission Required',
-          'iCampus needs access to your gallery to update your profile. Grant access in settings?',
+          'iCampus needs access to your gallery to process images. Grant access in settings?',
           [
             { text: 'Not now', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => Linking.openSettings(),
-            },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
           ],
         );
-      } else if (error.message.includes('User cancelled')) {
-        console.log('User backed out');
-        Toast.show({
-          type: 'error',
-          text2: 'Pick action cancelled by user',
-        });
-      } else {
+      } else if (!error.message.includes('User cancelled')) {
         console.error('ImagePicker Error: ', error.message);
-        Toast.show({
-          type: 'error',
-          text1: 'ImagePicker Error',
-          text2: 'Error, please retry',
-        });
       }
-    }
-  };
-  const sendAttachmentMessage = async (
-    url: string,
-    type: 'image' | 'file',
-    fileName?: string,
-  ) => {
-    const attachmentMsg: AssistantMessage = {
-      role: 'user',
-      content:
-        type === 'image' ? '[Sent an image]' : `[Shared file: ${fileName}]`,
-      attachments: [{ url, type, fileName: fileName || 'attachment' }],
-    };
-    setMessages(prev => [...prev, attachmentMsg]);
-    const result = await askIAssistantAgent({
-      message: `I just uploaded a ${type}.`,
-      history: messages,
-      contextType: contextType,
-      contextData: { ...contextData, attachmentUrl: url },
-      userState: user,
-    });
-    if (result.success) {
-      setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
     }
   };
 
@@ -142,36 +142,40 @@ export const Assistant = ({ route }: Props) => {
       const docUrl = await uploadToFirebase(uri);
       sendAttachmentMessage(docUrl, 'file', name || 'Document');
     } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        console.error('Document Picker Error:', err);
-      } else {
+      if (!DocumentPicker.isCancel(err)) {
         console.error('Document Picker Error:', err);
         Toast.show({
           type: 'error',
           text1: 'Upload Error',
-          text2: 'Failed to upload document',
+          text2: 'Failed to upload document reference',
         });
       }
     }
   };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[
+        styles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
       keyboardVerticalOffset={90}
     >
       <PageHeader
-        title="iAssistant"
+        title="Academic AI"
         subtitle={
           contextType === 'lecture'
-            ? route.params.contextData.topicName
-            : 'General Help'
+            ? contextData?.topicName || 'Lecture Topic'
+            : contextType === 'course'
+            ? contextData?.courseTitle || 'Course View'
+            : 'General Study Room'
         }
       />
 
       <FlatList
+        ref={flatListRef}
         data={messages}
-        contentContainerStyle={styles.listContent}
         onContentSizeChange={() =>
           flatListRef.current?.scrollToEnd({ animated: true })
         }
@@ -187,9 +191,9 @@ export const Assistant = ({ route }: Props) => {
         keyExtractor={(_, index) => index.toString()}
         ListEmptyComponent={
           <EmptyState
-            iconName="speaker-notes-off-outlined"
-            title="No Conversations Yet"
-            subtitle="We couldn't find any of your conversations with iAssistant. Be the first to say Hi"
+            iconName="school"
+            title="No Academic History"
+            subtitle="Ask a question about this course or assignment to initialize learning."
           />
         }
       />
@@ -199,7 +203,7 @@ export const Assistant = ({ route }: Props) => {
         onSend={handleSendMessage}
         onPickImage={handlePickImage}
         onPickDocument={handlePickDocument}
-        placeholder="Ask iAssistant anything..."
+        placeholder="Ask a study question..."
       />
     </KeyboardAvoidingView>
   );
@@ -207,9 +211,6 @@ export const Assistant = ({ route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  listContent: {
-    padding: 20,
+    paddingHorizontal: 15,
   },
 });

@@ -428,11 +428,11 @@ export const resetICashPin = async (
 };
 export const askIAssistantAgent = async (
   params: {
-    message: string,
-    history: { role: 'user' | 'model', content: string }[],
-    contextType: string,
-    contextData: any,
-    userState: any, 
+    message: string;
+    history: { role: 'user' | 'model'; content: string }[];
+    contextType: string;
+    contextData: any;
+    userState: any; 
   }
 ): Promise<{ success: boolean; reply?: string; error?: string }> => {
   const { message, history, contextType, contextData, userState } = params;
@@ -446,25 +446,25 @@ export const askIAssistantAgent = async (
       },
       body: JSON.stringify({
         message,
-        history,
+        history: history.map(msg => ({
+          role: msg.role,
+          parts: [{ text: msg.content }]
+        })),
         context: {
           type: contextType,
-          data: contextData,
-          appMetadata: {
-            tier: userState.tier,
-            isVerified: userState.isVerified,
-            usertype: userState.usertype,
-            appVersion: userState.appVersion,
-            hasSubscribed: userState.hasSubscribed,
-          }
+          data: contextData, 
         },
-        userId: userState.uid
+        userId: userState?.uid
       }),
     });
+
     const data = await response.json();
+    
     if (!response.ok) {
-      Toast.show({ type: 'error', text2: data.error });
+      Toast.show({ type: 'error', text2: data.error || 'Failed to fetch academic response' });
+      return { success: false, error: data.error };
     }
+    
     return { success: true, reply: data.reply };
   } catch (error: any) {
     return { success: false, error: error.message };

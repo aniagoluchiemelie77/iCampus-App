@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { CurrencyDisplay } from './CurrencyFormatter';
@@ -88,8 +88,9 @@ export const OrderAccordion = ({ order }: OrderProps) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
-
   const isPending = order.status === 'pending_delivery';
+  const isDroppedOff = order.status === 'dropped_off';
+  const isActiveActive = isPending || isDroppedOff;
 
   return (
     <View
@@ -111,7 +112,11 @@ export const OrderAccordion = ({ order }: OrderProps) => {
             style={[
               QRCodeStyles.statusDot,
               {
-                backgroundColor: isPending ? colors.primary : colors.text,
+                backgroundColor: isPending
+                  ? colors.pendingDelivery
+                  : isDroppedOff
+                  ? colors.primaryTint
+                  : colors.text,
               },
             ]}
           />
@@ -135,17 +140,9 @@ export const OrderAccordion = ({ order }: OrderProps) => {
       </TouchableOpacity>
       {expanded && (
         <View style={QRCodeStyles.expandedContent}>
-          {isPending ? (
+          {isActiveActive ? (
             <View style={QRCodeStyles.qrSection2}>
-              <View
-                style={[
-                  QRCodeStyles.qrWrapper2,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.text,
-                  },
-                ]}
-              >
+              <View style={QRCodeStyles.qrWrapper2}>
                 <QRCode
                   value={order.orderId}
                   size={160}
@@ -153,13 +150,21 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                   backgroundColor={colors.backgroundSecondary}
                 />
               </View>
-              <Text
-                style={[QRCodeStyles.instructionText, { color: colors.text }]}
-              >
-                Show this QR code to the{' '}
-                {order.selectedStation ? 'Agent' : 'Seller'}
-              </Text>
-
+              {isDroppedOff ? (
+                <Text
+                  style={[QRCodeStyles.instructionText, { color: colors.text }]}
+                >
+                  Your product has been dropped off! Please head over to the
+                  station to pick it up. Show this QR code to the Agent.
+                </Text>
+              ) : (
+                <Text
+                  style={[QRCodeStyles.instructionText, { color: colors.text }]}
+                >
+                  Show this QR code to the{' '}
+                  {order.selectedStation ? 'Agent' : 'Seller'}
+                </Text>
+              )}
               {order.selectedStation && (
                 <View style={QRCodeStyles.stationBox}>
                   <MaterialIcons
@@ -170,7 +175,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                   <Text
                     style={[QRCodeStyles.stationText, { color: colors.text }]}
                   >
-                    {order.selectedStation.name}
+                    {order.selectedStation.address}
                   </Text>
                 </View>
               )}
@@ -179,10 +184,15 @@ export const OrderAccordion = ({ order }: OrderProps) => {
             <View style={QRCodeStyles.digitalSection}>
               <MaterialIcons
                 name="check-circle-outlined"
-                size={40}
-                color={colors.text}
+                size={60}
+                color={colors.success}
               />
-              <Text style={QRCodeStyles.completedText}>
+              <Text
+                style={[
+                  QRCodeStyles.completedText,
+                  { color: colors.textDarker },
+                ]}
+              >
                 Transaction Completed
               </Text>
               {order.productType === 'file' && order.fileUrl && (
@@ -222,7 +232,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                       { color: colors.btnTextColor },
                     ]}
                   >
-                    Go to My Courses
+                    Go to My Downloads
                   </Text>
                 </TouchableOpacity>
               )}
@@ -539,8 +549,6 @@ const QRCodeStyles = StyleSheet.create({
   },
   qrSection2: {
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 15,
     width: '100%',
   },
   sectionLabel: {
@@ -559,14 +567,7 @@ const QRCodeStyles = StyleSheet.create({
     borderWidth: 1,
   },
   qrWrapper2: {
-    padding: 10,
-    borderRadius: 24,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-    borderWidth: 0.8,
+    marginBottom: 15,
   },
   iTagText: {
     marginTop: 15,
@@ -615,16 +616,12 @@ const QRCodeStyles = StyleSheet.create({
   },
   instructionText: {
     fontSize: 14,
-    textAlign: 'center',
     marginBottom: 15,
   },
   stationBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 8,
     width: '100%',
-    justifyContent: 'center',
   },
   stationText: {
     fontSize: 14,
@@ -637,8 +634,7 @@ const QRCodeStyles = StyleSheet.create({
   completedText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: PRIMARY_COLOR,
-    marginVertical: 10,
+    marginVertical: 15,
   },
   accessButton: {
     marginTop: 15,
@@ -654,14 +650,14 @@ const QRCodeStyles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 12,
     paddingHorizontal: 15,
-    borderRadius: 13,
+    borderRadius: 15,
     alignItems: 'center',
     marginTop: 15,
-    gap: 5,
   },
   downloadButtonText: {
     fontWeight: 'bold',
     fontSize: 14,
+    marginLeft: 4,
   },
   detailsGrid: {
     flexDirection: 'row',

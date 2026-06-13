@@ -1150,6 +1150,40 @@ export const CreateProductScreen = ({ route }: any) => {
                         </Text>
                       </TouchableOpacity>
                     </View>
+                    {lesson.videoUrl ? (
+                      <View style={styles.videoPreviewWrapper}>
+                        <Video
+                          source={{ uri: lesson.videoUrl }}
+                          style={styles.videoPreview}
+                          controls={true}
+                          resizeMode="contain"
+                          muted={true}
+                          paused={true}
+                        />
+                        <TouchableOpacity
+                          style={[
+                            styles.removeVideoBadge,
+                            { backgroundColor: colors.backgroundSecondary },
+                          ]}
+                          onPress={() => {
+                            setFormInputs(prev => {
+                              const updatedLessons = [...prev.lessons];
+                              updatedLessons[index] = {
+                                ...updatedLessons[index],
+                                videoUrl: '',
+                              };
+                              return { ...prev, lessons: updatedLessons };
+                            });
+                          }}
+                        >
+                          <MaterialIcons
+                            name="cancel-outlined"
+                            size={16}
+                            color={colors.primary}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                   </View>
                 ))}
                 <TouchableOpacity
@@ -1687,25 +1721,34 @@ export const CreateProductScreen = ({ route }: any) => {
         onRequestClose={() => {}}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Publishing Product</Text>
-
-            <ActivityIndicator
-              size="large"
-              color={PRIMARY_COLOR}
-              style={{ marginVertical: 25 }}
-            />
-            <View style={styles.progressBarTrack}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+              Publishing Product
+            </Text>
+            <View
+              style={[
+                styles.progressBarTrack,
+                { backgroundColor: colors.primaryTint },
+              ]}
+            >
               <View
                 style={[
                   styles.progressBarFill,
-                  { width: `${uploadProgress}%` },
+                  {
+                    width: `${uploadProgress}%`,
+                    backgroundColor: colors.primary,
+                  },
                 ]}
               />
             </View>
-            <Text style={styles.progressText}>
+            <Text style={[styles.progressText, { color: colors.text }]}>
               {uploadProgress < 100
-                ? `Uploading assets... ${uploadProgress}%`
+                ? `Uploading Listing... ${uploadProgress}%`
                 : 'Processing metadata and finalizing layout...'}
             </Text>
           </View>
@@ -1761,24 +1804,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 15,
   },
-  typeSelector: { flexDirection: 'row', marginTop: 5 },
-  typeBtn: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  activeTypeBtn: { borderColor: PRIMARY_COLOR, backgroundColor: '#F0F7FF' },
-  typeBtnText: {
-    textTransform: 'capitalize',
-    color: '#666',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  activeTypeBtnText: { color: PRIMARY_COLOR },
   uploadPlaceholder: {
     padding: 15,
     borderWidth: 2,
@@ -1806,7 +1831,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   dropdownPicker: {
-    backgroundColor: '#fadccc',
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 8,
     borderWidth: 0.8,
@@ -2010,13 +2034,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-
-  priceHintText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 6,
-    fontStyle: 'italic',
-  },
   disabledInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2082,13 +2099,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    width: '85%',
-    backgroundColor: '#FFF',
-    borderRadius: 25,
+    width: '100%',
+    borderTopRightRadius: 25,
+    borderTopLeftRadius: 25,
     padding: 25,
     alignContent: 'center',
     shadowColor: PRIMARY_COLOR_TINT,
@@ -2098,28 +2114,45 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: PRIMARY_COLOR,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   progressBarTrack: {
     height: 8,
     width: '80%',
-    backgroundColor: PRIMARY_COLOR_TINT,
     borderRadius: 4,
     overflow: 'hidden',
-    marginTop: 10,
-    marginBottom: 12,
+    marginVertical: 15,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 4,
   },
   progressText: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
     fontWeight: '500',
+  },
+  videoPreviewWrapper: {
+    position: 'relative',
+    marginTop: 15,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  videoPreview: {
+    width: '100%',
+    height: 180,
+  },
+  removeVideoBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000', // shadow for iOS
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
   },
 });

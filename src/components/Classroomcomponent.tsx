@@ -35,9 +35,7 @@ import { homeStyles } from '../assets/styles/colors.ts';
 import { UserAvatar } from './UserAvatar.tsx';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-export const PRIMARY_COLOR = '#f54b02';
-export const PRIMARY_COLOR_TINT = '#f5743d';
-export const PRIMARY_COLOR_TINT_MAIN = '#f9dccf';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 
 interface CourseModalProps {
   isVisible: boolean;
@@ -47,10 +45,6 @@ interface CourseModalProps {
   lectures: Lecture[];
   currentUser: User;
   userRole: 'student' | 'lecturer' | 'otherUser';
-}
-interface ForYouCardProps {
-  course: Course;
-  onPress: (course: Course) => void;
 }
 interface CourseDetailModalProps {
   isVisible: boolean;
@@ -182,8 +176,6 @@ const generateSessions = () => {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth(); // 0-11
 
-  // If we are in or after September (Month 8), the current session is 2023/2024
-  // Otherwise, we are still in the 2022/2023 session.
   const academicYear = currentMonth >= 8 ? currentYear : currentYear - 1;
 
   return [
@@ -221,7 +213,7 @@ const getExceptionLimit = (plan: string) => {
     case 'pro':
       return 2;
     default:
-      return 1; // free trial
+      return 1;
   }
 };
 const getStatusConfig = (status: Lecture['status']) => {
@@ -673,7 +665,7 @@ export const fetchCoursesFromDB = async (
     return data as Course[];
   } catch (error) {
     console.error('Fetch error:', error);
-    return []; // Return empty array so the UI doesn't crash
+    return [];
   }
 };
 const SelectionModal: React.FC<SelectionModalProps> = ({
@@ -835,81 +827,12 @@ const CourseDetailModal = ({
     </Modal>
   );
 };
-const ForYouCard = ({ course, onPress }: ForYouCardProps) => {
-  const isFree = course.price === 0;
-
-  // --- ADD THIS LINE HERE ---
-  const showRating = !!course.rating || (course.totalReviews ?? 0) > 0;
-
-  return (
-    <TouchableOpacity style={styles.forYouCard} onPress={() => onPress(course)}>
-      <View>
-        <Image
-          source={{
-            uri: course.thumbnailUrl || 'https://via.placeholder.com/150',
-          }}
-          style={styles.forYouImage}
-        />
-        {/* Only show duration badge if it exists */}
-        {course.courseDuration && (
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{course.courseDuration}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.forYouInfo}>
-        <Text style={styles.forYouTitle} numberOfLines={2}>
-          {course.courseTitle}
-        </Text>
-        {course.department && (
-          <Text style={styles.forYouCategory}>{course.department}</Text>
-        )}
-
-        {/* Conditional Instructor Name */}
-        {course.instructorName ? (
-          <Text style={styles.instructorName}>{course.instructorName}</Text>
-        ) : null}
-
-        {/* Only show Rating Row if there is a rating or reviews */}
-        {showRating && (
-          <View style={styles.ratingRow}>
-            <View style={styles.starsContainer}>
-              {renderStars(course.rating)}
-            </View>
-            {course.totalReviews !== undefined && course.totalReviews > 0 && (
-              <Text style={styles.reviewText}>({course.totalReviews})</Text>
-            )}
-          </View>
-        )}
-
-        <View style={styles.priceContainer}>
-          {!isFree && (
-            <>
-              {/* The Gem icon for iCash */}
-              <Gem
-                size={16}
-                color={PRIMARY_COLOR} // A vibrant cyan/aqua border
-                fill={PRIMARY_COLOR} // Filling it makes it look like a physical currency
-                strokeWidth={2.5}
-              />
-              <Text style={styles.priceText}>
-                {course.price?.toLocaleString()}
-              </Text>
-            </>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
 
 // --- Main Dashboard ---
 
 const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const navigation = useNavigation<any>();
-  const [suggestedCourses, setSuggestedCourses] = useState<Course[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -1115,35 +1038,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       </View>
     );
   };
-
-  // --- Inside your Dashboard Component ---
-  const renderForYou = () => (
-    <View>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>For you</Text>
-        <TouchableOpacity>
-          <Text style={{ color: PRIMARY_COLOR }}>See all</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingLeft: 20, paddingBottom: 20 }}
-      >
-        {suggestedCourses.map(item => (
-          <ForYouCard
-            key={item.id}
-            course={item}
-            onPress={selected => {
-              setSelectedCourse(selected); // Now this works because it's in the parent scope
-              setDetailModalVisible(true);
-            }}
-          />
-        ))}
-      </ScrollView>
-    </View>
-  );
   const renderDiscover = () => {
     const allFilters = ['All', 'Popular', ...niches.filter(n => n !== 'All')];
     const chunkedCourses = [];
@@ -1238,22 +1132,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   };
 
   const displayedCourses = courses.filter(course => {
-    // 1. Check Search Query (Title, Code, or Instructor)
     const query = search.toLowerCase().trim();
     const matchesSearch =
       course.courseTitle?.toLowerCase().includes(query) ||
       course.courseCode?.toLowerCase().includes(query) ||
       course.instructorName?.toLowerCase().includes(query);
 
-    // 2. Check Session Filter
     const matchesSession =
       selectedSession === 'All' || course.session === selectedSession;
 
-    // 3. Check Semester Filter
     const matchesSemester =
       selectedSemester === 'All' || course.semester === selectedSemester;
-
-    // ONLY return true if ALL conditions are met
     return matchesSearch && matchesSession && matchesSemester;
   });
   const filteredCourses = (displayedCourses || []).filter(course => {
@@ -1261,8 +1150,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     if (search === 'Popular') {
       return (course.rating ?? 0) >= 4.5;
     }
-
-    // 2. Default search/niche logic
     if (!query || query === 'all') return true;
 
     return (
@@ -1299,21 +1186,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     user?.coursesEnrolled,
   ]);
   useEffect(() => {
-    const fetchDiscoverCourses = async () => {
-      try {
-        const response = await fetch(
-          `${baseUrl}users/student/class/courses/discover`,
-        );
-        const data = await response.json();
-        setSuggestedCourses(data);
-      } catch (error) {
-        console.error('Error loading marketplace:', error);
-      }
-    };
-
-    fetchDiscoverCourses();
-  }, []);
-  useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await fetch(`${baseUrl}users/courses/categories`);
@@ -1335,7 +1207,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [niches]); 
+  }, [niches]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1665,7 +1537,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         </>
       )}
       {renderDiscover()}
-      {renderForYou()}
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={homeStyles.fab}
@@ -1677,23 +1548,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={[
-          'iCash',
-          'iAssistant',
-          'View Lectures',
-          'Create Course',
-          'Library',
-        ]}
+        actions={['iAssistant', 'View Lectures', 'Library']}
         userRole={user.usertype}
         lectures={lectures}
       />
       <CourseDetailModal
-        isVisible={detailModalVisible} // Ensure you have this state
+        isVisible={detailModalVisible}
         onClose={() => setDetailModalVisible(false)}
         course={selectedCourse}
         onAddToCart={course => {
           console.log('Added to cart:', course.courseTitle);
-          // Add your cart logic here
           setDetailModalVisible(false);
         }}
       />
@@ -1926,50 +1790,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 1,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#222',
-  },
-  forYouCard: {
-    width: 160,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginRight: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    overflow: 'hidden',
-  },
-  forYouImage: {
-    width: '100%',
-    height: 90,
-    backgroundColor: '#eee',
-  },
-  forYouInfo: {
-    padding: 12,
-  },
-  forYouCategory: {
-    fontSize: 10,
-    color: PRIMARY_COLOR,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  forYouTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
   },
   profileFrame: {
     width: 45,
@@ -2130,40 +1954,15 @@ const styles = StyleSheet.create({
     paddingLeft: 15, // Gives the first item some breathing room
     marginBottom: 10,
   },
-  durationBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  durationText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
   instructorName: {
     fontSize: 14,
     color: '#888',
     marginBottom: 6,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    alignSelf: 'flex-end',
-  },
   ratingText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-  },
-  reviewText: {
-    fontSize: 12,
-    color: '#aaa',
-    marginLeft: 4,
   },
   priceContainer: {
     flexDirection: 'row',
@@ -2181,10 +1980,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: PRIMARY_COLOR, // Darker shade of the cyan for readability
     marginLeft: 6,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginRight: 6,
   },
   starIcon: {
     fontSize: 14,

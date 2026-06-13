@@ -386,11 +386,11 @@ export function RankingScreen() {
         }),
       );
       if (selectedUser) {
-        const updatedUserRes = await searchUsers(
-          selectedUser.firstname,
-          user.tier!,
-          user.usertype!,
-        );
+        const updatedUserRes = await searchUsers({
+          q: selectedUser.firstname,
+          viewerTier: user.tier || 'free',
+          viewerRole: user.usertype || 'student',
+        });
         if (updatedUserRes && updatedUserRes.length > 0) {
           setSelectedUser(updatedUserRes[0]);
         }

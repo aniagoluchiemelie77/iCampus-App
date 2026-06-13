@@ -224,13 +224,7 @@ export type RootStackParamList = {
     recipientUsername: string;
   };
   Assistant: {
-    contextType:
-      | 'course'
-      | 'lecture'
-      | 'iScore'
-      | 'iCash'
-      | 'store'
-      | 'general';
+    contextType: 'course' | 'lecture' | 'general';
     contextData: Course | Lecture | any;
     initialMessage?: string;
   };

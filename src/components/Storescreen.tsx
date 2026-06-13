@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, FlatList,TouchableOpacity, ScrollView, Text, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  Dimensions,
+  View,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+  Text,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { debounce } from 'lodash';
 import { ProductCard } from './ProductCard';
@@ -17,6 +27,9 @@ import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
 import ExpandableFAB from './ExpandableFAB.tsx';
 import { homeStyles } from '../assets/styles/colors';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48) / 2;
 
 interface IconButtonProps {
   onPress: () => void;
@@ -252,14 +265,16 @@ export const StoreScreen = () => {
           keyExtractor={item => item.productId}
           numColumns={2}
           renderItem={({ item }) => (
-            <ProductCard
-              product={item}
-              onPress={() =>
-                navigation.navigate('ProductDetails', {
-                  productId: item.productId,
-                })
-              }
-            />
+            <View style={styles.cardWrapper}>
+              <ProductCard
+                product={item}
+                onPress={() =>
+                  navigation.navigate('ProductDetails', {
+                    productId: item.productId,
+                  })
+                }
+              />
+            </View>
           )}
           onEndReached={() => loadMore()}
           onEndReachedThreshold={0.5}
@@ -362,5 +377,9 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 9,
     fontWeight: 'bold',
+  },
+  cardWrapper: {
+    width: CARD_WIDTH,
+    marginBottom: 15,
   },
 });

@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PostCard } from './PostCard';
@@ -23,10 +24,7 @@ import {
   searchCourses,
   searchAcademicResources,
 } from '../api/localGetApis';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT_MAIN,
-} from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
 import { useAppDataContext } from './EventContext';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
@@ -34,6 +32,9 @@ import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from './ProductCard';
 import { PageHeader } from '../components/PageHeader';
 import { formatCount } from '../utils/followCountFormatter';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48) / 2;
 
 interface NormalizedCourseItem {
   id: string;
@@ -280,11 +281,11 @@ export const SearchScreen = () => {
         let results = [];
         switch (activeTab) {
           case 'people':
-            results = await searchUsers(
-              searchQuery,
-              currentUser.tier || 'free',
-              currentUser.usertype || 'student',
-            );
+            results = await searchUsers({
+              q: searchQuery,
+              viewerTier: currentUser.tier || 'free',
+              viewerRole: currentUser.usertype || 'student',
+            });
             break;
           case 'posts':
             results = await searchPosts(searchQuery);
@@ -347,14 +348,16 @@ export const SearchScreen = () => {
 
       case 'market':
         return (
-          <ProductCard
-            product={item}
-            onPress={() =>
-              navigation.navigate('ProductDetails', {
-                productId: item.productId,
-              })
-            }
-          />
+          <View style={styles.productWrapper}>
+            <ProductCard
+              product={item}
+              onPress={() =>
+                navigation.navigate('ProductDetails', {
+                  productId: item.productId,
+                })
+              }
+            />
+          </View>
         );
 
       case 'courses':
@@ -377,11 +380,7 @@ export const SearchScreen = () => {
   };
 
   return (
-    <View
-      style={[
-        StyleSheet.absoluteFillObject,
-      ]}
-    >
+    <View style={[StyleSheet.absoluteFillObject]}>
       <PageHeader title="iCampus Search" showBackButton={false} />
       <View
         style={[
@@ -486,7 +485,7 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     marginBottom: 15,
     padding: 15,
-    borderRadius: 15
+    borderRadius: 15,
   },
   headerSearchInput: {
     flex: 1,
@@ -504,7 +503,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
     alignItems: 'center',
     padding: 8,
-    marginRight: 10
+    marginRight: 10,
   },
   tabLabel: {
     fontSize: 14,
@@ -518,7 +517,7 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: 'center',
     borderRadius: 15,
-    marginBottom: 15
+    marginBottom: 15,
   },
   miniAvatar: {
     width: 40,
@@ -666,6 +665,10 @@ const styles = StyleSheet.create({
   tabBarScrollContainer: {
     padding: 15,
     alignItems: 'center',
-    borderRadius: 15
+    borderRadius: 15,
+  },
+  productWrapper: {
+    width: CARD_WIDTH,
+    marginBottom: 15,
   },
 });
