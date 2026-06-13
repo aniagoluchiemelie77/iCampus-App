@@ -170,11 +170,11 @@ export const ChatScreen = ({ route, navigation }: Props) => {
     const fetchRecipientDetails = async () => {
       try {
         setLoading(true);
-        const response = await searchUsers(
-          recipientId,
-          currentUser?.tier!,
-          currentUser?.usertype!,
-        );
+        const response = await searchUsers({
+          uid: recipientId,
+          viewerTier: currentUser.tier || 'free',
+          viewerRole: currentUser.usertype || 'student',
+        });
         if ((response as any).success) {
           const result = (response as any).data;
           if (Array.isArray(result) && result.length > 0) {

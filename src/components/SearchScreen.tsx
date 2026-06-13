@@ -36,28 +36,19 @@ import { formatCount } from '../utils/followCountFormatter';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
-interface NormalizedCourseItem {
-  id: string;
-  title: string;
-  code: string;
-  isPremiumPaid: boolean;
-  price: number;
-  thumbnail: string | null;
-  studentsCount: number;
-  isActive: boolean;
-  instructors: string;
-}
 interface CourseSearchCardProps {
-  item: NormalizedCourseItem;
+  item: any;
   navigation: any;
   colors: any;
+  onPress?: () => void;
 }
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
 
-const CourseSearchCard = ({
+export const CourseSearchCard = ({
   item,
   navigation,
   colors,
+  onPress,
 }: CourseSearchCardProps) => {
   const getCourseInitials = (title: string) => {
     return title
@@ -69,10 +60,12 @@ const CourseSearchCard = ({
   };
 
   const handleNavigationRoute = () => {
+    if (onPress) {
+      onPress();
+      return;
+    }
     if (item.isPremiumPaid) {
       navigation.navigate('ProductDetails', { productId: item.id });
-    } else {
-      navigation.navigate('ViewCourse', { courseId: item.id });
     }
   };
 
@@ -90,7 +83,7 @@ const CourseSearchCard = ({
       ) : (
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.initialsText}>
-            {getCourseInitials(item.title)}
+            {item.code ? item.code : getCourseInitials(item.title)}
           </Text>
         </View>
       )}
@@ -136,6 +129,49 @@ const CourseSearchCard = ({
             {item.studentsCount === 1 ? 'student' : 'students'} enrolled
           </Text>
         </View>
+        {item.semester && (
+          <View style={styles.rowDiv}>
+            <View style={styles.metricColGroup}>
+              <MaterialIcons
+                name="calendar-month-outlined"
+                size={16}
+                color={colors.text}
+                style={{ marginBottom: 4 }}
+              />
+              <Text
+                style={[styles.studentsCountMetric, { color: colors.text }]}
+              >
+                {item.semester}
+              </Text>
+            </View>
+            <View style={styles.metricColGroup}>
+              <MaterialIcons
+                name="calendar-month-outlined"
+                size={16}
+                color={colors.text}
+                style={{ marginBottom: 4 }}
+              />
+              <Text
+                style={[styles.studentsCountMetric, { color: colors.text }]}
+              >
+                {item.session}
+              </Text>
+            </View>
+            <View style={styles.metricColGroup}>
+              <MaterialIcons
+                name="scale-outlined"
+                size={16}
+                color={colors.text}
+                style={{ marginBottom: 4 }}
+              />
+              <Text
+                style={[styles.studentsCountMetric, { color: colors.text }]}
+              >
+                {item.creditLoad} units
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -612,6 +648,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  metricColGroup: {
+    alignItems: 'center',
+  },
   studentsCountMetric: {
     fontSize: 12,
   },
@@ -670,5 +709,11 @@ const styles = StyleSheet.create({
   productWrapper: {
     width: CARD_WIDTH,
     marginBottom: 15,
+  },
+  rowDiv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    alignItems: 'center',
   },
 });

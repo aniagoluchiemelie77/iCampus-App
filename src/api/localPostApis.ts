@@ -67,6 +67,21 @@ interface ApiResponse {
   message: string;
   data?: any;
 }
+interface ManualCoursePayload {
+  courseTitle: string;
+  courseCode: string;
+  credits: number;
+}
+interface UploadFilePayload {
+  uri: string;
+  type: string;
+  name: string;
+}
+interface ManualCourseResponse {
+  success: boolean;
+  message: string;
+  courseId?: string;
+}
 
 const getAuthHeaders = async () => {
   return {
@@ -1805,6 +1820,60 @@ export const exportTransactionsAPI = async (payload: { userId: string; startDate
     return {
       success: false,
       message: error.message || 'Server connection failed. Please try again.',
+    };
+  }
+};
+export const extractCourseFormAPI = async (
+  fileParam: UploadFilePayload,
+  onProgress: (percent: number) => void
+) => {
+  const headers = await getAuthHeaders();
+  const formData = new FormData();
+  formData.append('file', {
+    uri: fileParam.uri,
+    type: fileParam.type,
+    name: fileParam.name,
+  });
+  return await axios.post(
+    `${baseUrl}users/student/class/course/extract-course-details-from-uploads`,
+    formData,
+    {
+      headers,
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = progressEvent.loaded / (progressEvent.total || 1);
+        onProgress(percentCompleted);
+      },
+    }
+  );
+};
+export const createManualCourseAPI = async (
+  courseData: ManualCoursePayload
+): Promise<ManualCourseResponse> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/courses/manual-create`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(courseData),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to register the course entry manually.',
+      };
+    }
+    return {
+      success: true,
+      message: data?.message || 'Course compiled and tracked successfully!',
+      courseId: data?.courseId,
+    };
+  } catch (error) {
+    console.error('createManualCourseAPI Connection Error:', error);
+    return {
+      success: false,
+      message: 'Network error encountered. Please check your connection and try again.',
     };
   }
 };

@@ -25,6 +25,7 @@ interface AttachmentModalProps {
   onClose: () => void;
   onPickImage: () => void;
   onPickDocument: () => void;
+  onTakePhoto?: () => void;
   colors: any;
 }
 export const AttachmentModal = ({
@@ -32,6 +33,7 @@ export const AttachmentModal = ({
   onClose,
   onPickImage,
   onPickDocument,
+  onTakePhoto,
   colors,
 }: AttachmentModalProps) => {
   return (
@@ -92,23 +94,31 @@ export const AttachmentModal = ({
                 Document
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.option, { borderColor: colors.border }]}
-              onPress={onClose}
-            >
-              <View
-                style={[styles.iconCircle, { backgroundColor: colors.primary }]}
+            {onTakePhoto && (
+              <TouchableOpacity
+                style={[styles.option, { borderColor: colors.border }]}
+                onPress={() => {
+                  onTakePhoto();
+                  onClose();
+                }}
               >
-                <MaterialIcons
-                  name="photo-camera-outlined"
-                  size={28}
-                  color="#fff"
-                />
-              </View>
-              <Text style={[styles.optionText, { color: colors.text }]}>
-                Camera
-              </Text>
-            </TouchableOpacity>
+                <View
+                  style={[
+                    styles.iconCircle,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="photo-camera-outlined"
+                    size={28}
+                    color="#fff"
+                  />
+                </View>
+                <Text style={[styles.optionText, { color: colors.text }]}>
+                  Camera
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Pressable>

@@ -74,6 +74,10 @@ interface SearchUserParams {
   limit: number;
   searchQuery?: string;
 }
+interface FetchStudentCoursesParams {
+  semester?: string;
+  session?: string;
+}
 const getAuthHeaders = async () => {
   return {
     'Content-Type': 'application/json',
@@ -1496,6 +1500,90 @@ export const refreshUserProfileAPI = async () => {
     return { 
       success: false, 
       message: 'Unable to connect to the server. Please check your internet.' 
+    };
+  }
+};
+export const fetchMyCoursesAPI = async ({ 
+  semester, 
+  session 
+}: FetchStudentCoursesParams = {}) => {
+  try {
+    const headers = await getAuthHeaders();
+    let url = `${baseUrl}users/student/class/courses/fetch-my-courses`;
+    const queryParams = new URLSearchParams();
+    if (semester && semester !== 'All') queryParams.append('semester', semester);
+    if (session && session !== 'All') queryParams.append('session', session);
+    const queryString = queryParams.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to sync enrolled course history.',
+      };
+    }
+    return {
+      success: true,
+      courses: data, 
+      message: 'Courses synced successfully.',
+    };
+
+  } catch (error) {
+    console.error("fetchMyCoursesAPI Error:", error);
+    return {
+      success: false,
+      message: 'Unable to connect to the server. Please check your internet.',
+    };
+  }
+};
+export const fetchLecturerCoursesAPI = async ({ 
+  semester, 
+  session 
+}: FetchStudentCoursesParams = {}) => {
+  try {
+    const headers = await getAuthHeaders();
+    let url = `${baseUrl}users/lecturers/class/courses/fetch-my-courses`;
+    const queryParams = new URLSearchParams();
+
+    if (semester && semester !== 'All') queryParams.append('semester', semester);
+    if (session && session !== 'All') queryParams.append('session', session);
+
+    const queryString = queryParams.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to sync your assigned curriculum.',
+      };
+    }
+
+    return {
+      success: true,
+      courses: data, 
+      message: 'Lecturer modules synchronized successfully.',
+    };
+
+  } catch (error) {
+    console.error("fetchLecturerCoursesAPI Error:", error);
+    return {
+      success: false,
+      message: 'Unable to connect to the server. Please check your internet.',
     };
   }
 };
