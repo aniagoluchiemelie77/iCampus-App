@@ -8,10 +8,9 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { IconButton, Portal, Modal, TextInput } from 'react-native-paper';
+import { Portal, Modal, TextInput } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import VIForegroundService from '@voximplant/react-native-foreground-service';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { LiveClassSessionStyles } from './StudentLiveClassSession';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ExpandableFAB from './ExpandableFAB';
@@ -211,19 +210,26 @@ export const LecturerStreamControls = ({
       )}
       {wavers.length > 0 && (
         <TouchableOpacity
-        style={[
-          LiveClassSessionStyles.muteAllButton,
-          { backgroundColor: themeColors.btnColor },
-        ]}
-        onPress={() => onGrantMic(wavers[0].uid)}
-      >
-        <MaterialIcons
-          name={isCameraOff ? 'videocam-off-outlined' : 'videocam-outlined'}
-          size={18}
-          color={themeColors.btnTextColor}
-        />
-        <Text style={[LiveClassSessionStyles.muteAllText, {color: themeColors.btnTextColor}]}>Grant Mic</Text>
-      </TouchableOpacity>
+          style={[
+            LiveClassSessionStyles.muteAllButton,
+            { backgroundColor: themeColors.btnColor },
+          ]}
+          onPress={() => onGrantMic(wavers[0].uid)}
+        >
+          <MaterialIcons
+            name={'waving-hand-outlined'}
+            size={18}
+            color={themeColors.btnTextColor}
+          />
+          <Text
+            style={[
+              LiveClassSessionStyles.muteAllText,
+              { color: themeColors.btnTextColor },
+            ]}
+          >
+            Grant Mic
+          </Text>
+        </TouchableOpacity>
       )}
       <TouchableOpacity
         style={[
@@ -237,7 +243,14 @@ export const LecturerStreamControls = ({
           size={18}
           color={themeColors.btnTextColor}
         />
-        <Text style={[LiveClassSessionStyles.muteAllText, {color: themeColors.btnTextColor}]}>Toggle camera</Text>
+        <Text
+          style={[
+            LiveClassSessionStyles.muteAllText,
+            { color: themeColors.btnTextColor },
+          ]}
+        >
+          Toggle camera
+        </Text>
       </TouchableOpacity>
       {isLive && (
         <TouchableOpacity
@@ -247,8 +260,19 @@ export const LecturerStreamControls = ({
           ]}
           onPress={onMuteAll}
         >
-          <MaterialIcons name="mic-off-outlined" color={themeColors.btnTextColor} size={18} />
-          <Text style={[LiveClassSessionStyles.muteAllText, {color: themeColors.btnTextColor}]}>(Mute All)</Text>
+          <MaterialIcons
+            name="mic-off-outlined"
+            color={themeColors.btnTextColor}
+            size={18}
+          />
+          <Text
+            style={[
+              LiveClassSessionStyles.muteAllText,
+              { color: themeColors.btnTextColor },
+            ]}
+          >
+            (Mute All)
+          </Text>
         </TouchableOpacity>
       )}
     </View>
