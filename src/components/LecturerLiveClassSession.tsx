@@ -6,17 +6,12 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
-import {
-  Avatar,
-  IconButton,
-  Portal,
-  Modal,
-  TextInput,
-} from 'react-native-paper';
+import { IconButton, Portal, Modal, TextInput } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import VIForegroundService from '@voximplant/react-native-foreground-service';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { LiveClassSessionStyles } from './StudentLiveClassSession';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ExpandableFAB from './ExpandableFAB';
@@ -24,9 +19,12 @@ import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { mediaDevices, RTCPeerConnection, RTCView } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
-import { SpeakerToast, WavingToast } from './StudentLiveClassSession';
 import { User, Lecture } from 'types/firebase';
-import { baseUrl } from './HomeScreenComponents';
+import { UserAvatar } from './UserAvatar';
+import { UserIdentity } from './UserIdentity';
+import { useLiveTranscription } from '../hooks/useLiveTransciption';
+import LiveAudioStream from 'react-native-live-audio-stream';
+import { Buffer } from 'buffer';
 interface LecturerControlsProps {
   localStream: any;
   isLive: boolean;
@@ -38,9 +36,113 @@ interface LecturerControlsProps {
 }
 interface LecturerLiveSessionProps {
   lecture: Lecture;
-  socket: any; // Socket.io types are complex, 'any' is okay here, or use 'Socket' from socket.io-client
-  attendeeList?: User[]; // Using the User type you imported earlier
+  socket: any;
+  attendeeList?: User[];
 }
+interface GroupToastProps {
+  activeUsers: any[];
+  onHide: () => void;
+}
+export const WavingToast = ({ activeUsers, onHide }: GroupToastProps) => {
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+  const userCount = activeUsers.length;
+  let displayMessage = '';
+
+  if (userCount === 1) {
+    displayMessage = `👋 ${activeUsers[0].firstname} is waving`;
+  } else if (userCount === 2) {
+    displayMessage = `👋 ${activeUsers[0].firstname} and ${activeUsers[1].firstname} are waving`;
+  } else if (userCount > 2) {
+    displayMessage = `👋 ${activeUsers[0].firstname} and ${
+      userCount - 1
+    } others are waving`;
+  }
+
+  useEffect(() => {
+    if (userCount === 0) return;
+    Animated.spring(slideAnim, {
+      toValue: 20,
+      useNativeDriver: true,
+    }).start();
+
+    const timer = setTimeout(() => {
+      Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => onHide());
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [userCount, onHide, slideAnim]);
+
+  if (userCount === 0) return null;
+
+  return (
+    <Animated.View
+      style={[
+        LiveClassSessionStyles.waveToast,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <Text style={LiveClassSessionStyles.waveText} numberOfLines={1}>
+        {displayMessage}
+      </Text>
+    </Animated.View>
+  );
+};
+
+export const SpeakerToast = ({ activeUsers, onHide }: GroupToastProps) => {
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+
+  const userCount = activeUsers.length;
+  let displayMessage = '';
+
+  if (userCount === 1) {
+    displayMessage = `${activeUsers[0].firstname} is speaking...`;
+  } else if (userCount === 2) {
+    displayMessage = `${activeUsers[0].firstname} & ${activeUsers[1].firstname} are speaking...`;
+  } else if (userCount > 2) {
+    displayMessage = `${activeUsers[0].firstname} and ${
+      userCount - 1
+    } others are speaking...`;
+  }
+
+  useEffect(() => {
+    if (userCount === 0) return;
+
+    Animated.spring(slideAnim, {
+      toValue: 20,
+      useNativeDriver: true,
+    }).start();
+
+    const timer = setTimeout(() => {
+      Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => onHide());
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [userCount, onHide, slideAnim]);
+
+  if (userCount === 0) return null;
+
+  return (
+    <Animated.View
+      style={[
+        LiveClassSessionStyles.speakerToast,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <View style={LiveClassSessionStyles.liveIndicator} />
+      <Text style={LiveClassSessionStyles.speakerText} numberOfLines={1}>
+        {displayMessage}
+      </Text>
+    </Animated.View>
+  );
+};
 
 export const LecturerStreamControls = ({
   localStream,
@@ -148,7 +250,18 @@ export const LecturerLiveClassSession = ({
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
   const pc = useRef<RTCPeerConnection | null>(null);
-  const [wavers, setWavers] = useState<any[]>([]); // Real-time list of students waving
+  const localAudioTrack = useRef<any>(null);
+  const LOW_BANDWIDTH_THRESHOLD = 300;
+  const RECOVERY_THRESHOLD = 800;
+  const AVATAR_SIZE = 40;
+  const AVATAR_OVERLAP = -10;
+  const BADGE_WIDTH = 60;
+
+  const [isAudioOnlyFallback, setIsAudioOnlyFallback] = useState(false);
+  const [maxVisibleAvatars, setMaxVisibleAvatars] = useState(4);
+  const consecutiveLowStatsCount = useRef(0);
+
+  const [wavers, setWavers] = useState<any[]>([]);
   const [currentAttendees, setCurrentAttendees] =
     useState<User[]>(attendeeList);
   const [messages, setMessages] = useState<any[]>([]);
@@ -162,14 +275,10 @@ export const LecturerLiveClassSession = ({
   const [isLocalMuted, setIsLocalMuted] = useState(false);
   const [isMicAllowed, setIsMicAllowed] = useState(true);
   const [endModalVisible, setEndModalVisible] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [permittedSpeaker, setPermittedSpeaker] = useState<User | null>(null);
   const [inputText, setInputText] = useState('');
-  const [currentWaverName, setCurrentWaverName] = useState<string | null>(null);
-  const [currentSpeakerName, setCurrentSpeakerName] = useState<string | null>(
-    null,
-  );
+  const [activeSpeakersList, setActiveSpeakersList] = useState<any[]>([]);
   const [attendeeModalVisible, setAttendeeModalVisible] = useState(false);
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [streamStats, setStreamStats] = useState({
@@ -177,6 +286,7 @@ export const LecturerLiveClassSession = ({
     color: '#2222',
   });
   const [localStream, setLocalStream] = useState<any>(null);
+
   const initializeWebRTC = useCallback(async () => {
     try {
       const stream = await mediaDevices.getUserMedia({
@@ -185,14 +295,12 @@ export const LecturerLiveClassSession = ({
       });
 
       setLocalStream(stream);
-
-      // Simple Relay
+      localAudioTrack.current = stream.getAudioTracks()[0];
       socket.emit('stream_ready', {
         lectureId: lecture.id,
         streamUrl: (stream as any).toURL(),
       });
 
-      // SDP Handshake Logic
       if (pc.current) {
         stream.getTracks().forEach(track => {
           pc.current?.addTrack(track, stream);
@@ -210,6 +318,72 @@ export const LecturerLiveClassSession = ({
       console.error('WebRTC Setup Error:', err);
     }
   }, [lecture.id, socket]);
+  const handleContainerLayout = (event: any) => {
+    const { width } = event.nativeEvent.layout;
+    const availableWidth = width - BADGE_WIDTH;
+    const effectiveAvatarWidth = AVATAR_SIZE + AVATAR_OVERLAP;
+    const computedMax = Math.floor(availableWidth / effectiveAvatarWidth);
+    setMaxVisibleAvatars(Math.max(2, computedMax));
+  };
+  const appendTranscriptionText = (label: string, text: string) => {
+    setTranscription(prev => {
+      const currentBuffer =
+        prev === 'Waiting for audio...' ||
+        prev === 'Listening to classroom room audio tracks...'
+          ? ''
+          : prev;
+      const cleanLine = currentBuffer.endsWith(`${label} `)
+        ? text
+        : `\n${label} ${text}`;
+      return (currentBuffer + cleanLine).slice(-200); // Keeps view frame limited to the last 200 chars
+    });
+  };
+   const { sendAudioChunkToDeepgram } = useLiveTranscription({
+    lectureId: lecture.id,
+    isHost: true,
+    currentUserFirstName: user.firstname!,
+    isMicActive: isMicAllowed,
+    onTranscriptChunk: (label, text) => {
+      appendTranscriptionText(label, text);
+      socket.emit('share_transcription_chunk', {
+        lectureId: lecture.id,
+        speakerLabel: label,
+        text: text,
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (localAudioTrack.current) {
+      localAudioTrack.current.enabled = !isLocalMuted;
+      socket.emit('toggle_lecturer_mic', {
+        lectureId: lecture.id,
+        isMuted: isLocalMuted,
+      });
+    }
+  }, [isLocalMuted, socket, lecture.id]);
+  useEffect(() => {
+  if (!isMicAllowed) {
+    LiveAudioStream.stop();
+    return;
+  }
+  const options = {
+    sampleRate: 16000,  
+    channels: 1,        
+    bitsPerSample: 16,  
+    audioSource: 6,     
+    bufferSize: 4096,   
+  };
+  LiveAudioStream.init(options);
+  LiveAudioStream.on('data', (base64Data: string) => {
+    const audioBuffer = Buffer.from(base64Data, 'base64').buffer;
+    sendAudioChunkToDeepgram(audioBuffer);
+  });
+  LiveAudioStream.start();
+  return () => {
+    LiveAudioStream.stop();
+  };
+}, [isMicAllowed, sendAudioChunkToDeepgram]);
 
   const startScreenShare = async () => {
     const channelConfig = {
@@ -217,15 +391,12 @@ export const LecturerLiveClassSession = ({
       name: 'iCampus Live Session',
       description: 'Keeps the lecture alive while screen sharing',
       enableVibration: false,
-      importance: 4, // High importance
+      importance: 4,
     };
     try {
-      // 1. Create the channel (Android requirement)
       await VIForegroundService.getInstance().createNotificationChannel(
         channelConfig,
       );
-
-      // 2. Start the service
       await VIForegroundService.getInstance().startService({
         channelId: 'liveness_channel',
         id: 1234,
@@ -235,18 +406,11 @@ export const LecturerLiveClassSession = ({
         button: 'Stop Sharing',
         priority: 2,
       });
-      // @ts-ignore
-      const stream = await mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
-
+      const stream = await mediaDevices.getDisplayMedia();
       setIsSharingScreen(true);
-
       const videoTrack = stream.getVideoTracks()[0];
 
       if (videoTrack) {
-        // Cast to any to access the native event listener
         (videoTrack as any).addEventListener('ended', () => {
           stopScreenShare();
         });
@@ -257,48 +421,85 @@ export const LecturerLiveClassSession = ({
         streamId: stream.toURL(),
       });
     } catch (e) {
-      console.log('User denied screen capture');
+      console.log('User denied screen capture or setup failed:', e);
       setIsSharingScreen(false);
       await VIForegroundService.getInstance().stopService();
     }
   };
-
   const stopScreenShare = () => {
     setIsSharingScreen(false);
     socket.emit('lecturer_stopped_sharing', { lectureId: lecture.id });
   };
+
   const sendMessage = () => {
     if (inputText.trim().length === 0) return;
     socket.emit('send_message', {
       text: inputText,
       senderId: user.uid,
       lectureId: lecture.id,
-      firstName: user.firstname,
-      profilePic: user.profilePic?.[0] || '',
+      username: `${user.firstname} ${user.lastname}`,
+      profilePic: user.profilePic || '',
     });
     setInputText('');
   };
+  const handleAdaptiveStreamDegradation = useCallback(
+    (bitrateKbps: number) => {
+      if (!localStream) return;
 
-  // 1. Socket Effects for Lecturer Controls
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (!videoTrack) return;
+
+      if (bitrateKbps < LOW_BANDWIDTH_THRESHOLD && !isAudioOnlyFallback) {
+        consecutiveLowStatsCount.current += 1;
+        if (consecutiveLowStatsCount.current >= 2) {
+          setIsAudioOnlyFallback(true);
+          videoTrack.enabled = false;
+          socket.emit('lecturer_network_fallback', {
+            lectureId: lecture.id,
+            mode: 'audio-only',
+          });
+
+          Toast.show({
+            type: 'info',
+            text1: 'Low Network Connection',
+            text2: 'Switching to audio-only mode to prevent disconnection.',
+          });
+        }
+      } else if (bitrateKbps >= RECOVERY_THRESHOLD && isAudioOnlyFallback) {
+        consecutiveLowStatsCount.current = 0;
+        setIsAudioOnlyFallback(false);
+        videoTrack.enabled = true;
+
+        socket.emit('lecturer_network_fallback', {
+          lectureId: lecture.id,
+          mode: 'full-stream',
+        });
+
+        Toast.show({
+          type: 'success',
+          text1: 'Network Recovered',
+          text2: 'Restoring live video feed.',
+        });
+      } else {
+        if (bitrateKbps >= LOW_BANDWIDTH_THRESHOLD) {
+          consecutiveLowStatsCount.current = 0;
+        }
+      }
+    },
+    [localStream, isAudioOnlyFallback, lecture.id, socket],
+  );
+
   useEffect(() => {
     if (!socket || !lecture?.id) return;
+
     const setupSession = async () => {
       try {
-        // Initialize Peer Connection if not exists
         if (!pc.current) {
           pc.current = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
           });
         }
-
-        // Initialize Stream
-        const stream = (await mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        })) as MediaStream;
-
-        setLocalStream(stream);
-        (pc.current as any).addStream(stream);
+        await initializeWebRTC();
       } catch (err) {
         Toast.show({
           type: 'error',
@@ -309,11 +510,9 @@ export const LecturerLiveClassSession = ({
     };
 
     setupSession();
-
-    // Listen for Hand Waves
     socket.on(
-      'student_waved',
-      (data: { uid: string; firstName: string; profilePic: string }) => {
+      'student_waved_received',
+      (data: { uid: string; firstname: string; profilePic: string }) => {
         setWavers(prev => {
           if (prev.find(w => w.uid === data.uid)) return prev;
           return [...prev, data];
@@ -321,84 +520,97 @@ export const LecturerLiveClassSession = ({
       },
     );
 
-    // Listen for Speaker Changes (to highlight who is currently talking)
     socket.on(
       'active_speaker_changed',
-      (data: { firstName: string; uid: string }) => {
+      (data: { firstname: string; uid: string }) => {
         setActiveSpeaker(data.uid);
-        // Trigger toast only if it's not the lecturer themselves
         if (data.uid !== user.uid) {
-          setCurrentSpeakerName(data.firstName);
+          setActiveSpeakersList(prev => {
+            if (prev.find(s => s.uid === data.uid)) return prev;
+            return [...prev, { uid: data.uid, firstname: data.firstname }];
+          });
         }
       },
     );
 
-    // Chat Integration
     socket.on('receive_message', (msg: any) => {
       setMessages(prev => [...prev, msg]);
     });
+
     socket.on('update_attendee_list', (newList: User[]) => {
       setCurrentAttendees(newList);
     });
-    socket.on('transcription_update', (data: { text: string }) => {
-      setTranscription(prev => (prev + ' ' + data.text).slice(-150));
-    });
-    socket.on('lecturer_started_sharing', () => {
-      setRefreshKey(prev => prev + 1);
-      Toast.show({ text1: 'Lecturer is now sharing their screen' });
-    });
-    socket.on('mic_permission_granted', (data: { targetUid: string }) => {
-      if (data.targetUid !== user.uid) {
-        const student = currentAttendees.find(a => a.uid === data.targetUid);
-        setPermittedSpeaker(student || null);
 
-        // Optional: Auto-hide the "Waver" list if that student was in it
-        setWavers(prev => prev.filter(w => w.uid !== data.targetUid));
+    socket.on(
+      'transcription_update',
+      (data: { speakerLabel: string; text: string }) => {
+        appendTranscriptionText(data.speakerLabel, data.text);
+      },
+    );
 
-        Toast.show({
-          type: 'info',
-          text1: 'Mic Granted',
-          text2: `${student?.firstname || 'Student'} is now speaking.`,
-        });
-      }
-    });
+    socket.on(
+      'mic_permission_granted_received',
+      (data: { targetUid: string }) => {
+        if (data.targetUid !== user.uid) {
+          const student = currentAttendees.find(a => a.uid === data.targetUid);
+          setPermittedSpeaker(student || null);
+          setWavers(prev => prev.filter(w => w.uid !== data.targetUid));
+
+          if (!isLocalMuted) {
+            Toast.show({
+              type: 'info',
+              text1: 'Speaker System Active',
+              text2: `${
+                student?.firstname || 'Student'
+              } unmuted. Your overlay priority is active.`,
+            });
+          }
+        } else {
+          if (localAudioTrack.current) {
+            localAudioTrack.current.enabled = true;
+            setIsLocalMuted(false);
+            Toast.show({
+              type: 'success',
+              text1: 'Floor is Yours',
+              text2:
+                'The lecturer has granted you microphone access. You are now live.',
+            });
+          }
+        }
+      },
+    );
 
     return () => {
-      socket.off('student_waved');
+      socket.off('student_waved_received');
       socket.off('active_speaker_changed');
       socket.off('receive_message');
       socket.off('update_attendee_list');
       socket.off('transcription_update');
       socket.off('lecturer_started_sharing');
-      socket.off('mic_permission_granted');
+      socket.off('mic_permission_granted_received');
     };
-  }, [socket, lecture.id, user.uid, currentAttendees]);
+  }, [
+    socket,
+    lecture.id,
+    user.uid,
+    currentAttendees,
+    initializeWebRTC,
+    isLocalMuted,
+  ]);
+
   useEffect(() => {
-    socket.on('mic_permission_granted', (data: any) => {
-      if (data.targetUid !== user.uid) {
-        // A student is talking! Lower lecturer speaker volume
-        // or show a visual indicator
-      }
-    });
-  }, [socket, user.uid]);
-  useEffect(() => {
-    // Only run the interval if we are live and the connection exists
     if (!lecture.isLive || !pc.current) return;
 
     const interval = setInterval(async () => {
       try {
         if (pc.current) {
-          // @ts-ignore - getStats typing can be tricky in RN
           const stats = await pc.current.getStats();
           let currentBitrate = 0;
-
           stats.forEach((report: any) => {
-            // Look for the outbound video rtp stream (what the lecturer is sending)
             if (report.type === 'outbound-rtp' && report.kind === 'video') {
               currentBitrate = report.bitrate || 0;
             }
           });
-
           setStreamStats(getQualityStatus(currentBitrate / 1000));
         }
       } catch (e) {
@@ -407,7 +619,8 @@ export const LecturerLiveClassSession = ({
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [lecture.isLive]); // Dependencies ensure it starts/stops correctly
+  }, [lecture.isLive]);
+
   useEffect(() => {
     const start = new Date(lecture.startTime).getTime();
     const timer = setInterval(() => {
@@ -422,37 +635,43 @@ export const LecturerLiveClassSession = ({
     return () => clearInterval(timer);
   }, [lecture.startTime]);
   useEffect(() => {
-    let isMounted = true;
-    const startClassSession = async () => {
-      if (lecture.status === 'ongoing') return;
-      try {
-        const response = await fetch(`${baseUrl}users/lectures/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lectureId: lecture.id,
-            courseId: lecture.courseId,
-          }),
-        });
+    if (!lecture.isLive || !pc.current) return;
 
-        if (response.ok && isMounted) {
-          await initializeWebRTC();
-          Toast.show({ text1: 'Class is now LIVE!' });
+    const interval = setInterval(async () => {
+      try {
+        if (pc.current) {
+          const stats = await pc.current.getStats();
+          let currentBitrate = 0;
+
+          stats.forEach((report: any) => {
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              currentBitrate = report.bitrate || 0;
+            }
+          });
+
+          const currentBitrateKbps = currentBitrate / 1000;
+          setStreamStats(getQualityStatus(currentBitrateKbps));
+          handleAdaptiveStreamDegradation(currentBitrateKbps);
         }
-      } catch (error) {
-        console.error('iCampus: Failed to start lecture:', error);
+      } catch (e) {
+        console.log('Quality Stats Error:', e);
       }
-    };
-    startClassSession();
-    return () => {
-      isMounted = false;
-    };
-  }, [lecture.id, initializeWebRTC, lecture.courseId, lecture.status]); // Use ID instead of the whole object to prevent loops// Restarts if refreshKey changes
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [
+    lecture.isLive,
+    localStream,
+    isAudioOnlyFallback,
+    handleAdaptiveStreamDegradation,
+  ]);
+
   const handleEndLecture = () => {
     socket.emit('end_lecture', { lectureId: lecture.id });
     setEndModalVisible(false);
     navigation.navigate('Home', { activeTab: 'classroom' });
   };
+
   const grantMic = (studentUid: string) => {
     socket.emit('grant_mic_permission', {
       lectureId: lecture.id,
@@ -460,23 +679,28 @@ export const LecturerLiveClassSession = ({
     });
     setWavers(prev => prev.filter(w => w.uid !== studentUid));
   };
+
   const muteAll = () => {
     socket.emit('revoke_all_mics', { lectureId: lecture.id });
     setIsMicAllowed(false);
     setActiveSpeaker(null);
+    setPermittedSpeaker(null);
+    Toast.show({ type: 'info', text1: 'All student microphones revoked.' });
   };
+  onLocalAudioDataAvailable(buffer => {
+    sendAudioChunkToDeepgram(buffer);
+  });
+
   const getQualityStatus = (bitrate: number) => {
-    if (bitrate > 2500)
-      return { label: 'Excellent (1080p)', color: PRIMARY_COLOR_TINT };
-    if (bitrate > 1000)
-      return { label: 'Good (720p)', color: PRIMARY_COLOR_TINT };
-    if (bitrate > 500)
-      return { label: 'Fair (480p)', color: PRIMARY_COLOR_TINT };
-    return { label: 'Poor (Low Res)', color: PRIMARY_COLOR };
+    if (bitrate > 2500) return { label: 'Excellent (1080p)', color: '#4CAF50' };
+    if (bitrate > 1000) return { label: 'Good (720p)', color: '#8BC34A' };
+    if (bitrate > 500) return { label: 'Fair (480p)', color: '#FFC107' };
+    return { label: 'Poor (Low Res)', color: '#F44336' };
   };
 
   return (
     <View style={LiveClassSessionStyles.mainContainer}>
+      {/* Top Session Header Bar */}
       <View style={LiveClassSessionStyles.header}>
         <Text style={LiveClassSessionStyles.liveText}>● LIVE</Text>
         <TouchableOpacity
@@ -486,14 +710,31 @@ export const LecturerLiveClassSession = ({
           <Text style={LiveClassSessionStyles.endButtonText}>End Session</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Presentation / Screen Share Matrix */}
       <View
-        key={refreshKey}
         style={[
           LiveClassSessionStyles.sharedScreen,
           isSharingScreen && LiveClassSessionStyles.sharingActive,
         ]}
       >
-        {isSharingScreen ? (
+        {isAudioOnlyFallback ? (
+          <View
+            style={[
+              LiveClassSessionStyles.sharingOverlay,
+              { backgroundColor: '#1A1A24' },
+            ]}
+          >
+            <MaterialIcons name="audiotrack" size={50} color={PRIMARY_COLOR} />
+            <Text style={LiveClassSessionStyles.statusText}>
+              Audio Optimization Active
+            </Text>
+            <Text style={LiveClassSessionStyles.hintText}>
+              Video paused due to weak signal coverage. Retaining high-priority
+              audio stream.
+            </Text>
+          </View>
+        ) : isSharingScreen ? (
           <View style={LiveClassSessionStyles.sharingOverlay}>
             <MaterialIcons
               name="screen-share"
@@ -531,17 +772,16 @@ export const LecturerLiveClassSession = ({
           </TouchableOpacity>
         )}
       </View>
-      {/* Stream Quality Monitoring and Controls */}
       <View style={LiveClassSessionStyles.monitoringSection}>
-        {activeSpeaker ||
-          (permittedSpeaker && (
-            <Text style={LiveClassSessionStyles.speakerNote}>
-              Speaker:{' '}
-              {attendeeList.find(a => a.uid === activeSpeaker)?.firstname ||
-                permittedSpeaker?.firstname ||
-                'Someone'}
-            </Text>
-          ))}
+        {activeSpeaker || permittedSpeaker ? (
+          <Text style={LiveClassSessionStyles.speakerNote}>
+            Speaker:{' '}
+            {currentAttendees.find(a => a.uid === activeSpeaker)?.firstname ||
+              permittedSpeaker?.firstname ||
+              'Someone'}
+          </Text>
+        ) : null}
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -549,72 +789,71 @@ export const LecturerLiveClassSession = ({
             LiveClassSessionStyles.horizontalMonitorContainer
           }
         >
-          {/* My Camera Preview/Controls */}
           <LecturerStreamControls
             localStream={localStream}
             isLive={lecture.isLive ?? false}
             socket={socket}
             lectureId={lecture.id}
-            wavers={wavers} // Pass the state
-            onMuteAll={muteAll} // Pass the function
+            wavers={wavers}
+            onMuteAll={muteAll}
             onGrantMic={grantMic}
           />
           <View style={LiveClassSessionStyles.monitorCard}>
-            <MaterialIcons
-              name="speed"
-              size={24}
-              color={streamStats.color} // Dynamic Icon Color
-            />
+            <MaterialIcons name="speed" size={24} color={streamStats.color} />
             <Text
               style={[
                 LiveClassSessionStyles.monitorValue,
                 { color: streamStats.color },
               ]}
             >
-              {streamStats.label} {/* Dynamic Text */}
+              {streamStats.label}
             </Text>
           </View>
         </ScrollView>
       </View>
-      {/* 3. Course & Attendance Info */}
+
+      {/* Meta Profile Grid Info */}
       <View style={LiveClassSessionStyles.infoSection}>
         <View style={LiveClassSessionStyles.row}>
-          <View>
-            <Text style={LiveClassSessionStyles.courseTitle}>
-              {lecture.topicName || 'Lecture Title'}
-            </Text>
-          </View>
+          <Text style={LiveClassSessionStyles.courseTitle}>
+            {lecture.topicName || 'Untitled Session'}
+          </Text>
           <View style={LiveClassSessionStyles.durationBox}>
             <Text style={LiveClassSessionStyles.durationText}>
               Duration: {elapsedTime}
             </Text>
           </View>
         </View>
-
-        {/* Attendee Horizontal List */}
-        <View style={LiveClassSessionStyles.attendeeContainer}>
-          {currentAttendees.slice(0, 4).map((student: User, i: number) => (
-            <Avatar.Image
-              key={student.uid || i}
-              size={40}
-              source={{
-                uri:
-                  student.profilePic?.[0] || 'https://via.placeholder.com/40',
-              }}
-              style={LiveClassSessionStyles.attendeeCircle}
-            />
-          ))}
-          <TouchableOpacity
-            style={LiveClassSessionStyles.attendeeCount}
-            onPress={() => setAttendeeModalVisible(true)}
-          >
-            <Text style={LiveClassSessionStyles.attendeeCountText}>
-              +{currentAttendees.length}
-            </Text>
-          </TouchableOpacity>
+        <View
+          style={LiveClassSessionStyles.attendeeContainer}
+          onLayout={handleContainerLayout}
+        >
+          {currentAttendees
+            .slice(0, maxVisibleAvatars)
+            .map((student: User, i: number) => (
+              <UserAvatar
+                key={student.uid || i}
+                profilePic={student.profilePic}
+                firstName={student.firstname}
+                lastName={student.lastname}
+                username={student.username}
+                style={LiveClassSessionStyles.attendeeCircle}
+              />
+            ))}
+          {currentAttendees.length > maxVisibleAvatars && (
+            <TouchableOpacity
+              style={LiveClassSessionStyles.attendeeCount}
+              onPress={() => setAttendeeModalVisible(true)}
+            >
+              <Text style={LiveClassSessionStyles.attendeeCountText}>
+                +{currentAttendees.length}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-      {/* 4. Transcription & Interaction */}
+
+      {/* AI Live Transcription Output Box */}
       <View style={LiveClassSessionStyles.bottomSection}>
         <View style={LiveClassSessionStyles.transcriptionBox}>
           <View style={LiveClassSessionStyles.aiHeader}>
@@ -627,10 +866,10 @@ export const LecturerLiveClassSession = ({
             style={LiveClassSessionStyles.transcriptionText}
             numberOfLines={3}
           >
-            {transcription || 'Listening to lecturer...'}
+            {transcription || 'Listening to classroom room audio tracks...'}
           </Text>
         </View>
-        {/* Inside your bottomSection or near the FAB */}
+
         {isMicAllowed && (
           <TouchableOpacity
             style={LiveClassSessionStyles.micButton}
@@ -647,7 +886,8 @@ export const LecturerLiveClassSession = ({
           </TouchableOpacity>
         )}
       </View>
-      {/* Floating Action Button (FAB) Area */}
+
+      {/* Floating Control Modules */}
       {!fabVisible && (
         <TouchableOpacity
           style={homeStyles.fab}
@@ -659,6 +899,7 @@ export const LecturerLiveClassSession = ({
           <MaterialIcons name="widgets" size={28} color="#fff" />
         </TouchableOpacity>
       )}
+
       <ExpandableFAB
         isVisible={fabVisible}
         onClose={() => setFabVisible(false)}
@@ -666,21 +907,8 @@ export const LecturerLiveClassSession = ({
         unreadCount={unreadCount}
         onChatOpen={() => setChatVisible(true)}
       />
-      {/* Floating Waver Toast */}
-      {currentWaverName && (
-        <WavingToast
-          firstName={currentWaverName}
-          onHide={() => setCurrentWaverName(null)}
-        />
-      )}
-      {/* Floating Speaker Toast */}
-      {currentSpeakerName && (
-        <SpeakerToast
-          firstName={currentSpeakerName}
-          onHide={() => setCurrentSpeakerName(null)}
-        />
-      )}
-      {/* Chat Modal  */}
+
+      {/* Chat Space Modal Portal */}
       <Portal>
         <Modal
           visible={chatVisible}
@@ -691,7 +919,7 @@ export const LecturerLiveClassSession = ({
           <ScrollView
             style={LiveClassSessionStyles.messageList}
             contentContainerStyle={{ paddingBottom: 20 }}
-            ref={ref => ref?.scrollToEnd({ animated: true })} // Auto-scroll to bottom
+            ref={ref => ref?.scrollToEnd({ animated: true })}
           >
             {messages.map((msg, index) => (
               <View
@@ -711,11 +939,6 @@ export const LecturerLiveClassSession = ({
                 </Text>
               </View>
             ))}
-            {messages.length === 0 && (
-              <Text style={LiveClassSessionStyles.emptyChat}>
-                No messages yet. Start the conversation!
-              </Text>
-            )}
           </ScrollView>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -740,7 +963,8 @@ export const LecturerLiveClassSession = ({
           </KeyboardAvoidingView>
         </Modal>
       </Portal>
-      {/* Attendees list modal */}
+
+      {/* Standardized Attendee List Bottom Sheet Modal */}
       <Portal>
         <Modal
           visible={attendeeModalVisible}
@@ -761,18 +985,23 @@ export const LecturerLiveClassSession = ({
                   key={student.uid || index}
                   style={LiveClassSessionStyles.studentRow}
                 >
-                  <Avatar.Image
-                    size={45}
-                    source={{
-                      uri:
-                        student.profilePic?.[0] ||
-                        'https://via.placeholder.com/45',
-                    }}
+                  <UserAvatar
+                    profilePic={student.profilePic}
+                    firstName={student.firstname}
+                    lastName={student.lastname}
+                    username={student.username}
+                    style={{ width: 45, height: 45, borderRadius: 22.5 }}
                   />
                   <View style={LiveClassSessionStyles.studentInfo}>
-                    <Text style={LiveClassSessionStyles.studentName}>
-                      {student.firstname} {student.lastname}
-                    </Text>
+                    <UserIdentity
+                      firstname={student.firstname!}
+                      lastname={student.lastname}
+                      username={student.username}
+                      tier={student.tier || 'free'}
+                      isVerified={student.isVerified}
+                      showVerifyIcon={true}
+                      size="small"
+                    />
                   </View>
                   {wavers.find(w => w.uid === student.uid) && (
                     <MaterialIcons
@@ -796,7 +1025,8 @@ export const LecturerLiveClassSession = ({
           </View>
         </Modal>
       </Portal>
-      {/* End Live Session Confirmation Modal */}
+
+      {/* Disconnect Warning Modal */}
       <Portal>
         <Modal
           visible={endModalVisible}
@@ -809,10 +1039,9 @@ export const LecturerLiveClassSession = ({
               End Live Session?
             </Text>
             <Text style={LiveClassSessionStyles.modalSubText}>
-              This will stop the stream for all students and finalize
-              attendance.
+              This will stop the stream for all students and finalize attendance
+              records.
             </Text>
-
             <View style={LiveClassSessionStyles.modalButtonRow}>
               <TouchableOpacity
                 onPress={() => setEndModalVisible(false)}
@@ -834,6 +1063,17 @@ export const LecturerLiveClassSession = ({
           </View>
         </Modal>
       </Portal>
+      {wavers.length > 0 && (
+        <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
+      )}
+
+      {/* Floating Speaker Toast */}
+      {activeSpeakersList.length > 0 && (
+        <SpeakerToast
+          activeUsers={activeSpeakersList}
+          onHide={() => setActiveSpeakersList([])}
+        />
+      )}
     </View>
   );
 };

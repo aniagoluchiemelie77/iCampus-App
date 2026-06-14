@@ -494,6 +494,7 @@ export interface Lecture {
   _id?: string;
   courseId: Course['courseId'];
   topicName: string;
+  hostId?: string;
   lectureType: 'Physical' | 'Online';
   location?: string;
   startTime: string; 

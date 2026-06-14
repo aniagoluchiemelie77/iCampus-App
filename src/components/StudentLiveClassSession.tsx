@@ -6,7 +6,6 @@ import {
   Dimensions,
   ScrollView,
   TouchableOpacity,
-  Animated,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -19,7 +18,7 @@ import {
   TextInput,
 } from 'react-native-paper';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from './Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User, ChatMessage, Lecture } from 'types/firebase';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
@@ -27,14 +26,15 @@ import { useAppSelector } from './hooks';
 import LiveAudioStream from 'react-native-live-audio-stream';
 import { useNavigation } from '@react-navigation/native';
 import { RTCView } from 'react-native-webrtc';
-import { ReviewModal } from './ReviewsModal';
+import Toast from 'react-native-toast-message';
+import { WavingToast, SpeakerToast } from './LecturerLiveClassSession';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface StudentLiveSessionProps {
   lecture: Lecture;
   checks: boolean[];
   hasException: boolean;
-  socket: any; // Socket.io types are complex, 'any' is okay here, or use 'Socket' from socket.io-client
+  socket: any;
   attendeeList?: User[];
   lecturerData: LiveLecturer | null;
 }
@@ -48,85 +48,6 @@ export type LiveLecturer = User & {
   isCameraOn?: boolean;
   cameraStreamUrl?: string;
   isMuted?: boolean;
-};
-export const WavingToast = ({
-  firstName,
-  onHide,
-}: {
-  firstName: string;
-  onHide: () => void;
-}) => {
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-  useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: 20,
-      useNativeDriver: true,
-    }).start();
-    const timer = setTimeout(() => {
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => onHide());
-    }, 6000);
-
-    return () => clearTimeout(timer);
-  }, [onHide, slideAnim]);
-
-  return (
-    <Animated.View
-      style={[
-        LiveClassSessionStyles.waveToast,
-        { transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={LiveClassSessionStyles.waveText}>
-        👋 {firstName} is waving
-      </Text>
-    </Animated.View>
-  );
-};
-export const SpeakerToast = ({
-  firstName,
-  onHide,
-}: {
-  firstName: string;
-  onHide: () => void;
-}) => {
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-
-  useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: 20,
-      useNativeDriver: true,
-    }).start();
-
-    // Keep it visible as long as they are speaking, or auto-hide after 5s
-    const timer = setTimeout(() => {
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => onHide());
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [onHide, slideAnim]);
-
-  return (
-    <Animated.View
-      style={[
-        LiveClassSessionStyles.speakerToast,
-        { transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <View style={LiveClassSessionStyles.liveIndicator} />
-      <Text style={LiveClassSessionStyles.speakerText}>
-        {' '}
-        {firstName} is speaking...
-      </Text>
-    </Animated.View>
-  );
 };
 export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
   return (
@@ -172,14 +93,15 @@ export const StudentLiveClassSession = ({
   checks,
   hasException,
   attendeeList = [],
-  lecturerData,
   socket,
 }: StudentLiveSessionProps) => {
   const user = useAppSelector(state => state.user);
+  const localAudioTrack = useRef<any>(null);
   const navigation = useNavigation<any>();
   const [chatVisible, setChatVisible] = useState(false);
   const passedChecks = checks.filter((c: boolean) => c).length;
   const [waverName, setWaverName] = useState<string | null>(null);
+  const [activeSpeakersList, setActiveSpeakersList] = useState<any[]>([]);
   const [transcription, setTranscription] = useState<string>(
     'Waiting for audio...',
   );
@@ -191,9 +113,10 @@ export const StudentLiveClassSession = ({
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [elapsedTime, setElapsedTime] = useState('00:00');
-  const [reviewVisible, setReviewVisible] = useState(false);
   const [remoteStreamUrl, setRemoteStreamUrl] = useState<string | null>(null);
   const [attendeeModalVisible, setAttendeeModalVisible] = useState(false);
+  const [permittedSpeaker, setPermittedSpeaker] = useState<User | null>(null);
+  const [wavers, setWavers] = useState<any[]>([]);
   const [currentAttendees, setCurrentAttendees] =
     useState<User[]>(attendeeList);
   const triggerWaveToast = (name: string) => {
@@ -249,13 +172,14 @@ export const StudentLiveClassSession = ({
   useEffect(() => {
     if (!socket || !lecture?.id || !user?.uid) return;
 
-    // 1. Join Room
-    socket.emit('join_lecture', {
+    socket.emit('join_lecture_session', {
       lectureId: lecture.id,
       user: {
         uid: user.uid,
         firstname: user.firstname,
-        profilePic: user.profilePic?.[0] || '',
+        lastname: user.lastname,
+        username: user.username,
+        profilePic: user.profilePic,
       },
     });
     socket.on('transcription_update', (data: { text: string }) => {
@@ -277,6 +201,76 @@ export const StudentLiveClassSession = ({
         setLecturerData(prev => ({ ...prev, isCameraOn }));
       },
     );
+    socket.on(
+      'mic_permission_granted_received',
+      (data: { targetUid: string }) => {
+        if (data.targetUid !== user.uid) {
+          const student = currentAttendees.find(a => a.uid === data.targetUid);
+          setPermittedSpeaker(student || null);
+          setWavers(prev => prev.filter(w => w.uid !== data.targetUid));
+
+          if (!isLocalMuted) {
+            Toast.show({
+              type: 'info',
+              text1: 'Speaker System Active',
+              text2: `${
+                student?.firstname || 'Student'
+              } unmuted. Your overlay priority is active.`,
+            });
+          }
+        } else {
+          if (localAudioTrack.current) {
+            localAudioTrack.current.enabled = true;
+            setIsLocalMuted(false);
+            Toast.show({
+              type: 'success',
+              text1: 'Floor is Yours',
+              text2:
+                'The lecturer has granted you microphone access. You are now live.',
+            });
+          }
+        }
+      },
+    );
+    socket.on(
+      'active_speaker_changed',
+      (data: { firstname: string; uid: string }) => {
+        setActiveSpeaker(data.uid);
+        if (data.uid !== user.uid) {
+          setActiveSpeakersList(prev => {
+            if (prev.find(s => s.uid === data.uid)) return prev;
+            return [...prev, { uid: data.uid, firstname: data.firstname }];
+          });
+        }
+      },
+    );
+    socket.on('lecture_ended_by_host', (data: { lectureId: string }) => {
+      if (data.lectureId === lecture.id) {
+        setRemoteStreamUrl(null);
+
+        Toast.show({
+          type: 'info',
+          text1: 'Class Concluded',
+          text2: 'The lecturer has ended this live session.',
+        });
+
+        navigation.navigate('Home', { activeTab: 'classroom' });
+      }
+    });
+    socket.on('all_mics_revoked_received', () => {
+      setIsMicAllowed(false);
+      setActiveSpeaker(null);
+      setPermittedSpeaker(null);
+
+      if (localAudioTrack && localAudioTrack.current) {
+        localAudioTrack.current.stop(); // Stops the hardware microphone recording channel safely
+      }
+
+      Toast.show({
+        type: 'info',
+        text1: 'The lecturer has muted the classroom.',
+      });
+    });
 
     // 2. Consolidated Listeners
     const handlers = {
@@ -286,18 +280,9 @@ export const StudentLiveClassSession = ({
           setIsLocalMuted(false);
         }
       },
-      mic_permission_revoked: (data: { targetUid: string }) => {
-        if (data.targetUid === user.uid) {
-          setIsMicAllowed(false);
-          setIsLocalMuted(true);
-        }
-      },
       student_waved: (data: { firstName: string }) => {
         triggerWaveToast(data.firstName);
         setWaverName(data.firstName);
-      },
-      active_speaker_changed: (data: { firstName: string; uid: string }) => {
-        setActiveSpeaker(data.uid !== user.uid ? data.firstName : null);
       },
       receive_message: (newMessage: ChatMessage) => {
         setMessages(prev => [...prev, newMessage]);
@@ -305,9 +290,6 @@ export const StudentLiveClassSession = ({
       },
       update_attendee_list: (newList: User[]) => {
         setCurrentAttendees(newList);
-      },
-      lecture_ended: () => {
-        setReviewVisible(true);
       },
     };
 
@@ -330,6 +312,9 @@ export const StudentLiveClassSession = ({
     chatVisible,
     navigation,
     isLocalMuted,
+    user.lastname,
+    user.username,
+    currentAttendees,
   ]);
   const sendMessage = () => {
     if (inputText.trim().length === 0) return;
@@ -337,8 +322,8 @@ export const StudentLiveClassSession = ({
       text: inputText,
       senderId: user.uid,
       lectureId: lecture.id,
-      firstName: user.firstname,
-      profilePic: user.profilePic?.[0] || '',
+      username: `${user.firstname} ${user.lastname}`,
+      profilePic: user.profilePic || '',
     });
     setInputText('');
   };
@@ -363,7 +348,16 @@ export const StudentLiveClassSession = ({
           streamUrl={lecturerLiveData?.cameraStreamUrl}
         />
       </View>
-
+      <View style={LiveClassSessionStyles.monitoringSection}>
+        {activeSpeaker || permittedSpeaker ? (
+          <Text style={LiveClassSessionStyles.speakerNote}>
+            Speaker:{' '}
+            {currentAttendees.find(a => a.uid === activeSpeaker)?.firstname ||
+              permittedSpeaker?.firstname ||
+              'Someone'}
+          </Text>
+        ) : null}
+      </View>
       {/* 3. Course & Attendance Info */}
       <View style={LiveClassSessionStyles.infoSection}>
         <View style={LiveClassSessionStyles.row}>
@@ -594,21 +588,15 @@ export const StudentLiveClassSession = ({
           </View>
         </Modal>
       </Portal>
-      {waverName && (
-        <WavingToast firstName={waverName} onHide={() => setWaverName(null)} />
+      {wavers.length > 0 && (
+        <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
       )}
-      {activeSpeaker && (
+      {activeSpeakersList.length > 0 && (
         <SpeakerToast
-          firstName={activeSpeaker}
-          onHide={() => setActiveSpeaker(null)}
+          activeUsers={activeSpeakersList}
+          onHide={() => setActiveSpeakersList([])}
         />
       )}
-      <ReviewModal
-        visible={reviewVisible}
-        lectureData={lecture}
-        user={user}
-        lecturerUid={lecturerData?.uid ?? ''}
-      />
     </View>
   );
 };

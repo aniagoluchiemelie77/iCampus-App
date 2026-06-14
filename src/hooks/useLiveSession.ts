@@ -3,6 +3,7 @@ import { Course, Lecture, CourseException } from '../types/firebase';
 import { useAppSelector } from '../components/hooks';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { io, Socket } from 'socket.io-client';
+import {fetchOngoingLecture, getCourseDetailsForOngoingLecture, getAllExceptionsForOngoingLecture} from '../api/localGetApis';
 
 export const useLiveSession = (lectureId: string, courseId: string) => {
   const user = useAppSelector(state => state.user);
@@ -15,21 +16,32 @@ export const useLiveSession = (lectureId: string, courseId: string) => {
     try {
       setLoading(true);
       const [lectureRes, courseRes, exceptionsRes] = await Promise.all([
-        fetch(`${baseUrl}users/courses/lectures/${lectureId}`).then(res => res.json()),
-        fetch(`${baseUrl}users/courses/${courseId}`).then(res => res.json()),
-        fetch(`${baseUrl}users/exceptions/course/${courseId}`).then(res => res.json()),
-      ]);
-      setLecture(lectureRes);
-      setCourse(courseRes);
-      setExceptions(exceptionsRes);
+    fetchOngoingLecture(),
+    getCourseDetailsForOngoingLecture(courseId),
+    getAllExceptionsForOngoingLecture(lectureId),
+  ]);
+      if (lectureRes.success && lectureRes.lecture) {
+    setLecture(lectureRes.lecture); 
+  } else {
+    setLecture(null);
+  }
+      if (courseRes.success && courseRes.data) {
+    setCourse(courseRes.data); 
+  } else {
+    setCourse(null);
+  }
+      if (exceptionsRes.success && exceptionsRes.data) {
+    setExceptions(exceptionsRes.data); 
+  } else {
+    setExceptions([]); 
+  }
     } catch (error) {
       console.error("Failed to sync live session:", error);
     } finally {
       setLoading(false);
     }
-  }, [lectureId, courseId]); // Only recreate if IDs change
+  }, [lectureId, courseId]); 
 
-  // 2. Trigger fetch on mount
   useEffect(() => {
     fetchLiveSessionData();
   }, [fetchLiveSessionData]);
@@ -42,20 +54,16 @@ export const useLiveSession = (lectureId: string, courseId: string) => {
     });
     socketRef.current = socket;
 
-    // 2. Join Rooms
     socket.emit('join_user_room', user.uid);
     socket.emit('join_lecture', { 
       lectureId, 
-      firstName: user.firstname 
+      user: { firstname: user.firstname, uid: user.uid } 
     });
-
-    // 3. Cleanup on unmount
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
   }, [user?.uid, lectureId, user?.firstname]);
 
-  // Removed fetchPostById from return to satisfy ESLint
   return { user, course, lecture, exceptions, fetchLiveSessionData, loading, socket: socketRef.current };
 };

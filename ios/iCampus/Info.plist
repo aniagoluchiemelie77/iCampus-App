@@ -13,13 +13,13 @@
 	<key>CFBundleDisplayName</key>
 	<string>iCampus</string>
 	<key>CFBundleExecutable</key>
+	<key>NSMicrophoneUsageDescription</key>
+<string>iCampus requires temporary microphone access for live classroom voice interaction and automated transcription lines.</string>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
-	<key>NSMicrophoneUsageDescription</key>
-    <string>iCampus needs microphone access for live classroom interaction.</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>

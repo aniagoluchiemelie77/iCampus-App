@@ -1587,3 +1587,35 @@ export const fetchLecturerCoursesAPI = async ({
     };
   }
 };
+export const getDeepgramTemporalToken = async (
+  lectureId: string
+): Promise<string | null> => {
+  if (!lectureId) return null;
+
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}v1/auth/deepgram-token?lectureId=${lectureId}`, {
+      method: 'GET',
+      headers,
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Audio Sync Error',
+        text2: result.message || 'Failed to authenticate your live audio track link.',
+      });
+      return null;
+    }
+    return result.token || null;
+
+  } catch (error: any) {
+    console.error('DeepgramTokenService Error:', error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not coordinate audio transcription channels.',
+    });
+    return null;
+  }
+};
