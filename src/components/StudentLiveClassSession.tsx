@@ -147,13 +147,10 @@ export const StudentLiveClassSession = ({
 
       LiveAudioStream.start();
     } else {
-      // Calling it here is fine, but the cleanup (return) is the issue
       LiveAudioStream.stop();
     }
     return () => {
       LiveAudioStream.stop();
-      // If stop() returns a promise, just call it.
-      // Don't 'return' it and don't use 'await' here.
     };
   }, [isMicAllowed, isLocalMuted, socket, lecture.id]);
   useEffect(() => {
@@ -271,6 +268,18 @@ export const StudentLiveClassSession = ({
         text1: 'The lecturer has muted the classroom.',
       });
     });
+    socket.on(
+      'lecturer_camera_toggled_received',
+      (data: { isCameraOn: boolean }) => {
+        setLecturerData(prev => ({ ...prev, isCameraOn: data.isCameraOn }));
+        Toast.show({
+          type: 'info',
+          text1: data.isCameraOn
+            ? 'Lecturer turned camera on.'
+            : 'Lecturer turned camera off.',
+        });
+      },
+    );
 
     // 2. Consolidated Listeners
     const handlers = {

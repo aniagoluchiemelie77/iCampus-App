@@ -335,10 +335,10 @@ export const LecturerLiveClassSession = ({
       const cleanLine = currentBuffer.endsWith(`${label} `)
         ? text
         : `\n${label} ${text}`;
-      return (currentBuffer + cleanLine).slice(-200); // Keeps view frame limited to the last 200 chars
+      return (currentBuffer + cleanLine).slice(-200);
     });
   };
-   const { sendAudioChunkToDeepgram } = useLiveTranscription({
+  const { sendAudioChunkToDeepgram } = useLiveTranscription({
     lectureId: lecture.id,
     isHost: true,
     currentUserFirstName: user.firstname!,
@@ -363,27 +363,29 @@ export const LecturerLiveClassSession = ({
     }
   }, [isLocalMuted, socket, lecture.id]);
   useEffect(() => {
-  if (!isMicAllowed) {
-    LiveAudioStream.stop();
-    return;
-  }
-  const options = {
-    sampleRate: 16000,  
-    channels: 1,        
-    bitsPerSample: 16,  
-    audioSource: 6,     
-    bufferSize: 4096,   
-  };
-  LiveAudioStream.init(options);
-  LiveAudioStream.on('data', (base64Data: string) => {
-    const audioBuffer = Buffer.from(base64Data, 'base64').buffer;
-    sendAudioChunkToDeepgram(audioBuffer);
-  });
-  LiveAudioStream.start();
-  return () => {
-    LiveAudioStream.stop();
-  };
-}, [isMicAllowed, sendAudioChunkToDeepgram]);
+    if (!isMicAllowed) {
+      LiveAudioStream.stop();
+      return;
+    }
+    const options = {
+      sampleRate: 16000,
+      channels: 1,
+      bitsPerSample: 16,
+      audioSource: 6,
+      bufferSize: 4096,
+      wavFile: '',
+    };
+    LiveAudioStream.init(options);
+    LiveAudioStream.on('data', (base64Data: string) => {
+      const audioBuffer = Buffer.from(base64Data, 'base64').buffer;
+      sendAudioChunkToDeepgram(audioBuffer);
+    });
+    LiveAudioStream.start();
+
+    return () => {
+      LiveAudioStream.stop();
+    };
+  }, [isMicAllowed, sendAudioChunkToDeepgram]);
 
   const startScreenShare = async () => {
     const channelConfig = {
@@ -687,9 +689,6 @@ export const LecturerLiveClassSession = ({
     setPermittedSpeaker(null);
     Toast.show({ type: 'info', text1: 'All student microphones revoked.' });
   };
-  onLocalAudioDataAvailable(buffer => {
-    sendAudioChunkToDeepgram(buffer);
-  });
 
   const getQualityStatus = (bitrate: number) => {
     if (bitrate > 2500) return { label: 'Excellent (1080p)', color: '#4CAF50' };
