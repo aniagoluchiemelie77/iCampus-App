@@ -10,10 +10,7 @@ import {
 } from 'react-native';
 import { useAppSelector } from '../components/hooks';
 import { initializeBuyTransaction } from '../api/localPostApis';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';

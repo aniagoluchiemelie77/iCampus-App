@@ -254,7 +254,7 @@ export type RootStackParamList = {
   CreateProduct: { product?: Product };
   PayoutSuccess: { amount: number; transactionId: string };
   Home: { activeTab?: 'home' | 'classroom' | 'search' | 'store' | 'ranking' };
-  LiveClassSessions: { lectureId: string; courseId: string };
+  LiveClassSessions: { lectureId?: string; courseId?: string };
   ForgotPasswordScreen: undefined;
   ChangePasswordScreen: {
     email?: string;
