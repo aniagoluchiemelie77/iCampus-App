@@ -1,15 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, TextInputProps} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface InputGroupProps extends TextInputProps {
   label: string;
   isLocked?: boolean;
-  defaultValue: string;
   type?: 'text' | 'phone';
   countryCode?: string;
   onChangeText?: (text: string) => void;
+  value?: string;
+  defaultValue?: string;
 }
 
 export const InputGroup = ({

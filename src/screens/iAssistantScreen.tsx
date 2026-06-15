@@ -1,4 +1,5 @@
-import React, { useState, useRef} from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   FlatList,
   StyleSheet,
@@ -40,63 +41,75 @@ export const Assistant = ({ route }: Props) => {
     },
   ]);
   const [input, setInput] = useState('');
+  const addMessage = useCallback((msg: AssistantMessage) => {
+    setMessages(prev => [...prev, { ...msg, id: uuidv4() }]);
+  }, []);
 
   const handleSendMessage = async () => {
     if (!input.trim() || isProcessing) return;
 
-    const userText = input;
-    setIsProcessing(true);
+    const userText = input.trim();
     setInput('');
+    addMessage({ role: 'user', content: userText });
+    setIsProcessing(true);
 
-    const userMsg: AssistantMessage = { role: 'user', content: userText };
-    setMessages(prev => [...prev, userMsg]);
+    try {
+      const result = await askIAssistantAgent({
+        message: userText,
+        history: messages,
+        contextType,
+        contextData,
+        userState: user,
+      });
 
-    const result = await askIAssistantAgent({
-      message: userText,
-      history: messages, // Sends current state history before appending new ones
-      contextType: contextType,
-      contextData: contextData,
-      userState: user,
-    });
-
-    if (result.success && result.reply) {
-      setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
-    } else {
+      if (result.success && result.reply) {
+        addMessage({ role: 'model', content: result.reply });
+      } else {
+        throw new Error('Server unreachable');
+      }
+    } catch (err) {
       Toast.show({
         type: 'error',
         text1: 'Tutor Offline',
-        text2: 'Could not reach academic server. Try again shortly.',
+        text2: 'Try again shortly.',
       });
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
-  const sendAttachmentMessage = async (
+  const handleAttachment = async (
     url: string,
     type: 'image' | 'file',
     fileName?: string,
   ) => {
-    const attachmentMsg: AssistantMessage = {
+    setIsProcessing(true);
+    addMessage({
       role: 'user',
-      content:
-        type === 'image'
-          ? '[Sent an image for review]'
-          : `[Shared file: ${fileName}]`,
-      attachments: [{ url, type, fileName: fileName || 'attachment' }],
-    };
-
-    setMessages(prev => [...prev, attachmentMsg]);
-
-    const result = await askIAssistantAgent({
-      message: `I just uploaded an academic ${type} attachment for reference.`,
-      history: messages,
-      contextType: contextType,
-      contextData: { ...contextData, attachmentUrl: url },
-      userState: user,
+      content: type === 'image' ? '[Sent image]' : `[Shared: ${fileName}]`,
+      attachments: [{ url, type, fileName: fileName || 'file' }],
     });
 
-    if (result.success && result.reply) {
-      setMessages(prev => [...prev, { role: 'model', content: result.reply! }]);
+    try {
+      const result = await askIAssistantAgent({
+        message: `I uploaded an academic ${type}.`,
+        history: messages,
+        contextType,
+        contextData: { ...contextData, attachmentUrl: url },
+        userState: user,
+      });
+
+      if (result.success) {
+        addMessage({ role: 'model', content: result.reply! });
+      }
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Analysis Failed',
+        text2: 'Could not process attachment.',
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -112,7 +125,7 @@ export const Assistant = ({ route }: Props) => {
       });
       if (image.path) {
         const imageUrl = await uploadToFirebase(image.path);
-        sendAttachmentMessage(imageUrl, 'image');
+        handleAttachment(imageUrl, 'image');
       }
     } catch (error: any) {
       if (
@@ -140,7 +153,7 @@ export const Assistant = ({ route }: Props) => {
       });
       const { uri, name } = result;
       const docUrl = await uploadToFirebase(uri);
-      sendAttachmentMessage(docUrl, 'file', name || 'Document');
+      handleAttachment(docUrl, 'file', name || 'Document');
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) {
         console.error('Document Picker Error:', err);
@@ -152,7 +165,8 @@ export const Assistant = ({ route }: Props) => {
       }
     }
   };
-
+  const onContentSizeChange = () =>
+    flatListRef.current?.scrollToEnd({ animated: true });
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -176,9 +190,7 @@ export const Assistant = ({ route }: Props) => {
       <FlatList
         ref={flatListRef}
         data={messages}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
+        onContentSizeChange={onContentSizeChange}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item }) => (
           <MessageBubble

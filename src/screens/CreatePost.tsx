@@ -30,7 +30,7 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../../App';
 interface MediaItem {
-  uri: string;
+  uri: string[];
   type: 'image' | 'video';
   isExisting?: boolean;
 }
@@ -54,11 +54,20 @@ const CreatePost = ({ route, navigation }: Props) => {
   );
   const [mediaList, setMediaList] = useState<MediaItem[]>(
     editPostData?.media?.url
-      ? editPostData.media.url.map((url: string) => ({
-          uri: url,
-          type: editPostData.media?.mediaType || 'image',
-          isExisting: true,
-        }))
+      ? [
+          {
+            // Force TypeScript to evaluate this strictly as an array of strings
+            uri: (Array.isArray(editPostData.media.url)
+              ? editPostData.media.url
+              : [editPostData.media.url]) as string[],
+
+            // Cast the generic string fallback into the exact union type allowed
+            type: (editPostData.media?.mediaType || 'image') as
+              | 'image'
+              | 'video',
+            isExisting: true,
+          },
+        ]
       : [],
   );
 
@@ -141,10 +150,12 @@ const CreatePost = ({ route, navigation }: Props) => {
 
     if (result.assets) {
       const newAssets: MediaItem[] = result.assets.map(asset => ({
-        uri: asset.uri || '',
+        // FIX: Wrap the single local string URI path inside an array
+        uri: [asset.uri || ''],
         type: asset.type?.includes('video') ? 'video' : 'image',
         isExisting: false,
       }));
+
       setMediaList(prev => [...prev, ...newAssets].slice(0, 4));
     }
   };
@@ -168,14 +179,17 @@ const CreatePost = ({ route, navigation }: Props) => {
         // Distribute steps evenly per file chunk completed
         const currentProgress = Math.round((i / newMediaToUpload.length) * 100);
         setUploadProgress(currentProgress);
+        const targetUri = item.uri[0];
 
-        const downloadUrl = await uploadToFirebase(
-          item.uri,
-          `posts/${currentUser.uid}`,
-        );
+        if (targetUri) {
+          const downloadUrl = await uploadToFirebase(
+            targetUri,
+            `posts/${currentUser.uid}`,
+          );
 
-        finalMediaUrls.push(downloadUrl);
-        lastMediaType = item.type;
+          finalMediaUrls.push(downloadUrl);
+          lastMediaType = item.type;
+        }
       }
 
       const combinedMediaUrls = [...existingMediaUrls, ...finalMediaUrls];
@@ -343,12 +357,12 @@ const CreatePost = ({ route, navigation }: Props) => {
               <View key={index} style={styles.mediaPreviewWrapper}>
                 {item.type === 'image' ? (
                   <Image
-                    source={{ uri: item.uri }}
+                    source={{ uri: item.uri[0] }} // <-- FIXED: Access the string at index 0
                     style={styles.mediaPreview}
                   />
                 ) : (
                   <Video
-                    source={{ uri: item.uri }}
+                    source={{ uri: item.uri[0] }} // <-- FIXED: Access the string at index 0
                     style={styles.mediaPreview}
                     muted
                     repeat

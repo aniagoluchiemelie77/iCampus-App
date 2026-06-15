@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -50,9 +51,12 @@ export const ICashDashboard = () => {
   const dispatch = useDispatch();
   const user = useAppSelector(state => state.user);
   const [showBalance, setShowBalance] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [stats, setStats] = useState<StatsData | null>();
-  const balance = user.pointsBalance || 0;
-  const [integer, decimal] = balance.toFixed(2).split('.');
+  const { integer, decimal } = useMemo(() => {
+    const [i, d] = (user.pointsBalance || 0).toFixed(2).split('.');
+    return { integer: i, decimal: d };
+  }, [user.pointsBalance]);
 
   const handleBuy = () => navigation.navigate('ICashBuyPage');
   const handleWithdraw = () => navigation.navigate('ICashWithdrawPage');
@@ -60,31 +64,25 @@ export const ICashDashboard = () => {
   const needsRefresh = (route.params as any)?.refresh;
 
   const refreshUserData = useCallback(async () => {
+    setIsRefreshing(true);
     try {
       const result = await refreshUserProfileAPI();
-      if (result.success) {
+      if (result?.success) {
         dispatch(setUser(result.user));
         if (result.accessToken) {
-          await AsyncStorage.setItem('accessToken', result.accessToken);
-          await AsyncStorage.setItem('refreshToken', result.refreshToken);
+          await Promise.all([
+            AsyncStorage.setItem('accessToken', result.accessToken),
+            AsyncStorage.setItem('refreshToken', result.refreshToken),
+          ]);
         }
-      } else {
-        console.error(result.message);
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: result.message,
-        });
       }
-    } catch (e: any) {
-      console.log('Refresh failed', e);
-      Toast.show({
-        type: 'error',
-        text1: 'Refresh failed',
-        text2: e || 'Check your network connection',
-      });
+    } catch (e) {
+      console.error('Refresh failed', e);
+    } finally {
+      setIsRefreshing(false);
+      navigation.setParams({ refresh: undefined });
     }
-  }, [dispatch]);
+  }, [dispatch, navigation]);
   const fetchStats = useCallback(async () => {
     try {
       const response = await getTransactionStats();
@@ -120,10 +118,10 @@ export const ICashDashboard = () => {
     }
   }, [needsRefresh, refreshUserData, navigation]);
   useEffect(() => {
-    if (!user.twoFactorEnabled) {
-      navigation.navigate('iCashSecurity');
+    if (user && !user.twoFactorEnabled) {
+      navigation.replace('iCashSecurity');
     }
-  }, [navigation, user.twoFactorEnabled]);
+  }, [user, navigation]);
 
   return (
     <ScrollView
@@ -132,6 +130,13 @@ export const ICashDashboard = () => {
         { backgroundColor: colors.background },
       ]}
     >
+      {isRefreshing && (
+        <ActivityIndicator
+          size="small"
+          color={colors.primary}
+          style={{ marginVertical: 10 }}
+        />
+      )}
       <LinearGradient
         colors={DEFAULT_GRADIENT}
         start={{ x: 0, y: 0 }}
@@ -161,13 +166,25 @@ export const ICashDashboard = () => {
               color={colors.tint}
             />
             {showBalance ? (
-              <Text style={[iCashScreenStyles.balanceValue, {color: colors.tint}]}>
+              <Text
+                style={[iCashScreenStyles.balanceValue, { color: colors.tint }]}
+              >
                 {integer}
-                <Text style={[iCashScreenStyles.decimalValue, {color: colors.tint}]}>.{decimal}</Text>
+                <Text
+                  style={[
+                    iCashScreenStyles.decimalValue,
+                    { color: colors.tint },
+                  ]}
+                >
+                  .{decimal}
+                </Text>
               </Text>
             ) : (
               <Text
-                style={[iCashScreenStyles.balanceValue, { letterSpacing: 2, color: colors.tint }]}
+                style={[
+                  iCashScreenStyles.balanceValue,
+                  { letterSpacing: 2, color: colors.tint },
+                ]}
               >
                 ****
               </Text>

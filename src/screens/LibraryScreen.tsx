@@ -1,12 +1,6 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Text,
-  PermissionsAndroid,
-  Platform,
-  Animated,
-  ActivityIndicator,
-} from 'react-native';
+import { Text, Animated, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import {
@@ -21,13 +15,10 @@ import {
   fetchFeaturedBooksByDepartment,
   searchLibraryBooks,
 } from '../api/localGetApis.ts';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '../components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { BookCard } from '../components/BookCard';
-import { Book } from 'types/firebase';
+import { Book } from '../types/firebase';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useTheme } from '../context/ThemeContext';
@@ -65,40 +56,37 @@ export const LibraryScreen: React.FC = () => {
       setIsSearching(false);
     }
   };
-  const handleDownload = async (url: string, fileName: string) => {
-    if (Platform.OS === 'android' && Platform.Version < 29) {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      );
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) return;
-    }
-
+  const handleDownload = useCallback(async (url: string, fileName: string) => {
     const { config, fs } = ReactNativeBlobUtil;
-    const fileDir = fs.dirs.DownloadDir;
     const cleanFileName = fileName.replace(/[/\\?%*:|"<>]/g, '-');
+    const path = `${fs.dirs.DownloadDir}/${cleanFileName}.pdf`;
 
-    config({
-      fileCache: true,
-      addAndroidDownloads: {
-        useDownloadManager: true,
-        notification: true,
-        path: `${fileDir}/${cleanFileName}.pdf`,
-        description: 'Downloading from iCampus Library',
-        mime: 'application/pdf',
-      },
-    })
-      .fetch('GET', url)
-      .then(res => {
-        console.log('Success:', res.path());
-      })
-      .catch(err =>
-        Toast.show({
-          type: 'error',
-          text1: 'Download Failed',
-          text2: err.message,
-        }),
-      );
-  };
+    try {
+      await config({
+        fileCache: true,
+        addAndroidDownloads: {
+          useDownloadManager: true,
+          notification: true,
+          path: path,
+          title: fileName,
+          description: 'Downloading from iCampus Library',
+          mime: 'application/pdf',
+        },
+      }).fetch('GET', url);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Download Complete',
+        text2: 'Saved to Downloads',
+      });
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Download Failed',
+        text2: 'Please check your connection.',
+      });
+    }
+  }, []);
   const fetchFeaturedBooks = useCallback(async () => {
     setLoading(true);
     const userDept = user?.department || '';
@@ -124,23 +112,37 @@ export const LibraryScreen: React.FC = () => {
     fetchFeaturedBooks();
   }, [fetchFeaturedBooks]);
   useEffect(() => {
+    let isMounted = true;
     const interval = setInterval(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => {
-        setPlaceholderIndex(prev => (prev + 1) % PLACEHOLDERS.length);
+      if (!isMounted) return;
+
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.delay(100),
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 500,
           useNativeDriver: true,
-        }).start();
+        }),
+      ]).start(() => {
+        if (isMounted)
+          setPlaceholderIndex(prev => (prev + 1) % PLACEHOLDERS.length);
       });
     }, 4000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [fadeAnim]);
+  const onQueryChange = (text: string) => {
+    setQuery(text);
+    if (text.length === 0) fetchFeaturedBooks();
+  };
   return (
     <SafeAreaView
       style={[
@@ -166,7 +168,7 @@ export const LibraryScreen: React.FC = () => {
           <TextInput
             placeholder=""
             value={query}
-            onChangeText={setQuery}
+            onChangeText={onQueryChange}
             onSubmitEditing={handleSearch}
             style={[LibraryScreenStyles.input, { color: colors.text }]}
           />

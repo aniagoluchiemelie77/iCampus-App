@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { useAppSelector } from '../components/hooks';
 import { InputGroup } from '../components/InputGroup';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -10,18 +16,26 @@ import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../components/UserSlice';
 import { useTheme } from '../context/ThemeContext';
+import { User } from '../types/firebase';
 
 countries.registerLocale(require('i18n-iso-countries/langs/en.json'));
 
 export const EditProfileScreen = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
+  const isMounted = useRef(true);
+
+  // 1. Redux Selectors
+  const user = useAppSelector((state: { user: User }) => state.user);
+
   const isStudent = user.usertype === 'student';
   const isEnterprise = user.usertype === 'enterprise';
   const isTeacher = user.usertype === 'lecturer';
   const isVerified = user.isVerified;
+
+  // 2. Component Local States
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     headline: user.headline || '',
     organizationName: user.organizationName || '',
@@ -32,31 +46,61 @@ export const EditProfileScreen = () => {
     department: user.department || '',
     email: user.email || '',
   });
-  const isChanged =
-    formData.headline !== (user.headline || '') ||
-    formData.organizationName !== (user.organizationName || '') ||
-    formData.website !== (user.website || '') ||
-    formData.username !== (user.username || '') ||
-    formData.firstname !== (user.firstname || '') ||
-    formData.lastname !== (user.lastname || '') ||
-    formData.department !== (user.department || '') ||
-    formData.email !== (user.email || '');
+
+  // Track component unmount lifecycle safely
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // 3. Performance Memoization: Evaluates only when formData or baseline user mutations happen
+  const isChanged = useMemo(() => {
+    return (
+      formData.headline !== (user.headline || '') ||
+      formData.organizationName !== (user.organizationName || '') ||
+      formData.website !== (user.website || '') ||
+      formData.username !== (user.username || '') ||
+      formData.firstname !== (user.firstname || '') ||
+      formData.lastname !== (user.lastname || '') ||
+      formData.department !== (user.department || '') ||
+      formData.email !== (user.email || '')
+    );
+  }, [formData, user]);
+
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
   };
+
+  // 4. Thread-safe Save Action
   const handleSave = async () => {
+    if (isSaving) return; // Prevent concurrent multiple clicks
+
+    setIsSaving(true);
     try {
       const changedData: Partial<typeof formData> = {};
-      (Object.keys(formData) as Array<keyof typeof formData>).forEach(key => {
-        const originalValue = (user[key as keyof typeof user] || '') as string;
+      const formKeys = Object.keys(formData) as Array<keyof typeof formData>;
+
+      formKeys.forEach(key => {
+        const originalValue = (user[key] || '') as string;
         if (formData[key] !== originalValue) {
           changedData[key] = formData[key];
         }
       });
+
+      // Avoid firing redundant endpoint updates if evaluated empty
+      if (Object.keys(changedData).length === 0) {
+        setIsSaving(false);
+        return;
+      }
+
       const result = await patchUserProfile(changedData);
+
+      if (!isMounted.current) return;
+
       if (result) {
         dispatch(setUser(result.data));
         Toast.show({
@@ -67,18 +111,25 @@ export const EditProfileScreen = () => {
         navigation.navigate('Profile', { identity: user.uid });
       }
     } catch (error) {
-      console.error(error);
-      Toast.show({
-        type: 'error',
-        text1: 'Update Error',
-        text2: 'Failed to update profile',
-      });
+      console.error('Error saving profile changes:', error);
+      if (isMounted.current) {
+        Toast.show({
+          type: 'error',
+          text1: 'Update Error',
+          text2: 'Failed to update profile',
+        });
+      }
+    } finally {
+      if (isMounted.current) {
+        setIsSaving(false);
+      }
     }
   };
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
+      keyboardShouldPersistTaps="handled" // Improves mobile UX for interactive form submission
     >
       <PageHeader
         title="Edit Profile"
@@ -86,20 +137,30 @@ export const EditProfileScreen = () => {
           isChanged && (
             <TouchableOpacity
               onPress={handleSave}
-              style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
+              disabled={isSaving}
+              style={[
+                styles.saveBtn,
+                { backgroundColor: colors.btnColor },
+                isSaving && styles.disabledBtn,
+              ]}
             >
-              <Text
-                style={[styles.saveBtnText, { color: colors.btnTextColor }]}
-              >
-                Save
-              </Text>
+              {isSaving ? (
+                <ActivityIndicator size="small" color={colors.btnTextColor} />
+              ) : (
+                <Text
+                  style={[styles.saveBtnText, { color: colors.btnTextColor }]}
+                >
+                  Save
+                </Text>
+              )}
             </TouchableOpacity>
           )
         }
       />
+
       <InputGroup
         label="Headline"
-        defaultValue={formData.headline}
+        value={formData.headline} // Converted from defaultValue to controlled parameter
         type="text"
         placeholder="Enter your headline"
         placeholderTextColor={colors.inputTextHolder}
@@ -110,7 +171,7 @@ export const EditProfileScreen = () => {
         <>
           <InputGroup
             label="Company Name"
-            defaultValue={formData.organizationName}
+            value={formData.organizationName}
             isLocked={isVerified}
             onChangeText={text => handleInputChange('organizationName', text)}
             type="text"
@@ -119,7 +180,7 @@ export const EditProfileScreen = () => {
           />
           <InputGroup
             label="Website"
-            defaultValue={formData.website}
+            value={formData.website}
             isLocked={isVerified}
             onChangeText={text => handleInputChange('website', text)}
             type="text"
@@ -131,7 +192,7 @@ export const EditProfileScreen = () => {
         <>
           <InputGroup
             label="Username"
-            defaultValue={formData.username}
+            value={formData.username}
             isLocked={isVerified}
             onChangeText={text => handleInputChange('username', text)}
             type="text"
@@ -140,7 +201,7 @@ export const EditProfileScreen = () => {
           />
           <InputGroup
             label="First Name"
-            defaultValue={formData.firstname}
+            value={formData.firstname}
             isLocked={isVerified}
             onChangeText={text => handleInputChange('firstname', text)}
             type="text"
@@ -150,7 +211,7 @@ export const EditProfileScreen = () => {
           <InputGroup
             label="Last Name"
             isLocked={isVerified}
-            defaultValue={formData.lastname}
+            value={formData.lastname}
             type="text"
             placeholder="Enter your last name"
             placeholderTextColor={colors.inputTextHolder}
@@ -158,11 +219,12 @@ export const EditProfileScreen = () => {
           />
         </>
       )}
+
       {(isStudent || isTeacher) && (
         <InputGroup
           label="Department"
           isLocked={isVerified}
-          defaultValue={formData.department}
+          value={formData.department}
           type="text"
           placeholder="Enter your department"
           placeholderTextColor={colors.inputTextHolder}
@@ -172,7 +234,7 @@ export const EditProfileScreen = () => {
 
       <InputGroup
         label="Email"
-        defaultValue={formData.email}
+        value={formData.email}
         isLocked={isVerified}
         type="text"
         keyboardType="email-address"
@@ -198,5 +260,8 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  disabledBtn: {
+    opacity: 0.5,
   },
 });

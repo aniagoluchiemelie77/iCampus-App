@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, FlatList } from 'react-native';
 import { PageHeader } from '../components/PageHeader';
 import { FAQItem } from '../components/MyQRCodeSection';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
-const FAQ_DATA = [
+interface FAQItemType {
+  id: string | number;
+  question: string;
+  answer: string;
+}
+const FAQ_DATA: FAQItemType[] = [
   {
     id: 'iscore-1',
     question: 'What is the Unified iScore and how is it calculated?',
@@ -136,9 +141,13 @@ const FAQ_DATA = [
       'If an order gets cancelled, the cancellation reason will be immediately updated and displayed to the sellers and the buyer will be refunded.',
   },
 ];
-
 export const FAQScreen = () => {
   const { colors } = useTheme();
+  const renderFAQItem = useCallback(({ item }: { item: FAQItemType }) => {
+    return <FAQItem question={item.question} answer={item.answer} />;
+  }, []);
+  const keyExtractor = useCallback((item: FAQItemType) => String(item.id), []);
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -151,11 +160,13 @@ export const FAQScreen = () => {
 
       <FlatList
         data={FAQ_DATA}
-        keyExtractor={item => item.id}
+        keyExtractor={keyExtractor}
+        renderItem={renderFAQItem}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <FAQItem question={item.question} answer={item.answer} />
-        )}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
       />
     </SafeAreaView>
   );

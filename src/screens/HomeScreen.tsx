@@ -4,6 +4,7 @@ import React, {
   createContext,
   ReactNode,
   useContext,
+  useMemo,
 } from 'react';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '@components/UserSlice';
@@ -23,7 +24,7 @@ import { playNotificationSound } from '../services/notificationSound';
 import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
-import { Lecture } from 'types/firebase';
+import { Lecture } from '../types/firebase';
 import { RankingScreen } from '@components/RankingScreen';
 import { SearchScreen } from '@components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
@@ -79,6 +80,31 @@ export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
     </SocketContext.Provider>
   );
 };
+const TabBarItem = React.memo(
+  ({
+    label,
+    icon,
+    active,
+    onPress,
+  }: {
+    label: string;
+    icon: string;
+    active: boolean;
+    onPress: () => void;
+  }) => {
+    const { colors } = useTheme();
+    return (
+      <TouchableOpacity onPress={onPress} style={homeStyles.iconItem}>
+        <MaterialIcons
+          name={active ? icon : `${icon}-outlined`}
+          size={active ? 24 : 23}
+          color={active ? colors.primary : colors.textDarker}
+        />
+        {active && <Text style={homeStyles.activeIconLabel}>{label}</Text>}
+      </TouchableOpacity>
+    );
+  },
+);
 const HomeScreen = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
@@ -206,119 +232,42 @@ const HomeScreen = () => {
       }
     }
   };
+  const renderContent = useMemo(() => {
+    switch (activeIcon) {
+      case 'home':
+        return <Home />;
+      case 'classroom':
+        return (
+          <ClassroomScreenComponent
+            userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
+          />
+        );
+      case 'search':
+        return <SearchScreen />;
+      case 'store':
+        return <StoreScreen />;
+      case 'ranking':
+        return <RankingScreen />;
+      default:
+        return <Home />;
+    }
+  }, [activeIcon, rawRole]);
   return (
     <AppDataProvider user={user}>
       <View
         style={[homeStyles.container, { backgroundColor: colors.background }]}
       >
-        <View style={homeStyles.centerContent}>
-          {activeIcon === 'home' && <Home />}
+        <View style={homeStyles.centerContent}>{renderContent}</View>
 
-          {isClassroomAllowed && activeIcon === 'classroom' && (
-            <ClassroomScreenComponent
-              userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
-            />
-          )}
-          {activeIcon === 'search' && <SearchScreen />}
-          {activeIcon === 'store' && <StoreScreen />}
-          {activeIcon === 'ranking' && <RankingScreen />}
-        </View>
-
-        <View
-          style={[
-            homeStyles.iconBar,
-            {
-              backgroundColor: colors.backgroundSecondary,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={() => setActiveIcon('home')}
-            style={[homeStyles.iconItem]}
-          >
-            <MaterialIcons
-              name={activeIcon === 'home' ? 'home' : 'home-outlined'}
-              size={24}
-              color={activeIcon === 'home' ? colors.primary : colors.textDarker}
-            />
-            {activeIcon === 'home' && (
-              <Text style={homeStyles.activeIconLabel}>Home</Text>
-            )}
-          </TouchableOpacity>
-          {isClassroomAllowed && (
-            <TouchableOpacity
-              onPress={() => setActiveIcon('classroom')}
-              style={[homeStyles.iconItem]}
-            >
-              <MaterialIcons
-                name={activeIcon === 'classroom' ? 'groups' : 'groups-outlined'}
-                size={23}
-                color={
-                  activeIcon === 'classroom'
-                    ? colors.primary
-                    : colors.textDarker
-                }
-              />
-              {activeIcon === 'classroom' && (
-                <Text style={homeStyles.activeIconLabel}>Courses</Text>
-              )}
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={() => setActiveIcon('search')}
-            style={[homeStyles.iconItem]}
-          >
-            <MaterialIcons
-              name={activeIcon === 'search' ? 'search' : 'search-outlined'}
-              size={23}
-              color={
-                activeIcon === 'search' ? colors.primary : colors.textDarker
-              }
-            />
-            {activeIcon === 'search' && (
-              <Text style={homeStyles.activeIconLabel}>Search</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setActiveIcon('store')}
-            style={[homeStyles.iconItem]}
-          >
-            <MaterialIcons
-              name={
-                activeIcon === 'store'
-                  ? 'shopping-cart'
-                  : 'shopping-cart-outlined'
-              }
-              size={23}
-              color={
-                activeIcon === 'store' ? colors.primary : colors.textDarker
-              }
-            />
-            {activeIcon === 'store' && (
-              <Text style={homeStyles.activeIconLabel}>Store</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setActiveIcon('ranking')}
-            style={[homeStyles.iconItem]}
-          >
-            <MaterialIcons
-              name={
-                activeIcon === 'ranking'
-                  ? 'emoji-events'
-                  : 'emoji-events-outlined'
-              }
-              size={23}
-              color={
-                activeIcon === 'ranking' ? colors.primary : colors.textDarker
-              }
-            />
-            {activeIcon === 'ranking' && (
-              <Text style={homeStyles.activeIconLabel}>Ranking</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+       <View style={[homeStyles.iconBar, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
+        <TabBarItem label="Home" icon="home" active={activeIcon === 'home'} onPress={() => setActiveIcon('home')} />
+        {isClassroomAllowed && (
+          <TabBarItem label="Courses" icon="groups" active={activeIcon === 'classroom'} onPress={() => setActiveIcon('classroom')} />
+        )}
+        <TabBarItem label="Search" icon="search" active={activeIcon === 'search'} onPress={() => setActiveIcon('search')} />
+        <TabBarItem label="Store" icon="shopping-cart" active={activeIcon === 'store'} onPress={() => setActiveIcon('store')} />
+        <TabBarItem label="Ranking" icon="emoji-events" active={activeIcon === 'ranking'} onPress={() => setActiveIcon('ranking')} />
+      </View>
       </View>
       <OngoingLectureModal
         visible={!!ongoingLecture}

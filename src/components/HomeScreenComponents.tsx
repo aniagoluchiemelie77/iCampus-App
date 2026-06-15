@@ -29,7 +29,7 @@ import { fetchPostsAPI } from '../api/localGetApis.ts';
 import { UserAvatar } from './UserAvatar.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 import { useAppSelector } from '../components/hooks';
-import { useTheme } from 'context/ThemeContext.tsx';
+import { useTheme } from '../context/ThemeContext.tsx';
 
 interface Props {
   navigation: StackNavigationProp<any>;

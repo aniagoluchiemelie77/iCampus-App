@@ -386,11 +386,10 @@ export const CreateProductScreen = ({ route }: any) => {
   } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const productType: Product['type'] = nicheValue
-    ? nicheToTypeMap[nicheValue as Product['niche']]
-    : 'physical';
   const [formInputs, setFormInputs] =
     useState<CompleteFormInputs>(initialFormInputs);
+  const productType =
+    nicheToTypeMap[formInputs.niche as Product['niche']] || 'physical';
   const toggleStep = (step: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveStep(activeStep === step ? 0 : step);

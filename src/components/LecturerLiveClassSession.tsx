@@ -18,7 +18,7 @@ import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { mediaDevices, RTCPeerConnection, RTCView } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
-import { User, Lecture } from 'types/firebase';
+import { User, Lecture } from '../types/firebase';
 import { UserAvatar } from './UserAvatar';
 import { UserIdentity } from './UserIdentity';
 import { useLiveTranscription } from '../hooks/useLiveTransciption';
@@ -249,7 +249,7 @@ export const LecturerStreamControls = ({
             { color: themeColors.btnTextColor },
           ]}
         >
-          Toggle camera
+          {isCameraOff ? 'Cam off' : 'Cam on'}
         </Text>
       </TouchableOpacity>
       {isLive && (
@@ -271,7 +271,7 @@ export const LecturerStreamControls = ({
               { color: themeColors.btnTextColor },
             ]}
           >
-            (Mute All)
+            Mute All
           </Text>
         </TouchableOpacity>
       )}

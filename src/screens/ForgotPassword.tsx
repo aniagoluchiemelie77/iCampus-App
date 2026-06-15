@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Platform,
   TouchableOpacity,
@@ -17,12 +17,14 @@ import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import { isValidEmail } from '../utils/SignupHelpers';
+import { formatTime } from '../utils/durationFormatter';
 import {
   verifySignupEmailCode,
   handleForgotPassword,
 } from '../api/localPostApis';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import { lightPalette } from '../context/ThemeContext';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -31,32 +33,59 @@ type NavigationProp = StackNavigationProp<
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const isMounted = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Form Field Processing States
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [isVerifying, setVerifying] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(900);
+
+  // Modal Control Context States
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
-  const [code, setCode] = useState('');
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [isVerifying, setVerifying] = useState(false);
+
+  // Safeguard component lifecycle context teardowns
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleVerifyEmail = async () => {
     if (!email) {
       setAlertType('warning');
-      setAlertMessage('Please enter your Email');
+      setAlertMessage('Please enter your Email Address');
       setAlertVisible(true);
       return;
     }
+
+    // Block structurally invalid email paths before engaging the API network layer
+    if (typeof isValidEmail === 'function' && !isValidEmail(email)) {
+      setAlertType('warning');
+      setAlertMessage('Please enter a valid email format');
+      setAlertVisible(true);
+      return;
+    }
+
     setVerifying(true);
     try {
-      const response = await handleForgotPassword(email);
+      const response = await handleForgotPassword(email.trim().toLowerCase());
+
+      if (!isMounted.current) return;
+
       if (response.success) {
         setEmailVerified(true);
         setAlertType('success');
         setAlertMessage(
           response.message ||
-            'Check your Email, for a 6-digit verification code',
+            'Check your Email for a 6-digit verification code',
         );
       } else if (response.status === 404) {
         setAlertType('error');
@@ -68,33 +97,86 @@ export default function ForgotPasswordScreen() {
         );
       }
     } catch (error) {
-      setAlertType('error');
-      setAlertMessage('Network error. Please try again.');
+      if (isMounted.current) {
+        setAlertType('error');
+        setAlertMessage('Network error. Please try again.');
+      }
     } finally {
-      setVerifying(false);
-      setAlertVisible(true);
+      if (isMounted.current) {
+        setVerifying(false);
+        setAlertVisible(true);
+      }
     }
   };
 
   const handleVerifyCode = async () => {
+    if (code.length < 6) {
+      setAlertType('warning');
+      setAlertMessage('Please enter the complete 6-digit code');
+      setAlertVisible(true);
+      return;
+    }
+
     setVerifying(true);
-    const response = await verifySignupEmailCode(email, code);
-    if (response.verified) {
-      const verifiedEmail = response.email;
-      setVerifying(false);
-      setAlertType('success');
-      setAlertMessage('Code verified. You will be redirected to login Page.');
-      setAlertVisible(true);
-      setTimeout(() => {
-        navigation.navigate('ChangePasswordScreen', { email: verifiedEmail });
-      }, 3000);
-    } else {
-      setVerifying(false);
-      setAlertType('error');
-      setAlertMessage('Invalid or expired code.');
-      setAlertVisible(true);
+    // Capture fixed immutable snapshot string parameters right before entering the async boundary
+    const currentCodeSnapshot = code;
+    const currentEmailSnapshot = email.trim().toLowerCase();
+
+    try {
+      const response = await verifySignupEmailCode(
+        currentEmailSnapshot,
+        currentCodeSnapshot,
+      );
+
+      if (!isMounted.current) return;
+
+      if (response.verified) {
+        const verifiedEmail = response.email || currentEmailSnapshot;
+        setAlertType('success');
+        setAlertMessage(
+          'Code verified. You will be redirected to the change password page.',
+        );
+        setAlertVisible(true);
+
+        timeoutRef.current = setTimeout(() => {
+          if (isMounted.current) {
+            navigation.navigate('ChangePasswordScreen', {
+              email: verifiedEmail,
+            });
+          }
+        }, 3000);
+      } else {
+        setAlertType('error');
+        setAlertMessage('Invalid or expired code.');
+        setAlertVisible(true);
+      }
+    } catch (error) {
+      if (isMounted.current) {
+        setAlertType('error');
+        setAlertMessage('An unexpected verification error occurred.');
+        setAlertVisible(true);
+      }
+    } finally {
+      if (isMounted.current) {
+        setVerifying(false);
+      }
     }
   };
+  useEffect(() => {
+    if (!emailVerified) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [emailVerified]);
 
   return (
     <KeyboardAvoidingView
@@ -104,10 +186,12 @@ export default function ForgotPasswordScreen() {
       <IconBackground />
       <View style={StudentSignupStyles.container}>
         <Text style={StudentSignupStyles.mainHeader}>Forgot Password</Text>
-        {!emailVerified && (
+
+        {!emailVerified ? (
           <Animated.View
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
+            key="email-stage-view"
           >
             <Text style={StudentSignupStyles.inputHeaderLogin}>
               Enter your Email:
@@ -118,9 +202,15 @@ export default function ForgotPasswordScreen() {
               placeholderTextColor={PRIMARY_COLOR_TINT}
               value={email}
               onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isVerifying}
             />
             <Text style={SignupScreenStyles.validationText}>
-              {!isValidEmail(email) && email.length > 0
+              {email.length > 0 &&
+              typeof isValidEmail === 'function' &&
+              !isValidEmail(email)
                 ? 'Invalid email format'
                 : ''}
             </Text>
@@ -133,13 +223,16 @@ export default function ForgotPasswordScreen() {
               disabled={isVerifying}
             >
               <Text style={SignupScreenStyles.selectorHeader}>
-                {isVerifying ? 'Verifying...' : 'Verify'}
+                {isVerifying ? 'Sending...' : 'Verify Email'}
               </Text>
             </TouchableOpacity>
           </Animated.View>
-        )}
-        {emailVerified && (
-          <>
+        ) : (
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+            key="code-stage-view"
+          >
             <Text style={StudentSignupStyles.inputHeaderLogin}>
               Enter the 6-digit verification code sent to your email:
             </Text>
@@ -151,7 +244,21 @@ export default function ForgotPasswordScreen() {
               onChangeText={setCode}
               keyboardType="numeric"
               maxLength={6}
+              editable={!isVerifying}
             />
+            <Text
+              style={[
+                SignupScreenStyles.validationText,
+                {
+                  color:
+                    timeLeft === 0 ? lightPalette.primary : lightPalette.text,
+                },
+              ]}
+            >
+              {timeLeft > 0
+                ? `Expires in: ${formatTime(timeLeft)}`
+                : 'Code expired. Please request a new one.'}
+            </Text>
             <TouchableOpacity
               style={[
                 SignupScreenStyles.toggleBtns,
@@ -161,12 +268,17 @@ export default function ForgotPasswordScreen() {
               disabled={isVerifying}
             >
               <Text style={SignupScreenStyles.selectorHeader}>
-                {isVerifying ? 'Verifying...' : 'Verify'}
+                {timeLeft === 0
+                  ? 'Expired'
+                  : isVerifying
+                  ? 'Verifying...'
+                  : 'Submit Code'}
               </Text>
             </TouchableOpacity>
-          </>
+          </Animated.View>
         )}
       </View>
+
       <SweetAlertModal
         visible={alertVisible}
         onConfirm={() => setAlertVisible(false)}

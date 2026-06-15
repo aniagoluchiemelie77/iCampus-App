@@ -430,20 +430,19 @@ export const StudentSignupStyles = StyleSheet.create({
   },
   socialButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignContent: 'center',
     paddingVertical: 12,
-    borderWidth: 0.7,
-    borderColor: '#f89b74',
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR,
     borderRadius: 8,
-    backgroundColor: '#FFF',
-    marginBottom: 10,
-    minWidth: '90%',
+    marginBottom: 15,
+    width: '80%',
+    alignSelf: 'center'
   },
   socialButtonText: {
-    marginLeft: 10,
+    marginLeft: 5,
     fontSize: 14,
-    color: '#444',
+    color: PRIMARY_COLOR,
     fontWeight: '500',
   },
 });
@@ -1366,15 +1365,16 @@ export const SignupScreenStyles = StyleSheet.create({
     paddingHorizontal: 15,
     width: '100%',
     borderColor: PRIMARY_COLOR_TINT,
-    color: '#222',
+    color: '#333',
     borderRadius: 5,
     marginBottom: 15,
     fontSize: 14,
   },
   input2: {
     padding: 10,
-    minWidth: '85%',
-    color: '#222',
+    color: '#333',
+    flex: 1,
+    fontSize: 14
   },
   validationText: {
     fontSize: 11,
@@ -1402,6 +1402,13 @@ export const SignupScreenStyles = StyleSheet.create({
     alignContent: 'center',
     width: '80%',
     backgroundColor: PRIMARY_COLOR,
+    alignSelf: 'center',
+    marginBottom: 20
+  },
+  toggleBtnsText:{
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff'
   },
   selector: {
     padding: 15,

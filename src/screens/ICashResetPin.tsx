@@ -1,8 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+} from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { resetICashPin } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
@@ -18,43 +25,62 @@ export const ICashResetPin = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
+  // Focus management is clean; keep it stable with dependency tracking
   useEffect(() => {
     inputRef.current?.focus();
   }, [step]);
 
-  const handleTextChange = async (text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
+  const submitReset = useCallback(
+    async (finalPin: string) => {
+      setLoading(true);
+      try {
+        const response = await resetICashPin(otp, finalPin);
+        if (response.success) {
+          navigation.replace('ICashDashboard', { refresh: true });
+        } else {
+          Toast.show({
+            type: 'error',
+            text1: 'Failed',
+            text2: response.message,
+          });
+          // Reset flow on failure
+          setOtp('');
+          setNewPin('');
+          setStep('otp');
+        }
+      } catch (err) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Connection failed',
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [otp, navigation],
+  );
 
-    if (step === 'otp') {
-      setOtp(cleaned);
-      if (cleaned.length === 6) {
-        setStep('pin');
-      }
-    } else {
-      setNewPin(cleaned);
-      if (cleaned.length === 6) {
-        submitReset(cleaned);
-      }
-    }
-  };
-  const submitReset = async (finalPin: string) => {
-    setLoading(true);
-    try {
-      const response = await resetICashPin(otp, finalPin);
-      if (response.success) {
-        navigation.replace('ICashDashboard', { refresh: true });
+  const handleTextChange = useCallback(
+    (text: string) => {
+      if (loading) return; // Prevent input during network transit
+
+      const cleaned = text.replace(/[^0-9]/g, '');
+
+      if (step === 'otp') {
+        setOtp(cleaned);
+        if (cleaned.length === 6) {
+          setStep('pin');
+        }
       } else {
-        Toast.show({ type: 'error', text1: 'Failed', text2: response.message });
-        setOtp('');
-        setNewPin('');
-        setStep('otp');
+        setNewPin(cleaned);
+        if (cleaned.length === 6) {
+          submitReset(cleaned);
+        }
       }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Connection failed' });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [step, loading, submitReset],
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -72,23 +98,20 @@ export const ICashResetPin = ({ navigation }: Props) => {
         <Text style={[styles.title, { color: colors.textDarker }]}>
           {step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}
         </Text>
-        <Text style={[styles.subtitle, { color: colors.text }]}>
-          {step === 'otp'
-            ? 'Enter the 6-digit code sent to your email.'
-            : 'Create a new iCash security PIN'}
-        </Text>
+
         <TextInput
           ref={inputRef}
           value={step === 'otp' ? otp : newPin}
           onChangeText={handleTextChange}
           maxLength={6}
           keyboardType="number-pad"
-          style={[styles.hiddenInput, { fontSize: 14, color: colors.primary }]}
+          editable={!loading} // Disable during processing
+          style={styles.hiddenInput}
         />
 
         <Pressable
           style={styles.pinRow}
-          onPress={() => inputRef.current?.focus()}
+          onPress={() => !loading && inputRef.current?.focus()}
         >
           {[...Array(6)].map((_, i) => (
             <View
@@ -102,6 +125,7 @@ export const ICashResetPin = ({ navigation }: Props) => {
           ))}
         </Pressable>
       </View>
+
       {loading && (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
       )}

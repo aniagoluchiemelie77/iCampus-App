@@ -3,10 +3,7 @@ import { View, Text, StyleSheet, Animated, TouchableOpacity, AppState, AppStateS
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { RootStackParamList } from '../../App';
 import Toast from 'react-native-toast-message';
 import {
@@ -19,7 +16,9 @@ import { useTheme } from '../context/ThemeContext';
 
 type Props = StackScreenProps<RootStackParamList, 'iCashSecurity'>;
 const rnBiometrics = new ReactNativeBiometrics();
-
+const PinDot = React.memo(({ active }: { active: boolean }) => (
+  <View style={[styles.dot, active ? styles.dotActive : null]} />
+));
 export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const [pin, setPin] = useState('');
@@ -30,19 +29,35 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
   const isRegistration = route.params?.isRegistration;
+  const [isProcessing, setIsProcessing] = useState(false);
   const appState = useRef(AppState.currentState);
-
-  const handleTextChange = (text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    setPin(cleaned);
-    if (cleaned.length === 6) {
-      if (isRegistration) {
-        handleRegistrationFlow(cleaned);
-      } else {
-        verifyPin(cleaned);
-      }
-    }
-  };
+  const triggerShake = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: -10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 0,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [shakeAnimation]);
+  const handleSuspension = useCallback(() => {
+    navigation.navigate('SuspendedScreen', { reason: 'Too many PIN attempts' });
+  }, [navigation]);
   const handleRequestReset = async () => {
     try {
       const response = await requestPinReset();
@@ -78,37 +93,86 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       console.log('Biometrics not supported or not enrolled');
     }
   }, [navigation]);
-  const handleRegistrationFlow = (finalPin: string) => {
-    if (!isConfirming) {
-      setConfirmPin(finalPin);
-      setPin('');
-      setIsConfirming(true);
-    } else {
-      if (finalPin === confirmPin) {
-        registerNewPin(finalPin);
-      } else {
-        triggerShake();
-        setPin('');
+  const verifyPin = useCallback(
+    async (finalPin: string) => {
+      try {
+        const response = await verifyICashPin(finalPin);
+        if (response.success) {
+          navigation.replace('ICashDashboard', { refresh: true });
+        } else {
+          triggerShake();
+          setShowResetPin(true);
+          setPin('');
+          if (response.attemptsRemaining !== undefined) {
+            setAttempts(ICASH_PIN_MAX_ATTEMPTS - response.attemptsRemaining);
+          }
+          Toast.show({
+            type: 'error',
+            text1: 'Security',
+            text2: response.message,
+          });
+          if (response.isSuspended) handleSuspension();
+        }
+      } catch (err) {
         Toast.show({
           type: 'error',
-          text1: 'Mismatch',
-          text2: 'PINs do not match. Try again.',
+          text1: 'Error',
+          text2: 'Connection failed',
         });
-        setIsConfirming(false);
-        setConfirmPin('');
       }
-    }
-  };
-  const registerNewPin = async (finalPin: string) => {
-    try {
-      const response = await setupICashPin(finalPin);
-      if (response.success) {
-        navigation.replace('ICashDashboard', { refresh: true });
+    },
+    [navigation, triggerShake, handleSuspension],
+  ); // Only include stable functions
+  const registerNewPin = useCallback(
+    async (finalPin: string) => {
+      try {
+        const response = await setupICashPin(finalPin);
+        if (response.success) {
+          navigation.replace('ICashDashboard', { refresh: true });
+        } else {
+          Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: response.message || 'Failed to set PIN',
+          });
+        }
+      } catch (err) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Failed to set PIN',
+        });
       }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to set PIN' });
-    }
-  };
+    },
+    [navigation],
+  );
+
+  // 2. Memoize handleRegistrationFlow
+  const handleRegistrationFlow = useCallback(
+    (finalPin: string) => {
+      if (!isConfirming) {
+        setConfirmPin(finalPin);
+        setPin('');
+        setIsConfirming(true);
+      } else {
+        if (finalPin === confirmPin) {
+          registerNewPin(finalPin);
+        } else {
+          triggerShake();
+          setPin('');
+          Toast.show({
+            type: 'error',
+            text1: 'Mismatch',
+            text2: 'PINs do not match.',
+          });
+          setIsConfirming(false);
+          setConfirmPin('');
+        }
+      }
+    },
+    [isConfirming, confirmPin, triggerShake, registerNewPin],
+  );
+
   const getHeaderTitle = () => {
     if (!isRegistration) return 'iCash Security PIN';
     return isConfirming
@@ -124,58 +188,26 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       ? `${5 - attempts} attempts remaining`
       : 'Enter 6-Digit iCash Security PIN';
   };
-  const triggerShake = () => {
-    Animated.sequence([
-      Animated.timing(shakeAnimation, {
-        toValue: 10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnimation, {
-        toValue: -10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnimation, {
-        toValue: 10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnimation, {
-        toValue: 0,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-  const handleSuspension = () => {
-    navigation.navigate('SuspendedScreen', { reason: 'Too many PIN attempts' });
-  };
-  const verifyPin = async (finalPin: string) => {
-    try {
-      const response = await verifyICashPin(finalPin);
-      if (response.success) {
-        navigation.replace('ICashDashboard', { refresh: true });
-      } else {
-        triggerShake();
-        setShowResetPin(true);
-        setPin('');
-        if (response.attemptsRemaining !== undefined) {
-          setAttempts(ICASH_PIN_MAX_ATTEMPTS - response.attemptsRemaining);
+
+  const handleTextChange = useCallback(
+    async (text: string) => {
+      if (isProcessing) return; // Guard clause against rapid tapping
+
+      const cleaned = text.replace(/[^0-9]/g, '');
+      setPin(cleaned);
+
+      if (cleaned.length === 6) {
+        setIsProcessing(true); // Lock input
+        if (isRegistration) {
+          handleRegistrationFlow(cleaned);
+        } else {
+          await verifyPin(cleaned);
         }
-        Toast.show({
-          type: 'error',
-          text1: 'Security',
-          text2: response.message,
-        });
-        if (response.isSuspended) {
-          handleSuspension();
-        }
+        setIsProcessing(false);
       }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Connection failed' });
-    }
-  };
+    },
+    [isProcessing, isRegistration, handleRegistrationFlow, verifyPin],
+  );
   useEffect(() => {
     if (!isRegistration) {
       handleBiometricAuth();
@@ -194,11 +226,16 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
         appState.current = nextAppState;
       },
     );
-
     return () => subscription.remove();
   }, []);
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 500);
+  }, []);
+  useEffect(() => {
+    return () => {
+      setPin('');
+      setConfirmPin('');
+    };
   }, []);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -246,10 +283,7 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
             ]}
           >
             {[...Array(6)].map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, pin.length === i && styles.dotActive]}
-              />
+              <PinDot key={i} active={pin.length === i} />
             ))}
           </Animated.View>
         </Pressable>

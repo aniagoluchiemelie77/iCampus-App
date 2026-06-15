@@ -1,27 +1,61 @@
-import React from 'react';
-import { FlatList, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useMemo, useCallback } from 'react';
+import {
+  FlatList,
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {EmptyState} from '../components/EmptyFlatlistComponent';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../components/hooks';
-import {PageHeader} from '../components/PageHeader';
+import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../components/EventContext';
-import {FavItem} from '../components/FavItem';
+import { FavItem } from '../components/FavItem';
 import { useTheme } from '../context/ThemeContext';
+import { User, Product } from '../types/firebase';
 
 export const FavoritesScreen = () => {
   const { colors } = useTheme();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector((state: { user: User }) => state.user);
   const {
     allProducts,
     handleToggleFavorite,
     handleAddAllFavoritesToCart,
     handleDeleteAllFavorites,
   } = useAppDataContext();
+  const favoriteItems = useMemo(() => {
+    if (!allProducts || !currentUser?.favorites) return [];
+    const favoriteSet = new Set(currentUser.favorites);
+    return allProducts.filter(product => favoriteSet.has(product.productId));
+  }, [allProducts, currentUser?.favorites]);
 
-  const favoriteItems =
-    allProducts?.filter(product =>
-      currentUser?.favorites?.includes(product.productId),
-    ) ?? [];
+  const handleConfirmClearAll = () => {
+    Alert.alert(
+      'Clear Favorites',
+      'Are you sure you want to remove all items from your favorites?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: handleDeleteAllFavorites,
+        },
+      ],
+    );
+  };
+  const renderFavItem = useCallback(
+    ({ item }: { item: Product }) => {
+      return (
+        <FavItem
+          product={item}
+          onRemove={() => handleToggleFavorite(item.productId)}
+        />
+      );
+    },
+    [handleToggleFavorite],
+  );
 
   return (
     <SafeAreaView
@@ -32,44 +66,56 @@ export const FavoritesScreen = () => {
         subtitle={`${favoriteItems.length} items saved`}
         showBackButton={true}
         rightElement={
-          <TouchableOpacity
-            onPress={handleDeleteAllFavorites}
-            style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
-          >
-            <Text
-              style={[styles.headerBtnText, { color: colors.btnTextColor }]}
+          favoriteItems.length > 0 ? (
+            <TouchableOpacity
+              onPress={handleConfirmClearAll}
+              style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
+              activeOpacity={0.8}
             >
-              Clear Favorites
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[styles.headerBtnText, { color: colors.btnTextColor }]}
+              >
+                Clear Favorites
+              </Text>
+            </TouchableOpacity>
+          ) : undefined // Safely hide clear button when list is already empty
         }
       />
 
       <FlatList
         data={favoriteItems}
         keyExtractor={item => item.productId}
+        renderItem={renderFavItem}
         numColumns={2}
-        renderItem={({ item }) => (
-          <FavItem
-            product={item}
-            onRemove={() => handleToggleFavorite(item.productId)}
-          />
-        )}
+        // Changing the key forces a safe recreation when columns structure changes internally
+        key="two-column-favorites-list"
+        contentContainerStyle={[
+          styles.listContent,
+          favoriteItems.length === 0 && { flex: 1 }, // Centering empty state cleanly
+        ]}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         ListEmptyComponent={
           <EmptyState
             iconName="favorite-border"
             title="No favorites yet"
             subtitle="Tap the heart icon on any product to save it for later."
-            style={{ marginTop: 80 }}
           />
         }
-        contentContainerStyle={styles.listContent}
       />
+
       {favoriteItems.length > 0 && (
-        <View style={styles.footer}>
+        <View
+          style={[
+            styles.footer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <TouchableOpacity
             style={[styles.checkoutBtn, { backgroundColor: colors.btnColor }]}
             onPress={handleAddAllFavoritesToCart}
+            activeOpacity={0.8}
           >
             <Text style={[styles.checkoutText, { color: colors.btnTextColor }]}>
               Add all to cart
