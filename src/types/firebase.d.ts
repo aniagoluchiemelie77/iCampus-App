@@ -432,7 +432,7 @@ export interface Posts {
     organizationName?: string;
     tier?: UserTier
   };
-  content?: string;
+  content: string;
   media?: {
     mediaType: string | null;
     url: string;

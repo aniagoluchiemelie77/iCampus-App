@@ -20,6 +20,7 @@ import {
 } from 'react-native-image-picker';
 import { UserAvatar } from '../components/UserAvatar';
 import { UserIdentity } from '../components/UserIdentity';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Video from 'react-native-video';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
@@ -27,41 +28,44 @@ import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
+import { RootStackParamList } from '../../App';
 interface MediaItem {
   uri: string;
   type: 'image' | 'video';
   isExisting?: boolean;
 }
-
-const CreatePost = ({ route, navigation }: any) => {
+type Props = NativeStackScreenProps<RootStackParamList, 'CreatePost'>;
+const CreatePost = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const editPostData = route.params?.post;
   const isEditMode = !!editPostData;
+
   const type = editPostData
     ? editPostData.poll
       ? 'poll'
       : 'post'
     : route.params?.type || 'post';
+
   const [content, setContent] = useState(
     editPostData ? editPostData.content : '',
   );
   const [pollOptions, setPollOptions] = useState<string[]>(
-    editPostData?.poll
-      ? editPostData.poll.options.map((o: any) => o.text)
-      : ['', ''],
+    editPostData?.poll ? editPostData.poll.options.map(o => o.text) : ['', ''],
   );
   const [mediaList, setMediaList] = useState<MediaItem[]>(
     editPostData?.media?.url
       ? editPostData.media.url.map((url: string) => ({
           uri: url,
-          type: editPostData.media.mediaType,
+          type: editPostData.media?.mediaType || 'image',
           isExisting: true,
         }))
       : [],
   );
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
   const currentUser = useAppSelector(state => state.user);
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
@@ -71,29 +75,34 @@ const CreatePost = ({ route, navigation }: any) => {
 
   useEffect(() => {
     const loadTaggingContext = async () => {
-      const result = await fetchUserConnections();
-      setFollowingUsers(result.data);
+      try {
+        const result = await fetchUserConnections();
+        setFollowingUsers(result.data || []);
+      } catch (err) {
+        console.error('Failed to load user connections for tagging', err);
+      }
     };
     loadTaggingContext();
   }, []);
 
   const handleContentChange = (text: string) => {
     setContent(text);
-    const lastAtPos = text.lastIndexOf('@');
-    if (
-      lastAtPos !== -1 &&
-      (lastAtPos === 0 || text.charAt(lastAtPos - 1) === ' ')
-    ) {
-      const keyword = text.slice(lastAtPos + 1);
-      if (keyword.includes(' ')) {
-        setMentionSearchKeyword(null);
-        setFilteredUsers([]);
+
+    // FIX: Look at the current text slice up to the current word boundary instead of absolute last string character
+    const words = text.split(/\s/);
+    const currentWord = words[words.length - 1];
+
+    if (currentWord && currentWord.startsWith('@')) {
+      const keyword = currentWord.slice(1);
+      setMentionSearchKeyword(keyword);
+
+      if (keyword.length === 0) {
+        setFilteredUsers(followingUsers);
       } else {
-        setMentionSearchKeyword(keyword);
         const matches = followingUsers.filter(
           user =>
-            user.username.toLowerCase().includes(keyword.toLowerCase()) ||
-            user.displayName.toLowerCase().includes(keyword.toLowerCase()),
+            user.username?.toLowerCase().includes(keyword.toLowerCase()) ||
+            user.displayName?.toLowerCase().includes(keyword.toLowerCase()),
         );
         setFilteredUsers(matches);
       }
@@ -102,19 +111,25 @@ const CreatePost = ({ route, navigation }: any) => {
       setFilteredUsers([]);
     }
   };
+
   const handleSelectUserToTag = (username: string) => {
-    if (mentionSearchKeyword !== null) {
-      const lastAtPos = content.lastIndexOf('@');
-      const baseContent = content.slice(0, lastAtPos);
-      setContent(`${baseContent}@${username} `);
-    }
+    const words = content.split(/\s/);
+    words.pop(); // Remove the incomplete '@username' fragment
+    const baseContent = words.join(' ');
+
+    // Append the autocomplete string neatly structured
+    const newContent = baseContent
+      ? `${baseContent} @${username} `
+      : `@${username} `;
+    setContent(newContent);
+
     setMentionSearchKeyword(null);
     setFilteredUsers([]);
   };
 
   const removeOption = (index: number) => {
-    const newOpts = pollOptions.filter((_, i) => i !== index);
-    setPollOptions(newOpts);
+    if (pollOptions.length <= 2) return; // Safeguard poll baseline constraints
+    setPollOptions(prev => prev.filter((_, i) => i !== index));
   };
 
   const pickMedia = async () => {
@@ -127,9 +142,7 @@ const CreatePost = ({ route, navigation }: any) => {
     if (result.assets) {
       const newAssets: MediaItem[] = result.assets.map(asset => ({
         uri: asset.uri || '',
-        type: (asset.type?.includes('video') ? 'video' : 'image') as
-          | 'image'
-          | 'video',
+        type: asset.type?.includes('video') ? 'video' : 'image',
         isExisting: false,
       }));
       setMediaList(prev => [...prev, ...newAssets].slice(0, 4));
@@ -137,7 +150,8 @@ const CreatePost = ({ route, navigation }: any) => {
   };
 
   const handleCreateOrUpdatePost = async () => {
-    if (!content && mediaList.length === 0) return;
+    if (!content.trim() && mediaList.length === 0 && type !== 'poll') return;
+
     setIsUploading(true);
     setUploadProgress(0);
     let finalMediaUrls: string[] = [];
@@ -151,8 +165,10 @@ const CreatePost = ({ route, navigation }: any) => {
 
       for (let i = 0; i < newMediaToUpload.length; i++) {
         const item = newMediaToUpload[i];
+        // Distribute steps evenly per file chunk completed
         const currentProgress = Math.round((i / newMediaToUpload.length) * 100);
         setUploadProgress(currentProgress);
+
         const downloadUrl = await uploadToFirebase(
           item.uri,
           `posts/${currentUser.uid}`,
@@ -195,6 +211,7 @@ const CreatePost = ({ route, navigation }: any) => {
           ? editPostData.createdAt
           : new Date().toISOString(),
       };
+
       await submitOrUpdatePostService(
         postData,
         isEditMode,
@@ -223,7 +240,13 @@ const CreatePost = ({ route, navigation }: any) => {
       setIsUploading(false);
     }
   };
-  const canPost = content.trim().length > 0;
+
+  // FIX: Allow post interactions to succeed if media layers exist independently of string parameters
+  const hasValidTextOrMedia = content.trim().length > 0 || mediaList.length > 0;
+  const hasValidPoll =
+    type === 'poll' &&
+    pollOptions.filter(opt => opt.trim().length > 0).length >= 2;
+  const canPost = type === 'poll' ? hasValidPoll : hasValidTextOrMedia;
 
   return (
     <SafeAreaView
@@ -259,6 +282,7 @@ const CreatePost = ({ route, navigation }: any) => {
             </TouchableOpacity>
           }
         />
+
         <TextInput
           placeholder={
             type === 'poll' ? 'Ask a question...' : "What's happening?"
@@ -270,6 +294,7 @@ const CreatePost = ({ route, navigation }: any) => {
           onChangeText={handleContentChange}
           placeholderTextColor={colors.inputTextHolder}
         />
+
         {type === 'poll' && (
           <View style={styles.pollWrapper}>
             <Text style={[styles.pollLabel, { color: colors.text }]}>
@@ -305,13 +330,13 @@ const CreatePost = ({ route, navigation }: any) => {
                 onPress={() => setPollOptions([...pollOptions, ''])}
               >
                 <Text style={[styles.addOptionText, { color: colors.primary }]}>
-                  {' '}
                   Add another option
                 </Text>
               </TouchableOpacity>
             )}
           </View>
         )}
+
         {mediaList.length > 0 && (
           <View style={styles.mediaContainer}>
             {mediaList.map((item, index) => (
@@ -325,8 +350,8 @@ const CreatePost = ({ route, navigation }: any) => {
                   <Video
                     source={{ uri: item.uri }}
                     style={styles.mediaPreview}
-                    muted={true}
-                    repeat={true}
+                    muted
+                    repeat
                     resizeMode="cover"
                     paused={false}
                     controls={false}
@@ -352,6 +377,7 @@ const CreatePost = ({ route, navigation }: any) => {
             ))}
           </View>
         )}
+
         {mentionSearchKeyword !== null && filteredUsers.length > 0 && (
           <View
             style={[
@@ -391,6 +417,7 @@ const CreatePost = ({ route, navigation }: any) => {
             />
           </View>
         )}
+
         <TouchableOpacity
           onPress={pickMedia}
           style={[
@@ -408,6 +435,7 @@ const CreatePost = ({ route, navigation }: any) => {
             Photo/Video
           </Text>
         </TouchableOpacity>
+
         {isUploading && (
           <View style={styles.bottomToastContainer}>
             <View style={styles.toastHeader}>
