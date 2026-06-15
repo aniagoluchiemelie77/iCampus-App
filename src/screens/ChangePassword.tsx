@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Platform,
   TouchableOpacity,
@@ -6,38 +6,35 @@ import {
   Text,
   TextInput,
   KeyboardAvoidingView,
+  StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
-import {
-  SignupScreenStyles,
-  StudentSignupStyles,
-} from '../assets/styles/colors';
-import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import type { RootStackParamList } from '../../App';
 import { changePassword } from '../api/localPostApis';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import { isValidPassword } from '../utils/SignupHelpers';
-import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useTheme } from '../context/ThemeContext';
 
-type NavigationProp = StackNavigationProp<
-  RootStackParamList,
-  'ChangePasswordScreen'
->;
 type ChangePasswordParams = {
   email: string;
 };
 
 export default function ChangePasswordScreen() {
+  const { colors } = useTheme();
   const route =
     useRoute<RouteProp<{ params: ChangePasswordParams }, 'params'>>();
-  const { email } = route.params;
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation<any>();
+  const email = route.params?.email || '';
+
+  // Core Inputs State Matrix
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Alert Component Layer State Tracking
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
     'success',
@@ -45,118 +42,194 @@ export default function ChangePasswordScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [isVerifying, setVerifying] = useState(false);
 
+  // Structural Ref to track asynchronous unmount events
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // CLEANUP LEAK LAYER: Prevent background execution errors on unmounted components
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleChangePassword = async () => {
-    if (!password && !confirmPassword) {
+    // Basic structural guards
+    if (!password.trim() || !confirmPassword.trim()) {
       setAlertType('warning');
-      setAlertMessage('Please fill in all fields');
+      setAlertMessage('Please fill in all security parameter fields.');
       setAlertVisible(true);
       return;
     }
-    setVerifying(true);
-    const response = await changePassword(email, password, confirmPassword);
-    if (response.success) {
-      setVerifying(false);
-      setAlertType('success');
-      setAlertMessage('Code verified. You will be redirected to login Page.');
+
+    if (!isValidPassword(password)) {
+      setAlertType('warning');
+      setAlertMessage(
+        'Password parameters fail to fulfill global security constraints.',
+      );
       setAlertVisible(true);
-      setTimeout(() => {
-        navigation.navigate('Login');
-      }, 3000);
-    } else {
-      setVerifying(false);
+      return;
+    }
+
+    try {
+      setVerifying(true); // Establish request synchronization thread lock
+
+      const response = await changePassword(email, password, confirmPassword);
+
+      if (response && response.success) {
+        setAlertType('success');
+        setAlertMessage(
+          'Password updated successfully. Redirecting to login context...',
+        );
+        setAlertVisible(true);
+
+        // Assign timeout path to explicit reference pointer for clean tracking
+        timeoutRef.current = setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }], // Hard clear history stack to prevent back-navigation exploits
+          });
+        }, 2500);
+      } else {
+        throw new Error(
+          response?.message || 'Upstream identity validation rejected update.',
+        );
+      }
+    } catch (err: any) {
+      console.error('[PASSWORD_RESET_CRITICAL_FAILURE]', err);
       setAlertType('error');
-      setAlertMessage('Password reset attempt unsuccessful.');
+      setAlertMessage(
+        err.message || 'Password reset attempt unsuccessful. Try again.',
+      );
       setAlertVisible(true);
+    } finally {
+      setVerifying(false); // Drop thread execution block
     }
   };
 
+  // Pre-calculate verification status strings to keep layout clean
+  const isFormValid =
+    isValidPassword(password) && confirmPassword === password && !isVerifying;
+
   return (
     <KeyboardAvoidingView
-      style={SignupScreenStyles.bkg}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <IconBackground />
-      <View style={StudentSignupStyles.container}>
-        <Text style={StudentSignupStyles.mainHeader}>Forgot Password</Text>
-        <Text style={StudentSignupStyles.inputHeaderLogin}>
+
+      <View style={styles.cardContainer}>
+        <Text style={[styles.mainHeader, { color: colors.text }]}>
+          Forgot Password
+        </Text>
+
+        {/* Field One: Primary Password Input */}
+        <Text style={[styles.inputLabel, { color: colors.text }]}>
           Enter your New Password:
         </Text>
-        <View style={StudentSignupStyles.passwordInput}>
-          <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
-            <MaterialIcons
-              name={
-                showPassword ? 'visibility-off-outlined' : 'visibility-outlined'
-              }
-              size={20}
-              color={PRIMARY_COLOR_TINT}
-              style={{ marginHorizontal: 5 }}
-            />
-          </TouchableOpacity>
+        <View
+          style={[
+            styles.inputWrapper,
+            { backgroundColor: colors.backgroundSecondary || '#F5F5F5' },
+          ]}
+        >
           <TextInput
             placeholder="Enter your password..."
-            placeholderTextColor={PRIMARY_COLOR_TINT}
-            style={StudentSignupStyles.input2}
+            placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
+            style={[styles.textInput, { color: colors.text }]}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
+            autoCapitalize="none" // SECURITY CRITICAL FIX
+            autoCorrect={false}
+            textContentType="newPassword" // SECURITY CRITICAL FIX
+            editable={!isVerifying}
           />
-        </View>
-        {!isValidPassword(password) && password.length > 0 && (
-          <Text style={SignupScreenStyles.validationText}>
-            Password must be at least 13 characters and include uppercase,
-            lowercase, number, and symbol.
-          </Text>
-        )}
-        <Text style={StudentSignupStyles.inputHeaderLogin}>
-          Confirm your New Password:
-        </Text>
-        <View style={StudentSignupStyles.passwordInput}>
           <TouchableOpacity
-            onPress={() => setShowConfirmPassword(prev => !prev)}
+            onPress={() => setShowPassword(prev => !prev)}
+            accessibilityLabel="Toggle password visibility"
+            activeOpacity={0.6}
           >
             <MaterialIcons
-              name={
-                showConfirmPassword
-                  ? 'visibility-off-outlined'
-                  : 'visibility-outlined'
-              }
-              size={20}
-              color={PRIMARY_COLOR_TINT}
-              style={{ marginHorizontal: 5 }}
+              name={showPassword ? 'visibility' : 'visibility-off'}
+              size={22}
+              color={colors.primary}
+              style={styles.iconPadding}
             />
           </TouchableOpacity>
+        </View>
+
+        {password.length > 0 && !isValidPassword(password) && (
+          <Text style={styles.validationText}>
+            Password must be at least 13 characters and include uppercase,
+            lowercase, a number, and a symbol.
+          </Text>
+        )}
+
+        {/* Field Two: Password Confirmation Match Input */}
+        <Text style={[styles.inputLabel, { color: colors.text }]}>
+          Confirm your New Password:
+        </Text>
+        <View
+          style={[
+            styles.inputWrapper,
+            { backgroundColor: colors.backgroundSecondary || '#F5F5F5' },
+          ]}
+        >
           <TextInput
             placeholder="Confirm your new password..."
-            placeholderTextColor={PRIMARY_COLOR_TINT}
-            style={StudentSignupStyles.input2}
+            placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
+            style={[styles.textInput, { color: colors.text }]}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry={!showConfirmPassword}
+            autoCapitalize="none" // SECURITY CRITICAL FIX
+            autoCorrect={false}
+            textContentType="newPassword" // SECURITY CRITICAL FIX
+            editable={!isVerifying}
           />
+          <TouchableOpacity
+            onPress={() => setShowConfirmPassword(prev => !prev)}
+            accessibilityLabel="Toggle confirmation visibility"
+            activeOpacity={0.6}
+          >
+            <MaterialIcons
+              name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+              size={22}
+              color={colors.primary}
+              style={styles.iconPadding}
+            />
+          </TouchableOpacity>
         </View>
+
         {confirmPassword.length > 0 && confirmPassword !== password && (
-          <Text style={SignupScreenStyles.validationText}>
-            Passwords do not match.
-          </Text>
+          <Text style={styles.validationText}>Passwords do not match.</Text>
         )}
+
+        {/* Action Dispatcher Trigger */}
         <TouchableOpacity
           style={[
-            SignupScreenStyles.toggleBtns,
-            (!isValidPassword(password) || confirmPassword !== password) &&
-              SignupScreenStyles.disabledBtn,
+            styles.submitBtn,
+            { backgroundColor: colors.btnColor },
+            !isFormValid && { opacity: 0.5 },
           ]}
           onPress={handleChangePassword}
-          disabled={
-            !isValidPassword(password) ||
-            confirmPassword !== password ||
-            isVerifying
-          }
+          disabled={!isFormValid}
+          activeOpacity={0.8}
         >
-          <Text style={SignupScreenStyles.selectorHeader}>
-            {isVerifying ? 'Changing...' : 'Change'}
-          </Text>
+          {isVerifying ? (
+            <ActivityIndicator size="small" color={colors.btnTextColor} />
+          ) : (
+            <Text
+              style={[styles.submitBtnText, { color: colors.btnTextColor }]}
+            >
+              Change Password
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
+
       <SweetAlertModal
         visible={alertVisible}
         onConfirm={() => setAlertVisible(false)}
@@ -165,9 +238,7 @@ export default function ChangePasswordScreen() {
             ? 'Success!'
             : alertType === 'error'
             ? 'Oops!'
-            : alertType === 'warning'
-            ? 'Warning!'
-            : 'Notice'
+            : 'Warning!'
         }
         message={alertMessage}
         type={alertType}
@@ -175,3 +246,61 @@ export default function ChangePasswordScreen() {
     </KeyboardAvoidingView>
   );
 }
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardContainer: {
+    paddingHorizontal: 24,
+    width: '100%',
+  },
+  mainHeader: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 54,
+    width: '100%',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    height: '100%',
+    paddingVertical: 0,
+  },
+  iconPadding: {
+    padding: 4,
+  },
+  validationText: {
+    color: '#D32F2F',
+    fontSize: 12,
+    marginTop: 6,
+    paddingHorizontal: 4,
+    lineHeight: 16,
+  },
+  submitBtn: {
+    height: 52,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 32,
+    width: '100%',
+  },
+  submitBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});

@@ -26,10 +26,7 @@ import BleManager from 'react-native-ble-manager';
 import { SocketContext } from './HomeScreen';
 import { useAppSelector } from '../components/hooks';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '../components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { SERVICE_UUID } from '@env';
 import { LogoBigger } from 'assets/images/Logo';
 import { GetAttendanceScreenStyles } from './PhysicalClassGetAttendanceScreen';
@@ -63,14 +60,12 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
 
   const [secondsLeft, setSecondsLeft] = useState(300);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    BleManager.start({ showAlert: false });
-  }, []);
   const cameraRef = useRef<Camera>(null);
   const detectedLectureIdRef = useRef<string | null>(null);
 
   const dispatchAttendancePayload = useCallback(() => {
     setStatus('joining');
+    setIsScanning(false);
     socketContext?.socket?.emit('student_mark_attendance', {
       lectureId: detectedLectureIdRef.current,
       studentId: user.uid,
@@ -153,10 +148,12 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
     setStatus('joining');
     setSecondsLeft(300);
     setIsScanning(true);
+    if (timerRef.current) clearInterval(timerRef.current);
     try {
-      timerRef.current = setInterval(() => {
+      const intervalId = setInterval(() => {
         setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
       }, 1000);
+      timerRef.current = intervalId;
       await BleManager.scan({
         serviceUUIDs: [SERVICE_UUID],
         seconds: 10,
@@ -235,12 +232,14 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         handleHostSignalFound(detectedLectureId);
       }
     };
+
     const discoverListener = bleManagerEmitter.addListener(
       'BleManagerDiscoverPeripheral',
       handleDiscover,
     );
+
     return () => discoverListener.remove();
-  }, [socketContext, user.schoolAvatarUrl, handleHostSignalFound]);
+  }, [handleHostSignalFound]);
   useEffect(() => {
     if (!socketContext?.socket) return;
     const socket = socketContext.socket;
@@ -254,6 +253,11 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
     });
 
     socket.on('error', (err: string) => {
+      setIsScanning(false);
+      BleManager.stopScan().catch(() => {});
+
+      if (timerRef.current) clearInterval(timerRef.current);
+
       setStatus('error');
       setErrorMessage(err);
     });
@@ -263,8 +267,17 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       socket.off('error');
     };
   }, [socketContext, navigation]);
+  useEffect(() => {
+    BleManager.start({ showAlert: false });
+
+    return () => {
+      BleManager.stopScan().catch(err =>
+        console.log('BLE cleanup ignored:', err),
+      );
+    };
+  }, []);
+
   const idle = status === 'idle';
-  const fetching = status === 'joining';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -298,7 +311,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
             </TouchableOpacity>
           </>
         )}
-        {isScanning && fetching && (
+        {isScanning && status === 'joining' && (
           <>
             <View style={GetAttendanceScreenStyles.pulseWrapper}>
               <View style={GetAttendanceScreenStyles.timerCircle}>
@@ -381,6 +394,14 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
                 Retry
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+        {!isScanning && status === 'joining' && (
+          <View style={styles.feedbackContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.joinText, { color: colors.text }]}>
+              Submitting your verified attendance attendance record...
+            </Text>
           </View>
         )}
       </View>

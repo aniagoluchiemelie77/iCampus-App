@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { useAppSelector } from '../components/hooks';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { SERVICE_UUID } from '@env';
-import { PRIMARY_COLOR_TINT } from '../components/Classroomcomponent';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { LogoBigger } from 'assets/images/Logo';
 import BleManager from 'react-native-ble-manager';
 import { requestMultiple, PERMISSIONS } from 'react-native-permissions';
@@ -49,12 +49,33 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   const { lecture, course, exceptions } = route.params;
   const user = useAppSelector(state => state.user);
   const socketRef = useRef<Socket | null>(null);
+  const onStudentCheckedInRef = useRef<(student: PresentStudent) => void>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [presentStudents, setPresentStudents] = useState<PresentStudent[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [status, setStatus] = useState<AttendanceStatus>('idle');
   const [isDownloading, setIsDownloading] = useState(false);
+
+  const attendanceHandlersRef = useRef({
+    presentStudents,
+    exceptions,
+    status,
+    onStudentCheckedIn: (newStudent: PresentStudent) => {
+      setPresentStudents(prev => {
+        const exists = prev.some(s => s.uid === newStudent.uid);
+        if (exists) return prev;
+        return [...prev, newStudent];
+      });
+    },
+  });
+  onStudentCheckedInRef.current = (newStudent: PresentStudent) => {
+    setPresentStudents(prev => {
+      const alreadyLogged = prev.some(s => s.uid === newStudent.uid);
+      if (alreadyLogged) return prev;
+      return [...prev, newStudent];
+    });
+  };
 
   const startCountdownTimer = (duration: number) => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -86,6 +107,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       lectureId: lecture.id,
       lecturerId: user.uid,
     });
+
     await initHardwareSession();
     startCountdownTimer(300);
   };
@@ -95,6 +117,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     socketRef.current?.emit('end_attendance_session', {
       lectureId: lecture.id,
     });
+
     setStatus('completed');
   };
   const handleDownloadReport = async () => {
@@ -160,44 +183,74 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     await initHardwareSession();
     startCountdownTimer(120);
   };
-  const getGroupedData = (): GroupedSection[] => {
+  const groupedData = useMemo((): GroupedSection[] => {
+    // 1. Extract distinct departments using a Set
     const allDepartments = new Set([
       ...presentStudents.map(s => s.department),
       ...exceptions.map(e => e.department),
     ]);
 
-    return Array.from(allDepartments).map(dept => ({
-      title: dept || 'General',
-      data: [
-        ...presentStudents.filter(s => s.department === dept),
-        ...exceptions
-          .filter(e => e.department === dept)
-          .map(e => ({
+    // 2. Build the structured array required by SectionList
+    return Array.from(allDepartments).map(dept => {
+      const sectionTitle = dept || 'General';
+
+      // Filter down matching live-present students
+      const matchingPresent = presentStudents.filter(
+        s => s.department === dept,
+      );
+
+      // Filter and map matching approved exceptions
+      const matchingExceptions = exceptions
+        .filter(e => e.department === dept)
+        .map(e => {
+          const nameParts = e.studentInfo?.fullname?.split(' ') ?? [];
+          return {
             uid: e.studentId,
-            firstname: e.studentInfo?.fullname?.split(' ')[0] ?? 'Unknown',
-            lastname: e.studentInfo?.fullname?.split(' ')[1] ?? 'Student',
+            firstname: nameParts[0] ?? 'Unknown',
+            lastname: nameParts[1] ?? 'Student',
             matricNumber: e.studentInfo?.matricNumber,
             isException: true,
             reasonCategory: e.reasonCategory,
-          })),
-      ],
-    }));
-  };
+          };
+        });
+
+      return {
+        title: sectionTitle,
+        data: [...matchingPresent, ...matchingExceptions],
+      };
+    });
+  }, [presentStudents, exceptions]);
   useEffect(() => {
     if (!user?.uid) return;
-    socketRef.current = io(baseUrl, {
+
+    const socketInstance = io(baseUrl, {
       transports: ['websocket'],
       query: { userId: user.uid },
     });
 
-    socketRef.current.on('student_checked_in', (newStudent: PresentStudent) => {
-      setPresentStudents(prev =>
-        prev.find(s => s.uid === newStudent.uid) ? prev : [...prev, newStudent],
-      );
+    socketRef.current = socketInstance;
+    socketInstance.on('student_checked_in', (newStudent: PresentStudent) => {
+      if (onStudentCheckedInRef.current) {
+        onStudentCheckedInRef.current(newStudent);
+      }
+    });
+    socketInstance.on('attendance_session_started', data => {
+      console.log('Attendance server channel successfully established:', data);
     });
 
+    socketInstance.on('error_response', err => {
+      Toast.show({
+        type: 'error',
+        text1: 'Server Event Failure',
+        text2: err.message || 'Could not validate channel transaction.',
+      });
+    });
     return () => {
-      socketRef.current?.disconnect();
+      socketInstance.off('student_checked_in');
+      socketInstance.off('attendance_session_started');
+      socketInstance.off('error_response');
+      socketInstance.disconnect();
+      socketRef.current = null;
     };
   }, [user.uid]);
   useEffect(() => {
@@ -211,8 +264,20 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       });
     }
   }, []);
-
-  const groupedData = getGroupedData();
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      NativeProperty.stopSales().catch(console.error);
+    };
+  }, []);
+  useEffect(() => {
+    attendanceHandlersRef.current = {
+      presentStudents,
+      exceptions,
+      status,
+      onStudentCheckedIn: attendanceHandlersRef.current.onStudentCheckedIn,
+    };
+  });
   const idle = status === 'idle';
   const fetching = status === 'fetching';
   const completed = status === 'completed';

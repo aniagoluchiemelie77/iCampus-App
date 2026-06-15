@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useAppSelector } from '../components/hooks';
@@ -19,46 +20,52 @@ import { UserIdentity } from '../components/UserIdentity';
 import { getConversations } from '../api/localGetApis';
 import { UserAvatar } from '../components/UserAvatar';
 import { useTheme } from '../context/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { UserTier } from '../types/firebase';
 
+interface ConversationItem {
+  id: string;
+  organizationName?: string;
+  otherUser: {
+    uid: string;
+    firstname: string;
+    lastname: string;
+    username?: string;
+    tier: UserTier;
+    profilePic?: string[];
+    organizationName?: string;
+  };
+  lastMessage: {
+    text?: string;
+    senderId: string;
+    status: 'sent' | 'delivered' | 'seen';
+    timestamp: string;
+    attachments?: Array<{ type: 'image' | 'file'; url: string }>;
+  };
+}
 export const MessagesListScreen = ({ navigation }: any) => {
   const { colors } = useTheme();
-  const [conversations, setConversations] = useState<any[]>([]);
+  const currentUser = useAppSelector(state => state.user);
+
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeTab, setActiveTab] = useState<'All' | 'Unread'>('All');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const currentUser = useAppSelector(state => state.user);
 
-  const getMessagePreview = (message: any) => {
-    if (message.text && message.text.trim().length > 0) {
-      return message.text;
-    }
-    if (message.attachments && message.attachments.length > 0) {
-      const type = message.attachments[0].type || 'file';
-      return type === 'image' ? 'Sent you an image' : 'Sent you a document';
+  const getMessagePreview = (message: ConversationItem['lastMessage']) => {
+    if (message.text?.trim()) return message.text;
+    if (message.attachments?.length) {
+      return message.attachments[0].type === 'image'
+        ? ' Sent an image'
+        : ' Sent a document';
     }
     return 'New message';
   };
-  const markAllAsRead = async () => {
-    try {
-      const result = await markAllMessagesRead(currentUser.uid);
-      if (result.success) {
-        setConversations(prev =>
-          prev.map(convo => ({
-            ...convo,
-            lastMessage: { ...convo.lastMessage, status: 'seen' },
-          })),
-        );
-        Toast.show({ type: 'success', text1: 'All messages marked as read' });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-  const fetchConversations = useCallback(
+
+  const fetchConversationsData = useCallback(
     async (pageNum: number) => {
-      if (loading || (!hasMore && pageNum !== 1)) return;
-      setLoading(true);
       try {
         const result = await getConversations(currentUser.uid, pageNum);
         if (result.success) {
@@ -69,51 +76,85 @@ export const MessagesListScreen = ({ navigation }: any) => {
           setPage(pageNum);
         }
       } catch (err) {
-        console.error(err);
+        console.error('[CONVERSATION_LIST_ERROR] Fetch failure:', err);
         Toast.show({
           type: 'error',
           text1: 'Fetch Error',
-          text2: 'Failed to fetch messages',
+          text2: 'Failed to synchronize incoming messages.',
         });
-      } finally {
-        setLoading(false);
       }
     },
-    [loading, hasMore, currentUser.uid],
+    [currentUser.uid],
   );
-  useEffect(() => {
-    fetchConversations(1);
-  }, [fetchConversations]);
-  const displayedConversations =
-    activeTab === 'Unread'
-      ? conversations.filter(
-          c =>
-            c.lastMessage.status !== 'seen' &&
-            c.lastMessage.senderId !== currentUser.uid,
-        )
-      : conversations;
-  const renderItem = ({ item }: any) => {
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      setLoading(true);
+      fetchConversationsData(page + 1).finally(() => setLoading(false));
+    }
+  };
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchConversationsData(1);
+    setRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchConversationsData(1).finally(() => setLoading(false));
+    }, [fetchConversationsData]),
+  );
+  const markAllAsRead = async () => {
+    try {
+      const result = await markAllMessagesRead(currentUser.uid);
+      if (result.success) {
+        setConversations(prev =>
+          prev.map(convo => ({
+            ...convo,
+            lastMessage: { ...convo.lastMessage, status: 'seen' },
+          })),
+        );
+        Toast.show({ type: 'success', text1: 'All messages marked as read.' });
+      }
+    } catch (err) {
+      console.error('[CONVERSATION_MARK_READ_ERROR]', err);
+    }
+  };
+  const displayedConversations = conversations.filter(c => {
+    if (activeTab === 'Unread') {
+      return (
+        c.lastMessage.status !== 'seen' &&
+        c.lastMessage.senderId !== currentUser.uid
+      );
+    }
+    return true;
+  });
+
+  const renderItem = ({ item }: { item: ConversationItem }) => {
     const isUnread =
       item.lastMessage.senderId !== currentUser.uid &&
       item.lastMessage.status !== 'seen';
-
     return (
       <TouchableOpacity
         style={[
           styles.convoItem,
-          isUnread
-            ? { backgroundColor: colors.backgroundSecondary }
-            : { backgroundColor: colors.background },
+          {
+            backgroundColor: isUnread
+              ? colors.backgroundSecondary
+              : colors.background,
+          },
         ]}
         onPress={() =>
           navigation.navigate('ChatScreen', { recipientId: item.otherUser.uid })
         }
+        activeOpacity={0.7}
       >
         <View style={styles.avatarContainer}>
           <UserAvatar
             profilePic={item.otherUser?.profilePic}
             firstName={item.otherUser?.firstname}
-            lastName={item.otherUser.lastname}
+            lastName={item.otherUser?.lastname}
             organizationName={item.organizationName}
             style={styles.avatar}
           />
@@ -123,16 +164,20 @@ export const MessagesListScreen = ({ navigation }: any) => {
             tier={item.otherUser.tier}
             organizationName={item.otherUser.organizationName}
             size="medium"
-            containerStyle={{ flex: 1 }}
+            containerStyle={{ flex: 1, marginLeft: 10 }}
           />
           {isUnread && <View style={styles.unreadDot} />}
         </View>
+
         <View style={styles.textContainer}>
           <Text
             numberOfLines={1}
             style={[
               styles.lastMsg,
-              isUnread ? { color: colors.primary } : { color: colors.text },
+              {
+                color: isUnread ? colors.primary : colors.text,
+                fontWeight: isUnread ? '600' : '400',
+              },
             ]}
           >
             {getMessagePreview(item.lastMessage)}
@@ -167,16 +212,19 @@ export const MessagesListScreen = ({ navigation }: any) => {
             </Text>
             <MaterialIcons
               name="done-all"
-              size={24}
+              size={20}
               color={colors.btnTextColor}
+              style={{ marginLeft: 4 }}
             />
           </TouchableOpacity>
         }
       />
+
+      {/* Segmented Tab Row Controls */}
       <View
         style={[styles.tabBar, { backgroundColor: colors.backgroundSecondary }]}
       >
-        {['All', 'Unread'].map((tab: any) => (
+        {(['All', 'Unread'] as const).map(tab => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
@@ -185,9 +233,10 @@ export const MessagesListScreen = ({ navigation }: any) => {
             <Text
               style={[
                 styles.tabText,
-                activeTab === tab
-                  ? { color: colors.primary }
-                  : { color: colors.text },
+                {
+                  color: activeTab === tab ? colors.primary : colors.text,
+                  fontWeight: activeTab === tab ? '700' : '400',
+                },
               ]}
             >
               {tab}
@@ -195,21 +244,33 @@ export const MessagesListScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         ))}
       </View>
+
       <FlatList
         data={displayedConversations}
         keyExtractor={item => item.otherUser.uid}
         renderItem={renderItem}
-        onEndReached={() => fetchConversations(page + 1)}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={
-          <EmptyState
-            iconName="speaker-notes-off"
-            title="No Messages Found"
-            subtitle="We couldn't find any messages for you."
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.15}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
           />
         }
+        ListEmptyComponent={
+          !loading ? (
+            <EmptyState
+              iconName="speaker-notes-off"
+              title="No Messages Found"
+              subtitle="Conversations will register here once initialized."
+            />
+          ) : null
+        }
         ListFooterComponent={
-          loading ? <ActivityIndicator style={{ margin: 20 }} /> : null
+          loading && !refreshing ? (
+            <ActivityIndicator style={{ margin: 20 }} color={colors.primary} />
+          ) : null
         }
       />
     </View>

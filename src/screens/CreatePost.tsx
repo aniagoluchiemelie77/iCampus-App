@@ -25,8 +25,8 @@ import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
 import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
-import { PRIMARY_COLOR } from 'assets/styles/colors';
-import { useTheme } from 'context/ThemeContext';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { useTheme } from '../context/ThemeContext';
 interface MediaItem {
   uri: string;
   type: 'image' | 'video';

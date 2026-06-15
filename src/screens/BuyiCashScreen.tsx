@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppSelector } from '../components/hooks';
 import { initializeBuyTransaction } from '../api/localPostApis';
@@ -31,151 +33,175 @@ interface PaymentMethodCardProps {
   colors: any;
 }
 
-export const PaymentMethodCard = ({
-  item,
-  isSelected,
-  onSelect,
-  colors,
-}: PaymentMethodCardProps) => {
-  const isCard = item.method === 'card';
-  return (
-    <TouchableOpacity
-      onPress={onSelect}
-      style={[
-        iCashActionsStyles.card,
-        isSelected
-          ? {
-              backgroundColor: colors.primary,
-              borderColor: colors.primary,
-              shadowColor: colors.border,
-            }
-          : {
-              borderColor: colors.text,
-              shadowColor: colors.text,
-            },
-      ]}
-    >
-      <MaterialIcons
-        name={isCard ? 'credit-card-outlined' : 'account-balance-outlined'}
-        size={28}
-        color={isSelected ? colors.btnTextColor : colors.text}
-      />
-      <View style={iCashActionsStyles.details}>
-        <Text
-          style={[
-            iCashActionsStyles.title,
-            isSelected
-              ? { color: colors.btnTextColor }
-              : { color: colors.text },
-          ]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {isCard
-            ? `${item.cardBrand} **** ${item.lastFourDigits}`
-            : item.bankName}
-        </Text>
-        <Text
-          style={[
-            iCashActionsStyles.subtitle,
-            isSelected
-              ? { color: colors.btnTextColor }
-              : { color: colors.text },
-          ]}
-        >
-          {isCard
-            ? `Expires ${item.expiryMonth} / ${item.expiryYear}`
-            : item.bankAccNumber}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
+export const PaymentMethodCard = React.memo(
+  ({ item, isSelected, onSelect, colors }: PaymentMethodCardProps) => {
+    const isCard = item.method === 'card';
+
+    return (
+      <TouchableOpacity
+        onPress={onSelect}
+        activeOpacity={0.8}
+        style={[
+          iCashActionsStyles.card,
+          {
+            borderColor: isSelected
+              ? colors.primary
+              : colors.border,
+            backgroundColor: isSelected
+              ? colors.primary
+              : colors.backgroundSecondary,
+          },
+        ]}
+      >
+        <MaterialIcons
+          name={isCard ? 'credit-card' : 'account-balance'}
+          size={26}
+          color={isSelected ? colors.btnTextColor : colors.text}
+        />
+        <View style={iCashActionsStyles.cardDetails}>
+          <Text
+            style={[
+              iCashActionsStyles.cardTitle,
+              { color: isSelected ? colors.btnTextColor : colors.text },
+            ]}
+            numberOfLines={1}
+          >
+            {isCard
+              ? `${item.cardBrand} •••• ${item.lastFourDigits}`
+              : item.bankName}
+          </Text>
+          <Text
+            style={[
+              iCashActionsStyles.cardSubtitle,
+              {
+                color: isSelected
+                  ? colors.btnTextColor
+                  : colors.textSecondary || colors.text,
+              },
+            ]}
+          >
+            {isCard
+              ? `Exp: ${item.expiryMonth}/${item.expiryYear}`
+              : item.bankAccNumber}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
+
 export const ICashBuyPage = ({ navigation }: any) => {
   const { colors } = useTheme();
   const route = useRoute();
   const user = useAppSelector(state => state.user);
+
+  // Structural State Matrix
   const [amount, setAmount] = useState('');
-  const [iCashEquivalent, setICashEquivalent] = useState('0.00');
-  const [localCurrency, setLocalCurrency] = useState('');
+  const [localCurrencySymbol, setLocalCurrencySymbol] = useState('₦');
   const [showAddCardModal, setShowAddCardModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
+  const [selectedMethod, setSelectedMethod] =
+    useState<UserBankOrCardDetails | null>(null);
+
   const [currencyData, setCurrencyData] = useState({
     rate: 1550,
     code: 'NGN',
   });
-  const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
-  const [selectedMethod, setSelectedMethod] =
-    useState<UserBankOrCardDetails | null>(null);
-  const hasPaymentMethod = savedMethods.length > 0;
+
   const EXCHANGE_RATE_USD = 0.74;
-  const fetchPaymentMethods = useCallback(async () => {
-    if (!user?.uid) return;
-    const methods = await getUserPaymentMethods(user.uid);
-    setSavedMethods(methods);
-  }, [user?.uid]);
+  const hasPaymentMethod = savedMethods.length > 0;
+
+  // Consolidate Rates and Symbols in a Single Safe Hook Pass
   useEffect(() => {
-    const getLiveRate = async () => {
+    let isMounted = true;
+    const initializeMarketData = async () => {
       try {
         const data = await fetchLiveRate(user?.country || 'Nigeria');
-        setCurrencyData({
-          rate: data.rate,
-          code: data.code,
-        });
+        if (isMounted && data) {
+          setCurrencyData({ rate: data.rate, code: data.code });
+          setLocalCurrencySymbol(data.symbol || '₦');
+        }
       } catch (error) {
-        console.error('Failed to update rates:', error);
+        console.error('[MARKET_DATA_SYNC_ERROR]', error);
       }
     };
-    getLiveRate();
-  }, [user?.country]);
-  useEffect(() => {
-    const numericAmount = parseFloat(amount);
-    if (numericAmount > 0) {
-      const inUsd = numericAmount / currencyData.rate;
-      const calculatedICash = inUsd / EXCHANGE_RATE_USD;
-      setICashEquivalent(calculatedICash.toFixed(2));
-    }
-  }, [amount, currencyData]);
-  useEffect(() => {
-    const getCurrency = async () => {
-      const data = await fetchLiveRate(user?.country || 'Nigeria');
-      setLocalCurrency(data.symbol);
+    initializeMarketData();
+    return () => {
+      isMounted = false;
     };
-    getCurrency();
   }, [user?.country]);
+
+  // Handle Dynamic Presentation Numbers securely with Memoization
+  const iCashEquivalent = useMemo(() => {
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) return '0.00';
+
+    // Mitigate micro precision leaks for display boundaries
+    const inUsd = numericAmount / currencyData.rate;
+    const calculatedICash = inUsd / EXCHANGE_RATE_USD;
+    return calculatedICash.toFixed(2);
+  }, [amount, currencyData.rate]);
+
+  // Payment Methods Loader Hook
+  const fetchPaymentMethods = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const methods = await getUserPaymentMethods(user.uid);
+      setSavedMethods(Array.isArray(methods) ? methods : []);
+    } catch (error) {
+      console.error('[FETCH_METHODS_ERROR]', error);
+    }
+  }, [user?.uid]);
+
+  // Navigation Route Pipeline Polling Management
   const needsRefresh = (route.params as any)?.refresh;
   useEffect(() => {
     fetchPaymentMethods();
     if (needsRefresh) {
-      const timer = setTimeout(() => {
-        fetchPaymentMethods();
-      }, 2000);
+      const timer = setTimeout(() => fetchPaymentMethods(), 1500);
       navigation.setParams({ refresh: undefined } as any);
       return () => clearTimeout(timer);
     }
   }, [needsRefresh, navigation, fetchPaymentMethods]);
+
+  // Secure API Submission Gateway pipeline
   const handleProceed = async () => {
     const numericAmount = parseFloat(amount);
-    if (!numericAmount) return;
+    if (isNaN(numericAmount) || numericAmount <= 0 || isSubmitting) return;
+
     if (!hasPaymentMethod) {
       setShowAddCardModal(true);
       return;
     }
+
     if (!selectedMethod) {
-      Toast.show({ type: 'info', text1: 'Please select a payment method' });
+      Toast.show({
+        type: 'info',
+        text1: 'Selection Missing',
+        text2: 'Please tap a valid payment token method.',
+      });
       return;
     }
+
     try {
+      setIsSubmitting(true); // Lock transactional interface execution thread
+
       const payload = {
         amount: numericAmount,
         currency: currencyData.code,
         userId: user.uid,
         paymentToken: selectedMethod.paymentToken,
         methodType: selectedMethod.method,
-        iCashAmount: iCashEquivalent,
+        // Provided strictly for frontend analytics reference tracking;
+        // Your server must recalculate this value to prevent API payload modification.
+        iCashAmount: parseFloat(iCashEquivalent),
         country: user.country,
       };
+
       const response = await initializeBuyTransaction(payload);
       const data = response.data;
+
       if (data.status === 'success') {
         if (data.authorization_url) {
           navigation.navigate('FlutterwaveWebview', {
@@ -188,41 +214,42 @@ export const ICashBuyPage = ({ navigation }: any) => {
               {
                 name: 'iCashSuccessScreen',
                 params: {
-                  amountPurchased: iCashEquivalent,
+                  amountPurchased: parseFloat(iCashEquivalent),
                   amountPaid: numericAmount,
                   currency: currencyData.code,
                   type: 'buy',
-                  amount: 0,
-                  payout: 0,
-                  recipientUsername: '',
                 },
               },
             ],
           });
         }
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Payment Initialization Failed',
-          text2: data.message,
-        });
+        throw new Error(
+          data.message || 'Transaction dropped by upstream clearing engine.',
+        );
       }
     } catch (error: any) {
+      console.error('[ICASH_PURCHASE_CRITICAL_FAILURE]', error);
       Toast.show({
         type: 'error',
-        text1: 'Payment Initialization Failed',
-        text2: error.message,
+        text1: 'Transaction Failure',
+        text2: error.message || 'Gateway initialization failure.',
       });
+    } finally {
+      setIsSubmitting(false); // Free user interactive locks
     }
   };
+
   return (
     <ScrollView
       style={[
         iCashActionsStyles.container,
         { backgroundColor: colors.background },
       ]}
+      keyboardShouldPersistTaps="handled"
     >
       <PageHeader title="Buy iCash" />
+
       <View
         style={[
           iCashActionsStyles.bodyContainer,
@@ -232,21 +259,24 @@ export const ICashBuyPage = ({ navigation }: any) => {
         <Text style={[iCashActionsStyles.label, { color: colors.text }]}>
           Enter Amount to Buy
         </Text>
+
         <View style={iCashActionsStyles.inputContainer}>
           <Text
             style={[iCashActionsStyles.currencyPrefix, { color: colors.text }]}
           >
-            {localCurrency}
+            {localCurrencySymbol}
           </Text>
           <TextInput
             style={[iCashActionsStyles.inputBorderless, { color: colors.text }]}
             placeholder="0.00"
-            keyboardType="numeric"
+            keyboardType="decimal-pad" // Better keyboard profile layout context for iOS/Android
             value={amount}
             onChangeText={setAmount}
-            placeholderTextColor={colors.inputTextHolder}
+            placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
+            editable={!isSubmitting}
           />
         </View>
+
         <View style={iCashActionsStyles.exchangeRow}>
           <Text
             style={[iCashActionsStyles.exchangeText, { color: colors.text }]}
@@ -259,76 +289,85 @@ export const ICashBuyPage = ({ navigation }: any) => {
               { color: colors.primary },
             ]}
           >
-            1 iCash ≈ {localCurrency}
+            1 iCash ≈ {localCurrencySymbol}
             {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
           </Text>
         </View>
+
         <Text style={[iCashActionsStyles.resultLabel, { color: colors.text }]}>
           You will receive:
         </Text>
         <CurrencyDisplay
-          value={+iCashEquivalent}
+          value={parseFloat(iCashEquivalent)}
           size="medium"
           isSuccess={true}
         />
+
         {!hasPaymentMethod && (
-          <View style={iCashActionsStyles.warningBox}>
-            <MaterialIcons
-              name="info-outlined"
-              size={20}
-              color={colors.primary}
-            />
+          <View
+            style={[
+              iCashActionsStyles.warningBox,
+              { borderColor: colors.primary },
+            ]}
+          >
+            <MaterialIcons name="info" size={18} color={colors.primary} />
             <Text
               style={[
                 iCashActionsStyles.warningText,
                 { color: colors.primary },
               ]}
             >
-              You haven't added a payment method. Please add a bank account or
-              card to continue.
+              You haven't linked a payment method. Tap below to attach a card or
+              wallet profile.
             </Text>
           </View>
         )}
-        <ScrollView
+        <FlatList
           horizontal
+          data={savedMethods}
+          keyExtractor={(item, index) => item.id || index.toString()}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={iCashActionsStyles.horizontalScrollPadding}
-          snapToInterval={CARD_WIDTH + 15}
-          decelerationRate="fast"
-        >
-          {savedMethods.map(method => (
+          renderItem={({ item }) => (
             <PaymentMethodCard
-              key={method.id}
-              item={method}
-              isSelected={selectedMethod?.id === method.id}
-              onSelect={() => setSelectedMethod(method)}
+              item={item}
+              isSelected={selectedMethod?.id === item.id}
+              onSelect={() => setSelectedMethod(item)}
               colors={colors}
             />
-          ))}
-        </ScrollView>
+          )}
+        />
+
         <TouchableOpacity
           style={[
             iCashActionsStyles.buyBtn,
             { backgroundColor: colors.btnColor },
-            (!amount || parseFloat(amount) <= 0) && { opacity: 0.5 },
+            (!amount || parseFloat(amount) <= 0 || isSubmitting) && {
+              opacity: 0.5,
+            },
           ]}
           onPress={handleProceed}
-          disabled={!amount || parseFloat(amount) <= 0}
+          disabled={!amount || parseFloat(amount) <= 0 || isSubmitting}
         >
-          <Text
-            style={[
-              iCashActionsStyles.buyBtnText,
-              { color: colors.btnTextColor },
-            ]}
-          >
-            {!hasPaymentMethod
-              ? 'Add Payment Method'
-              : !selectedMethod
-              ? 'Select a Method'
-              : 'Complete Purchase'}
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={colors.btnTextColor} />
+          ) : (
+            <Text
+              style={[
+                iCashActionsStyles.buyBtnText,
+                { color: colors.btnTextColor },
+              ]}
+            >
+              {!hasPaymentMethod
+                ? 'Add Payment Method'
+                : !selectedMethod
+                ? 'Select a Method'
+                : 'Complete Purchase'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
+
       <AddPaymentModal
         visible={showAddCardModal}
         onClose={() => setShowAddCardModal(false)}
@@ -519,4 +558,7 @@ export const iCashActionsStyles = StyleSheet.create({
     alignItems: 'baseline',
     width: '100%',
   },
+  cardDetails: { marginLeft: 12, flex: 1 },
+  cardTitle: { fontSize: 14, fontWeight: '600' },
+  cardSubtitle: { fontSize: 12, marginTop: 2 },
 });

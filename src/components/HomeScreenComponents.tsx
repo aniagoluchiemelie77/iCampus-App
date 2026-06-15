@@ -37,6 +37,11 @@ interface Props {
   uid?: string;
   colors: any;
 }
+interface MessageBellProps {
+  navigation: any;
+  initialCount?: number;
+  colors: any;
+}
 const hapticOptions = {
   enableVibrateFallback: true,
   ignoreAndroidSystemSettings: false,
@@ -235,40 +240,57 @@ export const NotificationBell: React.FC<Props> = ({
     </TouchableOpacity>
   );
 };
-export const MessageBell: React.FC<Props> = ({
+export const MessageBell: React.FC<MessageBellProps> = ({
   navigation,
   initialCount = 0,
-  uid,
   colors,
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
   const socketContext = useSocket();
   const socket = socketContext?.socket;
+  const currentUser = useAppSelector(state => state.user);
+
   useEffect(() => {
-    if (!socket) return;
-    const handleNewMsg = (data: any) => {
-      if (data.senderId !== uid) {
+    if (!socket || !currentUser?.uid) return;
+    const handleNewMsg = (newMessage: any) => {
+      if (
+        newMessage.recipientId === currentUser.uid &&
+        newMessage.senderId !== currentUser.uid
+      ) {
         setUnreadCount(prev => prev + 1);
       }
     };
+    const handleMessagesSeen = ({ readerId }: { readerId: string }) => {
+      if (readerId === currentUser.uid) {
+        setUnreadCount(0);
+      }
+    };
+
     socket.on('receive_message', handleNewMsg);
+    socket.on('messages_seen', handleMessagesSeen);
+
     return () => {
       socket.off('receive_message', handleNewMsg);
+      socket.off('messages_seen', handleMessagesSeen);
     };
-  }, [socket, uid]);
+  }, [socket, currentUser?.uid]);
+
+  const handlePress = () => {
+    setUnreadCount(0);
+    navigation.navigate('MessagesList');
+  };
 
   return (
     <TouchableOpacity
-      onPress={() => {
-        setUnreadCount(0);
-        navigation.navigate('MessagesList');
-      }}
+      onPress={handlePress}
       style={[
         HomeScreenComponentStyles.notificationContainer,
         { marginLeft: 3 },
       ]}
+      activeOpacity={0.7}
     >
       <MaterialIcons name="chat-outlined" size={23} color={colors.primary} />
+
       {unreadCount > 0 && (
         <View
           style={[
@@ -279,7 +301,7 @@ export const MessageBell: React.FC<Props> = ({
           <Text
             style={[
               HomeScreenComponentStyles.badgeText,
-              { color: colors.btnTextColor },
+              { color: colors.btnTextColor, fontWeight: '700' },
             ]}
           >
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -423,7 +445,6 @@ export function Home() {
           <MessageBell
             navigation={navigation}
             initialCount={0}
-            uid={currentUser.uid}
             colors={colors}
           />
         </View>

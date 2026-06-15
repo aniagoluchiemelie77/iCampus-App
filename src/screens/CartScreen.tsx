@@ -1,28 +1,87 @@
-import React from 'react';
-import { FlatList, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import {CartItem} from '../components/CartItem';
+import React, { useMemo, useCallback } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
+import { CartItem } from '../components/CartItem';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {EmptyState} from '../components/EmptyFlatlistComponent';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../components/hooks';
-import {PageHeader} from '../components/PageHeader';
+import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../components/EventContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { Product } from '../types/firebase';
 
+interface CartItemEntry {
+  productId: string;
+  quantity: number;
+}
 export const CartScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
   const { handleCartItemToggle, allProducts, handleClearCart } =
     useAppDataContext();
-  const cartData = currentUser?.cart ?? [];
+
+  // Safely cast cart array baseline layers
+  const cartData = useMemo<CartItemEntry[]>(() => {
+    return currentUser?.cart ?? [];
+  }, [currentUser?.cart]);
+
   const itemCount = cartData.length;
-  const totalPrice = cartData.reduce((acc, item) => {
-    const product = allProducts?.find(p => p.productId === item.productId);
-    const itemTotal = product ? product.priceInPoints * item.quantity : 0;
-    return acc + itemTotal;
-  }, 0);
+  const productDictionary = useMemo(() => {
+    const map = new Map<string, Product>();
+    if (Array.isArray(allProducts)) {
+      allProducts.forEach(product => {
+        if (product.productId) map.set(product.productId, product);
+      });
+    }
+    return map;
+  }, [allProducts]);
+
+  const { totalPrice, containsInvalidItems } = useMemo(() => {
+    let total = 0;
+    let missingItemsFlag = false;
+
+    cartData.forEach(item => {
+      const product = productDictionary.get(item.productId);
+      if (product) {
+        total += product.priceInPoints * item.quantity;
+      } else {
+        missingItemsFlag = true;
+      }
+    });
+
+    return { totalPrice: total, containsInvalidItems: missingItemsFlag };
+  }, [cartData, productDictionary]);
+
+  const handleRemoveItem = useCallback(
+    (product: Product) => {
+      handleCartItemToggle(product);
+    },
+    [handleCartItemToggle],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: CartItemEntry }) => {
+      const productData = productDictionary.get(item.productId);
+      if (!productData) return null;
+
+      return (
+        <CartItem
+          cartEntry={item}
+          product={productData}
+          onRemove={() => handleRemoveItem(productData)}
+        />
+      );
+    },
+    [productDictionary, handleRemoveItem],
+  );
 
   return (
     <SafeAreaView
@@ -35,42 +94,41 @@ export const CartScreen = () => {
         } in your basket`}
         showBackButton={true}
         rightElement={
-          <TouchableOpacity
-            onPress={handleClearCart}
-            style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
-          >
-            <Text style={[styles.headerBtnText, {color: colors.btnTextColor}]}>Clear Cart</Text>
-          </TouchableOpacity>
+          itemCount > 0 ? (
+            <TouchableOpacity
+              onPress={handleClearCart}
+              style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[styles.headerBtnText, { color: colors.btnTextColor }]}
+              >
+                Clear Cart
+              </Text>
+            </TouchableOpacity>
+          ) : undefined
         }
       />
 
       <FlatList
-        data={currentUser?.cart ?? []}
+        data={cartData}
         keyExtractor={item => item.productId}
-        renderItem={({ item }) => {
-          const productData = allProducts.find(
-            p => p.productId === item.productId,
-          );
-          if (!productData) return null;
-          return (
-            <CartItem
-              cartEntry={item}
-              product={productData}
-              onRemove={() => handleCartItemToggle(productData)}
-            />
-          );
-        }}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         ListEmptyComponent={
           <EmptyState
-            iconName="remove-shopping-cart-outlined"
+            iconName="remove-shopping-cart"
             title="Your cart is empty"
             subtitle="Looks like you haven't added any campus deals yet."
-            style={{ marginTop: 80 }}
           />
         }
       />
-      {cartData.length > 0 && (
+
+      {itemCount > 0 && (
         <View
           style={[
             styles.footer,
@@ -83,12 +141,20 @@ export const CartScreen = () => {
             </Text>
             <CurrencyDisplay value={totalPrice} size="large" />
           </View>
+
           <TouchableOpacity
-            style={[styles.checkoutBtn, { backgroundColor: colors.btnColor }]}
+            style={[
+              styles.checkoutBtn,
+              { backgroundColor: colors.btnColor },
+              containsInvalidItems && { opacity: 0.5 },
+            ]}
             onPress={() => navigation.navigate('Checkout')}
+            disabled={containsInvalidItems}
           >
             <Text style={[styles.checkoutText, { color: colors.btnTextColor }]}>
-              Proceed to Checkout
+              {containsInvalidItems
+                ? 'Contains Unavailable Items'
+                : 'Proceed to Checkout'}
             </Text>
           </TouchableOpacity>
         </View>

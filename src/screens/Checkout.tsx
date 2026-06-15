@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import {
   FlatList,
   View,
@@ -6,27 +12,24 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Linking,
   Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import Geolocation from 'react-native-geolocation-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { getDistanceInMiles } from '../utils/distanceCalculator';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppDataContext } from '../components/EventContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { CartItem } from '../components/CartItem';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
 import Toast from 'react-native-toast-message';
-import { DeliveryGateway } from '../types/firebase';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import PhoneInput from 'react-native-phone-number-input';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { initializeCheckoutTransaction } from '../api/localPostApis';
-import { DropOffStation } from '../types/firebase';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
@@ -42,161 +45,242 @@ import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx'
 
 const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
-export const CheckoutScreen = ({ navigation }: any) => {
+interface CheckoutScreenParams {
+  productId?: string;
+  quantity?: number;
+  selectedColor?: string;
+  selectedSize?: string;
+}
+export const CheckoutScreen = () => {
   const { colors } = useTheme();
   const route = useRoute();
+  const navigation = useNavigation<any>();
   const dispatch = useDispatch();
+  const currentUser = useAppSelector(state => state.user);
+  const { allProducts } = useAppDataContext();
+
+  // Route Parameters Destructuring
+  const params = useMemo(() => {
+    return (route.params || {}) as CheckoutScreenParams;
+  }, [route.params]);
+  const isDirectPurchase = !!params?.productId;
+
+  // Form Field Interactive States
   const [isSubscriptionModalVisible, setSubscriptionModalVisible] =
     useState(false);
+  const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
   const [userCoords, setUserCoords] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
   const [locationPermission, setLocationPermission] =
     useState<string>('undetermined');
-  const currentUser = useAppSelector(state => state.user);
-  const { allProducts } = useAppDataContext();
-  const [isValid, setIsValid] = useState(false);
-  const [selectedStations, setSelectedStations] = useState<
-    Record<string, DropOffStation>
-  >({});
-  const [countryCode, _setCountryCode] = useState<any>(
-    currentUser.country || 'NG',
+  const [phoneNumber, setPhoneNumber] = useState(
+    currentUser?.phoneNumbers?.[0]?.number || '',
+  );
+  const [formattedValue, setFormattedValue] = useState(
+    currentUser?.phoneNumbers?.[0]?.number || '',
+  );
+  const [isPhoneValid, setIsPhoneValid] = useState(
+    !!currentUser?.phoneNumbers?.[0]?.number,
+  );
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [selectedStations, setSelectedStations] = useState<Record<string, any>>(
+    {},
   );
   const [exchangeData, setExchangeData] = useState({
     rate: 1,
     symbol: '$',
     code: 'USD',
   });
-  const [formattedValue, setFormattedValue] = useState('');
-  const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState(
-    currentUser.phoneNumbers?.[0]?.number || '',
-  );
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const params = route.params as {
-    productId?: string;
-    quantity?: number;
-    selectedColor?: string;
-    selectedSize?: string;
-  };
-  const isDirectPurchase = !!params?.productId;
-  const cartData = currentUser?.cart;
-  const userTier = currentUser?.tier;
-  const isProUser = userTier === 'pro' || userTier === 'premium';
-  const rawItems = isDirectPurchase
-    ? [
-        {
-          productId: params.productId!,
-          quantity: params.quantity || 1,
-          selectedColor: params.selectedColor,
-          selectedSize: params.selectedSize,
-        },
-      ]
-    : cartData ?? [];
-  const userBalance = currentUser?.pointsBalance || 0;
-  const checkoutItems = rawItems
-    .map(item => {
-      const productDetails = allProducts.find(
-        p => p.productId === item.productId,
-      );
-      return {
+
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+  const checkoutItems = useMemo(() => {
+    const rawItems = isDirectPurchase
+      ? [
+          {
+            productId: params.productId!,
+            quantity: params.quantity || 1,
+            selectedColor: params.selectedColor,
+            selectedSize: params.selectedSize,
+          },
+        ]
+      : currentUser?.cart ?? [];
+
+    return rawItems
+      .map(item => ({
         ...item,
-        product: productDetails,
-      };
-    })
-    .filter(item => item.product !== undefined);
+        product: allProducts?.find(p => p.productId === item.productId),
+      }))
+      .filter(item => item.product !== undefined);
+  }, [isDirectPurchase, params, currentUser?.cart, allProducts]);
 
-  // --- Calculations ---
+  // Handle baseline delivery default mapping states safely
   const [itemDeliveryMethods, setItemDeliveryMethods] = useState<
-    Record<string, DeliveryGateway>
-  >(
-    checkoutItems.reduce(
-      (acc, item) => ({ ...acc, [item.productId]: 'drop_off' }),
+    Record<string, string>
+  >({});
+
+  // Synchronize delivery method map defaults only when data dependencies adjust
+  useEffect(() => {
+    const initialMethods = checkoutItems.reduce<Record<string, string>>(
+      (acc, item) => {
+        acc[item.productId] = 'drop_off';
+        return acc;
+      },
       {},
-    ),
-  );
-  const toggleDelivery = (productId: string, method: DeliveryGateway) => {
+    );
+    setItemDeliveryMethods(initialMethods);
+  }, [checkoutItems]);
+
+  const toggleDelivery = useCallback((productId: string, method: string) => {
     setItemDeliveryMethods(prev => ({ ...prev, [productId]: method }));
-  };
-  const subtotal = checkoutItems.reduce((acc, item) => {
-    return acc + item.product?.priceInPoints! * item.quantity;
-  }, 0);
+  }, []);
 
-  const totalDeliveryFee = checkoutItems.reduce((acc, item) => {
-    if (item.product?.type !== 'physical') return acc;
+  // MEMOIZED FINANCIAL ENGINE: Computes totals in a single unified thread pass
+  const transactionalFinances = useMemo(() => {
+    const subtotal = checkoutItems.reduce((acc, item) => {
+      return acc + (item.product?.priceInPoints || 0) * item.quantity;
+    }, 0);
 
-    const method = itemDeliveryMethods[item.productId] || 'drop_off';
+    const totalDeliveryFee = checkoutItems.reduce((acc, item) => {
+      if (item.product?.type !== 'physical') return acc;
+      const method = itemDeliveryMethods[item.productId] || 'drop_off';
+      return (
+        acc +
+        (method === 'home_delivery'
+          ? (item.product.priceInPoints || 0) *
+            item.quantity *
+            HOME_DELIVERY_RATE
+          : DROP_OFF_FEE)
+      );
+    }, 0);
 
-    const itemFee =
-      method === 'home_delivery'
-        ? item.product.priceInPoints * item.quantity * HOME_DELIVERY_RATE
-        : DROP_OFF_FEE;
+    const transactionTax = subtotal * TRANSACTION_TAX_RATE;
+    const grandTotal = subtotal + transactionTax + totalDeliveryFee;
+    const userBalance = currentUser?.pointsBalance || 0;
 
-    return acc + itemFee;
-  }, 0);
+    return {
+      subtotal,
+      totalDeliveryFee,
+      transactionTax,
+      grandTotal,
+      canAfford: userBalance >= grandTotal,
+      userBalance,
+    };
+  }, [checkoutItems, itemDeliveryMethods, currentUser?.pointsBalance]);
 
-  const transactionTax = subtotal * TRANSACTION_TAX_RATE;
-  const grandTotal = subtotal + transactionTax + totalDeliveryFee;
-  const canAfford = userBalance >= grandTotal;
-  const homeItems = checkoutItems.filter(
-    item => itemDeliveryMethods[item.productId] === 'home_delivery',
-  );
-  const dropOffItems = checkoutItems.filter(
-    item => itemDeliveryMethods[item.productId] !== 'home_delivery',
-  );
-  const handleProceedToVerify = () => {
-    if (!canAfford) {
+  // Segregate categorized elements efficiently to isolate processing targets
+  const { homeItems, dropOffItems } = useMemo(() => {
+    const home: typeof checkoutItems = [];
+    const dropOff: typeof checkoutItems = [];
+    checkoutItems.forEach(item => {
+      if (itemDeliveryMethods[item.productId] === 'home_delivery') {
+        home.push(item);
+      } else {
+        dropOff.push(item);
+      }
+    });
+    return { homeItems: home, dropOffItems: dropOff };
+  }, [checkoutItems, itemDeliveryMethods]);
+
+  // FORM SECURITY PRE-FLIGHT EVALUATION
+  const formValidation = useMemo(() => {
+    const missingStation = dropOffItems.find(
+      item =>
+        item.product?.type === 'physical' && !selectedStations[item.productId],
+    );
+
+    if (missingStation)
+      return {
+        valid: false,
+        reason: `Select a drop-off location for ${missingStation.product?.title}`,
+      };
+
+    if (homeItems.length > 0) {
+      if (!isPhoneValid)
+        return {
+          valid: false,
+          reason: 'Provide a valid phone contact configuration.',
+        };
+      if (!deliveryAddress.trim())
+        return {
+          valid: false,
+          reason: 'Provide a delivery target address destination.',
+        };
+    }
+
+    return { valid: true, reason: '' };
+  }, [
+    dropOffItems,
+    homeItems,
+    selectedStations,
+    isPhoneValid,
+    deliveryAddress,
+  ]);
+
+  const handleProceedToVerify = useCallback(() => {
+    if (!transactionalFinances.canAfford) {
       Toast.show({
         type: 'error',
         text1: 'Insufficient Balance',
-        text2: `You need ${grandTotal.toFixed(
+        text2: `Required: ${transactionalFinances.grandTotal.toFixed(
           1,
-        )} iCash, but you have ${userBalance.toFixed(1)}`,
+        )} iCash | Available: ${transactionalFinances.userBalance.toFixed(1)}`,
       });
       return;
     }
-    setIsVerifyModalVisible(true);
-  };
-  const handlePhoneChange = (text: string) => {
-    setPhoneNumber(text);
-    const phoneNumberObj = parsePhoneNumberFromString(text, countryCode);
-    if (phoneNumberObj) {
-      setIsValid(phoneNumberObj.isValid());
-    } else {
-      setIsValid(false);
-    }
-  };
-  const handleStationSelect = (productId: string, station: DropOffStation) => {
-    setSelectedStations(prev => ({
-      ...prev,
-      [productId]: station,
-    }));
-  };
-  const onVerificationSuccess = async () => {
-    const missingSelection = checkoutItems.find(
-      item =>
-        item.product?.type === 'physical' &&
-        itemDeliveryMethods[item.productId] === 'drop_off' &&
-        !selectedStations[item.productId],
-    );
 
-    if (missingSelection) {
+    if (!formValidation.valid) {
       Toast.show({
         type: 'error',
-        text1: 'Selection Required',
-        text2: `Please select a drop-off location for ${missingSelection.product?.title}`,
+        text1: 'Validation Error',
+        text2: formValidation.reason,
       });
       return;
     }
+
+    setIsVerifyModalVisible(true);
+  }, [
+    transactionalFinances.canAfford,
+    transactionalFinances.grandTotal,
+    transactionalFinances.userBalance,
+    formValidation.valid,
+    formValidation.reason,
+  ]);
+
+  const handlePhoneChange = useCallback(
+    (text: string) => {
+      setPhoneNumber(text);
+      const country = currentUser?.country || 'NG';
+      const phoneNumberObj = parsePhoneNumberFromString(text, country as any);
+      if (phoneNumberObj) {
+        const isValid = phoneNumberObj.isValid();
+        setIsPhoneValid(isValid);
+        if (isValid) setFormattedValue(phoneNumberObj.formatInternational());
+      } else {
+        setIsPhoneValid(false);
+      }
+    },
+    [currentUser?.country],
+  );
+
+  const handleStationSelect = useCallback((productId: string, station: any) => {
+    setSelectedStations(prev => ({ ...prev, [productId]: station }));
+  }, []);
+
+  const onVerificationSuccess = async () => {
     setIsVerifyModalVisible(false);
 
     const orderPayload = {
       items: checkoutItems.map(item => {
         const isPhysical = item.product?.type === 'physical';
         const method = itemDeliveryMethods[item.productId] || 'drop_off';
-        const selectedStation = selectedStations[item.productId];
-
         return {
           productId: item.productId,
           sellerId: item.product?.sellerId,
@@ -207,111 +291,424 @@ export const CheckoutScreen = ({ navigation }: any) => {
           size: item.selectedSize,
           ...(isPhysical &&
             method === 'drop_off' && {
-              selectedStation: selectedStation,
+              selectedStation: selectedStations[item.productId],
             }),
         };
       }),
       totals: {
-        subtotal,
-        tax: transactionTax,
-        delivery: totalDeliveryFee,
-        grandTotal,
+        subtotal: transactionalFinances.subtotal,
+        tax: transactionalFinances.transactionTax,
+        delivery: transactionalFinances.totalDeliveryFee,
+        grandTotal: transactionalFinances.grandTotal,
       },
       shippingContact: {
         phone: formattedValue,
-        address: deliveryAddress,
+        address: deliveryAddress.trim(),
       },
-      buyerId: currentUser.uid,
+      buyerId: currentUser?.uid,
       timestamp: new Date().toISOString(),
     };
-    const result = await initializeCheckoutTransaction(orderPayload);
-    if (result.success) {
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'MSuccessScreen',
-            params: {
-              orders: result.data,
-              totalSpent: orderPayload.totals.grandTotal,
+
+    try {
+      const result = await initializeCheckoutTransaction(orderPayload);
+      if (result?.success) {
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MSuccessScreen',
+              params: {
+                orders: result.data,
+                totalSpent: orderPayload.totals.grandTotal,
+              },
             },
-          },
-        ],
-      });
-    } else {
+          ],
+        });
+      } else {
+        throw new Error(
+          result?.message || 'Transaction Initialization Failed.',
+        );
+      }
+    } catch (error: any) {
       Toast.show({
         type: 'error',
         text1: 'Checkout Error',
-        text2: result.message || 'Something went wrong, please retry',
+        text2: error.message,
       });
     }
   };
+
   const getLocation = () => {
     Geolocation.getCurrentPosition(
       position => {
-        setUserCoords({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+        if (isMounted.current) {
+          setUserCoords({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        }
       },
-      error => {
-        console.log('Location Error: ', error.code, error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 10000,
-      },
+      error => console.log('[GEOLOCATION_ERROR]', error.message),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   };
-  const handleOpenSettings = async () => {
-    await Linking.openSettings();
-  };
+
   const checkLocationPermission = useCallback(async () => {
     const status = await request(
       Platform.OS === 'ios'
         ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
         : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
     );
+    if (!isMounted.current) return;
     setLocationPermission(status);
-    if (status === RESULTS.GRANTED) {
-      getLocation();
-    } else if (status === RESULTS.DENIED) {
-      console.log('Permission denied, but requestable');
-    } else if (status === RESULTS.BLOCKED) {
-      handleOpenSettings();
-      console.log('Permission is blocked. User must enable it manually.');
-    }
+    if (status === RESULTS.GRANTED) getLocation();
   }, []);
-  const handleSubSuccess = async (data: any) => {
-    setSubscriptionModalVisible(false);
-    const res = await verifySubscriptionOnBackend(
-      data.transaction_id || data.flw_ref,
-      'pro',
-      exchangeData.rate,
-    );
-    if (res.success) {
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: 'Upgrade to Pro user successful.',
-      });
-      dispatch(
-        setUser({
-          ...currentUser,
-          tier: 'pro',
-          hasSubscribed: true,
-        }),
-      );
-    }
-  };
 
   useEffect(() => {
     checkLocationPermission();
   }, [checkLocationPermission]);
+
   useEffect(() => {
-    fetchLiveRate(currentUser?.country!).then(setExchangeData);
+    let active = true;
+    if (currentUser?.country) {
+      fetchLiveRate(currentUser.country).then(data => {
+        if (active && isMounted.current && data) setExchangeData(data);
+      });
+    }
+    return () => {
+      active = false;
+    };
   }, [currentUser?.country]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      const isPhysical = item.product?.type === 'physical';
+      const selectedMethod = itemDeliveryMethods[item.productId] || 'drop_off';
+      const sellerSupportsHome =
+        item.product?.physicalDetails?.sellerGateways?.includes(
+          'home_delivery',
+        );
+      const isProUser =
+        currentUser?.tier === 'pro' || currentUser?.tier === 'premium';
+      const canShowHomeToggle = isProUser && sellerSupportsHome;
+      const currentItemFee =
+        selectedMethod === 'home_delivery' ? HOME_DELIVERY_RATE : DROP_OFF_FEE;
+
+      return (
+        <View style={styles.itemWrapper}>
+          <CartItem cartEntry={item} product={item.product!} />
+          {isPhysical && (
+            <View style={styles.itemDeliveryContainer}>
+              {canShowHomeToggle ? (
+                <View style={styles.miniToggleRow}>
+                  <View
+                    style={[
+                      styles.miniToggleBtnRow,
+                      { borderColor: colors.border },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => toggleDelivery(item.productId, 'drop_off')}
+                      style={[
+                        styles.miniBtn,
+                        selectedMethod === 'drop_off' && {
+                          backgroundColor: colors.btnColor,
+                        },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="local-shipping"
+                        size={14}
+                        color={
+                          selectedMethod === 'drop_off'
+                            ? colors.btnTextColor
+                            : colors.text
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.miniBtnText,
+                          {
+                            color:
+                              selectedMethod === 'drop_off'
+                                ? colors.btnTextColor
+                                : colors.text,
+                          },
+                        ]}
+                      >
+                        Drop-off
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() =>
+                        toggleDelivery(item.productId, 'home_delivery')
+                      }
+                      style={[
+                        styles.miniBtn,
+                        selectedMethod === 'home_delivery' && {
+                          backgroundColor: colors.btnColor,
+                        },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="home"
+                        size={14}
+                        color={
+                          selectedMethod === 'home_delivery'
+                            ? colors.btnTextColor
+                            : colors.text
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.miniBtnText,
+                          {
+                            color:
+                              selectedMethod === 'home_delivery'
+                                ? colors.btnTextColor
+                                : colors.text,
+                          },
+                        ]}
+                      >
+                        Home
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={{ color: colors.text }}>
+                    {toPercentLabel(currentItemFee)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.defaultDeliveryInfo}>
+                  <MaterialIcons
+                    name="local-shipping"
+                    size={16}
+                    color={colors.text}
+                  />
+                  <Text
+                    style={[styles.defaultDeliveryText, { color: colors.text }]}
+                  >
+                    Drop-off Station Only ({toPercentLabel(currentItemFee)})
+                  </Text>
+                  {!isProUser && (
+                    <TouchableOpacity
+                      style={[
+                        styles.proBanner,
+                        { backgroundColor: colors.btnColor },
+                      ]}
+                      onPress={() => setSubscriptionModalVisible(true)}
+                    >
+                      <Text
+                        style={{
+                          color: colors.btnTextColor,
+                          fontSize: 11,
+                          fontWeight: '600',
+                        }}
+                      >
+                        Upgrade to Pro for Home Delivery
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      );
+    },
+    [itemDeliveryMethods, colors, currentUser?.tier, toggleDelivery],
+  );
+
+  const renderFooter = useMemo(() => {
+    return (
+      <View
+        style={[
+          styles.summaryContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[styles.summaryTitle, { color: colors.text }]}>
+          Order Summary
+        </Text>
+
+        {dropOffItems.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Pick-up Stations Selection
+            </Text>
+            {dropOffItems.map(item => (
+              <View key={item.productId} style={styles.stationBlock}>
+                <Text style={[styles.stationItemName, { color: colors.text }]}>
+                  {item.product?.title}:
+                </Text>
+                {item.product?.physicalDetails?.dropOffAddress?.map(
+                  (station: any, idx: number) => {
+                    const stationId = station.id || idx;
+                    const isSelected =
+                      selectedStations[item.productId]?.id === stationId;
+
+                    // RESTORE CONSUMPTION: Reads userCoords to compute station distance metrics
+                    let distanceStr = '';
+                    if (userCoords && station.latitude && station.longitude) {
+                      // Assuming your getDistanceInMiles utility function is imported globally
+                      const miles = getDistanceInMiles(
+                        userCoords.lat,
+                        userCoords.lng,
+                        station.latitude,
+                        station.longitude,
+                      );
+                      distanceStr = `${miles.toFixed(1)} miles away`;
+                    }
+
+                    return (
+                      <TouchableOpacity
+                        key={stationId}
+                        onPress={() =>
+                          handleStationSelect(item.productId, station)
+                        }
+                        style={[
+                          styles.stationOption,
+                          isSelected && {
+                            borderColor: colors.primary,
+                            borderWidth: 1.5,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.stationText,
+                            {
+                              color: isSelected ? colors.primary : colors.text,
+                            },
+                          ]}
+                        >
+                          {station.name} - {station.address}
+                        </Text>
+                        {distanceStr ? (
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: colors.text + '99',
+                              marginTop: 4,
+                            }}
+                          >
+                            {distanceStr}
+                          </Text>
+                        ) : locationPermission === 'blocked' ? (
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: '#D32F2F',
+                              marginTop: 4,
+                            }}
+                          >
+                            Location blocked. Enable in settings for distance
+                            tracking.
+                          </Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  },
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {homeItems.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Home Delivery Details
+            </Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Contact Phone Number
+            </Text>
+            <TextInput
+              style={[styles.addressInput, { color: colors.text, height: 45 }]}
+              value={phoneNumber}
+              onChangeText={handlePhoneChange}
+              keyboardType="phone-pad"
+              placeholder="+234..."
+              placeholderTextColor={colors.text + '80'}
+            />
+            {!isPhoneValid && phoneNumber.length > 0 && (
+              <Text style={styles.errorText}>
+                Invalid layout syntax pattern.
+              </Text>
+            )}
+
+            <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>
+              Delivery Target Address
+            </Text>
+            <TextInput
+              style={[styles.addressInput, { color: colors.text }]}
+              placeholder="Room No, Hostel Name, or Faculty building..."
+              value={deliveryAddress}
+              onChangeText={setDeliveryAddress}
+              placeholderTextColor={colors.text + '80'}
+              multiline
+            />
+          </View>
+        )}
+
+        {/* Totals Breakdown */}
+        <View style={styles.divider} />
+        <View style={styles.summaryRow}>
+          <Text style={{ color: colors.text }}>Subtotal</Text>
+          <CurrencyDisplay
+            value={transactionalFinances.subtotal}
+            size="small"
+          />
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={{ color: colors.text }}>Transaction Tax (2%)</Text>
+          <CurrencyDisplay
+            value={transactionalFinances.transactionTax}
+            size="small"
+          />
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>
+            Grand Total
+          </Text>
+          <CurrencyDisplay
+            value={transactionalFinances.grandTotal}
+            size="large"
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.buyBtn,
+            { backgroundColor: colors.btnColor },
+            !transactionalFinances.canAfford && { opacity: 0.5 },
+          ]}
+          onPress={handleProceedToVerify}
+          disabled={!transactionalFinances.canAfford}
+        >
+          <Text style={{ color: colors.btnTextColor, fontWeight: '700' }}>
+            {transactionalFinances.canAfford
+              ? 'Confirm & Pay'
+              : 'Insufficient Balance'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }, [
+    dropOffItems,
+    homeItems,
+    selectedStations,
+    phoneNumber,
+    isPhoneValid,
+    deliveryAddress,
+    transactionalFinances,
+    colors,
+    handlePhoneChange,
+    handleStationSelect,
+    handleProceedToVerify,
+    locationPermission,
+    userCoords,
+  ]);
 
   return (
     <SafeAreaView
@@ -321,312 +718,9 @@ export const CheckoutScreen = ({ navigation }: any) => {
       <FlatList
         data={checkoutItems}
         keyExtractor={(item, index) => item.productId + index}
-        renderItem={({ item }) => {
-          const isPhysical = item.product?.type === 'physical';
-          const selectedMethod =
-            itemDeliveryMethods[item.productId] || 'drop_off';
-          const sellerSupportsHome =
-            item.product?.physicalDetails?.sellerGateways.includes(
-              'home_delivery',
-            );
-          const canShowHomeToggle = isProUser && sellerSupportsHome;
-          const currentItemFee =
-            selectedMethod === 'home_delivery'
-              ? HOME_DELIVERY_RATE
-              : DROP_OFF_FEE;
-          return (
-            <View style={styles.itemWrapper}>
-              <CartItem cartEntry={item} product={item.product!} />
-              {isPhysical && (
-                <View style={styles.itemDeliveryContainer}>
-                  {canShowHomeToggle ? (
-                    <View style={styles.miniToggleRow}>
-                      <View
-                        style={[
-                          styles.miniToggleBtnRow,
-                          { borderColor: colors.border },
-                        ]}
-                      >
-                        <TouchableOpacity
-                          onPress={() =>
-                            toggleDelivery(item.productId, 'drop_off')
-                          }
-                          style={[
-                            styles.miniBtn,
-                            selectedMethod === 'drop_off' && {
-                              backgroundColor: colors.btnColor,
-                            },
-                          ]}
-                        >
-                          <MaterialIcons
-                            name="local-shipping-outlined"
-                            size={14}
-                            color={
-                              selectedMethod === 'drop_off'
-                                ? colors.btnTextColor
-                                : colors.text
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.miniBtnText,
-                              selectedMethod === 'drop_off'
-                                ? { color: colors.btnTextColor }
-                                : { color: colors.text },
-                            ]}
-                          >
-                            Drop-off
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() =>
-                            toggleDelivery(item.productId, 'home_delivery')
-                          }
-                          style={[
-                            styles.miniBtn,
-                            selectedMethod === 'home_delivery' && {
-                              backgroundColor: colors.btnColor,
-                            },
-                          ]}
-                        >
-                          <MaterialIcons
-                            name="home-outlined"
-                            size={14}
-                            color={
-                              selectedMethod === 'home_delivery'
-                                ? colors.btnTextColor
-                                : colors.text
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.miniBtnText,
-                              selectedMethod === 'home_delivery'
-                                ? { color: colors.btnTextColor }
-                                : { color: colors.text },
-                            ]}
-                          >
-                            Home Delivery
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Text
-                        style={[
-                          styles.defaultDeliveryText,
-                          { margin: 0, color: colors.text },
-                        ]}
-                      >
-                        {toPercentLabel(currentItemFee)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.defaultDeliveryInfo}>
-                      <MaterialIcons
-                        name="local-shipping-outlined"
-                        size={16}
-                        color={colors.text}
-                      />
-                      <Text
-                        style={[
-                          styles.defaultDeliveryText,
-                          { color: colors.text },
-                        ]}
-                      >
-                        Delivery: Drop-off Station Only
-                      </Text>
-                      <Text
-                        style={[
-                          styles.defaultDeliveryText,
-                          { color: colors.text },
-                        ]}
-                      >
-                        {toPercentLabel(currentItemFee)}
-                      </Text>
-                      {!isProUser && (
-                        <TouchableOpacity
-                          style={[
-                            styles.proBanner,
-                            { backgroundColor: colors.btnColor },
-                          ]}
-                          onPress={() => setSubscriptionModalVisible(true)}
-                        >
-                          <Text
-                            style={[
-                              styles.proBannerText,
-                              { color: colors.btnTextColor },
-                            ]}
-                          >
-                            Upgrade to Pro to unlock Home Delivery
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          );
-        }}
-        ListFooterComponent={
-          <View
-            style={[
-              styles.summaryContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Text style={[styles.summaryTitle, { color: colors.textDarker }]}>
-              Order Summary
-            </Text>
-            {(dropOffItems.length > 0 || homeItems.length > 0) && (
-              <View style={styles.deliveryInfoCard}>
-                {dropOffItems.length > 0 && (
-                  <>
-                    <Text style={[styles.sectionTitle, {color: colors.text}]}>Pick-up Information</Text>
-                    {dropOffItems.map(item => (
-                      <View key={item.productId} >
-                          <Text style={[styles.stationText, {color: colors.text}]}>
-                            Available delivery stations for{' '}
-                            {item.product?.title}:
-                          </Text>
-                        <View style={{ marginVertical: 6 }}>
-                          {item.product?.physicalDetails?.dropOffAddress?.map(
-                            (station, index) => {
-                              const isSelected =
-                                selectedStations[item.productId]?.id ===
-                                (station.id || index);
-                              let distanceStr = '';
-                              if (
-                                userCoords &&
-                                station.latitude &&
-                                station.longitude
-                              ) {
-                                const miles = getDistanceInMiles(
-                                  userCoords.lat,
-                                  userCoords.lng,
-                                  station.latitude,
-                                  station.longitude,
-                                );
-                                distanceStr = `${miles.toFixed(1)} miles away`;
-                              }
-                              return (
-                                <TouchableOpacity
-                                  key={station.id || index}
-                                  onPress={() =>
-                                    handleStationSelect(item.productId, station)
-                                  }
-                                  style={styles.stationOption}
-                                >
-                                  <Text
-                                    key={station.id || index}
-                                    style={[
-                                      styles.stationText2,
-                                      isSelected ? {color: colors.primary} : {color: colors.text}
-                                    ]}
-                                  >
-                                    {station.name}, {station.address}
-                                  </Text>
-                                  {distanceStr ? (
-                                    <Text style={styles.distanceLabel}>
-                                      {distanceStr}
-                                    </Text>
-                                  ) : locationPermission === RESULTS.BLOCKED ? (
-                                    <TouchableOpacity
-                                      onPress={handleOpenSettings}
-                                      style={[styles.enableBtn, {backgroundColor: colors.btnColor}]}
-                                    >
-                                      <Text style={[styles.enableLocationText, {color: colors.btnTextColor}]}>
-                                        Enable location to see distance
-                                      </Text>
-                                    </TouchableOpacity>
-                                  ) : null}
-                                </TouchableOpacity>
-                              );
-                            },
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </>
-                )}
-                {homeItems.length > 0 && (
-                  <View style={styles.homeDeliveryForm}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                      Home Delivery Details
-                    </Text>
-                    <Text style={[styles.label, { color: colors.text }]}>
-                      Enter your phone number
-                    </Text>
-                    <PhoneInput
-                      defaultValue={phoneNumber}
-                      defaultCode={countryCode}
-                      layout="first"
-                      onChangeText={handlePhoneChange}
-                      onChangeFormattedText={text => setFormattedValue(text)}
-                      containerStyle={styles.phoneInputContainer}
-                      textContainerStyle={styles.phoneTextContainer}
-                      withShadow
-                      textInputStyle={{ color: colors.text, fontSize: 14 }}
-                    />
-                    {!isValid && phoneNumber.length > 0 && (
-                      <Text style={styles.errorText}>
-                        Invalid number for {countryCode}
-                      </Text>
-                    )}
-                    <Text
-                      style={[
-                        styles.label,
-                        { marginTop: 10, color: colors.text },
-                      ]}
-                    >
-                      Delivery Address
-                    </Text>
-                    <TextInput
-                      style={[styles.addressInput, { color: colors.text }]}
-                      placeholder="Room No, Hostel Name, or Faculty building..."
-                      value={deliveryAddress}
-                      onChangeText={setDeliveryAddress}
-                      placeholderTextColor={colors.inputTextHolder}
-                      multiline
-                    />
-                  </View>
-                )}
-              </View>
-            )}
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.text }]}>
-                Subtotal
-              </Text>
-              <CurrencyDisplay value={subtotal} size="small" />
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.text }]}>
-                Transaction Tax (2%)
-              </Text>
-              <CurrencyDisplay value={transactionTax} size="small" />
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.grandTotalLabel, { color: colors.text }]}>
-                Grand Total
-              </Text>
-              <CurrencyDisplay value={grandTotal} size="large" />
-            </View>
-            <View style={styles.balanceCard}>
-              <Text style={[styles.balanceText, { color: colors.text }]}>
-                Your Balance:
-              </Text>
-              <CurrencyDisplay value={userBalance} size="small" />
-            </View>
-            <TouchableOpacity
-              style={[styles.buyBtn, { backgroundColor: colors.btnColor }]}
-              onPress={handleProceedToVerify}
-              disabled={!canAfford}
-            >
-              <Text style={[styles.buyBtnText, { color: colors.btnTextColor }]}>
-                {canAfford ? 'Confirm & Pay' : 'Insufficient Balance'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        }
+        renderItem={renderItem}
+        ListFooterComponent={renderFooter}
+        contentContainerStyle={{ paddingBottom: 40 }}
       />
 
       <IcashPinOrFingerprintVerifyModal
@@ -641,12 +735,36 @@ export const CheckoutScreen = ({ navigation }: any) => {
         onClose={() => setSubscriptionModalVisible(false)}
         targetTier="pro"
         userContext={{
-          email: currentUser.email,
-          name: `${currentUser.firstname} ${currentUser.lastname}`,
-          country: currentUser.country!,
+          email: currentUser?.email || '',
+          name: `${currentUser?.firstname || ''} ${
+            currentUser?.lastname || ''
+          }`,
+          country: currentUser?.country || 'NG',
         }}
         exchangeData={exchangeData}
-        onSuccess={handleSubSuccess}
+        onSuccess={async (data: any) => {
+          setSubscriptionModalVisible(false);
+          const res = await verifySubscriptionOnBackend(
+            data.transaction_id || data.flw_ref,
+            'pro',
+            exchangeData.rate,
+          );
+          if (res?.success) {
+            Toast.show({
+              type: 'success',
+              text1: 'Success',
+              text2: 'Upgrade to Pro user successful.',
+            });
+            // Consumes dispatch here to transition user state locally
+            dispatch(
+              setUser({
+                ...currentUser,
+                tier: 'pro',
+                hasSubscribed: true,
+              }),
+            );
+          }
+        }}
         title="Upgrade to enable home delivery"
       />
     </SafeAreaView>
@@ -808,5 +926,23 @@ const styles = StyleSheet.create({
   enableLocationText: {
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  sectionContainer: {
+    marginTop: 16,
+    paddingTop: 10,
+  },
+  stationBlock: {
+    marginBottom: 14,
+    paddingBottom: 8,
+  },
+  stationItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: PRIMARY_COLOR_TINT, 
+    marginVertical: 16,
   },
 });

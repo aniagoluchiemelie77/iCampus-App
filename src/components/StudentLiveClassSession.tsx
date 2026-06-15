@@ -956,7 +956,7 @@ export const LiveClassSessionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)', // Semi-transparent black
+    backgroundColor: 'rgba(0,0,0,0.5)', 
   },
   muteAllButton: {
     flexDirection: 'row',

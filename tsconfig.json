@@ -1,13 +1,12 @@
 {
   "extends": "./node_modules/@react-native/typescript-config/tsconfig.json",
   "compilerOptions": {
-  "baseUrl": "./src",
-  "paths": {
-    "@components/*": ["components/*"],
-    "@utils/*": ["utils/*"]
+    "paths": {
+      "@components/*": ["./src/components/*"],
+      "@utils/*": ["./src/utils/*"]
+    },
+    "types": ["jest", "node"]
   },
-"types": ["jest"]
-},
   "include": [
     "**/*.ts", 
     "**/*.tsx",
