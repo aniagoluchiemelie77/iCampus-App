@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,7 +14,7 @@ import Toast from 'react-native-toast-message';
 import { exportTransactionsAPI } from '../api/localPostApis.ts';
 import { TransactionList } from '../components/TransactionHistory';
 import { TransactionStats } from '../components/TransactionStats';
-import { PRIMARY_COLOR } from '../components/Classroomcomponent';
+import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -31,6 +31,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
   const [endDate, setEndDate] = useState(new Date());
   const [pickerMode, setPickerMode] = useState<'start' | 'end' | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
   const handleDateConfirm = (event: any, date?: Date) => {
     setPickerMode(null);
@@ -81,6 +82,10 @@ export const AllTransactionsScreen = ({ route }: any) => {
       setIsExporting(false);
     }
   };
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   return (
     <ScrollView
@@ -156,7 +161,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
               <TextInput
                 placeholder="Search history..."
                 style={[iCashScreenStyles.searchInput, { color: colors.text }]}
-                value={searchQuery}
+                value={debouncedQuery}
                 placeholderTextColor={colors.inputTextHolder}
                 onChangeText={setSearchQuery}
               />
@@ -298,9 +303,10 @@ export const AllTransactionsScreen = ({ route }: any) => {
       </Modal>
       {pickerMode && (
         <DateTimePicker
+          testID="dateTimePicker"
           value={pickerMode === 'start' ? startDate : endDate}
           mode="date"
-          display="spinner"
+          display="default"
           onChange={handleDateConfirm}
           maximumDate={new Date()}
         />

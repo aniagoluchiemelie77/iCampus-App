@@ -5,6 +5,7 @@ import { RootStackParamList } from '../../App';
 import { getUserAccountState } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Toast from 'react-native-toast-message';
 
 type Props = StackScreenProps<RootStackParamList, 'SuspendedScreen'>;
 
@@ -25,6 +26,11 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
         navigation.replace('Home', { activeTab: 'home' });
       } else if (result.user?.isSuspended) {
         console.warn('User account is suspended.');
+        Toast.show({
+          type: 'info',
+          text1: 'Account still restricted',
+          text2: 'If you believe this is an error, please contact security.',
+        });
       } else {
         console.error('Authentication failed:', result.error);
       }

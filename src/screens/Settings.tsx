@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 import { SettingItem } from '../components/SettingsItem';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PRIMARY_COLOR_TINT } from '@components/Classroomcomponent';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DeviceInfo from 'react-native-device-info';
@@ -98,8 +98,8 @@ export const Settings = () => {
       Toast.show({ type: 'info', text2: 'Biometrics Disabled' });
     }
   };
-  const handlePinReset = async () => {
-    if (isResetting) return; // Prevent overlapping execution
+  const handlePinReset = useCallback(async () => {
+    if (isResetting) return;
     setIsResetting(true);
     try {
       const response = await requestPinReset();
@@ -111,7 +111,8 @@ export const Settings = () => {
     } finally {
       setIsResetting(false);
     }
-  };
+  }, [isResetting, navigation]);
+
   const handleThemeToggle = async () => {
     const newTheme = isCurrentlyDark ? 'light' : 'dark';
     dispatch(updateThemeState(newTheme));
@@ -135,7 +136,10 @@ export const Settings = () => {
       });
     }
   };
-  const throttledReset = throttle(handlePinReset, 2000);
+  const throttledReset = useMemo(
+    () => throttle(handlePinReset, 2000),
+    [handlePinReset],
+  );
   useEffect(() => {
     const checkStatus = async () => {
       const val = await AsyncStorage.getItem('biometrics_enabled');

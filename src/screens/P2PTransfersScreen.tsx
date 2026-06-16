@@ -9,6 +9,10 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  Vibration,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
@@ -19,7 +23,7 @@ import { useAppSelector } from '../components/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
 // @ts-ignore: runOnJS is deprecated in Reanimated but stable for Vision Camera
 import { runOnJS } from 'react-native-reanimated';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { ITagCard } from '../components/iTag';
@@ -123,27 +127,6 @@ export const IcashP2PScreen = () => {
     }
   };
   const device = useCameraDevice('back');
-  React.useEffect(() => {
-    (async () => {
-      const status = await Camera.requestCameraPermission();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
-  const frameProcessor = useFrameProcessor(
-    frame => {
-      'worklet';
-      const detectedBarcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
-
-      if (detectedBarcodes.length > 0) {
-        const data = detectedBarcodes[0].displayValue;
-        if (data) {
-          console.log('Scanned QR:', data);
-          runOnJS(handleScanSuccess)(data);
-        }
-      }
-    },
-    [handleScanSuccess],
-  );
   const processFinalTransaction = async () => {
     setIsLoading(true);
     try {
@@ -153,7 +136,6 @@ export const IcashP2PScreen = () => {
         amount: parseFloat(amount),
         description: `Transfer to ${searchResult!.username}`,
       });
-
       if (result.success) {
         navigation.reset({
           index: 0,
@@ -200,6 +182,49 @@ export const IcashP2PScreen = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [recipientTag]);
+  const frameProcessor = useFrameProcessor(
+    frame => {
+      'worklet';
+      const detectedBarcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
+
+      if (detectedBarcodes.length > 0) {
+        const barcodeValue = detectedBarcodes[0].displayValue;
+        if (barcodeValue) {
+          // @ts-ignore - 'runOnJS'
+          runOnJS(handleScanSuccess)(barcodeValue);
+          // @ts-ignore - 'runOnJS'
+          runOnJS(Vibration.vibrate)(100);
+        }
+      }
+    },
+    [handleScanSuccess],
+  );
+  React.useEffect(() => {
+    (async () => {
+      const status = await Camera.requestCameraPermission();
+      setHasPermission(status === 'granted');
+
+      if (status === 'denied') {
+        Alert.alert(
+          'Camera Permission Required',
+          'To scan QR codes, we need access to your camera. Please enable it in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:');
+                } else {
+                  Linking.openSettings();
+                }
+              },
+            },
+          ],
+        );
+      }
+    })();
+  }, []);
 
   return (
     <ScrollView

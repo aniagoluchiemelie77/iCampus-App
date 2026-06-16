@@ -1,15 +1,23 @@
 import React, {useState, useEffect} from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import { useAppSelector } from '../components/hooks';
-import {UserSession} from '../types/firebase';
+import { UserSession } from '../types/firebase';
 import { updateUserSessions } from '../components/UserSlice';
 import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR } from 'assets/styles/colors';
-import { revokeDeviceSession } from 'api/localPostApis';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { revokeDeviceSession } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 
 export const LinkedDevicesScreen = () => {
@@ -17,6 +25,7 @@ export const LinkedDevicesScreen = () => {
   const currentUser = useAppSelector(state => state.user);
   const dispatch = useDispatch();
   const [currentDeviceId, setCurrentDeviceId] = useState<string>('');
+  const [isRevoking, setIsRevoking] = useState<string | null>(null);
 
   const handleRemoveDevice = ({
     deviceId,
@@ -40,6 +49,7 @@ export const LinkedDevicesScreen = () => {
     deviceIdToRevoke: string;
   }) => {
     try {
+      setIsRevoking(deviceIdToRevoke);
       const result = await revokeDeviceSession(
         currentUser.uid,
         deviceIdToRevoke,
@@ -76,7 +86,8 @@ export const LinkedDevicesScreen = () => {
             {isCurrent && <Text style={styles.thisDevice}>(This device)</Text>}
           </Text>
           <Text style={[styles.deviceMeta, { color: colors.text }]}>
-            {item.location} • {moment(item.lastUsed).fromNow()}
+            {item.location} •{' '}
+            {item.lastUsed ? moment(item.lastUsed).fromNow() : 'Unknown date'}
           </Text>
           <Text style={[styles.ipText, { color: colors.text }]}>
             {item.ipAddress}
@@ -93,7 +104,11 @@ export const LinkedDevicesScreen = () => {
             }
             style={styles.removeButton}
           >
-            <MaterialIcons name="logout" size={20} color={colors.primary} />
+            {isRevoking ? (
+              <ActivityIndicator color={colors.primary} size={'small'} />
+            ) : (
+              <MaterialIcons name="logout" size={20} color={colors.primary} />
+            )}
           </TouchableOpacity>
         )}
       </View>

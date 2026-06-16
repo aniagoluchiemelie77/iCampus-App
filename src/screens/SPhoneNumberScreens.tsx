@@ -14,7 +14,7 @@ import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from '../components/hooks';
 import {
   handleSendWhatsAppCode,
@@ -31,6 +31,7 @@ export const PhoneScreen = () => {
   const user = useAppSelector(state => state.user);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [formattedValue, setFormattedValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState('idle');
   const [isValid, setIsValid] = useState(false);
   const [countryCode, setCountryCode] = useState<any>(user.country || 'NG');
@@ -94,6 +95,7 @@ export const PhoneScreen = () => {
     );
   };
   const handleVerify = async () => {
+    setIsSubmitting(true);
     const res = await verifyPhoneOTPAPI(formattedValue, codeInput);
     if (res && res.success) {
       Toast.show({ type: 'success', text2: `Phone Number verified.` });
@@ -108,6 +110,7 @@ export const PhoneScreen = () => {
       });
       setStep('idle');
     }
+    setIsSubmitting(false);
   };
   useEffect(() => {
     let interval: any = null;
@@ -259,17 +262,11 @@ export const PhoneScreen = () => {
               onPress={handleVerify}
             >
               <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-                Verify & Update
+                {isSubmitting ? 'Verifying...' : 'Verify & Update'}
               </Text>
             </TouchableOpacity>
           </View>
         )}
-        <TouchableOpacity
-          onPress={() => setStep('idle')}
-          style={[styles.cancelButton, {backgroundColor: colors.btnColor}]}
-        >
-          <Text style={[styles.cancelButtonText, {color: colors.btnTextColor}]}>Cancel</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );

@@ -1,15 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import { FlatList, TouchableOpacity, Text, RefreshControl, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  FlatList,
+  TouchableOpacity,
+  Text,
+  RefreshControl,
+  StyleSheet,
+} from 'react-native';
 import { useAppDataContext } from '../components/EventContext';
-import {EmptyState} from '../components/EmptyFlatlistComponent';
-import {PageHeader} from '../components/PageHeader';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { PageHeader } from '../components/PageHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {PRIMARY_COLOR} from '../assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useNavigation } from '@react-navigation/native';
-import {OrderAccordion} from '../components/MyQRCodeSection';
-import {CancellationModal} from '../components/OrderCancellationModal';
+import { OrderAccordion } from '../components/MyQRCodeSection';
+import { CancellationModal } from '../components/OrderCancellationModal';
 import { useTheme } from '../context/ThemeContext';
+import { MarketplaceOrder } from '../types/firebase';
 
+const OrderListItem = React.memo(
+  ({
+    item,
+    onCancel,
+    colors,
+  }: {
+    item: any;
+    onCancel: (id: string) => void;
+    colors: any;
+  }) => (
+    <>
+      <OrderAccordion order={item} />
+      <TouchableOpacity
+        style={[styles.cancelButton, { backgroundColor: colors.btnColor }]}
+        onPress={() => onCancel(item.orderId)}
+      >
+        <Text style={[styles.cancelButtonText, { color: colors.btnTextColor }]}>
+          Cancel Order
+        </Text>
+      </TouchableOpacity>
+    </>
+  ),
+);
 export const PendingOrdersScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
@@ -20,6 +50,19 @@ export const PendingOrdersScreen = () => {
   useEffect(() => {
     fetchPendingOrders();
   }, [fetchPendingOrders]);
+  const renderItem = useCallback(
+    ({ item }: { item: MarketplaceOrder }) => (
+      <OrderListItem
+        item={item}
+        onCancel={(id: string) => {
+          setOrderId(id);
+          setModalVisible(true);
+        }}
+        colors={colors}
+      />
+    ),
+    [colors],
+  );
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -31,20 +74,7 @@ export const PendingOrdersScreen = () => {
       <FlatList
         data={pendingOrders}
         keyExtractor={item => item.orderId}
-        renderItem={({ item }) => (
-          <>
-            <OrderAccordion order={item} />
-            <TouchableOpacity
-              style={[styles.cancelButton, {backgroundColor: colors.btnColor}]}
-              onPress={() => {
-                setOrderId(item.orderId);
-                setModalVisible(true);
-              }}
-            >
-              <Text style={[styles.cancelButtonText, {color: colors.btnTextColor}]}>Cancel Order</Text>
-            </TouchableOpacity>
-          </>
-        )}
+        renderItem={renderItem}
         refreshControl={
           <RefreshControl
             refreshing={isOrdersLoading}

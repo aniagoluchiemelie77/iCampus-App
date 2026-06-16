@@ -1,9 +1,16 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  BackHandler,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
+import { CommonActions } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -13,6 +20,22 @@ type Props = NativeStackScreenProps<
 export const ProductPublishSuccess = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { productName, isEditing } = route.params;
+  useEffect(() => {
+    const onBackPress = () => true;
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress,
+    );
+    return () => subscription.remove();
+  }, []);
+  const navigateToManagement = () => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'SalesHub' }],
+      }),
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -42,7 +65,7 @@ export const ProductPublishSuccess = ({ route, navigation }: Props) => {
 
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.btnColor }]}
-          onPress={() => navigation.navigate('SalesHub')}
+          onPress={navigateToManagement}
         >
           <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
             Product Management Screen

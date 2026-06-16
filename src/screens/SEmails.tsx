@@ -11,7 +11,7 @@ import {
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from '../components/hooks';
 import {
   verifySignupEmail,
@@ -37,9 +37,11 @@ export const EmailsScreen = () => {
   const [timer, setTimer] = useState(900);
 
   const handleSendCode = async () => {
-    if (emailError !== '') {
+    if (!isValidEmail(emailInput.trim())) {
+      setEmailError('Please enter a valid email address.');
       return;
     }
+    setEmailError('');
     const res = await verifySignupEmail(emailInput);
     if (res.success) {
       Toast.show({
@@ -139,7 +141,7 @@ export const EmailsScreen = () => {
       if (interval) clearInterval(interval);
     };
   }, [step, timer]);
-  if (isValidEmail(emailInput)) {
+  if (!isValidEmail(emailInput)) {
     setEmailError('Invalid Email.');
   }
   return (
@@ -147,23 +149,34 @@ export const EmailsScreen = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <PageHeader title="Emails" />
-      <View style={[styles.section, {backgroundColor: colors.backgroundSecondary}]}>
-        <Text style={[styles.header, {color: colors.text}]}>Primary Email</Text>
+      <View
+        style={[
+          styles.section,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[styles.header, { color: colors.text }]}>
+          Primary Email
+        </Text>
         <TextInput
           value={user.email}
           editable={false}
-          style={[styles.disabledInput, {color: colors.text}]}
+          style={[styles.disabledInput, { color: colors.text }]}
         />
         <TouchableOpacity
-          style={[styles.inlineButton, {backgroundColor: colors.btnColor}]}
+          style={[styles.inlineButton, { backgroundColor: colors.btnColor }]}
           onPress={() => {
             setStep('primaryInput');
             setMode('primary');
           }}
         >
-          <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Change</Text>
+          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+            Change
+          </Text>
         </TouchableOpacity>
-        <Text style={[styles.header, {color: colors.text}]}>Recovery Emails</Text>
+        <Text style={[styles.header, { color: colors.text }]}>
+          Recovery Emails
+        </Text>
         {user.recoveryEmails ? (
           (user.recoveryEmails || []).map(item => (
             <>
@@ -172,7 +185,7 @@ export const EmailsScreen = () => {
                   key={item.email}
                   value={item.email}
                   editable={false}
-                  style={[styles.disabledInput, {color: colors.text}]}
+                  style={[styles.disabledInput, { color: colors.text }]}
                 />
                 <TouchableOpacity
                   onPress={() => handleDeleteRecovery(item.email)}
@@ -187,26 +200,30 @@ export const EmailsScreen = () => {
             </>
           ))
         ) : (
-          <Text style={[styles.emptyEmailText, {color: colors.text}]}>No Recovery emails added</Text>
+          <Text style={[styles.emptyEmailText, { color: colors.text }]}>
+            No Recovery emails added
+          </Text>
         )}
         <TouchableOpacity
-          style={[styles.inlineButton, {backgroundColor: colors.btnColor}]}
+          style={[styles.inlineButton, { backgroundColor: colors.btnColor }]}
           onPress={() => {
             setStep('recoveryInput');
             setMode('recovery');
           }}
         >
-          <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Add Recovery Email</Text>
+          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+            Add Recovery Email
+          </Text>
         </TouchableOpacity>
         {step !== 'idle' && (
           <>
-            <Text style={[styles.cardTitle, {color: colors.text}]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
               {step === 'verifyCode' ? 'Verify Code' : `Update ${mode} Email`}
             </Text>
             {(step === 'primaryInput' || step === 'recoveryInput') && (
               <>
                 <TextInput
-                  style={[styles.disabledInput, {color: colors.text}]}
+                  style={[styles.disabledInput, { color: colors.text }]}
                   placeholder="Enter your email address"
                   placeholderTextColor={colors.inputTextHolder}
                   onChangeText={setEmailInput}
@@ -217,20 +234,27 @@ export const EmailsScreen = () => {
                   <Text style={styles.emailErrorText}>{emailError}</Text>
                 )}
                 <TouchableOpacity
-                  style={[[styles.inlineButton, {backgroundColor: colors.btnColor}], { marginTop: 10 }]}
+                  style={[
+                    [styles.inlineButton, { backgroundColor: colors.btnColor }],
+                    { marginTop: 10 },
+                  ]}
                   onPress={handleSendCode}
                 >
-                  <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Send Verification Code</Text>
+                  <Text
+                    style={[styles.buttonText, { color: colors.btnTextColor }]}
+                  >
+                    Send Verification Code
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
             {step === 'verifyCode' && (
               <>
-                <Text style={[styles.instructionText, {color: colors.text}]}>
+                <Text style={[styles.instructionText, { color: colors.text }]}>
                   Enter the 6-digit code sent to {emailInput}
                 </Text>
                 <TextInput
-                  style={[styles.disabledInput, {color: colors.text}]}
+                  style={[styles.disabledInput, { color: colors.text }]}
                   placeholder="000000"
                   placeholderTextColor={colors.inputTextHolder}
                   onChangeText={setCodeInput}
@@ -240,16 +264,25 @@ export const EmailsScreen = () => {
                 <Text
                   style={[
                     styles.timerText,
-                    timer < 60 ? { color: colors.primary } : {color: colors.text}
+                    timer < 60
+                      ? { color: colors.primary }
+                      : { color: colors.text },
                   ]}
                 >
                   Code expires in: {formatSignupTime(timer)}
                 </Text>
                 <TouchableOpacity
-                  style={[styles.inlineButton, {backgroundColor: colors.btnColor}]}
+                  style={[
+                    styles.inlineButton,
+                    { backgroundColor: colors.btnColor },
+                  ]}
                   onPress={handleVerify}
                 >
-                  <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Verify & Update</Text>
+                  <Text
+                    style={[styles.buttonText, { color: colors.btnTextColor }]}
+                  >
+                    Verify & Update
+                  </Text>
                 </TouchableOpacity>
               </>
             )}

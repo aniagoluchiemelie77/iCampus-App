@@ -1,16 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  BackHandler,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
+import { CommonActions } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PayoutSuccess'>;
 
 export const PayoutSuccess = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
-  const { amount, transactionId } = route.params;
+  const { amount = 0, transactionId = 'N/A' } = route.params ?? {};
+  useEffect(() => {
+    const onBackPress = () => true;
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress,
+    );
+
+    return () => subscription.remove();
+  }, []);
+
+  const navigateToWallet = () => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'ICashDashboard', params: { refresh: true } }],
+      }),
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -22,8 +47,8 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
       >
         <MaterialIcons
           name="check-circle-outlined"
-          size={60}
-          color={colors.primary}
+          size={64}
+          color={colors.success}
         />
 
         <Text style={[styles.congrats, { color: colors.textDarker }]}>
@@ -40,30 +65,16 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
         </Text>
 
         <Text style={[styles.infoText, { color: colors.text }]}>
-          Your payout has been successfully processed. It usually takes a few
-          seconds to reflect in your iCash dashboard.
+          Your payout has been successfully processed. It will reflect in your
+          iCash balance shortly.
         </Text>
 
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.btnColor }]}
-          onPress={() =>
-            navigation.navigate('ICashDashboard', { refresh: true })
-          }
+          onPress={navigateToWallet}
         >
           <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
             Go to Wallet
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate('Home', {
-              activeTab: 'home',
-            })
-          }
-        >
-          <Text style={[styles.backHome, { color: colors.primary }]}>
-            Back to Home
           </Text>
         </TouchableOpacity>
       </View>

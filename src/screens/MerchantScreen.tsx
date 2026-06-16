@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import {
   View,
   ScrollView,
@@ -22,14 +22,34 @@ import {
 import { useAppSelector } from '../components/hooks';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import { ActivityIndicator } from 'react-native-paper';
 
+const TABS = {
+  Overview: OverviewsScreenComponent,
+  Orders: OrdersList,
+  Sales: SalesScreen,
+  Inventory: ProductList,
+  Payouts: PayoutView,
+  Reviews: ReviewsSection,
+};
+const DashboardSkeleton = () => {
+  const { colors: themeColors } = useTheme();
+  return (
+    <View style={styles.skeletonContainer}>
+      <ActivityIndicator size={'small'} color={themeColors.primary} />
+      <Text style={[styles.skeletonText, { color: themeColors.text }]}>
+        Loading data...
+      </Text>
+    </View>
+  );
+};
 export const MerchantDashboard = () => {
   const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
   const [activeTab, setActiveTab] = useState('Overview');
   const navigation = useNavigation<any>();
   const isOrganization = currentUser.organizationName !== '';
-
+  const ActiveComponent = TABS[activeTab as keyof typeof TABS];
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
@@ -45,7 +65,7 @@ export const MerchantDashboard = () => {
             </Text>
             <MaterialIcons
               name="add-business-outlined"
-              size={24}
+              size={22}
               color={colors.btnTextColor}
             />
           </TouchableOpacity>
@@ -115,12 +135,13 @@ export const MerchantDashboard = () => {
           ))}
         </ScrollView>
         <View style={styles.content}>
-          {activeTab === 'Overview' && <OverviewsScreenComponent />}
-          {activeTab === 'Orders' && <OrdersList />}
-          {activeTab === 'Sales' && <SalesScreen />}
-          {activeTab === 'Inventory' && <ProductList />}
-          {activeTab === 'Payouts' && <PayoutView />}
-          {activeTab === 'Reviews' && <ReviewsSection />}
+          <Suspense fallback={<DashboardSkeleton />}>
+            {ActiveComponent ? (
+              <ActiveComponent />
+            ) : (
+              <OverviewsScreenComponent />
+            )}
+          </Suspense>
         </View>
       </ScrollView>
     </View>
@@ -185,5 +206,13 @@ export const styles = StyleSheet.create({
   topBtnText: {
     marginRight: 4,
     fontSize: 14,
+  },
+  skeletonContainer: {
+    alignContent: 'center',
+    padding: 20,
+  },
+  skeletonText: {
+    fontSize: 14,
+    marginVertical: 15,
   },
 });

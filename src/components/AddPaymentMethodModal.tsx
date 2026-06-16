@@ -8,11 +8,10 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
-import { PRIMARY_COLOR_TINT } from './Classroomcomponent.tsx';
 import { SvgProps } from 'react-native-svg';
 import { initiatePaymentCharge } from '../api/localPostApis.ts';
 import {
@@ -31,8 +30,8 @@ import {
   fetchCardInfo,
   formatCardNumber,
 } from '../utils/UserTransactionsHelpers.tsx';
-import { User } from 'types/firebase';
-import { fetchSupportedBanks } from 'api/localGetApis.ts';
+import { User } from '../types/firebase';
+import { fetchSupportedBanks } from '../api/localGetApis.ts';
 const { width } = Dimensions.get('window');
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -229,7 +228,14 @@ const CardForm = ({
             onChangeText={v => setCardData({ ...cardData, month: v })}
             placeholderTextColor={colors.inputTextHolder}
           />
-          <Text style={AddPaymentMethodStyles.divider}>/</Text>
+          <Text
+            style={[
+              AddPaymentMethodStyles.divider,
+              { backgroundColor: colors.primaryTint },
+            ]}
+          >
+            /
+          </Text>
           <TextInput
             style={[AddPaymentMethodStyles.smallInput, { color: colors.text }]}
             placeholder="YY"
@@ -700,8 +706,7 @@ export const AddPaymentMethodStyles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#fadccc',
-    marginVertical: 10,
+    marginVertical: 15,
     opacity: 0.5,
   },
   tabContainer: {

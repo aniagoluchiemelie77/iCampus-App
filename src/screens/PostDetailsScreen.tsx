@@ -14,11 +14,10 @@ import { PostCard } from '../components/PostCard';
 import { CommentItem } from '../components/CommentSection';
 import { useAppDataContext } from '../components/EventContext';
 import Toast from 'react-native-toast-message';
-import { Posts } from 'types/firebase';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
+import { Posts } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT, PRIMARY_COLOR } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 export const PostDetailScreen = ({ route }: any) => {
@@ -27,6 +26,7 @@ export const PostDetailScreen = ({ route }: any) => {
   const [post, setPost] = useState<Posts | null>(initialPost || null);
   const [loading, setLoading] = useState(!initialPost);
   const [commentText, setCommentText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{
     id: string;
     name: string;
@@ -56,25 +56,24 @@ export const PostDetailScreen = ({ route }: any) => {
   }, [postId, fetchPostById, post]);
 
   const threadedComments = useMemo(() => {
-    if (!post || !post.comments) return [];
+    if (!post?.comments) return [];
+
     const map = new Map();
     const roots: any[] = [];
-
-    post.comments.forEach((c: any) =>
-      map.set(c.commentId, { ...c, replies: [] }),
-    );
-    map.forEach((c: any) => {
+    post.comments.forEach(c => map.set(c.commentId, { ...c, replies: [] }));
+    post.comments.forEach(c => {
       if (c.parentId && map.has(c.parentId)) {
-        map.get(c.parentId).replies.push(c);
+        map.get(c.parentId).replies.push(map.get(c.commentId));
       } else {
-        roots.push(c);
+        roots.push(map.get(c.commentId));
       }
     });
     return roots;
-  }, [post]);
+  }, [post?.comments]);
 
   const handleSend = async () => {
     if (!commentText.trim() || !post) return;
+    setIsSending(true);
 
     try {
       await addComment(post.postId, commentText, replyingTo?.id || null);
@@ -132,7 +131,7 @@ export const PostDetailScreen = ({ route }: any) => {
             }}
           />
         )}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 50 }}
       />
 
       <View
@@ -147,7 +146,11 @@ export const PostDetailScreen = ({ route }: any) => {
               Replying to @{replyingTo.name}
             </Text>
             <TouchableOpacity onPress={() => setReplyingTo(null)}>
-              <MaterialIcons name="cancel-outlined" size={22} color={colors.text} />
+              <MaterialIcons
+                name="cancel-outlined"
+                size={22}
+                color={colors.text}
+              />
             </TouchableOpacity>
           </View>
         )}
@@ -166,7 +169,11 @@ export const PostDetailScreen = ({ route }: any) => {
             disabled={!commentText.trim()}
             style={[styles.sendBtn, { backgroundColor: colors.btnColor }]}
           >
-            <MaterialIcons name="send" size={22} color={colors.btnTextColor} />
+            {isSending ? (
+              <ActivityIndicator size={'small'} color={colors.btnTextColor}/>
+            ) : (
+              <MaterialIcons name="send" size={22} color={colors.btnTextColor} />
+            )}
           </TouchableOpacity>
         </View>
       </View>

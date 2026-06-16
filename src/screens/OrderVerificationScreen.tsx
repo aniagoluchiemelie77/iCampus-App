@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
+import { Vibration } from 'react-native';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -13,7 +14,15 @@ type Props = NativeStackScreenProps<
 
 export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
-  const { amount, role, productName, orderId } = route.params;
+  const {
+    amount = 0,
+    role = 'user',
+    productName = 'N/A',
+    orderId = '000',
+  } = route.params || {};
+  useEffect(() => {
+    Vibration.vibrate(100);
+  }, []);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View

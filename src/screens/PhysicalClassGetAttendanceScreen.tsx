@@ -16,7 +16,7 @@ import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { SERVICE_UUID } from '@env';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { LogoBigger } from 'assets/images/Logo';
+import { LogoBigger } from '../assets/images/Logo';
 import BleManager from 'react-native-ble-manager';
 import { requestMultiple, PERMISSIONS } from 'react-native-permissions';
 import { StackScreenProps } from '@react-navigation/stack';

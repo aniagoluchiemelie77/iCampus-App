@@ -5,17 +5,17 @@ import { PayWithFlutterwave } from 'flutterwave-react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { PageHeader } from '../components/PageHeader';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
-import { User } from 'types/firebase';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { User } from '../types/firebase';
 import Modal from 'react-native-modal';
 import Toast from 'react-native-toast-message';
-import {verifySubscriptionOnBackend} from '../api/localPostApis';
+import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
 import { USD_SUBSCRIPTION_PRICES } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.80;
+const CARD_WIDTH = width * 0.8;
 type SubscriptionTier = User['tier'] | 'free';
 
 type FlutterwaveCurrency =
@@ -47,7 +47,49 @@ export const FlutterwaveButton = ({
     <Text style={styles.payButtonText}>{label}</Text>
   </TouchableOpacity>
 );
-
+const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    features: [
+      'Basic Profile',
+      '1x Post Impression Boost',
+      '1 Free Lecture Exceptions Per Month',
+      'Drop-off location only for purchased items',
+      'Standard Search',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    features: [
+      'Subscribed Badge',
+      '2x Post Impression Boost',
+      '2 Free Lectures Exceptions Per Month',
+      'Home Delivery or Drop-off location for purchased items',
+      'Standard Search + AI Suggestions',
+      'Create Paid Courses',
+      'iTag username personalization',
+      'Verified Merchant Profile',
+      'iScore visibility of Searched Users',
+    ],
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    features: [
+      'Premium Badge',
+      '5x Post Impression Boost',
+      '3 Free Lectures Exceptions Per Month',
+      'Free Shipping or Home Delivery or Drop-off location for purchased items',
+      'Optimized Search + AI Suggestions + Ghost Mode',
+      'Create Paid Courses',
+      'iTag custom personalization',
+      'Verified Merchant Profile',
+      'iScore visibility of Searched Users',
+    ],
+  },
+];
 export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { tier, email, firstname, lastname, country } = useAppSelector(
@@ -83,49 +125,6 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
     },
     [exchangeData.symbol, getLocalPriceValue],
   );
-  const plans: { id: SubscriptionTier; name: string; features: string[] }[] = [
-    {
-      id: 'free',
-      name: 'Free',
-      features: [
-        'Basic Profile',
-        '1x Post Impression Boost',
-        '1 Free Lecture Exceptions Per Month',
-        'Drop-off location only for purchased items',
-        'Standard Search',
-      ],
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      features: [
-        'Subscribed Badge',
-        '2x Post Impression Boost',
-        '2 Free Lectures Exceptions Per Month',
-        'Home Delivery or Drop-off location for purchased items',
-        'Standard Search + AI Suggestions',
-        'Create Paid Courses',
-        'iTag username personalization',
-        'Verified Merchant Profile',
-        'iScore visibility of Searched Users',
-      ],
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      features: [
-        'Premium Badge',
-        '5x Post Impression Boost',
-        '3 Free Lectures Exceptions Per Month',
-        'Free Shipping or Home Delivery or Drop-off location for purchased items',
-        'Optimized Search + AI Suggestions + Ghost Mode',
-        'Create Paid Courses',
-        'iTag custom personalization',
-        'Verified Merchant Profile',
-        'iScore visibility of Searched Users',
-      ],
-    },
-  ];
   const handlePaymentSuccess = async (data: any) => {
     try {
       const transactionId = data.transaction_id || data.flw_ref;
@@ -176,7 +175,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
 
   return (
     <ScrollView
-      style={[styles.container, {backgroundColor: colors.background}]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       <PageHeader title="Subscription Plans" />
@@ -189,7 +188,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
           decelerationRate="fast"
           contentContainerStyle={styles.horizontalScrollContent}
         >
-          {plans.map(plan => {
+          {PLANS.map(plan => {
             const isCurrentPlan = tier === plan.id;
             const isSelected = selectedTier === plan.id;
             const isFree = plan.id === 'free';
@@ -199,24 +198,41 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                 key={plan.id}
                 style={[
                   styles.card,
-                  { width: CARD_WIDTH, backgroundColor: colors.backgroundSecondary },
+                  {
+                    width: CARD_WIDTH,
+                    backgroundColor: colors.backgroundSecondary,
+                  },
                   isSelected && styles.selectedCard,
                   isCurrentPlan && styles.currentPlanBorder,
                 ]}
               >
                 {isCurrentPlan && (
-                  <View style={[styles.currentPlanLabel, {backgroundColor: colors.btnColor}]}>
-                    <Text style={[styles.currentPlanLabelText, {color: colors.btnTextColor}]}>
+                  <View
+                    style={[
+                      styles.currentPlanLabel,
+                      { backgroundColor: colors.btnColor },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.currentPlanLabelText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
                       Your current plan
                     </Text>
                   </View>
                 )}
                 <View style={styles.cardHeader}>
-                  <Text style={[styles.planName, {color: colors.text}]}>{plan.name}</Text>
+                  <Text style={[styles.planName, { color: colors.text }]}>
+                    {plan.name}
+                  </Text>
                   {isCurrentPlan ? (
-                    <Text style={[styles.badgeText, {color: colors.primary}]}>Active</Text>
+                    <Text style={[styles.badgeText, { color: colors.primary }]}>
+                      Active
+                    </Text>
                   ) : (
-                    <Text style={[styles.badgeText, {color: colors.primary}]}>
+                    <Text style={[styles.badgeText, { color: colors.primary }]}>
                       {formatLocalPrice(plan.id!)}
                     </Text>
                   )}
@@ -229,7 +245,11 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                         size={16}
                         color={colors.primary}
                       />
-                      <Text style={[styles.featureText, {color: colors.text}]}>{f}</Text>
+                      <Text
+                        style={[styles.featureText, { color: colors.text }]}
+                      >
+                        {f}
+                      </Text>
                     </View>
                   ))}
                 </View>
@@ -240,9 +260,19 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                       setPayModalVisible(true);
                     }}
                     disabled={isCurrentPlan}
-                    style={[styles.payButton, {backgroundColor: colors.btnColor}]}
+                    style={[
+                      styles.payButton,
+                      { backgroundColor: colors.btnColor },
+                    ]}
                   >
-                    <Text style={[styles.payButtonText, {color: colors.btnTextColor}]}>Select Plan</Text>
+                    <Text
+                      style={[
+                        styles.payButtonText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
+                      Select Plan
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -260,15 +290,24 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
         onSwipeComplete={() => setPayModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <View style={styles.modalHandle} />
-            <Text style={[styles.modalTitle, {color: colors.textDarker}]}>Confirm Subscription</Text>
-            <Text style={[styles.modalSubTitle, {color: colors.text}]}>
+            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+              Confirm Subscription
+            </Text>
+            <Text style={[styles.modalSubTitle, { color: colors.text }]}>
               You are upgrading to the {selectedTier?.toUpperCase()} plan.
             </Text>
             <View style={styles.priceBreakdown}>
-              <Text style={[styles.priceLabel, {color: colors.text}]}>Total to pay:</Text>
-              <Text style={[styles.priceValue, {color: colors.text}]}>
+              <Text style={[styles.priceLabel, { color: colors.text }]}>
+                Total to pay:
+              </Text>
+              <Text style={[styles.priceValue, { color: colors.text }]}>
                 {formatLocalPrice(selectedTier!)}
               </Text>
             </View>
@@ -291,7 +330,11 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
               style={styles.cancelButton}
               onPress={() => setPayModalVisible(false)}
             >
-              <Text style={[styles.cancelButtonText, {color: colors.primary}]}>Go Back</Text>
+              <Text
+                style={[styles.cancelButtonText, { color: colors.primary }]}
+              >
+                Go Back
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -15,11 +15,13 @@ import { useTheme } from '../context/ThemeContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { Transactions } from '../types/firebase';
 import { getTransactionByIdAPI } from '../api/localGetApis';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { getCurrencyDetails } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../components/hooks';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { PageHeader } from '../components/PageHeader';
+import Clipboard from '@react-native-clipboard/clipboard';
+import Toast from 'react-native-toast-message';
 
 export const TransactionDetailScreen = () => {
   const { colors } = useTheme();
@@ -46,22 +48,25 @@ export const TransactionDetailScreen = () => {
     }
   };
   useEffect(() => {
+    let isMounted = true;
+
     const loadTransactionDetails = async () => {
       setLoading(true);
-      setError(null);
       const response = await getTransactionByIdAPI(transactionId);
-
-      if (response.success && response.data) {
-        setTransaction(response.data);
-      } else {
-        setError(response.message || 'Failed to load transaction data.');
+      if (isMounted) {
+        if (response.success && response.data) {
+          setTransaction(response.data);
+        } else {
+          setError(response.message || 'Failed to load data.');
+        }
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    if (transactionId) {
-      loadTransactionDetails();
-    }
+    if (transactionId) loadTransactionDetails();
+    return () => {
+      isMounted = false;
+    };
   }, [transactionId]);
 
   if (loading) {
@@ -190,10 +195,10 @@ export const TransactionDetailScreen = () => {
           <MaterialIcons
             name="photo-camera-outlined"
             size={20}
-            color="#FFF"
+            color={colors.btnTextColor}
             style={{ marginRight: 5 }}
           />
-          <Text style={styles.shareButtonText}>Share Receipt Image</Text>
+          <Text style={[styles.shareButtonText, {color: colors.btnTextColor}]}>Share Receipt Image</Text>
         </TouchableOpacity>
       </ViewShot>
     </ScrollView>
@@ -210,6 +215,14 @@ const DetailRow = ({
   copyable?: boolean;
 }) => {
   const { colors } = useTheme();
+  const handleCopy = () => {
+    Clipboard.setString(value);
+    Toast.show({
+      type: 'info',
+      text1: 'Copied!',
+      text2: `${label} has been copied to clipboard.`,
+    });
+  };
 
   return (
     <View style={[styles.row, { borderBottomColor: `${colors.text}10` }]}>
@@ -222,7 +235,11 @@ const DetailRow = ({
           {value}
         </Text>
         {copyable && (
-          <TouchableOpacity style={{ marginLeft: 6 }}>
+          <TouchableOpacity 
+            style={{ marginLeft: 6 }} 
+            onPress={handleCopy}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <MaterialIcons
               name="content-copy"
               size={14}
@@ -285,5 +302,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  shareButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  shareButtonText: { fontSize: 14, fontWeight: '600' },
 });

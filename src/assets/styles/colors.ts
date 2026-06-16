@@ -1548,42 +1548,6 @@ export const homeStyles = StyleSheet.create({
     color: '#222',
   },
 });
-export const SweetAlertPopupStyles = StyleSheet.create({
-  bckg: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  container: {
-    backgroundColor: '#fff',
-    padding: 25,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  icon: {
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  message: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 25,
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-});
 export const NotificationPageStyles = StyleSheet.create({
   container: {
     backgroundColor: '#eee',

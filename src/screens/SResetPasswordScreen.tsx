@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader.tsx';
 import {
@@ -68,9 +68,10 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
       setErrorText(result.message);
     }
   };
-  if (newPassword !== confirmPassword) {
-    setErrorText('Passwords do not match...');
-  }
+  const passwordMatchError =
+    newPassword && confirmPassword && newPassword !== confirmPassword
+      ? 'Passwords do not match...'
+      : '';
 
   return (
     <KeyboardAvoidingView
@@ -116,10 +117,13 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
             </View>
             {errorText && <Text style={styles.errorText}>{errorText}</Text>}
             <TouchableOpacity
-              style={[styles.primaryButton, {backgroundColor: colors.btnColor}]}
+              style={[
+                styles.primaryButton,
+                { backgroundColor: colors.btnColor },
+              ]}
               onPress={handleVerifyOld}
             >
-              <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>
+              <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
                 {isLoading ? 'Verifying...' : 'Verify Password'}
               </Text>
             </TouchableOpacity>
@@ -127,11 +131,17 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
         </Animated.View>
       ) : (
         <View style={styles.stepContainer}>
-          <MaterialIcons name="verified-user-outlined" size={40} color={colors.text} />
-          <Text style={[styles.title, { color: colors.textDarker }]}>New Password</Text>
+          <MaterialIcons
+            name="verified-user-outlined"
+            size={40}
+            color={colors.text}
+          />
+          <Text style={[styles.title, { color: colors.textDarker }]}>
+            New Password
+          </Text>
           <View style={styles.inputContainer}>
             <TextInput
-              style={[styles.input, {color: colors.text}]}
+              style={[styles.input, { color: colors.text }]}
               secureTextEntry={!showNew}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -160,14 +170,16 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
                 key={index}
                 style={[
                   styles.strengthSegment,
-                  { backgroundColor: met ? colors.primary : colors.primaryTint },
+                  {
+                    backgroundColor: met ? colors.primary : colors.primaryTint,
+                  },
                 ]}
               />
             ))}
           </View>
           <View style={styles.inputContainer}>
             <TextInput
-              style={[styles.input, {color: colors.text}]}
+              style={[styles.input, { color: colors.text }]}
               secureTextEntry={!showConfirm}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -186,13 +198,19 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
               />
             </TouchableOpacity>
           </View>
-          {errorText && <Text style={styles.errorText}>{errorText}</Text>}
+          {passwordMatchError && (
+            <Text style={styles.errorText}>{passwordMatchError}</Text>
+          )}
           <TouchableOpacity
-            style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.6 }, {backgroundColor: colors.btnColor}]}
+            style={[
+              styles.primaryButton,
+              { opacity: canSubmit ? 1 : 0.6 },
+              { backgroundColor: colors.btnColor },
+            ]}
             onPress={handleUpdatePassword}
             disabled={!canSubmit}
           >
-            <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>
+            <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
               {isLoading ? 'Changing...' : 'Change Password'}
             </Text>
           </TouchableOpacity>

@@ -22,10 +22,7 @@ import Toast from 'react-native-toast-message';
 import ExpandableFAB from '../components/ExpandableFAB';
 import { formatCount } from '../utils/followCountFormatter.ts';
 import { ProfileTabs } from '../components/ProfileTabs.tsx';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '@components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
@@ -40,9 +37,9 @@ import {
 import { PostCard } from '../components/PostCard.tsx';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
-import { patchUserProfile } from 'api/localPatchApis.ts';
-import { searchUserProfile } from 'api/localGetApis.ts';
-import { toggleBlockUser, toggleFollowUser } from 'api/localPostApis.ts';
+import { patchUserProfile } from '../api/localPatchApis.ts';
+import { searchUserProfile } from '../api/localGetApis.ts';
+import { toggleBlockUser, toggleFollowUser } from '../api/localPostApis.ts';
 import { updateBlockedUsers } from '@components/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
@@ -307,7 +304,7 @@ export const ProfileScreen = ({ route }: any) => {
   });
   const [isEditItagModalVisible, setIsEditItagModalVisible] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(profileData.isFollowing);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -452,6 +449,11 @@ export const ProfileScreen = ({ route }: any) => {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+  useEffect(() => {
+    if (profileData) {
+      setIsFollowing(profileData.isFollowing);
+    }
+  }, [profileData]);
   useEffect(() => {
     const fetchUniversalSkills = async () => {
       if (skillInput.length < 2) {

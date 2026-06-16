@@ -23,9 +23,13 @@ export const PersonaVerificationScreen = () => {
   const usertype = user?.usertype || 'otherUser';
 
   const handleStartVerification = async () => {
+    setLoading(true);
     try {
       const { inquiryId } = await fetchInquiryFromBackend(usertype);
-      if (!inquiryId) return;
+      if (!inquiryId) {
+        setLoading(false);
+        return;
+      }
       Inquiry.fromInquiry(inquiryId)
         .onComplete((id, status, _fields) => {
           if (status === 'completed') {
@@ -40,14 +44,27 @@ export const PersonaVerificationScreen = () => {
           }
         })
         .onCanceled(() => {
+          setLoading(false);
+          Toast.show({
+            type: 'error',
+            text2: 'Verification cancelled.',
+          });
           console.log('User exited');
         })
         .onError(error => {
+          setLoading(false);
+          Toast.show({
+            type: 'error',
+            text1: 'Verification Error',
+            text2: 'Something went wrong. Please try again',
+          });
           console.error('Persona Error:', error);
         })
         .build()
         .start();
     } catch (error) {
+      setLoading(false);
+      Toast.show({ type: 'error', text2: 'Could not start verification' });
       console.error('Failed to fetch inquiryId', error);
     }
   };

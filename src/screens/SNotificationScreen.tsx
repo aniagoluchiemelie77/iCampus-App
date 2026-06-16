@@ -11,12 +11,14 @@ import { useTheme } from '../context/ThemeContext';
 
 export const NotificationSettings = () => {
   const { colors } = useTheme();
+  const [_isLoading, setIsLoading] = useState(true);
   const [prefs, setPrefs] = useState<userPreferences | null>(null);
   const user = useAppSelector(state => state.user);
   const handleToggle = async (
     section: 'notifications' | 'channels',
     key: string,
   ) => {
+    setIsLoading(true);
     if (!prefs) return;
     const sectionData = prefs[section];
     if (!sectionData) return;
@@ -38,7 +40,10 @@ export const NotificationSettings = () => {
       };
       setPrefs(rollback);
     }
+    setIsLoading(false);
   };
+  
+  
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}

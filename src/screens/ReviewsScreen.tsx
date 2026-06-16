@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImagePicker from 'react-native-image-crop-picker';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
-import {uploadToFirebase} from '../utils/CloudinaryPresetHelper';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { submitReviewApi } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -211,9 +211,16 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
         console.error('Authentication extraction error:', error);
       }
     };
-
     checkAuthentication();
   }, [route.params?.authFallback]);
+  useEffect(() => {
+    const initialAttrs: ReviewAttributes = {};
+    config.fields.forEach(field => {
+      initialAttrs[field] = 0;
+    });
+    setAttributes(initialAttrs);
+    setRating(0);
+  }, [targetType, config.fields]);
 
   return (
     <ScrollView
@@ -327,19 +334,29 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={[styles.addPhotosText, {color: colors.primary}]}>Add Photo</Text>
+              <Text style={[styles.addPhotosText, { color: colors.primary }]}>
+                Add Photo
+              </Text>
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && styles.disabledButton, {backgroundColor: colors.btnColor}]}
+          style={[
+            styles.submitButton,
+            isSubmitting && styles.disabledButton,
+            { backgroundColor: colors.btnColor },
+          ]}
           onPress={handleSubmitReview}
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={colors.btnTextColor} size='small' />
+            <ActivityIndicator color={colors.btnTextColor} size="small" />
           ) : (
-            <Text style={[styles.submitButtonText, {color: colors.btnTextColor}]}>Publish Review</Text>
+            <Text
+              style={[styles.submitButtonText, { color: colors.btnTextColor }]}
+            >
+              Publish Review
+            </Text>
           )}
         </TouchableOpacity>
       </View>

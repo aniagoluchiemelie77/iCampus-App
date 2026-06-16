@@ -28,13 +28,14 @@ import { useAppSelector } from '../components/hooks';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { SERVICE_UUID } from '@env';
-import { LogoBigger } from 'assets/images/Logo';
+import { LogoBigger } from '../assets/images/Logo';
 import { GetAttendanceScreenStyles } from './PhysicalClassGetAttendanceScreen';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { formatTime } from '../utils/durationFormatter';
 import { verifyFacialIdentity } from '../api/localPostApis';
 import Modal from 'react-native-modal';
+import ImageResizer from '@bam.tech/react-native-image-resizer';
 
 const rnBiometrics = new ReactNativeBiometrics();
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -94,7 +95,14 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         flash: 'off',
         enableShutterSound: false,
       });
-      const base64Image = await RNFS.readFile(photoFile.path, 'base64');
+      const resized = await ImageResizer.createResizedImage(
+        photoFile.path,
+        800,
+        800,
+        'JPEG',
+        80,
+      );
+      const base64Image = await RNFS.readFile(resized.path, 'base64');
       const result = await verifyFacialIdentity(
         base64Image,
         user.schoolAvatarUrl!,

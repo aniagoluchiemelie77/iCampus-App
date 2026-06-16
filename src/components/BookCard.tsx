@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { Book } from 'types/firebase';
-import {LibraryScreenStyles} from '../screens/LibraryScreen'
-import { useTheme } from 'context/ThemeContext';
+import { Book } from '../types/firebase';
+import { LibraryScreenStyles } from '../screens/LibraryScreen';
+import { useTheme } from '../context/ThemeContext';
 
 export const BookCard = ({
   book,

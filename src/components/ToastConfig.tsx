@@ -14,7 +14,7 @@ export const getToastConfig = (colors: any) => ({
         },
       ]}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={[styles.toastText, { color: colors.text }]}
+      text1Style={[styles.toastText, { color: colors.success }]}
       text2Style={[styles.toastTextTwo, { color: colors.text }]}
     />
   ),
@@ -28,7 +28,22 @@ export const getToastConfig = (colors: any) => ({
           backgroundColor: colors.backgroundSecondary,
         },
       ]}
-      text1Style={[styles.toastText, { color: colors.text }]}
+      text1Style={[styles.toastText, { color: colors.primary }]}
+      text2Style={[styles.toastTextTwo, { color: colors.text }]}
+    />
+  ),
+  info: (props: any) => (
+    <BaseToast
+      {...props}
+      style={[
+        styles.toastDiv,
+        {
+          borderLeftColor: colors.pendingDelivery,
+          backgroundColor: colors.backgroundSecondary,
+        },
+      ]}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={[styles.toastText, { color: colors.pendingDelivery }]}
       text2Style={[styles.toastTextTwo, { color: colors.text }]}
     />
   ),

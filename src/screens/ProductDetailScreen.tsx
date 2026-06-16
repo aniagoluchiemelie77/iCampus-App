@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
   PRIMARY_COLOR_TINT_MAIN,
-} from 'assets/styles/colors';
+} from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { formatTime } from '../utils/durationFormatter';
@@ -49,6 +49,13 @@ export const ProductDetailScreen = () => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const [seller, setSeller] = useState<any>(null);
+  const moreProducts = useMemo(() => {
+    if (!product) return [];
+
+    return allProducts
+      .filter(p => p.sellerId === product.sellerId && p.productId !== productId)
+      .slice(0, 10);
+  }, [allProducts, productId, product]);
 
   useEffect(() => {
     const fetchSeller = async () => {
@@ -89,9 +96,6 @@ export const ProductDetailScreen = () => {
     item => item.productId === product.productId,
   );
   const isAlreadyInCart = !!existingItem;
-  const moreProducts = allProducts
-    .filter(p => p.sellerId === product.sellerId && p.productId !== productId)
-    .slice(0, 10);
   const totalDuration =
     product?.courseDetails?.content?.reduce(
       (acc, item) => acc + (item.duration || 0),

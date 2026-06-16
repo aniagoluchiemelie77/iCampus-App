@@ -11,7 +11,7 @@ import {
 import Toast from 'react-native-toast-message';
 import { useAppSelector } from '../components/hooks';
 import { markAllMessagesRead } from '../api/localPostApis';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { formatTime } from '../utils/ChatTimestampFormatter';
 import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
