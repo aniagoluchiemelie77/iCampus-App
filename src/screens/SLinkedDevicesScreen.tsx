@@ -13,7 +13,7 @@ import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import { useAppSelector } from '../components/hooks';
 import { UserSession } from '../types/firebase';
-import { updateUserSessions } from '../components/UserSlice';
+import { updateUserSessions } from '../context/UserSlice';
 import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from '../assets/styles/colors';

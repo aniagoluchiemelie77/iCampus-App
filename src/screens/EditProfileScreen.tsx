@@ -14,7 +14,7 @@ import { patchUserProfile } from '../api/localPatchApis';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../components/UserSlice';
+import { setUser } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../types/firebase';
 

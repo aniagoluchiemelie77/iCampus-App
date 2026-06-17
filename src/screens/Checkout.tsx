@@ -22,7 +22,7 @@ import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { getDistanceInMiles } from '../utils/distanceCalculator';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { useAppDataContext } from '../components/EventContext';
+import { useAppDataContext } from '../context/EventContext.tsx';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { CartItem } from '../components/CartItem';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
@@ -35,7 +35,7 @@ import { useTheme } from '../context/ThemeContext';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useDispatch } from 'react-redux';
 import { verifySubscriptionOnBackend } from '../api/localPostApis';
-import { setUser } from '../components/UserSlice.ts';
+import { setUser } from '../context/UserSlice.ts';
 import {
   TRANSACTION_TAX_RATE,
   HOME_DELIVERY_RATE,

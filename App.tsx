@@ -216,11 +216,7 @@ export type RootStackParamList = {
       | 'Assessments'
       | 'View Lecture Schedule'
       | 'View Assessment Report';
-    course: {
-      courseId: string;
-      courseCode: string;
-      courseTitle: string;
-    };
+    course: Course;
     userRole: 'student' | 'lecturer';
     lectures?: Lecture[];
     exceptions?: CourseException[];

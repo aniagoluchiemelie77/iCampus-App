@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { PostCard } from '../components/PostCard';
 import { CommentItem } from '../components/CommentSection';
-import { useAppDataContext } from '../components/EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { Posts } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';

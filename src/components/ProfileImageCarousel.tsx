@@ -5,7 +5,7 @@ import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import ImagePicker from 'react-native-image-crop-picker';
 import { patchUserProfile } from '../api/localPatchApis';
-import { updateUserImage } from './UserSlice';
+import { updateUserImage } from '../context/UserSlice';
 import { useDispatch } from 'react-redux';
 import Toast from 'react-native-toast-message';
 

@@ -7,7 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import { Product } from '../types/firebase';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { formatStatNumber } from '../utils/followCountFormatter';

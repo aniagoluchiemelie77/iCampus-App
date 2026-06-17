@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from 'react';
 import { useDispatch } from 'react-redux';
-import { clearUser } from '@components/UserSlice';
+import { clearUser } from '../context/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { io, Socket } from 'socket.io-client';
@@ -18,7 +18,7 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from '../components/hooks';
 import { homeStyles } from '../assets/styles/colors';
-import { AppDataProvider } from '../components/EventContext';
+import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
 import messaging from '@react-native-firebase/messaging';

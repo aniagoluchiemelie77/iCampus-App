@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, FlatList, Dimensions } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
-import { useAppDataContext } from '../components/EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import { PageHeader } from '../components/PageHeader';
 import { ProductCard } from '../components/ProductCard';
 import { UserAvatar } from '../components/UserAvatar';

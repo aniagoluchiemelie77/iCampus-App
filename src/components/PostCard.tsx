@@ -16,7 +16,7 @@ import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import Video from 'react-native-video';
 import { Posts } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';

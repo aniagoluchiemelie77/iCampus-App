@@ -4,6 +4,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import { Course } from '../types/firebase';
 import { useAppSelector } from '../components/hooks';
 import {
   RenderViewLectureSchedule,
@@ -36,7 +37,7 @@ import {
   submitStudentTest,
 } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../components/UserSlice';
+import { setUser } from '../context/UserSlice';
 import { updateExceptionStatus } from '../api/localPatchApis';
 import { deleteLectureSchedule } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
@@ -65,7 +66,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   const [localExceptions, setLocalExceptions] = useState<any[]>(
     initialExceptions || [],
   );
-  const [currentCourse, setCurrentCourse] = useState(course);
+  const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [scheduledLecture, setScheduledLecture] = useState<any | null>(null);
   const [tests, setTests] = useState<any[]>([]);
@@ -569,7 +570,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
       <View style={CourseActionStyles.body}>
         {title === 'Course Contents' && (
           <RenderContents
-            course={currentCourse}
+            course={currentCourse!}
             userRole={userRole}
             searchQuery={searchQuery}
             onRefresh={fetchCourseDetails}
@@ -577,7 +578,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         )}
         {title === 'Course Materials' && (
           <RenderMaterials
-            course={currentCourse}
+            course={currentCourse!}
             lectures={lectures || []}
             userRole={userRole}
             searchQuery={searchQuery}
@@ -586,7 +587,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         )}
         {title === 'Assignments' && (
           <RenderAssignments
-            course={currentCourse}
+            course={currentCourse!}
             userRole={userRole}
             searchQuery={searchQuery}
           />
@@ -612,7 +613,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           ))}
         {title === 'Set Lecture Schedule' && (
           <RenderScheduleLecture
-            course={course}
+            course={course!}
             onSave={handleCreateLecture}
             isLoading={loading}
           />

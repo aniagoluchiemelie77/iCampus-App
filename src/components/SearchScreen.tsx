@@ -28,7 +28,7 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT_MAIN,
 } from '../assets/styles/colors';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';

@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../components/hooks';
 import { PageHeader } from '../components/PageHeader';
-import { useAppDataContext } from '../components/EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import { FavItem } from '../components/FavItem';
 import { useTheme } from '../context/ThemeContext';
 import { User, Product } from '../types/firebase';

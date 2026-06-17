@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { loginUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../components/UserSlice';
+import { setUser } from '../context/UserSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';

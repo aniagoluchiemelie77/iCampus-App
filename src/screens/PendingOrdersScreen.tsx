@@ -6,7 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { useAppDataContext } from '../components/EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { PageHeader } from '../components/PageHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';

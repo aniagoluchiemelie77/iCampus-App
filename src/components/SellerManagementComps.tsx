@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
@@ -31,7 +31,7 @@ import { useNavigation } from '@react-navigation/native';
 import RNPickerSelect from 'react-native-picker-select';
 import moment from 'moment';
 import { useDispatch } from 'react-redux';
-import { setUser } from './UserSlice';
+import { setUser } from '../context/UserSlice';
 import Svg, {
   Polyline,
   Defs,

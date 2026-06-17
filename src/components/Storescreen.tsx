@@ -16,7 +16,7 @@ import { ProductCard } from './ProductCard';
 import { fetchProductsAPI } from '../api/localGetApis';
 import { completeOrderDelivery } from '../api/localPostApis';
 import { Product } from '../types/firebase';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext.tsx';
 import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppSelector } from '../components/hooks';

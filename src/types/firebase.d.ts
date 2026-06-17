@@ -403,19 +403,6 @@ export interface UserBankOrCardDetails {
   createdAt: string;
   updatedAt?: string;
 }
-export interface Deals {
-  dealId:  string;
-  sellerId: User.uid;
-  buyerId: User.uid;
-  totalPriceInPoints: number;
-  dealStatus: string;
-  items: {
-    productId: string;
-    productTitle: string;
-    priceInPoints: number;
-  };
-  dealDate: string;
-};
 export interface PollOption {
   optionId: string;
   text: string;
@@ -573,13 +560,6 @@ export interface CourseException {
   attachmentUrl?: string | null;
   createdAt: string;
 }
-export interface Review {
-  username: string;
-  firstname: string;
-  comment: string;
-  rating: number;
-  createdAt: string; 
-}
 export interface Assignment {
   _id?: string;
   id: string;
@@ -683,7 +663,7 @@ export interface StatsData {
 }
 export interface RankCardProps {
   item: User;
-  rank: number; // Pass index + 1 from the list
+  rank: number; 
   userRole: UserType;
   navigation: NavigationProp<any>;
 }

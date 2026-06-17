@@ -17,7 +17,7 @@ import type {
   Review,
 } from '../types/firebase';
 import Toast from 'react-native-toast-message';
-import { baseUrl } from './HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 import {
   recordPostImpressionAPI,
   castPollVoteAPI,

@@ -39,7 +39,7 @@ import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { homeStyles } from '../assets/styles/colors.ts';
 import { BlurView } from '@react-native-community/blur';
 import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
-import { setUser } from './UserSlice';
+import { setUser } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
-import { useAppDataContext } from '../components/EventContext';
+import { useAppDataContext } from '../context/EventContext';
 import Modal from 'react-native-modal';
 import { useTheme } from '../context/ThemeContext';
 

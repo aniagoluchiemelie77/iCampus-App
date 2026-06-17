@@ -39,7 +39,7 @@ import {
   fetchAllLecturesByCourseId,
 } from '../api/localGetApis.ts';
 import { createManualCourseAPI } from '../api/localPostApis.ts';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext.tsx';
 import { ProductCard } from './ProductCard';
 import { useTheme } from '../context/ThemeContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -396,11 +396,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Course Contents',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course: course,
                         userRole: 'student',
                       })
                     }
@@ -412,11 +408,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Course Materials',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         lectures: lectures,
                         userRole: 'student',
                       })
@@ -428,11 +420,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'View Lecture Schedule',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'student',
                       })
                     }
@@ -444,11 +432,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Assignments',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'student',
                       })
                     }
@@ -460,11 +444,7 @@ const CourseModal = ({
                     onPress={() => {
                       navigation.navigate('CourseSubPage', {
                         title: 'Exceptions',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'student',
                         exceptions: allExceptions, // Pass initial if available, else useEffect will fetch
                       });
@@ -538,11 +518,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Course Materials',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'lecturer',
                       })
                     }
@@ -561,11 +537,7 @@ const CourseModal = ({
                       if (loadingExceptions) return;
                       navigation.navigate('CourseSubPage', {
                         title: 'Exceptions',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'lecturer',
                       });
                     }}
@@ -576,11 +548,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Assignments',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'lecturer',
                       })
                     }
@@ -591,11 +559,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'View Lecture Schedule',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'lecturer',
                       })
                     }
@@ -606,11 +570,7 @@ const CourseModal = ({
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Assessments',
-                        course: {
-                          courseId: course.courseId,
-                          courseCode: course.courseCode || 'CRSE',
-                          courseTitle: course.courseTitle,
-                        },
+                        course,
                         userRole: 'lecturer',
                       })
                     }

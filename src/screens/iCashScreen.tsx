@@ -16,7 +16,7 @@ import { PRIMARY_COLOR, DEFAULT_GRADIENT } from '../assets/styles/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { useRoute } from '@react-navigation/native';
-import { setUser } from '../components/userSlice';
+import { setUser } from '../context/UserSlice';
 import { TransactionList } from '../components/TransactionHistory';
 import { StatsData } from '../types/firebase';
 import {

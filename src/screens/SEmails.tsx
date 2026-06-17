@@ -19,7 +19,7 @@ import {
 } from '../api/localPostApis.ts';
 import { updateEmailRecord } from '../api/localPatchApis.ts';
 import { deleteRecoveryEmailAPI } from '../api/localDeleteApis.ts';
-import { updateEmailData } from '../components/UserSlice.ts';
+import { updateEmailData } from '../context/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { isValidEmail } from '../utils/SignupHelpers.ts';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';

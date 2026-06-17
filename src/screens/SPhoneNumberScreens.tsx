@@ -22,7 +22,7 @@ import {
 } from '../api/localPostApis.ts';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';
 import { handleDeletePhone } from '../api/localDeleteApis.ts';
-import { updatePhoneNumbersData } from '../components/UserSlice.ts';
+import { updatePhoneNumbersData } from '../context/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { useTheme } from '../context/ThemeContext';
 

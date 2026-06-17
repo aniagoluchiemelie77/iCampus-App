@@ -24,7 +24,7 @@ import {
 } from '../assets/styles/colors';
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
-import { setUser } from './UserSlice';
+import { setUser } from '../context/UserSlice';
 import LogoBigger from '../assets/images/Logo';
 import { ImageConfirmationModal } from './ImageConfirmationModal';
 import {

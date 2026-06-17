@@ -11,7 +11,7 @@ import {
 import { PostCard } from './PostCard';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useAppDataContext } from './EventContext';
+import { useAppDataContext } from '../context/EventContext.tsx';
 import type { User, Posts } from '../types/firebase';
 import {
   HomeScreenComponentStyles,

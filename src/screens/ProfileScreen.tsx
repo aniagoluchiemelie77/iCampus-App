@@ -40,7 +40,7 @@ import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { patchUserProfile } from '../api/localPatchApis.ts';
 import { searchUserProfile } from '../api/localGetApis.ts';
 import { toggleBlockUser, toggleFollowUser } from '../api/localPostApis.ts';
-import { updateBlockedUsers } from '@components/UserSlice.ts';
+import { updateBlockedUsers } from '../context/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { useTheme } from '../context/ThemeContext';

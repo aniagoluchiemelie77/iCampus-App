@@ -19,7 +19,7 @@ import { WEB_CLIENT_ID } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StudentSignupStyles } from '../assets/styles/colors';
 import { useDispatch } from 'react-redux';
-import { setUser } from './UserSlice';
+import { setUser } from '../context/UserSlice';
 import { ProgressBar, Footer } from './SignupComponents';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';

@@ -8,12 +8,12 @@ import {
   StyleSheet,
 } from 'react-native';
 import { PageHeader } from '../components/PageHeader';
-import { getBlockedUsers } from 'api/localGetApis';
+import { getBlockedUsers } from '../api/localGetApis';
 import { useAppSelector } from '@components/hooks';
-import { User } from 'types/firebase';
+import { User } from '../types/firebase';
 import { toggleBlockUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
-import { updateBlockedUsers } from '@components/UserSlice';
+import { updateBlockedUsers } from '../context/UserSlice';
 import Toast from 'react-native-toast-message';
 import { UserIdentity } from '../components/UserIdentity';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
