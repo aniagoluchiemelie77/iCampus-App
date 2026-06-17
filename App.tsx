@@ -246,8 +246,8 @@ export type RootStackParamList = {
     orderId: string;
   };
   PostDetailScreen: {
-    post: Posts;
-    postId: string;
+    post?: Posts;
+    postId?: string;
   };
   PhysicalAttendanceManager: {
     lecture: Lecture;
