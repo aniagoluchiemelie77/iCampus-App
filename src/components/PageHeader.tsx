@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import Logo from '../assets/images/Logo';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface PageHeaderProps {
   title: string;

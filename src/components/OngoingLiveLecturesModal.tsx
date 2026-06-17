@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Modal, Portal } from 'react-native-paper';
-import { Lecture } from 'types/firebase';
+import { Lecture } from '../types/firebase';
 import {LiveClassSessionStyles} from './StudentLiveClassSession';
 import { useTheme } from '../context/ThemeContext';
 

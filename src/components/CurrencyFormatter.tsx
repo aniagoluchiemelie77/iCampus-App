@@ -1,5 +1,5 @@
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
-import { useTheme } from 'context/ThemeContext';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { useTheme } from '../context/ThemeContext';
 import React from 'react';
 import { View, Text, StyleSheet, Platform, ViewStyle } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';

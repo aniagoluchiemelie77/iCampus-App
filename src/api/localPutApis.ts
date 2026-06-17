@@ -1,28 +1,19 @@
 import { baseUrl } from '@components/HomeScreenComponents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import {ThemeType} from '../types/firebase';
+import {getAuthHeaders} from '../utils/userTokenAuth';
 
-const token = await AsyncStorage.getItem('accessToken');
 interface UpdateITagResponse {
   success: boolean;
   message?: string;
   data?: any;
 }
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 export const updatePassword = async (newPassword: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/password/update`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ newPassword }),
     });
     const result = await response.json();
@@ -38,12 +29,10 @@ export const customizeItag = async (
   updatePayload: Record<string, any>
 ): Promise<UpdateITagResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/update-itag`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({
         updates: updatePayload
       }),

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Modal from 'react-native-modal';
 import { PayWithFlutterwave } from 'flutterwave-react-native';
-import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
 import {
   USD_SUBSCRIPTION_PRICES,

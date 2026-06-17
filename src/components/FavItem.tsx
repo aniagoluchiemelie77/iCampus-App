@@ -4,7 +4,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Product } from '../types/firebase'; 
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useNavigation } from '@react-navigation/native';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface FavItemProps {
   product: Product;

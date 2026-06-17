@@ -49,11 +49,11 @@ export const UserSearchOverlay = ({
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await searchUsers(
-          searchQuery,
-          currentUser.tier!,
-          currentUser.usertype!,
-        );
+        const results = await searchUsers({
+          q: searchQuery,
+          viewerTier: currentUser.tier || 'free',
+          viewerRole: currentUser.usertype || 'student',
+        });
         setSearchResults(results || []);
       } catch (error) {
         console.error('Search failed', error);

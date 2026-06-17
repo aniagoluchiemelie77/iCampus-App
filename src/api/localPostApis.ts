@@ -9,6 +9,7 @@ import axios from 'axios';
 import {
   Platform
 } from 'react-native';
+import {getAuthHeaders} from '../utils/userTokenAuth';
 
 const token = await AsyncStorage.getItem('accessToken');
 
@@ -83,12 +84,6 @@ interface ManualCourseResponse {
   courseId?: string;
 }
 
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
   Toast.show({
@@ -100,12 +95,10 @@ const handleTransactionError = (error: any, title: string) => {
 
 export const fetchInquiryFromBackend = async (userType: string): Promise<{ inquiryId: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}verifyUser/persona/create-inquiry`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({
         userType: userType,
       }),
@@ -136,12 +129,10 @@ export const revokeDeviceSession = async (
   deviceIdToRevoke: string
 ): Promise<{ success: boolean; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/revoke-session`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers,
       body: JSON.stringify({ userId, deviceIdToRevoke }),
     });
 
@@ -173,12 +164,10 @@ export const initiatePaymentCharge = async (
   payload: any,
 ): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/payments/initiate-charge`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers,
       body: JSON.stringify({
         paymentType: type,
         paymentData: payload,
@@ -208,11 +197,12 @@ export const initiatePaymentCharge = async (
 };
 export const initializeBuyTransaction = async (payload: any) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/transactions/initialize-buy`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        ...headers,
+        'X-Idempotency-Key': Date.now().toString(), 
       },
       body: JSON.stringify(payload),
     });
@@ -228,11 +218,11 @@ export const initializeBuyTransaction = async (payload: any) => {
 };
 export const initializeWithdrawTransaction = async (payload: any) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/transactions/initialize-withdraw`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        ...headers,
         'X-Idempotency-Key': Date.now().toString(), 
       },
       body: JSON.stringify(payload),
@@ -249,12 +239,10 @@ export const initializeWithdrawTransaction = async (payload: any) => {
 };
 export const verifySubscriptionOnBackend = async (transactionId: string, tier: string, currentExchangeRate: number) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/subscriptionPayments/verify`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ transactionId, tier, currentExchangeRate }),
     });
     const result = await response.json();
@@ -267,12 +255,10 @@ export const toggleBlockUser = async (
   targetUid: string,
 ): Promise<{ success: boolean; action?: 'blocked' | 'unblocked'; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/block/toggle`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ targetUid }),
     });
     const data = await response.json();
@@ -309,9 +295,10 @@ export const markAllMessagesRead = async (
   userId: string,
 ): Promise<{ success: boolean }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/messages/mark-all-read/${userId}`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers
     });
 
     if (!response.ok) {
@@ -339,12 +326,10 @@ export const verifyICashPin = async (
   pin: string,
 ): Promise<{ success: boolean; message?: string; isSuspended?: boolean; attemptsRemaining?: number }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ pin }),
     });
 
@@ -371,12 +356,10 @@ export const setupICashPin = async (
   pin: string,
 ): Promise<{ success: boolean; message: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/setup-icash-pin`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ pin }),
     });
 
@@ -398,9 +381,10 @@ export const setupICashPin = async (
 };
 export const requestPinReset = async (): Promise<{ success: boolean; message: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/request-pin-reset`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers
     });
 
     const data = await response.json();
@@ -420,12 +404,10 @@ export const resetICashPin = async (
   newPin: string,
 ): Promise<{ success: boolean; message: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/reset-icash-pin`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ otp, newPin }),
     });
 
@@ -453,12 +435,10 @@ export const askIAssistantAgent = async (
   const { message, history, contextType, contextData, userState } = params;
 
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/ai/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({
         message,
         history: history.map(msg => ({
@@ -488,12 +468,10 @@ export const askIAssistantAgent = async (
 export const handleLogout = async (navigation: any) => {
   try {
     const currentDeviceId = await DeviceInfo.getUniqueId();
+    const headers = await getAuthHeaders();
     await fetch(`${baseUrl}users/revoke-session`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers,
       body: JSON.stringify({  
         deviceIdToRevoke: currentDeviceId 
       }),
@@ -737,18 +715,15 @@ export const loginUser = async (credentials: any) => {
     return {
       success: false,
       message: 'Network error. Please check your connection.',
-      status: response.status
     };
   }
 };
 export const verifyCurrentPassword = async (password: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/password/verify`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ password }),
     });
     const result = await response.json();
@@ -762,12 +737,10 @@ export const verifyCurrentPassword = async (password: string) => {
 };
 export const handleSendWhatsAppCode = async (formattedNumber: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/send-phone-otp`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers,
       body: JSON.stringify({ 
         phoneNumber: formattedNumber, 
         channel: 'whatsapp' 
@@ -797,12 +770,10 @@ export const handleSendWhatsAppCode = async (formattedNumber: string) => {
 };
 export const verifyPhoneOTPAPI = async (phoneNumber: string, code: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/verify-phone-otp`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ 
         phoneNumber, 
         codeInput: code 
@@ -824,12 +795,10 @@ export const addCommentAPI = async (
   parentId: string | null = null
 ) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/comment`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ 
         comment: text,
         parentId: parentId || "",
@@ -855,12 +824,10 @@ export const addCommentAPI = async (
 };
 export const toggleLikeAPI = async (postId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/like`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const data = await response.json();
     if (!response.ok) {
@@ -882,12 +849,10 @@ export const createRepostAPI = async (
   originalPostId: string,
 ) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/repost`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({
         originalPostId,
         isRepost: true,
@@ -916,12 +881,10 @@ export const toggleCommentLikeAPI = async (
   commentId: string
 ) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/comments/${commentId}/like`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers
     });
     const data = await response.json();
     if (!response.ok) {
@@ -941,12 +904,10 @@ export const toggleCommentLikeAPI = async (
 };
 export const bulkAddtoCartAPI = async (items: CartItem[]) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/favorites-to-cart/bulk-add`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers,
       body: JSON.stringify({ items }),
     });
     const data = await response.json();
@@ -965,12 +926,10 @@ export const bulkAddtoCartAPI = async (items: CartItem[]) => {
 };
 export const initializeCheckoutTransaction = async (payload: any) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/initialize-checkout`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -991,9 +950,10 @@ export const initializeCheckoutTransaction = async (payload: any) => {
 };
 export const completeOrderDelivery = async (orderId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/orders/complete-delivery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers,
       body: JSON.stringify({ 
         orderId, 
       }),
@@ -1024,13 +984,10 @@ export const completeOrderDelivery = async (orderId: string) => {
 export const cancelOrderAPI = async (orderId: string, reason: string) => {
   try {
     const url = `${baseUrl}store/orders/cancel`; 
-    
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ orderId, reason }),
     });
 
@@ -1057,12 +1014,10 @@ export const cancelOrderAPI = async (orderId: string, reason: string) => {
 };
 export const generateCertificateAPI = async (productId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/downloads/generate-certificate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ productId }),
     });
     const data = await response.json();
@@ -1078,12 +1033,10 @@ export const generateCertificateAPI = async (productId: string) => {
 export const requestPayoutAPI = async (amount: number) => {
   try {
     const url = `${baseUrl}store/payouts/request-payout`;
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ amount }),
     });
     const result = await response.json();
@@ -1262,11 +1215,9 @@ export const submitOrUpdatePostService = async (
   isEditMode: boolean,
   postId?: string
 ): Promise<ServiceResponse> => { 
+  const headers = await getAuthHeaders();
   const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`, 
-    },
+    headers,
   };
 
   try {
@@ -1333,12 +1284,10 @@ export const executeP2PTransfer = async (
   payload: P2PTransferPayload
 ): Promise<{ success: boolean; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/transactions/p2p-transfer`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(payload),
     });
     const result = await response.json();
@@ -1365,12 +1314,10 @@ export const toggleFollowUser = async (
   targetFollowingId: string
 ): Promise<{ success: boolean; action?: 'followed' | 'unfollowed'; message?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/follow/toggle`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ followingId: targetFollowingId }),
     });
 
@@ -1385,12 +1332,10 @@ export const toggleBlockUserFromProfile = async (
   targetUserId: string
 ): Promise<{ success: boolean; action?: 'blocked' | 'unblocked' }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/block/toggle`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ targetUserId }),
     });
 
@@ -1405,12 +1350,10 @@ export const submitLectureException = async (
   newException: Partial<CourseException>,
 ): Promise<SubmitExceptionResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/student/class/exceptions/submit`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(newException),
     });
 
@@ -1445,14 +1388,12 @@ export const createLectureSchedule = async (
       courseId: courseId,
       location: lectureData.lectureType === 'Online' ? '' : lectureData.location,
     };
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/createSchedule`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(finalPayload),
       }
     );
@@ -1491,14 +1432,12 @@ export const saveCourseAssessment = async (
         ...q
       })),
     };
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(finalPayload),
       }
     );
@@ -1528,12 +1467,10 @@ export const downloadAttendanceReport = async (
   exceptions: any[]
 ): Promise<DownloadReportResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/lecturers/class/lectures/${lectureId}/report`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ exceptions }),
     });
     const result = await response.json();
@@ -1584,12 +1521,10 @@ export const verifyFacialIdentity = async (
   schoolAvatarUrl: string
 ): Promise<VerifyFaceResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/student/class/attendance/verify-student`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({
         selfieBase64: base64Image,
         targetImageUrl: schoolAvatarUrl,
@@ -1618,14 +1553,12 @@ export const saveCourseMaterial = async (
   payload: UploadMaterialPayload
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/uploadMaterial/${courseId}`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(payload),
       }
     );

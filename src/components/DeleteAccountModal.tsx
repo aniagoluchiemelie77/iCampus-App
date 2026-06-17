@@ -11,7 +11,7 @@ import { useAppSelector } from '../components/hooks';
 import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface DeleteModalProps {
   visible: boolean;

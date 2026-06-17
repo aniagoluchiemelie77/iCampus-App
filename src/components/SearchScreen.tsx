@@ -24,7 +24,10 @@ import {
   searchCourses,
   searchAcademicResources,
 } from '../api/localGetApis';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT_MAIN } from 'assets/styles/colors';
+import {
+  PRIMARY_COLOR,
+  PRIMARY_COLOR_TINT_MAIN,
+} from '../assets/styles/colors';
 import { useAppDataContext } from './EventContext';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';

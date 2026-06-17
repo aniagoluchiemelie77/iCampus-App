@@ -10,8 +10,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LogoSizeable } from '../assets/images/Logo';
 import { getContrastColor } from '../utils/colorHelper';
-import { PRIMARY_COLOR_TINT } from './Classroomcomponent';
-import { DEFAULT_GRADIENT } from '../assets/styles/colors';
+import { DEFAULT_GRADIENT, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 
 const { width } = Dimensions.get('window');
 

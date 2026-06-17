@@ -16,7 +16,7 @@ import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { CurrencyDisplay } from './CurrencyFormatter';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { markOrderAsDroppedOffAPI } from '../api/localPatchApis';
 import Toast from 'react-native-toast-message';
 

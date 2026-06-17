@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-nativ
 import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
 import { useAppDataContext } from '../components/EventContext';
 import Modal from 'react-native-modal';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 const POPULAR_REASONS = [
   'Changed my mind',

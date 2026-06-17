@@ -5,7 +5,7 @@ import { EnrichedCourseProduct } from '../types/firebase';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { formatDistanceToNow } from 'date-fns';
 import { formatTime } from '../utils/durationFormatter';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface DownloadItemCardProps {
   product: EnrichedCourseProduct;

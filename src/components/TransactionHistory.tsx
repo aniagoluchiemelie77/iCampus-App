@@ -8,7 +8,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Transactions } from 'types/firebase';
+import { Transactions } from '../types/firebase';
 import moment from 'moment';
 import { getMyTransactions } from '../api/localGetApis';
 import Toast from 'react-native-toast-message';

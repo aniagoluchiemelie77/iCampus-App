@@ -1,4 +1,4 @@
-import { PRO_BADGE_COLOR, PREMIUM_BADGE_COLOR, ENTERPRISE_BADGE_COLOR } from 'assets/styles/colors';
+import { PRO_BADGE_COLOR, PREMIUM_BADGE_COLOR, ENTERPRISE_BADGE_COLOR } from '../assets/styles/colors';
 import {
   Product,
 } from '../types/firebase';
@@ -31,5 +31,13 @@ export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
   physical: 1000,
 } as const;
 export const ICASH_PIN_MAX_ATTEMPTS = 5 as const ;
+export const ITAG_PRESET_COLORS = [
+  '#672a0e',
+  '#14335f',
+  '#80800d',
+  '#8a0c0c',
+  '#7b0859',
+  '#0b8049',
+] as const;
 
 export type SubscriptionTier = keyof typeof USD_SUBSCRIPTION_PRICES;

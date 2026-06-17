@@ -14,23 +14,15 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { ITagCard } from '../components/iTag';
 import { ITag } from '../types/firebase';
 import { debounce } from 'lodash';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { checkITagAvailability } from '../api/localGetApis';
 import { customizeItag } from '../api/localPutApis';
-import { useTheme } from 'context/ThemeContext';
-
-const PRESET_COLORS = [
-  '#672a0e',
-  '#14335f',
-  '#80800d',
-  '#8a0c0c',
-  '#7b0859',
-  '#0b8049',
-];
+import { useTheme } from '../context/ThemeContext';
+import { ITAG_PRESET_COLORS } from '../constants/inAppConstants';
 interface EditiTagModalProps {
   visible: boolean;
   onClose: () => void;
@@ -229,7 +221,7 @@ export const EditiTagModal = ({
                   showsHorizontalScrollIndicator={false}
                   style={styles.colorScroll}
                 >
-                  {PRESET_COLORS.map(color => (
+                  {ITAG_PRESET_COLORS.map(color => (
                     <TouchableOpacity
                       key={color}
                       style={[
@@ -260,7 +252,12 @@ export const EditiTagModal = ({
                   </TouchableOpacity>
                   {bgImage && (
                     <TouchableOpacity onPress={() => setBgImage(undefined)}>
-                      <Text style={[styles.removePhotoText, { color: colors.primary }]}>
+                      <Text
+                        style={[
+                          styles.removePhotoText,
+                          { color: colors.primary },
+                        ]}
+                      >
                         Remove Photo
                       </Text>
                     </TouchableOpacity>
@@ -288,7 +285,10 @@ export const EditiTagModal = ({
           </ScrollView>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={[styles.cancelBtn, {borderColor: colors.primary}]} onPress={onClose}>
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: colors.primary }]}
+              onPress={onClose}
+            >
               <Text style={[styles.cancelBtnText, { color: colors.primary }]}>
                 Cancel
               </Text>
@@ -305,7 +305,9 @@ export const EditiTagModal = ({
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={[styles.saveBtnText, { color: colors.btnTextColor }]}>
+                <Text
+                  style={[styles.saveBtnText, { color: colors.btnTextColor }]}
+                >
                   Save Changes
                 </Text>
               )}

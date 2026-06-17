@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import {handleLogout} from '../api/localPostApis';
 import Modal from 'react-native-modal';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface LogoutModalProps {
   visible: boolean;

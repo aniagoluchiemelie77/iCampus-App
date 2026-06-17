@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { RankCardProps } from 'types/firebase';
+import { RankCardProps } from '../types/firebase';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { UserAvatar } from './UserAvatar';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 export const RankCard: React.FC<RankCardProps> = ({

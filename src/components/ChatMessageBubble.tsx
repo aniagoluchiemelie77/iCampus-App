@@ -1,11 +1,11 @@
-import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import React from 'react';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { formatTime } from '../utils/ChatTimestampFormatter';
 import { Attachment } from '../types/firebase';
 import { downloadFile } from '../utils/downloadHelper';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface MessageBubbleProps {
   content: string;

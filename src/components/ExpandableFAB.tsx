@@ -4,9 +4,9 @@ import { BlurView } from '@react-native-community/blur';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { Lecture } from 'types/firebase';
+import { Lecture } from '../types/firebase';
 import { useAppSelector } from './hooks';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface FABProps {
   isVisible: boolean;

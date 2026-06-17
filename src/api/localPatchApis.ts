@@ -1,9 +1,7 @@
 import { User, userPreferences } from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const token = await AsyncStorage.getItem('accessToken');
+import {getAuthHeaders} from '../utils/userTokenAuth';
 interface UpdateExceptionStatusPayload {
   status: 'approved' | 'rejected';
   lecturerComment?: string;
@@ -14,12 +12,6 @@ interface UpdateExceptionStatusPayload {
   newIcashBalance?: number;
   error?: string;
 }
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 
 export const patchUserProfile = async (data: Partial<User>) => {
   const headers = await getAuthHeaders();

@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { UserIdentity } from './UserIdentity';
 import { searchUsersByUid } from '../api/localGetApis';
 import { useAppSelector } from '../components/hooks';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { UserAvatar } from './UserAvatar';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { formatCount } from '../utils/followCountFormatter';
 

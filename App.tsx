@@ -25,15 +25,30 @@ const linking = {
   prefixes: ['https://useicampus.app', 'icampus://'],
   config: {
     screens: {
-      CreateReview: 'reviews/:orderId',
       Home: 'home',
-      Store: 'marketplace',
+      Login: 'login',
+      SignUp: 'signup',
+      TransactionDetail: 'transaction/:transactionId',
+      ProductDetails: 'product/:productId',
+      Profile: 'user/:identifier',
+      Chat: 'chat/:recipientId',
+      CartScreen: 'cart',
+      SalesHub: 'sales',
+      CourseLearningScreen: 'course/:courseId',
+      LiveClassSessions: 'live-class/:lectureId',
+      Settings: 'settings',
+      EditProfile: 'profile/edit',
+      ResetPasswordScreen: 'reset-password',
+      Notifications: 'notifications',
+      NotificationDetails: 'notification/:notificationId',
+      FAQScreen: 'faq',
     },
   },
 };
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TransitionPresets } from '@react-navigation/stack';
+import { navigationRef } from './src/context/navigationContext.ts';
 
 import SignUpScreen from './src/screens/Signup';
 import SignupPage from './src/screens/SignupPage';
@@ -100,7 +115,6 @@ import { PRIMARY_COLOR } from './src/assets/styles/colors.ts';
 import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.tsx';
 import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
-
 
 export type RootStackParamList = {
   SignUp: undefined;
@@ -381,7 +395,7 @@ const App = () => {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
         <ThemeProvider>
-          <NavigationContainer linking={linking}>
+          <NavigationContainer linking={linking} ref={navigationRef}>
             <Stack.Navigator initialRouteName={initialRoute || 'SignUp'}>
               <Stack.Screen
                 name="SignUp"

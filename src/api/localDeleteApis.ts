@@ -1,9 +1,9 @@
-import { baseUrl } from '@components/HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
+import {getAuthHeaders} from '../utils/userTokenAuth';
 
-const token = await AsyncStorage.getItem('accessToken');
 interface DeleteLectureResponse {
   success: boolean;
   message?: string;
@@ -17,20 +17,12 @@ interface ApiResponse {
   data?: any;
   error?: string;
 }
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 export const handleFinalDelete = async ({navigation, reason}: {navigation: any, reason?: string}) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/account/delete`, {
         method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({
             reason: reason?.trim() || "No reason provided"
         }),
@@ -55,12 +47,10 @@ export const handleFinalDelete = async ({navigation, reason}: {navigation: any, 
 };
 export const deleteRecoveryEmailAPI = async (emailToDelete: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/recovery-email`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ emailToDelete }),
     });
     const data = await response.json();
@@ -78,12 +68,10 @@ export const deleteRecoveryEmailAPI = async (emailToDelete: string) => {
 };
 export const handleDeletePhone = async (phoneNumber: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/phone-number`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ phoneNumber }),
     });
 
@@ -103,12 +91,10 @@ export const handleDeletePhone = async (phoneNumber: string) => {
 };
 export const clearCartAPI = async () => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/cart/delete-all`, { 
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
     });
 
     const data = await response.json();
@@ -134,9 +120,10 @@ export const clearCartAPI = async () => {
 };
 export const clearFavoritesAPI = async () => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/favorites/delete-all`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers
     });
     const data = await response.json();
     if (!response.ok || !data.status) {
@@ -156,12 +143,10 @@ export const clearFavoritesAPI = async () => {
 };
 export const deleteProductApi = async (productId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}store/products/delete/${productId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      }
+      headers
     });
 
     const result = await response.json();
@@ -173,12 +158,10 @@ export const deleteProductApi = async (productId: string) => {
 };
 export const deletePostApi = async (postId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}/delete`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      }
+      headers
     });
     const result = await response.json();
     return result;
@@ -189,14 +172,12 @@ export const deletePostApi = async (postId: string) => {
 };
 export const deleteLectureSchedule = async (lectureId: string): Promise<DeleteLectureResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/lectures/${lectureId}`,
       {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       }
     );
     const result = await response.json();
@@ -223,14 +204,12 @@ export const deleteCourseMaterial = async (
   payload: DeleteMaterialPayload
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/deleteMaterial/${courseId}`,
       {
         method: 'DELETE', 
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(payload),
       }
     );

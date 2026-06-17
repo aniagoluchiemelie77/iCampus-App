@@ -1,9 +1,7 @@
 import { User, CreateTestPayload, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException} from '../types/firebase';
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const token = await AsyncStorage.getItem('accessToken');
+import {getAuthHeaders} from '../utils/userTokenAuth';
 interface CheckITagResponse {
   success: boolean;
   available: boolean;
@@ -78,12 +76,6 @@ interface FetchStudentCoursesParams {
   semester?: string;
   session?: string;
 }
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
   const params = new URLSearchParams({
@@ -92,12 +84,10 @@ export const searchUserProfile = async (identifier: string, currentUser: User) =
     viewerRole: currentUser.usertype || '',
     viewerFirstname: currentUser.firstname || '',
   });
+  const headers = await getAuthHeaders();
   const response = await fetch(`${baseUrl}users/profile/search/${identifier}?${params.toString()}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers,
   });
   const result = await response.json();
   if (!response.ok) {
@@ -113,12 +103,10 @@ export const fetchSupportedBanks = async (
   countryCode: string,
 ): Promise<{ label: string; value: string }[]> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/payments/banks/${countryCode}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers,
     });
 
     const json = await response.json();
@@ -140,12 +128,10 @@ export const getUserPaymentMethods = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
 
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/payment-methods/${userId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -167,12 +153,10 @@ export const getBlockedUsers = async (
 ): Promise<any[]> => {
   if (!userId) return [];
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/blocked-list/${userId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -200,10 +184,11 @@ export const getConversations = async (
   pageNum: number,
 ): Promise<{ success: boolean; data: any[]; hasMore: boolean }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/messages/conversations/${userId}?page=${pageNum}`,
       {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers
       }
     );
     const result = await response.json();
@@ -232,10 +217,11 @@ export const fetchMessages = async (
   limit: number = 20
 ): Promise<{ success: boolean; data: any[]; hasMore: boolean }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/messages/fetchMessage/${recipientId}?page=${pageNum}&limit=${limit}`,
       {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers
       }
     );
     
@@ -280,15 +266,12 @@ export const searchUsers = async ({
     
     if (uid) queryParams.append('uid', uid);
     if (q) queryParams.append('q', q);
-
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/search?${queryParams.toString()}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
       }
     );
     const result = await response.json();
@@ -312,14 +295,12 @@ export const searchUsersByUid = async (
   viewerRole: string,
 ): Promise<any[]> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/search?q=${encodeURIComponent(uid)}&viewerTier=${viewerTier}&viewerRole=${viewerRole}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
       }
     );
 
@@ -340,8 +321,13 @@ export const searchUsersByUid = async (
 };
 export const signupFetchInstitutions = async (country: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
-      `${baseUrl}users/institutions?country=${country}`
+      `${baseUrl}users/institutions?country=${country}`,
+      {
+        method: 'GET',
+        headers,
+      }
     );
     const data = await response.json();
 
@@ -374,12 +360,10 @@ export const signupFetchInstitutions = async (country: string) => {
 export const fetchLeaderboards = async () => {
   try {
     const url = `${baseUrl}users/fetchLeaderBoards`;
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
     });
     const data = await response.json();
     if (response.ok && data.success) {
@@ -409,12 +393,10 @@ export const fetchLeaderboards = async () => {
 export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => {
   try {
     const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
     });
     const data = await response.json();
     if (!response.ok) {
@@ -435,12 +417,10 @@ export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => 
 };
 export const fetchPostByIdAPI = async (postId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/${postId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const data = await response.json();
     if (!response.ok) {
@@ -469,12 +449,10 @@ export const fetchProductsAPI = async ({
     const categoryParam = category === 'all' ? '' : encodeURIComponent(category);
     const queryParam = encodeURIComponent(q);
     const url = `${baseUrl}store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursor}&limit=${limit}`;
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -496,12 +474,10 @@ export const fetchProductsAPI = async ({
 export const fetchAllProductsAPI = async () => {
   try {
     const url = `${baseUrl}store/fetch-all-products`;
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -526,13 +502,10 @@ export const fetchAllProductsAPI = async () => {
 export const fetchPendingOrdersAPI = async () => {
   try {
     const url = `${baseUrl}store/orders/pending`;
-    
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers,
     });
 
     const result = await response.json();
@@ -559,8 +532,9 @@ export const fetchPendingOrdersAPI = async () => {
 };
 export const getUserDownloads = async (): Promise<{ success: boolean; data: EnrichedCourseProduct[] }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/downloads/fetch-all`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers
     });
     const result = await response.json();
     if (!response.ok) {
@@ -580,12 +554,10 @@ export const getUserDownloads = async (): Promise<{ success: boolean; data: Enri
 export const fetchSellerSalesAPI = async () => {
   try {
     const url = `${baseUrl}store/sales/history`;
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -610,12 +582,10 @@ export const fetchSellerSalesAPI = async () => {
 export const fetchUserReviewsAPI = async () => {
   try {
     const url = `${baseUrl}reviews/fetch-seller-reviews`; 
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -636,12 +606,10 @@ export const fetchUserReviewsAPI = async () => {
 export const fetchPayoutHistoryAPI = async () => {
   try {
     const url = `${baseUrl}payouts/fetch-history`; 
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -665,13 +633,10 @@ export const fetchDropOffStationsAPI = async (lat?: number, lng?: number) => {
     if (lat !== undefined && lng !== undefined) {
       url += `?lat=${lat}&lng=${lng}`;
     }
-
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -697,12 +662,10 @@ export const fetchDropOffStationsAPI = async (lat?: number, lng?: number) => {
 };
 export const fetchUserConnections = async (): Promise<{success: boolean; message?: string; data: any}> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/fetch-connections`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     });
 
     const result = await response.json();
@@ -729,14 +692,12 @@ export const fetchUserConnections = async (): Promise<{success: boolean; message
 };
 export const searchUsersByITag = async (tag: string): Promise<any> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}user/iTag/search/${encodeURIComponent(tag)}`, 
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers
       }
     );
     const result = await response.json();
@@ -763,12 +724,10 @@ export const fetchNotificationDetails = async (
   notificationId: string
 ): Promise<{ success: boolean; notification: Notification | null }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/notifications/${notificationId}`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     const result = await response.json();
@@ -807,13 +766,11 @@ export const fetchNotificationsByTab = async (
     }
     const queryString = params.toString();
     const finalUrl = queryString ? `${baseUrl}users/get-notifications?${queryString}` : `${baseUrl}users/get-notifications`;
+    const headers = await getAuthHeaders();
 
     const response = await fetch(finalUrl, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers
     });
 
     const result = await response.json();
@@ -845,12 +802,10 @@ export const checkITagAvailability = async (
   username: string
 ): Promise<CheckITagResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/check-itag/${encodeURIComponent(username)}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers
     });
     const result = await response.json();
     if (!response.ok) {
@@ -867,12 +822,10 @@ export const checkITagAvailability = async (
 };
 export const fetchOngoingLecture = async (): Promise<OngoingLectureResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/lectures/ongoing`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers
     });
     const result = await response.json();
     if (!response.ok) {
@@ -892,14 +845,12 @@ export const fetchFeaturedBooksByDepartment = async (
   department: string
 ): Promise<{ success: boolean; books: Book[] }> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/library/featured?department=${encodeURIComponent(department)}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers
       }
     );
 
@@ -935,14 +886,12 @@ export const searchLibraryBooks = async (
   query: string
 ): Promise<SearchBooksResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/library/search?q=${encodeURIComponent(query)}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers
       }
     );
 
@@ -964,12 +913,10 @@ export const searchLibraryBooks = async (
 };
 export const getUserAccountState = async (): Promise<any> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/check-account-state`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers
     });
 
     const data = await response.json();
@@ -1004,9 +951,10 @@ export const getUserAccountState = async (): Promise<any> => {
 };
 export const getCourseDetailsForOngoingLecture = async (courseId: string): Promise<GetCourseResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/course/ongoing-lecture/${courseId}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers
     });
     const data = await response.json();
     if (!response.ok) {
@@ -1020,9 +968,10 @@ export const getCourseDetailsForOngoingLecture = async (courseId: string): Promi
 };
 export const getAllExceptionsForOngoingLecture = async (lectureId: string): Promise<GetExceptionsResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/exceptions/lectures/${lectureId}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers
     });
     const data = await response.json();
 
@@ -1038,16 +987,10 @@ export const getAllExceptionsForOngoingLecture = async (lectureId: string): Prom
 };
 export const getCourseDetails = async (courseId: string): Promise<FetchCourseResponse> => {
   try {
-    if (!token) {
-      return { success: false, message: 'Authentication token not found' };
-    }
-
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/courses/fetch-course-details/${courseId}`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers
     });
 
     const result = await response.json();
@@ -1074,12 +1017,10 @@ export const getCourseDetails = async (courseId: string): Promise<FetchCourseRes
 };
 export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/student/class/lectures/timeline`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     const result = await response.json();
@@ -1103,12 +1044,10 @@ export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse>
 };
 export const getLecturersLecturesTimeline = async (): Promise<GetTimelineResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/lecturers/class/lectures/timeline`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     const result = await response.json();
@@ -1135,14 +1074,12 @@ export const checkAssessmentStatus = async (
   assessmentId: string
 ): Promise<CheckAssessmentStatusResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/student/class/courses/${courseId}/assessments/${assessmentId}/check-status`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers
       }
     );
     const result = await response.json();
@@ -1168,14 +1105,12 @@ export const checkAssessmentStatus = async (
 };
 export const getCourseExceptions = async (courseId: string): Promise<GetExceptionsResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/exceptions?courseId=${courseId}`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers
       }
     );
 
@@ -1203,14 +1138,12 @@ export const getCourseExceptions = async (courseId: string): Promise<GetExceptio
 };
 export const getCourseAssessments = async (courseId: string): Promise<GetAssessmentsResponse> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers
       }
     );
     const result = await response.json();
@@ -1235,12 +1168,10 @@ export const getCourseAssessments = async (courseId: string): Promise<GetAssessm
 };
 export const searchPosts = async (query: string): Promise<any[]> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}posts/search?q=${encodeURIComponent(query)}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers
     });
 
     if (!response.ok) {
@@ -1272,14 +1203,12 @@ export const searchICashMarketLocal = (query: string, catalog: any[]): any[] => 
 };
 export const searchCourses = async (query: string): Promise<SearchCoursesResponse[]> => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/courses/search?q=${encodeURIComponent(query)}`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers
       }
     );
     const result = await response.json();
@@ -1297,14 +1226,12 @@ export const searchCourses = async (query: string): Promise<SearchCoursesRespons
 export const searchAcademicResources = async (query: string): Promise<any[]> => {
   try {
     const encodedQuery = encodeURIComponent(query);
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/courses/resources/search?q=${encodedQuery}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers
       }
     );
 
@@ -1382,13 +1309,13 @@ export const getTransactionStats = async (
   params?: TransactionStatsParams 
 ): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
     const queryParams = new URLSearchParams();
     if (params?.month) queryParams.append('month', params.month.toString());
     if (params?.year) queryParams.append('year', params.year.toString());
-
+    
     const queryString = queryParams.toString();
     const url = `${baseUrl}user/transactions/stats${queryString ? `?${queryString}` : ''}`;
+    const headers = await getAuthHeaders();
 
     const response = await fetch(url, {
       method: 'GET',
@@ -1418,11 +1345,11 @@ export const getMyTransactions = async ({
   searchQuery
 }: GetTransactionsParams): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
     let url = `${baseUrl}user/my-transactions?page=${page}&limit=${limit}`;
     if (searchQuery) {
       url += `&search=${encodeURIComponent(searchQuery)}`;
     }
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
       headers
@@ -1445,12 +1372,10 @@ export const getMyTransactions = async ({
 };
 export const getTransactionByIdAPI = async (transactionId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/transactions/fetch-transaction/${transactionId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, 
-      },
+      headers
     });
     
     const data = await response.json();
@@ -1508,7 +1433,6 @@ export const fetchMyCoursesAPI = async ({
   session 
 }: FetchStudentCoursesParams = {}) => {
   try {
-    const headers = await getAuthHeaders();
     let url = `${baseUrl}users/student/class/courses/fetch-my-courses`;
     const queryParams = new URLSearchParams();
     if (semester && semester !== 'All') queryParams.append('semester', semester);
@@ -1517,7 +1441,8 @@ export const fetchMyCoursesAPI = async ({
     if (queryString) {
       url += `?${queryString}`;
     }
-
+    
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
       headers,
@@ -1549,17 +1474,17 @@ export const fetchLecturerCoursesAPI = async ({
   session 
 }: FetchStudentCoursesParams = {}) => {
   try {
-    const headers = await getAuthHeaders();
     let url = `${baseUrl}users/lecturers/class/courses/fetch-my-courses`;
     const queryParams = new URLSearchParams();
-
+    
     if (semester && semester !== 'All') queryParams.append('semester', semester);
     if (session && session !== 'All') queryParams.append('session', session);
-
+    
     const queryString = queryParams.toString();
     if (queryString) {
       url += `?${queryString}`;
     }
+    const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
       headers,

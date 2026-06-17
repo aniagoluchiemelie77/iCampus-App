@@ -18,14 +18,14 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
   PRIMARY_COLOR_TINT_MAIN,
-} from './Classroomcomponent';
+} from '../assets/styles/colors.ts';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useDispatch } from 'react-redux';
 import {
   User,
   RankCardCarouselProps,
   iCampusOperationalInstitutionSchema,
-} from 'types/firebase';
+} from '../types/firebase';
 import { RankCard } from './IscoreRankCard';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from './hooks';
@@ -40,7 +40,7 @@ import { homeStyles } from '../assets/styles/colors.ts';
 import { BlurView } from '@react-native-community/blur';
 import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
 import { setUser } from './UserSlice';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 
 const { width } = Dimensions.get('window');

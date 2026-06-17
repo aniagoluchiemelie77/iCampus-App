@@ -9,10 +9,10 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppDataContext } from './EventContext';
 import { Product } from '../types/firebase';
-import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { CurrencyDisplay } from './CurrencyFormatter';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 const AnimatedThumbnail = ({ urls }: { urls: string[] }) => {
   const [index, setIndex] = useState(0);

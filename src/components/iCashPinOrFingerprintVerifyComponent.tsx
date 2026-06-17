@@ -1,10 +1,21 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Animated, ActivityIndicator, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
+import {
+  InteractionManager,
+  View,
+  Text,
+  TextInput,
+  Animated,
+  ActivityIndicator,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import Toast from 'react-native-toast-message';
 import { verifyICashPin, requestPinReset } from '../api/localPostApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 const rnBiometrics = new ReactNativeBiometrics();
 
 interface PinVerificationProps {
@@ -24,10 +35,11 @@ export const IcashPinOrFingerprintVerifyModal = ({
   const { colors } = useTheme();
   const [pin, setPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
   const shakeAnimation = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
 
-  const triggerShake = () => {
+  const triggerShake = useCallback(() => {
     Animated.sequence([
       Animated.timing(shakeAnimation, {
         toValue: 10,
@@ -40,93 +52,78 @@ export const IcashPinOrFingerprintVerifyModal = ({
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnimation, {
-        toValue: 10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnimation, {
         toValue: 0,
         duration: 50,
         useNativeDriver: true,
       }),
     ]).start();
-  };
-  const handleBiometricAuth = useCallback(async () => {
-    const { available } = await rnBiometrics.isSensorAvailable();
-    if (!available) return;
+  }, [shakeAnimation]);
 
+  const handleBiometricAuth = useCallback(async () => {
     try {
+      const { available } = await rnBiometrics.isSensorAvailable();
+      if (!available) return;
+
       const { success } = await rnBiometrics.simplePrompt({
         promptMessage: 'Confirm identity',
       });
       if (success) onSuccess();
     } catch (error) {
-      console.log('Biometrics cancelled');
+      // Biometric prompt cancelled or failed
     }
   }, [onSuccess]);
-  const verifyPin = async (code: string) => {
-    setIsProcessing(true);
-    try {
-      const response = await verifyICashPin(code);
-      if (response.success) {
-        onSuccess();
-      } else if (response.isSuspended) {
-        navigation.navigate('SuspendedScreen', {
-          reason: response.message,
-        });
-      } else {
-        setPin('');
-        triggerShake();
-        Toast.show({
-          type: 'error',
-          text2: `Invalid PIN, ${response.attemptsRemaining} attempts remaining.`,
-        });
+
+  const verifyPin = useCallback(
+    async (code: string) => {
+      if (isProcessing) return;
+      setIsProcessing(true);
+
+      try {
+        const response = await verifyICashPin(code);
+        if (response.success) {
+          onSuccess();
+        } else if (response.isSuspended) {
+          onClose();
+          navigation.navigate('SuspendedScreen', { reason: response.message });
+        } else {
+          setPin('');
+          triggerShake();
+          Toast.show({
+            type: 'error',
+            text2: `Invalid PIN, ${response.attemptsRemaining} attempts remaining.`,
+          });
+        }
+      } catch (err) {
+        Toast.show({ type: 'error', text1: 'Connection Error' });
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Connection Error' });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+    },
+    [isProcessing, navigation, onSuccess, onClose, triggerShake],
+  );
+
   const handleTextChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
     setPin(cleaned);
-    if (cleaned.length === 6) {
-      verifyPin(cleaned);
-    }
+    if (cleaned.length === 6) verifyPin(cleaned);
   };
-  const handleRequestReset = async () => {
-    try {
-      const response = await requestPinReset();
-      if (response.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'OTP Sent',
-          text2: 'Check your email for the reset code.',
-        });
-        navigation.navigate('ICashResetPin');
-      } else {
-        Toast.show({
-          type: 'error',
-          text2: response.message,
-        });
-      }
-    } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Could not request reset.',
-      });
-    }
-  };
+
   useEffect(() => {
     if (isVisible) {
       setPin('');
-      handleBiometricAuth();
+      InteractionManager.runAfterInteractions(() => {
+        handleBiometricAuth();
+      });
     }
   }, [isVisible, handleBiometricAuth]);
+
   return (
-    <Modal visible={isVisible} animationType="slide" transparent={true}>
+    <Modal
+      visible={isVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         <View
           style={[
@@ -138,18 +135,16 @@ export const IcashPinOrFingerprintVerifyModal = ({
             <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
               {title}
             </Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close-outlined"
-                size={24}
-                color={colors.text}
-              />
+            <TouchableOpacity
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <MaterialIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
+
           <View style={styles.pinContainer}>
-            <Text style={[styles.pinSubtitle, { color: colors.text }]}>
-              Enter your 6-digit iCash PIN
-            </Text>
             <TextInput
               ref={inputRef}
               value={pin}
@@ -158,8 +153,9 @@ export const IcashPinOrFingerprintVerifyModal = ({
               keyboardType="number-pad"
               secureTextEntry
               style={styles.hiddenInput}
-              autoFocus={true}
+              autoFocus
             />
+
             <Pressable
               onPress={() => inputRef.current?.focus()}
               style={styles.pressableArea}
@@ -180,34 +176,34 @@ export const IcashPinOrFingerprintVerifyModal = ({
                         backgroundColor: colors.primary,
                         borderColor: colors.primary,
                       },
-                      pin.length === i && {
-                        borderColor: colors.primary,
-                      },
                     ]}
                   />
                 ))}
               </Animated.View>
             </Pressable>
+
             <View style={styles.pinActionRow}>
               <TouchableOpacity
                 onPress={handleBiometricAuth}
                 style={styles.iconBtn}
+                accessibilityRole="button"
               >
                 <MaterialIcons
                   name="fingerprint"
                   size={28}
                   color={colors.primary}
                 />
-                <Text style={[styles.iconBtnText, { color: colors.primary }]}>
-                  Use Fingerprint
-                </Text>
+                <Text style={{ color: colors.primary }}>Use Fingerprint</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleRequestReset}>
-                <Text style={[styles.forgotText, { color: colors.primary }]}>
-                  Forgot PIN?
-                </Text>
+
+              <TouchableOpacity
+                onPress={requestPinReset}
+                accessibilityRole="button"
+              >
+                <Text style={{ color: colors.primary }}>Forgot PIN?</Text>
               </TouchableOpacity>
             </View>
+
             {isProcessing && (
               <ActivityIndicator
                 style={{ marginTop: 20 }}

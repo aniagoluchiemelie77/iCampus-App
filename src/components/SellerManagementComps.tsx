@@ -40,7 +40,7 @@ import Svg, {
   Path,
 } from 'react-native-svg';
 import { ReviewItem } from './ReviewItem';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface StatusCardProps {
   label: string;

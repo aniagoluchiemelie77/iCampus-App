@@ -10,15 +10,14 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import { PRIMARY_COLOR } from '@components/Classroomcomponent';
 import { UserIdentity } from '../components/UserIdentity';
-import { PRIMARY_COLOR_TINT } from 'assets/styles/colors';
+import { PRIMARY_COLOR_TINT, PRIMARY_COLOR } from '../assets/styles/colors';
 import {
   toggleFollowUser,
   toggleBlockUserFromProfile,
 } from '../api/localPostApis';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
-import { useTheme } from 'context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { UserAvatar } from './UserAvatar.tsx';
 
 interface FollowModalProps {

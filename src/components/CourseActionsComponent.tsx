@@ -71,7 +71,7 @@ import { formatDate } from '../utils/dateFormatter';
 import {
   fetchAllAssignments,
   getAssessmentAnalysisUrl,
-} from 'api/localGetApis';
+} from '../api/localGetApis';
 import { launchImageLibrary } from 'react-native-image-picker';
 import {
   EXCEPTION_ACCOUNT_LIMITS,

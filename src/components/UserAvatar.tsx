@@ -1,6 +1,13 @@
-import { PRIMARY_COLOR } from 'assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import React from 'react';
-import { Image, Text, View, StyleSheet, StyleProp, ImageStyle } from 'react-native';
+import {
+  Image,
+  Text,
+  View,
+  StyleSheet,
+  StyleProp,
+  ImageStyle,
+} from 'react-native';
 
 interface UserAvatarProps {
   profilePic?: string[] | string | null;
@@ -11,15 +18,14 @@ interface UserAvatarProps {
   organizationName?: string;
 }
 
-export const UserAvatar = ({ 
-  profilePic, 
-  firstName, 
-  lastName, 
-  username, 
+export const UserAvatar = ({
+  profilePic,
+  firstName,
+  lastName,
+  username,
   style,
-  organizationName
+  organizationName,
 }: UserAvatarProps) => {
-
   const uri = Array.isArray(profilePic) ? profilePic.at(-1) : profilePic;
   const getInitials = () => {
     if (organizationName) {
@@ -35,12 +41,7 @@ export const UserAvatar = ({
   };
 
   if (uri) {
-    return (
-      <Image
-        source={{ uri }}
-        style={style}
-      />
-    );
+    return <Image source={{ uri }} style={style} />;
   }
   return (
     <View style={[styles.defaultContainer, style]}>
