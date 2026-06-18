@@ -6,6 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { EmptyState } from '@components/EmptyFlatlistComponent';
@@ -15,9 +17,11 @@ import { Notification } from '../types/firebase';
 import { formatDateWithSuffix } from '../utils/dateFormatter';
 import { PageHeader } from '../components/PageHeader';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationDetails() {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const route =
     useRoute<RouteProp<RootStackParamList, 'NotificationDetails'>>();
   const { notificationId, notification: passedNotification } = route.params;
@@ -46,10 +50,37 @@ export default function NotificationDetails() {
     }
   }, [notificationId, notification]);
 
-  const isSecurityAlert =
-    notification?.title?.toLowerCase().includes('password') ||
-    notification?.title?.toLowerCase().includes('login') ||
-    notification?.category === 'security';
+  const isSecurityAlert = notification?.category === 'security';
+  const isdownloadCert = notification?.actionType === 'COURSE_COMPLETED';
+  const handleAction = async () => {
+    if (!notification) return;
+
+    switch (notification.actionType) {
+      case 'COURSE_COMPLETED':
+        const url = notification.payload?.pdfUrl;
+        if (url) {
+          const supported = await Linking.canOpenURL(url);
+          if (supported) {
+            await Linking.openURL(url);
+          } else {
+            Alert.alert('Error', 'Unable to open certificate.');
+          }
+        } else {
+          navigation.navigate('CourseSubPage', {
+            id: notification.relatedEntity?.entityId,
+          });
+        }
+        break;
+
+      case 'LECTURE_SCHEDULED':
+        navigation.navigate('CourseSubPage', {
+          id: notification.relatedEntity?.entityId,
+        });
+        break;
+
+      // Add other cases as needed...
+    }
+  };
 
   return (
     <ScrollView
@@ -106,6 +137,13 @@ export default function NotificationDetails() {
                 </TouchableOpacity>
               </Text>
             </View>
+          )}
+          {notification.relatedEntity && (
+            <TouchableOpacity onPress={handleAction}>
+              <Text>
+                {isdownloadCert ? 'Download Certificate' : 'View Details'}
+              </Text>
+            </TouchableOpacity>
           )}
           <Text
             style={[NotificationDetailsStyles.date, { color: colors.text }]}

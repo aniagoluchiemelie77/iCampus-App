@@ -19,10 +19,7 @@ import {
   markAllNotificationsAsRead,
   markSingleNotificationAsRead,
 } from '../api/localPatchApis';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT,
-} from '../components/Classroomcomponent';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
@@ -98,54 +95,118 @@ const Notifications = () => {
         ),
       );
     }
-    const { actionType, payload, relatedEntity } = item;
-    const entityId =
-      relatedEntity?.entityId || payload?.postId || payload?.lectureId;
+    const { actionType, payload } = item;
 
     switch (actionType) {
       // --- POST GROUP (PostDetails) ---
-      case 'POST_MENTION': // Fixed typo (removed 'S')
+      case 'POST_UPDATED':
+      case 'NEW_POST':
+      case 'POST_MENTION':
       case 'POST_LIKED':
       case 'POST_COMMENTED':
+      case 'POLL_MILESTONE':
       case 'POST_REPOSTED':
-        navigation.navigate('PostDetail', { postId: entityId });
+        navigation.navigate('PostDetail', { postId: payload.postId });
         break;
 
-      // --- LECTURE GROUP (LectureView) ---
-      case 'LECTURE_CANCELLED':
-      case 'LECTURE_POSTPONED':
-      case 'LECTURE_SCHEDULED':
-        navigation.navigate('CourseSubPage', {
-          title: 'View Lecture Schedule',
-          course: { courseId: payload.courseId },
-          userRole: user.usertype,
-          initialLectureId: entityId,
-        });
+      case 'PRODUCT_DELETION':
+      case 'PRODUCT_CREATION':
+      case 'PRODUCT_UPDATE':
+        navigation.navigate('SalesHub');
         break;
 
       // --- ACADEMIC/COURSE UPDATES (NotificationDetails) ---
-      case 'CONTENT_UPDATED':
-      case 'LECTURE_REMINDER':
-        navigation.navigate('NotificationDetails', { notification: item });
-        break;
-
-      // --- OTHER SPECIALIZED PAGES ---
-      case 'NEW_FOLLOWER':
-        navigation.navigate('Profile', { userId: payload.followerId });
-        break;
-
-      case 'TEST_CREATED':
-      case 'TEST_ANALYSIS_READY':
+      case 'LECTURE_CANCELLED':
+      case 'LECTURE_POSTPONED':
+      case 'LECTURE_VENUE_CHANGE':
+      case 'LECTURE_TYPE_CHANGE':
+      case 'LECTURE_SCHEDULED':
         navigation.navigate('CourseSubPage', {
-          title: 'Assessments',
-          course: { courseId: payload.courseId },
+          title: 'View Lecture Schedule',
           userRole: user.usertype,
-          initialTestId: payload.testId,
         });
         break;
 
-      case 'PURCHASE_DEBIT':
-        navigation.navigate('TransactionDetail', { transactionId: entityId });
+      case 'CONTENT_MUTATED':
+      case 'CONTENT_DELETION':
+      case 'CONTENT_ADDED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Course Contents',
+          userRole: user.usertype,
+          course: payload.course,
+        });
+        break;
+
+      case 'EXCEPTION_UPDATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Exceptions',
+          userRole: user.usertype,
+        });
+        break;
+
+      case 'TEST_CREATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assessments',
+          userRole: user.usertype,
+        });
+        break;
+
+      case 'ASSIGNMENT_CREATED':
+      case 'ASSIGNMENT_REMOVED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assignments',
+          userRole: user.usertype,
+          course: payload.course,
+        });
+        break;
+
+      case 'MATERIAL_UPLOADED':
+      case 'MATERIAL_DELETED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Course Materials',
+          userRole: user.usertype,
+          course: payload.course,
+        });
+        break;
+
+      // --- OTHER SPECIALIZED PAGES ---
+      case 'PROFILE_VIEW':
+      case 'PROFILE_UPDATED':
+        navigation.navigate('Profile', { identifier: user.uid });
+        break;
+
+      case 'NEW_FOLLOWER':
+        navigation.navigate('Profile', { identifier: payload.followerId });
+        break;
+
+      case 'TEST_CREATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assessments',
+          userRole: user.usertype,
+        });
+        break;
+
+      case 'SALES_PAYOUT_SUCCESS':
+      case 'MARKET_PURCHASE_DEBIT':
+      case 'ICASH_PURCHASE':
+      case 'ICASH_WITHDRAWAL':
+        navigation.navigate('TransactionDetail', {
+          transactionId: payload.transactionId,
+        });
+        break;
+
+      case 'ORDER_REVIEW_REQUEST':
+        navigation.navigate('CreateReviewScreen', {
+          targetId: payload.targetId,
+          productType: 'product',
+        });
+        break;
+
+      case 'LECTURER_REVIEW_REQUEST':
+        navigation.navigate('CreateReviewScreen', {
+          targetId: payload.targetId,
+          productType: 'lecturer',
+        });
         break;
 
       default:

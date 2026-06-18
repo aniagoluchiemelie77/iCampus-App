@@ -8,6 +8,13 @@ export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
 export type ThemeType = 'light' | 'dark' | 'system';
+type WelcomePayload = { userName: string };
+type OrderCancelledPayload = { recipientName: string; orderId: string; productName: string };
+type NewOrderPayload = { userName: string; amount: number; orderId: string };
+export type NotificationPayload = 
+  | ({ actionType: 'WELCOME_USER' } & WelcomePayload)
+  | ({ actionType: 'ORDER_CANCELLED' } & OrderCancelledPayload)
+  | ({ actionType: 'NEW_ORDER' } & NewOrderPayload);
 
 export interface UserSession {
   deviceId: string;
@@ -102,23 +109,33 @@ export interface User {
   referralCode?: string
 };
 export interface Notification {
-  id: string; // MongoDB _id
-  notificationId: string; // Your custom logic ID (e.g., LECTURE_123)
-  userId?: string; 
-  title?: string;
-  message: string;
-  category: 'finance' | 'security' | 'academic' | 'course' | 'social' | 'announcement';
+  notificationId: string; 
   isRead: boolean;
-  createdAt: string;
-  relatedClassSessionId?: string;
-  isPublic?: boolean;
-  relatedSchoolName: string;
-  department?: string;
-  level?: string;
-  type?: string; // e.g., 'classroom', 'finance'
-  status?: string; // e.g., 'pending', 'approved'
-  transactionIdMid?: string;
-  fileUrls?: string[];
+  createdAt: string,
+  recipientId: string;
+  recipientEmail?: string;
+  senderId?: string;
+  category: 
+        "auth" | 
+        "social" |
+        "classroom" |
+        "store" |
+        "finance" |
+        "profile" |
+        "security" |
+        "reminder" |
+        "signup" |
+        "subscription"
+     ;
+    currency?: string;
+    actionType: string;
+    title: string;
+    message: string;
+    relatedEntity?: {
+      entityId: string;
+      entityType: string;
+    };
+ payload: NotificationPayload;
 }
 export interface userPreferences
   {
