@@ -4,19 +4,9 @@ import {
   Text,
   StyleSheet,
   Dimensions,
-  ScrollView,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
-import {
-  ProgressBar,
-  Avatar,
-  IconButton,
-  Portal,
-  Modal,
-  TextInput,
-} from 'react-native-paper';
+import { ProgressBar, Avatar, IconButton } from 'react-native-paper';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User, ChatMessage, Lecture } from '../types/firebase';
@@ -27,7 +17,13 @@ import LiveAudioStream from 'react-native-live-audio-stream';
 import { useNavigation } from '@react-navigation/native';
 import { RTCView } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
-import { WavingToast, SpeakerToast } from './LecturerLiveClassSession';
+import {
+  ChatModal,
+  AttendeeListModal,
+  WavingToast,
+  SpeakerToast,
+} from './liveClassComponents';
+import { useTheme } from '../context/ThemeContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface StudentLiveSessionProps {
@@ -95,12 +91,12 @@ export const StudentLiveClassSession = ({
   attendeeList = [],
   socket,
 }: StudentLiveSessionProps) => {
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const localAudioTrack = useRef<any>(null);
   const navigation = useNavigation<any>();
   const [chatVisible, setChatVisible] = useState(false);
   const passedChecks = checks.filter((c: boolean) => c).length;
-  const [waverName, setWaverName] = useState<string | null>(null);
   const [activeSpeakersList, setActiveSpeakersList] = useState<any[]>([]);
   const [transcription, setTranscription] = useState<string>(
     'Waiting for audio...',
@@ -119,9 +115,6 @@ export const StudentLiveClassSession = ({
   const [wavers, setWavers] = useState<any[]>([]);
   const [currentAttendees, setCurrentAttendees] =
     useState<User[]>(attendeeList);
-  const triggerWaveToast = (name: string) => {
-    setWaverName(name);
-  };
   const [lecturerLiveData, setLecturerData] = useState<LecturerDataProps>({
     firstname: '',
     profilePic: [],
@@ -288,10 +281,6 @@ export const StudentLiveClassSession = ({
           setIsMicAllowed(true);
           setIsLocalMuted(false);
         }
-      },
-      student_waved: (data: { firstName: string }) => {
-        triggerWaveToast(data.firstName);
-        setWaverName(data.firstName);
       },
       receive_message: (newMessage: ChatMessage) => {
         setMessages(prev => [...prev, newMessage]);
@@ -478,123 +467,23 @@ export const StudentLiveClassSession = ({
             : `${passedChecks}/7 Checks Verified`}
         </Text>
       </View>
-
-      {/* Chat Modal (60% Height) */}
-      <Portal>
-        <Modal
-          visible={chatVisible}
-          onDismiss={() => setChatVisible(false)}
-          contentContainerStyle={LiveClassSessionStyles.chatModal}
-        >
-          <Text style={LiveClassSessionStyles.chatHeader}>Live Class Chat</Text>
-          <ScrollView
-            style={LiveClassSessionStyles.messageList}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            ref={ref => ref?.scrollToEnd({ animated: true })} // Auto-scroll to bottom
-          >
-            {messages.map((msg, index) => (
-              <View
-                key={index}
-                style={[
-                  LiveClassSessionStyles.messageBubble,
-                  msg.senderId === user.uid
-                    ? LiveClassSessionStyles.myMessage
-                    : LiveClassSessionStyles.theirMessage,
-                ]}
-              >
-                <Text style={LiveClassSessionStyles.senderName}>
-                  {msg.firstName}
-                </Text>
-                <Text style={LiveClassSessionStyles.messageText}>
-                  {msg.text}
-                </Text>
-              </View>
-            ))}
-            {messages.length === 0 && (
-              <Text style={LiveClassSessionStyles.emptyChat}>
-                No messages yet. Start the conversation!
-              </Text>
-            )}
-          </ScrollView>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
-            <View style={LiveClassSessionStyles.chatInputRow}>
-              <TextInput
-                mode="outlined"
-                placeholder="Type a message..."
-                value={inputText}
-                onChangeText={setInputText}
-                style={LiveClassSessionStyles.chatInput}
-                outlineColor={PRIMARY_COLOR_TINT}
-                activeOutlineColor={PRIMARY_COLOR}
-                onSubmitEditing={sendMessage}
-              />
-              <IconButton
-                icon="send"
-                iconColor={PRIMARY_COLOR}
-                onPress={sendMessage}
-                disabled={!inputText.trim()}
-              />
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-      </Portal>
-      {/* Attendees list modal */}
-      <Portal>
-        <Modal
-          visible={attendeeModalVisible}
-          onDismiss={() => setAttendeeModalVisible(false)}
-          style={LiveClassSessionStyles.modalOverlay}
-        >
-          <View style={LiveClassSessionStyles.bottomModalContainer}>
-            <View style={LiveClassSessionStyles.modalHandle} />
-            <Text style={LiveClassSessionStyles.attendeeListTitle}>
-              Class Attendance ({currentAttendees.length})
-            </Text>
-
-            <ScrollView style={LiveClassSessionStyles.attendeeScrollList}>
-              {currentAttendees.map((student, index) => (
-                <View
-                  key={student.uid || index}
-                  style={LiveClassSessionStyles.studentRow}
-                >
-                  <Avatar.Image
-                    size={45}
-                    source={{
-                      uri:
-                        student.profilePic?.[0] ||
-                        'https://via.placeholder.com/45',
-                    }}
-                  />
-                  <View style={LiveClassSessionStyles.studentInfo}>
-                    <Text style={LiveClassSessionStyles.studentName}>
-                      {student.firstname} {student.lastname}
-                    </Text>
-                  </View>
-                  {/* Visual indicator if they are the one waving */}
-                  {waverName === student.firstname && (
-                    <MaterialIcons
-                      name="front-hand"
-                      size={20}
-                      color={PRIMARY_COLOR}
-                    />
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={LiveClassSessionStyles.closeModalButton}
-              onPress={() => setAttendeeModalVisible(false)}
-            >
-              <Text style={LiveClassSessionStyles.closeModalButtonText}>
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-      </Portal>
+      <ChatModal
+        visible={chatVisible}
+        onDismiss={() => setChatVisible(false)}
+        messages={messages}
+        sendMessage={sendMessage}
+        inputText={inputText}
+        setInputText={setInputText}
+        colors={colors}
+        user={user}
+      />
+      <AttendeeListModal
+        visible={attendeeModalVisible}
+        onDismiss={() => setAttendeeModalVisible(false)}
+        attendees={currentAttendees}
+        wavers={wavers}
+        colors={colors}
+      />
       {wavers.length > 0 && (
         <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
       )}
@@ -632,7 +521,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
   },
-  waveText: { fontSize: 14, flex: 1 },
   sharedScreen: {
     width: '100%',
     height: 250,
@@ -714,46 +602,12 @@ export const LiveClassSessionStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
   },
-  chatHeader: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 15,
-  },
-  chatInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-  },
-  chatInput: {
-    flex: 1,
-    height: 60,
-    fontSize: 14,
-  },
-  sendBtn: {
-    marginHorizontal: 6,
-  },
   progressFooter: { padding: 10, backgroundColor: '#fff' },
   progressLabel: {
     textAlign: 'center',
     fontSize: 10,
     marginTop: 4,
     color: '#2222',
-  },
-  waveToast: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 25,
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    zIndex: 100,
-    maxWidth: '70%',
   },
   //
   lecturerTab: {
@@ -806,30 +660,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     borderBottomColor: '#eee',
     paddingBottom: 10,
   },
-  messageList: { flex: 1, paddingBottom: 30 },
-  messageBubble: {
-    padding: 10,
-    borderRadius: 12,
-    marginVertical: 10,
-    maxWidth: '80%',
-  },
-  myMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: PRIMARY_COLOR,
-    borderBottomRightRadius: 0,
-  },
-  theirMessage: {
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 0,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderWidth: 0.8,
-  },
-  senderName: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  messageText: { fontSize: 14 },
   emptyChat: {
     textAlign: 'center',
     color: PRIMARY_COLOR_TINT,
@@ -851,21 +681,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
   micStatusText: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  speakerToast: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    padding: 15,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '70%',
-    zIndex: 100,
-  },
-  speakerText: {
-    fontSize: 14,
     marginLeft: 5,
   },
   sharingActive: {
@@ -925,52 +740,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
   miniPreview: {
     flex: 1,
   },
-  controlWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  previewVideo: {
-    position: 'absolute',
-    top: 45,
-    right: 20,
-    width: 70,
-    height: 90,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
-    justifyContent: 'center',
-    alignContent: 'center',
-  },
-  previewVideoText: {
-    fontSize: 12,
-    marginTop: 10,
-    fontWeight: 'bold',
-  },
-  overlayBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-  },
-  muteAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    marginRight: 6,
-  },
-  muteAllText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
   buttonRow: { flexDirection: 'row' },
   monitoringSection: {
     marginBottom: 15,
@@ -1002,16 +771,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 5,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignContent: 'center',
-  },
-  bottomOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
   reviewModalInput: {
     width: '100%',
     backgroundColor: '#fff',
@@ -1034,82 +793,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-evenly',
     marginVertical: 20,
-  },
-  modalContainer: {
-    padding: 20,
-    borderRadius: 12,
-    alignContent: 'center',
-    width: '90%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 15,
-  },
-  modalSubText: {
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  modalButtonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  modalButtonRowBtn: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignContent: 'center',
-    borderWidth: 1,
-  },
-  modalButtonRowBtnText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  bottomModalContainer: {
-    padding: 20,
-    width: '100%',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '70%',
-    paddingBottom: 40,
-    position: 'relative',
-  },
-  modalHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    borderRadius: 10,
-    alignSelf: 'center',
-    marginBottom: 15,
-  },
-  attendeeListTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  studentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    width: '100%',
-  },
-  attendeesAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-  },
-  attendeeScrollList: {
-    paddingBottom: 20,
-  },
-  studentInfo: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  waveIcon: {
-    marginLeft: 7,
   },
   studentName: {
     fontSize: 14,

@@ -58,14 +58,10 @@ export const CheckoutScreen = () => {
   const dispatch = useDispatch();
   const currentUser = useAppSelector(state => state.user);
   const { allProducts } = useAppDataContext();
-
-  // Route Parameters Destructuring
   const params = useMemo(() => {
     return (route.params || {}) as CheckoutScreenParams;
   }, [route.params]);
   const isDirectPurchase = !!params?.productId;
-
-  // Form Field Interactive States
   const [isSubscriptionModalVisible, setSubscriptionModalVisible] =
     useState(false);
   const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
@@ -598,7 +594,7 @@ export const CheckoutScreen = () => {
                           <Text
                             style={{
                               fontSize: 11,
-                              color: '#D32F2F',
+                              color: colors.primary,
                               marginTop: 4,
                             }}
                           >

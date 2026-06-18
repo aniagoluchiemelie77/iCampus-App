@@ -52,9 +52,11 @@ export default function NotificationDetails() {
 
   const isSecurityAlert = notification?.category === 'security';
   const isdownloadCert = notification?.actionType === 'COURSE_COMPLETED';
+  const isBtnVisible =
+    notification?.actionType === 'COURSE_COMPLETED' ||
+    notification?.actionType === 'COURSES_EXTRACTED';
   const handleAction = async () => {
     if (!notification) return;
-
     switch (notification.actionType) {
       case 'COURSE_COMPLETED':
         const url = notification.payload?.pdfUrl;
@@ -65,20 +67,13 @@ export default function NotificationDetails() {
           } else {
             Alert.alert('Error', 'Unable to open certificate.');
           }
-        } else {
-          navigation.navigate('CourseSubPage', {
-            id: notification.relatedEntity?.entityId,
-          });
         }
         break;
-
-      case 'LECTURE_SCHEDULED':
-        navigation.navigate('CourseSubPage', {
-          id: notification.relatedEntity?.entityId,
+      case 'COURSES_EXTRACTED':
+        navigation.navigate('Home', {
+          activeTab: 'classroom',
         });
         break;
-
-      // Add other cases as needed...
     }
   };
 
@@ -128,7 +123,7 @@ export default function NotificationDetails() {
                   { color: colors.text },
                 ]}
               >
-                If this was not you, please immediately contact
+                If this was not done by you, please immediately contact
                 <TouchableOpacity>
                   <Text style={{ color: colors.primary }}>
                     {' '}
@@ -138,13 +133,6 @@ export default function NotificationDetails() {
               </Text>
             </View>
           )}
-          {notification.relatedEntity && (
-            <TouchableOpacity onPress={handleAction}>
-              <Text>
-                {isdownloadCert ? 'Download Certificate' : 'View Details'}
-              </Text>
-            </TouchableOpacity>
-          )}
           <Text
             style={[NotificationDetailsStyles.date, { color: colors.text }]}
           >
@@ -152,6 +140,24 @@ export default function NotificationDetails() {
               ? formatDateWithSuffix(notification.createdAt)
               : 'Date not available'}
           </Text>
+          {isBtnVisible && (
+            <TouchableOpacity
+              onPress={handleAction}
+              style={[
+                NotificationDetailsStyles.btn,
+                { backgroundColor: colors.btnColor },
+              ]}
+            >
+              <Text
+                style={[
+                  NotificationDetailsStyles.btnText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                {isdownloadCert ? 'Download Certificate' : 'View Details'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <EmptyState
@@ -186,5 +192,15 @@ const NotificationDetailsStyles = StyleSheet.create({
   date: {
     alignSelf: 'flex-end',
     fontSize: 12,
+  },
+  btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    alignContent: 'center',
+  },
+  btnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

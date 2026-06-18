@@ -9,12 +9,147 @@ export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
 export type ThemeType = 'light' | 'dark' | 'system';
 type WelcomePayload = { userName: string };
-type OrderCancelledPayload = { recipientName: string; orderId: string; productName: string };
-type NewOrderPayload = { userName: string; amount: number; orderId: string };
-export type NotificationPayload = 
-  | ({ actionType: 'WELCOME_USER' } & WelcomePayload)
-  | ({ actionType: 'ORDER_CANCELLED' } & OrderCancelledPayload)
-  | ({ actionType: 'NEW_ORDER' } & NewOrderPayload);
+type OrderCancelledPayload = {
+  orderId: string;
+  productName: string;
+  reason: string;
+  buyerName: string;
+  date: Date | string;
+  time: Date | string;
+};
+type NewOrderPayload = { 
+  orderId: string;
+  productName: string;
+  buyerName: string;
+  amount: number;
+  deliveryMethod: string;
+  stationName: string;
+  stationAddress: string;
+  buyerAddress: string;
+  buyerPhoneNumber: string;
+  date: Date | string;
+  time: Date | string; 
+};
+type OrderDroppedOffPayload = { 
+  userName: string;
+  productName: string;
+  orderId: string;
+  stationName: string;
+  stationAddress: string;
+};
+type AgentAwaitingPickupPayload = { 
+  agentName: string;
+  productName: string;
+  orderId: string;
+  stationName: string;
+  date: Date | string;
+  time: Date | string;
+};
+type NewLoginPayload = { 
+  userName: string;
+  ipAddress: string;
+  location: string;
+  date: Date | string;
+  time: Date | string;
+};
+type PasswordChangedPayload = { 
+  userName: string;
+  date: Date | string;
+  time: Date | string;
+};
+type OrderCompletedPayload = { 
+  amount: string;
+  userName: string;
+  productName: string;
+  orderId: string;
+  role: "agent" | 'seller';
+};
+type PostDeletionPayload = { 
+  username: string;
+  postId: string;
+};
+type LearningReminderPayload = { 
+  productId: string;
+  currentProgress: number
+};
+type TestSubmittedPayload = { 
+  testId: string;
+  submissionId: string;
+  isFlagged: boolean;
+  actionEnforced: "SCORE_NULLIFIED" | "RECORDED";
+  title: string;
+};
+type ExceptionSubmittedPayload = { 
+  exceptionId: string;
+  newBalance: number;
+  courseTitle: string;
+  lectureTitle: string;
+};
+type CoursesExtractedPayload = { 
+  courseCount: number;
+  level: string;
+  matricNo: string;
+  semester: string;
+  session: string;
+};
+type PasswordResetCodePayload = { 
+  code: number;
+  userName: string;
+  expiryTime: Date | string;
+};
+type EmailVerificationPayload = { 
+  code: number;
+};
+type LectureReminderPayload = { 
+  courseId: string;
+  lectureId: string;
+  topicName: string;
+  startTime: Date | string;
+  location: string;
+  userName: string;
+};
+type SubscriptionUpgradedPayload = { 
+  userName: string;
+  tier: UserTier,
+  amount: number;
+  currency: string;
+  transactionId: string;
+};
+type IcashPinResetPayload = { 
+  userName: string;
+  date: Date | string;
+  time: Date | string;
+};
+type CourseCompletedPayload = { 
+  userName: string;
+  productName: string;
+  pdfUrl: string;
+  productId: string;
+};
+
+
+type ActionPayloadMap = {
+  COURSE_COMPLETED: CourseCompletedPayload;
+  WELCOME_USER: WelcomePayload;
+  ORDER_CANCELLED: OrderCancelledPayload;
+  NEW_ORDER: NewOrderPayload;
+  ORDER_DROPPED_OFF: OrderDroppedOffPayload;
+  AGENT_AWAITING_PICKUP: AgentAwaitingPickupPayload;
+  NEW_LOGIN: NewLoginPayload;
+  PASSWORD_CHANGED: PasswordChangedPayload;
+  ORDER_COMPLETED: OrderCompletedPayload;
+  POST_DELETION: PostDeletionPayload;
+  LEARNING_REMINDER: LearningReminderPayload;
+  TEST_SUBMITTED: TestSubmittedPayload;
+  EXCEPTION_SUBMITTED: ExceptionSubmittedPayload;
+  COURSES_EXTRACTED: CoursesExtractedPayload;
+  PASSWORD_RESET_CODE: PasswordResetCodePayload;
+  EMAIL_VERIFICATION: EmailVerificationPayload;
+  LECTURE_REMINDER: LectureReminderPayload;
+  SUBSCRIPTION_UPGRADED: SubscriptionUpgradedPayload;
+  ICASH_PIN_RESET: IcashPinResetPayload;
+  // ... add all other types here
+};
 
 export interface UserSession {
   deviceId: string;
@@ -108,7 +243,7 @@ export interface User {
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   referralCode?: string
 };
-export interface Notification {
+export interface Notification<T extends keyof ActionPayloadMap = any> {
   notificationId: string; 
   isRead: boolean;
   createdAt: string,
@@ -116,26 +251,26 @@ export interface Notification {
   recipientEmail?: string;
   senderId?: string;
   category: 
-        "auth" | 
-        "social" |
-        "classroom" |
-        "store" |
-        "finance" |
-        "profile" |
-        "security" |
-        "reminder" |
-        "signup" |
-        "subscription"
-     ;
-    currency?: string;
-    actionType: string;
-    title: string;
-    message: string;
-    relatedEntity?: {
-      entityId: string;
-      entityType: string;
-    };
- payload: NotificationPayload;
+    "auth" | 
+    "social" |
+    "classroom" |
+    "store" |
+    "finance" |
+    "profile" |
+    "security" |
+    "reminder" |
+    "signup" |
+    "subscription"
+  ;
+  currency?: string;
+  actionType: T;
+  title: string;
+  message: string;
+  relatedEntity?: {
+    entityId: string;
+    entityType: string;
+  };
+  payload: ActionPayloadMap[T];
 }
 export interface userPreferences
   {

@@ -38,6 +38,47 @@ const Notifications = () => {
   );
   const [loading, setLoading] = useState(false);
 
+  const formatNotificationMessage = (item: any) => {
+    const { actionType, payload } = item;
+
+    switch (actionType) {
+      case 'PROFILE_VIEW':
+        if (payload.othersCount > 0) {
+          return `${payload.primaryUser} and ${payload.othersCount} others viewed your profile`;
+        }
+        return `${payload.primaryUser} viewed your profile`;
+
+      case 'NEW_FOLLOWER':
+        if (payload.othersCount > 0) {
+          return `${payload.primaryUser} and ${payload.othersCount} others started following you`;
+        }
+        return `${payload.primaryUser} started following you`;
+
+      case 'POST_LIKED':
+        return payload.othersCount > 0
+          ? `${payload.primaryUser} and ${payload.othersCount} others liked your post`
+          : `${payload.primaryUser} liked your post`;
+
+      case 'POST_MENTION':
+        return payload.othersCount > 0
+          ? `${payload.primaryUser} and ${payload.othersCount} mentioned you in their posts`
+          : `${payload.primaryUser} mentioned you in a post`;
+
+      case 'POST_COMMENTED':
+        return payload.othersCount > 0
+          ? `${payload.primaryUser} and ${payload.othersCount} others commented on your post`
+          : `${payload.primaryUser} commented on your post`;
+
+      case 'POST_REPOSTED':
+        return payload.othersCount > 0
+          ? `${payload.primaryUser} and ${payload.othersCount} others reshared on your post`
+          : `${payload.primaryUser} reshared your post`;
+
+      default:
+        return item.message;
+    }
+  };
+
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
@@ -281,7 +322,7 @@ const Notifications = () => {
             numberOfLines={1}
             ellipsizeMode="tail"
           >
-            {item.message}
+            {formatNotificationMessage(item)}
           </Text>
           <Text style={[styles.time, { color: colors.text }]}>
             {dayjs(item.createdAt).fromNow()}

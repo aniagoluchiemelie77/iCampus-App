@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-} from 'react-native';
-import { Portal, Modal, TextInput } from 'react-native-paper';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import VIForegroundService from '@voximplant/react-native-foreground-service';
 import { LiveClassSessionStyles } from './StudentLiveClassSession';
@@ -16,268 +7,29 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
-import { mediaDevices, RTCPeerConnection, RTCView } from 'react-native-webrtc';
+import { mediaDevices, RTCPeerConnection } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
 import { User, Lecture } from '../types/firebase';
 import { UserAvatar } from './UserAvatar';
-import { UserIdentity } from './UserIdentity';
 import { useLiveTranscription } from '../hooks/useLiveTransciption';
 import LiveAudioStream from 'react-native-live-audio-stream';
 import { Buffer } from 'buffer';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
-interface LecturerControlsProps {
-  localStream: any;
-  isLive: boolean;
-  socket: any;
-  lectureId: string;
-  onMuteAll: () => void;
-  wavers: any[];
-  onGrantMic: (uid: string) => void;
-}
+import {
+  ChatModal,
+  AttendeeListModal,
+  ConfirmationModal,
+  LecturerStreamControls,
+  WavingToast,
+  SpeakerToast,
+} from './liveClassComponents';
 interface LecturerLiveSessionProps {
   lecture: Lecture;
   socket: any;
   attendeeList?: User[];
 }
-interface GroupToastProps {
-  activeUsers: any[];
-  onHide: () => void;
-}
-export const WavingToast = ({ activeUsers, onHide }: GroupToastProps) => {
-  const { colors: themeColors } = useTheme();
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-  const userCount = activeUsers.length;
-  let displayMessage = '';
 
-  if (userCount === 1) {
-    displayMessage = `👋 ${activeUsers[0].firstname} is waving`;
-  } else if (userCount === 2) {
-    displayMessage = `👋 ${activeUsers[0].firstname} and ${activeUsers[1].firstname} are waving`;
-  } else if (userCount > 2) {
-    displayMessage = `👋 ${activeUsers[0].firstname} and ${
-      userCount - 1
-    } others are waving`;
-  }
-
-  useEffect(() => {
-    if (userCount === 0) return;
-    Animated.spring(slideAnim, {
-      toValue: 20,
-      useNativeDriver: true,
-    }).start();
-
-    const timer = setTimeout(() => {
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => onHide());
-    }, 6000);
-
-    return () => clearTimeout(timer);
-  }, [userCount, onHide, slideAnim]);
-
-  if (userCount === 0) return null;
-
-  return (
-    <Animated.View
-      style={[
-        LiveClassSessionStyles.waveToast,
-        { transform: [{ translateY: slideAnim }] },
-        { backgroundColor: themeColors.backgroundSecondary },
-      ]}
-    >
-      <Text
-        style={[LiveClassSessionStyles.waveText, { color: themeColors.text }]}
-        numberOfLines={1}
-        ellipsizeMode="tail"
-      >
-        {displayMessage}
-      </Text>
-    </Animated.View>
-  );
-};
-
-export const SpeakerToast = ({ activeUsers, onHide }: GroupToastProps) => {
-  const { colors: themeColors } = useTheme();
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-
-  const userCount = activeUsers.length;
-  let displayMessage = '';
-
-  if (userCount === 1) {
-    displayMessage = `${activeUsers[0].firstname} is speaking...`;
-  } else if (userCount === 2) {
-    displayMessage = `${activeUsers[0].firstname} & ${activeUsers[1].firstname} are speaking...`;
-  } else if (userCount > 2) {
-    displayMessage = `${activeUsers[0].firstname} and ${
-      userCount - 1
-    } others are speaking...`;
-  }
-
-  useEffect(() => {
-    if (userCount === 0) return;
-
-    Animated.spring(slideAnim, {
-      toValue: 20,
-      useNativeDriver: true,
-    }).start();
-
-    const timer = setTimeout(() => {
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => onHide());
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [userCount, onHide, slideAnim]);
-
-  if (userCount === 0) return null;
-
-  return (
-    <Animated.View
-      style={[
-        LiveClassSessionStyles.speakerToast,
-        { transform: [{ translateY: slideAnim }] },
-        { backgroundColor: themeColors.backgroundSecondary },
-      ]}
-    >
-      <MaterialIcons name="mic" size={18} color={themeColors.primary} />
-      <Text
-        style={[
-          LiveClassSessionStyles.speakerText,
-          { color: themeColors.text },
-        ]}
-        numberOfLines={1}
-        ellipsizeMode="tail"
-      >
-        {displayMessage}
-      </Text>
-    </Animated.View>
-  );
-};
-
-export const LecturerStreamControls = ({
-  localStream,
-  isLive,
-  socket,
-  lectureId,
-  onMuteAll,
-  wavers,
-  onGrantMic,
-}: LecturerControlsProps) => {
-  const { colors: themeColors } = useTheme();
-  const [isCameraOff, setIsCameraOff] = useState(false);
-  const toggleCamera = () => {
-    const newStatus = !isCameraOff;
-    setIsCameraOff(newStatus);
-    socket.emit('toggle_lecturer_camera', {
-      lectureId,
-      isCameraOn: !newStatus,
-    });
-  };
-  return (
-    <View style={LiveClassSessionStyles.controlWrapper}>
-      {localStream ? (
-        <RTCView
-          streamURL={localStream.toURL()}
-          style={[
-            LiveClassSessionStyles.previewVideo,
-            { backgroundColor: themeColors.backgroundSecondary },
-          ]}
-          objectFit="cover"
-          mirror={true}
-        />
-      ) : (
-        <View style={LiveClassSessionStyles.previewVideo}>
-          <MaterialIcons
-            name="videocam-off-outlined"
-            size={40}
-            color={themeColors.primary}
-          />
-          <Text
-            style={[
-              LiveClassSessionStyles.previewVideoText,
-              { color: themeColors.text },
-            ]}
-          >
-            Camera is Off
-          </Text>
-        </View>
-      )}
-      {wavers.length > 0 && (
-        <TouchableOpacity
-          style={[
-            LiveClassSessionStyles.muteAllButton,
-            { backgroundColor: themeColors.btnColor },
-          ]}
-          onPress={() => onGrantMic(wavers[0].uid)}
-        >
-          <MaterialIcons
-            name={'waving-hand-outlined'}
-            size={18}
-            color={themeColors.btnTextColor}
-          />
-          <Text
-            style={[
-              LiveClassSessionStyles.muteAllText,
-              { color: themeColors.btnTextColor },
-            ]}
-          >
-            Grant Mic
-          </Text>
-        </TouchableOpacity>
-      )}
-      <TouchableOpacity
-        style={[
-          LiveClassSessionStyles.muteAllButton,
-          { backgroundColor: themeColors.btnColor },
-        ]}
-        onPress={toggleCamera}
-      >
-        <MaterialIcons
-          name={isCameraOff ? 'videocam-off-outlined' : 'videocam-outlined'}
-          size={18}
-          color={themeColors.btnTextColor}
-        />
-        <Text
-          style={[
-            LiveClassSessionStyles.muteAllText,
-            { color: themeColors.btnTextColor },
-          ]}
-        >
-          {isCameraOff ? 'Cam off' : 'Cam on'}
-        </Text>
-      </TouchableOpacity>
-      {isLive && (
-        <TouchableOpacity
-          style={[
-            LiveClassSessionStyles.muteAllButton,
-            { backgroundColor: themeColors.btnColor },
-          ]}
-          onPress={onMuteAll}
-        >
-          <MaterialIcons
-            name="mic-off-outlined"
-            color={themeColors.btnTextColor}
-            size={18}
-          />
-          <Text
-            style={[
-              LiveClassSessionStyles.muteAllText,
-              { color: themeColors.btnTextColor },
-            ]}
-          >
-            Mute All
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
 export const LecturerLiveClassSession = ({
   lecture,
   socket,
@@ -334,7 +86,6 @@ export const LecturerLiveClassSession = ({
     },
     [colors.success, colors.pendingDelivery, colors.primary],
   );
-
   const initializeWebRTC = useCallback(async () => {
     try {
       const stream = await mediaDevices.getUserMedia({
@@ -400,7 +151,6 @@ export const LecturerLiveClassSession = ({
       });
     },
   });
-
   const startScreenShare = async () => {
     const channelConfig = {
       id: 'liveness_channel',
@@ -694,7 +444,6 @@ export const LecturerLiveClassSession = ({
     setEndModalVisible(false);
     navigation.navigate('Home', { activeTab: 'classroom' });
   };
-
   const grantMic = (studentUid: string) => {
     socket.emit('grant_mic_permission', {
       lectureId: lecture.id,
@@ -702,7 +451,6 @@ export const LecturerLiveClassSession = ({
     });
     setWavers(prev => prev.filter(w => w.uid !== studentUid));
   };
-
   const muteAll = () => {
     socket.emit('revoke_all_mics', { lectureId: lecture.id });
     setIsMicAllowed(false);
@@ -718,7 +466,6 @@ export const LecturerLiveClassSession = ({
         { backgroundColor: colors.background },
       ]}
     >
-      {/* Top Session Header Bar */}
       <PageHeader
         title="● LIVE"
         showBackButton={false}
@@ -1004,229 +751,32 @@ export const LecturerLiveClassSession = ({
         onChatOpen={() => setChatVisible(true)}
       />
 
-      <Portal>
-        <Modal
-          visible={chatVisible}
-          onDismiss={() => setChatVisible(false)}
-          style={LiveClassSessionStyles.bottomOverlay}
-        >
-          <View
-            style={[
-              LiveClassSessionStyles.bottomModalContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Text
-              style={[
-                LiveClassSessionStyles.chatHeader,
-                { color: colors.textDarker },
-              ]}
-            >
-              Live Class Chat
-            </Text>
-            <ScrollView
-              style={LiveClassSessionStyles.messageList}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              ref={ref => ref?.scrollToEnd({ animated: true })}
-              showsVerticalScrollIndicator={false}
-            >
-              {messages.map(msg => (
-                <View
-                  key={msg.id}
-                  style={[
-                    LiveClassSessionStyles.messageBubble,
-                    msg.userId === user.uid
-                      ? LiveClassSessionStyles.myMessage
-                      : LiveClassSessionStyles.theirMessage,
-                  ]}
-                >
-                  {msg.userId !== user.uid && (
-                    <Text
-                      style={[
-                        LiveClassSessionStyles.senderName,
-                        { color: colors.text },
-                      ]}
-                    >
-                      {msg.username}
-                    </Text>
-                  )}
+      <ChatModal
+        visible={chatVisible}
+        onDismiss={() => setChatVisible(false)}
+        messages={messages}
+        sendMessage={sendMessage}
+        inputText={inputText}
+        setInputText={setInputText}
+        colors={colors}
+        user={user}
+      />
+      <AttendeeListModal
+        visible={attendeeModalVisible}
+        onDismiss={() => setAttendeeModalVisible(false)}
+        attendees={currentAttendees}
+        wavers={wavers}
+        colors={colors}
+      />
 
-                  <Text
-                    style={[
-                      LiveClassSessionStyles.messageText,
-                      msg.userId === user.uid
-                        ? { color: colors.btnTextColor }
-                        : { color: colors.text },
-                    ]}
-                  >
-                    {msg.text}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-              <View
-                style={[
-                  LiveClassSessionStyles.chatInputRow,
-                  { backgroundColor: colors.backgroundSecondary },
-                ]}
-              >
-                <TextInput
-                  placeholder="Type a message..."
-                  value={inputText}
-                  onChangeText={setInputText}
-                  placeholderTextColor={colors.inputTextHolder}
-                  style={[
-                    LiveClassSessionStyles.chatInput,
-                    { color: colors.text },
-                  ]}
-                  activeOutlineColor={colors.primary}
-                  onSubmitEditing={sendMessage}
-                />
-                <TouchableOpacity
-                  onPress={sendMessage}
-                  disabled={!inputText.trim()}
-                  style={LiveClassSessionStyles.sendBtn}
-                >
-                  <MaterialIcons name="send" color={colors.primary} size={17} />
-                </TouchableOpacity>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
-      </Portal>
-      <Portal>
-        <Modal
-          visible={attendeeModalVisible}
-          onDismiss={() => setAttendeeModalVisible(false)}
-          style={LiveClassSessionStyles.bottomOverlay}
-        >
-          <View
-            style={[
-              LiveClassSessionStyles.bottomModalContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <View style={LiveClassSessionStyles.modalHandle} />
-            <Text
-              style={[
-                LiveClassSessionStyles.attendeeListTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Class Attendees ({currentAttendees.length})
-            </Text>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {currentAttendees.map((student, index) => (
-                <View
-                  key={student.uid || index}
-                  style={LiveClassSessionStyles.studentRow}
-                >
-                  <UserAvatar
-                    profilePic={student.profilePic}
-                    firstName={student.firstname}
-                    lastName={student.lastname}
-                    username={student.username}
-                    style={LiveClassSessionStyles.attendeesAvatar}
-                  />
-                  <View style={LiveClassSessionStyles.studentInfo}>
-                    <UserIdentity
-                      firstname={student.firstname!}
-                      lastname={student.lastname}
-                      username={student.username}
-                      tier={student.tier || 'free'}
-                      isVerified={student.isVerified}
-                      size="small"
-                    />
-                  </View>
-                  {wavers.find(w => w.uid === student.uid) && (
-                    <MaterialIcons
-                      name="waving-hand-outlined"
-                      size={22}
-                      color={colors.primary}
-                      style={LiveClassSessionStyles.waveIcon}
-                    />
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </Modal>
-      </Portal>
-      <Portal>
-        <Modal
-          visible={endModalVisible}
-          onDismiss={() => setEndModalVisible(false)}
-          contentContainerStyle={LiveClassSessionStyles.modalOverlay}
-        >
-          <View
-            style={[
-              LiveClassSessionStyles.modalContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <MaterialIcons
-              name="info-outlined"
-              size={50}
-              color={colors.primary}
-            />
-            <Text
-              style={[
-                LiveClassSessionStyles.modalTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              End Live Session?
-            </Text>
-            <Text
-              style={[
-                LiveClassSessionStyles.modalSubText,
-                { color: colors.text },
-              ]}
-            >
-              This will stop the stream for all attendees and finalize
-              attendance records.
-            </Text>
-            <View style={LiveClassSessionStyles.modalButtonRow}>
-              <TouchableOpacity
-                onPress={() => setEndModalVisible(false)}
-                style={[
-                  LiveClassSessionStyles.modalButtonRowBtn,
-                  { borderColor: colors.primary },
-                ]}
-              >
-                <Text
-                  style={[
-                    LiveClassSessionStyles.modalButtonRowBtnText,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleEndLecture}
-                style={[
-                  LiveClassSessionStyles.modalButtonRowBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
-              >
-                <Text
-                  style={[
-                    LiveClassSessionStyles.modalButtonRowBtnText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  End Now
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </Portal>
+      <ConfirmationModal
+        visible={endModalVisible}
+        onDismiss={() => setEndModalVisible(false)}
+        onConfirm={handleEndLecture}
+        title="End Live Session?"
+        subText="This will stop the stream for all attendees and finalize attendance records."
+        colors={colors}
+      />
       {wavers.length > 0 && (
         <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
       )}
