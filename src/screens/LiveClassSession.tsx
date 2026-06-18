@@ -199,10 +199,6 @@ export const LiveClassSessions = ({ route }: any) => {
       ) : (
         <StudentLiveClassSession
           lecture={lecture}
-          checks={[]}
-          hasException={exceptions.some(
-            e => e.studentId === user.uid && e.status === 'approved',
-          )}
           lecturerData={hostData}
           socket={socket}
         />

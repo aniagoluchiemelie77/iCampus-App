@@ -402,6 +402,7 @@ export const ConfirmationModal = ({
   title,
   subText,
   colors,
+  islecturer,
 }: any) => (
   <Portal>
     <Modal
@@ -409,24 +410,49 @@ export const ConfirmationModal = ({
       onDismiss={onDismiss}
       contentContainerStyle={styles.modalOverlay}
     >
-      <View style={[styles.modalContainer, { backgroundColor: colors.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.modalContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <MaterialIcons name="info-outlined" size={50} color={colors.primary} />
-        
+
         <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
           {title}
         </Text>
-        
+
         <Text style={[styles.modalSubText, { color: colors.text }]}>
           {subText}
         </Text>
 
         <View style={styles.modalButtonRow}>
-          <TouchableOpacity onPress={onDismiss} style={[styles.modalButtonRowBtn, { borderColor: colors.primary }]}>
-            <Text style={[styles.modalButtonRowBtnText, { color: colors.primary }]}>Cancel</Text>
+          <TouchableOpacity
+            onPress={onDismiss}
+            style={[styles.modalButtonRowBtn, { borderColor: colors.primary }]}
+          >
+            <Text
+              style={[styles.modalButtonRowBtnText, { color: colors.primary }]}
+            >
+              Cancel
+            </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity onPress={onConfirm} style={[styles.modalButtonRowBtn, { backgroundColor: colors.btnColor }]}>
-            <Text style={[styles.modalButtonRowBtnText, { color: colors.btnTextColor }]}>End Now</Text>
+
+          <TouchableOpacity
+            onPress={onConfirm}
+            style={[
+              styles.modalButtonRowBtn,
+              { backgroundColor: colors.btnColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalButtonRowBtnText,
+                { color: colors.btnTextColor },
+              ]}
+            >
+              {islecturer ? 'End Now' : 'Leave'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

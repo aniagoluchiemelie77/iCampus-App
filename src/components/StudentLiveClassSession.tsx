@@ -6,13 +6,14 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import { ProgressBar, Avatar, IconButton } from 'react-native-paper';
+import { Avatar, IconButton } from 'react-native-paper';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User, ChatMessage, Lecture } from '../types/firebase';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from './hooks';
+import { UserAvatar } from './UserAvatar';
 import LiveAudioStream from 'react-native-live-audio-stream';
 import { useNavigation } from '@react-navigation/native';
 import { RTCView } from 'react-native-webrtc';
@@ -22,14 +23,14 @@ import {
   AttendeeListModal,
   WavingToast,
   SpeakerToast,
+  ConfirmationModal,
 } from './liveClassComponents';
 import { useTheme } from '../context/ThemeContext';
+import { PageHeader } from './PageHeader';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface StudentLiveSessionProps {
   lecture: Lecture;
-  checks: boolean[];
-  hasException: boolean;
   socket: any;
   attendeeList?: User[];
   lecturerData: LiveLecturer | null;
@@ -86,8 +87,6 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
 };
 export const StudentLiveClassSession = ({
   lecture,
-  checks,
-  hasException,
   attendeeList = [],
   socket,
 }: StudentLiveSessionProps) => {
@@ -95,8 +94,10 @@ export const StudentLiveClassSession = ({
   const user = useAppSelector(state => state.user);
   const localAudioTrack = useRef<any>(null);
   const navigation = useNavigation<any>();
+  const AVATAR_SIZE = 40;
+  const AVATAR_OVERLAP = -10;
+  const BADGE_WIDTH = 60;
   const [chatVisible, setChatVisible] = useState(false);
-  const passedChecks = checks.filter((c: boolean) => c).length;
   const [activeSpeakersList, setActiveSpeakersList] = useState<any[]>([]);
   const [transcription, setTranscription] = useState<string>(
     'Waiting for audio...',
@@ -110,9 +111,12 @@ export const StudentLiveClassSession = ({
   const [inputText, setInputText] = useState('');
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [remoteStreamUrl, setRemoteStreamUrl] = useState<string | null>(null);
+  const [maxVisibleAvatars, setMaxVisibleAvatars] = useState(4);
   const [attendeeModalVisible, setAttendeeModalVisible] = useState(false);
   const [permittedSpeaker, setPermittedSpeaker] = useState<User | null>(null);
   const [wavers, setWavers] = useState<any[]>([]);
+  const [isSharingScreen, setIsSharingScreen] = useState(false);
+  const [endModalVisible, setEndModalVisible] = useState(false);
   const [currentAttendees, setCurrentAttendees] =
     useState<User[]>(attendeeList);
   const [lecturerLiveData, setLecturerData] = useState<LecturerDataProps>({
@@ -121,6 +125,13 @@ export const StudentLiveClassSession = ({
     isCameraOn: true,
     cameraStreamUrl: null,
   });
+  const handleContainerLayout = (event: any) => {
+    const { width } = event.nativeEvent.layout;
+    const availableWidth = width - BADGE_WIDTH;
+    const effectiveAvatarWidth = AVATAR_SIZE + AVATAR_OVERLAP;
+    const computedMax = Math.floor(availableWidth / effectiveAvatarWidth);
+    setMaxVisibleAvatars(Math.max(2, computedMax));
+  };
   useEffect(() => {
     if (isMicAllowed && !isLocalMuted) {
       LiveAudioStream.init({
@@ -182,6 +193,7 @@ export const StudentLiveClassSession = ({
     });
     socket.on('stream_received', ({ streamUrl }: { streamUrl: string }) => {
       console.log('Received Lecturer Stream URL:', streamUrl);
+      setIsSharingScreen(true);
       setRemoteStreamUrl(streamUrl);
       setLecturerData(prev => ({ ...prev, cameraStreamUrl: streamUrl }));
     });
@@ -325,14 +337,47 @@ export const StudentLiveClassSession = ({
     });
     setInputText('');
   };
+  const handleLeaveLecture = () => {
+    console.log('Leaving lecture');
+  };
   return (
-    <View style={LiveClassSessionStyles.mainContainer}>
-      <View style={LiveClassSessionStyles.header}>
-        <Text style={LiveClassSessionStyles.liveText}>● LIVE</Text>
-      </View>
+    <View
+      style={[
+        LiveClassSessionStyles.mainContainer,
+        { backgroundColor: colors.background },
+      ]}
+    >
+      <PageHeader
+        title="● LIVE"
+        showBackButton={false}
+        rightElement={
+          <TouchableOpacity
+            onPress={() => setEndModalVisible(true)}
+            style={[
+              LiveClassSessionStyles.endButton,
+              { backgroundColor: colors.btnColor },
+            ]}
+          >
+            <Text
+              style={[
+                LiveClassSessionStyles.endButtonText,
+                { color: colors.btnTextColor },
+              ]}
+            >
+              Leave Session
+            </Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* 2. Shared Screen Area */}
-      <View style={LiveClassSessionStyles.sharedScreen}>
+      <View
+        style={[
+          LiveClassSessionStyles.sharedScreen,
+          isSharingScreen && LiveClassSessionStyles.sharingActive,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         {remoteStreamUrl && (
           <RTCView
             streamURL={remoteStreamUrl}
@@ -346,9 +391,16 @@ export const StudentLiveClassSession = ({
           streamUrl={lecturerLiveData?.cameraStreamUrl}
         />
       </View>
-      <View style={LiveClassSessionStyles.monitoringSection}>
+      <View
+        style={[
+          LiveClassSessionStyles.monitoringSection,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         {activeSpeaker || permittedSpeaker ? (
-          <Text style={LiveClassSessionStyles.speakerNote}>
+          <Text
+            style={[LiveClassSessionStyles.speakerNote, { color: colors.text }]}
+          >
             Speaker:{' '}
             {currentAttendees.find(a => a.uid === activeSpeaker)?.firstname ||
               permittedSpeaker?.firstname ||
@@ -357,116 +409,143 @@ export const StudentLiveClassSession = ({
         ) : null}
       </View>
       {/* 3. Course & Attendance Info */}
-      <View style={LiveClassSessionStyles.infoSection}>
+      <View
+        style={[
+          LiveClassSessionStyles.infoSection,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <View style={LiveClassSessionStyles.row}>
-          <View>
-            <Text style={LiveClassSessionStyles.courseTitle}>
-              {lecture.topicName || 'Lecture Title'}
-            </Text>
-          </View>
-          <View style={LiveClassSessionStyles.durationBox}>
-            <Text style={LiveClassSessionStyles.durationText}>
-              Duration: {elapsedTime}
-            </Text>
-          </View>
+          <Text
+            style={[
+              LiveClassSessionStyles.courseTitle,
+              { color: colors.textDarker },
+            ]}
+          >
+            {lecture.topicName || 'Untitled Session'}
+          </Text>
+          <Text
+            style={[
+              LiveClassSessionStyles.durationText,
+              { color: colors.text },
+            ]}
+          >
+            Duration: {elapsedTime}
+          </Text>
         </View>
-
-        {/* Attendee Horizontal List */}
-        <View style={LiveClassSessionStyles.attendeeContainer}>
-          {currentAttendees.slice(0, 4).map((student: User, i: number) => (
-            <Avatar.Image
-              key={student.uid || i}
-              size={40}
-              source={{
-                uri:
-                  student.profilePic?.[0] || 'https://via.placeholder.com/40',
-              }}
-              style={LiveClassSessionStyles.attendeeCircle}
-            />
-          ))}
-          <View style={LiveClassSessionStyles.attendeeCount}>
-            <Text style={LiveClassSessionStyles.attendeeCountText}>
-              +{currentAttendees.length}
-            </Text>
-          </View>
+        <View
+          style={LiveClassSessionStyles.attendeeContainer}
+          onLayout={handleContainerLayout}
+        >
+          {currentAttendees
+            .slice(0, maxVisibleAvatars)
+            .map((student: User, i: number) => (
+              <UserAvatar
+                key={student.uid || i}
+                profilePic={student.profilePic}
+                firstName={student.firstname}
+                lastName={student.lastname}
+                username={student.username}
+                style={LiveClassSessionStyles.attendeeCircle}
+              />
+            ))}
+          {currentAttendees.length > maxVisibleAvatars && (
+            <TouchableOpacity
+              style={[
+                LiveClassSessionStyles.attendeeCount,
+                { backgroundColor: colors.btnColor },
+              ]}
+              onPress={() => setAttendeeModalVisible(true)}
+            >
+              <Text
+                style={[
+                  LiveClassSessionStyles.attendeeCountText,
+                  { color: colors.btnTextColor },
+                ]}
+              >
+                +{currentAttendees.length}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
       {/* 4. Transcription & Interaction */}
-      <View style={LiveClassSessionStyles.bottomSection}>
-        <View style={LiveClassSessionStyles.transcriptionBox}>
-          <View style={LiveClassSessionStyles.aiHeader}>
-            <IconButton icon="auto-fix" size={14} iconColor={PRIMARY_COLOR} />
-            <Text style={LiveClassSessionStyles.aiLabel}>
-              AI LIVE TRANSCRIPTION
-            </Text>
-          </View>
+      <View
+        style={[
+          LiveClassSessionStyles.bottomSection,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <View style={LiveClassSessionStyles.aiHeader}>
+          <MaterialIcons
+            name="auto-awesome-outlined"
+            size={16}
+            color={colors.primary}
+          />
           <Text
-            style={LiveClassSessionStyles.transcriptionText}
-            numberOfLines={3}
+            style={[LiveClassSessionStyles.aiLabel, { color: colors.primary }]}
           >
-            {transcription || 'Listening to lecturer...'}
+            Live Transcription
           </Text>
         </View>
-        {/* Inside your bottomSection or near the FAB */}
-        {isMicAllowed && (
-          <TouchableOpacity
-            style={LiveClassSessionStyles.micButton}
-            onPress={() => setIsLocalMuted(!isLocalMuted)}
-          >
-            <MaterialIcons
-              name={isLocalMuted ? 'mic-off' : 'mic'}
-              size={24}
-              color={PRIMARY_COLOR}
-            />
-            <Text style={LiveClassSessionStyles.micStatusText}>
-              {isLocalMuted ? 'Muted' : 'You are Live'}
-            </Text>
-          </TouchableOpacity>
-        )}
-        {/* Floating Action Button (FAB) Area */}
-        {!fabVisible && (
-          <TouchableOpacity
-            style={homeStyles.fab}
-            onPress={() => {
-              setFabVisible(true);
-              setUnreadCount(0);
-            }}
-          >
-            <MaterialIcons name="widgets" size={28} color="#fff" />
-          </TouchableOpacity>
-        )}
-        <ExpandableFAB
-          isVisible={fabVisible}
-          onClose={() => setFabVisible(false)}
-          actions={['Live Chat', 'Hand Wave', 'View Lectures']}
-          unreadCount={unreadCount}
-          onChatOpen={() => setChatVisible(true)}
-          onWave={() => {
-            socket.emit('send_wave', {
-              lectureId: lecture.id,
-              firstName: user.firstname,
-            });
-            setFabVisible(false);
-          }}
-        />
-      </View>
-      <View style={LiveClassSessionStyles.progressFooter}>
-        <ProgressBar
-          progress={hasException ? 1 : passedChecks / 7}
-          color={hasException ? '#4CAF50' : PRIMARY_COLOR} // Use Green (#4CAF50) for verified exceptions
-        />
         <Text
           style={[
-            LiveClassSessionStyles.progressLabel,
-            hasException && { color: '#4CAF50', fontWeight: 'bold' },
+            LiveClassSessionStyles.transcriptionText,
+            { color: colors.text },
           ]}
         >
-          {hasException
-            ? 'Attendance Verified via Exception '
-            : `${passedChecks}/7 Checks Verified`}
+          {transcription || 'Listening to classroom room audio tracks...'}
         </Text>
       </View>
+      {isMicAllowed && (
+        <TouchableOpacity
+          style={[
+            LiveClassSessionStyles.micButton,
+            { backgroundColor: colors.btnColor },
+          ]}
+          onPress={() => setIsLocalMuted(!isLocalMuted)}
+        >
+          <MaterialIcons
+            name={isLocalMuted ? 'mic-off' : 'mic'}
+            size={24}
+            color={colors.btnTextColor}
+          />
+          <Text
+            style={[
+              LiveClassSessionStyles.micStatusText,
+              { color: colors.btnTextColor },
+            ]}
+          >
+            {isLocalMuted ? 'Muted' : 'Speak'}
+          </Text>
+        </TouchableOpacity>
+      )}
+      {!fabVisible && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => {
+            setFabVisible(true);
+            setUnreadCount(0);
+          }}
+        >
+          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
+        </TouchableOpacity>
+      )}
+      <ExpandableFAB
+        isVisible={fabVisible}
+        onClose={() => setFabVisible(false)}
+        actions={['Live Chat', 'Hand Wave', 'View Lectures']}
+        unreadCount={unreadCount}
+        onChatOpen={() => setChatVisible(true)}
+        onWave={() => {
+          socket.emit('send_wave', {
+            lectureId: lecture.id,
+            firstName: user.firstname,
+          });
+          setFabVisible(false);
+        }}
+      />
       <ChatModal
         visible={chatVisible}
         onDismiss={() => setChatVisible(false)}
@@ -483,6 +562,15 @@ export const StudentLiveClassSession = ({
         attendees={currentAttendees}
         wavers={wavers}
         colors={colors}
+      />
+      <ConfirmationModal
+        visible={endModalVisible}
+        onDismiss={() => setEndModalVisible(false)}
+        onConfirm={handleLeaveLecture}
+        title="Leave Live Session?"
+        subText="This will end the session and finalize your attendance record."
+        colors={colors}
+        islecturer={false}
       />
       {wavers.length > 0 && (
         <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
@@ -601,13 +689,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     height: SCREEN_HEIGHT * 0.75,
     position: 'absolute',
     bottom: 0,
-  },
-  progressFooter: { padding: 10, backgroundColor: '#fff' },
-  progressLabel: {
-    textAlign: 'center',
-    fontSize: 10,
-    marginTop: 4,
-    color: '#2222',
   },
   //
   lecturerTab: {

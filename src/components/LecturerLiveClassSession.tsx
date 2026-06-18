@@ -15,7 +15,7 @@ import { useLiveTranscription } from '../hooks/useLiveTransciption';
 import LiveAudioStream from 'react-native-live-audio-stream';
 import { Buffer } from 'buffer';
 import { useTheme } from '../context/ThemeContext';
-import { PageHeader } from '../components/PageHeader';
+import { PageHeader } from './PageHeader';
 import {
   ChatModal,
   AttendeeListModal,
@@ -727,7 +727,7 @@ export const LecturerLiveClassSession = ({
               { color: colors.btnTextColor },
             ]}
           >
-            {isLocalMuted ? 'Muted' : 'You are Live'}
+            {isLocalMuted ? 'Muted' : 'Speak'}
           </Text>
         </TouchableOpacity>
       )}
@@ -776,6 +776,7 @@ export const LecturerLiveClassSession = ({
         title="End Live Session?"
         subText="This will stop the stream for all attendees and finalize attendance records."
         colors={colors}
+        islecturer={true}
       />
       {wavers.length > 0 && (
         <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
