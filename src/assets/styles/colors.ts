@@ -1451,6 +1451,7 @@ export const SignupScreenStyles = StyleSheet.create({
 export const homeStyles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
+    paddingHorizontal: 15
   },
   headerContainer: {
     flexDirection: 'row',
@@ -1459,6 +1460,9 @@ export const homeStyles = StyleSheet.create({
     padding: 15,
     marginHorizontal: -15,
     marginBottom: 15
+  },
+  postsDiv:{
+    position: 'relative',
   },
   headerContainerDiv:{
     flexDirection: 'row',
@@ -1547,6 +1551,20 @@ export const homeStyles = StyleSheet.create({
     fontWeight: 700,
     color: '#222',
   },
+  newPostsBanner: {
+    position: 'absolute',
+    top: 10,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    zIndex: 100,
+    elevation: 5,
+  },
+  newPostsText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  }
 });
 export const NotificationPageStyles = StyleSheet.create({
   container: {

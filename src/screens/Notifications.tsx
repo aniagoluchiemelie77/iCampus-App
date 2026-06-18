@@ -78,7 +78,6 @@ const Notifications = () => {
         return item.message;
     }
   };
-
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {

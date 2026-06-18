@@ -25,8 +25,8 @@ import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from '../types/firebase';
-import { RankingScreen } from '@components/RankingScreen';
-import { SearchScreen } from '@components/SearchScreen';
+import { RankingScreen } from '../components/RankingScreen';
+import { SearchScreen } from '../components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
 import {
   fetchOngoingLecture,
@@ -50,7 +50,6 @@ export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Replace with your actual backend URL
     const newSocket = io(`${baseUrl}`, {
       transports: ['websocket'],
       query: { userId: userUid },
@@ -67,8 +66,6 @@ export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
     });
 
     setSocket(newSocket);
-
-    // Cleanup on unmount
     return () => {
       newSocket.disconnect();
     };
@@ -149,7 +146,6 @@ const HomeScreen = () => {
 
     return unsubscribe;
   }, []);
-
   useEffect(() => {
     if (!socket || !user?.uid) return;
 
@@ -259,15 +255,48 @@ const HomeScreen = () => {
       >
         <View style={homeStyles.centerContent}>{renderContent}</View>
 
-       <View style={[homeStyles.iconBar, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
-        <TabBarItem label="Home" icon="home" active={activeIcon === 'home'} onPress={() => setActiveIcon('home')} />
-        {isClassroomAllowed && (
-          <TabBarItem label="Courses" icon="groups" active={activeIcon === 'classroom'} onPress={() => setActiveIcon('classroom')} />
-        )}
-        <TabBarItem label="Search" icon="search" active={activeIcon === 'search'} onPress={() => setActiveIcon('search')} />
-        <TabBarItem label="Store" icon="shopping-cart" active={activeIcon === 'store'} onPress={() => setActiveIcon('store')} />
-        <TabBarItem label="Ranking" icon="emoji-events" active={activeIcon === 'ranking'} onPress={() => setActiveIcon('ranking')} />
-      </View>
+        <View
+          style={[
+            homeStyles.iconBar,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <TabBarItem
+            label="Home"
+            icon="home"
+            active={activeIcon === 'home'}
+            onPress={() => setActiveIcon('home')}
+          />
+          {isClassroomAllowed && (
+            <TabBarItem
+              label="Courses"
+              icon="groups"
+              active={activeIcon === 'classroom'}
+              onPress={() => setActiveIcon('classroom')}
+            />
+          )}
+          <TabBarItem
+            label="Search"
+            icon="search"
+            active={activeIcon === 'search'}
+            onPress={() => setActiveIcon('search')}
+          />
+          <TabBarItem
+            label="Store"
+            icon="shopping-cart"
+            active={activeIcon === 'store'}
+            onPress={() => setActiveIcon('store')}
+          />
+          <TabBarItem
+            label="Ranking"
+            icon="emoji-events"
+            active={activeIcon === 'ranking'}
+            onPress={() => setActiveIcon('ranking')}
+          />
+        </View>
       </View>
       <OngoingLectureModal
         visible={!!ongoingLecture}

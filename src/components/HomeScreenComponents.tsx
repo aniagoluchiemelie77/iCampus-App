@@ -21,7 +21,6 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import Logo from '../assets/images/Logo.tsx';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import ExpandableFAB from './ExpandableFAB.tsx';
 import { useSocket } from './socketContext.ts';
 import { UserIdentity } from './UserIdentity.tsx';
@@ -42,10 +41,6 @@ interface MessageBellProps {
   initialCount?: number;
   colors: any;
 }
-const hapticOptions = {
-  enableVibrateFallback: true,
-  ignoreAndroidSystemSettings: false,
-};
 
 interface ProfileModalProps {
   visible: boolean;
@@ -315,6 +310,7 @@ export const MessageBell: React.FC<MessageBellProps> = ({
 export function Home() {
   const { posts, setPosts, incrementImpression } = useAppDataContext();
   const { colors } = useTheme();
+  const flatListRef = useRef<FlatList<Posts>>(null);
   const currentUser = useAppSelector(state => state.user);
   const socketContext = useSocket();
   const socket = socketContext?.socket;
@@ -324,6 +320,7 @@ export function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
+  const [pendingPosts, setPendingPosts] = useState<Posts[]>([]);
   const navigation = useNavigation<any>();
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const loadPosts = useCallback(
@@ -363,26 +360,18 @@ export function Home() {
   }, [loadPosts]);
   useEffect(() => {
     socket?.on('new_post', (newPost: Posts) => {
-      setPosts(prevPosts => {
-        if (prevPosts.find(p => p.postId === newPost.postId)) return prevPosts;
-        return [newPost, ...prevPosts];
+      setPendingPosts(prev => {
+        if (prev.find(p => p.postId === newPost.postId)) return prev;
+        return [newPost, ...prev];
       });
     });
     socket?.on('post_stats_updated', (data: { postId: string; stats: any }) => {
       setPosts(prevPosts =>
         prevPosts.map(post => {
           if (post.postId === data.postId) {
-            const isNewLike =
-              data.stats.likes?.length > (post.likes?.length || 0);
-
-            const isMyPost = post.userId.uid === currentUser.uid;
-
-            if (isNewLike && isMyPost) {
-              ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
-            }
             return {
               ...post,
-              ...data.stats,
+              ...(data.stats || {}),
             };
           }
           return post;
@@ -415,6 +404,11 @@ export function Home() {
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 60,
   }).current;
+  const showNewPosts = () => {
+    setPosts(prev => [...pendingPosts, ...prev]);
+    setPendingPosts([]);
+    flatListRef.current?.scrollToOffset({ animated: true, offset: 0 });
+  };
 
   return (
     <View style={homeStyles.mainWrapper}>
@@ -449,35 +443,59 @@ export function Home() {
           />
         </View>
       </View>
-
-      <FlatList
-        data={posts}
-        keyExtractor={item => item.postId}
-        renderItem={({ item }) => (
-          <PostCard post={item} isVisible={item.postId === activePostId} />
+      <View style={homeStyles.postsDiv}>
+        {pendingPosts.length > 0 && (
+          <TouchableOpacity
+            style={[
+              homeStyles.newPostsBanner,
+              { backgroundColor: colors.btnColor },
+            ]}
+            onPress={showNewPosts}
+          >
+            <Text
+              style={[homeStyles.newPostsText, { color: colors.btnTextColor }]}
+            >
+              {pendingPosts.length} New Post{pendingPosts.length > 1 ? 's' : ''}
+            </Text>
+          </TouchableOpacity>
         )}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        onEndReached={() => loadPosts(false)}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          loadingMore ? (
-            <ActivityIndicator style={{ margin: 20 }} color={colors.primary} />
-          ) : null
-        }
-        refreshing={refreshing}
-        onRefresh={() => loadPosts(true)}
-        removeClippedSubviews={true}
-        initialNumToRender={5}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-      />
+        <FlatList
+          ref={flatListRef}
+          data={posts}
+          keyExtractor={item => item.postId}
+          renderItem={({ item }) => (
+            <PostCard post={item} isVisible={item.postId === activePostId} />
+          )}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          onEndReached={() => loadPosts(false)}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator
+                style={{ margin: 20 }}
+                color={colors.primary}
+              />
+            ) : null
+          }
+          refreshing={refreshing}
+          onRefresh={() => loadPosts(true)}
+          removeClippedSubviews={true}
+          initialNumToRender={5}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+        />
+      </View>
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={homeStyles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
+          <MaterialIcons
+            name="widgets-outlined"
+            size={28}
+            color={colors.btnTextColor}
+          />
         </TouchableOpacity>
       )}
       <ExpandableFAB
