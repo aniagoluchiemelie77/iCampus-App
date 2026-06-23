@@ -38,12 +38,10 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface StudentLiveSessionProps {
   lecture: Lecture;
   socket: any;
-  attendeeList?: User[];
   lecturerLiveData: any;
 }
 export const StudentLiveClassSession = ({
   lecture,
-  attendeeList = [],
   socket,
   lecturerLiveData,
 }: StudentLiveSessionProps) => {
@@ -75,8 +73,7 @@ export const StudentLiveClassSession = ({
   const [wavers, setWavers] = useState<any[]>([]);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [endModalVisible, setEndModalVisible] = useState(false);
-  const [currentAttendees, setCurrentAttendees] =
-    useState<User[]>(attendeeList);
+  const [currentAttendees, setCurrentAttendees] = useState<User[]>([]);
   const handleContainerLayout = (event: any) => {
     const { width } = event.nativeEvent.layout;
     const availableWidth = width - BADGE_WIDTH;
@@ -628,15 +625,6 @@ export const StudentLiveClassSession = ({
 
 export const LiveClassSessionStyles = StyleSheet.create({
   mainContainer: { flex: 1, position: 'relative', paddingHorizontal: 15 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    width: '100%',
-    paddingHorizontal: 10,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
   liveText: { color: PRIMARY_COLOR, fontWeight: 'bold', fontSize: 12 },
   endButton: {
     paddingHorizontal: 16,
@@ -645,11 +633,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     alignContent: 'center',
   },
   endButtonText: { fontWeight: 'bold', fontSize: 14 },
-  waveNotification: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-  },
   sharedScreen: {
     width: '100%',
     height: 250,
@@ -674,7 +657,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  lectureSubtitle: { fontSize: 14, color: '#666' },
   durationBox: { alignItems: 'flex-end' },
   durationText: { fontSize: 12 },
   attendeeContainer: {
@@ -693,16 +675,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
   },
   attendeeCountText: { fontSize: 12, fontWeight: 'bold' },
   bottomSection: { padding: 15, borderRadius: 15 },
-  transcriptionBox: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 12,
-    borderLeftWidth: 1,
-    borderLeftColor: PRIMARY_COLOR,
-    marginRight: 10,
-    height: 100,
-    justifyContent: 'center',
-  },
   aiHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -724,7 +696,7 @@ export const LiveClassSessionStyles = StyleSheet.create({
   },
   chatModal: {
     padding: 20,
-    marginHorizontal: 10, // Margin ensures the "press outside" area is visible
+    marginHorizontal: 10,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: SCREEN_HEIGHT * 0.75,
@@ -801,25 +773,6 @@ export const LiveClassSessionStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  // PiP (Picture-in-Picture) Styles
-  lecturerCameraPreview: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    width: 80,
-    height: 110,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#fff',
-    backgroundColor: '#000',
-    overflow: 'hidden',
-    elevation: 10,
-    zIndex: 10,
-  },
-  miniPreview: {
-    flex: 1,
-  },
-  buttonRow: { flexDirection: 'row' },
   monitoringSection: {
     marginBottom: 15,
     padding: 15,
@@ -840,54 +793,10 @@ export const LiveClassSessionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  monitorTitle: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 8,
-  },
   monitorValue: {
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 5,
-  },
-  reviewModalInput: {
-    width: '100%',
-    backgroundColor: '#fff',
-    marginBottom: 15,
-    color: '#2222',
-    fontSize: 14,
-  },
-  reviewModalBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 13,
-    borderWidth: 1,
-  },
-  reviewModalBtnText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  modalReviewContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    marginVertical: 20,
-  },
-  studentName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2222',
-  },
-  closeModalButton: {
-    marginTop: 20,
-    backgroundColor: PRIMARY_COLOR,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  closeModalButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   muteAllText: {
     fontSize: 12,

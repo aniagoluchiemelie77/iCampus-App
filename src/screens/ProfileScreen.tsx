@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Dimensions,
@@ -38,13 +38,11 @@ import { PostCard } from '../components/PostCard.tsx';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { patchUserProfile } from '../api/localPatchApis.ts';
-import { searchUserProfile } from '../api/localGetApis.ts';
-import { toggleBlockUser, toggleFollowUser } from '../api/localPostApis.ts';
-import { updateBlockedUsers } from '../context/UserSlice.ts';
-import { useDispatch } from 'react-redux';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
+import { useProfileData } from '../hooks/useProfileData.ts';
+import { useProfileEditing } from '../hooks/useProfileEditing.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -282,16 +280,25 @@ export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const { identifier } = route.params;
   const currentUser = useAppSelector(state => state.user);
-  const dispatch = useDispatch();
+  const {
+    isFollowing,
+    handleFollowToggle,
+    isBlocked,
+    fetchProfile,
+    updateLocalProfile,
+    profileData,
+    handleBlockToggle,
+  } = useProfileData(identifier, currentUser);
+  const { tempBio, setTempBio, tempSkills, setTempSkills } =
+    useProfileEditing(profileData);
   const isOwner =
     currentUser.uid === identifier ||
     currentUser.firstname === identifier ||
     currentUser.lastname === identifier ||
     currentUser.username === identifier;
   const navigation = useNavigation<any>();
-  const [profileData, setProfileData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Posts');
-  const [isBlocked, setIsBlocked] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [followModal, setFollowModal] = useState({
     visible: false,
     title: 'Followers',
@@ -304,18 +311,12 @@ export const ProfileScreen = ({ route }: any) => {
   });
   const [isEditItagModalVisible, setIsEditItagModalVisible] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const [isExpanded, setIsExpanded] = useState(false);
   const [numLines, setNumLines] = useState<number | undefined>(undefined);
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'about' | 'skills' | null>(null);
-  const [blockedUserUid, setBlockedUserUid] = useState<string | null>(null);
-  const [tempBio, setTempBio] = useState(profileData.bio || '');
-  const [tempSkills, setTempSkills] = useState<string[]>(
-    profileData.skills || [],
-  );
   const [skillInput, setSkillInput] = useState('');
   const [apiSuggestions, setApiSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -325,41 +326,8 @@ export const ProfileScreen = ({ route }: any) => {
       setNumLines(e.nativeEvent.lines.length);
     }
   };
-  const handleFollowToggle = async () => {
-    const previousState = isFollowing;
-    setIsFollowing(!previousState);
-
-    try {
-      const result = await toggleFollowUser(profileData.uid);
-      if (!result.success) {
-        setIsFollowing(previousState);
-        Toast.show({
-          type: 'error',
-          text1: 'API Error',
-          text2: result.message || 'Could not update follow status',
-        });
-        return;
-      }
-      Toast.show({
-        type: 'success',
-        text1: result.action === 'followed' ? 'Success!' : 'Updated',
-        text2:
-          result.action === 'followed'
-            ? `You are now following ${profileData.firstname}`
-            : `Unfollowed ${profileData.firstname}`,
-      });
-    } catch (error) {
-      setIsFollowing(previousState);
-      console.error('Follow Toggle Error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: 'Please check your connection',
-      });
-    }
-  };
   const handleSaveUpdate = (updatedITag: any) => {
-    setProfileData((prev: any) => ({
+    updateLocalProfile(prev => ({
       ...prev,
       iTagData: updatedITag,
     }));
@@ -377,13 +345,11 @@ export const ProfileScreen = ({ route }: any) => {
   };
   const handleSave = async () => {
     try {
-      setIsLoading(true);
+      setIsSaving(true);
       const payload: Partial<User> =
         modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
       await patchUserProfile(payload);
-      setProfileData((prev: User | null) =>
-        prev ? { ...prev, ...payload } : null,
-      );
+      updateLocalProfile(prev => (prev ? { ...prev, ...payload } : null));
       setEditModalVisible(false);
       Toast.show({
         type: 'success',
@@ -397,63 +363,13 @@ export const ProfileScreen = ({ route }: any) => {
         text2: 'Could not update profile.',
       });
     } finally {
-      setIsLoading(false);
-    }
-  };
-  const fetchProfile = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const data = await searchUserProfile(identifier, currentUser);
-      setProfileData(data);
-      setIsBlocked(false);
-    } catch (error: any) {
-      if (error.response?.status === 403 || error.isBlocked) {
-        setIsBlocked(true);
-        setBlockedUserUid(error.response.data.targetUid);
-      } else {
-        console.error(error);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [identifier, currentUser]);
-  const handleBlockToggle = async () => {
-    const targetUid = profileData?.uid || blockedUserUid;
-    if (!targetUid) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'User ID not found' });
-      return;
-    }
-    const result = await toggleBlockUser(targetUid);
-    if (result.success && result.action) {
-      dispatch(
-        updateBlockedUsers({
-          targetUid,
-          action: result.action,
-        }),
-      );
-      if (result.action === 'unblocked') {
-        setIsBlocked(false);
-        setBlockedUserUid(null);
-        fetchProfile();
-      } else {
-        setIsBlocked(true);
-      }
-    } else {
-      Toast.show({
-        type: 'error',
-        text1: 'Toggle Failed',
-        text2: 'Could not update block status. Please try again.',
-      });
+      setIsSaving(false);
     }
   };
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-  useEffect(() => {
-    if (profileData) {
-      setIsFollowing(profileData.isFollowing);
-    }
-  }, [profileData]);
+
   useEffect(() => {
     const fetchUniversalSkills = async () => {
       if (skillInput.length < 2) {
@@ -1128,11 +1044,12 @@ export const ProfileScreen = ({ route }: any) => {
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: colors.btnColor }]}
             onPress={handleSave}
+            disabled={isSaving}
           >
             <Text
               style={[styles.saveButtonText, { color: colors.btnTextColor }]}
             >
-              Save Changes
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </Text>
           </TouchableOpacity>
         </View>
