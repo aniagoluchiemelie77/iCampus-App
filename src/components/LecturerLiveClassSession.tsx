@@ -287,7 +287,7 @@ export const LecturerLiveClassSession = ({
     socket.on(
       'active_speaker_changed',
       (data: { firstname: string; uid: string }) => {
-        setActiveSpeaker(data.uid);
+        setActiveSpeaker(data.firstname);
         if (data.uid !== user.uid) {
           setActiveSpeakersList(prev =>
             prev.find(s => s.uid === data.uid)

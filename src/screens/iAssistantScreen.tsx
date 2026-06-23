@@ -27,7 +27,13 @@ type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
 export const Assistant = ({ route }: Props) => {
   const { colors } = useTheme();
-  const { contextType, contextData, initialMessage } = route.params;
+  const {
+    contextType,
+    contextData,
+    initialMessage,
+    assistantTitle = 'AI Assistant',
+    placeholder = 'Type a message...',
+  } = route.params;
   const user = useAppSelector(state => state.user);
   const flatListRef = useRef<FlatList>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -37,7 +43,7 @@ export const Assistant = ({ route }: Props) => {
       role: 'model',
       content:
         initialMessage ||
-        `Hello! I am your Academic AI Tutor. Ask me any questions about your courses, lectures, or study materials!`,
+        `Hello! I am your ${assistantTitle}. How can I help you today?`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -65,7 +71,11 @@ export const Assistant = ({ route }: Props) => {
       if (result.success && result.reply) {
         addMessage({ role: 'model', content: result.reply });
       } else {
-        throw new Error('Server unreachable');
+        Toast.show({
+          type: 'error',
+          text1: 'Server unreachable',
+          text2: 'Try again shortly.',
+        });
       }
     } catch (err) {
       Toast.show({
@@ -177,14 +187,8 @@ export const Assistant = ({ route }: Props) => {
       keyboardVerticalOffset={90}
     >
       <PageHeader
-        title="Academic AI"
-        subtitle={
-          contextType === 'lecture'
-            ? contextData?.topicName || 'Lecture Topic'
-            : contextType === 'course'
-            ? contextData?.courseTitle || 'Course View'
-            : 'General Study Room'
-        }
+        title={assistantTitle}
+        subtitle={contextData?.title || contextData?.name || 'Support Chat'}
       />
 
       <FlatList
@@ -215,7 +219,7 @@ export const Assistant = ({ route }: Props) => {
         onSend={handleSendMessage}
         onPickImage={handlePickImage}
         onPickDocument={handlePickDocument}
-        placeholder="Ask a study question..."
+        placeholder={placeholder}
       />
     </KeyboardAvoidingView>
   );

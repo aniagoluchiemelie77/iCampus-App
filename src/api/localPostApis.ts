@@ -432,7 +432,7 @@ export const askIAssistantAgent = async (
     userState: any; 
   }
 ): Promise<{ success: boolean; reply?: string; error?: string }> => {
-  const { message, history, contextType, contextData, userState } = params;
+  const { message, history, contextType, contextData } = params;
 
   try {
     const headers = await getAuthHeaders();
@@ -449,7 +449,6 @@ export const askIAssistantAgent = async (
           type: contextType,
           data: contextData, 
         },
-        userId: userState?.uid
       }),
     });
 

@@ -1,6 +1,6 @@
 import { NavigationProp } from '@react-navigation/native';
 
-export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
+export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise' | 'admin';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';

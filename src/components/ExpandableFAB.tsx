@@ -29,11 +29,13 @@ const ACTION_CONFIG: Record<
     params: { type: 'poll' },
   },
   iAssistant: {
-    icon: 'assistant',
-    route: 'auto-awesome-outlined',
+    icon: 'auto-awesome-outlined',
+    route: 'Assistant',
     params: {
       contextType: 'general',
-      contextData: {},
+      contextData: { title: 'General Assistant' },
+      assistantTitle: 'iAssistant',
+      placeholder: 'Ask me anything...',
       initialMessage: "Hi! I'm your iAssistant. How can I help you today?",
     },
   },

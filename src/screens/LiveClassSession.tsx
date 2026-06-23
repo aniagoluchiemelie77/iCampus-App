@@ -50,25 +50,32 @@ export const LiveClassSessions = ({ route }: any) => {
     const isLectureHost = lecture?.hostId === user.uid;
     return !!(isCourseLecturer || isLectureHost);
   }, [course?.lecturerIds, lecture?.hostId, user?.uid]);
+  const isSchoolCourse = useMemo(() => {
+    return (
+      Array.isArray(course?.studentsEnrolled) &&
+      course.studentsEnrolled.length > 0
+    );
+  }, [course?.studentsEnrolled]);
+  const isHost = useMemo(() => {
+    if (!user?.uid || !lecture?.hostId) return false;
+    return lecture.hostId === user.uid;
+  }, [lecture?.hostId, user?.uid]);
   const isStudent = useMemo(() => {
     if (!user?.uid) return false;
     return !!course?.studentsEnrolled?.includes(user.uid);
   }, [course?.studentsEnrolled, user?.uid]);
-
+  const isEnrolled = useMemo(() => {
+    if (!user?.uid || !course?.studentsEnrolled) return false;
+    return course.studentsEnrolled.includes(user.uid);
+  }, [course?.studentsEnrolled, user?.uid]);
   const canJoin = useMemo(() => {
     if (!course || !lecture || !user?.uid) return false;
-
-    const isEnrolled = course.studentsEnrolled?.includes(user.uid);
-    const hasStarted =
-      lecture.status === 'ongoing' ||
-      lecture.status === 'scheduled' ||
-      lecture.status === 'completed';
-
-    return (isLecturer || isEnrolled) && hasStarted;
-  }, [course, lecture, user?.uid, isLecturer]);
+    return (isHost || isEnrolled) && lecture.status !== 'cancelled';
+  }, [isHost, isEnrolled, lecture, course, user?.uid]);
 
   const isEligibleForAttendance = useMemo(() => {
     if (!user?.uid) return false;
+    if (!isSchoolCourse) return false;
 
     const hasApprovedException = exceptions.some(
       ex =>
@@ -78,27 +85,22 @@ export const LiveClassSessions = ({ route }: any) => {
     );
     if (hasApprovedException) return true;
     return true;
-  }, [exceptions, lectureId, user?.uid]);
+  }, [exceptions, lectureId, user?.uid, isSchoolCourse]);
   const hostData = useMemo(() => {
-    const activeHostUser =
-      lecture?.hostId === user?.uid ? user : isLecturer ? user : lecturerUser;
+    const activeHostUser = isHost ? user : lecturerUser;
 
     if (!activeHostUser) return null;
 
     return {
       ...activeHostUser,
       displayName:
-        activeHostUser.displayName ||
-        `${activeHostUser.firstname || ''} ${
-          activeHostUser.lastname || ''
-        }`.trim() ||
-        'Session Host',
+        `${activeHostUser.firstname} ${activeHostUser.lastname}`.trim(),
       profilePic: activeHostUser?.profilePic || [],
-      isMuted: lecture?.isLecturerMuted || false,
-      isCameraOn: lecture?.isLecturerCameraOn || false,
+      isMuted: lecture?.isLecturerMuted ?? false,
+      isCameraOn: lecture?.isLecturerCameraOn ?? false,
       cameraStreamUrl: lecture?.location || lecture?.videoUrl,
     };
-  }, [lecture, user, isLecturer, lecturerUser]);
+  }, [lecture, user, isHost, lecturerUser]);
 
   const saveAttendance = useCallback(async () => {
     try {
@@ -150,38 +152,51 @@ export const LiveClassSessions = ({ route }: any) => {
   ]);
 
   useEffect(() => {
-    if (lecture?.status === 'completed') {
-      saveAttendance();
-    }
-  }, [lecture?.status, saveAttendance]);
-  useEffect(() => {
-    const fetchLecturer = async () => {
-      const lecturerId = course?.lecturerIds?.[0];
-      try {
-        if (!lecturerId || !user?.tier || !user?.usertype) return;
+    if (!socket) return;
 
-        const data = await searchUsers({
-          uid: lecturerId,
-          viewerTier: user.tier,
-          viewerRole: user.usertype,
-        });
-        if (data) {
-          setLecturerUser(data);
-        } else {
-          setLecturerUser(null);
+    const handleLectureEnded = (data: {
+      lectureId: string;
+      status: string;
+      summary: any;
+    }) => {
+      if (data.lectureId === lecture?.id) {
+        if (isSchoolCourse) {
+          saveAttendance();
         }
-      } catch (err: any) {
-        console.error('Failed to fetch lecturer for iCampus:', err);
         Toast.show({
-          type: 'error',
-          text1: 'Network Error',
-          text2: err || 'Search failed',
+          type: 'info',
+          text1: 'Class Concluded',
+          text2: `Session ended. Topic: ${data.summary.topicName}`,
         });
+        navigation.navigate('Home', { activeTab: 'classroom' });
       }
     };
 
-    fetchLecturer();
-  }, [course?.lecturerIds, user]);
+    socket.on('lecture_ended_by_host', handleLectureEnded);
+
+    return () => {
+      socket.off('lecture_ended_by_host', handleLectureEnded);
+    };
+  }, [socket, lecture?.id, isSchoolCourse, saveAttendance, navigation]);
+  useEffect(() => {
+    const fetchHostData = async () => {
+      const targetId = lecture?.hostId;
+      try {
+        if (!targetId || !user?.tier || !user?.usertype) return;
+
+        const data = await searchUsers({
+          uid: targetId,
+          viewerTier: user.tier,
+          viewerRole: user.usertype,
+        });
+        setLecturerUser(data);
+      } catch (err) {
+        console.error('Failed to fetch host:', err);
+      }
+    };
+
+    fetchHostData();
+  }, [lecture?.hostId, user]);
 
   if (!canJoin) {
     return (
@@ -194,12 +209,12 @@ export const LiveClassSessions = ({ route }: any) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {isLecturer ? (
+      {isHost ? (
         <LecturerLiveClassSession lecture={lecture} socket={socket} />
       ) : (
         <StudentLiveClassSession
           lecture={lecture}
-          lecturerData={hostData}
+          lecturerLiveData={hostData}
           socket={socket}
         />
       )}

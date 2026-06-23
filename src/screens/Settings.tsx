@@ -271,7 +271,16 @@ export const Settings = () => {
           <SettingItem
             icon="help-center-outlined"
             title="Help Center"
-            onPress={() => {}}
+            onPress={() => {
+              navigation.navigate('Assistant', {
+                contextType: 'support',
+                contextData: { title: 'Customer Support' },
+                assistantTitle: 'Support AI',
+                placeholder: 'Describe your issue...',
+                initialMessage:
+                  'Hi there! I am your Support Assistant. How can I help you with your account today?',
+              });
+            }}
           />
           <SettingItem
             icon="alternate-email-outlined"

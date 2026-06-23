@@ -108,7 +108,6 @@ import { PayoutSuccess } from './src/screens/PayoutSuccessScreen.tsx';
 import { ProductPublishSuccess } from './src/screens/ProductPublishSuccessScreen.tsx';
 import { CreateReviewScreen } from './src/screens/ReviewsScreen.tsx';
 import { FAQScreen } from './src/screens/FAQScreen.tsx';
-import Intercom from '@intercom/intercom-react-native';
 import { useTheme } from './src/context/ThemeContext.tsx';
 import { getToastConfig } from './src/components/ToastConfig.tsx';
 import { PRIMARY_COLOR } from './src/assets/styles/colors.ts';
@@ -235,8 +234,10 @@ export type RootStackParamList = {
   };
   Assistant: {
     contextType: 'course' | 'lecture' | 'general';
-    contextData: Course | Lecture | any;
+    contextData?: Course | Lecture | any;
     initialMessage?: string;
+    assistantTitle?: string;
+    placeholder?: string;
   };
   SignupPage: { role: string };
   OrderVerificationSuccess: {
@@ -311,25 +312,6 @@ const App = () => {
     BleManager.start({ showAlert: false })
       .then(() => console.log('BleManager Initialized'))
       .catch(error => console.error('BleManager init error', error));
-
-    const intercomApiKey = Platform.select({
-      ios: 'YOUR_IOS_API_KEY',
-      android: 'YOUR_ANDROID_API_KEY',
-    });
-
-    const appId = 'YOUR_APP_ID';
-    //Intercom.loginUser({
-    //  email: 'user@example.com',
-    //  userId: '12345'
-    //});
-    //Intercom.setUserHash('THE_HMAC_FROM_YOUR_BACKEND');
-
-    // Ensure apiKey exists before calling (helps with TS and safety)
-    if (intercomApiKey) {
-      Intercom.initialize(intercomApiKey, appId)
-        .then(() => console.log('Intercom Initialized'))
-        .catch(error => console.error('Intercom init error', error));
-    }
   }, []);
   useEffect(() => {
     const initializeApp = async () => {

@@ -18,6 +18,7 @@ import { UserIdentity } from './UserIdentity';
 import {UserAvatar} from './UserAvatar';
 import {RTCView } from 'react-native-webrtc';
 import { useTheme } from '../context/ThemeContext';
+import { Avatar } from 'react-native-paper';
 
 interface LecturerControlsProps {
   localStream: any;
@@ -135,10 +136,7 @@ export const SpeakerToast = ({ activeUsers, onHide }: GroupToastProps) => {
     >
       <MaterialIcons name="mic" size={18} color={themeColors.primary} />
       <Text
-        style={[
-          styles.speakerText,
-          { color: themeColors.text },
-        ]}
+        style={[styles.speakerText, { color: themeColors.text }]}
         numberOfLines={1}
         ellipsizeMode="tail"
       >
@@ -148,12 +146,23 @@ export const SpeakerToast = ({ activeUsers, onHide }: GroupToastProps) => {
   );
 };
 const MessageBubble = React.memo(({ msg, isOwnMessage, colors }: any) => (
-  <View style={[
-    styles.messageBubble,
-    isOwnMessage ? styles.myMessage : styles.theirMessage
-  ]}>
-    {!isOwnMessage && <Text style={[styles.senderName, { color: colors.text }]}>{msg.username}</Text>}
-    <Text style={[styles.messageText, { color: isOwnMessage ? colors.btnTextColor : colors.text }]}>
+  <View
+    style={[
+      styles.messageBubble,
+      isOwnMessage ? styles.myMessage : styles.theirMessage,
+    ]}
+  >
+    {!isOwnMessage && (
+      <Text style={[styles.senderName, { color: colors.text }]}>
+        {msg.username}
+      </Text>
+    )}
+    <Text
+      style={[
+        styles.messageText,
+        { color: isOwnMessage ? colors.btnTextColor : colors.text },
+      ]}
+    >
       {msg.text}
     </Text>
   </View>
@@ -253,12 +262,7 @@ export const LecturerStreamControls = ({
             size={40}
             color={themeColors.primary}
           />
-          <Text
-            style={[
-              styles.previewVideoText,
-              { color: themeColors.text },
-            ]}
-          >
+          <Text style={[styles.previewVideoText, { color: themeColors.text }]}>
             Camera is Off
           </Text>
         </View>
@@ -277,10 +281,7 @@ export const LecturerStreamControls = ({
             color={themeColors.btnTextColor}
           />
           <Text
-            style={[
-              styles.muteAllText,
-              { color: themeColors.btnTextColor },
-            ]}
+            style={[styles.muteAllText, { color: themeColors.btnTextColor }]}
           >
             Grant Mic
           </Text>
@@ -298,12 +299,7 @@ export const LecturerStreamControls = ({
           size={18}
           color={themeColors.btnTextColor}
         />
-        <Text
-          style={[
-            styles.muteAllText,
-            { color: themeColors.btnTextColor },
-          ]}
-        >
+        <Text style={[styles.muteAllText, { color: themeColors.btnTextColor }]}>
           {isCameraOff ? 'Cam off' : 'Cam on'}
         </Text>
       </TouchableOpacity>
@@ -321,10 +317,7 @@ export const LecturerStreamControls = ({
             size={18}
           />
           <Text
-            style={[
-              styles.muteAllText,
-              { color: themeColors.btnTextColor },
-            ]}
+            style={[styles.muteAllText, { color: themeColors.btnTextColor }]}
           >
             Mute All
           </Text>
@@ -333,7 +326,16 @@ export const LecturerStreamControls = ({
     </View>
   );
 };
-export const ChatModal = ({ visible, onDismiss, messages, sendMessage, inputText, setInputText, colors, user }: any) => {
+export const ChatModal = ({
+  visible,
+  onDismiss,
+  messages,
+  sendMessage,
+  inputText,
+  setInputText,
+  colors,
+  user,
+}: any) => {
   const scrollViewRef = useRef<ScrollView>(null);
   useEffect(() => {
     if (visible) {
@@ -343,53 +345,71 @@ export const ChatModal = ({ visible, onDismiss, messages, sendMessage, inputText
 
   return (
     <Modal visible={visible} onDismiss={onDismiss} style={styles.bottomOverlay}>
-      <View style={[styles.bottomModalContainer, { backgroundColor: colors.backgroundSecondary }]}>
-        <Text style={[styles.chatHeader, { color: colors.textDarker }]}>Live Class Chat</Text>
-        
-        <ScrollView 
+      <View
+        style={[
+          styles.bottomModalContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[styles.chatHeader, { color: colors.textDarker }]}>
+          Live Class Chat
+        </Text>
+
+        <ScrollView
           ref={scrollViewRef}
           style={styles.messageList}
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         >
           {messages.map((msg: any) => (
-            <MessageBubble 
-              key={msg.id} 
-              msg={msg} 
-              isOwnMessage={msg.userId === user.uid} 
-              colors={colors} 
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              isOwnMessage={msg.userId === user.uid}
+              colors={colors}
             />
           ))}
         </ScrollView>
 
-        <ChatInput 
-          text={inputText} 
-          onChangeText={setInputText} 
-          onSend={sendMessage} 
-          colors={colors} 
+        <ChatInput
+          text={inputText}
+          onChangeText={setInputText}
+          onSend={sendMessage}
+          colors={colors}
         />
       </View>
     </Modal>
   );
 };
-export const AttendeeListModal = ({ visible, onDismiss, attendees, wavers, colors }: any) => (
+export const AttendeeListModal = ({
+  visible,
+  onDismiss,
+  attendees,
+  wavers,
+  colors,
+}: any) => (
   <Portal>
     <Modal visible={visible} onDismiss={onDismiss} style={styles.bottomOverlay}>
-      <View style={[styles.bottomModalContainer, { backgroundColor: colors.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.bottomModalContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <View style={styles.modalHandle} />
         <Text style={[styles.attendeeListTitle, { color: colors.textDarker }]}>
           Class Attendees ({attendees.length})
         </Text>
         <FlatList
-            data={attendees}
-            keyExtractor={(item) => item.uid}
-            renderItem={({ item }) => (
-                <AttendeeRow 
-                    student={item} 
-                    isWaving={wavers.some((w: any) => w.uid === item.uid)} 
-                    colors={colors} 
-                />
-            )}
+          data={attendees}
+          keyExtractor={item => item.uid}
+          renderItem={({ item }) => (
+            <AttendeeRow
+              student={item}
+              isWaving={wavers.some((w: any) => w.uid === item.uid)}
+              colors={colors}
+            />
+          )}
         />
       </View>
     </Modal>
@@ -459,36 +479,85 @@ export const ConfirmationModal = ({
     </Modal>
   </Portal>
 );
+export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
+  const { colors: themeColors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.lecturerTab,
+        {
+          backgroundColor: themeColors.backgroundSecondary,
+          borderColor: themeColors.primary,
+        },
+      ]}
+    >
+      <View style={styles.mediaContainer}>
+        {isCameraOn && streamUrl ? (
+          <RTCView
+            streamURL={
+              typeof streamUrl === 'string' ? streamUrl : streamUrl.toURL()
+            }
+            style={styles.lecturerVideo}
+            objectFit="cover"
+            mirror={false}
+          />
+        ) : (
+          <Avatar.Image
+            size={80}
+            source={{
+              uri:
+                lecturer?.profilePic?.[0] || 'https://via.placeholder.com/80',
+            }}
+          />
+        )}
+      </View>
+      <View style={styles.otherSection}>
+        <Text
+          style={[styles.nameText, { color: themeColors.textDarker }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {lecturer?.displayName || 'Lecturer'}
+        </Text>
+        <MaterialIcons
+          name={lecturer?.isMuted ? 'mic-off-outlined' : 'mic-none-outlined'}
+          size={16}
+          color={themeColors.text}
+        />
+      </View>
+    </View>
+  );
+};
 const styles = StyleSheet.create({
-    messageBubble: {
+  messageBubble: {
     padding: 10,
     borderRadius: 12,
     marginVertical: 10,
     maxWidth: '80%',
   },
   myMessage: {
-      alignSelf: 'flex-end',
-      backgroundColor: PRIMARY_COLOR,
-      borderBottomRightRadius: 0,
-    },
-    theirMessage: {
-      alignSelf: 'flex-start',
-      borderBottomLeftRadius: 0,
-      borderColor: PRIMARY_COLOR_TINT,
-      borderWidth: 0.8,
-    },
-    senderName: {
+    alignSelf: 'flex-end',
+    backgroundColor: PRIMARY_COLOR,
+    borderBottomRightRadius: 0,
+  },
+  theirMessage: {
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 0,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderWidth: 0.8,
+  },
+  senderName: {
     fontSize: 11,
     fontWeight: 'bold',
     marginBottom: 2,
   },
   messageText: { fontSize: 14 },
-    bottomOverlay: {
+  bottomOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-    bottomModalContainer: {
+  bottomModalContainer: {
     padding: 20,
     width: '100%',
     borderTopLeftRadius: 25,
@@ -497,7 +566,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     position: 'relative',
   },
-   chatHeader: {
+  chatHeader: {
     fontWeight: 'bold',
     fontSize: 18,
     marginBottom: 15,
@@ -515,7 +584,7 @@ const styles = StyleSheet.create({
     height: 60,
     fontSize: 14,
   },
-    sendBtn: {
+  sendBtn: {
     marginHorizontal: 6,
   },
   studentRow: {
@@ -529,7 +598,7 @@ const styles = StyleSheet.create({
     height: 45,
     borderRadius: 22.5,
   },
-    studentInfo: {
+  studentInfo: {
     marginLeft: 15,
     flex: 1,
   },
@@ -567,7 +636,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 15,
   },
-   modalButtonRow: {
+  modalButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '80%',
@@ -585,12 +654,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-    modalOverlay: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignContent: 'center',
   },
-   controlWrapper: {
+  controlWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 15,
@@ -637,7 +706,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   waveText: { fontSize: 14, flex: 1 },
-    waveToast: {
+  waveToast: {
     position: 'absolute',
     top: 20,
     right: 20,
@@ -651,7 +720,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
     maxWidth: '70%',
   },
-   speakerToast: {
+  speakerToast: {
     position: 'absolute',
     bottom: 80,
     right: 20,
@@ -666,4 +735,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 5,
   },
-})
+  lecturerTab: {
+    position: 'absolute',
+    right: 15,
+    bottom: 15,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 1,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    alignContent: 'center',
+    overflow: 'hidden',
+    zIndex: 100,
+  },
+  mediaContainer: {
+    flex: 1,
+    overflow: 'hidden',
+    position: 'absolute', // Fills the parent
+    top: 0,
+    left: 0,
+  },
+  lecturerVideo: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  otherSection: {
+    width: '100%',
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  nameText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 5,
+  },
+});
