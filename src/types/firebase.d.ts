@@ -1,6 +1,7 @@
 import { NavigationProp } from '@react-navigation/native';
 
-export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise' | 'admin';
+export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
+export type UserRole = "user" | "admin" | "master_admin";
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
@@ -186,6 +187,7 @@ export interface User {
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;
+  role: UserRole;
   firstname?: string;
   lastname?: string;
   username?: string;

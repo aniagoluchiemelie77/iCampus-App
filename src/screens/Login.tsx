@@ -72,6 +72,8 @@ const Login = () => {
             navigation.replace('SuspendedScreen', {
               reason: 'This account has been flagged for security violations.',
             });
+          } else if (user.role === 'admin' || user.role === 'master_admin') {
+            navigation.navigate('AdminDashboard');
           } else {
             navigation.navigate('Home', { activeTab: 'home' });
           }

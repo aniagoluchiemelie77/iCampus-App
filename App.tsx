@@ -26,6 +26,7 @@ const linking = {
   config: {
     screens: {
       Home: 'home',
+      AdminDashboard: 'admin-hub',
       Login: 'login',
       SignUp: 'signup',
       TransactionDetail: 'transaction/:transactionId',
@@ -113,10 +114,12 @@ import { getToastConfig } from './src/components/ToastConfig.tsx';
 import { PRIMARY_COLOR } from './src/assets/styles/colors.ts';
 import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.tsx';
 import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
+import { AdminDashboard } from './src/screens/SupportAdminDashboard.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
+  AdminDashboard: undefined;
   FlutterwavePayment: {
     amount: number;
     iCashToCredit: number;
@@ -388,6 +391,11 @@ const App = () => {
               <Stack.Screen
                 name="ICashWithdrawPage"
                 component={ICashWithdrawPage}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="AdminDashboard"
+                component={AdminDashboard}
                 options={{ headerShown: false }}
               />
               <Stack.Screen
