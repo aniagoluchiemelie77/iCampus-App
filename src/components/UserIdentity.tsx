@@ -8,7 +8,7 @@ interface UserIdentityProps {
   firstname: string;
   lastname?: string;
   username?: string;
-  tier: 'free' | 'pro' | 'premium';
+  tier?: 'free' | 'pro' | 'premium';
   isVerified?: boolean;
   showVerifyIcon?: boolean;
   size?: 'small' | 'medium' | 'large';

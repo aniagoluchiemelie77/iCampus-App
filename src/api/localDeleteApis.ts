@@ -270,3 +270,21 @@ export const deleteAssignment = async (courseId: string, assignmentId: string): 
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
+export const deleteAdminApi = async (uid: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/${uid}/delete`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    const result = await response.json();
+    if (!response.ok){
+      return { success: false, error: result.error || 'Failed to delete admin.' };
+    }
+    return result;
+  } catch (error) {
+    console.error("Error invoking deleteAdminApi:", error);
+    throw error;
+  }
+};

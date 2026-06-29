@@ -251,6 +251,7 @@ export interface Admin {
   adminType: 'super_admin' | 'moderator' | 'support';
   profilePic: string[];
   country?: string;
+  isVerified: boolean;
   lastAccessed: string;
   sessions?: UserSession[];
   createdAt: string;

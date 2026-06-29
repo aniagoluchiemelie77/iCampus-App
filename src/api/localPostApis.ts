@@ -1838,3 +1838,23 @@ export const createManualCourseAPI = async (
     };
   }
 };
+export const createAdminApi = async (adminData: any) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/create`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(adminData),
+    });
+    
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({ type: 'error', text1: 'Create Error', text2: result.error || 'Failed to create admin' });
+      return;
+    }
+    return result;
+  } catch (error: any) {
+    Toast.show({ type: 'error', text1: 'Create Error', text2: error.message });
+    return;
+  }
+};

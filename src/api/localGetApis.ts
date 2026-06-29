@@ -1544,3 +1544,33 @@ export const getDeepgramTemporalToken = async (
     return null;
   }
 };
+export const getAllAdmins = async (): Promise<any[]> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/fetch-all`, {
+      method: 'GET',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Failed to fetch administrator list',
+      });
+      return [];
+    }
+    const list = Array.isArray(result) ? result : result.data;
+    return Array.isArray(list) ? list : [];
+  } catch (error: any) {
+    console.error('AdminListService Error:', error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not connect to the server',
+    });
+    return [];
+  }
+};

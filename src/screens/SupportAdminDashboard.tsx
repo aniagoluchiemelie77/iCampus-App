@@ -16,9 +16,9 @@ import {
   OverviewsScreenComponent,
   ProductList,
   PayoutView,
-  ReviewsSection,
   SalesScreen,
 } from '../components/SellerManagementComps.tsx';
+import { AdminManagementSection } from '../components/AdminManagementComps.tsx';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -46,7 +46,7 @@ const TABS = {
   Sales: SalesScreen,
   Inventory: ProductList,
   Payouts: PayoutView,
-  Reviews: ReviewsSection,
+  'Access Control': AdminManagementSection,
 };
 const DashboardSkeleton = () => {
   const { colors: themeColors } = useTheme();

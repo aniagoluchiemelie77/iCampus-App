@@ -116,6 +116,7 @@ import { PRIMARY_COLOR } from './src/assets/styles/colors.ts';
 import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.tsx';
 import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 import { AdminDashboard } from './src/screens/SupportAdminDashboard.tsx';
+import { AdminFormPage } from './src/screens/AdminCreateOrEditScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -142,6 +143,7 @@ export type RootStackParamList = {
       currency: string;
     } | null;
   };
+  AdminFormPage: { admin?: any };
   Chat: { recipientId: string };
   ICashBuyPage: { refresh?: boolean };
   CreatePost: {
@@ -422,6 +424,11 @@ const App = () => {
               <Stack.Screen
                 name="SellerProducts"
                 component={SellerProductsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="AdminFormPage"
+                component={AdminFormPage}
                 options={{ headerShown: false }}
               />
               <Stack.Screen
