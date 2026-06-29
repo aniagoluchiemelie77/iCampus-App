@@ -23,7 +23,7 @@ import { ICAMPUS_APPLE_ID } from '@env';
 import { LogoutModal } from '../components/LogoutModal.tsx';
 import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';
 import { updateThemeState } from '../context/UserSlice.ts';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { useDispatch } from 'react-redux';
 import { updateUserThemePreference } from '../api/localPutApis.ts';
 import { useTheme } from '../context/ThemeContext';

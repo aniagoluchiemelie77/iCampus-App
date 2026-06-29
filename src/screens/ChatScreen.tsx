@@ -14,7 +14,7 @@ import { searchUsers, fetchMessages } from '../api/localGetApis.ts';
 import { UserIdentity } from '../components/UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { MessageBubble } from '../components/ChatMessageBubble.tsx';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { ChatInput } from '../components/ChatInput.tsx';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';

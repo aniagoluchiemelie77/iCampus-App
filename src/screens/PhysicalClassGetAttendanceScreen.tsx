@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import NativeProperty from 'react-native-ble-peripheral';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { SERVICE_UUID } from '@env';

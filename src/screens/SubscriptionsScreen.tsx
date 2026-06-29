@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Dimensions, TouchableOpacity, StyleSheet } from 'react-native';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { PayWithFlutterwave } from 'flutterwave-react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';

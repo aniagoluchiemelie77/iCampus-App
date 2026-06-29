@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 import { initializeWithdrawTransaction } from '../api/localPostApis';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';

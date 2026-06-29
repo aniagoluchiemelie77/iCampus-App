@@ -13,7 +13,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import {
   launchImageLibrary,
   ImageLibraryOptions,

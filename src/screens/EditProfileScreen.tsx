@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { InputGroup } from '../components/InputGroup';
 import { PageHeader } from '../components/PageHeader.tsx';
 import countries from 'i18n-iso-countries';

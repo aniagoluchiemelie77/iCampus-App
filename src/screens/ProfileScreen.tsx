@@ -16,7 +16,7 @@ import {
 import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { homeStyles } from '../assets/styles/colors.ts';
 import Toast from 'react-native-toast-message';
 import ExpandableFAB from '../components/ExpandableFAB';

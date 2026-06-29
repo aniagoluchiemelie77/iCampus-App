@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Course, Lecture, CourseException } from '../types/firebase';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from './hooks';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { io, Socket } from 'socket.io-client';
 import {fetchOngoingLecture, getCourseDetailsForOngoingLecture, getAllExceptionsForOngoingLecture} from '../api/localGetApis';

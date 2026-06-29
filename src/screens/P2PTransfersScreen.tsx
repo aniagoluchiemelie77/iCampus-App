@@ -19,7 +19,7 @@ import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFinger
 import { Camera, useFrameProcessor } from 'react-native-vision-camera';
 import { useCameraDevice } from 'react-native-vision-camera';
 import { scanBarcodes, BarcodeFormat } from 'vision-camera-code-scanner';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
 // @ts-ignore: runOnJS is deprecated in Reanimated but stable for Vision Camera
 import { runOnJS } from 'react-native-reanimated';

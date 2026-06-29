@@ -16,7 +16,7 @@ import { StoreScreen } from '../components/Storescreen';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';

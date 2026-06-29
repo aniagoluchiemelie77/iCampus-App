@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../context/EventContext';
 import { FavItem } from '../components/FavItem';

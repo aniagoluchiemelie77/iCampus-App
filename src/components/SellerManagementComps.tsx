@@ -15,7 +15,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { useAppDataContext } from '../context/EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { ProductSale, UserTier, Product, Payout } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';

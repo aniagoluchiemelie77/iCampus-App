@@ -17,7 +17,7 @@ import { Transactions } from '../types/firebase';
 import { getTransactionByIdAPI } from '../api/localGetApis';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { getCurrencyDetails } from '../utils/UserTransactionsHelpers';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { PageHeader } from '../components/PageHeader';
 import Clipboard from '@react-native-clipboard/clipboard';

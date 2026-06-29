@@ -24,7 +24,7 @@ import RNFS from 'react-native-fs';
 import Toast from 'react-native-toast-message';
 import BleManager from 'react-native-ble-manager';
 import { SocketContext } from './HomeScreen';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { SERVICE_UUID } from '@env';

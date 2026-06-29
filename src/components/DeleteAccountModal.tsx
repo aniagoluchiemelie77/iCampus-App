@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { handleFinalDelete } from '../api/localDeleteApis';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';

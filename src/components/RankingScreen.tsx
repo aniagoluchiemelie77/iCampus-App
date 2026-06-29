@@ -28,7 +28,7 @@ import {
 } from '../types/firebase';
 import { RankCard } from './IscoreRankCard';
 import { useNavigation } from '@react-navigation/native';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { fetchLeaderboards, searchUsers } from '../api/localGetApis.ts';
 import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import moment from 'moment';

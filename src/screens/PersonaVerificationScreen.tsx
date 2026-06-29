@@ -12,7 +12,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { fetchInquiryFromBackend } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { useTheme } from '../context/ThemeContext';
 
 export const PersonaVerificationScreen = () => {

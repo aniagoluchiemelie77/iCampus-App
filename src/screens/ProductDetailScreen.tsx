@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { useAppDataContext } from '../context/EventContext';
 import { PageHeader } from '../components/PageHeader';
 import {

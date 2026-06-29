@@ -19,7 +19,7 @@ import {
   ReviewsSection,
   SalesScreen,
 } from '../components/SellerManagementComps.tsx';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator } from 'react-native-paper';

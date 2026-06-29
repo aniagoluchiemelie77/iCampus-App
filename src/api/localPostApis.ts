@@ -717,6 +717,35 @@ export const loginUser = async (credentials: any) => {
     };
   }
 };
+export const loginAdmin = async (credentials: any) => {
+  try {
+    const response = await fetch(`${baseUrl}users/admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        credentials: credentials
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({ type: 'error', text1: 'Login Failed', text2: data.message });
+      return { success: false, message: data.message, status: response.status };
+    }
+    return {
+      success: response.ok,
+      accessToken: data.accessToken, 
+      refreshToken: data.refreshToken,
+      user: data.user,
+      message: data.error || data.message || 'Login failed',
+      status: response.status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Network error. Please check your connection.',
+    };
+  }
+};
 export const verifyCurrentPassword = async (password: string) => {
   try {
     const headers = await getAuthHeaders();

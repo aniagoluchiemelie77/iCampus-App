@@ -7,7 +7,7 @@ import {
   UIManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { store } from './src/components/store'; 
+import { store } from './src/context/store.ts';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from './src/context/ThemeContext';
 import Toast from 'react-native-toast-message';
@@ -28,6 +28,7 @@ const linking = {
       Home: 'home',
       AdminDashboard: 'admin-hub',
       Login: 'login',
+      AdminLogin: 'admin/login',
       SignUp: 'signup',
       TransactionDetail: 'transaction/:transactionId',
       ProductDetails: 'product/:productId',

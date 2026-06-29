@@ -19,7 +19,7 @@ import { Product } from '../types/firebase';
 import { useAppDataContext } from '../context/EventContext.tsx';
 import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { PageHeader } from './PageHeader';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { OrderScannerModal } from './OrderQRScannerModal';

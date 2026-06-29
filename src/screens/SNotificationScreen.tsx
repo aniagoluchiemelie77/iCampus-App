@@ -6,7 +6,7 @@ import {SectionHeader} from './Settings';
 import {PRIMARY_COLOR_TINT} from '../assets/styles/colors';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { updatePreferences } from '../api/localPatchApis.ts';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { useTheme } from '../context/ThemeContext';
 
 export const NotificationSettings = () => {

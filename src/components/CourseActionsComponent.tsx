@@ -48,7 +48,7 @@ import DocumentPicker from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import { PermissionsAndroid, Platform, Linking } from 'react-native';
 import DatePicker from 'react-native-date-picker';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { Picker } from '@react-native-picker/picker';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { EmptyState } from './EmptyFlatlistComponent';

@@ -22,7 +22,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DocumentPicker from 'react-native-document-picker';
 import { Svg, Circle } from 'react-native-svg';
 import { Course, User, Lecture, CourseException } from '../types/firebase';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as Progress from 'react-native-progress';

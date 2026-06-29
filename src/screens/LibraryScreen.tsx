@@ -19,7 +19,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { BookCard } from '../components/BookCard';
 import { Book } from '../types/firebase';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useTheme } from '../context/ThemeContext';
 

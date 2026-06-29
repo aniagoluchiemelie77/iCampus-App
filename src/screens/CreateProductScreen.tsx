@@ -37,7 +37,7 @@ import {
   uploadToFirebase,
 } from '../utils/CloudinaryPresetHelper';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { PageHeader } from '../components/PageHeader';
 import {

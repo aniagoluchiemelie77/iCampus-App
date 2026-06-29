@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { markAllMessagesRead } from '../api/localPostApis';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { formatTime } from '../utils/ChatTimestampFormatter';

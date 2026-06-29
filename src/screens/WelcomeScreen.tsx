@@ -6,7 +6,7 @@ import { WelcomeScreenStyles } from '../assets/styles/colors';
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Welcome'>;
 type RouteProps = RouteProp<RootStackParamList, 'Welcome'>;

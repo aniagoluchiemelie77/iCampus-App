@@ -11,7 +11,7 @@ import {
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { UserSession } from '../types/firebase';
 import { updateUserSessions } from '../context/UserSlice';
 import { PageHeader } from '../components/PageHeader';

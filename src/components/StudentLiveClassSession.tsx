@@ -11,7 +11,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User, ChatMessage, Lecture } from '../types/firebase';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { UserAvatar } from './UserAvatar';
 import LiveAudioStream from 'react-native-live-audio-stream';
 import { useNavigation } from '@react-navigation/native';

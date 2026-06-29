@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { PageHeader } from '../components/PageHeader';
 import { getBlockedUsers } from '../api/localGetApis';
-import { useAppSelector } from '@components/hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { User } from '../types/firebase';
 import { toggleBlockUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';

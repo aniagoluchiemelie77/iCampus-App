@@ -6,7 +6,7 @@ import { LiveClassSessionStyles } from './StudentLiveClassSession';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ExpandableFAB from './ExpandableFAB';
 import { homeStyles } from '../assets/styles/colors';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { mediaDevices, RTCPeerConnection } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
 import { User, Lecture } from '../types/firebase';

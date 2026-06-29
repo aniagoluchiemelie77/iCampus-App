@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import Geolocation from 'react-native-geolocation-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { PageHeader } from '../components/PageHeader';
 import { getDistanceInMiles } from '../utils/distanceCalculator';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';

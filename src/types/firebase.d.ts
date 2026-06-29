@@ -1,7 +1,6 @@
 import { NavigationProp } from '@react-navigation/native';
 
 export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
-export type UserRole = "user" | "admin" | "master_admin";
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
@@ -187,7 +186,6 @@ export interface User {
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;
-  role: UserRole;
   firstname?: string;
   lastname?: string;
   username?: string;
@@ -245,6 +243,18 @@ export interface User {
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   referralCode?: string
 };
+export interface Admin {
+  uid: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  adminType: 'super_admin' | 'moderator' | 'support';
+  profilePic: string[];
+  country?: string;
+  lastAccessed: string;
+  sessions?: UserSession[];
+  createdAt: string;
+}
 export interface Notification<T extends keyof ActionPayloadMap = any> {
   notificationId: string; 
   isRead: boolean;

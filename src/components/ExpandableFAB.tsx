@@ -5,7 +5,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { Lecture } from '../types/firebase';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks';
 import { useTheme } from '../context/ThemeContext';
 
 interface FABProps {

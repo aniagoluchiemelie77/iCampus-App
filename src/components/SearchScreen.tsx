@@ -16,7 +16,7 @@ import { PostCard } from './PostCard';
 import { UserAvatar } from './UserAvatar';
 import { UserIdentity } from './UserIdentity';
 import { EmptyState } from './EmptyFlatlistComponent';
-import { useAppSelector } from './hooks';
+import { useAppSelector } from '../hooks/hooks';
 import {
   searchPosts,
   searchUsers,

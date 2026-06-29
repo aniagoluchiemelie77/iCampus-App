@@ -8,14 +8,13 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { loginUser } from '../api/localPostApis';
+import { loginAdmin } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../context/UserSlice';
+import { setAdmin } from '../context/AdminSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Icon from 'react-native-vector-icons/Ionicons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import {
   SignupScreenStyles,
@@ -24,9 +23,6 @@ import {
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import DeviceInfo from 'react-native-device-info';
 import { isValidEmail } from '../utils/SignupHelpers';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { authorize } from 'react-native-app-auth';
-import { githubConfig } from '../components/OtherUserSignup';
 
 const Login = () => {
   const navigation = useNavigation<any>();
@@ -41,7 +37,6 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSocialsLogin, setIsSocialsLogin] = useState(false);
 
   const performLogin = useCallback(
     async (payload: any) => {
@@ -51,7 +46,7 @@ const Login = () => {
         const deviceName = DeviceInfo.getModel();
         const brand = DeviceInfo.getBrand();
 
-        const response = await loginUser({
+        const response = await loginAdmin({
           ...payload,
           deviceId,
           deviceName: `${brand} ${deviceName}`,
@@ -64,18 +59,9 @@ const Login = () => {
           await AsyncStorage.setItem('user', JSON.stringify(user));
 
           dispatch(
-            setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }),
+            setAdmin({ ...user, accessToken, tokenCreatedAt: Date.now() }),
           );
-
-          if (user.isSuspended) {
-            navigation.replace('SuspendedScreen', {
-              reason: 'This account has been flagged for security violations.',
-            });
-          } else if (user.role === 'admin' || user.role === 'master_admin') {
-            navigation.navigate('AdminDashboard');
-          } else {
-            navigation.navigate('Home', { activeTab: 'home' });
-          }
+          navigation.navigate('AdminDashboard');
         } else {
           setAlertType('error');
           setAlertMessage(response.message || 'Invalid credentials.');
@@ -93,7 +79,6 @@ const Login = () => {
   );
 
   const handlePasswordLogin = () => {
-    setIsSocialsLogin(false);
     if (!identifier || !password) {
       setAlertMessage('Ensure required fields are not empty.');
       setAlertType('error');
@@ -103,50 +88,9 @@ const Login = () => {
     performLogin({ identifier, password, socialProvider: 'password' });
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'github') => {
-    setIsLoading(true);
-    setIsSocialsLogin(true);
-    try {
-      let token = '';
-      let email = '';
-
-      if (provider === 'google') {
-        await GoogleSignin.hasPlayServices();
-        const response = await GoogleSignin.signIn();
-        token = response.data?.idToken || '';
-        email = response.data?.user?.email || '';
-      } else {
-        const result = await authorize(githubConfig);
-        token = result.accessToken;
-        const emailResponse = await fetch(
-          'https://api.github.com/user/emails',
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        const emails = await emailResponse.json();
-        email =
-          emails.find((e: any) => e.primary && e.verified)?.email ||
-          emails[0]?.email;
-      }
-
-      if (!email) throw new Error('Could not retrieve verified email');
-      await performLogin({
-        identifier: email,
-        idToken: token,
-        socialProvider: provider,
-      });
-    } catch (err) {
-      setAlertMessage('Social login failed.');
-      setAlertType('error');
-      setAlertVisible(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
   const canSubmit = useMemo(() => {
-    return isSocialsLogin || (isValidEmail(identifier) && password.length > 0);
-  }, [identifier, password, isSocialsLogin]);
+    return isValidEmail(identifier) && password.length > 0
+  }, [identifier, password]);
 
   return (
     <KeyboardAvoidingView
@@ -160,7 +104,7 @@ const Login = () => {
           size={40}
           color={PRIMARY_COLOR}
         />
-        <Text style={StudentSignupStyles.mainHeader}>Login</Text>
+        <Text style={StudentSignupStyles.mainHeader}>Admin Login</Text>
 
         <TextInput
           placeholder="Enter your email..."
@@ -207,27 +151,6 @@ const Login = () => {
             <Text style={SignupScreenStyles.toggleBtnsText}>Login</Text>
           )}
         </TouchableOpacity>
-
-        <View style={StudentSignupStyles.socialContainer}>
-          <TouchableOpacity
-            style={StudentSignupStyles.socialButton}
-            onPress={() => handleSocialLogin('google')}
-            disabled={isLoading}
-          >
-            <Icon name="logo-google" size={20} color={PRIMARY_COLOR} />
-            <Text style={StudentSignupStyles.socialButtonText}>Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={StudentSignupStyles.socialButton}
-            onPress={() => handleSocialLogin('github')}
-            disabled={isLoading}
-          >
-            {/* Using the Icon component here fixes the 'never read' warning */}
-            <Icon name="logo-github" size={20} color={PRIMARY_COLOR} />
-            <Text style={StudentSignupStyles.socialButtonText}>GitHub</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       <SweetAlertModal

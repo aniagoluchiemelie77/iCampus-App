@@ -10,7 +10,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { useAppSelector } from '../components/hooks';
+import { useAppSelector } from '../hooks/hooks.ts';
 import { initializeBuyTransaction } from '../api/localPostApis';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import Toast from 'react-native-toast-message';
