@@ -1,6 +1,7 @@
 import { PRO_BADGE_COLOR, PREMIUM_BADGE_COLOR, ENTERPRISE_BADGE_COLOR } from '../assets/styles/colors';
 import {
   Product,
+  AdminRole
 } from '../types/firebase';
 
 type ItemCategory = Product['type'];
@@ -10,6 +11,7 @@ export const USD_SUBSCRIPTION_PRICES = {
   Premium: 3.69,
   Free: 0,
 } as const;
+
 export const EXCEPTION_COST_IN_ICASH = 0.5 as const;
 export const USD_EQUIVALENCE_OF_1_ICASH = 0.74 as const;
 export const TRANSACTION_TAX_RATE = 0.02 as const;
@@ -40,4 +42,28 @@ export const ITAG_PRESET_COLORS = [
   '#0b8049',
 ] as const;
 
+export const CATEGORY_ACCESS: Record<string, readonly AdminRole[]> = {
+  'Overview': ['super_admin', 'finance', 'support', 'moderator', 'analyst'],
+  'Tickets': ['super_admin', 'support'],
+  'Security Alerts': ['super_admin'],
+  'Financial': ['super_admin', 'finance'],
+  'User Operations': ['support', 'moderator'],
+  'Admin Actions': ['super_admin'],
+  'Subscriptions': ['super_admin'],
+  'Store': ['super_admin', 'finance'],
+  'Access Control': ['super_admin', 'finance', 'support', 'moderator', 'analyst']
+} as const;
+
+export const TAB_TO_CATEGORY = {
+  'Security Alerts': 'security',
+  'Financial Events': 'finance',
+  'User Operations': 'social',
+  'Admin Actions': 'profile',
+  'Subscriptions': 'subscription',
+  'Store': 'store',
+} as const;
+
+export type TabName = keyof typeof TAB_TO_CATEGORY;
+
 export type SubscriptionTier = keyof typeof USD_SUBSCRIPTION_PRICES;
+export type CategoryKey = keyof typeof CATEGORY_ACCESS;

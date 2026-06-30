@@ -8,6 +8,7 @@ export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
 export type ThemeType = 'light' | 'dark' | 'system';
+export type AdminRole = "super_admin" | "moderator" | "support" | "finance" | "analyst";
 type WelcomePayload = { userName: string };
 type OrderCancelledPayload = {
   orderId: string;
@@ -248,7 +249,7 @@ export interface Admin {
   firstname: string;
   lastname: string;
   email: string;
-  adminType: 'super_admin' | 'moderator' | 'support';
+  adminType: AdminRole;
   profilePic: string[];
   country?: string;
   isVerified: boolean;

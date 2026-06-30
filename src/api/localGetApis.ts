@@ -2,6 +2,7 @@ import { User, CreateTestPayload, EnrichedCourseProduct, DropOffStation, Notific
 import { baseUrl } from '@components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
+import { TAB_TO_CATEGORY, TabName } from '../constants/inAppConstants.ts';
 interface CheckITagResponse {
   success: boolean;
   available: boolean;
@@ -1570,6 +1571,44 @@ export const getAllAdmins = async (): Promise<any[]> => {
       type: 'error',
       text1: 'Connection Error',
       text2: 'Could not connect to the server',
+    });
+    return [];
+  }
+};
+export const getNotifications = async (
+  tabName: TabName, 
+  page: number = 1, 
+  limit: number = 20
+): Promise<any[]> => {
+  try {
+    const category = TAB_TO_CATEGORY[tabName];
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${baseUrl}admins/get-notifications?category=${category}&page=${page}&limit=${limit}`, {
+      method: 'GET',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || `Failed to fetch ${tabName} notifications`,
+      });
+      return [];
+    }
+    
+    const list = Array.isArray(result) ? result : result.data;
+    return Array.isArray(list) ? list : [];
+    
+  } catch (error: any) {
+    console.error('NotificationService Error:', error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not connect to the notification server',
     });
     return [];
   }

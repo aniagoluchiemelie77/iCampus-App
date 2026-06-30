@@ -11,43 +11,41 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { UserIdentity } from '../components/UserIdentity';
-import {
-  OrdersList,
-  OverviewsScreenComponent,
-  ProductList,
-  PayoutView,
-  SalesScreen,
-} from '../components/SellerManagementComps.tsx';
-import { AdminManagementSection } from '../components/AdminManagementComps.tsx';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator } from 'react-native-paper';
+import { CATEGORY_ACCESS, CategoryKey } from '../constants/inAppConstants.ts';
+import {
+  AdminManagementSection,
+  SystemActivityLogs,
+} from '../components/AdminManagementComps.tsx';
 
-/* TABS
-Overview with analytics	AdminOverviewStats
-User Mgmt	UserManagementPanel
-Support/Tickets	Handle reports and content flags.
-Notification Log	All critical alert (logins, signups, p2p transfers, withdrawals, icash purchase, account deletions) sorted with dates.	SystemActivityLogs
-Access Control (only for master admins)	Manage admin
-
+const allTabs = [
+  'Overview',
+  'Tickets',
+  'Security Alerts',
+  'Finance',
+  'User Operations',
+  'Admin Actions',
+  'Subscriptions',
+  'Store',
+  'Access Control',
+];
 const TABS = {
-  Overview: AdminOverviewStats,
-  Users: UserManagementPanel,
-  Tickets: SupportTicketsPanel,
-  Logs: SystemActivityLogs,
-  'Access Control': RoleAssignmentPanel, // Will add visibility logic below
-};
- */
-
-const TABS = {
-  Overview: OverviewsScreenComponent,
-  Orders: OrdersList,
-  Sales: SalesScreen,
-  Inventory: ProductList,
-  Payouts: PayoutView,
+  //Overview: AdminOverviewStats,
+  ///'Tickets': Ticketing,
+  'Security Alerts': SystemActivityLogs,
+  Financial: SystemActivityLogs,
+  'User Operations': SystemActivityLogs,
+  'Admin Actions': SystemActivityLogs,
+  Subscriptions: SystemActivityLogs,
+  Store: SystemActivityLogs,
   'Access Control': AdminManagementSection,
 };
+
+type TabKey = keyof typeof TABS;
+
 const DashboardSkeleton = () => {
   const { colors: themeColors } = useTheme();
   return (
@@ -61,30 +59,37 @@ const DashboardSkeleton = () => {
 };
 export const AdminDashboard = () => {
   const { colors } = useTheme();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.admin);
   const [activeTab, setActiveTab] = useState('Overview');
   const navigation = useNavigation<any>();
-  const isOrganization = currentUser.organizationName !== '';
-  const ActiveComponent = TABS[activeTab as keyof typeof TABS];
+  const visibleTabs = allTabs.filter((tab): tab is CategoryKey => {
+    if (!(tab in CATEGORY_ACCESS)) return true;
+    const roles = CATEGORY_ACCESS[tab as CategoryKey];
+    return roles.includes(currentUser.adminType as any);
+  });
+  const ActiveComponent = TABS[activeTab as TabKey];
+  const isSuperAdmin = currentUser.adminType === 'super_admin';
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Admin Dashboard"
-        subtitle="Manage your products & earnings"
+        subtitle="Manage system administrators and team access"
         rightElement={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('CreateProduct')}
-            style={[styles.topBtn, { backgroundColor: colors.btnColor }]}
-          >
-            <Text style={[styles.topBtnText, { color: colors.btnTextColor }]}>
-              Add Product
-            </Text>
-            <MaterialIcons
-              name="add-business-outlined"
-              size={22}
-              color={colors.btnTextColor}
-            />
-          </TouchableOpacity>
+          isSuperAdmin ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AdminFormPage')}
+              style={[styles.topBtn, { backgroundColor: colors.btnColor }]}
+            >
+              <Text style={[styles.topBtnText, { color: colors.btnTextColor }]}>
+                Add Admin
+              </Text>
+              <MaterialIcons
+                name="admin-panel-settings-outlined"
+                size={22}
+                color={colors.btnTextColor}
+              />
+            </TouchableOpacity>
+          ) : null
         }
       />
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -98,19 +103,14 @@ export const AdminDashboard = () => {
             profilePic={currentUser?.profilePic}
             firstName={currentUser?.firstname}
             lastName={currentUser?.lastname}
-            username={currentUser?.username}
-            organizationName={currentUser?.organizationName}
             style={styles.merchantAvatar}
           />
           <View style={{ marginLeft: 10, flex: 1 }}>
             <UserIdentity
               firstname={currentUser?.firstname!}
               lastname={currentUser?.lastname}
-              tier={currentUser?.tier!}
               isVerified={currentUser?.isVerified}
               showVerifyIcon={true}
-              organizationName={currentUser.organizationName}
-              isOrganization={isOrganization}
               size="large"
             />
           </View>
@@ -124,14 +124,7 @@ export const AdminDashboard = () => {
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          {[
-            'Overview',
-            'Orders',
-            'Sales',
-            'Inventory',
-            'Reviews',
-            'Payouts',
-          ].map(tab => (
+          {visibleTabs.map(tab => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
@@ -153,9 +146,9 @@ export const AdminDashboard = () => {
         <View style={styles.content}>
           <Suspense fallback={<DashboardSkeleton />}>
             {ActiveComponent ? (
-              <ActiveComponent />
+              <ActiveComponent activeTab={activeTab} />
             ) : (
-              <OverviewsScreenComponent />
+              <ActivityIndicator size={'large'} color={colors.primary} />
             )}
           </Suspense>
         </View>

@@ -1,24 +1,31 @@
 import { useAppSelector } from '../hooks/hooks.ts';
 import React, { useState} from 'react';
+import Toast from 'react-native-toast-message';
 import {
   View,
   TouchableOpacity,
   Text,
   ScrollView,
   Modal,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
-import {AccessDeniedScreen} from '../components/AccessDeniedScreen.tsx';
-import {PageHeader} from '../components/PageHeader.tsx';
-import {InputGroup} from '../components/InputGroup.tsx';
-import {updateAdminApi} from '../api/localPutApis.ts';
-import {createAdminApi} from '../api/localPostApis.ts';
+import { AccessDeniedScreen } from '../components/AccessDeniedScreen.tsx';
+import { PageHeader } from '../components/PageHeader.tsx';
+import { InputGroup } from '../components/InputGroup.tsx';
+import { updateAdminApi } from '../api/localPutApis.ts';
+import { createAdminApi } from '../api/localPostApis.ts';
 import { useFormHydration } from '../hooks/useAdminInputFormHydration.ts';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
 
-
-export const RolePicker = ({ value, onSelect }: { value: string, onSelect: (role: string) => void }) => {
+export const RolePicker = ({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (role: string) => void;
+}) => {
   const [modalVisible, setModalVisible] = useState(false);
   const { colors } = useTheme();
   const options = ['moderator', 'support'];
@@ -26,17 +33,36 @@ export const RolePicker = ({ value, onSelect }: { value: string, onSelect: (role
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: colors.text }]}>Admin Role</Text>
-      <TouchableOpacity style={[styles.inputWrapper, { borderColor: colors.border }]} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity
+        style={[styles.inputWrapper, { borderColor: colors.border }]}
+        onPress={() => setModalVisible(true)}
+      >
         <Text style={{ color: colors.text }}>{value || 'Select Role'}</Text>
         <MaterialIcons name="arrow-drop-down" size={24} color={colors.text} />
       </TouchableOpacity>
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.backgroundSecondary }]}>
-            {options.map((role) => (
-              <TouchableOpacity key={role} style={styles.option} onPress={() => { onSelect(role); setModalVisible(false); }}>
-                <Text style={{ color: colors.text, textTransform: 'capitalize' }}>{role.replace('_', ' ')}</Text>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            {options.map(role => (
+              <TouchableOpacity
+                key={role}
+                style={styles.option}
+                onPress={() => {
+                  onSelect(role);
+                  setModalVisible(false);
+                }}
+              >
+                <Text
+                  style={{ color: colors.text, textTransform: 'capitalize' }}
+                >
+                  {role.replace('_', ' ')}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -46,61 +72,93 @@ export const RolePicker = ({ value, onSelect }: { value: string, onSelect: (role
   );
 };
 export const AdminFormPage = ({ route }: { route: any }) => {
-    const { colors: themeColors } = useTheme();
+  const navigation = useNavigation<any>();
+  const { colors: themeColors } = useTheme();
+  const [isSaving, setIsSaving] = useState(false);
   const adminToEdit = route.params?.admin;
-  const [formData, setFormData] = useFormHydration({
-    firstname: '',
-    lastname: '',
-    email: '',
-    adminType: 'support'
-  }, adminToEdit);
+  const [formData, setFormData] = useFormHydration(
+    {
+      firstname: '',
+      lastname: '',
+      email: '',
+      adminType: 'support',
+    },
+    adminToEdit,
+  );
   const isEditing = !!adminToEdit;
-  const currentUser = useAppSelector((state) => state.admin);
+  const currentUser = useAppSelector(state => state.admin);
   if (currentUser.adminType !== 'super_admin') {
-    return <AccessDeniedScreen reason="Only Super Admins can manage administrative access." />;
+    return (
+      <AccessDeniedScreen reason="Only Super Admins can manage administrative access." />
+    );
   }
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       if (isEditing) await updateAdminApi(adminToEdit.uid, formData);
       else await createAdminApi(formData);
-      // Navigation logic here
+      navigation.navigate('AdminDashboard');
     } catch (e) {
-      // Error already handled in API utility
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: 'Check your connection, then retry.',
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <View style={{ flex: 1 }}>
-      <PageHeader 
-        title={isEditing ? 'Edit Administrator' : 'Create Administrator'} 
-        subtitle={isEditing ? `Managing ${formData.firstname}` : 'Add new system staff'}
+      <PageHeader
+        title={
+          isEditing
+            ? 'Edit iCampus Administrator'
+            : 'Create iCampus Administrator'
+        }
+        subtitle={
+          isEditing ? `Managing ${formData.firstname}` : 'Add new system admin'
+        }
       />
-      
+
       <ScrollView style={styles.content}>
-        <InputGroup 
-          label="First Name" 
-          value={formData.firstname} 
-          onChangeText={(v) => setFormData({...formData, firstname: v})} 
+        <InputGroup
+          label="First Name"
+          value={formData.firstname}
+          onChangeText={v => setFormData({ ...formData, firstname: v })}
         />
-        <InputGroup 
-          label="Last Name" 
-          value={formData.lastname} 
-          onChangeText={(v) => setFormData({...formData, lastname: v})} 
+        <InputGroup
+          label="Last Name"
+          value={formData.lastname}
+          onChangeText={v => setFormData({ ...formData, lastname: v })}
         />
-        <InputGroup 
-          label="Email" 
-          value={formData.email} 
-          isLocked={isEditing} 
-          onChangeText={(v) => setFormData({...formData, email: v})} 
+        <InputGroup
+          label="Email"
+          value={formData.email}
+          isLocked={isEditing}
+          onChangeText={v => setFormData({ ...formData, email: v })}
         />
-          <RolePicker 
-  value={formData.adminType} 
-  onSelect={(role) => setFormData({...formData, adminType: role})} 
-/>
-        
-        <TouchableOpacity style={[styles.submitBtn, {backgroundColor: themeColors.btnColor}]} onPress={handleSave}>
-          <Text style={[styles.btnText, {color: themeColors.btnTextColor}]}>Save Changes</Text>
+        <RolePicker
+          value={formData.adminType}
+          onSelect={role => setFormData({ ...formData, adminType: role })}
+        />
+
+        <TouchableOpacity
+          style={[
+            styles.submitBtn,
+            {
+              backgroundColor: themeColors.btnColor,
+              opacity: isSaving ? 0.6 : 1,
+            },
+          ]}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
+          <Text style={[styles.btnText, { color: themeColors.btnTextColor }]}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
