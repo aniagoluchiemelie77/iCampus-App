@@ -92,66 +92,64 @@ export const AdminDashboard = () => {
           ) : null
         }
       />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View
-          style={[
-            styles.profileCard,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <UserAvatar
-            profilePic={currentUser?.profilePic}
-            firstName={currentUser?.firstname}
-            lastName={currentUser?.lastname}
-            style={styles.merchantAvatar}
+      <View
+        style={[
+          styles.profileCard,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <UserAvatar
+          profilePic={currentUser?.profilePic}
+          firstName={currentUser?.firstname}
+          lastName={currentUser?.lastname}
+          style={styles.merchantAvatar}
+        />
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <UserIdentity
+            firstname={currentUser?.firstname!}
+            lastname={currentUser?.lastname}
+            isVerified={currentUser?.isVerified}
+            showVerifyIcon={true}
+            size="large"
           />
-          <View style={{ marginLeft: 10, flex: 1 }}>
-            <UserIdentity
-              firstname={currentUser?.firstname!}
-              lastname={currentUser?.lastname}
-              isVerified={currentUser?.isVerified}
-              showVerifyIcon={true}
-              size="large"
-            />
-          </View>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabBarScrollContainer}
-          style={[
-            styles.tabBarWrapper,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          {visibleTabs.map(tab => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabBarScrollContainer}
+        style={[
+          styles.tabBarWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        {visibleTabs.map(tab => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[styles.tab, activeTab === tab && styles.activeTab]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === tab
+                  ? { color: colors.primary }
+                  : { color: colors.text },
+              ]}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab
-                    ? { color: colors.primary }
-                    : { color: colors.text },
-                ]}
-              >
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <View style={styles.content}>
-          <Suspense fallback={<DashboardSkeleton />}>
-            {ActiveComponent ? (
-              <ActiveComponent activeTab={activeTab} />
-            ) : (
-              <ActivityIndicator size={'large'} color={colors.primary} />
-            )}
-          </Suspense>
-        </View>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+        <Suspense fallback={<DashboardSkeleton />}>
+          {ActiveComponent ? (
+            <ActiveComponent activeTab={activeTab} />
+          ) : (
+            <ActivityIndicator size={'large'} color={colors.primary} />
+          )}
+        </Suspense>
       </ScrollView>
     </View>
   );

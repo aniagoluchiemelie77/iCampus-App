@@ -21,6 +21,7 @@ import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
 import { Notification } from '../types/firebase';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
+import LogItem from './LogItem.tsx';
 
 export const AdminManagementSection = () => {
   const navigation = useNavigation<any>();
@@ -140,6 +141,7 @@ export const AdminManagementSection = () => {
   );
 };
 export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
+  const navigation = useNavigation<any>();
   const [logs, setLogs] = useState<Notification[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const activeTabRef = useRef(activeTab);
@@ -195,7 +197,14 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
     <FlatList
       data={logs}
       keyExtractor={item => item.notificationId}
-      renderItem={({ item }) => <LogItem log={item} />}
+      renderItem={({ item }) => (
+        <LogItem
+          log={item}
+          onPress={() =>
+            navigation.navigate('NotificationDetails', { notification: item })
+          }
+        />
+      )}
       onEndReached={() => {
         if (hasMore && !loading) {
           const nextPage = page + 1;
