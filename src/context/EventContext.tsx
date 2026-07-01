@@ -219,7 +219,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         setPosts(currentPosts =>
           currentPosts.map(post =>
             post.postId === originalPostId
-              ? { ...post, repostsCount: (post.repostsCount ?? 0) + 1 }
+              ? {
+                  ...post,
+                  repostsCount: (post.repostersDetails.length ?? 0) + 1,
+                }
               : post,
           ),
         );

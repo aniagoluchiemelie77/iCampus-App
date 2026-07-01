@@ -404,10 +404,7 @@ export const PostCard = React.memo(
       }
     }, [user, currentUser?.tier, currentUser?.usertype]);
     const eventDate = formatEventDate(post.eventMetadata?.startDate);
-    const reposterIsOrganization = !post.userId?.organizationName;
-    const reposterName = reposterIsOrganization
-      ? post.userId?.organizationName
-      : `${post.userId?.firstname} ${post.userId?.lastname}`;
+    const displayUser = post.featuredReposter || userDetails;
 
     return (
       <Pressable
@@ -423,10 +420,20 @@ export const PostCard = React.memo(
       >
         {post.isRepost && (
           <View style={styles.repostHeader}>
-            <MaterialIcons name="repeat" size={14} color={colors.text} />
-            <Text style={[styles.repostText, { color: colors.text }]}>
-              {`${reposterName} reposted`}
-            </Text>
+            <MaterialIcons
+              name="repeat"
+              size={14}
+              color={colors.text}
+              style={{ marginRight: 4 }}
+            />
+            <UserIdentity
+              firstname={displayUser?.firstname ?? ''}
+              lastname={displayUser?.lastname ?? ''}
+              username={displayUser?.username ?? ''}
+              tier={displayUser?.tier ?? 'free'}
+              organizationName={displayUser?.organizationName}
+              size={'small'}
+            />
           </View>
         )}
         <View style={styles.header}>
@@ -596,7 +603,7 @@ export const PostCard = React.memo(
               color={post.isRepost ? colors.primary : colors.primaryTint}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
-              {formatStatNumber(post.repostsCount ?? 0)}
+              {formatStatNumber(post.repostersDetails?.length || 0)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

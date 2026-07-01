@@ -391,55 +391,6 @@ export const fetchLeaderboards = async () => {
     };
   }
 };
-export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => {
-  try {
-    const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to fetch posts',
-      };
-    }
-    return {
-      success: response.ok,
-      posts: data.posts || [],
-      nextCursor: data.nextCursor || null,
-    };
-  } catch (error) {
-    console.error("fetchPostsAPI Error:", error);
-    return { success: false, posts: [], message: 'Failed to connect to server' };
-  }
-};
-export const fetchPostByIdAPI = async (postId: string) => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}posts/${postId}`, {
-      method: 'GET',
-      headers,
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to fetch post',
-      };
-    }
-    return {
-      success: response.ok,
-      data,
-      message: response.ok ? 'Success' : (data.error || 'Post not found on server'),
-    };
-  } catch (error) {
-    console.error("fetchPostByIdAPI Error:", error);
-    return { success: false, data: null, message: 'Connection to server failed' };
-  }
-};
 export const fetchProductsAPI = async ({ 
   q = '', 
   category = 'all', 
@@ -1167,29 +1118,6 @@ export const getCourseAssessments = async (courseId: string): Promise<GetAssessm
     };
   }
 };
-export const searchPosts = async (query: string): Promise<any[]> => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}posts/search?q=${encodeURIComponent(query)}`, {
-      method: 'GET',
-      headers
-    });
-
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: 'Failed to fetch posts'
-      });
-      return [];
-    }
-    const result = await response.json();
-    return result.posts || [];
-  } catch (error) {
-    console.error('API Error inside searchPosts utility:', error);
-    return [];
-  }
-};
 export const searchICashMarketLocal = (query: string, catalog: any[]): any[] => {
   const formattedQuery = query.toLowerCase().trim();
   
@@ -1611,5 +1539,77 @@ export const getNotifications = async (
       text2: 'Could not connect to the notification server',
     });
     return [];
+  }
+};
+export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => {
+  try {
+    const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
+    const headers = await getAuthHeaders();
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch posts',
+      };
+    }
+    return {
+      success: response.ok,
+      posts: data.posts || [],
+      nextCursor: data.nextCursor || null,
+    };
+  } catch (error) {
+    console.error("fetchPostsAPI Error:", error);
+    return { success: false, posts: [], message: 'Failed to connect to server' };
+  }
+};
+export const searchPosts = async (query: string): Promise<any[]> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}posts/search?q=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: 'Failed to fetch posts'
+      });
+      return [];
+    }
+    const result = await response.json();
+    return result.posts || [];
+  } catch (error) {
+    console.error('API Error inside searchPosts utility:', error);
+    return [];
+  }
+};
+export const fetchPostByIdAPI = async (postId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}posts/${postId}`, {
+      method: 'GET',
+      headers,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch post',
+      };
+    }
+    return {
+      success: response.ok,
+      data,
+      message: response.ok ? 'Success' : (data.error || 'Post not found on server'),
+    };
+  } catch (error) {
+    console.error("fetchPostByIdAPI Error:", error);
+    return { success: false, data: null, message: 'Connection to server failed' };
   }
 };

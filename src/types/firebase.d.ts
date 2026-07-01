@@ -152,6 +152,16 @@ type ActionPayloadMap = {
   // ... add all other types here
 };
 
+export interface PostReposter {
+  uid: string;
+  firstname: string;
+  lastname?: string;
+  username?: string;
+  tier: UserTier,
+  organizationName?: string;
+  profilePic: [String],
+  repostedAt: { type: Date },
+};
 export interface UserSession {
   deviceId: string;
   deviceName: string;
@@ -577,14 +587,6 @@ export interface PollOption {
 export interface Posts {
   _id: string;
   postId: string;
-  userId: {
-    uid: string;
-    firstname: string;
-    lastname: string;
-    profilePic?: string;
-    organizationName?: string;
-    tier?: UserTier
-  };
   content: string;
   media?: {
     mediaType: string | null;
@@ -606,7 +608,8 @@ export interface Posts {
   shares?: string[]; 
   isRepost: boolean;
   originalPostId?: string; 
-  repostsCount: number;
+  repostersDetails: PostReposter[],
+  featuredReposter?: PostReposter;
   sharesCount?: number;
   createdAt: string;
   poll?: {
