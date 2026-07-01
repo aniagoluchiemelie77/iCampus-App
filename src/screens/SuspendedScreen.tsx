@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { getUserAccountState } from '../api/localGetApis';
+import { createSupportTicketApi } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -13,10 +20,14 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { reason } = route.params;
   const [checking, setChecking] = useState(false);
-  const handleContactSupport = () => {
-    Linking.openURL(
-      'mailto:support@icampus.edu.ng?subject=iCash Account Suspension',
-    );
+  const handleContactSupport = async () => {
+    const ticketData = {
+      message: 'iCash Account Suspension',
+      category: 'technical',
+      summary: 'Issue report from App',
+    };
+
+    await createSupportTicketApi(ticketData);
   };
   const checkAccountStatus = async () => {
     setChecking(true);

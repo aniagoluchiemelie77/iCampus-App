@@ -1858,3 +1858,40 @@ export const createAdminApi = async (adminData: any) => {
     return;
   }
 };
+export const createSupportTicketApi = async (ticketData: { 
+  message: string; 
+  category: string; 
+  summary: string 
+}) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}support/tickets/create-ticket`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(ticketData),
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      Toast.show({ 
+        type: 'error', 
+        text1: 'Submission Failed', 
+        text2: result.error || 'Unable to contact support' 
+      });
+      return null;
+    }
+    Toast.show({ 
+      type: 'success', 
+      text1: 'Support Contacted', 
+      text2: 'Expect a reply within 24 hours.' 
+    });
+    return result;
+  } catch (error: any) {
+    Toast.show({ 
+      type: 'error', 
+      text1: 'Connection Error', 
+      text2: error.message 
+    });
+    return null;
+  }
+};
