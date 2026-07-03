@@ -83,6 +83,13 @@ interface ManualCourseResponse {
   message: string;
   courseId?: string;
 }
+interface SystemNotificationPayload {
+  recipientId: string;
+  title: string;
+  message: string;
+  category: string;
+  [key: string]: any; 
+}
 
 const handleTransactionError = (error: any, title: string) => {
   console.error(`${title}:`, error);
@@ -1893,5 +1900,47 @@ export const createSupportTicketApi = async (ticketData: {
       text2: error.message 
     });
     return null;
+  }
+};
+export const sendSystemNotification = async (notificationData: SystemNotificationPayload) => {
+  try {
+    const url = `${baseUrl}admins/support/send-notification`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(notificationData),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Notification Failed',
+        text2: data?.message || 'Could not send the message to the user.',
+      });
+      return { success: false };
+    }
+    
+    Toast.show({
+      type: 'success',
+      text1: 'Message Sent',
+      text2: 'The user has been notified successfully.',
+    });
+    
+    return { success: true, notification: data.notification || data };
+  } catch (error) {
+    console.error("sendSystemNotification Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Failed to send the notification.',
+    });
+    return { success: false };
   }
 };

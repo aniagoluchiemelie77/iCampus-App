@@ -18,6 +18,7 @@ import { ActivityIndicator } from 'react-native-paper';
 import { CATEGORY_ACCESS, CategoryKey } from '../constants/inAppConstants.ts';
 import {
   AdminManagementSection,
+  SupportTicketSection,
   SystemActivityLogs,
 } from '../components/AdminManagementComps.tsx';
 
@@ -34,7 +35,7 @@ const allTabs = [
 ];
 const TABS = {
   //Overview: AdminOverviewStats,
-  ///'Tickets': Ticketing,
+  Tickets: SupportTicketSection,
   'Security Alerts': SystemActivityLogs,
   Financial: SystemActivityLogs,
   'User Operations': SystemActivityLogs,

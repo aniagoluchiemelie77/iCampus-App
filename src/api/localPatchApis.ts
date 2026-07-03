@@ -391,3 +391,87 @@ export const markOrderAsDroppedOffAPI = async (orderId: string) => {
     };
   }
 };
+export const updateTicketStatus = async (ticketId: string, status: string) => {
+  try {
+    const url = `${baseUrl}support/tickets/${ticketId}/status`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: data?.message || 'Could not update the ticket status.',
+      });
+      return { success: false };
+    }
+    
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: `Ticket marked as ${status}.`,
+    });
+    
+    return { success: true, ticket: data.ticket || data };
+  } catch (error) {
+    console.error("updateTicketStatus Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Failed to connect to the server.',
+    });
+    return { success: false };
+  }
+};
+export const updateAdminUser = async (uid: string, updateData: any) => {
+  try {
+    const url = `${baseUrl}admins/edit-users/${uid}`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: data?.message || 'Could not update user details.',
+      });
+      return { success: false };
+    }
+    
+    Toast.show({
+      type: 'success',
+      text1: 'Saved',
+      text2: 'User context updated successfully.',
+    });
+    
+    return { success: true, data: data.user };
+  } catch (error) {
+    console.error("updateAdminUser Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Failed to connect to the server.',
+    });
+    return { success: false };
+  }
+};

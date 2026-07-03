@@ -1613,3 +1613,96 @@ export const fetchPostByIdAPI = async (postId: string) => {
     return { success: false, data: null, message: 'Connection to server failed' };
   }
 };
+export const fetchTicketsAPI = async (limit: number = 10, cursor: string = '') => {
+  try {
+    const url = `${baseUrl}support/tickets/fetch-all?limit=${limit}&cursor=${cursor}`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch support tickets',
+      };
+    }
+    
+    return {
+      success: true,
+      tickets: data.tickets || data.data || [], 
+      nextCursor: data.nextCursor || null,
+    };
+  } catch (error) {
+    console.error("fetchTicketsAPI Error:", error);
+    return { 
+      success: false, 
+      tickets: [], 
+      message: 'Failed to connect to server' 
+    };
+  }
+};
+export const adminFetchUserDetails = async (userId: string) => {
+  try {
+    const url = `${baseUrl}admins/fetch-user/${userId}`; 
+    const headers = await getAuthHeaders();
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: data?.message || 'Failed to fetch user details'
+      });
+      return [];
+    }
+    return data.user || data; 
+  } catch (error) {
+    console.error("adminFetchUserDetails Error:", error);
+    Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: 'Check your connection and retry.'
+      });
+    throw error;
+  }
+};
+export const adminFetchUserNotifications = async (userId: string, limit: number = 10) => {
+  try {
+    const url = `${baseUrl}admins/fetch-notifications/${userId}?limit=${limit}`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+      type: 'error',
+      text1: 'Fetch Error',
+      text2: data?.message || 'Failed to fetch user notifications'
+    });
+    return []; 
+    }
+    return data.notifications || data || []; 
+  } catch (error) {
+    console.error("adminFetchUserNotifications Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Network Error',
+      text2: 'Check your connection and retry.'
+    });
+    return []; 
+  }
+};

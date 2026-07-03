@@ -12,6 +12,13 @@ interface InputGroupProps extends TextInputProps {
   value?: string;
   defaultValue?: string;
 }
+export interface InfoListCardProps<T> {
+  title: string;
+  iconName: React.ComponentProps<typeof MaterialIcons>['name'];
+  data: T[] | undefined | null;
+  renderItem: (item: T) => React.ReactNode;
+  emptyText?: string;
+}
 
 export const InputGroup = ({
   countryCode,
@@ -78,6 +85,49 @@ export const InputGroup = ({
     </View>
   );
 };
+export const InfoListCard = <T extends unknown>({
+  title,
+  iconName,
+  data,
+  renderItem,
+  emptyText,
+}: InfoListCardProps<T>) => {
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.cardContainer}>
+      <View style={styles.cardHeader}>
+        <MaterialIcons name={iconName} size={20} color={colors.text} />
+        <Text style={[styles.cardTitle, { color: colors.textDarker }]}>
+          {title}
+        </Text>
+      </View>
+
+      <View style={styles.cardContent}>
+        {!data || data.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.primaryTint }]}>
+            {emptyText || 'No data available.'}
+          </Text>
+        ) : (
+          data.map((item, index) => (
+            <View
+              key={index}
+              style={[
+                styles.listItem,
+                index !== data.length - 1 && {
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              {renderItem(item)}
+            </View>
+          ))
+        )}
+      </View>
+    </View>
+  );
+};
 const styles = StyleSheet.create({
   groupContainer: { marginBottom: 15, padding: 10, borderRadius: 10 },
   labelRow: {
@@ -88,7 +138,6 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 15, fontWeight: '600' },
   lockBadge: { alignContent: 'center' },
-  lockText: { fontSize: 10, color: '#888', marginLeft: 4 },
   inputWrapper: {
     borderRadius: 8,
     borderWidth: 0.8,
@@ -111,4 +160,28 @@ const styles = StyleSheet.create({
   },
   input: { padding: 12, fontSize: 14, minHeight: 48, flex: 1 },
   helperText: { fontSize: 11, marginTop: 4, fontWeight: '700' },
+  cardContainer: {
+    marginBottom: 15,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  cardContent: {
+    width: '100%',
+  },
+  listItem: {
+    padding: 10,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+  },
 });

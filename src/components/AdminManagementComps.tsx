@@ -14,7 +14,11 @@ import { useTheme } from '../context/ThemeContext';
 import { useAppSelector } from '../hooks/hooks';
 import { UserAvatar } from './UserAvatar';
 import { UserIdentity } from './UserIdentity';
-import { getAllAdmins, getNotifications } from '../api/localGetApis';
+import {
+  fetchTicketsAPI,
+  getAllAdmins,
+  getNotifications,
+} from '../api/localGetApis';
 import { deleteAdminApi } from '../api/localDeleteApis';
 import { useNavigation } from '@react-navigation/native';
 import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
@@ -131,7 +135,9 @@ export const AdminManagementSection = () => {
         keyExtractor={item => item.uid}
         renderItem={renderAdminItem}
         ListHeaderComponent={
-          <Text style={styles.headerTitle}>System Administrators</Text>
+          <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
+            iCampus Administrators
+          </Text>
         }
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
@@ -217,10 +223,158 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
     />
   );
 };
+export const SupportTicketSection = () => {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>('');
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const fetchInitialTickets = async () => {
+    try {
+      const response = await fetchTicketsAPI(20, '');
+
+      if (response.success) {
+        setTickets(response.tickets);
+        setNextCursor(response.nextCursor);
+      } else {
+        console.error('Failed to load tickets:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching initial tickets:', error);
+    }
+  };
+  const loadMoreTickets = async () => {
+    if (!nextCursor || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    const response = await fetchTicketsAPI(20, nextCursor);
+
+    if (response.success) {
+      setTickets(prev => [...prev, ...response.tickets]);
+      setNextCursor(response.nextCursor);
+    }
+    setIsLoadingMore(false);
+  };
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchInitialTickets();
+    setIsRefreshing(false);
+  };
+  useEffect(() => {
+    fetchInitialTickets();
+  }, []);
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return colors.criticalSeverity;
+      case 'high':
+        return colors.highSeverity;
+      case 'medium':
+        return colors.mediumSeverity;
+      case 'low':
+        return colors.lowSeverity;
+      default:
+        return colors.text;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open':
+        return colors.primary;
+      case 'pending':
+        return colors.pendingDelivery;
+      case 'resolved':
+        return colors.success;
+      default:
+        return colors.text;
+    }
+  };
+
+  const renderTicketItem = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      onPress={() =>
+        navigation.navigate('TicketResolveScreen', { ticket: item })
+      }
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={[styles.ticketRef, { color: colors.text }]}>
+          #{item.ticketRefId}
+        </Text>
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: getStatusColor(item.status) },
+          ]}
+        >
+          <Text style={[styles.badgeText, { color: colors.btnTextColor }]}>
+            {item.status.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <MaterialIcons
+            name="error-outlined"
+            size={14}
+            color={getSeverityColor(item.severity)}
+          />
+          <Text
+            style={[
+              styles.severity,
+              { color: getSeverityColor(item.severity) },
+            ]}
+          >
+            {item.severity.toUpperCase()} Priority
+          </Text>
+        </View>
+        <Text
+          style={[styles.category, { color: colors.text }]}
+          numberOfLines={1}
+        >
+          {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+        </Text>
+      </View>
+
+      <View style={styles.cardFooter}>
+        <Text style={[styles.dateText, { color: colors.text }]}>
+          {new Date(item.createdAt || item.updatedAt).toLocaleDateString()}
+        </Text>
+        <MaterialIcons name="chevron-right" size={22} color={colors.text} />
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={tickets}
+        keyExtractor={item => item.id || item.ticketRefId}
+        renderItem={renderTicketItem}
+        ListHeaderComponent={
+          <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
+            Tickets
+          </Text>
+        }
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+        onEndReached={loadMoreTickets}
+        onEndReachedThreshold={0.5}
+      />
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  container: { flex: 1 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', padding: 20 },
   card: { padding: 15, borderRadius: 15, marginBottom: 15 },
   infoRow: {
     flexDirection: 'row',
@@ -235,4 +389,46 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', alignItems: 'center' },
   editBtn: { padding: 8 },
   removeBtn: { padding: 8 },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  ticketRef: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  cardBody: {
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  category: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  severity: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 12,
+  },
 });

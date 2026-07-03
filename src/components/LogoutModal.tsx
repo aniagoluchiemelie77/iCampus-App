@@ -8,6 +8,7 @@ import {
 import {handleLogout} from '../api/localPostApis';
 import Modal from 'react-native-modal';
 import { useTheme } from '../context/ThemeContext';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 
 interface LogoutModalProps {
   visible: boolean;
@@ -63,7 +64,9 @@ export const LogoutModal = ({
               style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
               onPress={handleLogoutAction}
             >
-              <Text style={[styles.saveBtnText, { color: colors.btnTextColor }]}>
+              <Text
+                style={[styles.saveBtnText, { color: colors.btnTextColor }]}
+              >
                 Logout
               </Text>
             </TouchableOpacity>
@@ -73,7 +76,7 @@ export const LogoutModal = ({
     </Modal>
   );
 };
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -83,6 +86,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 20,
+    maxHeight: '80%',
   },
   modalTitle: {
     fontSize: 18,
@@ -120,5 +124,55 @@ const styles = StyleSheet.create({
   },
   modalOverride: {
     margin: 0,
+  },
+  toggleDiv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 5,
+    marginBottom: 15,
+  },
+  toggleText: { fontSize: 14 },
+  rowBetweenDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateText: { fontSize: 12 },
+  arrayItemsText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  fullWidthBtn: {
+    width: '100%',
+    paddingVertical: 15,
+    alignContent: 'center',
+    borderRadius: 15,
+    marginVertical: 20,
+  },
+  fullWidthText: { fontWeight: 'bold', fontSize: 14 },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  sendBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 15,
+    borderWidth: 1,
+    alignContent: 'center',
+  },
+  sendBtnText: { fontSize: 14, fontWeight: 'bold' },
+  input: {
+    height: 120,
+    borderRadius: 10,
+    padding: 15,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
   },
 });

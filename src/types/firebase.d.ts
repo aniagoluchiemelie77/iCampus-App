@@ -9,6 +9,23 @@ export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
 export type ThemeType = 'light' | 'dark' | 'system';
 export type AdminRole = "super_admin" | "moderator" | "support" | "finance" | "analyst";
+export type SuspiciousActivityType = 
+  | "UNRECOGNIZED_LOCATION"
+  | "HEAVY_TRANSFER"
+  | "HEAVY_WITHDRAWAL_ATTEMPT"
+  | "SESSION_REVOKED"
+  | "PIN_RESET_WHILE_SUSPICIOUS"
+  | "FAILED_PIN_ATTEMPT";
+export interface SuspiciousActivity {
+  type: SuspiciousActivityType;
+  timestamp: string; // Use string for frontend dates coming from JSON APIs
+}
+export interface PhoneNumber {
+  number: string;
+  isVerified: boolean;
+  verifiedVia: 'sms' | 'whatsapp';
+  addedAt: string;
+}
 type WelcomePayload = { userName: string };
 type OrderCancelledPayload = {
   orderId: string;
@@ -223,12 +240,8 @@ export interface User {
   createdAt: string;
   twoFactorEnabled?: boolean;
   lastLogin?: string;
-  phoneNumbers?: {
-    number: string;
-    isVerified: boolean;
-    verifiedVia: 'sms' | 'whatsapp';
-    addedAt: string;
-  }[];
+  suspiciousActivity?: SuspiciousActivity[]; 
+  phoneNumbers?: PhoneNumber[];
   country?: string;
   badges?: string[];
   schoolCode?: string;
@@ -252,7 +265,7 @@ export interface User {
   itagusername?: string,
   skills?: string[]; 
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
-  referralCode?: string
+  isSuspended: boolean;
 };
 export interface Admin {
   uid: string;
@@ -914,3 +927,22 @@ export interface Review {
   },
   createdAt: Date
 };
+export interface SupportTicket
+  {
+    userId: string;
+    ticketRefId: string;
+    source: "in-app"| "email";
+    originalMessage?: string;
+    category: 
+     "technical" | "billing" | "content" | "other";
+    summary?: string;
+    severity: "low" | "medium" | "high" | "critical";
+    status: "open" | "pending";
+    thread: [
+      {
+        sender: string;
+        message: string;
+        timestamp: Date;
+      },
+    ],
+  };

@@ -19,6 +19,7 @@ import type {
   Course,
   MarketplaceOrder,
   Product,
+  SupportTicket,
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
@@ -31,11 +32,12 @@ const linking = {
       AdminLogin: 'admin/login',
       SignUp: 'signup',
       TransactionDetail: 'transaction/:transactionId',
+      PostDetailScreen: 'post/:postId',
       ProductDetails: 'product/:productId',
       Profile: 'user/:identifier',
       Chat: 'chat/:recipientId',
       CartScreen: 'cart',
-      SalesHub: 'sales',
+      SalesHub: 'product/seller-hub',
       CourseLearningScreen: 'course/:courseId',
       LiveClassSessions: 'live-class/:lectureId',
       Settings: 'settings',
@@ -117,6 +119,7 @@ import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.t
 import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 import { AdminDashboard } from './src/screens/SupportAdminDashboard.tsx';
 import { AdminFormPage } from './src/screens/AdminCreateOrEditScreen.tsx';
+import { TicketResolveScreen } from './src/screens/TicketResolveScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -149,6 +152,9 @@ export type RootStackParamList = {
   CreatePost: {
     type?: 'post' | 'poll';
     post?: Posts;
+  };
+  TicketResolveScreen: {
+    ticket: SupportTicket;
   };
   TransactionDetail: {
     transactionId: string;
@@ -429,6 +435,11 @@ const App = () => {
               <Stack.Screen
                 name="AdminFormPage"
                 component={AdminFormPage}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="TicketResolveScreen"
+                component={TicketResolveScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

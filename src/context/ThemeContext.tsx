@@ -6,6 +6,10 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
   PRIMARY_COLOR_TINT_MAIN,
+  CRITICAL_SEVERITY,
+  HIGH_SEVERITY,
+  MEDIUM_SEVERITY,
+  LOW_SEVERITY,
 } from '../assets/styles/colors';
 
 export const lightPalette = {
@@ -15,6 +19,10 @@ export const lightPalette = {
   textDarker: '#222222',
   tint: 'rgba(248, 246, 246, 0.81)',
   inputTextHolder: PRIMARY_COLOR_TINT,
+  criticalSeverity: CRITICAL_SEVERITY,
+  highSeverity: HIGH_SEVERITY,
+  lowSeverity: LOW_SEVERITY,
+  mediumSeverity: MEDIUM_SEVERITY,
   success: '#4CAF50',
   pendingDelivery: '#FF9800',
   btnColor: PRIMARY_COLOR,
@@ -29,6 +37,10 @@ export const darkPalette = {
   backgroundSecondary: '#222',
   text: PRIMARY_COLOR_TINT_MAIN,
   textDarker: PRIMARY_COLOR_TINT_MAIN,
+  criticalSeverity: CRITICAL_SEVERITY,
+  highSeverity: HIGH_SEVERITY,
+  lowSeverity: LOW_SEVERITY,
+  mediumSeverity: MEDIUM_SEVERITY,
   tint: PRIMARY_COLOR_TINT_MAIN,
   inputTextHolder: PRIMARY_COLOR_TINT_MAIN,
   success: '#4CAF50',

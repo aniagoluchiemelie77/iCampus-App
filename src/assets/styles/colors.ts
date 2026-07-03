@@ -9,6 +9,12 @@ export const PRO_BADGE_COLOR = '#f54b02';
 export const ENTERPRISE_BADGE_COLOR = '#f5770a';
 export const BACKGROUND_LIGHT = '#fff';
 
+// Ticketing severity colors
+export const CRITICAL_SEVERITY = '#fa0000';
+export const HIGH_SEVERITY = '#f93535';
+export const MEDIUM_SEVERITY = '#fb6464';
+export const LOW_SEVERITY = '#f9a0a0';
+
 const screenWidth = Dimensions.get('window').width;
 const { width, height } = Dimensions.get('window');
 export const DEFAULT_GRADIENT = ['#241c18', '#70432e', '#e05515'];
