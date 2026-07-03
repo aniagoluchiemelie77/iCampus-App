@@ -5,6 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
+import Clipboard from '@react-native-clipboard/clipboard';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import {
   View,
@@ -22,6 +23,7 @@ import {
   Dimensions,
   SectionList,
   Alert,
+  Share,
 } from 'react-native';
 import {
   TestSubmission,
@@ -56,7 +58,11 @@ import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
 import { PieChart } from 'react-native-chart-kit';
 import { OngoingLectureModal } from './OngoingLiveLecturesModal';
-import { createAssignment, saveCourseMaterial } from '../api/localPostApis';
+import {
+  createAssignment,
+  saveCourseMaterial,
+  createPublicMeeting,
+} from '../api/localPostApis';
 import { uploadFileToFirebaseClient } from '../utils/CloudinaryPresetHelper';
 import { deleteCourseMaterial } from '../api/localDeleteApis';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -93,7 +99,8 @@ type PageType =
   | 'Assessments'
   | 'Set Lecture Schedule'
   | 'View Lecture Schedule'
-  | 'View Assessment Report';
+  | 'View Assessment Report'
+  | 'QuickPublicClass';
 interface LecturerManageProps {
   exceptions: CourseException[];
   searchQuery: string;
@@ -149,7 +156,7 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (text: string) => void;
   placeholder?: string;
-  userRole?: 'student' | 'lecturer';
+  userRole?: 'student' | 'lecturer' | 'otherUser';
 }
 interface CreateAssignmentProps {
   visible: boolean;
@@ -2425,6 +2432,274 @@ export const RenderScheduleLecture = ({
         />
       )}
     </ScrollView>
+  );
+};
+export const QuickPublicMeeting = () => {
+  const { colors } = useTheme();
+  const [saving, setIsSaving] = useState(false);
+  const [successData, setSuccessData] = useState<{ link: string } | null>(null);
+  const [pickerMode, setPickerMode] = useState<
+    'date' | 'startTime' | 'endTime' | null
+  >(null);
+  const [form, setForm] = useState({
+    topicName: '',
+    startTime: '08:00',
+    endTime: '10:00',
+    date: new Date().toISOString().split('T')[0],
+  });
+
+  const handleSave = async () => {
+    if (!form.topicName.trim()) {
+      Alert.alert('Missing Input', 'Please enter a meeting topic.');
+      return;
+    }
+
+    setIsSaving(true);
+    const result = await createPublicMeeting(form);
+    setIsSaving(false);
+
+    if (result.success && result.meeting) {
+      setSuccessData({ link: result.meeting.location });
+    } else {
+      Alert.alert('Error', result.error || 'Could not create meeting.');
+    }
+  };
+  const handleConfirm = (event: any, selectedDate?: Date) => {
+    setPickerMode(null);
+    if (!selectedDate) return;
+
+    if (pickerMode === 'date') {
+      setForm({ ...form, date: selectedDate.toISOString().split('T')[0] });
+    } else if (pickerMode === 'startTime') {
+      const time = selectedDate.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      setForm({ ...form, startTime: time });
+    } else if (pickerMode === 'endTime') {
+      const time = selectedDate.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      setForm({ ...form, endTime: time });
+    }
+  };
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: 15,
+        flex: 1,
+        backgroundColor: colors.background,
+      }}
+    >
+      <PageHeader title={'Schedule Quick Online Class'} />
+
+      <TextInput
+        placeholder="Class Topic (e.g., Project Sync)"
+        placeholderTextColor={colors.inputTextHolder}
+        style={[
+          CourseActionStyles.textInput2,
+          {
+            color: colors.text,
+            borderColor: colors.border,
+            marginVertical: 20,
+            backgroundColor: colors.backgroundSecondary,
+          },
+        ]}
+        value={form.topicName}
+        onChangeText={val => setForm({ ...form, topicName: val })}
+      />
+
+      <View style={CourseActionStyles.dateTimeRow}>
+        <TouchableOpacity
+          style={[
+            CourseActionStyles.dateTimeBox,
+            { borderColor: colors.border },
+          ]}
+          onPress={() => setPickerMode('date')}
+        >
+          <MaterialIcons
+            name="calendar-month-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
+            Date
+          </Text>
+          <Text
+            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
+          >
+            {form.date || 'Select Date'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            CourseActionStyles.dateTimeBox,
+            { borderColor: colors.border },
+          ]}
+          onPress={() => setPickerMode('startTime')}
+        >
+          <MaterialIcons
+            name="schedule-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
+            Start Time
+          </Text>
+          <Text
+            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
+          >
+            {form.startTime || '00:00'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            CourseActionStyles.dateTimeBox,
+            { borderColor: colors.border },
+          ]}
+          onPress={() => setPickerMode('endTime')}
+        >
+          <MaterialIcons
+            name="schedule-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
+            Ends
+          </Text>
+          <Text
+            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
+          >
+            {form.endTime || '00:00'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={[
+          CourseActionStyles.submitButton,
+          { backgroundColor: colors.btnColor },
+        ]}
+        onPress={handleSave}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator color={colors.btnTextColor} />
+        ) : (
+          <Text style={{ color: colors.btnTextColor }}>
+            Generate Meeting Link
+          </Text>
+        )}
+      </TouchableOpacity>
+      <Modal visible={!!successData} transparent animationType="slide">
+        <View style={CourseActionStyles.modalOverlay}>
+          <View
+            style={[
+              CourseActionStyles.alertBox,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <MaterialIcons
+              name="check-circle-outlined"
+              color={colors.success}
+              size={60}
+            />
+            <Text
+              style={[
+                CourseActionStyles.alertTitle,
+                {
+                  color: colors.textDarker,
+                },
+              ]}
+            >
+              Class Successfully Scheduled
+            </Text>
+
+            <TextInput
+              value={successData?.link}
+              editable={false}
+              style={[
+                CourseActionStyles.classLink,
+                {
+                  borderColor: colors.border,
+                  color: colors.success,
+                },
+              ]}
+            />
+
+            <View style={CourseActionStyles.rowDiv}>
+              <TouchableOpacity
+                onPress={() => Clipboard.setString(successData?.link || '')}
+                style={[
+                  CourseActionStyles.classActionBtns,
+                  { backgroundColor: colors.btnColor },
+                ]}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.classActionBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  Copy Link
+                </Text>
+                <MaterialIcons
+                  name="content-copy-outlined"
+                  color={colors.btnTextColor}
+                  size={20}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    await Share.share({
+                      message: `Join my meeting: ${successData?.link}`,
+                      url: successData?.link,
+                      title: 'Meeting Link',
+                    });
+                    setSuccessData(null);
+                  } catch (error) {
+                    console.error('Error sharing:', error);
+                  }
+                }}
+                style={[
+                  CourseActionStyles.classActionBtns,
+                  { backgroundColor: colors.btnColor },
+                ]}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.classActionBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  Share
+                </Text>
+                <MaterialIcons
+                  name="share"
+                  color={colors.btnTextColor}
+                  size={20}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {pickerMode && (
+        <DateTimePicker
+          value={new Date()}
+          mode={pickerMode === 'date' ? 'date' : 'time'}
+          is24Hour={true}
+          display="default"
+          onChange={handleConfirm}
+        />
+      )}
+    </View>
   );
 };
 export const RenderLecturerTestManage = ({
@@ -4952,8 +5227,7 @@ export const CourseActionStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
   },
   modalOverlayEnd: {
     flex: 1,
@@ -5384,6 +5658,12 @@ export const CourseActionStyles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
   },
+  textInput2: {
+    padding: 10,
+    width: '100%',
+    fontSize: 14,
+    height: 70,
+  },
   textInputText: {
     fontSize: 14,
   },
@@ -5445,11 +5725,19 @@ export const CourseActionStyles = StyleSheet.create({
     borderRadius: 25,
     padding: 30,
     alignItems: 'center',
+    width: '80%',
   },
   alertTitle: {
     fontSize: 18,
     fontWeight: '800',
     marginVertical: 15,
+  },
+  rowDiv: { flexDirection: 'row', marginTop: 15, gap: 10 },
+  classLink: {
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    width: '100%',
   },
   alertText: {
     fontSize: 14,
@@ -6178,4 +6466,12 @@ export const CourseActionStyles = StyleSheet.create({
     marginVertical: 20,
     fontSize: 14,
   },
+  classActionBtns: {
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  classActionBtnText: { fontSize: 14, fontWeight: 'bold', marginRight: 4 },
 });

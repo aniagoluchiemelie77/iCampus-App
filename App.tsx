@@ -226,9 +226,10 @@ export type RootStackParamList = {
       | 'Set Lecture Schedule'
       | 'Assessments'
       | 'View Lecture Schedule'
-      | 'View Assessment Report';
-    course: Course;
-    userRole: 'student' | 'lecturer';
+      | 'View Assessment Report'
+      | 'QuickPublicClass';
+    course?: Course;
+    userRole: 'student' | 'lecturer' | 'otherUser';
     lectures?: Lecture[];
     exceptions?: CourseException[];
   };

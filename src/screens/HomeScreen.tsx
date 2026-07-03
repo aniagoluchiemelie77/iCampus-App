@@ -4,8 +4,9 @@ import React, {
   createContext,
   ReactNode,
   useContext,
-  useMemo,
+  useRef,
 } from 'react';
+import PagerView from 'react-native-pager-view';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../context/UserSlice';
 import { View, TouchableOpacity, Text } from 'react-native';
@@ -105,6 +106,7 @@ const TabBarItem = React.memo(
 const HomeScreen = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
+  const pagerRef = useRef<PagerView>(null);
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const [activeIcon, setActiveIcon] = useState<string>('home');
   const userType = user?.usertype;
@@ -114,6 +116,11 @@ const HomeScreen = () => {
   const socket = socketContext?.socket;
   const rawRole = user?.usertype || 'student';
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
+  const screens = ['home', 'classroom', 'search', 'store', 'ranking'];
+  const handlePageSelected = (e: any) => {
+    const index = e.nativeEvent.position;
+    setActiveIcon(screens[index]);
+  };
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24;
@@ -228,32 +235,35 @@ const HomeScreen = () => {
       }
     }
   };
-  const renderContent = useMemo(() => {
-    switch (activeIcon) {
-      case 'home':
-        return <Home />;
-      case 'classroom':
-        return (
-          <ClassroomScreenComponent
-            userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
-          />
-        );
-      case 'search':
-        return <SearchScreen />;
-      case 'store':
-        return <StoreScreen />;
-      case 'ranking':
-        return <RankingScreen />;
-      default:
-        return <Home />;
-    }
-  }, [activeIcon, rawRole]);
   return (
     <AppDataProvider user={user}>
       <View
         style={[homeStyles.container, { backgroundColor: colors.background }]}
       >
-        <View style={homeStyles.centerContent}>{renderContent}</View>
+        <PagerView
+          style={homeStyles.centerContent}
+          initialPage={0}
+          ref={pagerRef}
+          onPageSelected={handlePageSelected}
+        >
+          <View key="0">
+            <Home />
+          </View>
+          <View key="1">
+            <ClassroomScreenComponent
+              userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
+            />
+          </View>
+          <View key="2">
+            <SearchScreen />
+          </View>
+          <View key="3">
+            <StoreScreen />
+          </View>
+          <View key="4">
+            <RankingScreen />
+          </View>
+        </PagerView>
 
         <View
           style={[

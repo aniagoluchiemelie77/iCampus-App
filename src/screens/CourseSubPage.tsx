@@ -20,6 +20,7 @@ import {
   RenderLecturerTestManage,
   CourseActionStyles,
   LecturerLectureScheduleView,
+  QuickPublicMeeting,
 } from '../components/CourseActionsComponent';
 import {
   getCourseDetails,
@@ -59,7 +60,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     exceptions: initialExceptions,
   } = route.params;
 
-  // State Management Hooks
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -80,6 +80,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   // --- API CONSUMER SYNC LIFECYCLES (Memoized) ---
 
   const fetchTests = useCallback(async () => {
+    if (!course?.courseId) return;
     setLoading(true);
     try {
       const result = await getCourseAssessments(course.courseId);
@@ -105,9 +106,10 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [course.courseId]);
+  }, [course?.courseId]);
 
   const fetchExceptions = useCallback(async () => {
+    if (!course?.courseId) return;
     setLoading(true);
     try {
       const result = await getCourseExceptions(course.courseId);
@@ -125,7 +127,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [course.courseId]);
+  }, [course?.courseId]);
 
   const fetchTimeline = useCallback(async () => {
     setLoading(true);
@@ -170,9 +172,10 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   }, []);
 
   const fetchCourseDetails = useCallback(async () => {
+    if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseDetails(course.courseId);
+      const result = await getCourseDetails(course?.courseId);
       if (result.success && result.course) {
         setCurrentCourse(result.course);
       } else {
@@ -191,11 +194,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [course.courseId]);
+  }, [course?.courseId]);
 
   const handleFetchCourseLectures = useCallback(async () => {
-    if (!course.courseId) return;
-    const result = await fetchAllLecturesByCourseId(course.courseId);
+    if (!course?.courseId) return;
+    const result = await fetchAllLecturesByCourseId(course?.courseId);
     if (result.success) {
       setAllLectures(result.data);
     } else {
@@ -205,14 +208,15 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         text2: result.error || 'Failed to fetch course lectures',
       });
     }
-  }, [course.courseId]);
+  }, [course?.courseId]);
 
   const fetchStudentTest = useCallback(
     async (assessmentId: string) => {
       setLoading(true);
       try {
+        if (!course?.courseId) return;
         const result = await checkAssessmentStatus(
-          course.courseId,
+          course?.courseId,
           assessmentId,
         );
         if (result.success) {
@@ -236,7 +240,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         setLoading(false);
       }
     },
-    [course.courseId],
+    [course?.courseId],
   );
 
   // --- IMPERATIVE EVENT MUTATORS (Memoized) ---
@@ -360,6 +364,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
 
   const handleCreateLecture = useCallback(
     async (lectureData: any) => {
+      if (!course?.courseId) return;
       setLoading(true);
       try {
         const result = await createLectureSchedule(
@@ -386,11 +391,12 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         setLoading(false);
       }
     },
-    [course.courseId],
+    [course?.courseId],
   );
 
   const handleCreateTest = useCallback(
     async (testData: any, isSilent: boolean = false) => {
+      if (!course?.courseId) return;
       if (!isSilent) setLoading(true);
       try {
         const result = await saveCourseAssessment(course.courseId, testData);
@@ -422,7 +428,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         if (!isSilent) setLoading(false);
       }
     },
-    [course.courseId, fetchTests],
+    [course?.courseId, fetchTests],
   );
 
   const handleDeleteLecture = useCallback(async (lectureId: string) => {
@@ -618,10 +624,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             isLoading={loading}
           />
         )}
+        {title === 'QuickPublicClass' && <QuickPublicMeeting />}
         {title === 'Assessments' &&
           (userRole === 'lecturer' ? (
             <RenderLecturerTestManage
-              course={course}
+              course={course!}
               refreshing={loading}
               tests={tests}
               onRefresh={fetchTests}
@@ -786,7 +793,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
       <AddExceptionModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
-        course={course}
+        course={course!}
         user={user}
         lectures={allLectures}
         onSave={handleSaveException}

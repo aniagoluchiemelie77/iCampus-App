@@ -1944,3 +1944,27 @@ export const sendSystemNotification = async (notificationData: SystemNotificatio
     return { success: false };
   }
 };
+export const createPublicMeeting = async (
+  meetingData: { topicName: string; date: string; startTime: string; endTime: string }
+) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/online-classes/create`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...meetingData,
+        lectureType: 'Online',
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to create meeting.' };
+    }
+    return { success: true, meeting: data.meeting };
+  } catch (error) {
+    console.error("Public Meeting API Error:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

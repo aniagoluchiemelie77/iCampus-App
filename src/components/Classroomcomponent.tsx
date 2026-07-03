@@ -1286,7 +1286,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.btn, { borderColor: colors.primary }]}
-                      onPress={() => {}}
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'QuickPublicClass',
+                          userRole: user.usertype,
+                        })
+                      }
                     >
                       <MaterialIcons
                         name="people-outlined"
@@ -1294,7 +1299,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         color={colors.primary}
                       />
                       <Text style={[styles.btnText, { color: colors.primary }]}>
-                        Schedule{'\n'}Online{'\n'}Class
+                        Schedule{'\n'}Quick Online{'\n'}Class
                       </Text>
                     </TouchableOpacity>
                   </View>
