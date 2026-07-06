@@ -120,11 +120,15 @@ import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 import { AdminDashboard } from './src/screens/SupportAdminDashboard.tsx';
 import { AdminFormPage } from './src/screens/AdminCreateOrEditScreen.tsx';
 import { TicketResolveScreen } from './src/screens/TicketResolveScreen.tsx';
+import { ViewAllSchoolsScreen } from './src/screens/ViewAllSchoolsScreen.tsx';
+import { ViewAllDropStations } from './src/screens/ViewAllDropStations.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
   AdminDashboard: undefined;
+  ViewAllSchools: undefined;
+  ViewAllDropStations: undefined;
   FlutterwavePayment: {
     amount: number;
     iCashToCredit: number;
@@ -394,6 +398,11 @@ const App = () => {
                 options={{ headerShown: false }}
               />
               <Stack.Screen
+                name="ViewAllSchools"
+                component={ViewAllSchoolsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
                 name="ICashBuyPage"
                 component={ICashBuyPage}
                 options={{ headerShown: false }}
@@ -406,6 +415,11 @@ const App = () => {
               <Stack.Screen
                 name="AdminDashboard"
                 component={AdminDashboard}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ViewAllDropStations"
+                component={ViewAllDropStations}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

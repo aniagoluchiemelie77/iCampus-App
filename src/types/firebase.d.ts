@@ -287,6 +287,7 @@ export interface Notification<T extends keyof ActionPayloadMap = any> {
   recipientId: string;
   recipientEmail?: string;
   senderId?: string;
+  recipientUserType?: string;
   category: 
     "auth" | 
     "social" |
@@ -373,6 +374,7 @@ export interface DropOffStation {
   latitude?: number;
   longitude?: number;
   distance?: string;
+  createdAt:  Date | string;
 }
 export interface Product {
   _id?: string;
@@ -526,11 +528,12 @@ export interface iCampusOperationalInstitutionSchema {
   schoolName: string;
   contactEmail: string;
   schoolCode: string;
-  dateJoined: string;
-  timeJoined: string;
+  dateJoined: Date | string;
+  timeJoined: Date | string;
   logo: string;
   currentiScoreAvg: number;
   previousiScoreAvg: number;
+  createdAt: Date | string;
 };
 export interface Transactions {
   transactionId: string; 

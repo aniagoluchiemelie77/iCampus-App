@@ -1706,3 +1706,99 @@ export const adminFetchUserNotifications = async (userId: string, limit: number 
     return []; 
   }
 };
+export const getAdminMetricsAPI = async () => {
+  try {
+    const url = `${baseUrl}admins/get-overview`; 
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Dashboard Error',
+        text2: data?.message || 'Failed to fetch admin metrics'
+      });
+      return null;
+    }
+    
+    return data; 
+  } catch (error) {
+    console.error("getAdminMetricsAPI Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Network Error',
+      text2: 'Could not connect to server.'
+    });
+    return null;
+  }
+};
+export const getInstitutionsAPI = async (page: number, limit: number = 20) => {
+  try {
+    const url = `${baseUrl}admins/get-institutions?page=${page}&limit=${limit}`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: data?.message || 'Failed to fetch institutions'
+      });
+      return [];
+    }
+    
+    return data; 
+  } catch (error) {
+    console.error("getInstitutionsAPI Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Network Error',
+      text2: 'Could not connect to server.'
+    });
+    return [];
+  }
+};
+export const getDropOffStationsAPI = async (page: number, limit: number = 20) => {
+  try {
+    const url = `${baseUrl}admins/get-drop-off-stations?page=${page}&limit=${limit}`;
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: data?.message || 'Failed to fetch drop-off stations'
+      });
+      return [];
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("getDropOffStationsAPI Error:", error);
+    Toast.show({
+      type: 'error',
+      text1: 'Network Error',
+      text2: 'Could not connect to server.'
+    });
+    return [];
+  }
+};

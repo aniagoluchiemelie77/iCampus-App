@@ -20,6 +20,7 @@ import {
   AdminManagementSection,
   SupportTicketSection,
   SystemActivityLogs,
+  Overview,
 } from '../components/AdminManagementComps.tsx';
 
 const allTabs = [
@@ -34,7 +35,7 @@ const allTabs = [
   'Access Control',
 ];
 const TABS = {
-  //Overview: AdminOverviewStats,
+  Overview: Overview,
   Tickets: SupportTicketSection,
   'Security Alerts': SystemActivityLogs,
   Financial: SystemActivityLogs,

@@ -18,6 +18,7 @@ import {
   fetchTicketsAPI,
   getAllAdmins,
   getNotifications,
+  getAdminMetricsAPI,
 } from '../api/localGetApis';
 import { deleteAdminApi } from '../api/localDeleteApis';
 import { useNavigation } from '@react-navigation/native';
@@ -25,7 +26,49 @@ import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
 import { Notification } from '../types/firebase';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
-import LogItem from './LogItem.tsx';
+import { NotificationItem } from '@components/NotificationItem';
+import { navigate } from '../context/navigationContext.ts';
+import {
+  DashboardSummary,
+  EntityPreviewSection,
+  FinanceSection,
+  SystemHealthSection,
+} from './adminMetricsComponents.tsx';
+
+// Define the structure of your entities to get better autocompletion in your UI
+interface LocationStat {
+  _id: string; // The location name
+  count: number;
+}
+interface Entity {
+  id: string;
+  name?: string;
+  schoolName?: string;
+  address?: string;
+  createdAt?: string | Date;
+}
+
+interface DashboardStats {
+  activeUsers: number;
+  platformLiquidity: number;
+  payoutStats: { _id: string; totalAmount: number; count: number }[];
+  pendingTickets: number;
+  recentSchools: {
+    items: Entity[]; // Replaced any[] with a typed Entity interface
+    total: number;
+  };
+  recentStations: {
+    items: Entity[];
+    total: number;
+  };
+  latencyData: number;
+  liquidityTrend: {
+    labels: string[];
+    inFlow: number[];
+    outFlow: number[];
+  };
+  locationStats: LocationStat[];
+}
 
 export const AdminManagementSection = () => {
   const navigation = useNavigation<any>();
@@ -198,17 +241,135 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
       socketRef.current?.disconnect();
     };
   }, [admin.uid]);
+  const handleNotificationPress = async (item: any) => {
+    const { actionType, payload, recipientUserType, recipientId } = item;
+
+    switch (actionType) {
+      // --- POST GROUP (PostDetails) ---
+      case 'POST_UPDATED':
+      case 'NEW_POST':
+      case 'POST_MENTION':
+      case 'POST_LIKED':
+      case 'POST_COMMENTED':
+      case 'POLL_MILESTONE':
+      case 'POST_REPOSTED':
+        navigation.navigate('PostDetail', { postId: payload.postId });
+        break;
+
+      case 'PRODUCT_DELETION':
+      case 'PRODUCT_CREATION':
+      case 'PRODUCT_UPDATE':
+        navigation.navigate('SalesHub');
+        break;
+
+      // --- ACADEMIC/COURSE UPDATES (NotificationDetails) ---
+      case 'LECTURE_CANCELLED':
+      case 'LECTURE_POSTPONED':
+      case 'LECTURE_VENUE_CHANGE':
+      case 'LECTURE_TYPE_CHANGE':
+      case 'LECTURE_SCHEDULED':
+        navigation.navigate('CourseSubPage', {
+          title: 'View Lecture Schedule',
+          userRole: recipientUserType,
+        });
+        break;
+
+      case 'CONTENT_MUTATED':
+      case 'CONTENT_DELETION':
+      case 'CONTENT_ADDED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Course Contents',
+          userRole: recipientUserType,
+          course: payload.course,
+        });
+        break;
+
+      case 'EXCEPTION_UPDATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Exceptions',
+          userRole: recipientUserType,
+        });
+        break;
+
+      case 'TEST_CREATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assessments',
+          userRole: recipientUserType,
+        });
+        break;
+
+      case 'ASSIGNMENT_CREATED':
+      case 'ASSIGNMENT_REMOVED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assignments',
+          userRole: recipientUserType,
+          course: payload.course,
+        });
+        break;
+
+      case 'MATERIAL_UPLOADED':
+      case 'MATERIAL_DELETED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Course Materials',
+          userRole: recipientUserType,
+          course: payload.course,
+        });
+        break;
+
+      // --- OTHER SPECIALIZED PAGES ---
+      case 'PROFILE_VIEW':
+      case 'PROFILE_UPDATED':
+        navigation.navigate('Profile', { identifier: recipientId });
+        break;
+
+      case 'NEW_FOLLOWER':
+        navigation.navigate('Profile', { identifier: payload.followerId });
+        break;
+
+      case 'TEST_CREATED':
+        navigation.navigate('CourseSubPage', {
+          title: 'Assessments',
+          userRole: recipientUserType,
+        });
+        break;
+
+      case 'SALES_PAYOUT_SUCCESS':
+      case 'MARKET_PURCHASE_DEBIT':
+      case 'ICASH_PURCHASE':
+      case 'ICASH_WITHDRAWAL':
+        navigation.navigate('TransactionDetail', {
+          transactionId: payload.transactionId,
+        });
+        break;
+
+      case 'ORDER_REVIEW_REQUEST':
+        navigation.navigate('CreateReviewScreen', {
+          targetId: payload.targetId,
+          productType: 'product',
+        });
+        break;
+
+      case 'LECTURER_REVIEW_REQUEST':
+        navigation.navigate('CreateReviewScreen', {
+          targetId: payload.targetId,
+          productType: 'lecturer',
+        });
+        break;
+
+      default:
+        navigation.navigate('NotificationDetails', { notification: item });
+        break;
+    }
+  };
 
   return (
     <FlatList
       data={logs}
       keyExtractor={item => item.notificationId}
       renderItem={({ item }) => (
-        <LogItem
-          log={item}
-          onPress={() =>
-            navigation.navigate('NotificationDetails', { notification: item })
-          }
+        <NotificationItem
+          item={item}
+          handleNotificationPress={handleNotificationPress}
         />
       )}
       onEndReached={() => {
@@ -367,6 +528,56 @@ export const SupportTicketSection = () => {
         }
         onEndReached={loadMoreTickets}
         onEndReachedThreshold={0.5}
+      />
+    </View>
+  );
+};
+export const Overview = () => {
+  const admin = useAppSelector(state => state.admin);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+
+  const fetchStats = async () => {
+    const data = await getAdminMetricsAPI();
+    setStats(data);
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  // Role Access Logic
+  const canViewFinance = ['super_admin', 'finance'].includes(admin.adminType);
+  const canViewSystem = ['super_admin', 'analyst'].includes(admin.adminType);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <DashboardSummary stats={stats} />
+      {canViewSystem && (
+        <SystemHealthSection
+          latency={stats?.latencyData || 0}
+          locations={stats?.locationStats || []}
+        />
+      )}
+      {canViewFinance && stats && (
+        <FinanceSection
+          trendData={
+            stats.liquidityTrend || { labels: [], inFlow: [], outFlow: [] }
+          }
+        />
+      )}
+      <EntityPreviewSection
+        title="Recent Institutions"
+        items={stats?.recentSchools?.items || []}
+        total={stats?.recentSchools?.total || 0}
+        onViewAll={() => navigate('ViewAllSchools')}
+        onItemPress={item => navigate('ViewSchool', { schoolId: item.id })}
+      />
+      <EntityPreviewSection
+        title="Recent Drop Off Stations"
+        items={stats?.recentStations?.items || []}
+        total={stats?.recentStations?.total || 0}
+        onViewAll={() => navigate('ViewAllDropStations')}
+        onItemPress={item => navigate('ViewStation', { stationId: item.id })}
       />
     </View>
   );
