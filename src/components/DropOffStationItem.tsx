@@ -26,8 +26,8 @@ export const ImageCarousel = ({ images }: { images: string[] }) => {
 
     const interval = setInterval(() => {
       currentIndex.current = (currentIndex.current + 1) % images.length;
-      flatListRef.current?.scrollToOffset({
-        offset: currentIndex.current * (width * 0.8),
+      flatListRef.current?.scrollToIndex({
+        index: currentIndex.current,
         animated: true,
       });
     }, 8000);
