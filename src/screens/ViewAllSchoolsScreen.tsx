@@ -6,44 +6,74 @@ import { navigate } from '../context/navigationContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { getInstitutionsAPI } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
+import { deleteInstitutionApi } from '../api/localDeleteApis';
+import Toast from 'react-native-toast-message';
 
 export const ViewAllSchoolsScreen = () => {
-    const { colors } = useTheme();
+  const { colors } = useTheme();
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const pageRef = useRef(1);
 
   const fetchSchools = async (pageNum: number) => {
-  if (loading) return; 
-  setLoading(true);
-  
-  const data = await getInstitutionsAPI(pageNum, 20);
-  
-  setSchools(prev => pageNum === 1 ? data : [...prev, ...data]);
-  setLoading(false);
-};
+    if (loading) return;
+    setLoading(true);
 
- const handleLoadMore = () => {
-  pageRef.current += 1;
-  fetchSchools(pageRef.current);
-};
+    const data = await getInstitutionsAPI(pageNum, 20);
+
+    setSchools(prev => (pageNum === 1 ? data : [...prev, ...data]));
+    setLoading(false);
+  };
+
+  const handleLoadMore = () => {
+    pageRef.current += 1;
+    fetchSchools(pageRef.current);
+  };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <PageHeader 
-        title="iCampus Authorized Institutions" 
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <PageHeader
+        title="iCampus Authorized Institutions"
         subtitle="Manage iCampus Network"
         rightElement={
-          <TouchableOpacity onPress={() => navigate('AddSchool')} style={[styles.addBtn, { backgroundColor: colors.btnColor }]}>
-            <Text style={[styles.addBtnText, {color: colors.btnTextColor}]}>Add School</Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigate('SchoolAorE', {
+                item: null,
+              })
+            }
+            style={[styles.addBtn, { backgroundColor: colors.btnColor }]}
+          >
+            <Text style={[styles.addBtnText, { color: colors.btnTextColor }]}>
+              Add School
+            </Text>
             <MaterialIcons name="add" size={28} color={colors.btnTextColor} />
           </TouchableOpacity>
         }
       />
       <FlatList
         data={schools}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <SchoolItem item={item} />}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <SchoolItem
+            item={item}
+            onDelete={async id => {
+              const result = await deleteInstitutionApi(id);
+              if (result.success) {
+                fetchSchools(1);
+              } else {
+                Toast.show({
+                  type: 'error',
+                  text1: 'Delete Failed',
+                  text2: result.error,
+                });
+              }
+            }}
+            onEdit={i => {
+              navigate('SchoolAorE', { item: i });
+            }}
+          />
+        )}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
       />

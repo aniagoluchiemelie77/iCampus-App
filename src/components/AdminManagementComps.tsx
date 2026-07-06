@@ -28,6 +28,8 @@ import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { NotificationItem } from '@components/NotificationItem';
 import { navigate } from '../context/navigationContext.ts';
+import { SchoolDetailModal } from './schoolDetailsModal.tsx';
+import { DropOffStationDetailModal } from './dropOffStationModal.tsx';
 import {
   DashboardSummary,
   EntityPreviewSection,
@@ -535,6 +537,9 @@ export const SupportTicketSection = () => {
 export const Overview = () => {
   const admin = useAppSelector(state => state.admin);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [dropOffModalVisible, setdropOffModalVisible] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const fetchStats = async () => {
     const data = await getAdminMetricsAPI();
@@ -566,18 +571,34 @@ export const Overview = () => {
         />
       )}
       <EntityPreviewSection
-        title="Recent Institutions"
+        title="iCampus Authorized Institutions"
         items={stats?.recentSchools?.items || []}
         total={stats?.recentSchools?.total || 0}
         onViewAll={() => navigate('ViewAllSchools')}
-        onItemPress={item => navigate('ViewSchool', { schoolId: item.id })}
+        onItemPress={item => {
+          setSelectedId(item.id ? item.id : null);
+          setModalVisible(true);
+        }}
       />
       <EntityPreviewSection
         title="Recent Drop Off Stations"
         items={stats?.recentStations?.items || []}
         total={stats?.recentStations?.total || 0}
         onViewAll={() => navigate('ViewAllDropStations')}
-        onItemPress={item => navigate('ViewStation', { stationId: item.id })}
+        onItemPress={item => {
+          setSelectedId(item.id ? item.id : null);
+          setdropOffModalVisible(true);
+        }}
+      />
+      <SchoolDetailModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        schoolId={selectedId}
+      />
+      <DropOffStationDetailModal
+        visible={dropOffModalVisible}
+        onClose={() => setdropOffModalVisible(false)}
+        stationId={selectedId}
       />
     </View>
   );

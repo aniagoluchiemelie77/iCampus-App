@@ -371,6 +371,7 @@ export interface DropOffStation {
   code: string;        
   contactPerson?: string; 
   agentId: string;
+  images: string[];
   latitude?: number;
   longitude?: number;
   distance?: string;

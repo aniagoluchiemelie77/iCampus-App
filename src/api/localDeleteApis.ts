@@ -288,3 +288,41 @@ export const deleteAdminApi = async (uid: string) => {
     throw error;
   }
 };
+export const deleteInstitutionApi = async (id: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/institutions/${id}/delete`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to delete institution.' };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Error invoking deleteInstitutionApi:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};
+export const deleteDropOffStationApi = async (id: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/stations/${id}/delete`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to delete station.' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error invoking deleteDropOffStationApi:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

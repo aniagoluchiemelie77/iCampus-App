@@ -122,6 +122,8 @@ import { AdminFormPage } from './src/screens/AdminCreateOrEditScreen.tsx';
 import { TicketResolveScreen } from './src/screens/TicketResolveScreen.tsx';
 import { ViewAllSchoolsScreen } from './src/screens/ViewAllSchoolsScreen.tsx';
 import { ViewAllDropStations } from './src/screens/ViewAllDropStations.tsx';
+import { SchoolAorEScreen } from './src/screens/SchoolAorE.tsx';
+import { StationAorEScreen } from './src/screens/StationAorE.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
@@ -129,6 +131,12 @@ export type RootStackParamList = {
   AdminDashboard: undefined;
   ViewAllSchools: undefined;
   ViewAllDropStations: undefined;
+  StationAorEScreen: {
+    station?: any;
+  };
+  SchoolAorE: {
+    item?: any;
+  };
   FlutterwavePayment: {
     amount: number;
     iCashToCredit: number;
@@ -413,6 +421,11 @@ const App = () => {
                 options={{ headerShown: false }}
               />
               <Stack.Screen
+                name="StationAorEScreen"
+                component={StationAorEScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
                 name="AdminDashboard"
                 component={AdminDashboard}
                 options={{ headerShown: false }}
@@ -420,6 +433,11 @@ const App = () => {
               <Stack.Screen
                 name="ViewAllDropStations"
                 component={ViewAllDropStations}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="SchoolAorE"
+                component={SchoolAorEScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

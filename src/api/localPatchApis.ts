@@ -475,3 +475,36 @@ export const updateAdminUser = async (uid: string, updateData: any) => {
     return { success: false };
   }
 };
+export const updateInstitutionApi = async (id: string, updateData: any) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/institutions/${id}/update`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+
+    const data = await response.json();
+    return response.ok ? { success: true, data } : { success: false, error: data.message };
+  } catch (error) {
+    return { success: false, error: 'Network error.' };
+  }
+};
+export const updateStationApi = async (stationId: string, updateData: any) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/stations/${stationId}/update`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true, data: data.station } 
+      : { success: false, error: data.message || 'Failed to update station.' };
+  } catch (error) {
+    console.error("Update Station API Error:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

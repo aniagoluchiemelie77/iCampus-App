@@ -1802,3 +1802,33 @@ export const getDropOffStationsAPI = async (page: number, limit: number = 20) =>
     return [];
   }
 };
+export const getSchoolStatsApi = async (schoolId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/institutions/${schoolId}/get-details`, {
+      method: 'GET',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true, data } 
+      : { success: false, error: data.message || 'Failed to fetch statistics.' };
+  } catch (error) {
+    console.error("Fetch Stats API Error:", error);
+    return { success: false, error: 'Network error.' };
+  }
+};
+export const getStationDetailsApi = async (stationId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/stations/${stationId}/details`, {
+      method: 'GET',
+      headers: { ...headers },
+    });
+    const data = await response.json();
+    return response.ok ? { success: true, data } : { success: false, error: data.message };
+  } catch {
+    return { success: false, error: 'Network error.' };
+  }
+};
