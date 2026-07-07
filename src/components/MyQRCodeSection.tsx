@@ -540,6 +540,125 @@ export const FAQItem = ({ question, answer }: FAQItemProps) => {
     </View>
   );
 };
+export const StudentGradeCard = ({
+  student,
+  xFactor,
+}: {
+  student: any;
+  xFactor: number;
+}) => {
+  const { colors } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+
+  const rawTotal =
+    student.attendanceCount +
+    (student.testScores?.reduce((a: number, b: number) => a + b, 0) || 0);
+  const projectedScore = (rawTotal * xFactor).toFixed(2);
+
+  const toggleAccordion = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
+
+  return (
+    <View
+      style={[
+        QRCodeStyles.cardContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <TouchableOpacity onPress={toggleAccordion} style={QRCodeStyles.header}>
+        <View style={QRCodeStyles.headerLead2}>
+          <Text
+            style={[QRCodeStyles.productTitle, { color: colors.textDarker }]}
+          >
+            {student.studentName}
+          </Text>
+          <Text style={[QRCodeStyles.orderIdText, { color: colors.text }]}>
+            {student.matricNumber}
+          </Text>
+        </View>
+        <View style={QRCodeStyles.header}>
+          <Text
+            style={[
+              QRCodeStyles.productTitle,
+              { color: colors.textDarker, marginHorizontal: 6 },
+            ]}
+          >
+            {projectedScore}
+          </Text>
+          <MaterialIcons
+            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            size={24}
+            color={colors.text}
+          />
+        </View>
+      </TouchableOpacity>
+      {expanded && (
+        <View style={QRCodeStyles.expandedContent}>
+          <Text
+            style={[
+              QRCodeStyles.productTitle,
+              { color: colors.textDarker, marginBottom: 15 },
+            ]}
+          >
+            Performance Breakdown
+          </Text>
+          <Text style={[QRCodeStyles.text, { color: colors.text }]}>
+            Attendance Points: {student.attendanceSum}
+          </Text>
+          <Text
+            style={[
+              QRCodeStyles.text,
+              { color: colors.text, marginVertical: 15 },
+            ]}
+          >
+            Test Points: {student.testSum}
+          </Text>
+          <View
+            style={[QRCodeStyles.divider, { backgroundColor: colors.border }]}
+          />
+          <Text
+            style={[QRCodeStyles.productTitle, { color: colors.textDarker }]}
+          >
+            Total Calculated Score:{' '}
+            {((student.attendanceSum + student.testSum) * xFactor).toFixed(2)}
+          </Text>
+          <Text
+            style={[
+              QRCodeStyles.productTitle,
+              { color: colors.textDarker, marginBottom: 15 },
+            ]}
+          >
+            Activity Log
+          </Text>
+          {student.allActivities
+            .slice(0, 5)
+            .map((activity: any, index: number) => (
+              <View key={index}>
+                <Text
+                  style={[
+                    QRCodeStyles.text,
+                    { color: colors.text, marginBottom: 15 },
+                  ]}
+                >
+                  {activity.topicName || activity.testId || 'Exception Request'}
+                </Text>
+                <Text style={[QRCodeStyles.text, { color: colors.text }]}>
+                  {activity.score ? `+${activity.score} pts` : 'Verified'}
+                </Text>
+              </View>
+            ))}
+          {student.allActivities.length > 5 && (
+            <Text style={[QRCodeStyles.text, { color: colors.text }]}>
+              ... and {student.allActivities.length - 5} more entries
+            </Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
 
 const QRCodeStyles = StyleSheet.create({
   qrSection: {
@@ -591,9 +710,15 @@ const QRCodeStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerSubDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerLead: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    flex: 1,
+  },
+  headerLead2: {
     flex: 1,
   },
   statusDot: {
@@ -604,7 +729,10 @@ const QRCodeStyles = StyleSheet.create({
   },
   productTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
+  },
+  text: {
+    fontSize: 14,
   },
   orderIdText: {
     fontSize: 11,
@@ -708,5 +836,17 @@ const QRCodeStyles = StyleSheet.create({
   answerText: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  expandedContentSubdiv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  divider: {
+    height: 1,
+    width: '80%',
+    marginBottom: 8,
+    alignSelf: 'center',
   },
 });

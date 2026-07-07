@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from 'react';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { RNHTMLtoPDF } from 'react-native-html-to-pdf';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import {
   View,
@@ -77,6 +78,7 @@ import { formatDate } from '../utils/dateFormatter';
 import {
   fetchAllAssignments,
   getAssessmentAnalysisUrl,
+  fetchCourseGradebook,
 } from '../api/localGetApis';
 import { launchImageLibrary } from 'react-native-image-picker';
 import {
@@ -90,6 +92,7 @@ import {
 } from '../api/localGetApis';
 const math = create(all);
 import { PageHeader } from './PageHeader';
+import { StudentGradeCard } from './MyQRCodeSection';
 
 type PageType =
   | 'Course Contents'
@@ -100,7 +103,8 @@ type PageType =
   | 'Set Lecture Schedule'
   | 'View Lecture Schedule'
   | 'View Assessment Report'
-  | 'QuickPublicClass';
+  | 'QuickPublicClass'
+  | 'Grade Accelerator';
 interface LecturerManageProps {
   exceptions: CourseException[];
   searchQuery: string;
@@ -823,7 +827,13 @@ export const DetailHeader = ({
   userRole,
 }: HeaderProps) => {
   const { colors } = useTheme();
-  const shouldShowSearch = !(title === 'Assessments' && userRole === 'student');
+  const shouldShowSearch = !(
+    title === 'Assessments' ||
+    userRole === 'student' ||
+    title === 'QuickPublicClass' ||
+    title === 'Set Lecture Schedule' ||
+    title === 'Grade Accelerator'
+  );
 
   return (
     <>
@@ -1997,7 +2007,6 @@ export const RenderScheduleLecture = ({
     topicName: '',
     lectureType: 'Physical',
     location: '',
-    videoUrl: '',
     startTime: '08:00',
     endTime: '10:00',
     date: new Date().toISOString().split('T')[0],
@@ -2006,25 +2015,15 @@ export const RenderScheduleLecture = ({
     switch (form.lectureType) {
       case 'Online':
         return 'Auto generating icampus link...';
-      case 'Recorded':
-        return 'Paste lectures link';
       case 'Physical':
       default:
         return 'e.g. Lecture Hall 1, Room 302';
     }
   };
   const validateAndSave = () => {
-    const {
-      topicName,
-      location,
-      videoUrl,
-      date,
-      startTime,
-      endTime,
-      lectureType,
-    } = form;
-    const isRecorded = lectureType === 'Recorded';
-    const venueValue = isRecorded ? videoUrl : location;
+    const { topicName, location, date, startTime, endTime } = form;
+    const venueValue = location;
+    const isOnline = form.lectureType === 'Online';
 
     if (!topicName || !date || !startTime || !endTime || !venueValue) {
       setErrorMessage(
@@ -2048,8 +2047,7 @@ export const RenderScheduleLecture = ({
       courseId: course.courseId,
       topicName: form.topicName!,
       lectureType: form.lectureType as 'Physical' | 'Online',
-      location: form.location,
-      videoUrl: form.videoUrl,
+      location: isOnline ? '' : form.location,
       startTime: form.startTime!,
       endTime: form.endTime!,
       date: form.date!,
@@ -2061,8 +2059,6 @@ export const RenderScheduleLecture = ({
     switch (form.lectureType) {
       case 'Online':
         return 'Meeting Link';
-      case 'Recorded':
-        return 'Video URL';
       case 'Physical':
       default:
         return 'Physical Venue';
@@ -2099,19 +2095,6 @@ export const RenderScheduleLecture = ({
       setForm(prev => ({ ...prev, courseId: course.courseId }));
     }
   }, [course?.courseId]);
-  useEffect(() => {
-    if (form.lectureType === 'Online') {
-      const randomHash = Math.random().toString(36).substring(7);
-      const generatedLink = `https://live.useicampus.edu/${course.courseId}/${randomHash}`;
-      setForm(prev => ({
-        ...prev,
-        location: generatedLink,
-        videoUrl: '',
-      }));
-    } else if (form.lectureType === 'Recorded') {
-      setForm(prev => ({ ...prev, location: 'iCampus Video Player' }));
-    }
-  }, [form.lectureType, course.courseId]);
 
   return (
     <ScrollView
@@ -2147,7 +2130,7 @@ export const RenderScheduleLecture = ({
         Lecture Type
       </Text>
       <View style={CourseActionStyles.typeToggleContainer}>
-        {(['Physical', 'Online', 'Recorded'] as const).map(type => (
+        {(['Physical', 'Online'] as const).map(type => (
           <TouchableOpacity
             key={type}
             style={[
@@ -2176,39 +2159,34 @@ export const RenderScheduleLecture = ({
         style={[
           CourseActionStyles.inputContainer,
           { borderColor: colors.border },
+          form.lectureType === 'Online' && {
+            backgroundColor: colors.btnColor,
+          },
         ]}
       >
         <TextInput
           style={[
             CourseActionStyles.textInput,
             form.lectureType === 'Online' && {
-              backgroundColor: colors.btnColor,
               color: colors.btnTextColor,
             },
             { color: colors.text },
           ]}
           placeholder={getPlaceholder()}
-          value={
-            form.lectureType === 'Recorded' ? form.videoUrl : form.location
-          }
+          value={form.location}
           editable={form.lectureType !== 'Online'}
           onChangeText={val => {
-            if (form.lectureType === 'Recorded') {
-              setForm({ ...form, videoUrl: val });
-            } else {
-              setForm({ ...form, location: val });
-            }
+            setForm({ ...form, location: val });
           }}
           placeholderTextColor={colors.inputTextHolder}
         />
-        {form.lectureType === 'Online' &&
-          form.videoUrl.includes('useicampus.edu') && (
-            <MaterialIcons
-              name="check-circle-outlined"
-              size={17}
-              color={colors.btnTextColor}
-            />
-          )}
+        {form.lectureType === 'Online' && (
+          <MaterialIcons
+            name="check-circle-outlined"
+            size={16}
+            color={colors.btnTextColor}
+          />
+        )}
       </View>
 
       <View style={CourseActionStyles.dateTimeRow}>
@@ -2436,6 +2414,7 @@ export const RenderScheduleLecture = ({
 };
 export const QuickPublicMeeting = () => {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const [saving, setIsSaving] = useState(false);
   const [successData, setSuccessData] = useState<{ link: string } | null>(null);
   const [pickerMode, setPickerMode] = useState<
@@ -2663,6 +2642,7 @@ export const QuickPublicMeeting = () => {
                       title: 'Meeting Link',
                     });
                     setSuccessData(null);
+                    navigation.navigate('Home', { activeTab: 'classroom' });
                   } catch (error) {
                     console.error('Error sharing:', error);
                   }
@@ -5113,8 +5093,149 @@ export const AssessmentReportScreen = ({ route }: any) => {
     </ScrollView>
   );
 };
+export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
+  const { colors } = useTheme();
+  const [finalMark, setFinalMark] = useState('100');
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [attendanceWeight, setAttendanceWeight] = useState('40');
+  const [testWeight, setTestWeight] = useState('60');
+
+  const xFactor = parseFloat(finalMark) / 100;
+
+  const handleDownload = async () => {
+    const target = parseFloat(finalMark) || 100;
+    const attW = parseFloat(attendanceWeight) / 100;
+    const testW = parseFloat(testWeight) / 100;
+    const tableRows = data
+      .map(s => {
+        const attScore = (s.attendanceSum || 0) * attW;
+        const testScore = (s.testSum || 0) * testW;
+        const finalScore = (attScore + testScore) * (target / 100);
+        return `
+      <tr>
+        <td>${s.studentName}</td>
+        <td>${s.matricNumber}</td>
+        <td>${s.attendanceSum}</td>
+        <td>${s.testSum?.toFixed(2) || 0}</td>
+        <td><strong>${finalScore.toFixed(2)}</strong></td>
+      </tr>`;
+      })
+      .join('');
+
+    const htmlContent = `
+    <html>
+      <head>
+        <style>
+          table { width: 100%; border-collapse: collapse; font-family: Arial; }
+          th, td { border: 1px solid ${colors.border}; padding: 10px; text-align: left; }
+          th { background-color: ${colors.backgroundSecondary}; }
+        </style>
+      </head>
+      <body>
+        <h1>Gradebook Report</h1>
+        <p>Weights Applied: Attendance (${attendanceWeight}%), Tests (${testWeight}%)</p>
+        <table>
+          <tr>
+            <th>Name</th>
+            <th>Matric No</th>
+            <th>Attendance Score</th>
+            <th>Test Score</th>
+            <th>Final Weighted Score</th>
+          </tr>
+          ${tableRows}
+        </table>
+      </body>
+    </html>
+  `;
+
+    try {
+      const options = {
+        html: htmlContent,
+        fileName: 'Gradebook_Report',
+        directory: 'Documents',
+      };
+
+      const file = await RNHTMLtoPDF.convert(options);
+      await Share.share({
+        url: `file://${file.filePath}`,
+        title: 'Download Gradebook',
+      });
+    } catch (error) {
+      console.error('Export Error:', error);
+    }
+  };
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const result = await fetchCourseGradebook(courseId);
+
+    if (result.success) {
+      setData(result.data);
+    } else {
+      Alert.alert('Error', result.message);
+    }
+    setLoading(false);
+  }, [courseId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <PageHeader title="Grade Accelerator" />
+      <TextInput
+        value={finalMark}
+        onChangeText={setFinalMark}
+        keyboardType="numeric"
+      />
+      <TextInput
+        placeholder="Attendance Weight % (e.g., 40)"
+        value={attendanceWeight}
+        onChangeText={setAttendanceWeight}
+        keyboardType="numeric"
+      />
+      <TextInput
+        placeholder="Test Weight % (e.g., 60)"
+        value={testWeight}
+        onChangeText={setTestWeight}
+        keyboardType="numeric"
+      />
+      <TouchableOpacity onPress={handleDownload}>
+        <Text>Download Report</Text>
+      </TouchableOpacity>
+      {loading ? (
+        // 1. Loading View
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : data.length === 0 ? (
+        // 2. Empty View
+        <EmptyState
+          iconName="assessment"
+          title="No Grade Data Found"
+          subtitle="There are no activities recorded for this course yet."
+          buttonText="Refresh"
+          onPress={loadData}
+        />
+      ) : (
+        // 3. Main View
+        <>
+          <FlatList
+            data={data}
+            renderItem={({ item }) => (
+              <StudentGradeCard student={item} xFactor={xFactor} />
+            )}
+          />
+        </>
+      )}
+    </View>
+  );
+};
 export const CourseActionStyles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
+  safeArea: { flex: 1 },
   body: { flex: 1 },
   listPadding: { paddingHorizontal: 20, paddingBottom: 30 },
   sectionSubtitle: {

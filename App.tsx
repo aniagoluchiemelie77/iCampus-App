@@ -239,7 +239,8 @@ export type RootStackParamList = {
       | 'Assessments'
       | 'View Lecture Schedule'
       | 'View Assessment Report'
-      | 'QuickPublicClass';
+      | 'QuickPublicClass'
+      | 'Grade Accelerator';
     course?: Course;
     userRole: 'student' | 'lecturer' | 'otherUser';
     lectures?: Lecture[];

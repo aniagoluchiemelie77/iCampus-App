@@ -1832,3 +1832,35 @@ export const getStationDetailsApi = async (stationId: string) => {
     return { success: false, error: 'Network error.' };
   }
 };
+export const fetchCourseGradebook = async (courseId: string) => {
+  try {
+    const url = `${baseUrl}users/lecturers/class/${courseId}/get-performance-analysis`; 
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      return {
+        success: true,
+        data: result.data, 
+        message: 'Gradebook data loaded successfully',
+      };
+    }
+
+    return {
+      success: false,
+      message: result?.message || 'Failed to fetch gradebook',
+    };
+  } catch (error: any) {
+    console.error("Gradebook API Error:", error);
+    return {
+      success: false,
+      message: 'Network error while fetching gradebook',
+    };
+  }
+};

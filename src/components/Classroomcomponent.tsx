@@ -575,6 +575,17 @@ const CourseModal = ({
                       })
                     }
                   />
+                  <GridItem
+                    label="Performance Insights"
+                    iconName="insights"
+                    onPress={() =>
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Assessments',
+                        course,
+                        userRole: 'lecturer',
+                      })
+                    }
+                  />
                 </View>
               </>
             )}
