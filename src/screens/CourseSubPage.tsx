@@ -21,6 +21,7 @@ import {
   CourseActionStyles,
   LecturerLectureScheduleView,
   QuickPublicMeeting,
+  GradeAccelerator,
 } from '../components/CourseActionsComponent';
 import {
   getCourseDetails,
@@ -623,6 +624,9 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             onSave={handleCreateLecture}
             isLoading={loading}
           />
+        )}
+        {title === 'Grade Accelerator' && userRole === 'lecturer' && (
+          <GradeAccelerator courseId={course?.courseId!} />
         )}
         {title === 'QuickPublicClass' && <QuickPublicMeeting />}
         {title === 'Assessments' &&

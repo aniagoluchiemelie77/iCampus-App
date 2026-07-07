@@ -6,7 +6,7 @@ import React, {
   useMemo,
 } from 'react';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { RNHTMLtoPDF } from 'react-native-html-to-pdf';
+import * as RNHTMLtoPDF from 'react-native-html-to-pdf';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import {
   View,
@@ -4460,6 +4460,7 @@ export const LecturerLectureScheduleView = ({
   const [editDate, setEditDate] = useState(new Date());
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
+
   const sections = useMemo(() => {
     const groups = lectures.reduce((acc, lecture) => {
       const date = lecture.date;
@@ -5095,31 +5096,34 @@ export const AssessmentReportScreen = ({ route }: any) => {
 };
 export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
   const { colors } = useTheme();
-  const [finalMark, setFinalMark] = useState('100');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [attendanceWeight, setAttendanceWeight] = useState('40');
   const [testWeight, setTestWeight] = useState('60');
+  const [downloading, setDownloading] = useState(false);
 
-  const xFactor = parseFloat(finalMark) / 100;
+  const finalMark = parseFloat(testWeight) + parseFloat(attendanceWeight);
+  const xFactor = finalMark / 100;
 
   const handleDownload = async () => {
-    const target = parseFloat(finalMark) || 100;
+    setDownloading(true);
+    const target = finalMark || 100;
     const attW = parseFloat(attendanceWeight) / 100;
     const testW = parseFloat(testWeight) / 100;
+
     const tableRows = data
       .map(s => {
         const attScore = (s.attendanceSum || 0) * attW;
         const testScore = (s.testSum || 0) * testW;
         const finalScore = (attScore + testScore) * (target / 100);
         return `
-      <tr>
-        <td>${s.studentName}</td>
-        <td>${s.matricNumber}</td>
-        <td>${s.attendanceSum}</td>
-        <td>${s.testSum?.toFixed(2) || 0}</td>
-        <td><strong>${finalScore.toFixed(2)}</strong></td>
-      </tr>`;
+        <tr>
+          <td>${s.studentName}</td>
+          <td>${s.matricNumber}</td>
+          <td>${s.attendanceSum}</td>
+          <td>${s.testSum?.toFixed(2) || 0}</td>
+          <td><strong>${finalScore.toFixed(2)}</strong></td>
+        </tr>`;
       })
       .join('');
 
@@ -5155,12 +5159,15 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
         fileName: 'Gradebook_Report',
         directory: 'Documents',
       };
+      const file = await (RNHTMLtoPDF as any).convert(options);
 
-      const file = await RNHTMLtoPDF.convert(options);
-      await Share.share({
-        url: `file://${file.filePath}`,
-        title: 'Download Gradebook',
-      });
+      if (file.filePath) {
+        await Share.share({
+          url: `file://${file.filePath}`,
+          title: 'Download Gradebook',
+        });
+      }
+      setDownloading(false);
     } catch (error) {
       console.error('Export Error:', error);
     }
@@ -5176,43 +5183,87 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     }
     setLoading(false);
   }, [courseId]);
-
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="Grade Accelerator" />
-      <TextInput
-        value={finalMark}
-        onChangeText={setFinalMark}
-        keyboardType="numeric"
+      <MaterialIcons
+        name="poll-outlined"
+        size={60}
+        color={colors.textDarker}
+        style={CourseActionStyles.mainIcon}
       />
+      <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
+        Attendance Weight
+      </Text>
       <TextInput
         placeholder="Attendance Weight % (e.g., 40)"
         value={attendanceWeight}
         onChangeText={setAttendanceWeight}
         keyboardType="numeric"
+        style={[
+          CourseActionStyles.input,
+          {
+            color: colors.text,
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+        placeholderTextColor={colors.inputTextHolder}
       />
+      <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
+        Test Weight
+      </Text>
       <TextInput
         placeholder="Test Weight % (e.g., 60)"
         value={testWeight}
         onChangeText={setTestWeight}
         keyboardType="numeric"
+        style={[
+          CourseActionStyles.input,
+          {
+            color: colors.text,
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+        placeholderTextColor={colors.inputTextHolder}
       />
-      <TouchableOpacity onPress={handleDownload}>
-        <Text>Download Report</Text>
+      <TouchableOpacity
+        onPress={handleDownload}
+        style={[
+          CourseActionStyles.addBtn,
+          { backgroundColor: colors.btnColor },
+        ]}
+        disabled={downloading}
+      >
+        <Text
+          style={[
+            CourseActionStyles.addBtnText,
+            { color: colors.btnTextColor },
+          ]}
+        >
+          {downloading ? 'Downloading...' : 'Download Report'}
+        </Text>
       </TouchableOpacity>
       {loading ? (
-        // 1. Loading View
         <View
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+          style={[
+            CourseActionStyles.container,
+            { backgroundColor: colors.background },
+          ]}
         >
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : data.length === 0 ? (
-        // 2. Empty View
         <EmptyState
           iconName="assessment"
           title="No Grade Data Found"
@@ -5221,7 +5272,6 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
           onPress={loadData}
         />
       ) : (
-        // 3. Main View
         <>
           <FlatList
             data={data}
@@ -5383,7 +5433,7 @@ export const CourseActionStyles = StyleSheet.create({
     borderRadius: 12,
     padding: 15,
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 15,
   },
   modalActions: {
     flexDirection: 'row',
@@ -6595,4 +6645,6 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 10,
   },
   classActionBtnText: { fontSize: 14, fontWeight: 'bold', marginRight: 4 },
+  text: { fontSize: 14, fontWeight: 'bold', marginRight: 15 },
+  mainIcon: { marginVertical: 20, alignSelf: 'center' },
 });

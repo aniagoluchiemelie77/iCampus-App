@@ -14,7 +14,7 @@
 	<string>iCampus</string>
 	<key>CFBundleExecutable</key>
 	<key>NSMicrophoneUsageDescription</key>
-<string>iCampus requires temporary microphone access for live classroom voice interaction and automated transcription lines.</string>
+    <string>iCampus requires temporary microphone access for live classroom voice interaction and automated transcription lines.</string>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
@@ -31,7 +31,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>UIFileSharingEnabled</key>
-<true/>
+ <true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

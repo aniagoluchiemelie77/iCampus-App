@@ -397,7 +397,7 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Course Contents',
                         course: course,
-                        userRole: 'student',
+                        userRole: currentUser.usertype,
                       })
                     }
                   />
@@ -410,7 +410,8 @@ const CourseModal = ({
                         title: 'Course Materials',
                         course,
                         lectures: lectures,
-                        userRole: 'student',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
                       })
                     }
                   />
@@ -421,7 +422,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'View Lecture Schedule',
                         course,
-                        userRole: 'student',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
@@ -433,7 +436,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Assignments',
                         course,
-                        userRole: 'student',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
@@ -445,8 +450,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Exceptions',
                         course,
-                        userRole: 'student',
-                        exceptions: allExceptions, // Pass initial if available, else useEffect will fetch
+                        userRole: currentUser.usertype,
+                        exceptions: allExceptions,
+                        lectures: null,
                       });
                     }}
                   />
@@ -510,7 +516,6 @@ const CourseModal = ({
                     </View>
                   </View>
                 </View>
-
                 <View style={styles.iconGrid}>
                   <GridItem
                     label="Upload Course Materials"
@@ -519,7 +524,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Course Materials',
                         course,
-                        userRole: 'lecturer',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
@@ -538,7 +545,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Exceptions',
                         course,
-                        userRole: 'lecturer',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       });
                     }}
                   />
@@ -549,7 +558,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Assignments',
                         course,
-                        userRole: 'lecturer',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
@@ -560,7 +571,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'View Lecture Schedule',
                         course,
-                        userRole: 'lecturer',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
@@ -571,7 +584,9 @@ const CourseModal = ({
                       navigation.navigate('CourseSubPage', {
                         title: 'Assessments',
                         course,
-                        userRole: 'lecturer',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
@@ -580,9 +595,11 @@ const CourseModal = ({
                     iconName="insights"
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
-                        title: 'Assessments',
+                        title: 'Grade Accelerator',
                         course,
-                        userRole: 'lecturer',
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
                       })
                     }
                   />
