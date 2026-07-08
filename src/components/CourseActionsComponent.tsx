@@ -5101,38 +5101,49 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
   const [attendanceWeight, setAttendanceWeight] = useState('40');
   const [testWeight, setTestWeight] = useState('60');
   const [downloading, setDownloading] = useState(false);
+ const hasAttendance = data.some(s => s.attendanceRecords?.length > 0);
+ const hasTests = data.some(s => s.testSubmissions?.length > 0);
 
-  const finalMark = parseFloat(testWeight) + parseFloat(attendanceWeight);
-  const xFactor = finalMark / 100;
+ const finalMark =
+   (hasAttendance ? parseFloat(attendanceWeight || '0') : 0) +
+   (hasTests ? parseFloat(testWeight || '0') : 0);
+ const xFactor = finalMark / 100;
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    const target = finalMark || 100;
-    const attW = parseFloat(attendanceWeight) / 100;
-    const testW = parseFloat(testWeight) / 100;
+ const handleDownload = async () => {
+   setDownloading(true);
 
-    const tableRows = data
-      .map(s => {
-        const attScore = (s.attendanceSum || 0) * attW;
-        const testScore = (s.testSum || 0) * testW;
-        const finalScore = (attScore + testScore) * (target / 100);
-        return `
+   const attVal = hasAttendance ? parseFloat(attendanceWeight || '0') : 0;
+   const testVal = hasTests ? parseFloat(testWeight || '0') : 0;
+
+   const totalWeight = attVal + testVal || 1;
+
+   const attW = attVal / totalWeight;
+   const testW = testVal / totalWeight;
+
+   const tableRows = data
+     .map(s => {
+       const attScore = (s.attendanceSum || 0) * attW;
+       const testScore = (s.testSum || 0) * testW;
+       const finalScore = attScore + testScore;
+       return `
         <tr>
           <td>${s.studentName}</td>
           <td>${s.matricNumber}</td>
-          <td>${s.attendanceSum}</td>
-          <td>${s.testSum?.toFixed(2) || 0}</td>
+          ${hasAttendance ? `<td>${s.attendanceSum}</td>` : ''}
+          ${hasTests ? `<td>${s.testSum?.toFixed(2) || 0}</td>` : ''}
           <td><strong>${finalScore.toFixed(2)}</strong></td>
         </tr>`;
-      })
-      .join('');
+     })
+     .join('');
 
-    const htmlContent = `
+   const htmlContent = `
     <html>
       <head>
         <style>
           table { width: 100%; border-collapse: collapse; font-family: Arial; }
-          th, td { border: 1px solid ${colors.border}; padding: 10px; text-align: left; }
+          th, td { border: 1px solid ${
+            colors.border
+          }; padding: 10px; text-align: left; }
           th { background-color: ${colors.backgroundSecondary}; }
         </style>
       </head>
@@ -5143,8 +5154,8 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
           <tr>
             <th>Name</th>
             <th>Matric No</th>
-            <th>Attendance Score</th>
-            <th>Test Score</th>
+            ${hasAttendance ? '<th>Attendance Score</th>' : ''}
+            ${hasTests ? '<th>Test Score</th>' : ''}
             <th>Final Weighted Score</th>
           </tr>
           ${tableRows}
@@ -5153,136 +5164,147 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     </html>
   `;
 
-    try {
-      const options = {
-        html: htmlContent,
-        fileName: 'Gradebook_Report',
-        directory: 'Documents',
-      };
-      const file = await (RNHTMLtoPDF as any).convert(options);
+   try {
+     const options = {
+       html: htmlContent,
+       fileName: 'Gradebook_Report',
+       directory: 'Documents',
+     };
+     const file = await (RNHTMLtoPDF as any).convert(options);
 
-      if (file.filePath) {
-        await Share.share({
-          url: `file://${file.filePath}`,
-          title: 'Download Gradebook',
-        });
-      }
-      setDownloading(false);
-    } catch (error) {
-      console.error('Export Error:', error);
-    }
-  };
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const result = await fetchCourseGradebook(courseId);
+     if (file.filePath) {
+       await Share.share({
+         url: `file://${file.filePath}`,
+         title: 'Download Gradebook',
+       });
+     }
+     setDownloading(false);
+   } catch (error) {
+     console.error('Export Error:', error);
+   }
+ };
+ const loadData = useCallback(async () => {
+   setLoading(true);
+   const result = await fetchCourseGradebook(courseId);
 
-    if (result.success) {
-      setData(result.data);
-    } else {
-      Alert.alert('Error', result.message);
-    }
-    setLoading(false);
-  }, [courseId]);
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+   if (result.success) {
+     setData(result.data);
+   } else {
+     Alert.alert('Error', result.message);
+   }
+   setLoading(false);
+ }, [courseId]);
+ useEffect(() => {
+   loadData();
+ }, [loadData]);
 
-  return (
-    <View
-      style={[
-        CourseActionStyles.container,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      <PageHeader title="Grade Accelerator" />
-      <MaterialIcons
-        name="poll-outlined"
-        size={60}
-        color={colors.textDarker}
-        style={CourseActionStyles.mainIcon}
-      />
-      <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
-        Attendance Weight
-      </Text>
-      <TextInput
-        placeholder="Attendance Weight % (e.g., 40)"
-        value={attendanceWeight}
-        onChangeText={setAttendanceWeight}
-        keyboardType="numeric"
-        style={[
-          CourseActionStyles.input,
-          {
-            color: colors.text,
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border,
-          },
-        ]}
-        placeholderTextColor={colors.inputTextHolder}
-      />
-      <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
-        Test Weight
-      </Text>
-      <TextInput
-        placeholder="Test Weight % (e.g., 60)"
-        value={testWeight}
-        onChangeText={setTestWeight}
-        keyboardType="numeric"
-        style={[
-          CourseActionStyles.input,
-          {
-            color: colors.text,
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border,
-          },
-        ]}
-        placeholderTextColor={colors.inputTextHolder}
-      />
-      <TouchableOpacity
-        onPress={handleDownload}
-        style={[
-          CourseActionStyles.addBtn,
-          { backgroundColor: colors.btnColor },
-        ]}
-        disabled={downloading}
-      >
-        <Text
-          style={[
-            CourseActionStyles.addBtnText,
-            { color: colors.btnTextColor },
-          ]}
-        >
-          {downloading ? 'Downloading...' : 'Download Report'}
-        </Text>
-      </TouchableOpacity>
-      {loading ? (
-        <View
-          style={[
-            CourseActionStyles.container,
-            { backgroundColor: colors.background },
-          ]}
-        >
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : data.length === 0 ? (
-        <EmptyState
-          iconName="assessment"
-          title="No Grade Data Found"
-          subtitle="There are no activities recorded for this course yet."
-          buttonText="Refresh"
-          onPress={loadData}
-        />
-      ) : (
-        <>
-          <FlatList
-            data={data}
-            renderItem={({ item }) => (
-              <StudentGradeCard student={item} xFactor={xFactor} />
-            )}
-          />
-        </>
-      )}
-    </View>
-  );
+ return (
+   <View
+     style={[
+       CourseActionStyles.container,
+       { backgroundColor: colors.background },
+     ]}
+   >
+     <PageHeader title="Grade Accelerator" />
+     <MaterialIcons
+       name="poll-outlined"
+       size={60}
+       color={colors.textDarker}
+       style={CourseActionStyles.mainIcon}
+     />
+     {hasAttendance && (
+       <>
+         <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
+           Attendance Weight
+         </Text>
+         <TextInput
+           placeholder="Attendance Weight % (e.g., 40)"
+           value={attendanceWeight}
+           onChangeText={setAttendanceWeight}
+           keyboardType="numeric"
+           style={[
+             CourseActionStyles.input,
+             {
+               color: colors.text,
+               backgroundColor: colors.backgroundSecondary,
+               borderColor: colors.border,
+             },
+           ]}
+           placeholderTextColor={colors.inputTextHolder}
+         />
+       </>
+     )}
+     {hasTests && (
+       <>
+         <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
+           Test Weight
+         </Text>
+         <TextInput
+           placeholder="Test Weight % (e.g., 60)"
+           value={testWeight}
+           onChangeText={setTestWeight}
+           keyboardType="numeric"
+           style={[
+             CourseActionStyles.input,
+             {
+               color: colors.text,
+               backgroundColor: colors.backgroundSecondary,
+               borderColor: colors.border,
+             },
+           ]}
+           placeholderTextColor={colors.inputTextHolder}
+         />
+       </>
+     )}
+     {hasTests ||
+       (hasAttendance && (
+         <TouchableOpacity
+           onPress={handleDownload}
+           style={[
+             CourseActionStyles.addBtn,
+             { backgroundColor: colors.btnColor },
+           ]}
+           disabled={downloading}
+         >
+           <Text
+             style={[
+               CourseActionStyles.addBtnText,
+               { color: colors.btnTextColor },
+             ]}
+           >
+             {downloading ? 'Downloading...' : 'Download Report'}
+           </Text>
+         </TouchableOpacity>
+       ))}
+     {loading ? (
+       <View
+         style={[
+           CourseActionStyles.container,
+           { backgroundColor: colors.background },
+         ]}
+       >
+         <ActivityIndicator size="large" color={colors.primary} />
+       </View>
+     ) : data.length === 0 ? (
+       <EmptyState
+         iconName="assessment"
+         title="No Grade Data Found"
+         subtitle="There are no activities recorded for this course yet."
+         buttonText="Refresh"
+         onPress={loadData}
+       />
+     ) : (
+       <>
+         <FlatList
+           data={data}
+           renderItem={({ item }) => (
+             <StudentGradeCard student={item} xFactor={xFactor} />
+           )}
+         />
+       </>
+     )}
+   </View>
+ );
 };
 export const CourseActionStyles = StyleSheet.create({
   safeArea: { flex: 1 },
