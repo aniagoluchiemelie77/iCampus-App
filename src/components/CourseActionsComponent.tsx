@@ -6670,3 +6670,4 @@ export const CourseActionStyles = StyleSheet.create({
   text: { fontSize: 14, fontWeight: 'bold', marginRight: 15 },
   mainIcon: { marginVertical: 20, alignSelf: 'center' },
 });
+
