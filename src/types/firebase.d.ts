@@ -224,7 +224,6 @@ export interface User {
   jobTitle?: string;
   verificationToken?: string;
   email: string;
-  communitiesId?: Community.communitiesId[];
   pointsBalance?: number;
   pendingSalesBalance?: number;
   staffId?: string;
@@ -243,21 +242,19 @@ export interface User {
   suspiciousActivity?: SuspiciousActivity[]; 
   phoneNumbers?: PhoneNumber[];
   country?: string;
-  badges?: string[];
   schoolCode?: string;
   current_level?: string;
   coursesEnrolled?: Course['courseId'];
   blockedUsers?: string[];
-  appVersion?: iCampusAppDetails.appVersion;
-  isVerified?: boolean
-  userToken?: string,
+  isVerified?: boolean;
+  userToken?: string;
   tokenCreatedAt?: string,
   coursesTeaching?: Course['courseId'];
   cart?: CartItem[];
   favorites?: string[];
   purchaseHistory?: Order['orderId']; 
   salesHistory?: Order['orderId'];
-  userAccountDetails?: UserBankOrCardDetails.cardOrBankDetailsId[];
+  userAccountDetails?: UserBankOrCardDetails['userId'];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string,
   currentIScore?: number,
