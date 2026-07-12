@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useMemo,
-} from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   FlatList,
   View,
@@ -12,11 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
-import Geolocation from 'react-native-geolocation-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { PageHeader } from '../components/PageHeader';
@@ -28,20 +19,17 @@ import { CartItem } from '../components/CartItem';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
 import Toast from 'react-native-toast-message';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { initializeCheckoutTransaction } from '../api/localPostApis';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
-import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useDispatch } from 'react-redux';
 import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import { setUser } from '../context/UserSlice.ts';
-import {
-  TRANSACTION_TAX_RATE,
-  HOME_DELIVERY_RATE,
-  DROP_OFF_FEE,
-} from '../constants/inAppConstants';
+import { useCheckout } from '../hooks/useCheckout.ts';
+import { HOME_DELIVERY_RATE, DROP_OFF_FEE } from '../constants/inAppConstants';
 import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
+import { useLocationServices } from '../hooks/useLocationService.ts';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 
 const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
@@ -61,164 +49,29 @@ export const CheckoutScreen = () => {
   const params = useMemo(() => {
     return (route.params || {}) as CheckoutScreenParams;
   }, [route.params]);
-  const isDirectPurchase = !!params?.productId;
   const [isSubscriptionModalVisible, setSubscriptionModalVisible] =
     useState(false);
   const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
-  const [userCoords, setUserCoords] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [locationPermission, setLocationPermission] =
-    useState<string>('undetermined');
-  const [phoneNumber, setPhoneNumber] = useState(
-    currentUser?.phoneNumbers?.[0]?.number || '',
-  );
-  const [formattedValue, setFormattedValue] = useState(
-    currentUser?.phoneNumbers?.[0]?.number || '',
-  );
-  const [isPhoneValid, setIsPhoneValid] = useState(
-    !!currentUser?.phoneNumbers?.[0]?.number,
-  );
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [selectedStations, setSelectedStations] = useState<Record<string, any>>(
-    {},
-  );
-  const [exchangeData, setExchangeData] = useState({
-    rate: 1,
-    symbol: '$',
-    code: 'USD',
-  });
 
-  const isMounted = useRef(true);
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-  const checkoutItems = useMemo(() => {
-    const rawItems = isDirectPurchase
-      ? [
-          {
-            productId: params.productId!,
-            quantity: params.quantity || 1,
-            selectedColor: params.selectedColor,
-            selectedSize: params.selectedSize,
-          },
-        ]
-      : currentUser?.cart ?? [];
-
-    return rawItems
-      .map(item => ({
-        ...item,
-        product: allProducts?.find(p => p.productId === item.productId),
-      }))
-      .filter(item => item.product !== undefined);
-  }, [isDirectPurchase, params, currentUser?.cart, allProducts]);
-
-  // Handle baseline delivery default mapping states safely
-  const [itemDeliveryMethods, setItemDeliveryMethods] = useState<
-    Record<string, string>
-  >({});
-
-  // Synchronize delivery method map defaults only when data dependencies adjust
-  useEffect(() => {
-    const initialMethods = checkoutItems.reduce<Record<string, string>>(
-      (acc, item) => {
-        acc[item.productId] = 'drop_off';
-        return acc;
-      },
-      {},
-    );
-    setItemDeliveryMethods(initialMethods);
-  }, [checkoutItems]);
-
-  const toggleDelivery = useCallback((productId: string, method: string) => {
-    setItemDeliveryMethods(prev => ({ ...prev, [productId]: method }));
-  }, []);
-
-  // MEMOIZED FINANCIAL ENGINE: Computes totals in a single unified thread pass
-  const transactionalFinances = useMemo(() => {
-    const subtotal = checkoutItems.reduce((acc, item) => {
-      return acc + (item.product?.priceInPoints || 0) * item.quantity;
-    }, 0);
-
-    const totalDeliveryFee = checkoutItems.reduce((acc, item) => {
-      if (item.product?.type !== 'physical') return acc;
-      const method = itemDeliveryMethods[item.productId] || 'drop_off';
-      return (
-        acc +
-        (method === 'home_delivery'
-          ? (item.product.priceInPoints || 0) *
-            item.quantity *
-            HOME_DELIVERY_RATE
-          : DROP_OFF_FEE)
-      );
-    }, 0);
-
-    const transactionTax = subtotal * TRANSACTION_TAX_RATE;
-    const grandTotal = subtotal + transactionTax + totalDeliveryFee;
-    const userBalance = currentUser?.pointsBalance || 0;
-
-    return {
-      subtotal,
-      totalDeliveryFee,
-      transactionTax,
-      grandTotal,
-      canAfford: userBalance >= grandTotal,
-      userBalance,
-    };
-  }, [checkoutItems, itemDeliveryMethods, currentUser?.pointsBalance]);
-
-  // Segregate categorized elements efficiently to isolate processing targets
-  const { homeItems, dropOffItems } = useMemo(() => {
-    const home: typeof checkoutItems = [];
-    const dropOff: typeof checkoutItems = [];
-    checkoutItems.forEach(item => {
-      if (itemDeliveryMethods[item.productId] === 'home_delivery') {
-        home.push(item);
-      } else {
-        dropOff.push(item);
-      }
-    });
-    return { homeItems: home, dropOffItems: dropOff };
-  }, [checkoutItems, itemDeliveryMethods]);
-
-  // FORM SECURITY PRE-FLIGHT EVALUATION
-  const formValidation = useMemo(() => {
-    const missingStation = dropOffItems.find(
-      item =>
-        item.product?.type === 'physical' && !selectedStations[item.productId],
-    );
-
-    if (missingStation)
-      return {
-        valid: false,
-        reason: `Select a drop-off location for ${missingStation.product?.title}`,
-      };
-
-    if (homeItems.length > 0) {
-      if (!isPhoneValid)
-        return {
-          valid: false,
-          reason: 'Provide a valid phone contact configuration.',
-        };
-      if (!deliveryAddress.trim())
-        return {
-          valid: false,
-          reason: 'Provide a delivery target address destination.',
-        };
-    }
-
-    return { valid: true, reason: '' };
-  }, [
+  const {
+    checkoutItems,
+    transactionalFinances,
+    formValidation,
+    phoneNumber,
+    deliveryAddress,
+    setDeliveryAddress,
+    itemDeliveryMethods,
+    selectedStations,
+    handleStationSelect,
+    handlePhoneChange,
+    formattedValue,
+    toggleDelivery,
+    isPhoneValid,
     dropOffItems,
     homeItems,
-    selectedStations,
-    isPhoneValid,
-    deliveryAddress,
-  ]);
+  } = useCheckout(params, currentUser, allProducts);
+  const { userCoords, locationPermission } = useLocationServices();
+  const exchangeData = useExchangeRate(currentUser?.country);
 
   const handleProceedToVerify = useCallback(() => {
     if (!transactionalFinances.canAfford) {
@@ -249,26 +102,6 @@ export const CheckoutScreen = () => {
     formValidation.valid,
     formValidation.reason,
   ]);
-
-  const handlePhoneChange = useCallback(
-    (text: string) => {
-      setPhoneNumber(text);
-      const country = currentUser?.country || 'NG';
-      const phoneNumberObj = parsePhoneNumberFromString(text, country as any);
-      if (phoneNumberObj) {
-        const isValid = phoneNumberObj.isValid();
-        setIsPhoneValid(isValid);
-        if (isValid) setFormattedValue(phoneNumberObj.formatInternational());
-      } else {
-        setIsPhoneValid(false);
-      }
-    },
-    [currentUser?.country],
-  );
-
-  const handleStationSelect = useCallback((productId: string, station: any) => {
-    setSelectedStations(prev => ({ ...prev, [productId]: station }));
-  }, []);
 
   const onVerificationSuccess = async () => {
     setIsVerifyModalVisible(false);
@@ -333,48 +166,6 @@ export const CheckoutScreen = () => {
       });
     }
   };
-
-  const getLocation = () => {
-    Geolocation.getCurrentPosition(
-      position => {
-        if (isMounted.current) {
-          setUserCoords({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        }
-      },
-      error => console.log('[GEOLOCATION_ERROR]', error.message),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-    );
-  };
-
-  const checkLocationPermission = useCallback(async () => {
-    const status = await request(
-      Platform.OS === 'ios'
-        ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
-        : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-    );
-    if (!isMounted.current) return;
-    setLocationPermission(status);
-    if (status === RESULTS.GRANTED) getLocation();
-  }, []);
-
-  useEffect(() => {
-    checkLocationPermission();
-  }, [checkLocationPermission]);
-
-  useEffect(() => {
-    let active = true;
-    if (currentUser?.country) {
-      fetchLiveRate(currentUser.country).then(data => {
-        if (active && isMounted.current && data) setExchangeData(data);
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [currentUser?.country]);
 
   const renderItem = useCallback(
     ({ item }: { item: any }) => {
@@ -692,7 +483,6 @@ export const CheckoutScreen = () => {
     );
   }, [
     dropOffItems,
-    homeItems,
     selectedStations,
     phoneNumber,
     isPhoneValid,
@@ -704,6 +494,8 @@ export const CheckoutScreen = () => {
     handleProceedToVerify,
     locationPermission,
     userCoords,
+    setDeliveryAddress,
+    homeItems.length,
   ]);
 
   return (

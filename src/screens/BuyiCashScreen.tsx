@@ -16,14 +16,15 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
-import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
-import { UserBankOrCardDetails } from 'types/firebase';
+import { UserBankOrCardDetails } from '../types/firebase';
 const { width } = Dimensions.get('window');
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
-import { getUserPaymentMethods } from 'api/localGetApis.ts';
+import { getUserPaymentMethods } from '../api/localGetApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
+import { USD_EQUIVALENCE_OF_1_ICASH } from '../constants/inAppConstants.ts';
 export const CARD_WIDTH = width * 0.6;
 
 interface PaymentMethodCardProps {
@@ -44,9 +45,7 @@ export const PaymentMethodCard = React.memo(
         style={[
           iCashActionsStyles.card,
           {
-            borderColor: isSelected
-              ? colors.primary
-              : colors.border,
+            borderColor: isSelected ? colors.primary : colors.border,
             backgroundColor: isSelected
               ? colors.primary
               : colors.backgroundSecondary,
@@ -97,51 +96,25 @@ export const ICashBuyPage = ({ navigation }: any) => {
 
   // Structural State Matrix
   const [amount, setAmount] = useState('');
-  const [localCurrencySymbol, setLocalCurrencySymbol] = useState('₦');
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
   const [selectedMethod, setSelectedMethod] =
     useState<UserBankOrCardDetails | null>(null);
 
-  const [currencyData, setCurrencyData] = useState({
-    rate: 1550,
-    code: 'NGN',
-  });
-
-  const EXCHANGE_RATE_USD = 0.74;
   const hasPaymentMethod = savedMethods.length > 0;
 
-  // Consolidate Rates and Symbols in a Single Safe Hook Pass
-  useEffect(() => {
-    let isMounted = true;
-    const initializeMarketData = async () => {
-      try {
-        const data = await fetchLiveRate(user?.country || 'Nigeria');
-        if (isMounted && data) {
-          setCurrencyData({ rate: data.rate, code: data.code });
-          setLocalCurrencySymbol(data.symbol || '₦');
-        }
-      } catch (error) {
-        console.error('[MARKET_DATA_SYNC_ERROR]', error);
-      }
-    };
-    initializeMarketData();
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.country]);
+  const { rate, code, symbol } = useExchangeRate(user?.country || 'Nigeria');
 
   // Handle Dynamic Presentation Numbers securely with Memoization
   const iCashEquivalent = useMemo(() => {
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) return '0.00';
 
-    // Mitigate micro precision leaks for display boundaries
-    const inUsd = numericAmount / currencyData.rate;
-    const calculatedICash = inUsd / EXCHANGE_RATE_USD;
+    const inUsd = numericAmount / rate;
+    const calculatedICash = inUsd / USD_EQUIVALENCE_OF_1_ICASH;
     return calculatedICash.toFixed(2);
-  }, [amount, currencyData.rate]);
+  }, [amount, rate]);
 
   // Payment Methods Loader Hook
   const fetchPaymentMethods = useCallback(async () => {
@@ -189,7 +162,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
 
       const payload = {
         amount: numericAmount,
-        currency: currencyData.code,
+        currency: code,
         userId: user.uid,
         paymentToken: selectedMethod.paymentToken,
         methodType: selectedMethod.method,
@@ -216,7 +189,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
                 params: {
                   amountPurchased: parseFloat(iCashEquivalent),
                   amountPaid: numericAmount,
-                  currency: currencyData.code,
+                  currency: code,
                   type: 'buy',
                 },
               },
@@ -264,7 +237,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
           <Text
             style={[iCashActionsStyles.currencyPrefix, { color: colors.text }]}
           >
-            {localCurrencySymbol}
+            {symbol}
           </Text>
           <TextInput
             style={[iCashActionsStyles.inputBorderless, { color: colors.text }]}
@@ -289,8 +262,8 @@ export const ICashBuyPage = ({ navigation }: any) => {
               { color: colors.primary },
             ]}
           >
-            1 iCash ≈ {localCurrencySymbol}
-            {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
+            1 iCash ≈ {symbol}
+            {(USD_EQUIVALENCE_OF_1_ICASH * rate).toFixed(2)}
           </Text>
         </View>
 
@@ -371,7 +344,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
       <AddPaymentModal
         visible={showAddCardModal}
         onClose={() => setShowAddCardModal(false)}
-        currencyData={currencyData}
+        currencyData={{ rate, code }}
         user={user}
       />
     </ScrollView>
