@@ -342,29 +342,90 @@ export const ChatScreen = ({ route, navigation }: Props) => {
     setInputText('');
   };
 
-  socketInstance.on('message_edited', ({ messageId, newText }) => {
-    // This listener triggers for the RECIPIENT when the sender edits a message
-    setMessages(prev =>
-      prev.map(m =>
-        m.id === messageId ? { ...m, text: newText, isEdited: true } : m,
-      ),
-    );
-  });
+  useEffect(() => {
+    if (!currentUser?.uid) return;
 
-  socketInstance.on('message_deleted', ({ messageId }) => {
-    // This listener triggers for the RECIPIENT when the sender deletes a message
-    setMessages(prev =>
-      prev.map(m =>
-        m.id === messageId
-          ? {
-              ...m,
-              status: 'deleted',
-              text: `${recipient?.firstname || 'User'} deleted this message`,
-            }
-          : m,
-      ),
+    const socketInstance = io(baseUrl, {
+      transports: ['websocket'],
+      query: { userId: currentUser.uid },
+      autoConnect: true,
+    });
+    socketRef.current = socketInstance;
+
+    const roomId = [currentUser.uid, recipientId].sort().join('_');
+    socketInstance.emit('join_chat', { roomId });
+    loadHistory(1);
+
+    socketInstance.on('receive_message', (newMessage: ChatMessage) => {
+      setMessages(prev =>
+        prev.some(m => m.id === newMessage.id) ? prev : [newMessage, ...prev],
+      );
+      socketInstance.emit('msg_delivered', {
+        messageId: newMessage.id,
+        senderId: newMessage.senderId,
+      });
+    });
+    socketInstance.on('messages_seen', ({ readerId }: { readerId: string }) => {
+      if (readerId === stateRef.current.recipientId) {
+        setMessages(prev =>
+          prev.map(m => (m.status !== 'seen' ? { ...m, status: 'seen' } : m)),
+        );
+      }
+    });
+    socketInstance.on(
+      'status_update',
+      ({
+        messageId,
+        status,
+      }: {
+        messageId: string;
+        status: ChatMessage['status'];
+      }) => {
+        setMessages(prev =>
+          prev.map(msg => (msg.id === messageId ? { ...msg, status } : msg)),
+        );
+      },
     );
-  });
+
+    socketInstance.on(
+      'message_edited',
+      ({ messageId, newText }: { messageId: string; newText: string }) => {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId ? { ...m, text: newText, isEdited: true } : m,
+          ),
+        );
+      },
+    );
+
+    socketInstance.on(
+      'message_deleted',
+      ({ messageId }: { messageId: string }) => {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  status: 'deleted',
+                  text: `${
+                    recipient?.firstname || 'The other user'
+                  } deleted this message`,
+                }
+              : m,
+          ),
+        );
+      },
+    );
+    return () => {
+      socketInstance.off('receive_message');
+      socketInstance.off('messages_seen');
+      socketInstance.off('status_update');
+      socketInstance.off('message_edited');
+      socketInstance.off('message_deleted');
+      socketInstance.disconnect();
+      socketRef.current = null;
+    };
+  }, [currentUser.uid, recipientId, loadHistory, recipient]);
 
   return (
     <KeyboardAvoidingView
