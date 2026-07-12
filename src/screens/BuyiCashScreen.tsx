@@ -94,7 +94,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
   const route = useRoute();
   const user = useAppSelector(state => state.user);
 
-  // Structural State Matrix
   const [amount, setAmount] = useState('');
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,7 +105,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
 
   const { rate, code, symbol } = useExchangeRate(user?.country || 'Nigeria');
 
-  // Handle Dynamic Presentation Numbers securely with Memoization
   const iCashEquivalent = useMemo(() => {
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) return '0.00';
@@ -115,8 +113,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
     const calculatedICash = inUsd / USD_EQUIVALENCE_OF_1_ICASH;
     return calculatedICash.toFixed(2);
   }, [amount, rate]);
-
-  // Payment Methods Loader Hook
   const fetchPaymentMethods = useCallback(async () => {
     if (!user?.uid) return;
     try {
@@ -127,7 +123,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
     }
   }, [user?.uid]);
 
-  // Navigation Route Pipeline Polling Management
   const needsRefresh = (route.params as any)?.refresh;
   useEffect(() => {
     fetchPaymentMethods();
@@ -158,7 +153,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
     }
 
     try {
-      setIsSubmitting(true); // Lock transactional interface execution thread
+      setIsSubmitting(true);
 
       const payload = {
         amount: numericAmount,
@@ -166,8 +161,6 @@ export const ICashBuyPage = ({ navigation }: any) => {
         userId: user.uid,
         paymentToken: selectedMethod.paymentToken,
         methodType: selectedMethod.method,
-        // Provided strictly for frontend analytics reference tracking;
-        // Your server must recalculate this value to prevent API payload modification.
         iCashAmount: parseFloat(iCashEquivalent),
         country: user.country,
       };

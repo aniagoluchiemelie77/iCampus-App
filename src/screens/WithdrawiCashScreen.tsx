@@ -8,6 +8,7 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 import { initializeWithdrawTransaction } from '../api/localPostApis';
@@ -16,11 +17,15 @@ import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { useRoute } from '@react-navigation/native';
-import { fetchLiveRate } from '../utils/UserTransactionsHelpers.tsx';
 import { UserBankOrCardDetails } from '../types/firebase';
 import { getUserPaymentMethods } from '../api/localGetApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {
+  USD_EQUIVALENCE_OF_1_ICASH,
+  WITHDRAWAL_FEE_PERCENT,
+} from '../constants/inAppConstants.ts';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 
 export const ICashWithdrawPage = ({ navigation }: any) => {
   const { colors } = useTheme();
@@ -28,22 +33,16 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
   const user = useAppSelector(state => state.user);
   const [iCashAmount, setICashAmount] = useState('');
   const [showAddCardModal, setShowAddCardModal] = useState(false);
-  const [currencyData, setCurrencyData] = useState({
-    rate: 1550,
-    code: 'NGN',
-    symbol: '₦',
-  });
+  const currencyData = useExchangeRate(user?.country || 'Nigeria');
   const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
   const [selectedMethod, setSelectedMethod] =
     useState<UserBankOrCardDetails | null>(null);
   const hasPaymentMethod = savedMethods.length > 0;
-  const EXCHANGE_RATE_USD = 0.74;
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [step, setStep] = useState<'details' | 'pin'>('details');
-  const [_isProcessing, setIsProcessing] = useState(false);
-  const WITHDRAWAL_FEE_PERCENT = 0.01;
+  const [isProcessing, setIsProcessing] = useState(false);
   const rawAmount =
-    parseFloat(iCashAmount) * EXCHANGE_RATE_USD * currencyData.rate;
+    parseFloat(iCashAmount) * USD_EQUIVALENCE_OF_1_ICASH * currencyData.rate;
   const fee = rawAmount * WITHDRAWAL_FEE_PERCENT;
   const finalPayout = rawAmount - fee;
   const fetchPaymentMethods = useCallback(async () => {
@@ -51,37 +50,6 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
     const methods = await getUserPaymentMethods(user.uid);
     setSavedMethods(methods);
   }, [user?.uid]);
-  useEffect(() => {
-    const getLiveRate = async () => {
-      try {
-        const data = await fetchLiveRate(user?.country || 'Nigeria');
-        setCurrencyData({
-          rate: data.rate,
-          code: data.code,
-          symbol: data.symbol,
-        });
-      } catch (error) {
-        console.error('Failed to update rates:', error);
-      }
-    };
-    getLiveRate();
-  }, [user?.country]);
-  useEffect(() => {
-    let isMounted = true;
-    const getLiveRate = async () => {
-      const data = await fetchLiveRate(user?.country || 'Nigeria');
-      if (isMounted)
-        setCurrencyData({
-          rate: data.rate,
-          code: data.code,
-          symbol: data.symbol,
-        });
-    };
-    getLiveRate();
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.country]);
   const needsRefresh = (route.params as any)?.refresh;
   useEffect(() => {
     fetchPaymentMethods();
@@ -166,7 +134,7 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
   const numericICash = parseFloat(iCashAmount) || 0;
   const localCurrencyEquivalent = (
     numericICash *
-    EXCHANGE_RATE_USD *
+    USD_EQUIVALENCE_OF_1_ICASH *
     currencyData.rate
   ).toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -175,9 +143,12 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
   const isButtonDisabled = useMemo(() => {
     const amount = parseFloat(iCashAmount) || 0;
     return (
-      amount <= 0 || amount > (user?.pointsBalance || 0) || !selectedMethod
+      amount <= 0 ||
+      amount > (user?.pointsBalance || 0) ||
+      !selectedMethod ||
+      isProcessing
     );
-  }, [iCashAmount, user?.pointsBalance, selectedMethod]);
+  }, [iCashAmount, user?.pointsBalance, selectedMethod, isProcessing]);
   const withdrawalMethods = savedMethods.filter(type => type.method === 'bank');
   return (
     <ScrollView
@@ -225,7 +196,7 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
             ]}
           >
             1 iCash ≈ {currencyData.symbol}{' '}
-            {(EXCHANGE_RATE_USD * currencyData.rate).toFixed(2)}
+            {(USD_EQUIVALENCE_OF_1_ICASH * currencyData.rate).toFixed(2)}
           </Text>
         </View>
         <Text style={[iCashActionsStyles.resultLabel, { color: colors.text }]}>
@@ -297,15 +268,19 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
               { color: colors.btnTextColor },
             ]}
           >
-            {!iCashAmount || parseFloat(iCashAmount) <= 0
-              ? 'Enter Amount'
-              : parseFloat(iCashAmount) > (user?.pointsBalance || 0)
-              ? 'Insufficient Balance'
-              : !hasPaymentMethod
-              ? 'Add Bank Account'
-              : !selectedMethod
-              ? 'Select a Bank Account'
-              : 'Confirm Withdrawal'}
+            {!iCashAmount || parseFloat(iCashAmount) <= 0 ? (
+              'Enter Amount'
+            ) : parseFloat(iCashAmount) > (user?.pointsBalance || 0) ? (
+              'Insufficient Balance'
+            ) : !hasPaymentMethod ? (
+              'Add Bank Account'
+            ) : !selectedMethod ? (
+              'Select a Bank Account'
+            ) : isProcessing ? (
+              <ActivityIndicator size={'small'} color={colors.btnTextColor} />
+            ) : (
+              'Confirm Withdrawal'
+            )}
           </Text>
         </TouchableOpacity>
       </View>

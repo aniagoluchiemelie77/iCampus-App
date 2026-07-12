@@ -22,14 +22,10 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { initializeCheckoutTransaction } from '../api/localPostApis';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
-import { useDispatch } from 'react-redux';
-import { verifySubscriptionOnBackend } from '../api/localPostApis';
-import { setUser } from '../context/UserSlice.ts';
 import { useCheckout } from '../hooks/useCheckout.ts';
-import { HOME_DELIVERY_RATE, DROP_OFF_FEE } from '../constants/inAppConstants';
-import { SubscriptionSelectionModal } from '../components/SubscriptionModal.tsx';
+import { DELIVERY_FEES } from '../constants/inAppConstants';
 import { useLocationServices } from '../hooks/useLocationService.ts';
-import { useExchangeRate } from '../hooks/useExchangeRate.ts';
+import { StationCarousel } from '../components/StationCarousel.tsx';
 
 const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
@@ -43,14 +39,11 @@ export const CheckoutScreen = () => {
   const { colors } = useTheme();
   const route = useRoute();
   const navigation = useNavigation<any>();
-  const dispatch = useDispatch();
   const currentUser = useAppSelector(state => state.user);
   const { allProducts } = useAppDataContext();
   const params = useMemo(() => {
     return (route.params || {}) as CheckoutScreenParams;
   }, [route.params]);
-  const [isSubscriptionModalVisible, setSubscriptionModalVisible] =
-    useState(false);
   const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
 
   const {
@@ -71,7 +64,6 @@ export const CheckoutScreen = () => {
     homeItems,
   } = useCheckout(params, currentUser, allProducts);
   const { userCoords, locationPermission } = useLocationServices();
-  const exchangeData = useExchangeRate(currentUser?.country);
 
   const handleProceedToVerify = useCallback(() => {
     if (!transactionalFinances.canAfford) {
@@ -171,22 +163,30 @@ export const CheckoutScreen = () => {
     ({ item }: { item: any }) => {
       const isPhysical = item.product?.type === 'physical';
       const selectedMethod = itemDeliveryMethods[item.productId] || 'drop_off';
-      const sellerSupportsHome =
-        item.product?.physicalDetails?.sellerGateways?.includes(
-          'home_delivery',
-        );
-      const isProUser =
-        currentUser?.tier === 'pro' || currentUser?.tier === 'premium';
-      const canShowHomeToggle = isProUser && sellerSupportsHome;
-      const currentItemFee =
-        selectedMethod === 'home_delivery' ? HOME_DELIVERY_RATE : DROP_OFF_FEE;
+      const gateways = item.product?.physicalDetails?.sellerGateways || [];
+      const hasHome = gateways.includes('home_delivery');
+      const stations = item.product?.physicalDetails?.dropOffAddress || [];
+      const hasDropOff = stations.length > 0;
+      const tier = currentUser?.tier || 'free';
+      const rate =
+        DELIVERY_FEES[tier as keyof typeof DELIVERY_FEES][
+          selectedMethod as 'home_delivery' | 'drop_off'
+        ];
+      const canToggle = hasHome && hasDropOff;
+      const isOnlyHome = hasHome && !hasDropOff;
+      const isOnlyDropOff = !hasHome && hasDropOff;
 
       return (
-        <View style={styles.itemWrapper}>
+        <View
+          style={[
+            styles.itemWrapper,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <CartItem cartEntry={item} product={item.product!} />
           {isPhysical && (
             <View style={styles.itemDeliveryContainer}>
-              {canShowHomeToggle ? (
+              {canToggle && (
                 <View style={styles.miniToggleRow}>
                   <View
                     style={[
@@ -194,6 +194,7 @@ export const CheckoutScreen = () => {
                       { borderColor: colors.border },
                     ]}
                   >
+                    {/* Drop-off Button */}
                     <TouchableOpacity
                       onPress={() => toggleDelivery(item.productId, 'drop_off')}
                       style={[
@@ -223,9 +224,11 @@ export const CheckoutScreen = () => {
                           },
                         ]}
                       >
-                        Drop-off
+                        Drop-off Station
                       </Text>
                     </TouchableOpacity>
+
+                    {/* Home Button */}
                     <TouchableOpacity
                       onPress={() =>
                         toggleDelivery(item.productId, 'home_delivery')
@@ -257,45 +260,64 @@ export const CheckoutScreen = () => {
                           },
                         ]}
                       >
-                        Home
+                        Home Delivery
                       </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={{ color: colors.text }}>
-                    {toPercentLabel(currentItemFee)}
+                  <Text style={[styles.rateText, { color: colors.textDarker }]}>
+                    + {toPercentLabel(rate)}
                   </Text>
                 </View>
-              ) : (
-                <View style={styles.defaultDeliveryInfo}>
-                  <MaterialIcons
-                    name="local-shipping"
-                    size={16}
-                    color={colors.text}
-                  />
+              )}
+
+              {/* --- SCENARIO B: Only Home --- */}
+              {isOnlyHome && (
+                <Text style={[styles.rateText, { color: colors.text }]}>
+                  Home Delivery Only
+                </Text>
+              )}
+
+              {/* --- SCENARIO C: Only Drop-off (Show Carousel) --- */}
+              {isOnlyDropOff && (
+                <View>
                   <Text
-                    style={[styles.defaultDeliveryText, { color: colors.text }]}
+                    style={[
+                      styles.rateText,
+                      { color: colors.textDarker, marginBottom: 10 },
+                    ]}
                   >
-                    Drop-off Station Only ({toPercentLabel(currentItemFee)})
+                    Select Drop-off Station
                   </Text>
-                  {!isProUser && (
-                    <TouchableOpacity
-                      style={[
-                        styles.proBanner,
-                        { backgroundColor: colors.btnColor },
-                      ]}
-                      onPress={() => setSubscriptionModalVisible(true)}
-                    >
-                      <Text
-                        style={{
-                          color: colors.btnTextColor,
-                          fontSize: 11,
-                          fontWeight: '600',
-                        }}
-                      >
-                        Upgrade to Pro for Home Delivery
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  <StationCarousel
+                    stations={stations}
+                    selectedStation={selectedStations[item.productId]}
+                    onSelect={station =>
+                      handleStationSelect(item.productId, station)
+                    }
+                    userCoords={userCoords}
+                  />
+                </View>
+              )}
+
+              {/* --- Conditional Carousel for Scenario A (when Drop-off is selected) --- */}
+              {canToggle && selectedMethod === 'drop_off' && (
+                <View>
+                  <Text
+                    style={[
+                      styles.rateText,
+                      { color: colors.textDarker, marginBottom: 10 },
+                    ]}
+                  >
+                    Select Drop-off Station
+                  </Text>
+                  <StationCarousel
+                    stations={stations}
+                    selectedStation={selectedStations[item.productId]}
+                    onSelect={station =>
+                      handleStationSelect(item.productId, station)
+                    }
+                    userCoords={userCoords}
+                  />
                 </View>
               )}
             </View>
@@ -303,7 +325,15 @@ export const CheckoutScreen = () => {
         </View>
       );
     },
-    [itemDeliveryMethods, colors, currentUser?.tier, toggleDelivery],
+    [
+      itemDeliveryMethods,
+      colors,
+      currentUser?.tier,
+      toggleDelivery,
+      userCoords,
+      handleStationSelect,
+      selectedStations,
+    ],
   );
 
   const renderFooter = useMemo(() => {
@@ -518,43 +548,6 @@ export const CheckoutScreen = () => {
         onSuccess={onVerificationSuccess}
         title="Confirm Purchase"
       />
-      <SubscriptionSelectionModal
-        isVisible={isSubscriptionModalVisible}
-        onClose={() => setSubscriptionModalVisible(false)}
-        targetTier="pro"
-        userContext={{
-          email: currentUser?.email || '',
-          name: `${currentUser?.firstname || ''} ${
-            currentUser?.lastname || ''
-          }`,
-          country: currentUser?.country || 'NG',
-        }}
-        exchangeData={exchangeData}
-        onSuccess={async (data: any) => {
-          setSubscriptionModalVisible(false);
-          const res = await verifySubscriptionOnBackend(
-            data.transaction_id || data.flw_ref,
-            'pro',
-            exchangeData.rate,
-          );
-          if (res?.success) {
-            Toast.show({
-              type: 'success',
-              text1: 'Success',
-              text2: 'Upgrade to Pro user successful.',
-            });
-            // Consumes dispatch here to transition user state locally
-            dispatch(
-              setUser({
-                ...currentUser,
-                tier: 'pro',
-                hasSubscribed: true,
-              }),
-            );
-          }
-        }}
-        title="Upgrade to enable home delivery"
-      />
     </SafeAreaView>
   );
 };
@@ -613,6 +606,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 10,
   },
   miniToggleBtnRow: {
     flexDirection: 'row',
@@ -730,7 +724,8 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: PRIMARY_COLOR_TINT, 
+    backgroundColor: PRIMARY_COLOR_TINT,
     marginVertical: 16,
   },
+  rateText: { fontSize: 14, fontWeight: 'bold' },
 });

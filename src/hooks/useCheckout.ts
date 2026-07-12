@@ -7,8 +7,7 @@ import {
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
   TRANSACTION_TAX_RATE,
-  HOME_DELIVERY_RATE,
-  DROP_OFF_FEE,
+  DELIVERY_FEES
 } from '../constants/inAppConstants';
 import {CartItem, Product} from '../types/firebase';
 
@@ -69,37 +68,29 @@ export const useCheckout = (params: CheckoutScreenParams, currentUser: any, allP
         return { homeItems: home, dropOffItems: dropOff };
       }, [checkoutItems, itemDeliveryMethods]);
 
-   const transactionalFinances = useMemo(() => {
-      const subtotal = checkoutItems.reduce((acc, item) => {
-        return acc + (item.product?.priceInPoints || 0) * item.quantity;
-      }, 0);
+   // Inside useCheckout hook
+const transactionalFinances = useMemo(() => {
+  const tier = (currentUser?.tier as 'free' | 'pro' | 'premium') || 'free';
   
-      const totalDeliveryFee = checkoutItems.reduce((acc, item) => {
-        if (item.product?.type !== 'physical') return acc;
-        const method = itemDeliveryMethods[item.productId] || 'drop_off';
-        return (
-          acc +
-          (method === 'home_delivery'
-            ? (item.product.priceInPoints || 0) *
-              item.quantity *
-              HOME_DELIVERY_RATE
-            : DROP_OFF_FEE)
-        );
-      }, 0);
-  
-      const transactionTax = subtotal * TRANSACTION_TAX_RATE;
-      const grandTotal = subtotal + transactionTax + totalDeliveryFee;
-      const userBalance = currentUser?.pointsBalance || 0;
-  
-      return {
-        subtotal,
-        totalDeliveryFee,
-        transactionTax,
-        grandTotal,
-        canAfford: userBalance >= grandTotal,
-        userBalance,
-      };
-    }, [checkoutItems, itemDeliveryMethods, currentUser?.pointsBalance]);
+  const subtotal = checkoutItems.reduce((acc, item) => {
+    return acc + (item.product?.priceInPoints || 0) * item.quantity;
+  }, 0);
+
+  const totalDeliveryFee = checkoutItems.reduce((acc, item) => {
+    if (item.product?.type !== 'physical') return acc;
+    
+    const method = itemDeliveryMethods[item.productId] || 'drop_off';
+    const rate = DELIVERY_FEES[tier][method as 'home_delivery' | 'drop_off'];
+    
+    return acc + (item.product.priceInPoints || 0) * item.quantity * rate;
+  }, 0);
+
+  const transactionTax = subtotal * TRANSACTION_TAX_RATE;
+  const grandTotal = subtotal + transactionTax + totalDeliveryFee;
+  const userBalance = currentUser?.pointsBalance || 0;
+
+  return { subtotal, totalDeliveryFee, transactionTax, grandTotal, canAfford: userBalance >= grandTotal, userBalance };
+}, [checkoutItems, itemDeliveryMethods, currentUser?.pointsBalance, currentUser?.tier]);
 
   const formValidation = useMemo(() => {
       const missingStation = dropOffItems.find(

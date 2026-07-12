@@ -15,8 +15,23 @@ export const USD_SUBSCRIPTION_PRICES = {
 export const EXCEPTION_COST_IN_ICASH = 0.5 as const;
 export const USD_EQUIVALENCE_OF_1_ICASH = 0.74 as const;
 export const TRANSACTION_TAX_RATE = 0.02 as const;
+export const WITHDRAWAL_FEE_PERCENT = 0.01 as const;
 export const HOME_DELIVERY_RATE = 0.02 as const;
 export const DROP_OFF_FEE = 0.06 as const;
+export const DELIVERY_FEES = {
+  free: {
+    home_delivery: 0.09, 
+    drop_off: 0.07,      
+  },
+  pro: {
+    home_delivery: 0.06, 
+    drop_off: 0.04,      
+  },
+  premium: {
+    home_delivery: 0.03, 
+    drop_off: 0.02,      
+  },
+} as const;
 export const EXCEPTION_ACCOUNT_LIMITS = {
   free: 1,
   pro: 2,

@@ -362,7 +362,7 @@ export interface GeolocationError {
   TIMEOUT: number;
 }
 export interface DropOffStation {
-  id?: string;
+  id: string;
   name: string;        
   address: string;     
   code: string;        

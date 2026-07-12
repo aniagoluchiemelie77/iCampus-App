@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Dimensions, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  Dimensions,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
 import { useAppSelector } from '../hooks/hooks';
 import { PayWithFlutterwave } from 'flutterwave-react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { PageHeader } from '../components/PageHeader';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User } from '../types/firebase';
@@ -13,6 +19,7 @@ import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
 import { USD_SUBSCRIPTION_PRICES } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
@@ -98,11 +105,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const [selectedTier, setSelectedTier] = useState(tier);
   const [isPayModalVisible, setPayModalVisible] = useState(false);
   const { targetScreen } = route.params || {};
-  const [exchangeData, setExchangeData] = useState({
-    rate: 1,
-    symbol: '$',
-    code: 'USD',
-  });
+  const exchangeData = useExchangeRate(country || 'Nigeria');
   const getLocalPriceValue = React.useCallback(
     (id: string) => {
       const tierMap: Record<string, keyof typeof USD_SUBSCRIPTION_PRICES> = {
@@ -156,13 +159,6 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
       });
     }
   };
-  useEffect(() => {
-    const getRate = async () => {
-      const data = await fetchLiveRate(country!);
-      setExchangeData(data);
-    };
-    getRate();
-  }, [country]);
   const renderCustomButton = React.useCallback(
     (props: any) => (
       <FlutterwaveButton
@@ -345,23 +341,35 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   planName: { fontSize: 14, fontWeight: 'bold' },
-  featureRow: { flexDirection: 'row', alignItems: 'center'},
+  featureRow: { flexDirection: 'row', alignItems: 'center' },
   featureText: { marginLeft: 8, fontSize: 14 },
   badgeText: { fontSize: 12, fontWeight: 'bold' },
-  payButton: { paddingHorizontal: 16, borderRadius: 15, alignContent: 'center', marginTop: 8, width: '80%', paddingVertical: 10, alignSelf: 'center' },
+  payButton: {
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    alignContent: 'center',
+    marginTop: 8,
+    width: '80%',
+    paddingVertical: 10,
+    alignSelf: 'center',
+  },
   payButtonText: { fontSize: 14, fontWeight: 'bold' },
   horizontalWrapper: {
     marginVertical: 20,
   },
   horizontalScrollContent: {
-    paddingHorizontal: 20, 
+    paddingHorizontal: 20,
   },
   card: {
     borderRadius: 20,
     padding: 20,
-    marginRight: 20, 
+    marginRight: 20,
     height: 400,
     elevation: 4,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -372,10 +380,10 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   currentPlanBorder: {
-    borderColor: PRIMARY_COLOR_TINT, 
+    borderColor: PRIMARY_COLOR_TINT,
   },
   selectedCard: {
-    borderColor: PRIMARY_COLOR, 
+    borderColor: PRIMARY_COLOR,
   },
   currentPlanLabel: {
     position: 'absolute',
@@ -439,7 +447,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     marginTop: 15,
     alignItems: 'center',
-    padding: 15,    
+    padding: 15,
     borderRadius: 15,
     alignSelf: 'center',
     alignContent: 'center',
