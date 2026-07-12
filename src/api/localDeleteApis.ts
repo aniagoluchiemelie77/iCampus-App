@@ -326,3 +326,23 @@ export const deleteDropOffStationApi = async (id: string) => {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const deleteMessageApi = async (messageId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/messages/${messageId}/delete`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to delete message.' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error invoking deleteMessageApi:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

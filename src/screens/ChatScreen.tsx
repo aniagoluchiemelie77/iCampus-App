@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { searchUsers, fetchMessages } from '../api/localGetApis.ts';
+import { deleteMessageApi } from '../api/localDeleteApis.ts';
+import { editMessageApi } from '../api/localPatchApis.ts';
 import { UserIdentity } from '../components/UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { MessageBubble } from '../components/ChatMessageBubble.tsx';
@@ -42,6 +44,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   const [recipient, setRecipient] = useState<User | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -251,6 +254,117 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       }
     }
   };
+  const handleEditRequest = (message: ChatMessage) => {
+    setEditingMessageId(message.id);
+    setInputText(message.text ?? '');
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    const previousMessages = [...messages];
+
+    try {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, status: 'deleted', text: 'You deleted this message' }
+            : m,
+        ),
+      );
+      const response = await deleteMessageApi(messageId);
+      if (!response.success) {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Failed',
+          text2:
+            response.error || 'Could not delete the message. Please try again.',
+        });
+      }
+      socketRef.current?.emit('delete_message', {
+        messageId,
+        recipientId,
+      });
+    } catch (error) {
+      console.error('Delete failed', error);
+      setMessages(previousMessages);
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Failed',
+        text2: 'Could not delete the message. Please try again.',
+      });
+    }
+  };
+
+  const updateMessage = async (messageId: string, newText: string) => {
+    const previousMessages = [...messages];
+
+    try {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId ? { ...m, text: newText, isEdited: true } : m,
+        ),
+      );
+      const response = await editMessageApi(messageId, newText);
+
+      if (!response.success) {
+        Toast.show({
+          type: 'error',
+          text1: 'Edit Failed',
+          text2:
+            response.error || 'Could not update the message. Please try again.',
+        });
+      }
+      socketRef.current?.emit('edit_message', {
+        messageId,
+        newText,
+        recipientId,
+      });
+      Toast.show({
+        type: 'success',
+        text1: 'Message Updated',
+      });
+    } catch (error) {
+      console.error('Edit failed', error);
+      setMessages(previousMessages);
+      Toast.show({
+        type: 'error',
+        text1: 'Edit Failed',
+        text2: 'Could not update the message. Please try again.',
+      });
+    }
+  };
+  const handleSendMessage = async () => {
+    if (editingMessageId) {
+      await updateMessage(editingMessageId, inputText.trim());
+      setEditingMessageId(null);
+    } else {
+      sendMessage();
+    }
+    setInputText('');
+  };
+
+  socketInstance.on('message_edited', ({ messageId, newText }) => {
+    // This listener triggers for the RECIPIENT when the sender edits a message
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId ? { ...m, text: newText, isEdited: true } : m,
+      ),
+    );
+  });
+
+  socketInstance.on('message_deleted', ({ messageId }) => {
+    // This listener triggers for the RECIPIENT when the sender deletes a message
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              status: 'deleted',
+              text: `${recipient?.firstname || 'User'} deleted this message`,
+            }
+          : m,
+      ),
+    );
+  });
 
   return (
     <KeyboardAvoidingView
@@ -302,7 +416,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       <FlatList
         ref={flatListRef}
         data={messages}
-        inverted={true} // High performance message structure handling mechanism
+        inverted={true}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <MessageBubble
@@ -311,6 +425,8 @@ export const ChatScreen = ({ route, navigation }: Props) => {
             type="p2p"
             timestamp={item.timestamp}
             status={item.status}
+            onEdit={() => handleEditRequest(item)}
+            onDelete={() => deleteMessage(item.id)}
           />
         )}
         onEndReached={handleLoadMore}
@@ -334,11 +450,10 @@ export const ChatScreen = ({ route, navigation }: Props) => {
           ) : null
         }
       />
-
       <ChatInput
         value={inputText}
         onChangeText={setInputText}
-        onSend={sendMessage}
+        onSend={handleSendMessage}
         onPickImage={handlePickImage}
         onPickDocument={handlePickDocument}
         placeholder={`Send ${recipient?.firstname || 'message'}...`}
@@ -347,19 +462,19 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
     borderBottomWidth: 0.8,
-    marginHorizontal: -15
+    marginHorizontal: -15,
   },
   profileSummary: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 10,
-    flex: 1
+    flex: 1,
   },
   headerAvatar: {
     width: 35,

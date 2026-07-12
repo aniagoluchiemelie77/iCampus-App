@@ -508,3 +508,21 @@ export const updateStationApi = async (stationId: string, updateData: any) => {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const editMessageApi = async (messageId: string, newText: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/messages/${messageId}/update`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: newText }),
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true } 
+      : { success: false, error: data.message || 'Failed to edit message.' };
+  } catch (error) {
+    console.error("Edit Message API Error:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

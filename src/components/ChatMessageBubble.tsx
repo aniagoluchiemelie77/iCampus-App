@@ -1,7 +1,14 @@
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import React from 'react';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { formatTime } from '../utils/ChatTimestampFormatter';
 import { Attachment } from '../types/firebase';
 import { downloadFile } from '../utils/downloadHelper';
@@ -12,8 +19,11 @@ interface MessageBubbleProps {
   isUser: boolean;
   type?: 'ai' | 'p2p';
   timestamp?: string;
-  status?: 'sent' | 'delivered' | 'seen';
+  status: 'sent' | 'delivered' | 'seen' | 'deleted';
   attachments?: Attachment[];
+  isEdited?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 export const MessageBubble = ({
   content,
@@ -22,15 +32,32 @@ export const MessageBubble = ({
   timestamp,
   status,
   attachments,
+  isEdited,
+  onEdit,
+  onDelete,
 }: MessageBubbleProps) => {
   const { colors } = useTheme();
-  console.log(type);
+  const isDeleted = status === 'deleted';
   return (
-    <View
+    <TouchableOpacity
       style={[
         isUser ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' },
         { maxWidth: '85%', marginVertical: 5 },
       ]}
+      onLongPress={() => {
+        if (isUser && type === 'p2p' && !isDeleted) {
+          Alert.alert('Message Options', 'Choose an action', [
+            { text: 'Edit', onPress: () => onEdit?.() },
+            {
+              text: 'Delete',
+              onPress: () => onDelete?.(),
+              style: 'destructive',
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]);
+        }
+      }}
+      disabled={!isUser || type !== 'p2p'}
     >
       <View
         style={[
@@ -92,9 +119,10 @@ export const MessageBubble = ({
           </View>
         )}
 
-        <Text style={[styles.text, { color: '#fff' }]}>{content}</Text>
-
-        {(timestamp || status) && (
+        <Text style={[styles.text, { color: '#fff' }]}>
+          {isDeleted ? 'This message was deleted' : content}
+        </Text>
+        {(timestamp || status) && !isDeleted && (
           <View style={styles.footer}>
             {timestamp && (
               <Text
@@ -114,6 +142,16 @@ export const MessageBubble = ({
                 color={'#fff'}
               />
             )}
+            {isEdited && (
+              <Text
+                style={[
+                  styles.timeText,
+                  { color: isUser ? 'rgba(255, 255, 255, 0.7)' : '#fff' },
+                ]}
+              >
+                Edited
+              </Text>
+            )}
           </View>
         )}
 
@@ -126,7 +164,7 @@ export const MessageBubble = ({
           ]}
         />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 const styles = StyleSheet.create({

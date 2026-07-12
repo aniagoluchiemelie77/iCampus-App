@@ -3,7 +3,7 @@ import { NavigationProp } from '@react-navigation/native';
 export type UserType = 'student' | 'lecturer' | 'otherUser' | 'enterprise';
 export type TransactionType = 'buy' | 'withdraw' | 'transfer' | 'recieve';
 export type PurchaseTransactionType = 'pending' | 'successful' | 'rejected';
-export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen';
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen' | 'deleted';
 export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
@@ -18,7 +18,7 @@ export type SuspiciousActivityType =
   | "FAILED_PIN_ATTEMPT";
 export interface SuspiciousActivity {
   type: SuspiciousActivityType;
-  timestamp: string; // Use string for frontend dates coming from JSON APIs
+  timestamp: string; 
 }
 export interface PhoneNumber {
   number: string;
@@ -873,6 +873,7 @@ export interface ChatMessage {
   status: MessageStatus;
   attachments?: Attachment[];
   isEdited?: boolean;
+  deletedBy?: string;
 }
 export type AssistantMessage = {
   role: 'user' | 'model';

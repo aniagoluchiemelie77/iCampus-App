@@ -1480,7 +1480,7 @@ export const homeStyles = StyleSheet.create({
     borderRadius: 19,
   },
   fab: {
-    position: 'absolute',
+    position: 'static',
     bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR, 
@@ -1497,7 +1497,7 @@ export const homeStyles = StyleSheet.create({
     zIndex: 100,
   },
   fabLower: {
-    position: 'absolute',
+    position: 'static',
     bottom: 20,
     right: 20,
     backgroundColor: PRIMARY_COLOR, 
