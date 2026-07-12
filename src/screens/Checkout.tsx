@@ -364,10 +364,8 @@ export const CheckoutScreen = () => {
                     const isSelected =
                       selectedStations[item.productId]?.id === stationId;
 
-                    // RESTORE CONSUMPTION: Reads userCoords to compute station distance metrics
                     let distanceStr = '';
                     if (userCoords && station.latitude && station.longitude) {
-                      // Assuming your getDistanceInMiles utility function is imported globally
                       const miles = getDistanceInMiles(
                         userCoords.lat,
                         userCoords.lng,
@@ -467,8 +465,6 @@ export const CheckoutScreen = () => {
             />
           </View>
         )}
-
-        {/* Totals Breakdown */}
         <View style={styles.divider} />
         <View style={styles.summaryRow}>
           <Text style={{ color: colors.text }}>Subtotal</Text>

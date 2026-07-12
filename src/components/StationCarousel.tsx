@@ -6,17 +6,22 @@ import {DropOffStation} from '../types/firebase';
 
 interface StationCarouselProps {
   stations: DropOffStation[];
-  selectedStation: DropOffStation | null;
-  onSelect: (station: DropOffStation) => void;
+  selectedStation?: DropOffStation | null;
+  onSelect?: (station: DropOffStation) => void;
   userCoords: { lat: number; lng: number } | null;
 }
 interface StationCardProps {
   item: DropOffStation;
-  isSelected: boolean;
-  onSelect: (station: DropOffStation) => void;
+  isSelected?: boolean;
+  onSelect?: (station: DropOffStation) => void;
   userCoords: { lat: number; lng: number } | null;
 }
-const StationCard = ({ item, isSelected, onSelect, userCoords }: StationCardProps) => {
+const StationCard = ({
+  item,
+  isSelected,
+  onSelect,
+  userCoords,
+}: StationCardProps) => {
   const { colors } = useTheme();
   const images = useMemo(() => item.images || [], [item.images]);
   const [index, setIndex] = useState(0);
@@ -25,38 +30,53 @@ const StationCard = ({ item, isSelected, onSelect, userCoords }: StationCardProp
   useEffect(() => {
     if (images.length <= 1) return;
     const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % images.length);
+      setIndex(prev => (prev + 1) % images.length);
     }, 3000);
     return () => clearInterval(interval);
   }, [images]);
 
-  const distance = userCoords 
-    ? getDistanceInMiles(userCoords.lat, userCoords.lng, item.latitude || 0, item.longitude || 0).toFixed(1) 
+  const distance = userCoords
+    ? getDistanceInMiles(
+        userCoords.lat,
+        userCoords.lng,
+        item.latitude || 0,
+        item.longitude || 0,
+      ).toFixed(1)
     : 'N/A';
 
   return (
-    <TouchableOpacity 
-      onPress={() => onSelect(item)}
+    <TouchableOpacity
+      onPress={() => onSelect && onSelect(item)}
       style={[
-        styles.card, 
-        { 
-          backgroundColor: colors.backgroundSecondary, 
+        styles.card,
+        {
+          backgroundColor: colors.backgroundSecondary,
           borderColor: isSelected ? colors.primary : 'transparent',
-          width: width * 0.8, 
-        }
+          width: width * 0.8,
+        },
       ]}
     >
       <Image source={{ uri: images[index] }} style={styles.image} />
       <View style={styles.info}>
-        <Text style={[styles.name, { color: colors.textDarker }]} numberOfLines={1}>{item.name}</Text>
-        <Text style={[styles.address, { color: colors.text + '99' }]} numberOfLines={2}>{item.address}</Text>
+        <Text
+          style={[styles.name, { color: colors.textDarker }]}
+          numberOfLines={1}
+        >
+          {item.name}
+        </Text>
+        <Text
+          style={[styles.address, { color: colors.text + '99' }]}
+          numberOfLines={2}
+        >
+          {item.address}
+        </Text>
         <Text style={[styles.distance, { color: colors.primary }]}>
-  {parseFloat(distance) < 1 
-    ? 'Less than 1 mile away' 
-    : parseFloat(distance) === 1 
-      ? '1 mile away' 
-      : `${distance} miles away`}
-</Text>
+          {parseFloat(distance) < 1
+            ? 'Less than 1 mile away'
+            : parseFloat(distance) === 1
+            ? '1 mile away'
+            : `${distance} miles away`}
+        </Text>
       </View>
     </TouchableOpacity>
   );

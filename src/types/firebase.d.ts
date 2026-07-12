@@ -237,6 +237,7 @@ export interface User {
   profilePic?: string[];
   hasSubscribed: boolean;
   createdAt: string;
+  isStillInSchool?: boolean;
   twoFactorEnabled?: boolean;
   lastLogin?: string;
   suspiciousActivity?: SuspiciousActivity[]; 
@@ -893,6 +894,7 @@ export type VerifiedStudent = {
   matricNumber: string;
   schoolAvatarUrl?: string;
   isVerified: boolean;
+  isStillInSchool?: boolean
 };
 
 export type SignupResponse = {

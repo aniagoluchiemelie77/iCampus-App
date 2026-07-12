@@ -80,7 +80,7 @@ const SignUpScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={MainSignupStyles.footerDiv}>
-          <Text style={MainSignupStyles.footerDivText}>
+          <Text style={[MainSignupStyles.footerDivText, { color: '#fff' }]}>
             Already have an account?
           </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>

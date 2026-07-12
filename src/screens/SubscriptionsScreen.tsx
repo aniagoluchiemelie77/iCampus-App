@@ -17,7 +17,10 @@ import Modal from 'react-native-modal';
 import Toast from 'react-native-toast-message';
 import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
-import { USD_SUBSCRIPTION_PRICES } from '../constants/inAppConstants';
+import {
+  USD_SUBSCRIPTION_PRICES,
+  DELIVERY_FEES,
+} from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
 import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 
@@ -54,6 +57,7 @@ export const FlutterwaveButton = ({
     <Text style={styles.payButtonText}>{label}</Text>
   </TouchableOpacity>
 );
+const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
   {
     id: 'free',
@@ -62,7 +66,11 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
       'Basic Profile',
       '1x Post Impression Boost',
       '1 Free Lecture Exceptions Per Month',
-      'Drop-off location only for purchased items',
+      `Standard shipping fees (${toPercentLabel(
+        DELIVERY_FEES.free.home_delivery,
+      )} Home Deivery / ${toPercentLabel(
+        DELIVERY_FEES.free.drop_off,
+      )} Drop-off)`,
       'Standard Search',
     ],
   },
@@ -73,7 +81,11 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
       'Subscribed Badge',
       '2x Post Impression Boost',
       '2 Free Lectures Exceptions Per Month',
-      'Home Delivery or Drop-off location for purchased items',
+      `Discounted shipping (${toPercentLabel(
+        DELIVERY_FEES.pro.home_delivery,
+      )} Home Delivery / ${toPercentLabel(
+        DELIVERY_FEES.pro.drop_off,
+      )} Drop-off)`,
       'Standard Search + AI Suggestions',
       'Create Paid Courses',
       'iTag username personalization',
@@ -88,7 +100,11 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
       'Premium Badge',
       '5x Post Impression Boost',
       '3 Free Lectures Exceptions Per Month',
-      'Free Shipping or Home Delivery or Drop-off location for purchased items',
+      `Lowest shipping fees (${toPercentLabel(
+        DELIVERY_FEES.premium.home_delivery,
+      )} Home Delivery / ${toPercentLabel(
+        DELIVERY_FEES.premium.drop_off,
+      )} Drop-off)`,
       'Optimized Search + AI Suggestions + Ghost Mode',
       'Create Paid Courses',
       'iTag custom personalization',

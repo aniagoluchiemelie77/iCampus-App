@@ -27,6 +27,7 @@ import { isValidEmail } from '../utils/SignupHelpers';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { authorize } from 'react-native-app-auth';
 import { githubConfig } from '../components/OtherUserSignup';
+import { MainSignupStyles } from '../assets/styles/colors';
 
 const Login = () => {
   const navigation = useNavigation<any>();
@@ -228,6 +229,16 @@ const Login = () => {
             <Text style={StudentSignupStyles.socialButtonText}>GitHub</Text>
           </TouchableOpacity>
         </View>
+      </View>
+      <View
+        style={[MainSignupStyles.footerDiv, MainSignupStyles.footerBottomDiv]}
+      >
+        <Text style={[MainSignupStyles.footerDivText, { color: '#222' }]}>
+          Don't have an account?
+        </Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+          <Text style={MainSignupStyles.footerDivText2}>Signup</Text>
+        </TouchableOpacity>
       </View>
 
       <SweetAlertModal

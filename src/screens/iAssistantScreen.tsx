@@ -202,6 +202,7 @@ export const Assistant = ({ route }: Props) => {
             isUser={item.role === 'user'}
             type="ai"
             attachments={item.attachments}
+            status={item.status}
           />
         )}
         keyExtractor={(_, index) => index.toString()}

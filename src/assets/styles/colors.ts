@@ -75,10 +75,14 @@ export const MainSignupStyles = StyleSheet.create({
     flexDirection: 'row',
     alignContent: 'center'
   },
+  footerBottomDiv:{
+    position: 'absolute',
+    bottom: 20,
+    alignSelf: 'center'
+  },
   footerDivText: {
     fontSize: 14,
-    color: '#fff',
-    marginRight: 3
+    marginRight: 4
   },
   footerDivText2:{
     fontSize: 14,

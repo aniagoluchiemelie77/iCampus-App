@@ -28,6 +28,8 @@ import { UserIdentity } from '../components/UserIdentity';
 import { ProductCard } from '../components/ProductCard';
 import { UserAvatar } from '../components/UserAvatar';
 import { useTheme } from '../context/ThemeContext';
+import { StationCarousel } from '../components/StationCarousel.tsx';
+import { useLocationServices } from '../hooks/useLocationService.ts';
 
 export const ProductDetailScreen = () => {
   const { colors } = useTheme();
@@ -45,6 +47,7 @@ export const ProductDetailScreen = () => {
   const [selectedSize, setSelectedSize] = useState(
     product?.physicalDetails?.sizes?.[0],
   );
+  const { userCoords } = useLocationServices();
   const [quantity, setQuantity] = useState(1);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
@@ -101,6 +104,12 @@ export const ProductDetailScreen = () => {
       (acc, item) => acc + (item.duration || 0),
       0,
     ) || 0;
+  const gateways = product?.physicalDetails?.sellerGateways || [];
+  const hasHome = gateways.includes('home_delivery');
+  const stations = product?.physicalDetails?.dropOffAddress || [];
+  const hasDropOff = stations.length > 0;
+  const canToggle = hasHome && hasDropOff;
+  const isOnlyDropOff = !hasHome && hasDropOff;
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Product Detail" />
@@ -302,6 +311,18 @@ export const ProductDetailScreen = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
+              {canToggle ||
+                (isOnlyDropOff && (
+                  <View>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      Available Drop-off (Pickup) Stations
+                    </Text>
+                    <StationCarousel
+                      stations={stations}
+                      userCoords={userCoords}
+                    />
+                  </View>
+                ))}
             </View>
           )}
         </View>

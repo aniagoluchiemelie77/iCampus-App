@@ -50,9 +50,9 @@ export const getToastConfig = (colors: any) => ({
 });
 const styles = StyleSheet.create({
   toastDiv: {
-    position: 'absolute',
+    position: 'static',
     bottom: 70,
-    left: 0,
+    left: 7,
   },
   toastText: {
     fontSize: 14,
