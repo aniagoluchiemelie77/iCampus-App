@@ -74,19 +74,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
 
   const fetchMyCourses = useCallback(
     async (semester?: string, session?: string) => {
+      if (!hasMore || isFetchingMore) return;
+
+      const nextPage = 1;
       setLoading(true);
+      setIsFetchingMore(true);
       try {
         const result = await fetchMyCoursesAPI({
           semester,
           session,
+          page: nextPage,
+          limit: 10,
         });
 
         if (result.success) {
           setCourses(result.courses);
+          setHasMore(result.courses.length === 10);
         } else {
           Toast.show({
             type: 'error',
@@ -104,21 +113,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         });
       } finally {
         setLoading(false);
+        setIsFetchingMore(false);
       }
     },
-    [],
+    [hasMore, isFetchingMore],
   );
   const fetchLecturerCourses = useCallback(
     async (semester: string, session: string) => {
+      if (!hasMore || isFetchingMore) return;
+
+      const nextPage = 1;
       setLoading(true);
+      setIsFetchingMore(true);
       try {
         const result = await fetchLecturerCoursesAPI({
           semester,
           session,
+          page: nextPage,
+          limit: 10,
         });
 
         if (result.success) {
           setCourses(result.courses);
+          setHasMore(result.courses.length === 10);
         } else {
           Toast.show({
             type: 'error',
@@ -135,9 +152,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         });
       } finally {
         setLoading(false);
+        setIsFetchingMore(false);
       }
     },
-    [],
+    [hasMore, isFetchingMore],
   );
   const handleCaptureCamera = async () => {
     try {
@@ -357,6 +375,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 </View>
               ) : (
                 <>
+                  <View style={styles.headerContainer}>
+                    <Text style={[styles.title, { color: colors.textDarker }]}>
+                      Enrolled Courses
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('ViewAllCourses')}
+                      style={[
+                        styles.ctaBtn,
+                        { backgroundColor: colors.btnColor },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.ctaBtnText,
+                          { color: colors.btnTextColor },
+                        ]}
+                      >
+                        View All
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <View style={styles.filterContainer}>
                     <TouchableOpacity
                       style={[
@@ -509,6 +548,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 </View>
               ) : (
                 <>
+                  <View style={styles.headerContainer}>
+                    <Text style={[styles.title, { color: colors.textDarker }]}>
+                      Manage Courses
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('ViewAllCourses')}
+                      style={[
+                        styles.ctaBtn,
+                        { backgroundColor: colors.btnColor },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.ctaBtnText,
+                          { color: colors.btnTextColor },
+                        ]}
+                      >
+                        View All
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <View style={styles.filterContainer}>
                     <TouchableOpacity
                       style={[
@@ -761,6 +821,21 @@ const styles = StyleSheet.create({
   selectorValue: {
     fontSize: 12,
     marginTop: 4,
+    fontWeight: 'bold',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ctaBtn: {
+    paddingVertical: 12,
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    alignContent: 'center',
+  },
+  ctaBtnText: {
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

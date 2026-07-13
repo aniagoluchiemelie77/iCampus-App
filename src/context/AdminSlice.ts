@@ -12,6 +12,7 @@ const initialState: Admin = {
   lastAccessed: '',
   sessions: [],
   createdAt: '',
+  isVerified: false
 };
 
 const adminSlice = createSlice({

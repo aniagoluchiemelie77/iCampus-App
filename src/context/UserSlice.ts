@@ -23,6 +23,7 @@ const initialState: User = {
   userToken: '',
   tokenCreatedAt: '',
   profilePic: [],
+  isSuspended: false
 };
 const userSlice = createSlice({
   name: 'user',

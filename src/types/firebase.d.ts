@@ -699,7 +699,6 @@ export interface Course {
   niche?: string;
   department: string;
   courseContents?: string[];
-  Lectures?: Lecture[];
   resources?: string[];
   assignments?: Assignment[];
   level?: string;

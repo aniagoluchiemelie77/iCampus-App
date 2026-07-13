@@ -76,6 +76,8 @@ interface SearchUserParams {
 interface FetchStudentCoursesParams {
   semester?: string;
   session?: string;
+  page?: number; 
+  limit?: number
 }
 
 export const searchUserProfile = async (identifier: string, currentUser: User) => {
@@ -1359,13 +1361,17 @@ export const refreshUserProfileAPI = async () => {
 };
 export const fetchMyCoursesAPI = async ({ 
   semester, 
-  session 
+  session,
+  page = 1,
+  limit = 10
 }: FetchStudentCoursesParams = {}) => {
   try {
     let url = `${baseUrl}users/student/class/courses/fetch-my-courses`;
     const queryParams = new URLSearchParams();
     if (semester && semester !== 'All') queryParams.append('semester', semester);
     if (session && session !== 'All') queryParams.append('session', session);
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
     const queryString = queryParams.toString();
     if (queryString) {
       url += `?${queryString}`;
@@ -1400,7 +1406,9 @@ export const fetchMyCoursesAPI = async ({
 };
 export const fetchLecturerCoursesAPI = async ({ 
   semester, 
-  session 
+  session,
+  page = 1,
+  limit = 10 
 }: FetchStudentCoursesParams = {}) => {
   try {
     let url = `${baseUrl}users/lecturers/class/courses/fetch-my-courses`;
@@ -1408,6 +1416,8 @@ export const fetchLecturerCoursesAPI = async ({
     
     if (semester && semester !== 'All') queryParams.append('semester', semester);
     if (session && session !== 'All') queryParams.append('session', session);
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
     
     const queryString = queryParams.toString();
     if (queryString) {
