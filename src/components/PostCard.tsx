@@ -27,10 +27,10 @@ import { searchUsersByUid } from '../api/localGetApis';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User } from '../types/firebase';
 const { width } = Dimensions.get('window');
-import { formatEventDate } from '../utils/dateFormatter';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
+import { useDateTimePicker } from '../hooks/useDateTimePicker';
 export interface PostCardProps {
   post: Posts;
   isVisible?: boolean;
@@ -303,6 +303,7 @@ export const PostCard = React.memo(
       handleVote,
       handleDeletePost,
     } = useAppDataContext();
+    const { formatDate, formatTime } = useDateTimePicker();
     const getRelativeTime = (dateString: string | null): string => {
       if (!dateString) return '';
       return formatDistanceToNowStrict(new Date(dateString), {
@@ -403,7 +404,10 @@ export const PostCard = React.memo(
         fetchPosterDetails();
       }
     }, [user, currentUser?.tier, currentUser?.usertype]);
-    const eventDate = formatEventDate(post.eventMetadata?.startDate);
+    const dateValue = post.eventMetadata?.date;
+    const timeValue = post.eventMetadata?.startTime;
+    const eventDate = dateValue ? formatDate(dateValue) : 'Not specified';
+    const eventTime = timeValue ? formatTime(timeValue) : '00:00';
     const displayUser = post.featuredReposter || userDetails;
 
     return (
@@ -482,10 +486,10 @@ export const PostCard = React.memo(
                   style={{ marginRight: 3 }}
                 />
                 <Text style={[styles.calMonth, { color: colors.text }]}>
-                  {eventDate.month}
+                  {eventDate}
                 </Text>
                 <Text style={[styles.calDay, { color: colors.text }]}>
-                  {eventDate.day}
+                  {eventTime}
                 </Text>
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>

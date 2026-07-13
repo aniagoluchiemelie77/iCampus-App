@@ -1,7 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, TextInputProps} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TextInputProps,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
+
+const JOB_TYPES = [
+  'Full-time',
+  'Part-time',
+  'Contract',
+  'Freelance',
+  'Internship',
+];
 
 interface InputGroupProps extends TextInputProps {
   label: string;
@@ -128,6 +145,62 @@ export const InfoListCard = <T extends unknown>({
     </View>
   );
 };
+
+export const JobTypePicker = ({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (val: string) => void;
+}) => {
+  const [visible, setVisible] = React.useState(false);
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.container}>
+      <Text style={[styles.label, { color: colors.text, marginBottom: 15 }]}>
+        Job Type
+      </Text>
+
+      <TouchableOpacity
+        style={[styles.dropdown, { borderColor: colors.border }]}
+        onPress={() => setVisible(true)}
+      >
+        <Text style={[styles.label, { color: colors.text }]}>{value}</Text>
+      </TouchableOpacity>
+
+      <Modal visible={visible} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.overlay}
+          onPress={() => setVisible(false)}
+        >
+          <ScrollView
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {JOB_TYPES.map(type => (
+              <TouchableOpacity
+                key={type}
+                style={[styles.option, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  onSelect(type);
+                  setVisible(false);
+                }}
+              >
+                <Text style={[styles.label, { color: colors.text }]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
 const styles = StyleSheet.create({
   groupContainer: { marginBottom: 15, padding: 10, borderRadius: 10 },
   labelRow: {
@@ -136,7 +209,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     justifyContent: 'space-between',
   },
-  label: { fontSize: 15, fontWeight: '600' },
+  label: { fontSize: 14, fontWeight: '600' },
   lockBadge: { alignContent: 'center' },
   inputWrapper: {
     borderRadius: 8,
@@ -183,5 +256,27 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
+  },
+  container: { marginBottom: 15 },
+  dropdown: {
+    padding: 15,
+    borderWidth: 1,
+    borderRadius: 15,
+    width: '100%',
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    margin: 0,
+    borderRadius: 25,
+    padding: 20,
+    height: '70%',
+  },
+  option: {
+    marginBottom: 15,
+    borderBottomWidth: 1,
   },
 });

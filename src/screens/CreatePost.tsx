@@ -14,6 +14,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '../hooks/hooks';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   launchImageLibrary,
   ImageLibraryOptions,
@@ -29,6 +30,9 @@ import { PageHeader } from '../components/PageHeader';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../../App';
+import { useDateTimePicker } from '../hooks/useDateTimePicker';
+import { usePicker } from '../hooks/useDropDownPicker';
+import { JobTypePicker } from '../components/InputGroup';
 interface MediaItem {
   uri: string[];
   type: 'image' | 'video';
@@ -41,18 +45,37 @@ const CreatePost = ({ route, navigation }: Props) => {
   const editPostData = route.params?.post;
   const isEditMode = !!editPostData;
 
-  const type = editPostData
-    ? editPostData.poll
-      ? 'poll'
-      : 'post'
-    : route.params?.type || 'post';
-
   const [content, setContent] = useState(
-    editPostData ? editPostData.content : '',
+    isEditMode ? editPostData.content : '',
   );
   const [pollOptions, setPollOptions] = useState<string[]>(
     editPostData?.poll ? editPostData.poll.options.map(o => o.text) : ['', ''],
   );
+  const postType = route.params?.type ?? 'media';
+
+  const [jobMetadata, setJobMetadata] = useState({
+    title: editPostData?.jobMetadata?.title ?? '',
+    company: editPostData?.jobMetadata?.company ?? '',
+    location: editPostData?.jobMetadata?.location ?? '',
+    type: editPostData?.jobMetadata?.type ?? 'Full-time',
+    salaryRange: editPostData?.jobMetadata?.salaryRange ?? '',
+    applicationLink: editPostData?.jobMetadata?.applicationLink ?? '',
+  });
+
+  const [eventMetadata, setEventMetadata] = useState({
+    title: editPostData?.eventMetadata?.title ?? '',
+    location: editPostData?.eventMetadata?.location ?? '',
+    isVirtual: editPostData?.eventMetadata?.isVirtual ?? false,
+    startTime:
+      editPostData?.eventMetadata?.startTime ??
+      new Date().toISOString().split('T')[0],
+    endTime:
+      editPostData?.eventMetadata?.endTime ??
+      new Date().toISOString().split('T')[0],
+    date:
+      editPostData?.eventMetadata?.date ??
+      new Date().toISOString().split('T')[0],
+  });
   const [mediaList, setMediaList] = useState<MediaItem[]>(
     editPostData?.media?.url
       ? [
@@ -72,6 +95,10 @@ const CreatePost = ({ route, navigation }: Props) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const { pickerMode, showPicker, hidePicker, formatDate, formatTime } =
+    useDateTimePicker();
+
+  const { value: jobType, selectType } = usePicker(jobMetadata.type);
 
   const currentUser = useAppSelector(state => state.user);
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
@@ -91,6 +118,40 @@ const CreatePost = ({ route, navigation }: Props) => {
     };
     loadTaggingContext();
   }, []);
+  useEffect(() => {
+    setJobMetadata(prev => ({
+      ...prev,
+      type: jobType as
+        | 'Full-time'
+        | 'Part-time'
+        | 'Internship'
+        | 'Contract'
+        | 'Freelance',
+    }));
+  }, [jobType]);
+  const handleConfirm = (event: any, selectedDate?: Date) => {
+    hidePicker();
+    if (!selectedDate) return;
+
+    if (pickerMode === 'date') {
+      setEventMetadata({
+        ...eventMetadata,
+        date: formatDate(selectedDate),
+      });
+    } else if (pickerMode === 'startTime') {
+      const time = formatTime(selectedDate);
+      setEventMetadata({
+        ...eventMetadata,
+        startTime: time,
+      });
+    } else if (pickerMode === 'endTime') {
+      const time = formatTime(selectedDate);
+      setEventMetadata({
+        ...eventMetadata,
+        endTime: time,
+      });
+    }
+  };
 
   const handleContentChange = (text: string) => {
     setContent(text);
@@ -119,7 +180,7 @@ const CreatePost = ({ route, navigation }: Props) => {
 
   const handleSelectUserToTag = (username: string) => {
     const words = content.split(/\s/);
-    words.pop(); 
+    words.pop();
     const baseContent = words.join(' ');
     const newContent = baseContent
       ? `${baseContent} @${username} `
@@ -131,7 +192,7 @@ const CreatePost = ({ route, navigation }: Props) => {
   };
 
   const removeOption = (index: number) => {
-    if (pollOptions.length <= 2) return; 
+    if (pollOptions.length <= 2) return;
     setPollOptions(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -154,12 +215,19 @@ const CreatePost = ({ route, navigation }: Props) => {
   };
 
   const handleCreateOrUpdatePost = async () => {
-    if (!content.trim() && mediaList.length === 0 && type !== 'poll') return;
+    if (!content.trim() && mediaList.length === 0 && postType !== 'poll')
+      return;
 
     setIsUploading(true);
     setUploadProgress(0);
     let finalMediaUrls: string[] = [];
     let lastMediaType: 'image' | 'video' | null = null;
+    const combinedStart = new Date(
+      `${eventMetadata.date}T${eventMetadata.startTime}:00Z`,
+    ).toISOString();
+    const combinedEnd = new Date(
+      `${eventMetadata.date}T${eventMetadata.endTime}:00Z`,
+    ).toISOString();
 
     try {
       const newMediaToUpload = mediaList.filter(item => !item.isExisting);
@@ -169,7 +237,6 @@ const CreatePost = ({ route, navigation }: Props) => {
 
       for (let i = 0; i < newMediaToUpload.length; i++) {
         const item = newMediaToUpload[i];
-        // Distribute steps evenly per file chunk completed
         const currentProgress = Math.round((i / newMediaToUpload.length) * 100);
         setUploadProgress(currentProgress);
         const targetUri = item.uri[0];
@@ -192,8 +259,8 @@ const CreatePost = ({ route, navigation }: Props) => {
 
       setUploadProgress(100);
       const postData = {
-        userId: currentUser.uid,
         content: content,
+        postType: postType,
         media:
           combinedMediaUrls.length > 0
             ? {
@@ -202,7 +269,7 @@ const CreatePost = ({ route, navigation }: Props) => {
               }
             : null,
         poll:
-          type === 'poll'
+          postType === 'poll'
             ? {
                 options: pollOptions.map((opt, i) => ({
                   optionId:
@@ -217,6 +284,15 @@ const CreatePost = ({ route, navigation }: Props) => {
         createdAt: isEditMode
           ? editPostData.createdAt
           : new Date().toISOString(),
+        jobMetadata: postType === 'job' ? jobMetadata : null,
+        eventMetadata:
+          postType === 'event'
+            ? {
+                ...eventMetadata,
+                startTime: combinedStart,
+                endTime: combinedEnd,
+              }
+            : null,
       };
 
       await submitOrUpdatePostService(
@@ -248,10 +324,39 @@ const CreatePost = ({ route, navigation }: Props) => {
     }
   };
   const hasValidTextOrMedia = content.trim().length > 0 || mediaList.length > 0;
+
   const hasValidPoll =
-    type === 'poll' &&
+    postType === 'poll' &&
     pollOptions.filter(opt => opt.trim().length > 0).length >= 2;
-  const canPost = type === 'poll' ? hasValidPoll : hasValidTextOrMedia;
+
+  const hasValidJob =
+    postType === 'job' &&
+    jobMetadata.title.trim().length > 0 &&
+    jobMetadata.company.trim().length > 0 &&
+    jobMetadata.location.trim().length > 0;
+
+  const hasValidEvent =
+    postType === 'event' &&
+    (eventMetadata.title ?? '').trim().length > 0 &&
+    (eventMetadata.location ?? '').trim().length > 0 &&
+    eventMetadata.date instanceof Date &&
+    !isNaN(eventMetadata.date.getTime()) &&
+    eventMetadata.startTime instanceof Date &&
+    !isNaN(eventMetadata.startTime.getTime());
+  const canPost = () => {
+    switch (postType) {
+      case 'poll':
+        return hasValidPoll;
+      case 'job':
+        return hasValidJob;
+      case 'event':
+        return hasValidEvent;
+      case 'media':
+      case 'post':
+      default:
+        return hasValidTextOrMedia;
+    }
+  };
 
   return (
     <SafeAreaView
@@ -265,8 +370,12 @@ const CreatePost = ({ route, navigation }: Props) => {
           title={
             isEditMode
               ? 'Edit Post'
-              : type === 'poll'
+              : postType === 'poll'
               ? 'Create Poll'
+              : postType === 'job'
+              ? 'Create Job'
+              : postType === 'event'
+              ? 'Create Event'
               : 'Create Post'
           }
           rightElement={
@@ -290,17 +399,17 @@ const CreatePost = ({ route, navigation }: Props) => {
 
         <TextInput
           placeholder={
-            type === 'poll' ? 'Ask a question...' : "What's happening?"
+            postType === 'poll' ? 'Ask a question...' : "What's happening?"
           }
           multiline
           autoFocus
-          style={[styles.input, { color: colors.text }]}
+          style={[styles.input, { color: colors.text, marginTop: 15 }]}
           value={content}
           onChangeText={handleContentChange}
           placeholderTextColor={colors.inputTextHolder}
         />
 
-        {type === 'poll' && (
+        {postType === 'poll' && (
           <View style={styles.pollWrapper}>
             <Text style={[styles.pollLabel, { color: colors.text }]}>
               Poll Options
@@ -341,6 +450,112 @@ const CreatePost = ({ route, navigation }: Props) => {
             )}
           </View>
         )}
+        {postType === 'job' && (
+          <View style={styles.pollWrapper}>
+            <TextInput
+              placeholder="Job Title"
+              value={jobMetadata.title}
+              onChangeText={t => setJobMetadata({ ...jobMetadata, title: t })}
+              style={[styles.input2, { color: colors.text }]}
+              placeholderTextColor={colors.inputTextHolder}
+            />
+            <TextInput
+              placeholder="Company"
+              value={jobMetadata.company}
+              onChangeText={t => setJobMetadata({ ...jobMetadata, company: t })}
+              style={[styles.input2, { color: colors.text }]}
+              placeholderTextColor={colors.inputTextHolder}
+            />
+            <TextInput
+              placeholder="Location"
+              value={jobMetadata.location}
+              onChangeText={t =>
+                setJobMetadata({ ...jobMetadata, location: t })
+              }
+              placeholderTextColor={colors.inputTextHolder}
+              style={[styles.input2, { color: colors.text }]}
+            />
+            <JobTypePicker value={jobMetadata.type} onSelect={selectType} />
+          </View>
+        )}
+        {postType === 'event' && (
+          <View style={styles.pollWrapper}>
+            <TextInput
+              placeholder="Event Title"
+              value={eventMetadata.title}
+              onChangeText={t =>
+                setEventMetadata({ ...eventMetadata, title: t })
+              }
+              placeholderTextColor={colors.inputTextHolder}
+              style={[styles.input2, { color: colors.text }]}
+            />
+            <TextInput
+              placeholder="Location"
+              value={eventMetadata.location}
+              onChangeText={t =>
+                setEventMetadata({ ...eventMetadata, location: t })
+              }
+              placeholderTextColor={colors.inputTextHolder}
+              style={[styles.input2, { color: colors.text }]}
+            />
+            <View style={styles.dateTimeRow}>
+              <TouchableOpacity
+                style={[styles.dateTimeBox, { borderColor: colors.border }]}
+                onPress={() => showPicker('date')}
+              >
+                <MaterialIcons
+                  name="calendar-month-outlined"
+                  size={24}
+                  color={colors.text}
+                />
+                <Text style={[styles.microLabel, { color: colors.text }]}>
+                  Date
+                </Text>
+                <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                  {eventMetadata.date instanceof Date
+                    ? formatDate(eventMetadata.date)
+                    : eventMetadata.date || '00:00'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateTimeBox, { borderColor: colors.border }]}
+                onPress={() => showPicker('startTime')}
+              >
+                <MaterialIcons
+                  name="schedule-outlined"
+                  size={24}
+                  color={colors.text}
+                />
+                <Text style={[styles.microLabel, { color: colors.text }]}>
+                  Start Time
+                </Text>
+                <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                  {eventMetadata.startTime instanceof Date
+                    ? formatTime(eventMetadata.startTime)
+                    : eventMetadata.startTime || '00:00'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateTimeBox, { borderColor: colors.border }]}
+                onPress={() => showPicker('endTime')}
+              >
+                <MaterialIcons
+                  name="schedule-outlined"
+                  size={24}
+                  color={colors.text}
+                />
+                <Text style={[styles.microLabel, { color: colors.text }]}>
+                  Ends
+                </Text>
+                <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                  {eventMetadata.endTime instanceof Date
+                    ? formatTime(eventMetadata.endTime)
+                    : eventMetadata.endTime || '00:00'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {mediaList.length > 0 && (
           <View style={styles.mediaContainer}>
@@ -348,12 +563,12 @@ const CreatePost = ({ route, navigation }: Props) => {
               <View key={index} style={styles.mediaPreviewWrapper}>
                 {item.type === 'image' ? (
                   <Image
-                    source={{ uri: item.uri[0] }} // <-- FIXED: Access the string at index 0
+                    source={{ uri: item.uri[0] }}
                     style={styles.mediaPreview}
                   />
                 ) : (
                   <Video
-                    source={{ uri: item.uri[0] }} // <-- FIXED: Access the string at index 0
+                    source={{ uri: item.uri[0] }}
                     style={styles.mediaPreview}
                     muted
                     repeat
@@ -427,9 +642,9 @@ const CreatePost = ({ route, navigation }: Props) => {
           onPress={pickMedia}
           style={[
             styles.toolbarBtn,
-            (type === 'poll' || mediaList.length >= 4) && { opacity: 0.5 },
+            (postType === 'poll' || mediaList.length >= 4) && { opacity: 0.5 },
           ]}
-          disabled={type === 'poll' || mediaList.length >= 4}
+          disabled={postType === 'poll' || mediaList.length >= 4}
         >
           <MaterialIcons
             name="image-outlined"
@@ -482,6 +697,15 @@ const CreatePost = ({ route, navigation }: Props) => {
             )}
           </View>
         )}
+        {pickerMode && (
+          <DateTimePicker
+            value={new Date()}
+            mode={pickerMode === 'date' ? 'date' : 'time'}
+            is24Hour={true}
+            display="default"
+            onChange={handleConfirm}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -496,8 +720,20 @@ const styles = StyleSheet.create({
   },
   disabledBtn: { opacity: 0.5 },
   postBtnText: { fontSize: 14, fontWeight: 'bold' },
-  input: { fontSize: 14, textAlignVertical: 'top', minHeight: 100 },
-  pollWrapper: { marginVertical: 15 },
+  input: {
+    fontSize: 14,
+    textAlignVertical: 'top',
+    minHeight: 100,
+    marginBottom: 15,
+    width: '100%',
+  },
+  input2: {
+    fontSize: 14,
+    padding: 15,
+    width: '100%',
+    marginBottom: 15,
+  },
+  pollWrapper: { marginBottom: 15 },
   pollLabel: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -540,6 +776,12 @@ const styles = StyleSheet.create({
   videoPlaceholder: {
     backgroundColor: PRIMARY_COLOR,
     alignContent: 'center',
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
   removeButton: {
     top: -5,
@@ -600,6 +842,19 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 10,
+  },
+  dateTimeBox: {
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  microLabel: {
+    fontSize: 12,
+    marginVertical: 6,
+  },
+  dateTimeText: {
+    fontSize: 12,
   },
 });
 

@@ -502,7 +502,14 @@ export function Home() {
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
         userRole={currentUser.usertype as 'student' | 'lecturer' | 'otherUser'}
-        actions={['iCash', 'Create Post', 'Create Poll', 'iAssistant']}
+        actions={[
+          'Create Post',
+          'Create Poll',
+          'Post Job',
+          'Create Event',
+          'iCash',
+          'iAssistant',
+        ]}
       />
 
       <ProfileModal

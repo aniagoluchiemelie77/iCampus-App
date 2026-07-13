@@ -166,7 +166,7 @@ export type RootStackParamList = {
   Chat: { recipientId: string };
   ICashBuyPage: { refresh?: boolean };
   CreatePost: {
-    type?: 'post' | 'poll';
+    type?: 'post' | 'poll' | 'job' | 'event';
     post?: Posts;
   };
   TicketResolveScreen: {

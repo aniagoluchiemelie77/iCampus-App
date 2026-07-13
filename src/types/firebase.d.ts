@@ -639,17 +639,18 @@ export interface Posts {
     title: string;
     company: string,
     location: string, 
-    type: { type: string, enum: ["Full-time", "Part-time", "Internship", "Contract"] },
+    type: "Full-time" | "Part-time" | "Internship" | "Contract" | 'Freelance',
     salaryRange: string,
     applicationLink: string,
   };
   eventMetadata?: {
     title: string,
-    startDate: string,
-    endDate: string,
     location: string, 
     isVirtual: boolean,
     attendees: string[];
+    startTime: Date;
+    endTime: Date;
+    date: Date;
   };
 }
 export interface Comment {
@@ -669,11 +670,11 @@ export interface Lecture {
   hostId?: string;
   lectureType: 'Physical' | 'Online';
   location?: string;
-  startTime: string; 
+  startTime: Date; 
   streamUrl?: string;
   sharedScreenStreamUrl?: string;
-  endTime: string;
-  date: string;
+  endTime: Date;
+  date: Date;
   isLive?: boolean;
   status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'postponed';
   isTaught: boolean;
@@ -789,8 +790,9 @@ export interface CreateTestPayload {
   isPublished: boolean;
   status: 'published' | 'draft';
   createdAt: string;
-  dueDate: string;
-  scheduledStart?: string; // optional field for scheduling
+  dueDate: Date;
+  scheduledStart?: Date; 
+  endTime?: Date,
 }
 
 export interface TestSubmission {
@@ -802,14 +804,14 @@ export interface TestSubmission {
   answers: { questionId: string; studentAnswer: string }[];
   score: number;
   status: 'submitted' | 'graded' | 'pending';
-  submittedAt: string;
+  submittedAt: Date;
   proctoringData?: {
     deviceId: string;
     entrySelfieUrl: string;
     tabSwitchCount: number;
     ipAddress: string;
   };
-  startTime?: string
+  startTime?: Date
 }
 export interface Book {
   id: string;

@@ -28,6 +28,16 @@ const ACTION_CONFIG: Record<
     route: 'CreatePost',
     params: { type: 'poll' },
   },
+  'Post Job': {
+    icon: 'business-center-outlined',
+    route: 'CreatePost',
+    params: { type: 'job' },
+  },
+  'Create Event': {
+    icon: 'event-outlined',
+    route: 'CreatePost',
+    params: { type: 'event' },
+  },
   iAssistant: {
     icon: 'auto-awesome-outlined',
     route: 'Assistant',

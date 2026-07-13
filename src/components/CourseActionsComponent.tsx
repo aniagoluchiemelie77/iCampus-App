@@ -76,6 +76,7 @@ import {
 import { deleteCourseContent, deleteAssignment } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
 import { formatDate } from '../utils/dateFormatter';
+import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import {
   fetchAllAssignments,
   getAssessmentAnalysisUrl,
@@ -118,8 +119,9 @@ interface LecturerManageProps {
 interface TestFormState {
   title: string;
   duration: string;
-  dueDate: string;
-  scheduledStart: string;
+  dueDate: Date | null;
+  scheduledStart: Date | null;
+  endTime: Date | null;
   totalMarks: string;
   questions: Question[];
 }
@@ -1999,8 +2001,8 @@ export const RenderScheduleLecture = ({
     topicName: '',
     lectureType: 'Physical',
     location: '',
-    startTime: '08:00',
-    endTime: '10:00',
+    startTime: new Date().toISOString(),
+    endTime: new Date().toISOString(),
     date: new Date().toISOString().split('T')[0],
   });
   const getPlaceholder = () => {
@@ -2040,9 +2042,9 @@ export const RenderScheduleLecture = ({
       topicName: form.topicName!,
       lectureType: form.lectureType as 'Physical' | 'Online',
       location: isOnline ? '' : form.location,
-      startTime: form.startTime!,
-      endTime: form.endTime!,
-      date: form.date!,
+      startTime: new Date(`${form.date}T${form.startTime}:00`),
+      endTime: new Date(`${form.date}T${form.endTime}:00`),
+      date: new Date(form.date!),
       repeatWeeks: repeatWeeks,
     };
     onSave(payload);
@@ -2056,29 +2058,25 @@ export const RenderScheduleLecture = ({
         return 'Physical Venue';
     }
   };
-  const [pickerMode, setPickerMode] = useState<
-    'date' | 'startTime' | 'endTime' | null
-  >(null);
   const [showTopicPicker, setShowTopicPicker] = useState(false);
+  const {
+    pickerMode,
+    showPicker,
+    hidePicker,
+    formatDate: formatPickerDate,
+    formatTime,
+  } = useDateTimePicker();
   const handleConfirm = (event: any, selectedDate?: Date) => {
-    setPickerMode(null);
+    hidePicker();
     if (!selectedDate) return;
 
     if (pickerMode === 'date') {
-      setForm({ ...form, date: selectedDate.toISOString().split('T')[0] });
+      setForm({ ...form, date: formatPickerDate(selectedDate) });
     } else if (pickerMode === 'startTime') {
-      const time = selectedDate.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
+      const time = formatTime(selectedDate);
       setForm({ ...form, startTime: time });
     } else if (pickerMode === 'endTime') {
-      const time = selectedDate.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
+      const time = formatTime(selectedDate);
       setForm({ ...form, endTime: time });
     }
   };
@@ -2187,7 +2185,7 @@ export const RenderScheduleLecture = ({
             CourseActionStyles.dateTimeBox,
             { borderColor: colors.border },
           ]}
-          onPress={() => setPickerMode('date')}
+          onPress={() => showPicker('date')}
         >
           <MaterialIcons
             name="calendar-month-outlined"
@@ -2208,7 +2206,7 @@ export const RenderScheduleLecture = ({
             CourseActionStyles.dateTimeBox,
             { borderColor: colors.border },
           ]}
-          onPress={() => setPickerMode('startTime')}
+          onPress={() => showPicker('startTime')}
         >
           <MaterialIcons
             name="schedule-outlined"
@@ -2229,7 +2227,7 @@ export const RenderScheduleLecture = ({
             CourseActionStyles.dateTimeBox,
             { borderColor: colors.border },
           ]}
-          onPress={() => setPickerMode('endTime')}
+          onPress={() => showPicker('endTime')}
         >
           <MaterialIcons
             name="schedule-outlined"
@@ -2409,15 +2407,19 @@ export const QuickPublicMeeting = () => {
   const navigation = useNavigation<any>();
   const [saving, setIsSaving] = useState(false);
   const [successData, setSuccessData] = useState<{ link: string } | null>(null);
-  const [pickerMode, setPickerMode] = useState<
-    'date' | 'startTime' | 'endTime' | null
-  >(null);
   const [form, setForm] = useState({
     topicName: '',
     startTime: '08:00',
     endTime: '10:00',
     date: new Date().toISOString().split('T')[0],
   });
+  const {
+    pickerMode,
+    showPicker,
+    hidePicker,
+    formatDate: formatPickerDate,
+    formatTime,
+  } = useDateTimePicker();
 
   const handleSave = async () => {
     if (!form.topicName.trim()) {
@@ -2436,24 +2438,16 @@ export const QuickPublicMeeting = () => {
     }
   };
   const handleConfirm = (event: any, selectedDate?: Date) => {
-    setPickerMode(null);
+    hidePicker();
     if (!selectedDate) return;
 
     if (pickerMode === 'date') {
-      setForm({ ...form, date: selectedDate.toISOString().split('T')[0] });
+      setForm({ ...form, date: formatPickerDate(selectedDate) });
     } else if (pickerMode === 'startTime') {
-      const time = selectedDate.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
+      const time = formatTime(selectedDate);
       setForm({ ...form, startTime: time });
     } else if (pickerMode === 'endTime') {
-      const time = selectedDate.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
+      const time = formatTime(selectedDate);
       setForm({ ...form, endTime: time });
     }
   };
@@ -2490,7 +2484,7 @@ export const QuickPublicMeeting = () => {
             CourseActionStyles.dateTimeBox,
             { borderColor: colors.border },
           ]}
-          onPress={() => setPickerMode('date')}
+          onPress={() => showPicker('date')}
         >
           <MaterialIcons
             name="calendar-month-outlined"
@@ -2511,7 +2505,7 @@ export const QuickPublicMeeting = () => {
             CourseActionStyles.dateTimeBox,
             { borderColor: colors.border },
           ]}
-          onPress={() => setPickerMode('startTime')}
+          onPress={() => showPicker('startTime')}
         >
           <MaterialIcons
             name="schedule-outlined"
@@ -2532,7 +2526,7 @@ export const QuickPublicMeeting = () => {
             CourseActionStyles.dateTimeBox,
             { borderColor: colors.border },
           ]}
-          onPress={() => setPickerMode('endTime')}
+          onPress={() => showPicker('endTime')}
         >
           <MaterialIcons
             name="schedule-outlined"
@@ -2685,15 +2679,13 @@ export const RenderLecturerTestManage = ({
 }: LecturerTestManageProps) => {
   const { colors } = useTheme();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [pickerMode, setPickerMode] = useState<
-    'date' | 'startTime' | 'endTime' | null
-  >(null);
   const [loading, setLoading] = useState(false);
   const initialFormState = {
     title: '',
     duration: '30',
-    dueDate: '',
-    scheduledStart: '',
+    dueDate: null,
+    scheduledStart: null,
+    endTime: null,
     totalMarks: '0',
     questions: [
       {
@@ -2718,10 +2710,13 @@ export const RenderLecturerTestManage = ({
     setTestForm({
       title: test.title,
       duration: (test.duration ?? 0).toString(),
-      dueDate: test.dueDate ?? '',
+      dueDate: test.dueDate ? new Date(test.dueDate) : null,
       totalMarks: (test.totalMarks ?? 0).toString(),
       questions: test.questions ?? [],
-      scheduledStart: test.scheduledStart ?? '',
+      scheduledStart: test.scheduledStart
+        ? new Date(test.scheduledStart)
+        : null,
+      endTime: test.endTime ? new Date(test.endTime) : null,
     });
     setEditingId(test.id ?? null);
     setIsModalVisible(true);
@@ -2763,11 +2758,19 @@ export const RenderLecturerTestManage = ({
     }));
   };
   const handleFinalize = (isPublished: boolean) => {
-    if (!testForm.title || !testForm.dueDate) {
+    if (
+      !testForm.title ||
+      !testForm.dueDate ||
+      !testForm.endTime ||
+      !testForm.scheduledStart ||
+      !testForm.questions ||
+      !testForm.duration ||
+      !testForm.totalMarks
+    ) {
       Toast.show({
         type: 'error',
         text1: 'Required Fields',
-        text2: 'Please provide a title and a due date.',
+        text2: 'Please provide all details for your assessment creation.',
       });
       return;
     }
@@ -2785,6 +2788,7 @@ export const RenderLecturerTestManage = ({
       createdAt: new Date().toISOString(),
       scheduledStart: testForm.scheduledStart,
       dueDate: testForm.dueDate,
+      endTime: testForm.endTime,
     };
     onSaveTest(finalPayload);
     setLoading(false);
@@ -2804,6 +2808,9 @@ export const RenderLecturerTestManage = ({
         duration: Number(currentForm.duration),
         totalMarks: Number(currentForm.totalMarks),
         questions: currentForm.questions as Question[],
+        dueDate: currentForm.dueDate ?? new Date(),
+        scheduledStart: currentForm.scheduledStart ?? new Date(),
+        endTime: currentForm.endTime ?? new Date(),
       };
       onSaveTest(payload);
     } catch (err: any) {
@@ -2838,21 +2845,26 @@ export const RenderLecturerTestManage = ({
       }),
     }));
   };
+  const {
+    pickerMode,
+    showPicker,
+    hidePicker,
+    formatTime,
+    formatDate: formatPickeDate,
+  } = useDateTimePicker();
   const handleConfirm = (event: any, selectedDate?: Date) => {
-    setPickerMode(null);
+    hidePicker();
     if (event.type === 'set' && selectedDate) {
       if (pickerMode === 'date') {
-        const dateString = selectedDate.toISOString().split('T')[0];
+        const dateString = selectedDate;
         setTestForm(prev => ({ ...prev, date: dateString }));
-        setTimeout(() => setPickerMode('startTime'), 500);
       } else if (pickerMode === 'startTime') {
         setTestForm(prev => ({
           ...prev,
-          scheduledStart: selectedDate.toISOString(),
+          scheduledStart: selectedDate,
         }));
-        setTimeout(() => setPickerMode('endTime'), 500);
       } else if (pickerMode === 'endTime') {
-        setTestForm(prev => ({ ...prev, dueDate: selectedDate.toISOString() }));
+        setTestForm(prev => ({ ...prev, dueDate: selectedDate }));
       }
     }
   };
@@ -3053,10 +3065,11 @@ export const RenderLecturerTestManage = ({
                 setTestForm({
                   title: '',
                   duration: '',
-                  dueDate: '',
+                  dueDate: null,
                   totalMarks: '',
                   questions: [],
-                  scheduledStart: '',
+                  scheduledStart: null,
+                  endTime: null,
                 });
                 setIsModalVisible(true);
               }}
@@ -3322,37 +3335,103 @@ export const RenderLecturerTestManage = ({
               >
                 Set Deadline
               </Text>
+            </View>
+            <View style={CourseActionStyles.dateTimeRow}>
               <TouchableOpacity
                 style={[
-                  CourseActionStyles.datePickerTrigger,
-                  { backgroundColor: colors.btnColor },
+                  CourseActionStyles.dateTimeBox,
+                  { borderColor: colors.border },
                 ]}
-                onPress={() => setPickerMode('date')}
+                onPress={() => showPicker('date')}
               >
-                <Text
-                  style={[
-                    CourseActionStyles.dateText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  {testForm.dueDate || 'Set deadline...'}
-                </Text>
                 <MaterialIcons
                   name="calendar-month-outlined"
-                  size={22}
-                  color={colors.btnTextColor}
+                  size={24}
+                  color={colors.text}
                 />
+                <Text
+                  style={[
+                    CourseActionStyles.microLabel,
+                    { color: colors.text },
+                  ]}
+                >
+                  Date
+                </Text>
+                <Text
+                  style={[
+                    CourseActionStyles.dateTimeText,
+                    { color: colors.text },
+                  ]}
+                >
+                  {testForm.dueDate instanceof Date
+                    ? formatPickeDate(testForm.dueDate)
+                    : testForm.dueDate || '00:00'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.dateTimeBox,
+                  { borderColor: colors.border },
+                ]}
+                onPress={() => showPicker('startTime')}
+              >
+                <MaterialIcons
+                  name="schedule-outlined"
+                  size={24}
+                  color={colors.text}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.microLabel,
+                    { color: colors.text },
+                  ]}
+                >
+                  Start Time
+                </Text>
+                <Text
+                  style={[
+                    CourseActionStyles.dateTimeText,
+                    { color: colors.text },
+                  ]}
+                >
+                  {testForm.scheduledStart instanceof Date
+                    ? formatTime(testForm.scheduledStart)
+                    : testForm.scheduledStart || '00:00'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.dateTimeBox,
+                  { borderColor: colors.border },
+                ]}
+                onPress={() => showPicker('endTime')}
+              >
+                <MaterialIcons
+                  name="schedule-outlined"
+                  size={24}
+                  color={colors.text}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.microLabel,
+                    { color: colors.text },
+                  ]}
+                >
+                  Ends
+                </Text>
+                <Text
+                  style={[
+                    CourseActionStyles.dateTimeText,
+                    { color: colors.text },
+                  ]}
+                >
+                  {testForm.endTime instanceof Date
+                    ? formatTime(testForm.endTime)
+                    : testForm.endTime || '00:00'}
+                </Text>
               </TouchableOpacity>
             </View>
-            {pickerMode && (
-              <DateTimePicker
-                value={new Date()}
-                mode={pickerMode === 'date' ? 'date' : 'time'}
-                is24Hour={true}
-                display="default"
-                onChange={handleConfirm}
-              />
-            )}
+
             <TouchableOpacity
               style={[
                 CourseActionStyles.addBtn,
@@ -3391,6 +3470,15 @@ export const RenderLecturerTestManage = ({
           </ScrollView>
         </SafeAreaView>
       </Modal>
+      {pickerMode && (
+        <DateTimePicker
+          value={new Date()}
+          mode={pickerMode === 'date' ? 'date' : 'time'}
+          is24Hour={true}
+          display="default"
+          onChange={handleConfirm}
+        />
+      )}
     </View>
   );
 };
@@ -3644,14 +3732,16 @@ export const RenderStudentTest = ({
       score: sanitizedScore,
       totalPossibleScore: test.totalMarks,
       status: 'submitted',
-      submittedAt: new Date().toISOString(),
+      submittedAt: new Date(),
       proctoringData: {
         deviceId: submissionMetadata?.deviceId || 'Unknown Device',
         entrySelfieUrl: facialVerificationStatus,
         tabSwitchCount: cheatingCount,
         ipAddress: user.ipAddress?.[0] || '',
       },
-      startTime: submissionMetadata?.startTime,
+      startTime: submissionMetadata?.startTime
+        ? new Date(submissionMetadata.startTime)
+        : undefined,
     };
     await onSubmit(finalPayload);
     setFinalResult({
@@ -4238,18 +4328,23 @@ export const RenderViewLectureSchedule = ({
 
   const sections = useMemo(() => {
     const groups = lectures.reduce((acc, lecture) => {
-      const date = lecture.date;
-      if (!acc[date]) {
-        acc[date] = [];
+      const dateKey =
+        lecture.date instanceof Date
+          ? lecture.date.toISOString().split('T')[0]
+          : String(lecture.date);
+
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
       }
-      acc[date].push(lecture);
+      acc[dateKey].push(lecture);
       return acc;
     }, {} as Record<string, Lecture[]>);
+
     return Object.keys(groups)
       .sort()
-      .map(date => ({
-        title: date,
-        data: groups[date],
+      .map(dateKey => ({
+        title: dateKey,
+        data: groups[dateKey],
       }));
   }, [lectures]);
 
@@ -4362,7 +4457,7 @@ export const RenderViewLectureSchedule = ({
         </View>
         <View style={CourseActionStyles.lectureTimeColumn}>
           <Text style={[CourseActionStyles.timeText, { color: colors.text }]}>
-            {formatDate(item.startTime)}
+            {formatDate(item.startTime.toISOString())}
           </Text>
           <Text
             style={[
@@ -4370,7 +4465,7 @@ export const RenderViewLectureSchedule = ({
               { color: colors.text, marginTop: 3 },
             ]}
           >
-            {formatDate(item.endTime)}
+            {formatDate(item.endTime.toISOString())}
           </Text>
         </View>
       </TouchableOpacity>
@@ -4455,17 +4550,23 @@ export const LecturerLectureScheduleView = ({
 
   const sections = useMemo(() => {
     const groups = lectures.reduce((acc, lecture) => {
-      const date = lecture.date;
-      if (!acc[date]) acc[date] = [];
-      acc[date].push(lecture);
+      const dateKey =
+        lecture.date instanceof Date
+          ? lecture.date.toISOString().split('T')[0]
+          : String(lecture.date);
+
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(lecture);
       return acc;
     }, {} as Record<string, Lecture[]>);
 
     return Object.keys(groups)
       .sort()
-      .map(date => ({
-        title: date,
-        data: groups[date],
+      .map(dateKey => ({
+        title: dateKey,
+        data: groups[dateKey],
       }));
   }, [lectures]);
   const handleEditSave = async () => {
@@ -4667,7 +4768,7 @@ export const LecturerLectureScheduleView = ({
         </View>
         <View style={CourseActionStyles.lectureTimeColumn}>
           <Text style={[CourseActionStyles.timeText, { color: colors.text }]}>
-            {item.startTime}
+            {formatDate(item.startTime.toISOString())}
           </Text>
           <Text
             style={[
@@ -4675,7 +4776,7 @@ export const LecturerLectureScheduleView = ({
               { color: colors.text, marginTop: 3 },
             ]}
           >
-            {item.endTime}
+            {formatDate(item.endTime.toISOString())}
           </Text>
         </View>
       </TouchableOpacity>
