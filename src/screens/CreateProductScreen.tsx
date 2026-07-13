@@ -34,75 +34,18 @@ import {
   uploadFileToFirebaseClient,
   uploadToFirebase,
 } from '../utils/CloudinaryPresetHelper';
-import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
-import {
-  CATEGORY_MAX_PRICES,
-  USD_EQUIVALENCE_OF_1_ICASH,
-} from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
+import {
+  StepHeader,
+  CompleteFormInputs,
+  UIContentItem,
+  VideoDurationExtractor,
+  PriceSectionComponent,
+} from '../components/CreateProductComponents.tsx';
 
-interface VideoDurationExtractorProps {
-  uri: string;
-  onDurationExtracted: (duration: number) => void;
-}
-interface StepHeaderProps {
-  number: number;
-  title: string;
-  currentStep: number;
-  toggleStep: (step: number) => void;
-}
-interface PriceSectionProps {
-  userCountry?: string;
-  formInputs: CompleteFormInputs;
-  setFormInputs: React.Dispatch<React.SetStateAction<CompleteFormInputs>>;
-}
-type UIContentItem = NonNullable<
-  Product['courseDetails']
->['content'][number] & {
-  isUploading?: boolean;
-  verificationStatus?:
-    | 'Approved'
-    | 'Pending Review'
-    | 'Flagged/Rejected'
-    | 'Failed';
-};
-export interface CompleteFormInputs {
-  title: string;
-  description: string;
-  price: string;
-  niche: string;
-  productType: 'physical' | 'file' | 'course';
-  physicalDetails: {
-    weightKg: string;
-    inStock: string;
-    sellerGateways: ('drop_off' | 'home_delivery')[];
-    dropOffAddress: DropOffStation[];
-    colors: string[];
-    sizes: string[];
-  };
-  courseDetails: {
-    additionalLecturersRaw: string;
-    content: UIContentItem[];
-  };
-  fileDetails: {
-    fileName: string;
-    fileSizeInMB: number;
-    fileFormat: string;
-    fileUrl: string;
-    isUploading: boolean;
-    rawBlobOrFile?: any;
-  };
-  lessons: {
-    title: string;
-    videoUrl: string;
-    duration: number;
-    isFreePreview: boolean;
-  }[];
-  mediaUrls: string[];
-}
 const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
   Documents: 'file',
   Templates: 'file',
@@ -123,175 +66,6 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-export const VideoDurationExtractor = ({
-  uri,
-  onDurationExtracted,
-}: VideoDurationExtractorProps) => {
-  return (
-    <Video
-      source={{ uri }}
-      paused={true}
-      mixWithOthers="mix"
-      style={{ width: 0, height: 0, position: 'absolute' }}
-      onLoad={meta => {
-        if (meta && meta.duration) {
-          onDurationExtracted(Math.round(meta.duration));
-        }
-      }}
-      onError={err => console.log('Metadata extraction failed:', err)}
-    />
-  );
-};
-export default function PriceSectionComponent({
-  userCountry = 'Nigeria',
-  formInputs,
-  setFormInputs,
-}: PriceSectionProps) {
-  const { colors } = useTheme();
-  const [exchangeDetails, setExchangeDetails] = useState<{
-    rate: number;
-    symbol: string;
-    code: string;
-    loading: boolean;
-  }>({
-    rate: 1,
-    symbol: '₦',
-    code: 'NGN',
-    loading: true,
-  });
-
-  useEffect(() => {
-    const getMarketRates = async () => {
-      try {
-        const result = await fetchLiveRate(userCountry);
-        setExchangeDetails({
-          rate: result.rate,
-          symbol: result.symbol,
-          code: result.code,
-          loading: false,
-        });
-      } catch (err) {
-        setExchangeDetails(prev => ({ ...prev, loading: false }));
-      }
-    };
-
-    getMarketRates();
-  }, [userCountry]);
-
-  const localRatePerIcash = exchangeDetails.rate * USD_EQUIVALENCE_OF_1_ICASH;
-  const icashEntered = parseFloat(formInputs.price) || 0;
-  const maxAllowedIcash = CATEGORY_MAX_PRICES[formInputs.productType];
-  const isOverpriced = icashEntered > maxAllowedIcash;
-
-  const rawConvertedAmount = icashEntered * localRatePerIcash;
-
-  const formattedLocalCurrency = new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(rawConvertedAmount);
-
-  return (
-    <>
-      <Text style={[styles.label, { color: colors.text }]}>Price (iCash)</Text>
-      <TextInput
-        style={[
-          styles.input,
-          isOverpriced && styles.inputWarning,
-          { color: colors.text },
-        ]}
-        placeholder="0.00"
-        keyboardType="numeric"
-        value={formInputs.price}
-        onChangeText={text => setFormInputs(prev => ({ ...prev, price: text }))}
-        placeholderTextColor={colors.inputTextHolder}
-      />
-      {isOverpriced && (
-        <Text style={[styles.warningText, { color: colors.primary }]}>
-          This exceeds the maximum limit of {maxAllowedIcash} iCash allowed for
-          a {formInputs.productType}.
-        </Text>
-      )}
-
-      <Text style={[styles.label, { color: colors.text }]}>
-        Estimated Local Value ({exchangeDetails.code})
-      </Text>
-      <View style={styles.disabledInputWrapper}>
-        <Text style={[styles.currencyPrefix, { color: colors.text }]}>
-          {exchangeDetails.symbol}
-        </Text>
-        <TextInput
-          style={[styles.disabledInput, { color: colors.text }]}
-          value={formInputs.price ? formattedLocalCurrency : '0.00'}
-          editable={false}
-          selectTextOnFocus={false}
-        />
-        {exchangeDetails.loading && (
-          <ActivityIndicator
-            size="small"
-            color={colors.primary}
-            style={styles.spinner}
-          />
-        )}
-      </View>
-      <Text style={[styles.rateHint, { color: colors.primaryTint }]}>
-        Rate anchored at 1 iCash = {exchangeDetails.symbol}
-        {(exchangeDetails.rate * USD_EQUIVALENCE_OF_1_ICASH).toFixed(2)}{' '}
-        {exchangeDetails.code}
-      </Text>
-    </>
-  );
-}
-const StepHeader = ({
-  number,
-  title,
-  currentStep,
-  toggleStep,
-}: StepHeaderProps) => {
-  const { colors } = useTheme();
-  return (
-    <TouchableOpacity
-      onPress={() => toggleStep(number)}
-      style={styles.stepHeader}
-    >
-      <View style={styles.headerLead}>
-        <View
-          style={[
-            styles.stepBadge,
-            currentStep === number && { backgroundColor: colors.primary },
-          ]}
-        >
-          <Text
-            style={[
-              styles.stepNumber,
-              currentStep === number
-                ? { color: colors.btnTextColor }
-                : { color: colors.text },
-            ]}
-          >
-            {number}
-          </Text>
-        </View>
-        <Text
-          style={[
-            styles.stepTitle,
-            currentStep === number
-              ? { color: colors.textDarker, fontWeight: 'bold' }
-              : { color: colors.text },
-          ]}
-        >
-          {title}
-        </Text>
-      </View>
-      <MaterialIcons
-        name={
-          currentStep === number ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
-        }
-        size={24}
-        color={colors.text}
-      />
-    </TouchableOpacity>
-  );
-};
 export const CreateProductScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
@@ -1706,22 +1480,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     padding: 15,
   },
-  stepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLead: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  stepBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'transparent',
-    alignContent: 'center',
-    marginRight: 10,
-  },
-  stepNumber: { fontSize: 14, fontWeight: 'bold' },
-  stepTitle: { fontSize: 14, fontWeight: '600' },
   expandedContent: {
     marginTop: 15,
   },
@@ -1969,30 +1727,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  disabledInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 60,
-    borderRadius: 8,
-    width: '100%',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    marginBottom: 15,
-  },
-  disabledInput: {
-    fontSize: 14,
-    flex: 1,
-  },
-  currencyPrefix: {
-    fontSize: 14,
-  },
-  spinner: {
-    marginLeft: 4,
-  },
-  rateHint: {
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
   miniLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -2023,13 +1757,6 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR_TINT,
     fontSize: 12,
     fontWeight: '600',
-  },
-  inputWarning: { borderColor: PRIMARY_COLOR },
-  warningText: {
-    fontSize: 11,
-    marginTop: -8,
-    marginBottom: 12,
-    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,

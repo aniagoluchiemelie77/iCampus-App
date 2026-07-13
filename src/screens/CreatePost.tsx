@@ -35,6 +35,7 @@ interface MediaItem {
   isExisting?: boolean;
 }
 type Props = NativeStackScreenProps<RootStackParamList, 'CreatePost'>;
+
 const CreatePost = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const editPostData = route.params?.post;
@@ -56,12 +57,9 @@ const CreatePost = ({ route, navigation }: Props) => {
     editPostData?.media?.url
       ? [
           {
-            // Force TypeScript to evaluate this strictly as an array of strings
             uri: (Array.isArray(editPostData.media.url)
               ? editPostData.media.url
               : [editPostData.media.url]) as string[],
-
-            // Cast the generic string fallback into the exact union type allowed
             type: (editPostData.media?.mediaType || 'image') as
               | 'image'
               | 'video',
@@ -96,8 +94,6 @@ const CreatePost = ({ route, navigation }: Props) => {
 
   const handleContentChange = (text: string) => {
     setContent(text);
-
-    // FIX: Look at the current text slice up to the current word boundary instead of absolute last string character
     const words = text.split(/\s/);
     const currentWord = words[words.length - 1];
 
@@ -123,10 +119,8 @@ const CreatePost = ({ route, navigation }: Props) => {
 
   const handleSelectUserToTag = (username: string) => {
     const words = content.split(/\s/);
-    words.pop(); // Remove the incomplete '@username' fragment
+    words.pop(); 
     const baseContent = words.join(' ');
-
-    // Append the autocomplete string neatly structured
     const newContent = baseContent
       ? `${baseContent} @${username} `
       : `@${username} `;
@@ -137,7 +131,7 @@ const CreatePost = ({ route, navigation }: Props) => {
   };
 
   const removeOption = (index: number) => {
-    if (pollOptions.length <= 2) return; // Safeguard poll baseline constraints
+    if (pollOptions.length <= 2) return; 
     setPollOptions(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -150,7 +144,6 @@ const CreatePost = ({ route, navigation }: Props) => {
 
     if (result.assets) {
       const newAssets: MediaItem[] = result.assets.map(asset => ({
-        // FIX: Wrap the single local string URI path inside an array
         uri: [asset.uri || ''],
         type: asset.type?.includes('video') ? 'video' : 'image',
         isExisting: false,
@@ -254,8 +247,6 @@ const CreatePost = ({ route, navigation }: Props) => {
       setIsUploading(false);
     }
   };
-
-  // FIX: Allow post interactions to succeed if media layers exist independently of string parameters
   const hasValidTextOrMedia = content.trim().length > 0 || mediaList.length > 0;
   const hasValidPoll =
     type === 'poll' &&

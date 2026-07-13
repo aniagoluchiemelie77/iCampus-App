@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from 'react';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import * as RNHTMLtoPDF from 'react-native-html-to-pdf';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import {
@@ -80,7 +81,6 @@ import {
   getAssessmentAnalysisUrl,
   fetchCourseGradebook,
 } from '../api/localGetApis';
-import { launchImageLibrary } from 'react-native-image-picker';
 import {
   EXCEPTION_ACCOUNT_LIMITS,
   EXCEPTION_COST_IN_ICASH,
@@ -307,38 +307,31 @@ const CreateAssignmentModal = ({
   } | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const { pickImage, pickDocument } = useMediaPicker();
   const handlePickFile = async () => {
     try {
-      const res = await DocumentPicker.pickSingle({
-        type: [
-          DocumentPicker.types.pdf,
-          DocumentPicker.types.doc,
-          DocumentPicker.types.docx,
-        ],
-      });
-      setSelectedFile({
-        uri: res.uri,
-        name: res.name || 'document.pdf',
-        type: res.type || 'application/pdf',
-      });
+      const fileData = await pickDocument();
+      if (fileData) {
+        setSelectedFile({
+          uri: fileData.uri,
+          name: fileData.name || 'document.pdf',
+          type: fileData.type || 'application/pdf',
+        });
+      }
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) console.log(err);
     }
   };
 
-  const handlePickImage = () => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, response => {
-      if (response.didCancel || response.errorCode) return;
-      if (response.assets && response.assets[0]) {
-        const asset = response.assets[0];
-        setSelectedFile({
-          uri: asset.uri || '',
-          name: asset.fileName || `${Date.now()}.jpg`,
-          type: asset.type || 'image/jpeg',
-        });
-      }
-    });
+  const handlePickImage = async () => {
+    const fileData = await pickImage();
+    if (fileData) {
+      setSelectedFile({
+        uri: fileData.uri || '',
+        name: fileData.name || `${Date.now()}.jpg`,
+        type: fileData.type || 'image/jpeg',
+      });
+    }
   };
   const handleCreate = async () => {
     if (!title.trim()) {
@@ -1197,6 +1190,7 @@ export const RenderMaterials = ({
   const insets = useSafeAreaInsets();
   const [isUploading, setIsUploading] = useState(false);
   const [refreshing, _setRefreshing] = useState(false);
+  const { pickDocument } = useMediaPicker();
   const combinedResources = [
     ...(course.resources || []).map(res => ({
       title: 'General Reference',
@@ -1243,44 +1237,42 @@ export const RenderMaterials = ({
   };
   const handleAddMaterial = async () => {
     try {
-      const pickerResult = await DocumentPicker.pickSingle({
-        type: [
-          DocumentPicker.types.pdf,
-          DocumentPicker.types.images,
-          DocumentPicker.types.docx,
-        ],
-      });
-
-      setIsUploading(true);
-      const firebaseResult = await uploadFileToFirebaseClient(
-        pickerResult.uri,
-        'course-materials',
-      );
-
-      if (!firebaseResult.success || !firebaseResult.data?.permanentUrl) {
-        throw new Error(
-          firebaseResult.message || 'Cloud storage processing failed.',
+      const fileData = await pickDocument();
+      if (fileData) {
+        setIsUploading(true);
+        const firebaseResult = await uploadFileToFirebaseClient(
+          fileData.uri,
+          'course-materials',
         );
-      }
-      Toast.show({ type: 'info', text1: 'Finalizing setup with server...' });
-      const apiResult = await saveCourseMaterial(course.courseId, {
-        materialUrl: firebaseResult.data.permanentUrl,
-        title: pickerResult.name || 'Untitled Document',
-      });
-      if (apiResult.success) {
-        onRefresh();
-        Toast.show({
-          type: 'success',
-          text1: 'Material Uploaded Successfully',
+
+        if (!firebaseResult.success || !firebaseResult.data?.permanentUrl) {
+          Toast.show({
+            type: 'error',
+            text2: 'Cloud storage processing failed.',
+          });
+          return;
+        }
+        Toast.show({ type: 'info', text2: 'Finalizing setup with server...' });
+        const apiResult = await saveCourseMaterial(course.courseId, {
+          materialUrl: firebaseResult.data.permanentUrl,
+          title: fileData.name || 'Untitled Document',
         });
-      } else {
-        throw new Error(
-          apiResult.error || 'Backend pipeline synchronization failed.',
-        );
+        if (apiResult.success) {
+          onRefresh();
+          Toast.show({
+            type: 'success',
+            text1: 'Material Uploaded Successfully',
+          });
+        } else {
+          Toast.show({
+            type: 'error',
+            text2: 'Backend pipeline synchronization failed.',
+          });
+          return;
+        }
       }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
-        // Intentional exit execution if user cancels file context explorer
         return;
       }
       console.error('Pipeline breakdown caught: ', err);
