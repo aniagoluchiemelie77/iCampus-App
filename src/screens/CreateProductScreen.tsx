@@ -16,8 +16,6 @@ import {
   Modal,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
-import ImagePicker from 'react-native-image-crop-picker';
-import DocumentPicker from 'react-native-document-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -38,13 +36,13 @@ import {
 } from '../utils/CloudinaryPresetHelper';
 import { fetchLiveRate } from '../utils/UserTransactionsHelpers';
 import { useAppSelector } from '../hooks/hooks';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { PageHeader } from '../components/PageHeader';
 import {
   CATEGORY_MAX_PRICES,
   USD_EQUIVALENCE_OF_1_ICASH,
 } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
+import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 
 interface VideoDurationExtractorProps {
   uri: string;
@@ -394,165 +392,103 @@ export const CreateProductScreen = ({ route }: any) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveStep(activeStep === step ? 0 : step);
   };
-  const pickProductImages = () => {
-    ImagePicker.openPicker({
-      multiple: true,
-      maxFiles: 5,
-      mediaType: 'photo',
-      compressImageQuality: 0.8,
-    })
-      .then(selectedAssets => {
-        const selectedUris = selectedAssets.map(asset => asset.path);
+  const {
+    pickLessonVideo,
+    pickDigitalFile,
+    pickCourseThumbnail,
+    pickProductImages,
+  } = useMediaPicker();
+  const handleAddProductImages = async () => {
+    const selectedUris = await pickProductImages(5);
 
-        setFormInputs(prev => {
-          const currentThumbnails = (prev as any).thumbnails || [];
-
-          return {
-            ...prev,
-            mediaUrls: [...currentThumbnails, ...selectedUris].slice(0, 5),
-          } as any;
-        });
-      })
-      .catch(err => {
-        if (err.message !== 'User cancelled image selection') {
-          Alert.alert(
-            'Selection Error',
-            'Could not cleanly read selected images.',
-          );
-        }
-      });
-  };
-  const pickLessonVideo = async (index: number) => {
-    try {
-      const response = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.video],
-        copyTo: 'cachesDirectory',
-      });
-
-      const targetUri = response.fileCopyUri || response.uri;
-      const fileName = response.name || `lesson-video-${Date.now()}.mp4`;
-      const fileType = response.type || 'video/mp4';
+    if (selectedUris) {
       setFormInputs(prev => {
-        const updatedLessons = [...(prev.lessons || [])];
-        if (updatedLessons[index]) {
-          updatedLessons[index] = {
-            ...updatedLessons[index],
-            videoUrl: targetUri,
-            isUploading: true,
-          } as any;
-        }
-        return { ...prev, lessons: updatedLessons };
-      });
-      setActiveExtractingUri({ uri: targetUri, index });
-      const uploadResult = await uploadLessonVideoAPI(
-        targetUri,
-        fileName,
-        fileType,
-      );
-      setFormInputs(prev => {
-        const updatedLessons = [...(prev.lessons || [])];
-        if (updatedLessons[index]) {
-          updatedLessons[index] = {
-            ...updatedLessons[index],
-            isUploading: false,
-            videoUrl: uploadResult.success
-              ? uploadResult.data.permanentUrl
-              : '',
-            verificationStatus: uploadResult.success
-              ? uploadResult.data.status
-              : 'Failed',
-          } as any;
-        }
-        return { ...prev, lessons: updatedLessons };
-      });
+        const currentMedia = (prev as any).mediaUrls || [];
 
-      if (!uploadResult.success) {
-        Alert.alert('Upload Notice', uploadResult.message);
-      }
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
-        console.error('File selection handling error:', err);
-      }
+        return {
+          ...prev,
+          mediaUrls: [...currentMedia, ...selectedUris].slice(0, 5),
+        } as any;
+      });
     }
   };
-  const pickDigitalFile = async () => {
-    try {
-      const response = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.allFiles],
-        copyTo: 'cachesDirectory',
-      });
-
-      const targetUri = response.fileCopyUri || response.uri;
-      const rawName = response.name || `digital-asset-${Date.now()}`;
-      const extension = rawName.split('.').pop()?.toUpperCase() || 'UNKNOWN';
-      const sizeInBytes = response.size || 0;
-      const sizeInMB = parseFloat((sizeInBytes / (1024 * 1024)).toFixed(2));
-      setFormInputs(
-        prev =>
-          ({
-            ...prev,
-            fileDetails: {
-              ...(prev as any).fileDetails,
-              fileName: rawName,
-              fileSizeInMB: sizeInMB,
-              fileFormat: extension,
-              isUploading: true,
-            },
-          } as any),
-      );
-
-      const uploadResult = await uploadFileToFirebaseClient(
-        targetUri,
-        'digital-products',
-      );
-      setFormInputs(
-        prev =>
-          ({
-            ...prev,
-            fileDetails: {
-              ...(prev as any).fileDetails,
-              isUploading: false,
-              fileUrl: uploadResult.success
-                ? uploadResult.data?.permanentUrl || ''
-                : '',
-            },
-          } as any),
-      );
-
-      if (!uploadResult.success) {
-        Alert.alert('Upload Failed', uploadResult.message);
+  const handleLessonUpload = async (index: number) => {
+    const file = await pickLessonVideo();
+    if (!file) return;
+    setFormInputs(prev => {
+      const updatedLessons = [...(prev.lessons || [])];
+      if (updatedLessons[index]) {
+        updatedLessons[index] = {
+          ...updatedLessons[index],
+          videoUrl: file.uri,
+        };
       }
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
-        console.error('Document picking execution exception:', err);
-      }
-    }
-  };
-  const pickCourseThumbnail = () => {
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        quality: 1,
-      },
-      response => {
-        if (response.didCancel) return;
-        if (response.errorCode) {
-          console.log('ImagePicker Error: ', response.errorMessage);
-          return;
-        }
+      return { ...prev, lessons: updatedLessons };
+    });
 
-        const uri = response.assets?.[0]?.uri;
-        if (uri) {
-          setFormInputs(
-            prev =>
-              ({
-                ...prev,
-                mediaUrls: uri,
-              } as any),
-          );
-        }
-      },
+    const result = await uploadLessonVideoAPI(
+      file.uri,
+      file.name || 'video.mp4',
+      file.type || 'video/mp4',
     );
+    setFormInputs(prev => {
+      const updatedLessons = [...(prev.lessons || [])];
+      if (updatedLessons[index]) {
+        updatedLessons[index] = {
+          ...updatedLessons[index],
+          videoUrl: result.success ? result.data.permanentUrl : '',
+        };
+      }
+      return { ...prev, lessons: updatedLessons };
+    });
+
+    if (!result.success) {
+      Alert.alert('Upload Notice', result.message);
+    }
+  };
+  const handleDigitalFilePick = async () => {
+    const fileData = await pickDigitalFile();
+    if (!fileData) return;
+    setFormInputs(prev => ({
+      ...prev,
+      fileDetails: {
+        ...(prev as any).fileDetails,
+        fileName: fileData.fileName,
+        fileSizeInMB: fileData.fileSizeInMB,
+        fileFormat: fileData.fileFormat,
+        isUploading: true,
+      },
+    }));
+
+    const uploadResult = await uploadFileToFirebaseClient(
+      fileData.uri,
+      'digital-products',
+    );
+
+    setFormInputs(prev => ({
+      ...prev,
+      fileDetails: {
+        ...(prev as any).fileDetails,
+        isUploading: false,
+        fileUrl: uploadResult.success
+          ? uploadResult.data?.permanentUrl || ''
+          : '',
+      },
+    }));
+
+    if (!uploadResult.success) {
+      Alert.alert('Upload Failed', uploadResult.message);
+    }
+  };
+  const handleThumbnailPick = async () => {
+    const uri = await pickCourseThumbnail();
+
+    if (uri) {
+      setFormInputs(prev => ({
+        ...prev,
+        mediaUrls: [uri],
+      }));
+    }
   };
   const requestLocationPermission = async (): Promise<boolean> => {
     if (Platform.OS === 'ios') {
@@ -991,7 +927,7 @@ export const CreateProductScreen = ({ route }: any) => {
                 )}
                 <TouchableOpacity
                   style={styles.uploadPlaceholder}
-                  onPress={pickProductImages}
+                  onPress={handleAddProductImages}
                 >
                   <MaterialIcons
                     name="cloud-upload-outlined"
@@ -1034,7 +970,7 @@ export const CreateProductScreen = ({ route }: any) => {
                 ) : (
                   <TouchableOpacity
                     style={styles.courseThumbnailPlaceholder}
-                    onPress={pickCourseThumbnail}
+                    onPress={handleThumbnailPick}
                   >
                     <MaterialIcons
                       name="image-search-outlined"
@@ -1103,7 +1039,7 @@ export const CreateProductScreen = ({ route }: any) => {
                           { backgroundColor: colors.btnColor },
                         ]}
                         onPress={() => {
-                          pickLessonVideo(index);
+                          handleLessonUpload(index);
                         }}
                       >
                         <MaterialIcons
@@ -1624,7 +1560,7 @@ export const CreateProductScreen = ({ route }: any) => {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={styles.fileUploadBox}
-                  onPress={pickDigitalFile}
+                  onPress={handleDigitalFilePick}
                   disabled={formInputs.fileDetails.isUploading}
                 >
                   {formInputs.fileDetails.isUploading ? (

@@ -293,6 +293,15 @@ export const Settings = () => {
             onPress={() => navigation.navigate('FAQScreen')}
           />
         </View>
+        <SectionHeader title="Partner With Us" />
+        <View style={styles.group}>
+          <SettingItem
+            icon="storefront-outlined"
+            title="Register a Drop-Off (Pickup) Station"
+            subtitle="Register your business location as an iCampus hub"
+            onPress={() => navigation.navigate('RegisterStation')}
+          />
+        </View>
         <SectionHeader title="Spread the Word" />
         <View style={styles.group}>
           <SettingItem

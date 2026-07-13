@@ -124,10 +124,12 @@ import { ViewAllSchoolsScreen } from './src/screens/ViewAllSchoolsScreen.tsx';
 import { ViewAllDropStations } from './src/screens/ViewAllDropStations.tsx';
 import { SchoolAorEScreen } from './src/screens/SchoolAorE.tsx';
 import { StationAorEScreen } from './src/screens/StationAorE.tsx';
+import { RegisterStationScreen } from './src/screens/RegisterDropOffStation.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
+  RegisterStation: undefined;
   AdminDashboard: undefined;
   ViewAllSchools: undefined;
   ViewAllDropStations: undefined;
@@ -409,6 +411,11 @@ const App = () => {
               <Stack.Screen
                 name="ViewAllSchools"
                 component={ViewAllSchoolsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="RegisterStation"
+                component={RegisterStationScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

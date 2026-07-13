@@ -2001,3 +2001,26 @@ export const createStationApi = async (stationData: any) => {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const requestDropStationApi = async (stationData: {
+  name: string;
+  address: string;
+  images: string[];
+  latitude: number;
+  longitude: number;
+}) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/stations/register`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(stationData),
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true, data: data } 
+      : { success: false, error: data.message || 'Registration failed.' };
+  } catch (error) {
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

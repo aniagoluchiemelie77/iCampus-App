@@ -373,6 +373,7 @@ export interface DropOffStation {
   latitude?: number;
   longitude?: number;
   distance?: string;
+  status: "pending" | "confirmed";
   createdAt:  Date | string;
 }
 export interface Product {

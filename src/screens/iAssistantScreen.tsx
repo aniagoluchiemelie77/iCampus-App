@@ -16,12 +16,15 @@ import { MessageBubble } from '../components/ChatMessageBubble.tsx';
 import { ChatInput } from '../components/ChatInput.tsx';
 import { askIAssistantAgent } from '../api/localPostApis.ts';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper.ts';
-import ImagePicker from 'react-native-image-crop-picker';
-import DocumentPicker, { types } from 'react-native-document-picker';
+import {
+  uploadToFirebase,
+  uploadFileToFirebaseClient,
+} from '../utils/CloudinaryPresetHelper.ts';
+import DocumentPicker from 'react-native-document-picker';
 import Toast from 'react-native-toast-message';
 import { AssistantMessage } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -50,6 +53,7 @@ export const Assistant = ({ route }: Props) => {
   const addMessage = useCallback((msg: AssistantMessage) => {
     setMessages(prev => [...prev, { ...msg, id: uuidv4() }]);
   }, []);
+  const { pickImage, pickDocument } = useMediaPicker();
 
   const handleSendMessage = async () => {
     if (!input.trim() || isProcessing) return;
@@ -125,16 +129,9 @@ export const Assistant = ({ route }: Props) => {
 
   const handlePickImage = async () => {
     try {
-      const image = await ImagePicker.openPicker({
-        width: 400,
-        height: 400,
-        cropping: true,
-        compressImageQuality: 0.8,
-        mediaType: 'photo',
-        loadingLabelText: 'Processing reference image...',
-      });
-      if (image.path) {
-        const imageUrl = await uploadToFirebase(image.path);
+      const fileData = await pickImage();
+      if (fileData) {
+        const imageUrl = await uploadToFirebase(fileData.uri);
         handleAttachment(imageUrl, 'image');
       }
     } catch (error: any) {
@@ -158,12 +155,17 @@ export const Assistant = ({ route }: Props) => {
 
   const handlePickDocument = async () => {
     try {
-      const result = await DocumentPicker.pickSingle({
-        type: [types.allFiles],
-      });
-      const { uri, name } = result;
-      const docUrl = await uploadToFirebase(uri);
-      handleAttachment(docUrl, 'file', name || 'Document');
+      const fileData = await pickDocument();
+      if (fileData) {
+        const response = await uploadFileToFirebaseClient(
+          fileData.uri,
+          'chat-attachments',
+        );
+        if (response.success && response.data?.permanentUrl) {
+          const docUrl = response.data.permanentUrl;
+          handleAttachment(docUrl, 'file', 'Document');
+        }
+      }
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) {
         console.error('Document Picker Error:', err);
