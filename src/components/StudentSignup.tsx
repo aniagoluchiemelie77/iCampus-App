@@ -297,8 +297,7 @@ const StudentSignup = () => {
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password,
-        country: country || '',
-        itagusername: verifiedStudent?.firstname,
+        country: country || ''
       };
       const response = await handleRegisterUser(registrationData);
 

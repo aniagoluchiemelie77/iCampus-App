@@ -295,7 +295,6 @@ const InstructorSignup = () => {
         deviceName: `${brand} ${deviceName}`,
         password,
         country: country || '',
-        itagusername: verifiedInstructor?.firstname,
       };
       const response = await handleRegisterUser(registrationData);
       if (response.status === 409) {

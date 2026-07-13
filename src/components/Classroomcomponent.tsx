@@ -1132,6 +1132,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         <>
           {isStudent && (
             <>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.btn, { borderColor: colors.primary }]}
+                  onPress={() => setIsAttachmentModalVisible(true)}
+                >
+                  <MaterialIcons
+                    name="cloud-upload-outlined"
+                    size={32}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.btnText, { color: colors.primary }]}>
+                    Upload{'\n'}Form
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btn, { borderColor: colors.primary }]}
+                  onPress={() => setIsManualModalVisible(true)}
+                >
+                  <MaterialIcons
+                    name="keyboard-alt-outlined"
+                    size={32}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.btnText, { color: colors.primary }]}>
+                    Manual{'\n'}Entry
+                  </Text>
+                </TouchableOpacity>
+              </View>
               {courses.length === 0 ? (
                 <View
                   style={[
@@ -1151,34 +1179,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   <Text style={[styles.subtitle, { color: colors.text }]}>
                     Let's populate your academic calendar.
                   </Text>
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={[styles.btn, { borderColor: colors.primary }]}
-                      onPress={() => setIsAttachmentModalVisible(true)}
-                    >
-                      <MaterialIcons
-                        name="cloud-upload-outlined"
-                        size={32}
-                        color={colors.primary}
-                      />
-                      <Text style={[styles.btnText, { color: colors.primary }]}>
-                        Upload{'\n'}Form
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btn, { borderColor: colors.primary }]}
-                      onPress={() => setIsManualModalVisible(true)}
-                    >
-                      <MaterialIcons
-                        name="keyboard-alt-outlined"
-                        size={32}
-                        color={colors.primary}
-                      />
-                      <Text style={[styles.btnText, { color: colors.primary }]}>
-                        Manual{'\n'}Entry
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
               ) : (
                 <>
@@ -1266,6 +1266,52 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           )}
           {isInstructor && (
             <>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.btn, { borderColor: colors.primary }]}
+                  onPress={() => {}}
+                >
+                  <MaterialIcons
+                    name="cloud-upload-outlined"
+                    size={32}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.btnText, { color: colors.primary }]}>
+                    Create New{'\n'}Course{'\n'}Syllabus
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btn, { borderColor: colors.primary }]}
+                  onPress={() => setIsManualModalVisible(true)}
+                >
+                  <MaterialIcons
+                    name="keyboard-alt-outlined"
+                    size={32}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.btnText, { color: colors.primary }]}>
+                    Manual{'\n'}Entry
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btn, { borderColor: colors.primary }]}
+                  onPress={() =>
+                    navigation.navigate('CourseSubPage', {
+                      title: 'QuickPublicClass',
+                      userRole: user.usertype,
+                    })
+                  }
+                >
+                  <MaterialIcons
+                    name="people-outlined"
+                    size={32}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.btnText, { color: colors.primary }]}>
+                    Schedule{'\n'}Quick Online{'\n'}Class
+                  </Text>
+                </TouchableOpacity>
+              </View>
               {courses.length === 0 ? (
                 <View
                   style={[
@@ -1285,52 +1331,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   <Text style={[styles.subtitle, { color: colors.text }]}>
                     Prepare your syllabus and lectures
                   </Text>
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={[styles.btn, { borderColor: colors.primary }]}
-                      onPress={() => {}}
-                    >
-                      <MaterialIcons
-                        name="cloud-upload-outlined"
-                        size={32}
-                        color={colors.primary}
-                      />
-                      <Text style={[styles.btnText, { color: colors.primary }]}>
-                        Create New{'\n'}Course{'\n'}Syllabus
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btn, { borderColor: colors.primary }]}
-                      onPress={() => setIsManualModalVisible(true)}
-                    >
-                      <MaterialIcons
-                        name="keyboard-alt-outlined"
-                        size={32}
-                        color={colors.primary}
-                      />
-                      <Text style={[styles.btnText, { color: colors.primary }]}>
-                        Manual{'\n'}Entry
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btn, { borderColor: colors.primary }]}
-                      onPress={() =>
-                        navigation.navigate('CourseSubPage', {
-                          title: 'QuickPublicClass',
-                          userRole: user.usertype,
-                        })
-                      }
-                    >
-                      <MaterialIcons
-                        name="people-outlined"
-                        size={32}
-                        color={colors.primary}
-                      />
-                      <Text style={[styles.btnText, { color: colors.primary }]}>
-                        Schedule{'\n'}Quick Online{'\n'}Class
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
               ) : (
                 <>
@@ -1524,7 +1524,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 15,
+    marginVertical: 15,
     width: '100%',
   },
   btn: {

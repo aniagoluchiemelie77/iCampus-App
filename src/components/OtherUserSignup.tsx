@@ -242,7 +242,6 @@ const OtherUserSignup = () => {
         currentIScore: 5,
         usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
         firstname: subType === 'enterprise' ? '' : firstname,
-        itagusername: firstname,
         lastname: subType === 'enterprise' ? '' : lastname,
         email: email.toLowerCase().trim(),
         deviceId,
