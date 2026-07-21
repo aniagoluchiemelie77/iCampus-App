@@ -23,7 +23,12 @@ import type {
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const linking = {
-  prefixes: ['https://useicampus.app', 'icampus://'],
+  prefixes: [
+    'https://useicampus.io',
+    'icampus://',
+    `live.useicampus.io://`,
+    `https://live.useicampus.io`,
+  ],
   config: {
     screens: {
       Home: 'home',
@@ -39,13 +44,19 @@ const linking = {
       CartScreen: 'cart',
       SalesHub: 'product/seller-hub',
       CourseLearningScreen: 'course/:courseId',
-      LiveClassSessions: 'live-class/:lectureId',
       Settings: 'settings',
       EditProfile: 'profile/edit',
       ResetPasswordScreen: 'reset-password',
       Notifications: 'notifications',
       NotificationDetails: 'notification/:notificationId',
       FAQScreen: 'faq',
+      LiveClassSessions: {
+        path: 'session/:lectureId/:courseId?',
+        parse: {
+          lectureId: (lectureId: string) => lectureId,
+          courseId: (courseId: string) => courseId,
+        },
+      },
     },
   },
 };

@@ -2,6 +2,7 @@
 #
 .DS_Store
 local.properties
+android/app/google-services.json
 # Xcode
 #
 build/
