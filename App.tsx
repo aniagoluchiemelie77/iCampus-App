@@ -138,12 +138,16 @@ import { StationAorEScreen } from './src/screens/StationAorE.tsx';
 import { RegisterStationScreen } from './src/screens/RegisterDropOffStation.tsx';
 import { ViewAllCoursesScreen } from './src/screens/ViewAllCourses.tsx';
 import { AdminSearchScreen } from './src/screens/AdminSearchScreen.tsx';
+import { TermsScreen } from './src/screens/TermsScreen.tsx';
+import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
   RegisterStation: undefined;
   AdminSearchScreen: undefined;
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined;
   ViewAllCourses: undefined;
   AdminDashboard: undefined;
   ViewAllSchools: undefined;
@@ -431,6 +435,16 @@ const App = () => {
               <Stack.Screen
                 name="AdminSearchScreen"
                 component={AdminSearchScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="PrivacyPolicy"
+                component={PrivacyScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="TermsOfService"
+                component={TermsScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

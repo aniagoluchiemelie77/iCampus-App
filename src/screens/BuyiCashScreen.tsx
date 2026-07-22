@@ -103,7 +103,8 @@ export const ICashBuyPage = ({ navigation }: any) => {
 
   const hasPaymentMethod = savedMethods.length > 0;
 
-  const { rate, code, symbol } = useExchangeRate(user?.country || 'Nigeria');
+  const { exchangeData } = useExchangeRate(user?.country || 'Nigeria');
+  const { rate, code, symbol } = exchangeData || {};
 
   const iCashEquivalent = useMemo(() => {
     const numericAmount = parseFloat(amount);

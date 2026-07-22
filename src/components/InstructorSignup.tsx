@@ -788,21 +788,48 @@ const InstructorSignup = () => {
             </Text>
 
             {/* Scrollable Terms */}
-            <ScrollView style={StudentSignupStyles.termsBox}>
-              <Text style={StudentSignupStyles.termsText}>
-                By creating an iCampus account, you agree to the following
-                terms:
-                {'\n'} 1. You confirm that all information provided is accurate.
-                {'\n'}2. You agree not to misuse the platform or engage in
-                fraudulent activity.
-                {'\n'}3. You consent to receive notifications related to your
-                account.
-                {'\n'}4. You understand that violating these terms may lead to
-                account suspension.
-                {'\n'}5. You agree to our privacy policy and data usage
-                guidelines.
-                {'\n'}
-                Please read carefully before proceeding.
+            <ScrollView
+              style={StudentSignupStyles.termsBox}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={StudentSignupStyles.termsTitle}>
+                Terms & Conditions
+              </Text>
+
+              <Text style={StudentSignupStyles.termsDescription}>
+                By creating an iCampus account, you acknowledge and agree to our
+                framework guidelines:
+              </Text>
+
+              {[
+                'You confirm that all profile and academic information provided is accurate and authentic.',
+                'You agree not to misuse platform services, compromise security, or engage in fraudulent activity (including iCash wallet misuse).',
+                'You consent to receive automated notifications and critical updates related to your account activity.',
+                'You understand that violating platform terms or safety policies will result in immediate account restriction or suspension.',
+                'You agree to our data protection guidelines and privacy policy regarding digital records.',
+              ].map((term, index) => (
+                <View key={index} style={StudentSignupStyles.termItem}>
+                  <Text style={StudentSignupStyles.termBullet}>•</Text>
+                  <Text style={StudentSignupStyles.termText}>{term}</Text>
+                </View>
+              ))}
+
+              <Text style={StudentSignupStyles.termsFooter}>
+                Please review our{' '}
+                <Text
+                  style={StudentSignupStyles.linkText}
+                  onPress={() => navigation.navigate('TermsOfService')}
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={StudentSignupStyles.linkText}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
+                >
+                  Privacy Policy
+                </Text>{' '}
+                before proceeding.
               </Text>
             </ScrollView>
 

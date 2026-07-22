@@ -26,10 +26,11 @@ import { useSocket } from './socketContext.ts';
 import { UserIdentity } from './UserIdentity.tsx';
 import { fetchPostsAPI } from '../api/localGetApis.ts';
 import { UserAvatar } from './UserAvatar.tsx';
-export const baseUrl = 'http://192.168.1.98:5000/';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { useTheme } from '../context/ThemeContext.tsx';
+import { BACKEND_URL } from '@env';
 
+export const baseUrl = BACKEND_URL;
 interface Props {
   navigation: StackNavigationProp<any>;
   initialCount?: number;

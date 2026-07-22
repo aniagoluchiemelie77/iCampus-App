@@ -280,7 +280,7 @@ export const StudentSignupStyles = StyleSheet.create({
     marginTop: 10,
   },
   rowDivText: {
-    color: '#929191',
+    color: PRIMARY_COLOR_TINT,
     fontSize: 12,
   },
   rowDivBtn: {
@@ -293,9 +293,21 @@ export const StudentSignupStyles = StyleSheet.create({
     width: '100%',
     padding: 10,
     borderWidth: 0.7,
-    borderColor: '#929191',
+    borderColor: PRIMARY_COLOR_TINT,
     marginVertical: 10,
   },
+  termsTitle: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#222',
+  marginBottom: 9,
+},
+termsDescription: {
+  fontSize: 12,
+  color: '#333',
+  marginBottom: 10,
+  lineHeight: 18,
+},
   termsText: {
     color: '#222',
     fontSize: 15,
@@ -378,8 +390,31 @@ export const StudentSignupStyles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff', // Or your container background
+    backgroundColor: '#fff', 
   },
+  termItem: {
+  flexDirection: 'row',
+  marginBottom: 8,
+  paddingRight: 4,
+},
+termBullet: {
+  fontSize: 12,
+  fontWeight: 'bold',
+  color: PRIMARY_COLOR,
+  marginRight: 6,
+},
+termText: {
+  fontSize: 12,
+  color: '#333',
+  lineHeight: 18,
+  flex: 1,
+},
+termsFooter: {
+  fontSize: 12,
+  color: '#333',
+  marginTop: 10,
+  fontStyle: 'italic',
+},
   nextButton4: {
     minWidth: '100%',
     padding: 12,
@@ -416,7 +451,7 @@ export const StudentSignupStyles = StyleSheet.create({
   },
   cardSub: {
     fontSize: 14,
-    color: '#929191',
+    color: PRIMARY_COLOR_TINT,
     textAlign: 'center',
     marginTop: 5,
   },

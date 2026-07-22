@@ -29,12 +29,12 @@ import { ProductCard } from '../components/ProductCard';
 import { PageHeader } from '../components/PageHeader';
 import { PreSearchComponent } from '../components/PresearchComponent';
 import {CourseSearchCard, ResourceSearchCard} from '../components/SearchScreenComponents';
+import { EditUserModalContent } from '@components/editUser';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
-
 
 export const AdminSearchScreen = () => {
   const navigation = useNavigation<any>();
@@ -45,6 +45,8 @@ export const AdminSearchScreen = () => {
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [affectedUser, setAffectedUser] = useState<any>(null);
   const tabs: { id: SearchTab; label: string }[] = [
     { id: 'people', label: 'People' },
     { id: 'posts', label: 'Posts' },
@@ -52,6 +54,10 @@ export const AdminSearchScreen = () => {
     { id: 'resources', label: 'Resources' },
     { id: 'courses', label: 'Courses' },
   ];
+  const handleOpenEditModal = (person: any) => {
+    setAffectedUser(person);
+    setEditModalVisible(true);
+  };
 
   useEffect(() => {
     if (searchQuery.trim().length < 2) {
@@ -104,9 +110,7 @@ export const AdminSearchScreen = () => {
         return (
           <TouchableOpacity
             style={styles.searchResultRow}
-            onPress={() => {
-              navigation.navigate('Profile', { uid: item.uid });
-            }}
+            onPress={() => handleOpenEditModal(item)}
           >
             <UserAvatar
               profilePic={item.profilePic}
@@ -268,6 +272,23 @@ export const AdminSearchScreen = () => {
           setSearchQuery={setSearchQuery}
         />
       )}
+      <EditUserModalContent
+        visible={isEditModalVisible}
+        user={affectedUser}
+        onClose={() => {
+          setEditModalVisible(false);
+          setAffectedUser(null);
+        }}
+        onUserUpdated={updatedUser => {
+          setSearchResults(prevResults =>
+            prevResults.map(item =>
+              item.uid === updatedUser.uid ? { ...item, ...updatedUser } : item,
+            ),
+          );
+          setEditModalVisible(false);
+          setAffectedUser(null);
+        }}
+      />
     </View>
   );
 };

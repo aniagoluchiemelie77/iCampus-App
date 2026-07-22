@@ -25,8 +25,6 @@ export const EditProfileScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
   const isMounted = useRef(true);
-
-  // 1. Redux Selectors
   const user = useAppSelector((state: { user: User }) => state.user);
 
   const isStudent = user.usertype === 'student';

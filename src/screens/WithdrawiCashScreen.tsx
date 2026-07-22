@@ -33,7 +33,9 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
   const user = useAppSelector(state => state.user);
   const [iCashAmount, setICashAmount] = useState('');
   const [showAddCardModal, setShowAddCardModal] = useState(false);
-  const currencyData = useExchangeRate(user?.country || 'Nigeria');
+  const { exchangeData: currencyData } = useExchangeRate(
+    user?.country || 'Nigeria',
+  );
   const [savedMethods, setSavedMethods] = useState<UserBankOrCardDetails[]>([]);
   const [selectedMethod, setSelectedMethod] =
     useState<UserBankOrCardDetails | null>(null);
