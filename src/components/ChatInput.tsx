@@ -189,10 +189,7 @@ export const ChatInput = ({
 const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
-    position: 'static',
-    right: 0,
-    left: 0,
-    bottom: 0,
+    width: '100%',
     paddingVertical: 10,
     paddingHorizontal: 8,
     alignItems: 'flex-end',

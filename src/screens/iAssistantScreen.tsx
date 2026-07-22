@@ -197,6 +197,7 @@ export const Assistant = ({ route }: Props) => {
         ref={flatListRef}
         data={messages}
         onContentSizeChange={onContentSizeChange}
+        inverted={true}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item }) => (
           <MessageBubble

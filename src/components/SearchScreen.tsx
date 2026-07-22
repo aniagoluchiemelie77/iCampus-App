@@ -35,6 +35,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from './ProductCard';
 import { PageHeader } from '../components/PageHeader';
 import { formatCount } from '../utils/followCountFormatter';
+import { PreSearchComponent } from '../components/PresearchComponent';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -441,77 +442,88 @@ export const SearchScreen = () => {
           onChangeText={setSearchQuery}
         />
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabBarScrollContainer}
-        style={[
-          styles.tabBarContainer,
-          {
-            borderBottomColor: colors.border,
-            backgroundColor: colors.backgroundSecondary,
-          },
-        ]}
-      >
-        {tabs.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={[
-                styles.tabItem,
-                isActive && { borderBottomColor: colors.primary },
-              ]}
-              onPress={() => {
-                setActiveTab(tab.id);
-                setSearchResults([]);
-              }}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  {
-                    color: isActive ? colors.primary : colors.text,
-                  },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-      <View style={[styles.searchOverlayScreen]}>
-        {isSearching ? (
-          <View style={styles.searchEmptyState}>
-            <ActivityIndicator color={colors.primary} size="small" />
+      {searchQuery.trim().length > 0 && (
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabBarScrollContainer}
+            style={[
+              styles.tabBarContainer,
+              {
+                borderBottomColor: colors.border,
+                backgroundColor: colors.backgroundSecondary,
+              },
+            ]}
+          >
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[
+                    styles.tabItem,
+                    isActive && { borderBottomColor: colors.primary },
+                  ]}
+                  onPress={() => {
+                    setActiveTab(tab.id);
+                    setSearchResults([]);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      {
+                        color: isActive ? colors.primary : colors.text,
+                      },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <View style={[styles.searchOverlayScreen]}>
+            {isSearching ? (
+              <View style={styles.searchEmptyState}>
+                <ActivityIndicator color={colors.primary} size="small" />
+              </View>
+            ) : searchResults.length > 0 ? (
+              <FlatList
+                data={searchResults}
+                keyExtractor={item =>
+                  item.postId || item.uid || item.id || item._id
+                }
+                renderItem={renderItemCard}
+                contentContainerStyle={{ paddingBottom: 40 }}
+              />
+            ) : (
+              <EmptyState
+                iconName={searchQuery.length < 2 ? 'search' : 'find-in-page'}
+                title={
+                  searchQuery.length < 2
+                    ? `Search iCampus ${activeTab}`
+                    : 'No Results Found'
+                }
+                subtitle={
+                  searchQuery.length < 2
+                    ? `Enter at least 2 characters to look through the platform database directory updates.`
+                    : `We couldn't discover any matches matching "${searchQuery}" inside this tab profile context.`
+                }
+                style={styles.emptyStatePadding}
+              />
+            )}
           </View>
-        ) : searchResults.length > 0 ? (
-          <FlatList
-            data={searchResults}
-            keyExtractor={item =>
-              item.postId || item.uid || item.id || item._id
-            }
-            renderItem={renderItemCard}
-            contentContainerStyle={{ paddingBottom: 40 }}
-          />
-        ) : (
-          <EmptyState
-            iconName={searchQuery.length < 2 ? 'search' : 'find-in-page'}
-            title={
-              searchQuery.length < 2
-                ? `Search iCampus ${activeTab}`
-                : 'No Results Found'
-            }
-            subtitle={
-              searchQuery.length < 2
-                ? `Enter at least 2 characters to look through the platform database directory updates.`
-                : `We couldn't discover any matches matching "${searchQuery}" inside this tab profile context.`
-            }
-            style={styles.emptyStatePadding}
-          />
-        )}
-      </View>
+        </>
+      )}
+      {searchQuery.trim().length === 0 && (
+        <PreSearchComponent
+          tabs={tabs}
+          setActiveTab={setActiveTab}
+          setSearchQuery={setSearchQuery}
+        />
+      )}
     </View>
   );
 };
