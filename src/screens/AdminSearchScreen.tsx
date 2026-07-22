@@ -28,22 +28,20 @@ import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from '../components/ProductCard';
 import { PageHeader } from '../components/PageHeader';
 import { PreSearchComponent } from '../components/PresearchComponent';
-import {
-  CourseSearchCard,
-  ResourceSearchCard,
-} from '../components/SearchScreenComponents';
+import {CourseSearchCard, ResourceSearchCard} from '../components/SearchScreenComponents';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
 
-export const SearchScreen = () => {
+
+export const AdminSearchScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { allProducts } = useAppDataContext();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.admin);
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -69,8 +67,8 @@ export const SearchScreen = () => {
           case 'people':
             results = await searchUsers({
               q: searchQuery,
-              viewerTier: currentUser.tier || 'free',
-              viewerRole: currentUser.usertype || 'student',
+              viewerTier: currentUser.adminType || 'free',
+              viewerRole: 'admin',
             });
             break;
           case 'posts':
@@ -167,7 +165,7 @@ export const SearchScreen = () => {
 
   return (
     <View style={[StyleSheet.absoluteFillObject]}>
-      <PageHeader title="iCampus Search" showBackButton={false} />
+      <PageHeader title="iCampus Admin Search" />
       <View
         style={[
           styles.activeSearchHeader,

@@ -15,6 +15,7 @@ import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator } from 'react-native-paper';
+import { homeStyles } from '../assets/styles/colors.ts';
 import { CATEGORY_ACCESS, CategoryKey } from '../constants/inAppConstants.ts';
 import {
   AdminManagementSection,
@@ -153,6 +154,18 @@ export const AdminDashboard = () => {
           )}
         </Suspense>
       </ScrollView>
+      <TouchableOpacity
+        style={homeStyles.fab}
+        onPress={() => {
+          navigation.navigate('AdminSearchScreen');
+        }}
+      >
+        <MaterialIcons
+          name="search-outlined"
+          size={28}
+          color={colors.btnTextColor}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
