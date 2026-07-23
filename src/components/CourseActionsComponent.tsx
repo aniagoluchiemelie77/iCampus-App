@@ -832,7 +832,6 @@ export const DetailHeader = ({
 
   return (
     <>
-      <PageHeader title={title} />
       {shouldShowSearch && (
         <View
           style={[
@@ -880,11 +879,13 @@ export const RenderContents = ({
   course,
   userRole,
   searchQuery,
+  setSearchQuery,
   onRefresh,
 }: {
   course: Course;
   userRole: string;
   searchQuery: string;
+  setSearchQuery: (query: string) => void;
   onRefresh: () => void;
 }) => {
   const { colors } = useTheme();
@@ -895,6 +896,18 @@ export const RenderContents = ({
   const [isModalVisible, setModalVisible] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [textInput, setTextInput] = useState(searchQuery);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(textInput);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [textInput, setSearchQuery]);
+
+  const shouldShowSearch = !(userRole === 'student' || false);
 
   const filteredData = contents.filter(
     (item: any) =>
@@ -911,6 +924,7 @@ export const RenderContents = ({
     setCurrentText(index !== null ? contents[index] : '');
     setModalVisible(true);
   };
+
   const handleSave = async () => {
     if (!currentText.trim()) {
       Toast.show({
@@ -958,6 +972,7 @@ export const RenderContents = ({
       });
     }
   };
+
   const confirmDelete = (index: number) => {
     Alert.alert(
       'Delete Topic?',
@@ -1002,89 +1017,126 @@ export const RenderContents = ({
           { paddingBottom: insets.bottom + 20 },
         ]}
         ListHeaderComponent={
-          <Text
-            style={[
-              CourseActionStyles.sectionSubtitle,
-              { color: colors.textDarker },
-            ]}
-          >
-            {userRole === 'lecturer'
-              ? 'Curriculum Management'
-              : 'Syllabus Overview'}
-          </Text>
-        }
-        renderItem={({ item, index }) => {
-          return (
-            <View
-              style={[
-                CourseActionStyles.contentRow,
-                { backgroundColor: colors.backgroundSecondary },
-              ]}
-            >
-              <View style={CourseActionStyles.numberCircle}>
-                <Text
-                  style={[
-                    CourseActionStyles.numberText,
-                    { color: colors.text },
-                  ]}
-                >
-                  Wk {index + 1}
-                </Text>
-              </View>
-              <Text
-                style={[CourseActionStyles.topicText, { color: colors.text }]}
-              >
-                {item}
-              </Text>
-
-              {userRole === 'lecturer' && (
-                <View style={CourseActionStyles.actionRow}>
+          <>
+            <PageHeader
+              title={
+                userRole === 'lecturer'
+                  ? 'Curriculum Management'
+                  : 'Syllabus Overview'
+              }
+              rightElement={
+                userRole === 'lecturer' && (
                   <TouchableOpacity
-                    onPress={() => openModal(index)}
-                    style={CourseActionStyles.iconBtn}
+                    style={[
+                      CourseActionStyles.addContentBtn,
+                      { borderColor: colors.primary },
+                    ]}
+                    onPress={() => openModal()}
                   >
                     <MaterialIcons
-                      name="edit"
+                      name="add"
                       size={20}
                       color={colors.primary}
                     />
+                    <Text
+                      style={[
+                        CourseActionStyles.addContentText,
+                        { color: colors.primary },
+                      ]}
+                    >
+                      Add New Topic
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => confirmDelete(index)}
-                    style={CourseActionStyles.iconBtn}
-                  >
-                    <MaterialIcons
-                      name="delete-outlined"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          );
-        }}
-        ListFooterComponent={
-          userRole === 'lecturer' ? (
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.addContentBtn,
-                { borderColor: colors.primary },
-              ]}
-              onPress={() => openModal()}
-            >
-              <MaterialIcons name="add" size={20} color={colors.primary} />
-              <Text
+                )
+              }
+            />
+            {shouldShowSearch && (
+              <View
                 style={[
-                  CourseActionStyles.addContentText,
-                  { color: colors.primary },
+                  CourseActionStyles.searchBarWrapper,
+                  { backgroundColor: colors.backgroundSecondary },
                 ]}
               >
-                Add New Topic
-              </Text>
-            </TouchableOpacity>
-          ) : null
+                <View
+                  style={[
+                    CourseActionStyles.searchBarInner,
+                    { borderColor: colors.border },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="search"
+                    size={20}
+                    color={colors.inputTextHolder}
+                    style={CourseActionStyles.searchIcon}
+                  />
+                  <TextInput
+                    style={[
+                      CourseActionStyles.searchInput,
+                      { color: colors.text },
+                    ]}
+                    placeholder="Search Course Contents..."
+                    value={textInput}
+                    onChangeText={setTextInput}
+                    placeholderTextColor={colors.inputTextHolder}
+                    clearButtonMode="while-editing"
+                  />
+                  {textInput.length > 0 && Platform.OS === 'android' && (
+                    <TouchableOpacity onPress={() => setTextInput('')}>
+                      <MaterialIcons
+                        name="cancel-outlined"
+                        size={18}
+                        color={colors.inputTextHolder}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+          </>
         }
+        renderItem={({ item, index }) => (
+          <View
+            style={[
+              CourseActionStyles.contentRow,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <View style={CourseActionStyles.numberCircle}>
+              <Text
+                style={[CourseActionStyles.numberText, { color: colors.text }]}
+              >
+                Wk {index + 1}
+              </Text>
+            </View>
+            <Text
+              style={[CourseActionStyles.topicText, { color: colors.text }]}
+            >
+              {item}
+            </Text>
+
+            {userRole === 'lecturer' && (
+              <View style={CourseActionStyles.actionRow}>
+                <TouchableOpacity
+                  onPress={() => openModal(index)}
+                  style={CourseActionStyles.iconBtn}
+                >
+                  <MaterialIcons name="edit" size={20} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => confirmDelete(index)}
+                  style={CourseActionStyles.iconBtn}
+                >
+                  <MaterialIcons
+                    name="delete-outlined"
+                    size={20}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+        inverted
         ListEmptyComponent={
           <EmptyState
             iconName="search-off"
@@ -1099,6 +1151,7 @@ export const RenderContents = ({
           />
         }
       />
+
       <Modal visible={isModalVisible} transparent animationType="fade">
         <Pressable
           style={CourseActionStyles.modalOverlay}
@@ -1351,40 +1404,30 @@ export const RenderMaterials = ({
         { paddingBottom: insets.bottom + 20 },
       ]}
       ListHeaderComponent={
-        <View
-          style={[
-            CourseActionStyles.rowBetween,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <Text
-            style={[
-              CourseActionStyles.sectionSubtitle,
-              { color: colors.textDarker },
-            ]}
-          >
-            Course Materials
-          </Text>
-          {userRole === 'lecturer' && (
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.addButton,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={handleAddMaterial}
-              disabled={isUploading}
-            >
-              <Text
+        <PageHeader
+          title="Course Materials"
+          rightElement={
+            userRole === 'lecturer' && (
+              <TouchableOpacity
                 style={[
-                  CourseActionStyles.addBtnText,
-                  { color: colors.btnTextColor },
+                  CourseActionStyles.addButton,
+                  { backgroundColor: colors.btnColor },
                 ]}
+                onPress={handleAddMaterial}
+                disabled={isUploading}
               >
-                {isUploading ? 'Uploading...' : 'Add Material'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                <Text
+                  style={[
+                    CourseActionStyles.addBtnText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  {isUploading ? 'Uploading...' : 'Add Material'}
+                </Text>
+              </TouchableOpacity>
+            )
+          }
+        />
       }
       renderItem={({ item }) => {
         const fileName = item.url.split('/').pop() || 'document.pdf';
@@ -1438,6 +1481,7 @@ export const RenderMaterials = ({
           </View>
         );
       }}
+      inverted
       ListEmptyComponent={
         <EmptyState
           iconName="search-off"
@@ -1564,40 +1608,31 @@ export const RenderAssignments = ({
           CourseActionStyles.listPadding,
           { paddingBottom: insets.bottom + 20 },
         ]}
+        inverted
         ListHeaderComponent={
-          <View
-            style={[
-              CourseActionStyles.rowBetween,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Text
-              style={[
-                CourseActionStyles.sectionSubtitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Assignments & Tasks
-            </Text>
-            {userRole === 'lecturer' && (
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.addButton,
-                  { backgroundColor: colors.btnColor },
-                ]}
-                onPress={() => setModalVisible(true)}
-              >
-                <Text
+          <PageHeader
+            title="Assignments & Tasks"
+            rightElement={
+              userRole === 'lecturer' && (
+                <TouchableOpacity
                   style={[
-                    CourseActionStyles.addBtnText,
-                    { color: colors.btnTextColor },
+                    CourseActionStyles.addButton,
+                    { backgroundColor: colors.btnColor },
                   ]}
+                  onPress={() => setModalVisible(true)}
                 >
-                  Create
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+                  <Text
+                    style={[
+                      CourseActionStyles.addBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Create
+                  </Text>
+                </TouchableOpacity>
+              )
+            }
+          />
         }
         renderItem={({ item }) => {
           const overdue = isPastDue(item.dueDate);
@@ -1714,79 +1749,41 @@ export const RenderStudentExceptions = ({
 
   const isDisabled = isOverTierLimit && hasInsufficientPoints;
 
-  const getStatusReasonText = () => {
-    if (isDisabled) {
-      return 'Limit reached. Insufficient iCash to purchase extra requests (0.5 required).';
-    }
-    if (isOverTierLimit) {
-      return 'Free tier limit reached. Next requests will cost 0.5 iCash.';
-    }
-    return 'Resets on the 1st of next month';
-  };
-
   return (
     <FlatList
       data={filteredData}
       refreshing={refreshing}
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
+      inverted
       ListHeaderComponent={
-        <View
-          style={[
-            CourseActionStyles.headerWrapper,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <View style={CourseActionStyles.tierInfoCard}>
-            <View style={CourseActionStyles.usageHeader}>
-              <Text
+        <PageHeader
+          title="My Lecture Exceptions"
+          subtitle={`${usedThisMonth} / ${planLimit} free used`}
+          rightElement={
+            !isDisabled && (
+              <TouchableOpacity
                 style={[
-                  CourseActionStyles.tierLabel,
-                  { color: colors.textDarker },
+                  CourseActionStyles.addBtn,
+                  { backgroundColor: colors.btnColor },
                 ]}
+                onPress={onAddPress}
               >
-                {currentPlan.toUpperCase()} plan
-              </Text>
-              <Text
-                style={[CourseActionStyles.usageText, { color: colors.text }]}
-              >
-                {usedThisMonth} / {planLimit} free used
-              </Text>
-            </View>
-            <Text
-              style={[
-                CourseActionStyles.resetText,
-                {
-                  color:
-                    isOverTierLimit && !isDisabled
-                      ? colors.primary
-                      : colors.text,
-                },
-              ]}
-            >
-              {getStatusReasonText()}
-            </Text>
-          </View>
-          {!isDisabled && (
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.addBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={onAddPress}
-            >
-              <MaterialIcons name="add" size={20} color={colors.primary} />
-              <Text
-                style={[
-                  CourseActionStyles.addBtnText2,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                {isOverTierLimit ? 'Buy Extra Exception' : 'Request Exception'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                <MaterialIcons name="add" size={20} color={colors.primary} />
+                <Text
+                  style={[
+                    CourseActionStyles.addBtnText2,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  {isOverTierLimit
+                    ? 'Buy Extra Exception'
+                    : 'Request Exception'}
+                </Text>
+              </TouchableOpacity>
+            )
+          }
+        />
       }
       renderItem={({ item }) => (
         <View
@@ -1985,6 +1982,8 @@ export const RenderLecturerExceptionsManage = ({
           style={{ marginTop: 80 }}
         />
       }
+      inverted
+      ListHeaderComponent={<PageHeader title="Manage Lecture Exceptions" />}
     />
   );
 };
@@ -3037,54 +3036,46 @@ export const RenderLecturerTestManage = ({
             </View>
           );
         }}
+        inverted
         ListHeaderComponent={
-          <View
-            style={[
-              CourseActionStyles.rowBetween,
-              {
-                backgroundColor: colors.backgroundSecondary,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                CourseActionStyles.sectionTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Past Assessments
-            </Text>
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.createCard,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={() => {
-                setEditingId(null);
-                setTestForm({
-                  title: '',
-                  duration: '',
-                  dueDate: null,
-                  totalMarks: '',
-                  questions: [],
-                  scheduledStart: null,
-                  endTime: null,
-                });
-                setIsModalVisible(true);
-              }}
-            >
-              <MaterialIcons name="add" size={24} color={colors.btnTextColor} />
-              <Text
+          <PageHeader
+            title="Assessments"
+            rightElement={
+              <TouchableOpacity
                 style={[
-                  CourseActionStyles.createCardText,
-                  { color: colors.btnTextColor },
+                  CourseActionStyles.createCard,
+                  { backgroundColor: colors.btnColor },
                 ]}
+                onPress={() => {
+                  setEditingId(null);
+                  setTestForm({
+                    title: '',
+                    duration: '',
+                    dueDate: null,
+                    totalMarks: '',
+                    questions: [],
+                    scheduledStart: null,
+                    endTime: null,
+                  });
+                  setIsModalVisible(true);
+                }}
               >
-                Create New Assessment
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <MaterialIcons
+                  name="add"
+                  size={24}
+                  color={colors.btnTextColor}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.createCardText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  Create New Assessment
+                </Text>
+              </TouchableOpacity>
+            }
+          />
         }
       />
       <Modal
@@ -4497,6 +4488,8 @@ export const RenderViewLectureSchedule = ({
           </View>
         )}
         stickySectionHeadersEnabled
+        inverted
+        ListHeaderComponent={<PageHeader title="My Lectures Schedule" />}
       />
 
       <TouchableOpacity
@@ -4569,6 +4562,16 @@ export const LecturerLectureScheduleView = ({
         data: groups[dateKey],
       }));
   }, [lectures]);
+  const jumpToToday = () => {
+    const todayIndex = sections.findIndex(s => s.title === today);
+    if (todayIndex !== -1) {
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex: todayIndex,
+        itemIndex: 0,
+        animated: true,
+      });
+    }
+  };
   const handleEditSave = async () => {
     if (!selectedLecture) return;
     const formattedDate = editDate.toISOString().split('T')[0];
@@ -4806,8 +4809,25 @@ export const LecturerLectureScheduleView = ({
             </Text>
           </View>
         )}
+        inverted
+        ListHeaderComponent={<PageHeader title="Manage Lectures Schedule" />}
         stickySectionHeadersEnabled
       />
+      <TouchableOpacity
+        style={[CourseActionStyles.fab, { backgroundColor: colors.btnColor }]}
+        onPress={jumpToToday}
+      >
+        <Text
+          style={[CourseActionStyles.fabText, { color: colors.btnTextColor }]}
+        >
+          Back to Today
+        </Text>
+        <MaterialIcons
+          name="calendar-today"
+          size={24}
+          color={colors.btnTextColor}
+        />
+      </TouchableOpacity>
       <Modal visible={showPostponeModal} transparent animationType="slide">
         <Pressable
           style={CourseActionStyles.modalOverlay}

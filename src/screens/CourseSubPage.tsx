@@ -8,7 +8,6 @@ import { Course } from '../types/firebase';
 import { useAppSelector } from '../hooks/hooks';
 import {
   RenderViewLectureSchedule,
-  DetailHeader,
   AddExceptionModal,
   RenderStudentTest,
   RenderContents,
@@ -566,20 +565,13 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
       style={CourseActionStyles.safeArea}
       edges={['top', 'left', 'right']}
     >
-      <DetailHeader
-        title={title}
-        onBack={goBack}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        placeholder={`Search ${title.toLowerCase()}...`}
-        userRole={userRole}
-      />
       <View style={CourseActionStyles.body}>
         {title === 'Course Contents' && (
           <RenderContents
             course={currentCourse!}
             userRole={userRole}
             searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
             onRefresh={fetchCourseDetails}
           />
         )}
