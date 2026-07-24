@@ -6,7 +6,6 @@ import {
 } from 'react';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
-  TRANSACTION_TAX_RATE,
   DELIVERY_FEES
 } from '../constants/inAppConstants';
 import {CartItem, Product} from '../types/firebase';
@@ -85,11 +84,10 @@ const transactionalFinances = useMemo(() => {
     return acc + (item.product.priceInPoints || 0) * item.quantity * rate;
   }, 0);
 
-  const transactionTax = subtotal * TRANSACTION_TAX_RATE;
-  const grandTotal = subtotal + transactionTax + totalDeliveryFee;
+  const grandTotal = subtotal  + totalDeliveryFee;
   const userBalance = currentUser?.pointsBalance || 0;
 
-  return { subtotal, totalDeliveryFee, transactionTax, grandTotal, canAfford: userBalance >= grandTotal, userBalance };
+  return { subtotal, totalDeliveryFee, grandTotal, canAfford: userBalance >= grandTotal, userBalance };
 }, [checkoutItems, itemDeliveryMethods, currentUser?.pointsBalance, currentUser?.tier]);
 
   const formValidation = useMemo(() => {

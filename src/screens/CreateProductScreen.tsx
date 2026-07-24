@@ -18,6 +18,7 @@ import {
 import Geolocation from '@react-native-community/geolocation';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { StationCarousel } from '../components/StationCarousel.tsx';
 import DropDownPicker from 'react-native-dropdown-picker';
 import Toast from 'react-native-toast-message';
 import {
@@ -38,6 +39,7 @@ import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
+import { useLocationServices } from '../hooks/useLocationService.ts';
 import {
   StepHeader,
   CompleteFormInputs,
@@ -172,6 +174,7 @@ export const CreateProductScreen = ({ route }: any) => {
     pickCourseThumbnail,
     pickProductImages,
   } = useMediaPicker();
+  const { userCoords } = useLocationServices();
   const handleAddProductImages = async () => {
     const selectedUris = await pickProductImages(5);
 
@@ -1222,73 +1225,35 @@ export const CreateProductScreen = ({ route }: any) => {
                       Choose where you can physically drop your products for
                       pickup by the buyer upon sale.
                     </Text>
-                    {stations.map(station => {
-                      const isSelected =
-                        formInputs.physicalDetails.dropOffAddress.some(
-                          s => s.code === station.code,
-                        );
-                      return (
-                        <TouchableOpacity
-                          key={station.code}
-                          activeOpacity={0.9}
-                          style={[
-                            styles.stationCard,
-                            isSelected && styles.activeStationCard,
-                          ]}
-                          onPress={() => {
-                            setFormInputs(prev => {
-                              const currentAddresses =
-                                prev.physicalDetails.dropOffAddress;
-                              const alreadySelected = currentAddresses.some(
-                                s => s.code === station.code,
-                              );
+                    <StationCarousel
+                      stations={stations}
+                      selectedStation={null}
+                      onSelect={station => {
+                        setFormInputs(prev => {
+                          const currentAddresses =
+                            prev.physicalDetails.dropOffAddress;
+                          const alreadySelected = currentAddresses.some(
+                            s => s.code === station.code,
+                          );
 
-                              const updatedStations = alreadySelected
-                                ? currentAddresses.filter(
-                                    s => s.code !== station.code,
-                                  )
-                                : [...currentAddresses, station];
+                          const updatedStations = alreadySelected
+                            ? currentAddresses.filter(
+                                s => s.code !== station.code,
+                              )
+                            : [...currentAddresses, station];
 
-                              return {
-                                ...prev,
-                                physicalDetails: {
-                                  ...prev.physicalDetails,
-                                  dropOffAddress:
-                                    updatedStations as typeof currentAddresses,
-                                },
-                              };
-                            });
-                          }}
-                        >
-                          <View style={styles.stationInfo}>
-                            <Text
-                              style={[
-                                styles.stationAddress,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {station.address}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.stationName,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {station.name}
-                            </Text>
-                          </View>
-                          {isSelected && (
-                            <MaterialIcons
-                              name="check-circle-outlined"
-                              size={18}
-                              color={colors.primary}
-                              style={{ marginLeft: 6 }}
-                            />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
+                          return {
+                            ...prev,
+                            physicalDetails: {
+                              ...prev.physicalDetails,
+                              dropOffAddress:
+                                updatedStations as typeof currentAddresses,
+                            },
+                          };
+                        });
+                      }}
+                      userCoords={userCoords}
+                    />
                   </>
                 )}
               </>

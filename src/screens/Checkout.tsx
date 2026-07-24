@@ -118,7 +118,6 @@ export const CheckoutScreen = () => {
       }),
       totals: {
         subtotal: transactionalFinances.subtotal,
-        tax: transactionalFinances.transactionTax,
         delivery: transactionalFinances.totalDeliveryFee,
         grandTotal: transactionalFinances.grandTotal,
       },
@@ -470,13 +469,6 @@ export const CheckoutScreen = () => {
           <Text style={{ color: colors.text }}>Subtotal</Text>
           <CurrencyDisplay
             value={transactionalFinances.subtotal}
-            size="small"
-          />
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={{ color: colors.text }}>Transaction Tax (2%)</Text>
-          <CurrencyDisplay
-            value={transactionalFinances.transactionTax}
             size="small"
           />
         </View>

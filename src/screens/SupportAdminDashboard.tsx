@@ -17,6 +17,7 @@ import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { homeStyles } from '../assets/styles/colors.ts';
 import { CATEGORY_ACCESS, CategoryKey } from '../constants/inAppConstants.ts';
+import { AdminExpandableFAB } from '../components/AdminExpandableFab.tsx';
 import {
   AdminManagementSection,
   SupportTicketSection,
@@ -65,6 +66,8 @@ export const AdminDashboard = () => {
   const currentUser = useAppSelector(state => state.admin);
   const [activeTab, setActiveTab] = useState('Overview');
   const navigation = useNavigation<any>();
+  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
+  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const visibleTabs = allTabs.filter((tab): tab is CategoryKey => {
     if (!(tab in CATEGORY_ACCESS)) return true;
     const roles = CATEGORY_ACCESS[tab as CategoryKey];
@@ -154,18 +157,29 @@ export const AdminDashboard = () => {
           )}
         </Suspense>
       </ScrollView>
-      <TouchableOpacity
-        style={homeStyles.fab}
-        onPress={() => {
-          navigation.navigate('AdminSearchScreen');
-        }}
-      >
-        <MaterialIcons
-          name="search-outlined"
-          size={28}
-          color={colors.btnTextColor}
-        />
-      </TouchableOpacity>
+      {!isFabMenuVisible && (
+        <TouchableOpacity
+          style={homeStyles.fab}
+          onPress={() => {
+            if (isSuperAdmin) {
+              setFabMenuVisible(true);
+            } else {
+              navigation.navigate('AdminSearchScreen');
+            }
+          }}
+        >
+          <MaterialIcons
+            name={isSuperAdmin ? 'widgets-outlined' : 'search-outlined'}
+            size={28}
+            color={colors.btnTextColor}
+          />
+        </TouchableOpacity>
+      )}
+      <AdminExpandableFAB
+        isVisible={isFabMenuVisible}
+        onClose={toggleFab}
+        actions={['Search', 'Notify']}
+      />
     </View>
   );
 };
