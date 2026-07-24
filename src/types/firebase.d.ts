@@ -955,3 +955,23 @@ export interface SupportTicket
       },
     ],
   };
+export interface TaxEntry
+  {
+    transactionReference: string;
+    taxType: "product_tax" | "withdrawal_tax" | "exception_tax";
+    amount: number;
+    currency:  string;
+    date: Date;
+    sourceDetails: {
+      userId: string;
+      relatedTransactionId: string
+    },
+  };
+
+export interface EntityItem {
+  id: string;
+  name?: string;
+  schoolName?: string;
+  address?: string;
+  createdAt?: string | Date;
+}

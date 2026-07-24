@@ -59,8 +59,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     userRole,
     exceptions: initialExceptions,
   } = route.params;
-
-  const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localExceptions, setLocalExceptions] = useState<any[]>(
@@ -477,26 +475,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     return lectures && lectures.length > 0 ? lectures : allLectures;
   }, [lectures, allLectures]);
 
-  const filteredLectures = useMemo(() => {
-    if (!searchQuery) return displayLectures;
-    const lowerQuery = searchQuery.toLowerCase();
-    return displayLectures.filter(
-      (lecture: any) =>
-        lecture.topicName.toLowerCase().includes(lowerQuery) ||
-        lecture.courseId.toLowerCase().includes(lowerQuery),
-    );
-  }, [searchQuery, displayLectures]);
-
-  const filteredLecturersLectures = useMemo(() => {
-    if (!searchQuery) return lecturersLectureTimeline;
-    const lowerQuery = searchQuery.toLowerCase();
-    return lecturersLectureTimeline.filter(
-      (lecture: any) =>
-        lecture.topicName.toLowerCase().includes(lowerQuery) ||
-        lecture.courseId.toLowerCase().includes(lowerQuery),
-    );
-  }, [searchQuery, lecturersLectureTimeline]);
-
   // --- EFFECT LIFECYCLES ENGINE ---
 
   useEffect(() => {
@@ -570,8 +548,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           <RenderContents
             course={currentCourse!}
             userRole={userRole}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
             onRefresh={fetchCourseDetails}
           />
         )}
@@ -580,23 +556,17 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             course={currentCourse!}
             lectures={lectures || []}
             userRole={userRole}
-            searchQuery={searchQuery}
             onRefresh={fetchCourseDetails}
           />
         )}
         {title === 'Assignments' && (
-          <RenderAssignments
-            course={currentCourse!}
-            userRole={userRole}
-            searchQuery={searchQuery}
-          />
+          <RenderAssignments course={currentCourse!} userRole={userRole} />
         )}
         {title === 'Exceptions' &&
           (userRole === 'lecturer' ? (
             <RenderLecturerExceptionsManage
               exceptions={localExceptions}
               onUpdateStatus={handleUpdateStatus}
-              searchQuery={searchQuery}
               refreshing={loading}
               onRefresh={fetchExceptions}
             />
@@ -607,7 +577,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
               refreshing={loading}
               onRefresh={fetchExceptions}
               onAddPress={() => setModalVisible(true)}
-              searchQuery={searchQuery}
             />
           ))}
         {title === 'Set Lecture Schedule' && (
@@ -629,8 +598,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
               tests={tests}
               onRefresh={fetchTests}
               onSaveTest={handleCreateTest}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
             />
           ) : hasSubmitted ? (
             <View
@@ -774,13 +741,13 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         {title === 'View Lecture Schedule' &&
           (userRole === 'lecturer' ? (
             <LecturerLectureScheduleView
-              lectures={filteredLecturersLectures}
+              lectures={lecturersLectureTimeline}
               onUpdateLecture={handlePostponeLecture}
               onDeleteLecture={handleDeleteLecture}
             />
           ) : (
             <RenderViewLectureSchedule
-              lectures={filteredLectures}
+              lectures={displayLectures}
               onPress={handleLecturePress}
             />
           ))}

@@ -35,32 +35,24 @@ import {
   EntityPreviewSection,
   FinanceSection,
   SystemHealthSection,
+  TaxEntryPreviewSection,
 } from './adminMetricsComponents.tsx';
-
-// Define the structure of your entities to get better autocompletion in your UI
+import { TaxEntry, EntityItem } from '../types/firebase';
 interface LocationStat {
   _id: string; // The location name
   count: number;
 }
-interface Entity {
-  id: string;
-  name?: string;
-  schoolName?: string;
-  address?: string;
-  createdAt?: string | Date;
-}
-
 interface DashboardStats {
   activeUsers: number;
   platformLiquidity: number;
   payoutStats: { _id: string; totalAmount: number; count: number }[];
   pendingTickets: number;
   recentSchools: {
-    items: Entity[]; // Replaced any[] with a typed Entity interface
+    items: EntityItem[];
     total: number;
   };
   recentStations: {
-    items: Entity[];
+    items: EntityItem[];
     total: number;
   };
   latencyData: number;
@@ -70,6 +62,7 @@ interface DashboardStats {
     outFlow: number[];
   };
   locationStats: LocationStat[];
+  recentTaxes: TaxEntry[];
 }
 
 export const AdminManagementSection = () => {
@@ -550,7 +543,6 @@ export const Overview = () => {
     fetchStats();
   }, []);
 
-  // Role Access Logic
   const canViewFinance = ['super_admin', 'finance'].includes(admin.adminType);
   const canViewSystem = ['super_admin', 'analyst'].includes(admin.adminType);
 
@@ -568,6 +560,13 @@ export const Overview = () => {
           trendData={
             stats.liquidityTrend || { labels: [], inFlow: [], outFlow: [] }
           }
+        />
+      )}
+      {canViewFinance && (
+        <TaxEntryPreviewSection
+          title="iCampus Tax Entries"
+          items={stats?.recentTaxes!}
+          onViewAll={() => navigate('ViewAllDropStations')}
         />
       )}
       <EntityPreviewSection

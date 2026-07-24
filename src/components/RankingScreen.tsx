@@ -671,6 +671,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginHorizontal: 4,
     flex: 1,
+    textTransform: 'capitalize',
   },
   instScoreBadge: {
     alignItems: 'center',

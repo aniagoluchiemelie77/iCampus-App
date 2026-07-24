@@ -4,19 +4,14 @@ import { LineChart } from "react-native-chart-kit";
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { AbstractChartConfig } from 'react-native-chart-kit/dist/AbstractChart';
+import { TaxEntry, EntityItem } from '../types/firebase';
+import { useNavigation } from '@react-navigation/native';
 
 interface SparklineProps {
   data: number[];
   color: string;
   bgFrom?: string;
   bgTo?: string;
-}
-interface EntityItem {
-  id: string;
-  name?: string;
-  schoolName?: string;
-  address?: string;
-  createdAt?: string | Date;
 }
 
 interface EntityPreviewProps {
@@ -25,6 +20,11 @@ interface EntityPreviewProps {
   total: number;
   onViewAll: () => void;
   onItemPress: (item: EntityItem) => void;
+}
+interface TaxEntryPreviewProps {
+  title: string;
+  items: TaxEntry[];
+  onViewAll: () => void;
 }
 interface FinanceSectionProps {
   trendData: {
@@ -43,65 +43,75 @@ interface SystemHealthProps {
   locations: LocationStat[];
 }
 
-export const Sparkline = ({ 
-  data, 
-  color, 
-  bgFrom = "#ffffff", 
-  bgTo = "#ffffff" 
+export const Sparkline = ({
+  data,
+  color,
+  bgFrom = '#ffffff',
+  bgTo = '#ffffff',
 }: SparklineProps) => {
   return (
     <LineChart
       data={{
-        labels: data.map(() => ""), 
-        datasets: [{ data }]
+        labels: data.map(() => ''),
+        datasets: [{ data }],
       }}
       width={80}
       height={30}
-      chartConfig={{
-        backgroundGradientFrom: bgFrom,
-        backgroundGradientTo: bgTo,
-        color: (_opacity = 1) => color,
-        strokeWidth: 2,
-      } as AbstractChartConfig}
-      withDots={false}        
+      chartConfig={
+        {
+          backgroundGradientFrom: bgFrom,
+          backgroundGradientTo: bgTo,
+          color: (_opacity = 1) => color,
+          strokeWidth: 2,
+        } as AbstractChartConfig
+      }
+      withDots={false}
       withInnerLines={false}
       withOuterLines={false}
       withShadow={false}
-      withVerticalLabels={false} 
+      withVerticalLabels={false}
       withHorizontalLabels={false}
     />
   );
 };
-export const EntityPreviewSection = ({ 
-  title, 
-  items, 
-  total, 
-  onViewAll, 
-  onItemPress 
+export const EntityPreviewSection = ({
+  title,
+  items,
+  total,
+  onViewAll,
+  onItemPress,
 }: EntityPreviewProps) => {
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}>
+    <View
+      style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}
+    >
       <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title} ({total})</Text>
-          <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
-            <Text style={{ color: colors.btnTextColor }}>View All</Text>
-          </TouchableOpacity>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title} ({total})
+        </Text>
+        <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
+          <Text style={{ color: colors.btnTextColor }}>View All</Text>
+        </TouchableOpacity>
       </View>
 
-      {items.map((item) => (
-        <TouchableOpacity 
-          key={item.id} 
-          style={[styles.row, { borderBottomColor: colors.border }]} 
-          onPress={() => onItemPress(item)} 
+      {items.map(item => (
+        <TouchableOpacity
+          key={item.id}
+          style={[styles.row, { borderBottomColor: colors.border }]}
+          onPress={() => onItemPress(item)}
         >
           <Text style={[styles.rowText, { color: colors.text, flex: 1 }]}>
             {item.name || item.schoolName}
           </Text>
-          {item.address && <Text style={styles.rowTextMini}>{item.address}</Text>}
+          {item.address && (
+            <Text style={styles.rowTextMini}>{item.address}</Text>
+          )}
           <Text style={[styles.dateText, { color: colors.text }]}>
-            {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
+            {item.createdAt
+              ? new Date(item.createdAt).toLocaleDateString()
+              : ''}
           </Text>
         </TouchableOpacity>
       ))}
@@ -109,25 +119,69 @@ export const EntityPreviewSection = ({
   );
 };
 export const DashboardSummary = ({ stats }: { stats: any }) => {
-    const { colors } = useTheme();
+  const { colors } = useTheme();
   return (
     <View style={styles.summaryContainer}>
-      <View style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderColor: colors.border}]}>
-        <Text style={[styles.label, {color: colors.text}]}>Active Users</Text>
-        <Text style={[styles.value, {color: colors.textDarker}]}>{stats.activeUsers}</Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.label, { color: colors.text }]}>Active Users</Text>
+        <Text style={[styles.value, { color: colors.textDarker }]}>
+          {stats.activeUsers}
+        </Text>
       </View>
-      <View style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderColor: colors.border}]}>
-        <Text style={[styles.label, {color: colors.text}]}>Total Liquidity</Text>
-        <CurrencyDisplay value={stats.platformLiquidity} size="large" isSuccess={true} />
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.label, { color: colors.text }]}>
+          Total Liquidity
+        </Text>
+        <CurrencyDisplay
+          value={stats.platformLiquidity}
+          size="large"
+          isSuccess={true}
+        />
         <View style={styles.sparklineWrapper}>
-          <Sparkline data={stats.liquidityTrend} color={colors.success} bgFrom={colors.backgroundSecondary} bgTo={colors.backgroundSecondary} />
+          <Sparkline
+            data={stats.liquidityTrend}
+            color={colors.success}
+            bgFrom={colors.backgroundSecondary}
+            bgTo={colors.backgroundSecondary}
+          />
         </View>
       </View>
-      <View style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderColor: colors.border}]}>
-        <Text style={[styles.label, {color: colors.text}]}>Open Tickets</Text>
-        <Text style={[styles.value, {color: colors.textDarker}]}>{stats.pendingTickets}</Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.label, { color: colors.text }]}>Open Tickets</Text>
+        <Text style={[styles.value, { color: colors.textDarker }]}>
+          {stats.pendingTickets}
+        </Text>
         <View style={styles.sparklineWrapper}>
-          <Sparkline data={stats.ticketTrend} color={colors.primary} bgFrom={colors.backgroundSecondary} bgTo={colors.backgroundSecondary} />
+          <Sparkline
+            data={stats.ticketTrend}
+            color={colors.primary}
+            bgFrom={colors.backgroundSecondary}
+            bgTo={colors.backgroundSecondary}
+          />
         </View>
       </View>
     </View>
@@ -139,26 +193,56 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
   const totalOut = trendData.outFlow.reduce((sum, val) => sum + val, 0);
 
   return (
-    <View style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}>
-      <Text style={[styles.value, {color: colors.textDarker, marginBottom: 15}]}>iCampus Flow Analysis</Text>
-      
+    <View
+      style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}
+    >
+      <Text
+        style={[styles.value, { color: colors.textDarker, marginBottom: 15 }]}
+      >
+        iCampus Flow Analysis
+      </Text>
+
       <View style={styles.summaryContainer}>
-        <View style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderColor: colors.border}]}>
-          <Text style={[styles.label, {color: colors.text}]}>Total Ins</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.label, { color: colors.text }]}>Total Ins</Text>
           <CurrencyDisplay value={totalIn} size="large" isSuccess={true} />
         </View>
-        <View style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderColor: colors.border}]}>
-          <Text style={[styles.label, {color: colors.text}]}>Total Outs</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.label, { color: colors.text }]}>Total Outs</Text>
           <CurrencyDisplay value={totalOut} size="large" isSuccess={false} />
         </View>
       </View>
       <LineChart
         data={{
-          labels: trendData.labels, 
+          labels: trendData.labels,
           datasets: [
-            { data: trendData.inFlow, color: () => colors.success, strokeWidth: 2 },
-            { data: trendData.outFlow, color: () => colors.primary, strokeWidth: 2 }
-          ]
+            {
+              data: trendData.inFlow,
+              color: () => colors.success,
+              strokeWidth: 2,
+            },
+            {
+              data: trendData.outFlow,
+              color: () => colors.primary,
+              strokeWidth: 2,
+            },
+          ],
         }}
         width={320}
         height={180}
@@ -172,47 +256,188 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
     </View>
   );
 };
-export const SystemHealthSection = ({ latency, locations }: SystemHealthProps) => {
+export const SystemHealthSection = ({
+  latency,
+  locations,
+}: SystemHealthProps) => {
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}>
-      <Text style={[styles.value, {color: colors.textDarker, marginBottom: 15}]}>System Performance & Activity</Text>
-      <View style={[styles.card, {backgroundColor: colors.backgroundSecondary, borderColor: colors.border}]}>
-        <Text style={[styles.label, {color: colors.text}]}>Average Latency</Text>
-        <Text style={[styles.value, { color: latency > 300 ? colors.success : colors.primary }]}>
+    <View
+      style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}
+    >
+      <Text
+        style={[styles.value, { color: colors.textDarker, marginBottom: 15 }]}
+      >
+        System Performance & Activity
+      </Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.label, { color: colors.text }]}>
+          Average Latency
+        </Text>
+        <Text
+          style={[
+            styles.value,
+            { color: latency > 300 ? colors.success : colors.primary },
+          ]}
+        >
           {latency.toFixed(0)} ms
         </Text>
       </View>
 
       {/* Top Locations Section */}
-      <Text style={[styles.subTitle, { color: colors.text }]}>Top Active User Locations</Text>
+      <Text style={[styles.subTitle, { color: colors.text }]}>
+        Top Active User Locations
+      </Text>
       {locations.map((loc, index) => (
-        <View key={index} style={[styles.locationRow, {borderBottomColor: colors.border}]}>
-          <Text style={[styles.rowText, { color: colors.text, flex: 1 }]}>{loc._id || 'Unknown'}</Text>
-          <Text style={[styles.rowText2, { color: colors.primary }]}>{loc.count} users</Text>
+        <View
+          key={index}
+          style={[styles.locationRow, { borderBottomColor: colors.border }]}
+        >
+          <Text style={[styles.rowText, { color: colors.text, flex: 1 }]}>
+            {loc._id || 'Unknown'}
+          </Text>
+          <Text style={[styles.rowText2, { color: colors.primary }]}>
+            {loc.count} users
+          </Text>
         </View>
       ))}
     </View>
   );
 };
+export const TaxEntryPreviewSection = ({
+  title = 'Tax Entries',
+  items,
+  onViewAll,
+}: TaxEntryPreviewProps) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation<any>();
+
+  return (
+    <View
+      style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}
+    >
+      <View style={styles.headerRow}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
+        <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
+          <Text style={{ color: colors.btnTextColor }}>View All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {items.map(item => {
+        const handlePress = () => {
+          if (item.taxType !== 'product_tax') {
+            navigation.navigate('TransactionDetail', {
+              transactionId: item.sourceDetails?.relatedTransactionId,
+            });
+          }
+        };
+        return (
+          <View
+            key={item.transactionReference}
+            style={[styles.row, { borderBottomColor: colors.border }]}
+          >
+            <View style={styles.rowDiv}>
+              <Text
+                style={[
+                  styles.rowText,
+                  { color: colors.text, fontWeight: '600' },
+                ]}
+              >
+                {item.taxType.replace('_', ' ').toUpperCase()}
+              </Text>
+              {item.sourceDetails?.relatedTransactionId && (
+                <TouchableOpacity onPress={handlePress}>
+                  <Text
+                    style={[
+                      styles.rowText,
+                      {
+                        color: colors.primary,
+                        textDecorationLine: 'underline',
+                      },
+                    ]}
+                  >
+                    Ref: {item.sourceDetails.relatedTransactionId}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <CurrencyDisplay
+                value={item.amount}
+                size="small"
+                isSuccess={true}
+              />
+            </View>
+
+            {/* Amount & Currency */}
+            <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+              <Text style={[styles.dateText, { color: colors.text }]}>
+                {item.date ? new Date(item.date).toLocaleDateString() : ''}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  summaryContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15  },
-  card: { padding: 15, borderRadius: 15, borderWidth: 1, marginHorizontal: 5, alignItems: 'center' },
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  card: {
+    padding: 15,
+    borderRadius: 15,
+    borderWidth: 1,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
   listCard: { padding: 15, borderRadius: 15, marginBottom: 15, width: '100%' },
   label: { fontSize: 14, fontWeight: 'bold', marginBottom: 7 },
   value: { fontSize: 18, fontWeight: 'bold' },
   sparklineWrapper: { marginTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
-  viewAllBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 15, alignContent: 'center' },
+  viewAllBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 15,
+    alignContent: 'center',
+  },
   viewAllText: { fontSize: 14, fontWeight: 'bold' },
-  row: { paddingVertical: 8, borderBottomWidth: 1, },
+  row: { paddingVertical: 8, borderBottomWidth: 1 },
   rowText: { fontSize: 14 },
-  rowText2: { fontSize: 14, marginRight: 8, fontWeight: 'bold', },
+  rowText2: { fontSize: 14, marginRight: 8, fontWeight: 'bold' },
   rowTextMini: { fontSize: 12, marginTop: 4 },
   dateText: { fontSize: 11, alignSelf: 'flex-end', marginTop: 5 },
-  locationRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1,  },
+  locationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
   subTitle: { fontSize: 15, fontWeight: 'bold', marginVertical: 15 },
+  rowDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 });

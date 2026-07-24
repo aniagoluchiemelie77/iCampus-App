@@ -108,7 +108,6 @@ type PageType =
   | 'Grade Accelerator';
 interface LecturerManageProps {
   exceptions: CourseException[];
-  searchQuery: string;
   refreshing: boolean;
   onRefresh: () => void;
   onUpdateStatus: (
@@ -127,12 +126,10 @@ interface TestFormState {
 }
 interface LecturerTestManageProps {
   course: Course;
-  searchQuery: string;
   refreshing: boolean;
   onRefresh: () => void;
   tests: CreateTestPayload[];
   onSaveTest: (data: CreateTestPayload) => void;
-  setSearchQuery: (query: string) => void;
 }
 interface RenderScheduleProps {
   course: Course;
@@ -143,7 +140,6 @@ interface StudentExceptionsProps {
   exceptions: CourseException[];
   user: User;
   onAddPress: () => void;
-  searchQuery: string;
   refreshing: boolean;
   onRefresh: () => void;
 }
@@ -176,6 +172,60 @@ interface StudentTestProps {
   user: any;
   onSubmit: (payload: any) => Promise<void>;
 }
+interface SearchBarProps {
+  shouldShowSearch: boolean;
+  textInput: string;
+  setTextInput: (text: string) => void;
+  placeholder?: string;
+  colors: any;
+  styles: any;
+}
+
+export const CourseSearchBar: React.FC<SearchBarProps> = ({
+  shouldShowSearch,
+  textInput,
+  setTextInput,
+  placeholder = 'Search Course Contents...',
+  colors,
+  styles,
+}) => {
+  if (!shouldShowSearch) return null;
+
+  return (
+    <View
+      style={[
+        styles.searchBarWrapper,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <View style={[styles.searchBarInner, { borderColor: colors.border }]}>
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={colors.inputTextHolder}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder={placeholder}
+          value={textInput}
+          onChangeText={setTextInput}
+          placeholderTextColor={colors.inputTextHolder}
+          clearButtonMode="while-editing"
+        />
+        {textInput.length > 0 && Platform.OS === 'android' && (
+          <TouchableOpacity onPress={() => setTextInput('')}>
+            <MaterialIcons
+              name="cancel-outlined"
+              size={18}
+              color={colors.inputTextHolder}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
 const shuffleArray = (array: any[]) => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -878,14 +928,10 @@ export const DetailHeader = ({
 export const RenderContents = ({
   course,
   userRole,
-  searchQuery,
-  setSearchQuery,
   onRefresh,
 }: {
   course: Course;
   userRole: string;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
   onRefresh: () => void;
 }) => {
   const { colors } = useTheme();
@@ -893,20 +939,10 @@ export const RenderContents = ({
   const [contents, setContents] = useState<string[]>(
     course.courseContents || [],
   );
+  const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [textInput, setTextInput] = useState(searchQuery);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchQuery(textInput);
-    }, 300);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [textInput, setSearchQuery]);
-
   const shouldShowSearch = !(userRole === 'student' || false);
 
   const filteredData = contents.filter(
@@ -1051,46 +1087,14 @@ export const RenderContents = ({
               }
             />
             {shouldShowSearch && (
-              <View
-                style={[
-                  CourseActionStyles.searchBarWrapper,
-                  { backgroundColor: colors.backgroundSecondary },
-                ]}
-              >
-                <View
-                  style={[
-                    CourseActionStyles.searchBarInner,
-                    { borderColor: colors.border },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="search"
-                    size={20}
-                    color={colors.inputTextHolder}
-                    style={CourseActionStyles.searchIcon}
-                  />
-                  <TextInput
-                    style={[
-                      CourseActionStyles.searchInput,
-                      { color: colors.text },
-                    ]}
-                    placeholder="Search Course Contents..."
-                    value={textInput}
-                    onChangeText={setTextInput}
-                    placeholderTextColor={colors.inputTextHolder}
-                    clearButtonMode="while-editing"
-                  />
-                  {textInput.length > 0 && Platform.OS === 'android' && (
-                    <TouchableOpacity onPress={() => setTextInput('')}>
-                      <MaterialIcons
-                        name="cancel-outlined"
-                        size={18}
-                        color={colors.inputTextHolder}
-                      />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
+              <CourseSearchBar
+                shouldShowSearch={shouldShowSearch}
+                textInput={searchQuery}
+                setTextInput={setSearchQuery}
+                placeholder="Search topics, or notes..."
+                colors={colors}
+                styles={CourseActionStyles}
+              />
             )}
           </>
         }
@@ -1232,11 +1236,9 @@ export const RenderMaterials = ({
   course,
   lectures,
   userRole,
-  searchQuery,
   onRefresh,
 }: {
   course: Course;
-  searchQuery: string;
   lectures: Lecture[];
   userRole: string;
   onRefresh: () => void;
@@ -1246,6 +1248,8 @@ export const RenderMaterials = ({
   const [isUploading, setIsUploading] = useState(false);
   const [refreshing, _setRefreshing] = useState(false);
   const { pickDocument } = useMediaPicker();
+  const [searchQuery, setSearchQuery] = useState('');
+  const shouldShowSearch = !(userRole === 'student' || false);
   const combinedResources = [
     ...(course.resources || []).map(res => ({
       title: 'General Reference',
@@ -1404,30 +1408,42 @@ export const RenderMaterials = ({
         { paddingBottom: insets.bottom + 20 },
       ]}
       ListHeaderComponent={
-        <PageHeader
-          title="Course Materials"
-          rightElement={
-            userRole === 'lecturer' && (
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.addButton,
-                  { backgroundColor: colors.btnColor },
-                ]}
-                onPress={handleAddMaterial}
-                disabled={isUploading}
-              >
-                <Text
+        <>
+          <PageHeader
+            title="Course Materials"
+            rightElement={
+              userRole === 'lecturer' && (
+                <TouchableOpacity
                   style={[
-                    CourseActionStyles.addBtnText,
-                    { color: colors.btnTextColor },
+                    CourseActionStyles.addButton,
+                    { backgroundColor: colors.btnColor },
                   ]}
+                  onPress={handleAddMaterial}
+                  disabled={isUploading}
                 >
-                  {isUploading ? 'Uploading...' : 'Add Material'}
-                </Text>
-              </TouchableOpacity>
-            )
-          }
-        />
+                  <Text
+                    style={[
+                      CourseActionStyles.addBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    {isUploading ? 'Uploading...' : 'Add Material'}
+                  </Text>
+                </TouchableOpacity>
+              )
+            }
+          />
+          {shouldShowSearch && (
+            <CourseSearchBar
+              shouldShowSearch={shouldShowSearch}
+              textInput={searchQuery}
+              setTextInput={setSearchQuery}
+              placeholder="Search materials..."
+              colors={colors}
+              styles={CourseActionStyles}
+            />
+          )}
+        </>
       }
       renderItem={({ item }) => {
         const fileName = item.url.split('/').pop() || 'document.pdf';
@@ -1501,11 +1517,9 @@ export const RenderMaterials = ({
 export const RenderAssignments = ({
   course,
   userRole,
-  searchQuery,
 }: {
   course: Course;
   userRole: string;
-  searchQuery: string;
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -1514,6 +1528,9 @@ export const RenderAssignments = ({
   const [localAssignments, setLocalAssignments] = useState<Assignment[]>(
     course.assignments || [],
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const shouldShowSearch = !(userRole === 'student' || false);
+
   const filteredData = localAssignments.filter(
     (item: any) =>
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1610,29 +1627,41 @@ export const RenderAssignments = ({
         ]}
         inverted
         ListHeaderComponent={
-          <PageHeader
-            title="Assignments & Tasks"
-            rightElement={
-              userRole === 'lecturer' && (
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.addButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                  onPress={() => setModalVisible(true)}
-                >
-                  <Text
+          <>
+            <PageHeader
+              title="Assignments & Tasks"
+              rightElement={
+                userRole === 'lecturer' && (
+                  <TouchableOpacity
                     style={[
-                      CourseActionStyles.addBtnText,
-                      { color: colors.btnTextColor },
+                      CourseActionStyles.addButton,
+                      { backgroundColor: colors.btnColor },
                     ]}
+                    onPress={() => setModalVisible(true)}
                   >
-                    Create
-                  </Text>
-                </TouchableOpacity>
-              )
-            }
-          />
+                    <Text
+                      style={[
+                        CourseActionStyles.addBtnText,
+                        { color: colors.btnTextColor },
+                      ]}
+                    >
+                      Create
+                    </Text>
+                  </TouchableOpacity>
+                )
+              }
+            />
+            {shouldShowSearch && (
+              <CourseSearchBar
+                shouldShowSearch={shouldShowSearch}
+                textInput={searchQuery}
+                setTextInput={setSearchQuery}
+                placeholder="Search assignments..."
+                colors={colors}
+                styles={CourseActionStyles}
+              />
+            )}
+          </>
         }
         renderItem={({ item }) => {
           const overdue = isPastDue(item.dueDate);
@@ -1716,13 +1745,14 @@ export const RenderStudentExceptions = ({
   exceptions,
   user,
   onAddPress,
-  searchQuery,
   refreshing,
   onRefresh,
 }: StudentExceptionsProps) => {
   const { colors } = useTheme();
   const currentPlan = user.tier || 'free';
   const planLimit = EXCEPTION_ACCOUNT_LIMITS[currentPlan];
+  const [searchQuery, setSearchQuery] = useState('');
+  const shouldShowSearch = true;
 
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
@@ -1757,33 +1787,45 @@ export const RenderStudentExceptions = ({
       keyExtractor={item => item.id}
       inverted
       ListHeaderComponent={
-        <PageHeader
-          title="My Lecture Exceptions"
-          subtitle={`${usedThisMonth} / ${planLimit} free used`}
-          rightElement={
-            !isDisabled && (
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.addBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
-                onPress={onAddPress}
-              >
-                <MaterialIcons name="add" size={20} color={colors.primary} />
-                <Text
+        <>
+          <PageHeader
+            title="My Lecture Exceptions"
+            subtitle={`${usedThisMonth} / ${planLimit} free used`}
+            rightElement={
+              !isDisabled && (
+                <TouchableOpacity
                   style={[
-                    CourseActionStyles.addBtnText2,
-                    { color: colors.btnTextColor },
+                    CourseActionStyles.addBtn,
+                    { backgroundColor: colors.btnColor },
                   ]}
+                  onPress={onAddPress}
                 >
-                  {isOverTierLimit
-                    ? 'Buy Extra Exception'
-                    : 'Request Exception'}
-                </Text>
-              </TouchableOpacity>
-            )
-          }
-        />
+                  <MaterialIcons name="add" size={20} color={colors.primary} />
+                  <Text
+                    style={[
+                      CourseActionStyles.addBtnText2,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    {isOverTierLimit
+                      ? 'Buy Extra Exception'
+                      : 'Request Exception'}
+                  </Text>
+                </TouchableOpacity>
+              )
+            }
+          />
+          {shouldShowSearch && (
+            <CourseSearchBar
+              shouldShowSearch={shouldShowSearch}
+              textInput={searchQuery}
+              setTextInput={setSearchQuery}
+              placeholder="Search lecture exceptions..."
+              colors={colors}
+              styles={CourseActionStyles}
+            />
+          )}
+        </>
       }
       renderItem={({ item }) => (
         <View
@@ -1847,12 +1889,12 @@ export const RenderStudentExceptions = ({
 export const RenderLecturerExceptionsManage = ({
   exceptions,
   onUpdateStatus,
-  searchQuery,
   refreshing,
   onRefresh,
 }: LecturerManageProps) => {
   const { colors } = useTheme();
-
+  const [searchQuery, setSearchQuery] = useState('');
+  const shouldShowSearch = true;
   const filteredData = exceptions.filter(item => {
     const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
     const code = item.courseInfo?.courseCode?.toLowerCase() ?? '';
@@ -1983,7 +2025,21 @@ export const RenderLecturerExceptionsManage = ({
         />
       }
       inverted
-      ListHeaderComponent={<PageHeader title="Manage Lecture Exceptions" />}
+      ListHeaderComponent={
+        <>
+          <PageHeader title="Manage Lecture Exceptions" />
+          {shouldShowSearch && (
+            <CourseSearchBar
+              shouldShowSearch={shouldShowSearch}
+              textInput={searchQuery}
+              setTextInput={setSearchQuery}
+              placeholder="Search assignments..."
+              colors={colors}
+              styles={CourseActionStyles}
+            />
+          )}
+        </>
+      }
     />
   );
 };
@@ -2673,8 +2729,6 @@ export const RenderLecturerTestManage = ({
   onRefresh,
   onSaveTest,
   tests,
-  searchQuery,
-  setSearchQuery,
 }: LecturerTestManageProps) => {
   const { colors } = useTheme();
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -2698,6 +2752,8 @@ export const RenderLecturerTestManage = ({
   };
   const [testForm, setTestForm] = useState<TestFormState>(initialFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const shouldShowSearch = true;
   const filteredTests = tests.filter(t =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -3038,44 +3094,56 @@ export const RenderLecturerTestManage = ({
         }}
         inverted
         ListHeaderComponent={
-          <PageHeader
-            title="Assessments"
-            rightElement={
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.createCard,
-                  { backgroundColor: colors.btnColor },
-                ]}
-                onPress={() => {
-                  setEditingId(null);
-                  setTestForm({
-                    title: '',
-                    duration: '',
-                    dueDate: null,
-                    totalMarks: '',
-                    questions: [],
-                    scheduledStart: null,
-                    endTime: null,
-                  });
-                  setIsModalVisible(true);
-                }}
-              >
-                <MaterialIcons
-                  name="add"
-                  size={24}
-                  color={colors.btnTextColor}
-                />
-                <Text
+          <>
+            <PageHeader
+              title="Assessments"
+              rightElement={
+                <TouchableOpacity
                   style={[
-                    CourseActionStyles.createCardText,
-                    { color: colors.btnTextColor },
+                    CourseActionStyles.createCard,
+                    { backgroundColor: colors.btnColor },
                   ]}
+                  onPress={() => {
+                    setEditingId(null);
+                    setTestForm({
+                      title: '',
+                      duration: '',
+                      dueDate: null,
+                      totalMarks: '',
+                      questions: [],
+                      scheduledStart: null,
+                      endTime: null,
+                    });
+                    setIsModalVisible(true);
+                  }}
                 >
-                  Create New Assessment
-                </Text>
-              </TouchableOpacity>
-            }
-          />
+                  <MaterialIcons
+                    name="add"
+                    size={24}
+                    color={colors.btnTextColor}
+                  />
+                  <Text
+                    style={[
+                      CourseActionStyles.createCardText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Create New Assessment
+                  </Text>
+                </TouchableOpacity>
+              }
+            />
+            {shouldShowSearch && (
+              <CourseSearchBar
+                shouldShowSearch={shouldShowSearch}
+                textInput={searchQuery}
+                setTextInput={setSearchQuery}
+                placeholder="Search assessments..."
+                colors={colors}
+                styles={CourseActionStyles}
+              />
+            )}
+          </>
         }
       />
       <Modal
