@@ -8,7 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
@@ -28,22 +28,19 @@ import { setUser } from '../context/UserSlice';
 import LogoBigger from '../assets/images/Logo';
 import { ProgressBar, Footer } from './SignupComponents';
 import {
-  isValidEmail,
   isValidPassword,
   getPasswordRequirements,
 } from '../utils/SignupHelpers';
 import {
-  verifySignupEmail,
-  verifySignupEmailCode,
   handleRegisterUser,
   verifySignupInstructor,
   signupValidateInstitution,
 } from '../api/localPostApis';
 import { signupFetchInstitutions } from '../api/localGetApis';
-import { formatSignupTime } from '../utils/ChatTimestampFormatter';
 import { VerifiedInstructor } from '../types/firebase';
 import { ImageConfirmationModal } from './ImageConfirmationModal';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import { UserProfileCard } from './ProfileConfirmer';
 
 const InstructorSignup = () => {
   const navigation = useNavigation<any>();
@@ -52,10 +49,7 @@ const InstructorSignup = () => {
   const [country, setCountry] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [institution, setInstitution] = useState('');
-  const [email, setEmail] = useState('');
   const { height } = Dimensions.get('window');
-  const [_verifiedEmail, setVerifiedEmail] = useState(false);
-  const [timer, setTimer] = useState(900);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [staffId, setStaffId] = useState('');
   const [verifiedInstructor, setVerifiedInstructor] =
@@ -68,7 +62,6 @@ const InstructorSignup = () => {
     { label: string; value: string }[]
   >([]);
 
-  const [emailCode, setEmailCode] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
   const [_verifiedInstitution, setVerifiedInstitution] = useState(false);
   const [password, setPassword] = useState('');
@@ -86,7 +79,7 @@ const InstructorSignup = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [institutionName, setInstitutionName] = useState<string>('');
 
-  const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
+  const nextStep = () => setStep(prev => Math.min(prev + 1, 9));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
@@ -153,95 +146,6 @@ const InstructorSignup = () => {
       setVerifying(false);
     }
   };
-  const verifyEmail = async () => {
-    let message;
-    try {
-      const response = await verifySignupEmail(email);
-      if (response.success) {
-        nextStep();
-      } else {
-        message =
-          response?.message || 'Email verification failed, please retry.';
-        console.log('❌ ', message);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
-      }
-    } catch (error) {
-      message = (error as Error).message;
-      console.error('Verification error:', message);
-      setAlertType('error');
-      setAlertMessage(message);
-      setAlertVisible(true);
-    } finally {
-      setVerifying(false);
-    }
-  };
-  const resendCode = async () => {
-    let message;
-    try {
-      const response = await verifySignupEmailCode(email, emailCode);
-
-      if (response.verified) {
-        Toast.show({
-          type: 'success',
-          text1: 'Email verification resent successfully!',
-          position: 'bottom',
-          bottomOffset: 5,
-          visibilityTime: 3000,
-        });
-        setTimer(900);
-        setEmailCode('');
-      } else {
-        message =
-          response?.message ||
-          'Error resending email verification code, please retry.';
-        console.log('❌ ', message);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
-      }
-    } catch (err) {
-      message = (err as Error).message;
-      console.error('Verification error:', message);
-      setAlertType('error');
-      setAlertMessage(message);
-      setAlertVisible(true);
-    }
-  };
-  const verifyCode = async () => {
-    let message;
-    try {
-      const response = await verifySignupEmailCode(email, emailCode);
-      if (response.verified) {
-        Toast.show({
-          type: 'success',
-          text1: 'Email verified successfully!',
-          position: 'bottom',
-          bottomOffset: 5,
-          visibilityTime: 3000,
-        });
-        console.log('Pre next');
-        nextStep();
-        setVerifiedEmail(true);
-        console.log('Post Next');
-      } else {
-        message = response?.message || 'Invalid or expired verification code';
-        console.log('❌ ', message);
-        setVerifiedEmail(false);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
-      }
-    } catch (err) {
-      message = (err as Error).message;
-      console.error('Verification error:', message);
-      setAlertType('error');
-      setVerifiedEmail(false);
-      setAlertMessage(message);
-      setAlertVisible(true);
-    }
-  };
   const handleImageUpdate = async () => {
     const imageUri = await selectImage();
 
@@ -285,12 +189,11 @@ const InstructorSignup = () => {
       const registrationData = {
         currentIScore: 5,
         isVerified: true,
-        profilePic: avatar || '',
+        profilePic: avatar || verifiedInstructor?.schoolAvatarUrl,
         usertype: userType,
         schoolCode,
         ...verifiedInstructor,
         schoolName: institutionName || '',
-        email,
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password,
@@ -338,26 +241,10 @@ const InstructorSignup = () => {
     }
   };
 
-  useEffect(() => {
-    if (timer <= 0) return;
-
-    const interval = setInterval(() => {
-      setTimer(prev => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timer]);
-
   return (
     <View style={[StudentSignupStyles.container, { height: height * 0.75 }]}>
       <>
-        <ProgressBar step={step} setStep={setStep} totalSteps={8} />
+        <ProgressBar step={step} setStep={setStep} totalSteps={7} />
         <LogoBigger />
         <Text style={StudentSignupStyles.mainHeader}>Instructor signup</Text>
         {/* STEP 0 — Select Country */}
@@ -500,9 +387,38 @@ const InstructorSignup = () => {
             </TouchableOpacity>
           </Animated.View>
         )}
-
-        {/* STEP 3 — Password */}
+        {/* STEP 3 — Identity Confirmation */}
         {step === 3 && (
+          <Animated.View
+            entering={FadeInRight.duration(400).springify()}
+            exiting={FadeOutLeft}
+          >
+            <UserProfileCard
+              profilePic={verifiedInstructor?.schoolAvatarUrl}
+              firstName={verifiedInstructor?.firstname}
+              lastName={verifiedInstructor?.lastname}
+              isVerified={verifiedInstructor?.isVerified}
+              department={verifiedInstructor?.department}
+              identifierNumber={verifiedInstructor?.staff_id}
+              identifierLabel={'Staff ID'}
+              size="medium"
+            />
+            <TouchableOpacity
+              onPress={nextStep}
+              style={[
+                StudentSignupStyles.nextButton,
+                {
+                  backgroundColor: PRIMARY_COLOR,
+                },
+              ]}
+            >
+              <Text style={StudentSignupStyles.nextButtonText}>Confirm</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* STEP 4 — Password */}
+        {step === 4 && (
           <Animated.View
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
@@ -633,117 +549,24 @@ const InstructorSignup = () => {
           </Animated.View>
         )}
 
-        {/* STEP 4 — Email */}
-        {step === 4 && (
-          <Animated.View
-            entering={FadeInRight.duration(400).springify()}
-            exiting={FadeOutLeft}
-          >
-            <Text style={StudentSignupStyles.inputHeader}>
-              Enter your email:
-            </Text>
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              value={email}
-              onChangeText={setEmail}
-              style={StudentSignupStyles.input}
-            />
-
-            <Text style={StudentSignupStyles.errorText}>
-              {!isValidEmail(email) && email.length > 0
-                ? 'Invalid email format'
-                : ''}
-            </Text>
-
-            <TouchableOpacity
-              onPress={verifyEmail}
-              disabled={!isValidEmail(email)}
-              style={[
-                StudentSignupStyles.nextButton,
-                {
-                  backgroundColor: !isValidEmail(email)
-                    ? PRIMARY_COLOR_TINT
-                    : PRIMARY_COLOR,
-                },
-              ]}
-            >
-              <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* STEP 5 — Confirm Email */}
+        {/* STEP 5 - Avatar upload (Can skip) */}
         {step === 5 && (
           <Animated.View
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
           >
-            <Text style={StudentSignupStyles.inputHeader}>
-              Confirm Your Email
-            </Text>
-            <Text style={StudentSignupStyles.inputHeader2}>
-              Enter the 6‑digit verification code that has been sent to: {email}
-            </Text>
-            {/* Code Input */}
-            <TextInput
-              placeholder="Enter 6‑digit code"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              value={emailCode}
-              onChangeText={setEmailCode}
-              maxLength={6}
-              style={StudentSignupStyles.input}
-            />
-            <View style={StudentSignupStyles.rowDiv2}>
-              <Text style={StudentSignupStyles.rowDivText}>
-                Code expires in {formatSignupTime(timer)}
-              </Text>
-              {/* Resend Code Button */}
-              <TouchableOpacity onPress={resendCode}>
-                <Text style={StudentSignupStyles.rowDivBtn}>Resend Code?</Text>
-              </TouchableOpacity>
-            </View>
-            {/* NEXT BUTTON — only appears when code is 6 digits */}
-            {emailCode.length === 6 && (
-              <TouchableOpacity
-                style={[
-                  StudentSignupStyles.nextButton,
-                  { backgroundColor: PRIMARY_COLOR },
-                ]}
-                onPress={verifyCode}
-              >
-                <Text style={StudentSignupStyles.nextButtonText}>Next</Text>
-              </TouchableOpacity>
-            )}
-          </Animated.View>
-        )}
-
-        {/* STEP 6 - Avatar upload (Can skip) */}
-        {step === 6 && (
-          <Animated.View
-            entering={FadeInRight.duration(400).springify()}
-            exiting={FadeOutLeft}
-          >
             <Text style={StudentSignupStyles.header}>Upload Profile Photo</Text>
-
-            {/* Main Container for the Avatar and Icon Overlay */}
             <View style={StudentSignupStyles.avatarContainer}>
               <TouchableOpacity onPress={handleImageUpdate} activeOpacity={0.8}>
                 <View style={StudentSignupStyles.avatarWrapper}>
-                  {avatar ? (
-                    <Image
-                      source={{ uri: avatar }}
-                      style={StudentSignupStyles.avatarImage}
-                    />
-                  ) : (
-                    <MaterialIcons
-                      name="account-circle-outlined"
-                      size={120}
-                      color={PRIMARY_COLOR}
-                    />
-                  )}
-
-                  {/* The Camera Icon Overlay */}
+                  <Image
+                    source={{
+                      uri: avatar
+                        ? avatar
+                        : verifiedInstructor?.schoolAvatarUrl,
+                    }}
+                    style={StudentSignupStyles.avatarImage}
+                  />
                   <View style={StudentSignupStyles.cameraIconBadge}>
                     <MaterialIcons
                       name="camera-alt-outlined"
@@ -754,8 +577,6 @@ const InstructorSignup = () => {
                 </View>
               </TouchableOpacity>
             </View>
-
-            {/* Primary Action Button */}
             <TouchableOpacity
               style={[
                 StudentSignupStyles.nextButton,
@@ -764,11 +585,9 @@ const InstructorSignup = () => {
               onPress={handleImageUpdate}
             >
               <Text style={StudentSignupStyles.nextButtonText}>
-                {hasUploadedAvatar ? 'Change Photo' : 'Upload Photo'}
+                Change Photo
               </Text>
             </TouchableOpacity>
-
-            {/* Secondary Skip Action */}
             <TouchableOpacity
               style={StudentSignupStyles.skipLink}
               onPress={nextStep}
@@ -781,7 +600,7 @@ const InstructorSignup = () => {
         )}
 
         {/*FINAL STEP - iCampus Terms and conditions*/}
-        {step === 7 && (
+        {step === 6 && (
           <>
             <Text style={StudentSignupStyles.inputHeader}>
               Terms & Conditions
@@ -879,7 +698,7 @@ const InstructorSignup = () => {
           </>
         )}
       </>
-      {step !== 7 && <Footer />}
+      {step !== 6 && <Footer />}
       <SweetAlertModal
         visible={alertVisible}
         onConfirm={() => setAlertVisible(false)}

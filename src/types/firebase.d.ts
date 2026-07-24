@@ -896,7 +896,8 @@ export type VerifiedStudent = {
   matricNumber: string;
   schoolAvatarUrl?: string;
   isVerified: boolean;
-  isStillInSchool?: boolean
+  isStillInSchool?: boolean;
+  email: string;
 };
 
 export type SignupResponse = {
@@ -912,6 +913,8 @@ export type VerifiedInstructor = {
   department: string;
   staff_id: string;
   isVerified: boolean;
+  schoolAvatarUrl: string;
+  email: string;
 };
 export interface EnrichedCourseProduct extends Product {
   progress: number;
