@@ -140,11 +140,13 @@ import { ViewAllCoursesScreen } from './src/screens/ViewAllCourses.tsx';
 import { AdminSearchScreen } from './src/screens/AdminSearchScreen.tsx';
 import { TermsScreen } from './src/screens/TermsScreen.tsx';
 import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
+import { AllTaxEntriesScreen } from './src/screens/ViewAllTaxEntries.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
   RegisterStation: undefined;
+  ViewAllTaxEntries: undefined;
   AdminSearchScreen: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
@@ -435,6 +437,11 @@ const App = () => {
               <Stack.Screen
                 name="AdminSearchScreen"
                 component={AdminSearchScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ViewAllTaxEntries"
+                component={AllTaxEntriesScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

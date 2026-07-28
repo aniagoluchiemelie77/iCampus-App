@@ -566,7 +566,7 @@ export const Overview = () => {
         <TaxEntryPreviewSection
           title="iCampus Tax Entries"
           items={stats?.recentTaxes!}
-          onViewAll={() => navigate('ViewAllDropStations')}
+          onViewAll={() => navigate('ViewAllTaxEntries')}
         />
       )}
       <EntityPreviewSection

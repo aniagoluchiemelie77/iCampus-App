@@ -30,7 +30,7 @@ import { ProductCard } from './ProductCard';
 import { useTheme } from '../context/ThemeContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
-import { CourseSearchCard } from './SearchScreen.tsx';
+import { CourseSearchCard } from './SearchScreenComponents.tsx';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import {
   CourseModal,

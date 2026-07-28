@@ -1874,3 +1874,70 @@ export const fetchCourseGradebook = async (courseId: string) => {
     };
   }
 };
+export const fetchTaxReport = async (month: string, year: string) => {
+    try {
+      const url = `${baseUrl}admins/tax-entries/download?month=${month}&year=${year}`; 
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        return {
+          success: true,
+          data: result.data, 
+          message: 'Tax report downloaded successfully',
+        };
+      }
+
+      return {
+        success: false,
+        message: result?.message || 'Failed to download tax report',
+      };
+    } catch (error: any) {
+      console.error("Tax Download API Error:", error);
+      return {
+        success: false,
+        message: 'Network error while downloading tax report',
+      };
+    }
+  };
+export const fetchTaxEntries = async (page: number = 1, limit: number = 10) => {
+  try {
+    const url = `${baseUrl}admins/tax-entries/fetch?page=${page}&limit=${limit}`; 
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      return {
+        success: true,
+        data: result.data, 
+        totalPages: result.totalPages || 1,
+        message: 'Tax entries loaded successfully',
+      };
+    }
+
+    return {
+      success: false,
+      data: [],
+      message: result?.message || 'Failed to fetch tax entries',
+    };
+  } catch (error: any) {
+    console.error("Tax Entries API Error:", error);
+    return {
+      success: false,
+      data: [],
+      message: 'Network error while fetching tax entries',
+    };
+  }
+};
