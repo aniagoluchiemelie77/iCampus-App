@@ -47,15 +47,14 @@ Backend:
 
 1. Node.js & Express.js
 
-2. MongoDB & Mongoose (Aggregation Pipelines for Stats) and dev database.
+2. Firebase Firestore.
 
 3. Socket.io (for real time front end and backend communtication).
 
 4. AsyncStorage (Local Session Management).
 
-5. Nodemailer & PDFKit (For Statement Generation and emails).
+5. PostMark & PDFKit (For Statement Generation and emails).
 
-6. Firebase and firestore (production database)
 
 ## Installation & Setup
 

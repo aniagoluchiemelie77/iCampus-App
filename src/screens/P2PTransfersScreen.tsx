@@ -12,17 +12,13 @@ import {
   Alert,
   Linking,
   Platform,
-  Vibration,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
-import { Camera, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera } from 'react-native-vision-camera';
 import { useCameraDevice } from 'react-native-vision-camera';
-import { scanBarcodes, BarcodeFormat } from 'vision-camera-code-scanner';
 import { useAppSelector } from '../hooks/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
-// @ts-ignore: runOnJS is deprecated in Reanimated but stable for Vision Camera
-import { runOnJS } from 'react-native-reanimated';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
@@ -33,6 +29,7 @@ import { searchUsersByITag } from '../api/localGetApis';
 import { executeP2PTransfer } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { QRScannerComponent } from '../hooks/useCodeScanner';
 
 interface ITagSearchResult {
   userId: string;
@@ -182,23 +179,6 @@ export const IcashP2PScreen = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [recipientTag]);
-  const frameProcessor = useFrameProcessor(
-    frame => {
-      'worklet';
-      const detectedBarcodes = scanBarcodes(frame, [BarcodeFormat.QR_CODE]);
-
-      if (detectedBarcodes.length > 0) {
-        const barcodeValue = detectedBarcodes[0].displayValue;
-        if (barcodeValue) {
-          // @ts-ignore - 'runOnJS'
-          runOnJS(handleScanSuccess)(barcodeValue);
-          // @ts-ignore - 'runOnJS'
-          runOnJS(Vibration.vibrate)(100);
-        }
-      }
-    },
-    [handleScanSuccess],
-  );
   React.useEffect(() => {
     (async () => {
       const status = await Camera.requestCameraPermission();
@@ -385,11 +365,9 @@ export const IcashP2PScreen = () => {
           <View style={styles.cameraPlaceholder}>
             {device != null && hasPermission ? (
               <>
-                <Camera
-                  style={StyleSheet.absoluteFill}
-                  device={device}
-                  isActive={scannerVisible}
-                  frameProcessor={frameProcessor}
+                <QRScannerComponent
+                  handleScanSuccess={handleScanSuccess}
+                  scannerVisible={scannerVisible}
                 />
                 <View style={styles.scanFrame} />
               </>
