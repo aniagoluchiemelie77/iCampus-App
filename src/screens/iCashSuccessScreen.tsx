@@ -10,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
 
 const hapticOptions = {
   enableVibrateFallback: true,
@@ -42,14 +43,15 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
     : 'Amount Paid';
 
   useEffect(() => {
-    ReactNativeHapticFeedback.trigger("notificationSuccess", hapticOptions);
+    ReactNativeHapticFeedback.trigger('notificationSuccess', hapticOptions);
   }, []);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <IcampusWatermark />
       <View
         style={[
           styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
+          { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
         ]}
       >
         <MaterialIcons

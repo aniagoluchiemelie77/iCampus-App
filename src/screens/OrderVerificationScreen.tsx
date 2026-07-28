@@ -6,6 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { Vibration } from 'react-native';
+import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -25,10 +26,11 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
   }, []);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <IcampusWatermark />
       <View
         style={[
           styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
+          { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
         ]}
       >
         <MaterialIcons

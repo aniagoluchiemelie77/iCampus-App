@@ -1,8 +1,8 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
 export const PRIMARY_COLOR = '#f54b02';
-export const PRIMARY_COLOR_TINT = '#f5743d';
-export const PRIMARY_COLOR_TINT_MAIN = '#f9dccf';
+export const PRIMARY_COLOR_TINT = '#f98d5f';
+export const PRIMARY_COLOR_TINT_MAIN = '#f4bba1';
 
 export const PREMIUM_BADGE_COLOR = '#93370f';
 export const PRO_BADGE_COLOR = '#f54b02';

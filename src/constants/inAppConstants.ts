@@ -14,6 +14,7 @@ export const USD_SUBSCRIPTION_PRICES = {
 export const EXCEPTION_COST_IN_ICASH = 0.5 as const;
 export const USD_EQUIVALENCE_OF_1_ICASH = 0.74 as const;
 export const TRANSACTION_TAX_RATE = 0.05 as const;
+export const WATERMARK_TEXT = 'iCampus' as const;
 export const WITHDRAWAL_FEE_PERCENT = 0.02 as const;
 export const DELIVERY_FEES = {
   free: {
