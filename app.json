@@ -1,4 +1,9 @@
 {
   "name": "iCampus",
-  "displayName": "iCampus"
+  "displayName": "iCampus",
+  "extra": {
+    "eas": {
+      "projectId": "58843852-bf76-4323-aa02-478901aa1335"
+    }
+  }
 }
