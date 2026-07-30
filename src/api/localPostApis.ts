@@ -1,4 +1,4 @@
-import { baseUrl } from '@components/HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';

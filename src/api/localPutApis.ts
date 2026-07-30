@@ -1,4 +1,4 @@
-import { baseUrl } from '@components/HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {ThemeType} from '../types/firebase';
 import {getAuthHeaders} from '../utils/userTokenAuth';

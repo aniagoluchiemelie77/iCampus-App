@@ -1,5 +1,5 @@
 import { User, userPreferences } from '../types/firebase';
-import { baseUrl } from '@components/HomeScreenComponents';
+import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 interface UpdateExceptionStatusPayload {
