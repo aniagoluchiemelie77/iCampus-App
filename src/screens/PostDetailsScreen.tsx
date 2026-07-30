@@ -170,9 +170,13 @@ export const PostDetailScreen = ({ route }: any) => {
             style={[styles.sendBtn, { backgroundColor: colors.btnColor }]}
           >
             {isSending ? (
-              <ActivityIndicator size={'small'} color={colors.btnTextColor}/>
+              <ActivityIndicator size={'small'} color={colors.btnTextColor} />
             ) : (
-              <MaterialIcons name="send" size={22} color={colors.btnTextColor} />
+              <MaterialIcons
+                name="send"
+                size={22}
+                color={colors.btnTextColor}
+              />
             )}
           </TouchableOpacity>
         </View>
@@ -205,7 +209,7 @@ const styles = StyleSheet.create({
   },
   replyText: {
     fontSize: 12,
-    flex: 1
+    flex: 1,
   },
   cancelReply: {
     fontSize: 12,

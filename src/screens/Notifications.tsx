@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
-import { useSocket } from '../components/SocketContext';
 import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
@@ -24,14 +23,18 @@ import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
 import { NotificationItem } from '@components/NotificationItem';
-
+import { useSocketConnection } from '../hooks/useSocket';
+import { baseUrl } from '../components/HomeScreenComponents';
 dayjs.extend(relativeTime);
 
 const Notifications = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
-  const { socket } = useSocket();
+  const socketRef = useSocketConnection({
+    baseUrl,
+    userId: user?.uid,
+  });
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'finance' | 'unread'>(
@@ -77,15 +80,17 @@ const Notifications = () => {
   }, [fetchNotifications]);
 
   useEffect(() => {
-    if (!socket) return;
-    socket.on('new_notification', (newNotif: any) => {
+    const currentSocket = socketRef.current;
+    if (!currentSocket) return;
+
+    currentSocket.on('new_notification', (newNotif: any) => {
       setNotifications(prev => [newNotif, ...prev]);
     });
 
     return () => {
-      socket.off('new_notification');
+      currentSocket.off('new_notification');
     };
-  }, [socket]);
+  }, [socketRef]);
   const handleNotificationPress = async (item: any) => {
     if (!item.isRead) {
       markAsReadOnServer(item.notificationId);

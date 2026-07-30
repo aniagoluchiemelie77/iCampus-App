@@ -172,7 +172,10 @@ export const LecturerLiveClassSession = ({
         button: 'Stop Sharing',
         priority: 2,
       });
-      const stream = await mediaDevices.getDisplayMedia();
+      const stream = await mediaDevices.getDisplayMedia({
+        video: { mediaSource: 'screen' },
+        audio: true,
+      } as any);
       setIsSharingScreen(true);
       const videoTrack = stream.getVideoTracks()[0];
 
@@ -181,7 +184,6 @@ export const LecturerLiveClassSession = ({
           stopScreenShare();
         });
       }
-
       socket.emit('lecturer_started_sharing', {
         lectureId: lecture.id,
         streamId: stream.toURL(),

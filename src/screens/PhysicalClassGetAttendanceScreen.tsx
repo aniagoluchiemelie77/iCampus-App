@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import NativeProperty from 'react-native-ble-peripheral';
 import { useAppSelector } from '../hooks/hooks';
-import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { SERVICE_UUID } from '@env';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
@@ -27,6 +26,7 @@ import { downloadAttendanceReport } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import { EmptyState } from '@components/EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useSocketConnection } from '../hooks/useSocket.ts';
 
 type AttendanceStatus = 'idle' | 'fetching' | 'completed';
 type Props = StackScreenProps<RootStackParamList, 'PhysicalAttendanceManager'>;
@@ -48,7 +48,10 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { lecture, course, exceptions } = route.params;
   const user = useAppSelector(state => state.user);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useSocketConnection({
+    baseUrl,
+    userId: user?.uid,
+  });
   const onStudentCheckedInRef = useRef<(student: PresentStudent) => void>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [presentStudents, setPresentStudents] = useState<PresentStudent[]>([]);
@@ -223,22 +226,19 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const socketInstance = io(baseUrl, {
-      transports: ['websocket'],
-      query: { userId: user.uid },
-    });
-
-    socketRef.current = socketInstance;
-    socketInstance.on('student_checked_in', (newStudent: PresentStudent) => {
-      if (onStudentCheckedInRef.current) {
-        onStudentCheckedInRef.current(newStudent);
-      }
-    });
-    socketInstance.on('attendance_session_started', data => {
+    socketRef?.current?.on(
+      'student_checked_in',
+      (newStudent: PresentStudent) => {
+        if (onStudentCheckedInRef.current) {
+          onStudentCheckedInRef.current(newStudent);
+        }
+      },
+    );
+    socketRef?.current?.on('attendance_session_started', data => {
       console.log('Attendance server channel successfully established:', data);
     });
 
-    socketInstance.on('error_response', err => {
+    socketRef?.current?.on('error_response', err => {
       Toast.show({
         type: 'error',
         text1: 'Server Event Failure',
@@ -246,13 +246,13 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       });
     });
     return () => {
-      socketInstance.off('student_checked_in');
-      socketInstance.off('attendance_session_started');
-      socketInstance.off('error_response');
-      socketInstance.disconnect();
+      socketRef?.current?.off('student_checked_in');
+      socketRef?.current?.off('attendance_session_started');
+      socketRef?.current?.off('error_response');
+      socketRef?.current?.disconnect();
       socketRef.current = null;
     };
-  }, [user.uid]);
+  }, [user.uid, socketRef]);
   useEffect(() => {
     if (Platform.OS === 'android' && Platform.Version >= 31) {
       requestMultiple([

@@ -18,7 +18,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { MessageBubble } from '../components/ChatMessageBubble.tsx';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { ChatInput } from '../components/ChatInput.tsx';
-import { io, Socket } from 'socket.io-client';
+import { useSocketConnection } from '../hooks/useSocket.ts';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { ChatMessage, User } from '../types/firebase';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -39,8 +39,10 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { recipientId } = route.params;
   const currentUser = useAppSelector(state => state.user);
-
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useSocketConnection({
+    baseUrl,
+    userId: currentUser?.uid,
+  });
   const flatListRef = useRef<FlatList>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -89,7 +91,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
         setHistoryLoading(false);
       }
     },
-    [currentUser.uid, recipientId, historyLoading],
+    [currentUser.uid, recipientId, historyLoading, socketRef],
   );
 
   const handleLoadMore = () => {
@@ -99,35 +101,32 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   };
   useEffect(() => {
     if (!currentUser?.uid) return;
-    const socketInstance = io(baseUrl, {
-      transports: ['websocket'],
-      query: { userId: currentUser.uid },
-      autoConnect: true,
-    });
-    socketRef.current = socketInstance;
     const roomId = [currentUser.uid, recipientId].sort().join('_');
-    socketInstance.emit('join_chat', { roomId });
+    socketRef?.current?.emit('join_chat', { roomId });
     loadHistory(1);
 
-    socketInstance.on('receive_message', (newMessage: ChatMessage) => {
+    socketRef?.current?.on('receive_message', (newMessage: ChatMessage) => {
       setMessages(prev =>
         prev.some(m => m.id === newMessage.id) ? prev : [newMessage, ...prev],
       );
-      socketInstance.emit('msg_delivered', {
+      socketRef?.current?.emit('msg_delivered', {
         messageId: newMessage.id,
         senderId: newMessage.senderId,
       });
     });
 
-    socketInstance.on('messages_seen', ({ readerId }: { readerId: string }) => {
-      if (readerId === stateRef.current.recipientId) {
-        setMessages(prev =>
-          prev.map(m => (m.status !== 'seen' ? { ...m, status: 'seen' } : m)),
-        );
-      }
-    });
+    socketRef?.current?.on(
+      'messages_seen',
+      ({ readerId }: { readerId: string }) => {
+        if (readerId === stateRef.current.recipientId) {
+          setMessages(prev =>
+            prev.map(m => (m.status !== 'seen' ? { ...m, status: 'seen' } : m)),
+          );
+        }
+      },
+    );
 
-    socketInstance.on(
+    socketRef?.current?.on(
       'status_update',
       ({
         messageId,
@@ -142,13 +141,13 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       },
     );
     return () => {
-      socketInstance.off('receive_message');
-      socketInstance.off('messages_seen');
-      socketInstance.off('status_update');
-      socketInstance.disconnect();
+      socketRef?.current?.off('receive_message');
+      socketRef?.current?.off('messages_seen');
+      socketRef?.current?.off('status_update');
+      socketRef?.current?.disconnect();
       socketRef.current = null;
     };
-  }, [currentUser.uid, recipientId, loadHistory]);
+  }, [currentUser.uid, recipientId, loadHistory, socketRef]);
 
   useEffect(() => {
     let isMounted = true;
@@ -351,34 +350,30 @@ export const ChatScreen = ({ route, navigation }: Props) => {
   useEffect(() => {
     if (!currentUser?.uid) return;
 
-    const socketInstance = io(baseUrl, {
-      transports: ['websocket'],
-      query: { userId: currentUser.uid },
-      autoConnect: true,
-    });
-    socketRef.current = socketInstance;
-
     const roomId = [currentUser.uid, recipientId].sort().join('_');
-    socketInstance.emit('join_chat', { roomId });
+    socketRef?.current?.emit('join_chat', { roomId });
     loadHistory(1);
 
-    socketInstance.on('receive_message', (newMessage: ChatMessage) => {
+    socketRef?.current?.on('receive_message', (newMessage: ChatMessage) => {
       setMessages(prev =>
         prev.some(m => m.id === newMessage.id) ? prev : [newMessage, ...prev],
       );
-      socketInstance.emit('msg_delivered', {
+      socketRef?.current?.emit('msg_delivered', {
         messageId: newMessage.id,
         senderId: newMessage.senderId,
       });
     });
-    socketInstance.on('messages_seen', ({ readerId }: { readerId: string }) => {
-      if (readerId === stateRef.current.recipientId) {
-        setMessages(prev =>
-          prev.map(m => (m.status !== 'seen' ? { ...m, status: 'seen' } : m)),
-        );
-      }
-    });
-    socketInstance.on(
+    socketRef?.current?.on(
+      'messages_seen',
+      ({ readerId }: { readerId: string }) => {
+        if (readerId === stateRef.current.recipientId) {
+          setMessages(prev =>
+            prev.map(m => (m.status !== 'seen' ? { ...m, status: 'seen' } : m)),
+          );
+        }
+      },
+    );
+    socketRef?.current?.on(
       'status_update',
       ({
         messageId,
@@ -393,7 +388,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       },
     );
 
-    socketInstance.on(
+    socketRef?.current?.on(
       'message_edited',
       ({ messageId, newText }: { messageId: string; newText: string }) => {
         setMessages(prev =>
@@ -404,7 +399,7 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       },
     );
 
-    socketInstance.on(
+    socketRef?.current?.on(
       'message_deleted',
       ({ messageId }: { messageId: string }) => {
         setMessages(prev =>
@@ -423,15 +418,15 @@ export const ChatScreen = ({ route, navigation }: Props) => {
       },
     );
     return () => {
-      socketInstance.off('receive_message');
-      socketInstance.off('messages_seen');
-      socketInstance.off('status_update');
-      socketInstance.off('message_edited');
-      socketInstance.off('message_deleted');
-      socketInstance.disconnect();
+      socketRef?.current?.off('receive_message');
+      socketRef?.current?.off('messages_seen');
+      socketRef?.current?.off('status_update');
+      socketRef?.current?.off('message_edited');
+      socketRef?.current?.off('message_deleted');
+      socketRef?.current?.disconnect();
       socketRef.current = null;
     };
-  }, [currentUser.uid, recipientId, loadHistory, recipient]);
+  }, [currentUser.uid, recipientId, loadHistory, recipient, socketRef]);
 
   return (
     <KeyboardAvoidingView

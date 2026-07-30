@@ -6,5 +6,5 @@ export const useSocket = (): SocketContextType => {
   if (!context) {
     throw new Error("useSocket must be used within a SocketProvider");
   }
-  return context; // This is now explicitly an Object, not an Element
+  return context; 
 };

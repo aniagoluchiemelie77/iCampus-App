@@ -22,13 +22,13 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import Logo from '../assets/images/Logo.tsx';
 import ExpandableFAB from './ExpandableFAB.tsx';
-import { useSocket } from './socketContext.ts';
 import { UserIdentity } from './UserIdentity.tsx';
 import { fetchPostsAPI } from '../api/localGetApis.ts';
 import { UserAvatar } from './UserAvatar.tsx';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { BACKEND_URL } from '@env';
+import { useSocketConnection } from '../hooks/useSocket';
 
 export const baseUrl = BACKEND_URL;
 interface Props {
@@ -36,11 +36,13 @@ interface Props {
   initialCount?: number;
   uid?: string;
   colors: any;
+  socket: any
 }
 interface MessageBellProps {
   navigation: any;
   initialCount?: number;
   colors: any;
+  socket: any
 }
 
 interface ProfileModalProps {
@@ -186,10 +188,9 @@ export const NotificationBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,
   colors,
+  socket
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
-  const socketContext = useSocket();
-  const socket = socketContext?.socket;
 
   useEffect(() => {
     if (!socket) return;
@@ -240,10 +241,9 @@ export const MessageBell: React.FC<MessageBellProps> = ({
   navigation,
   initialCount = 0,
   colors,
+  socket
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
-  const socketContext = useSocket();
-  const socket = socketContext?.socket;
   const currentUser = useAppSelector(state => state.user);
 
   useEffect(() => {
@@ -313,8 +313,10 @@ export function Home() {
   const { colors } = useTheme();
   const flatListRef = useRef<FlatList<Posts>>(null);
   const currentUser = useAppSelector(state => state.user);
-  const socketContext = useSocket();
-  const socket = socketContext?.socket;
+  const socket = useSocketConnection({
+    baseUrl,
+    userId: currentUser?.uid,
+  });
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -360,30 +362,35 @@ export function Home() {
     loadPosts(true);
   }, [loadPosts]);
   useEffect(() => {
-    socket?.on('new_post', (newPost: Posts) => {
-      setPendingPosts(prev => {
-        if (prev.find(p => p.postId === newPost.postId)) return prev;
-        return [newPost, ...prev];
-      });
+  const currentSocket = socket?.current;
+  if (!currentSocket) return;
+
+  currentSocket.on('new_post', (newPost: Posts) => {
+    setPendingPosts(prev => {
+      if (prev.find(p => p.postId === newPost.postId)) return prev;
+      return [newPost, ...prev];
     });
-    socket?.on('post_stats_updated', (data: { postId: string; stats: any }) => {
-      setPosts(prevPosts =>
-        prevPosts.map(post => {
-          if (post.postId === data.postId) {
-            return {
-              ...post,
-              ...(data.stats || {}),
-            };
-          }
-          return post;
-        }),
-      );
-    });
-    return () => {
-      socket?.off('new_post');
-      socket?.off('post_stats_updated');
-    };
-  }, [setPosts, currentUser.uid, socket]);
+  });
+
+  currentSocket.on('post_stats_updated', (data: { postId: string; stats: any }) => {
+    setPosts(prevPosts =>
+      prevPosts.map(post => {
+        if (post.postId === data.postId) {
+          return {
+            ...post,
+            ...(data.stats || {}),
+          };
+        }
+        return post;
+      }),
+    );
+  });
+
+  return () => {
+    currentSocket.off('new_post');
+    currentSocket.off('post_stats_updated');
+  };
+}, [setPosts, currentUser.uid, socket]);
   const onViewableItemsChanged = useRef(
     ({
       viewableItems,
@@ -436,11 +443,13 @@ export function Home() {
             navigation={navigation}
             initialCount={0}
             colors={colors}
+            socket={socket}
           />
           <MessageBell
             navigation={navigation}
             initialCount={0}
             colors={colors}
+            socket={socket}
           />
         </View>
       </View>

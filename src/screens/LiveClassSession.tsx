@@ -39,7 +39,7 @@ export const LiveClassSessions = ({ route }: any) => {
   const { lectureId, courseId } = route.params;
   const [lecturerUser, setLecturerUser] = useState<any | null>(null);
 
-  const { user, course, lecture, exceptions, socket } = useLiveSession(
+  const { user, course, lecture, exceptions, socketRef } = useLiveSession(
     lectureId,
     courseId,
   );
@@ -151,8 +151,9 @@ export const LiveClassSessions = ({ route }: any) => {
     navigation,
   ]);
 
-  useEffect(() => {
-    if (!socket) return;
+useEffect(() => {
+    const currentSocket = socketRef?.current;
+    if (!currentSocket) return;
 
     const handleLectureEnded = (data: {
       lectureId: string;
@@ -172,12 +173,12 @@ export const LiveClassSessions = ({ route }: any) => {
       }
     };
 
-    socket.on('lecture_ended_by_host', handleLectureEnded);
+    currentSocket.on('lecture_ended_by_host', handleLectureEnded);
 
     return () => {
-      socket.off('lecture_ended_by_host', handleLectureEnded);
+      currentSocket.off('lecture_ended_by_host', handleLectureEnded);
     };
-  }, [socket, lecture?.id, isSchoolCourse, saveAttendance, navigation]);
+  }, [socketRef, lecture?.id, isSchoolCourse, saveAttendance, navigation]);
   useEffect(() => {
     const fetchHostData = async () => {
       const targetId = lecture?.hostId;
@@ -210,12 +211,12 @@ export const LiveClassSessions = ({ route }: any) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {isHost ? (
-        <LecturerLiveClassSession lecture={lecture} socket={socket} />
+        <LecturerLiveClassSession lecture={lecture} socket={socketRef} />
       ) : (
         <StudentLiveClassSession
           lecture={lecture}
           lecturerLiveData={hostData}
-          socket={socket}
+          socket={socketRef}
         />
       )}
     </View>
