@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { EmptyState } from '@components/EmptyFlatlistComponent';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 import type { RootStackParamList } from '../../App';
 import { fetchNotificationDetails } from '../api/localGetApis';
 import { Notification } from '../types/firebase';
