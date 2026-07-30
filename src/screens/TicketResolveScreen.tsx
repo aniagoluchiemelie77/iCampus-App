@@ -15,12 +15,12 @@ import { NotificationItem } from '../components/NotificationItem';
 import { updateTicketStatus } from '../api/localPatchApis';
 import { adminFetchUserDetails, adminFetchUserNotifications } from '../api/localGetApis';
 import Toast from 'react-native-toast-message';
-import { PageHeader } from '@components/PageHeader';
-import { UserAvatar } from '@components/UserAvatar';
-import { UserIdentity } from '@components/UserIdentity';
-import { EmptyState } from '@components/EmptyFlatlistComponent';
-import { EditUserModalContent } from '@components/editUser';
-import { SendNotificationModal } from '@components/sendNotificationComponent';
+import { PageHeader } from '../components/PageHeader';
+import { UserAvatar } from '../components/UserAvatar';
+import { UserIdentity } from '../components/UserIdentity';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { EditUserModalContent } from '../components/editUser';
+import { SendNotificationModal } from '../components/sendNotificationComponent';
 
 export const TicketResolveScreen = () => {
   const navigation = useNavigation<any>();

@@ -29,7 +29,7 @@ import { ProductCard } from '../components/ProductCard';
 import { PageHeader } from '../components/PageHeader';
 import { PreSearchComponent } from '../components/PresearchComponent';
 import {CourseSearchCard, ResourceSearchCard} from '../components/SearchScreenComponents';
-import { EditUserModalContent } from '@components/editUser';
+import { EditUserModalContent } from '../components/editUser';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;

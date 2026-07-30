@@ -24,7 +24,7 @@ import { formatTime } from '../utils/durationFormatter';
 import Toast from 'react-native-toast-message';
 import { downloadAttendanceReport } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
-import { EmptyState } from '@components/EmptyFlatlistComponent';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSocketConnection } from '../hooks/useSocket.ts';
 

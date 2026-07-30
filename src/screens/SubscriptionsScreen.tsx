@@ -121,7 +121,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const [selectedTier, setSelectedTier] = useState(tier);
   const [isPayModalVisible, setPayModalVisible] = useState(false);
   const { targetScreen } = route.params || {};
-  const exchangeData = useExchangeRate(country || 'Nigeria');
+  const { exchangeData } = useExchangeRate(country || 'Nigeria');
   const getLocalPriceValue = React.useCallback(
     (id: string) => {
       const tierMap: Record<string, keyof typeof USD_SUBSCRIPTION_PRICES> = {

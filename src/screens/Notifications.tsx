@@ -22,7 +22,7 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
-import { NotificationItem } from '@components/NotificationItem';
+import { NotificationItem } from '../components/NotificationItem';
 import { useSocketConnection } from '../hooks/useSocket';
 import { baseUrl } from '../components/HomeScreenComponents';
 dayjs.extend(relativeTime);
