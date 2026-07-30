@@ -27,7 +27,7 @@ import {
   uploadToFirebase,
   uploadFileToFirebaseClient,
 } from '../utils/CloudinaryPresetHelper.ts';
-import DocumentPicker from 'react-native-document-picker';
+import { errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
 import { UserAvatar } from '../components/UserAvatar';
 import { useTheme } from '../context/ThemeContext';
@@ -248,8 +248,10 @@ export const ChatScreen = ({ route, navigation }: Props) => {
         } else {
           throw new Error(response.message || 'Upload failed');
         }
-      } catch (err) {
-        if (!DocumentPicker.isCancel(err)) {
+      } catch (err: any) {
+        if (
+          !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
+        ) {
           Toast.show({
             type: 'error',
             text1: 'Document Error',

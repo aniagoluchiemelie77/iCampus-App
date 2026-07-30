@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
-import DocumentPicker, { types } from 'react-native-document-picker';
+import { pick, types, errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import Toast from 'react-native-toast-message';
 import { launchImageLibrary } from 'react-native-image-picker';
 
@@ -26,27 +26,31 @@ export const useMediaPicker = () => {
 
   const pickDocument = useCallback(async () => {
     try {
-      const result = await DocumentPicker.pickSingle({ type: [types.allFiles] });
+      const [result] = await pick({ type: [types.allFiles] });
       return { uri: result.uri, type: 'file' as const, name: result.name || 'document' };
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
+    } catch (err: any) {
+      if (!(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)) {
         Toast.show({ type: 'error', text1: 'Document Error', text2: 'Selection failed.' });
       }
       return null;
     }
   }, []);
-const pickImageFromCamera = useCallback(async () => {
-  try {
-    const image = await ImagePicker.openCamera({
-      width: 1200,
-      height: 1200,
-      cropping: true,
-      mediaType: 'photo',
-    });
-    return { uri: image.path, type: 'image' as const, name: 'camera_photo.jpg' };
-  } catch (e) { return null; }
-}, []);
-const pickProductImages = useCallback(async (maxLimit: number = 5) => {
+
+  const pickImageFromCamera = useCallback(async () => {
+    try {
+      const image = await ImagePicker.openCamera({
+        width: 1200,
+        height: 1200,
+        cropping: true,
+        mediaType: 'photo',
+      });
+      return { uri: image.path, type: 'image' as const, name: 'camera_photo.jpg' };
+    } catch (e) { 
+      return null; 
+    }
+  }, []);
+
+  const pickProductImages = useCallback(async (maxLimit: number = 5) => {
     try {
       const selectedAssets = await ImagePicker.openPicker({
         multiple: true,
@@ -63,24 +67,27 @@ const pickProductImages = useCallback(async (maxLimit: number = 5) => {
       return null;
     }
   }, []);
+
   const pickLessonVideo = useCallback(async () => {
     try {
-      const res = await DocumentPicker.pickSingle({ type: [DocumentPicker.types.video] });
+      const [res] = await pick({ type: [types.video] });
       return { 
-        uri: res.fileCopyUri || res.uri, 
-        name: res.name, 
-        type: res.type 
+        uri: res.uri, 
+        name: res.name || 'video.mp4', 
+        type: res.type || 'video/mp4' 
       };
-    } catch (e) { return null; }
+    } catch (e) { 
+      return null; 
+    }
   }, []);
+
   const pickDigitalFile = useCallback(async () => {
     try {
-      const response = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.allFiles],
-        copyTo: 'cachesDirectory',
+      const [response] = await pick({
+        type: [types.allFiles],
       });
 
-      const targetUri = response.fileCopyUri || response.uri;
+      const targetUri = response.uri;
       const rawName = response.name || `digital-asset-${Date.now()}`;
       const extension = rawName.split('.').pop()?.toUpperCase() || 'UNKNOWN';
       const sizeInMB = parseFloat(((response.size || 0) / (1024 * 1024)).toFixed(2));
@@ -91,8 +98,8 @@ const pickProductImages = useCallback(async (maxLimit: number = 5) => {
         fileFormat: extension,
         fileSizeInMB: sizeInMB,
       };
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
+    } catch (err: any) {
+      if (!(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)) {
         console.error('Document picking exception:', err);
       }
       return null;
@@ -118,5 +125,13 @@ const pickProductImages = useCallback(async (maxLimit: number = 5) => {
     });
   }, []);
 
-  return {pickCourseThumbnail,  pickImage, pickDocument, pickImageFromCamera, pickProductImages, pickLessonVideo, pickDigitalFile };
+  return { 
+    pickCourseThumbnail, 
+    pickImage, 
+    pickDocument, 
+    pickImageFromCamera, 
+    pickProductImages, 
+    pickLessonVideo, 
+    pickDigitalFile 
+  };
 };

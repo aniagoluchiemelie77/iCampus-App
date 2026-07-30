@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import {
   FlatList,
@@ -20,11 +21,12 @@ import {
   uploadToFirebase,
   uploadFileToFirebaseClient,
 } from '../utils/CloudinaryPresetHelper.ts';
-import DocumentPicker from 'react-native-document-picker';
+import { errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import Toast from 'react-native-toast-message';
 import { AssistantMessage } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
+const uniqueMessageId = uuidv4();
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -51,7 +53,7 @@ export const Assistant = ({ route }: Props) => {
   ]);
   const [input, setInput] = useState('');
   const addMessage = useCallback((msg: AssistantMessage) => {
-    setMessages(prev => [...prev, { ...msg, id: uuidv4() }]);
+    setMessages(prev => [...prev, { ...msg, id: uniqueMessageId }]);
   }, []);
   const { pickImage, pickDocument } = useMediaPicker();
 
@@ -166,13 +168,14 @@ export const Assistant = ({ route }: Props) => {
           handleAttachment(docUrl, 'file', 'Document');
         }
       }
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
-        console.error('Document Picker Error:', err);
+    } catch (err: any) {
+      if (
+        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
+      ) {
         Toast.show({
           type: 'error',
-          text1: 'Upload Error',
-          text2: 'Failed to upload document reference',
+          text1: 'Document Error',
+          text2: 'Attachment process failed.',
         });
       }
     }

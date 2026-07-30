@@ -48,7 +48,7 @@ import { create, all } from 'mathjs';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from './HomeScreenComponents';
-import DocumentPicker from 'react-native-document-picker';
+import { errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 import { PermissionsAndroid, Platform, Linking } from 'react-native';
 import DatePicker from 'react-native-date-picker';
@@ -370,8 +370,16 @@ const CreateAssignmentModal = ({
           type: fileData.type || 'application/pdf',
         });
       }
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) console.log(err);
+    } catch (err: any) {
+      if (
+        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
+      ) {
+        Toast.show({
+          type: 'error',
+          text1: 'Document Error',
+          text2: 'Attachment process failed.',
+        });
+      }
     }
   };
 
@@ -1330,16 +1338,16 @@ export const RenderMaterials = ({
           return;
         }
       }
-    } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        return;
+    } catch (err: any) {
+      if (
+        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
+      ) {
+        Toast.show({
+          type: 'error',
+          text1: 'Document Error',
+          text2: 'Attachment process failed.',
+        });
       }
-      console.error('Pipeline breakdown caught: ', err);
-      Toast.show({
-        type: 'error',
-        text1: 'Upload failed',
-        text2: err instanceof Error ? err.message : 'Please try again later',
-      });
     } finally {
       setIsUploading(false);
     }
