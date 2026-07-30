@@ -1,7 +1,8 @@
-diff --git a/android/build.gradle b/android/build.gradle
---- a/android/build.gradle
-+++ b/android/build.gradle
-@@ -15,7 +15,7 @@
+diff --git a/node_modules/react-native-ble-peripheral/android/build.gradle b/node_modules/react-native-ble-peripheral/android/build.gradle
+index 9b5638c..d330c32 100644
+--- a/node_modules/react-native-ble-peripheral/android/build.gradle
++++ b/node_modules/react-native-ble-peripheral/android/build.gradle
+@@ -15,8 +15,8 @@ android {
      }
  }
  dependencies {
@@ -10,5 +11,6 @@ diff --git a/android/build.gradle b/android/build.gradle
 -    compile "com.facebook.react:react-native:+"  // From node_modules
 +    implementation fileTree(dir: "libs", include: ["*.jar"])
 +    implementation "com.android.support:appcompat-v7:23.0.1"
-+    implementation "com.facebook.react:react-native:+"  // From node_modules
++    implementation "com.facebook.react:react-native:+"  
  }
+ 
