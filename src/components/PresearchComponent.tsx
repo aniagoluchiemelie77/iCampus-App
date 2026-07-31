@@ -1,9 +1,18 @@
 
-import React, { Dispatch, SetStateAction } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+} from 'react-native';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
-
+import { getAds } from '../api/localGetApis';
+import AdBanner from './AdsBanner';
+import { AdItem } from '../types/firebase';
 interface TabItem {
   id: string;
   label: string;
@@ -13,25 +22,48 @@ interface PreSearchComponentProps {
   setActiveTab?: Dispatch<SetStateAction<any>> | ((id: string) => void);
   setSearchQuery?: Dispatch<SetStateAction<string>> | ((query: string) => void);
 }
-export const PreSearchComponent = ({ 
-  tabs = [] as TabItem[], 
-  setActiveTab = () => {}, 
-  setSearchQuery = () => {} 
+export const PreSearchComponent = ({
+  tabs = [] as TabItem[],
+  setActiveTab = () => {},
+  setSearchQuery = () => {},
 }: PreSearchComponentProps) => {
-    const { colors } = useTheme();
+  const { colors } = useTheme();
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [loadingAds, setLoadingAds] = useState(true);
+  useEffect(() => {
+    const fetchAdvertisements = async () => {
+      setLoadingAds(true);
+      const result = await getAds();
+      if (result.success) {
+        setAds(result.data);
+      }
+      setLoadingAds(false);
+    };
+
+    fetchAdvertisements();
+  }, []);
   return (
-    <ScrollView contentContainerStyle={[styles.preSearchContainer, {backgroundColor: colors.backgroundSecondary}]} showsVerticalScrollIndicator={false}>
-        <Image 
-          source={{ uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1784701708/Humaaans_-_3_Characters_nfkjsr.png' }} 
-          style={styles.illustrationImage}
-          resizeMode="contain"
-        />
-        <EmptyState
-          iconName="explore-outlined"
-          title="Discover iCampus"
-          subtitle="Type a keyword above to search through courses, assignments, lecturers, and resources instantly."
-          style={styles.emptyStateMargin}
-        />
+    <ScrollView
+      contentContainerStyle={[
+        styles.preSearchContainer,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
+      <Image
+        source={{
+          uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1784701708/Humaaans_-_3_Characters_nfkjsr.png',
+        }}
+        style={styles.illustrationImage}
+        resizeMode="contain"
+      />
+      <EmptyState
+        iconName="explore-outlined"
+        title="Discover iCampus"
+        subtitle="Type a keyword above to search through courses, assignments, lecturers, and resources instantly."
+        style={styles.emptyStateMargin}
+      />
 
       {tabs && tabs.length > 0 && (
         <>
@@ -48,7 +80,9 @@ export const PreSearchComponent = ({
                   setSearchQuery(tab.label);
                 }}
               >
-                <Text style={[styles.suggestionChipText, { color: colors.primary }]}>
+                <Text
+                  style={[styles.suggestionChipText, { color: colors.primary }]}
+                >
                   {tab.label}
                 </Text>
               </TouchableOpacity>
@@ -58,7 +92,7 @@ export const PreSearchComponent = ({
       )}
     </ScrollView>
   );
-}
+};
 const styles = StyleSheet.create({
   preSearchContainer: {
     padding: 20,

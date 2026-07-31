@@ -29,6 +29,9 @@ import { useAppSelector } from '../hooks/hooks.ts';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { BACKEND_URL } from '@env';
 import { useSocketConnection } from '../hooks/useSocket';
+import { getAds } from '../api/localGetApis';
+import AdBanner from './AdsBanner';
+import { AdItem } from '../types/firebase';
 
 export const baseUrl = BACKEND_URL;
 interface Props {
@@ -36,13 +39,13 @@ interface Props {
   initialCount?: number;
   uid?: string;
   colors: any;
-  socket: any
+  socket: any;
 }
 interface MessageBellProps {
   navigation: any;
   initialCount?: number;
   colors: any;
-  socket: any
+  socket: any;
 }
 
 interface ProfileModalProps {
@@ -58,132 +61,161 @@ const ProfileModal = ({
   currentUser,
   navigation,
   colors,
-}: ProfileModalProps) => (
-  <Modal
-    visible={visible}
-    transparent={true}
-    animationType="slide"
-    onRequestClose={onClose}
-  >
-    <TouchableOpacity
-      activeOpacity={1}
-      style={modalStyles.overlay}
-      onPress={onClose}
-    />
+}: ProfileModalProps) => {
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [loadingAds, setLoadingAds] = useState(true);
+  useEffect(() => {
+    const fetchAdvertisements = async () => {
+      setLoadingAds(true);
+      const result = await getAds();
+      if (result.success) {
+        setAds(result.data);
+      }
+      setLoadingAds(false);
+    };
 
-    <View
-      style={[
-        modalStyles.drawer,
-        { backgroundColor: colors.backgroundSecondary },
-      ]}
+    fetchAdvertisements();
+  }, []);
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={modalStyles.userInfo}
-        onPress={() =>
-          navigation.navigate('ProfileScreen', { identifier: currentUser?.uid })
-        }
+        activeOpacity={1}
+        style={modalStyles.overlay}
+        onPress={onClose}
+      />
+
+      <View
+        style={[
+          modalStyles.drawer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
       >
-        <UserAvatar
-          profilePic={currentUser?.profilePic}
-          firstName={currentUser.firstname!}
-          lastName={currentUser.lastname!}
-          organizationName={currentUser?.organizationName}
-          style={modalStyles.largeAvatar}
-        />
-        <UserIdentity
-          firstname={currentUser.firstname!}
-          lastname={currentUser.lastname!}
-          username={currentUser.username}
-          tier={currentUser?.tier || 'free'}
-          isVerified={currentUser?.isVerified}
-          size="medium"
-          isOrganization={currentUser?.usertype === 'enterprise'}
-          organizationName={currentUser?.organizationName}
-        />
-        {currentUser.headline && (
-          <Text style={[modalStyles.userSubtext, { color: colors.textDarker }]}>
-            {currentUser.headline}
+        <TouchableOpacity
+          style={modalStyles.userInfo}
+          onPress={() =>
+            navigation.navigate('ProfileScreen', {
+              identifier: currentUser?.uid,
+            })
+          }
+        >
+          <UserAvatar
+            profilePic={currentUser?.profilePic}
+            firstName={currentUser.firstname!}
+            lastName={currentUser.lastname!}
+            organizationName={currentUser?.organizationName}
+            style={modalStyles.largeAvatar}
+          />
+          <UserIdentity
+            firstname={currentUser.firstname!}
+            lastname={currentUser.lastname!}
+            username={currentUser.username}
+            tier={currentUser?.tier || 'free'}
+            isVerified={currentUser?.isVerified}
+            size="medium"
+            isOrganization={currentUser?.usertype === 'enterprise'}
+            organizationName={currentUser?.organizationName}
+          />
+          {currentUser.headline && (
+            <Text
+              style={[modalStyles.userSubtext, { color: colors.textDarker }]}
+            >
+              {currentUser.headline}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={modalStyles.item}
+          onPress={() => {
+            onClose();
+            navigation.navigate('ICashDashboard', {
+              refresh: true,
+            });
+          }}
+        >
+          <MaterialIcons
+            name="account-balance-wallet"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[modalStyles.itemText, { color: colors.text }]}>
+            iCash
           </Text>
-        )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={modalStyles.item}
+          onPress={() => {
+            onClose();
+            navigation.navigate('SalesHub');
+          }}
+        >
+          <MaterialIcons
+            name="store-front-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[modalStyles.itemText, { color: colors.text }]}>
+            Sales Hub
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={modalStyles.item}
+          onPress={() => {
+            onClose();
+            navigation.navigate('DownloadsScreen');
+          }}
+        >
+          <MaterialIcons name="folder-special" size={24} color={colors.text} />
+          <Text style={[modalStyles.itemText, { color: colors.text }]}>
+            My Downloads
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={modalStyles.item}
-        onPress={() => {
-          onClose();
-          navigation.navigate('ICashDashboard', {
-            refresh: true,
-          });
-        }}
-      >
-        <MaterialIcons
-          name="account-balance-wallet"
-          size={24}
-          color={colors.text}
-        />
-        <Text style={[modalStyles.itemText, { color: colors.text }]}>
-          iCash
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={modalStyles.item}
-        onPress={() => {
-          onClose();
-          navigation.navigate('SalesHub');
-        }}
-      >
-        <MaterialIcons
-          name="store-front-outlined"
-          size={24}
-          color={colors.text}
-        />
-        <Text style={[modalStyles.itemText, { color: colors.text }]}>
-          Sales Hub
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={modalStyles.item}
-        onPress={() => {
-          onClose();
-          navigation.navigate('DownloadsScreen');
-        }}
-      >
-        <MaterialIcons name="folder-special" size={24} color={colors.text} />
-        <Text style={[modalStyles.itemText, { color: colors.text }]}>
-          My Downloads
-        </Text>
-      </TouchableOpacity>
+        {/* 2. SETTINGS SECTION */}
+        <View style={modalStyles.separator} />
 
-      {/* 2. SETTINGS SECTION */}
-      <View style={modalStyles.separator} />
-
-      <TouchableOpacity
-        style={modalStyles.item}
-        onPress={() => {
-          onClose();
-          navigation.navigate('Subscription');
-        }}
-      >
-        <MaterialIcons name="verified-outlined" size={24} color={colors.text} />
-        <Text style={[modalStyles.itemText, { color: colors.text }]}>
-          Manage Subscription
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={modalStyles.item}
-        onPress={() => {
-          onClose();
-          navigation.navigate('Settings');
-        }}
-      >
-        <MaterialIcons name="settings-outlined" size={24} color={colors.text} />
-        <Text style={[modalStyles.itemText, { color: colors.text }]}>
-          Settings
-        </Text>
-      </TouchableOpacity>
-    </View>
-  </Modal>
-);
+        <TouchableOpacity
+          style={modalStyles.item}
+          onPress={() => {
+            onClose();
+            navigation.navigate('Subscription');
+          }}
+        >
+          <MaterialIcons
+            name="verified-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[modalStyles.itemText, { color: colors.text }]}>
+            Manage Subscription
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={modalStyles.item}
+          onPress={() => {
+            onClose();
+            navigation.navigate('Settings');
+          }}
+        >
+          <MaterialIcons
+            name="settings-outlined"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={[modalStyles.itemText, { color: colors.text }]}>
+            Settings
+          </Text>
+        </TouchableOpacity>
+        {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
+      </View>
+    </Modal>
+  );
+};
 export const NotificationBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,

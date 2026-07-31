@@ -34,7 +34,7 @@ const linking = {
       Home: 'home',
       AdminDashboard: 'admin-hub',
       Login: 'login',
-      AdminLogin: 'admin/login',
+      AdminLogin: 'administrator/login/auth',
       SignUp: 'signup',
       TransactionDetail: 'transaction/:transactionId',
       PostDetailScreen: 'post/:postId',
@@ -141,12 +141,18 @@ import { AdminSearchScreen } from './src/screens/AdminSearchScreen.tsx';
 import { TermsScreen } from './src/screens/TermsScreen.tsx';
 import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
 import { AllTaxEntriesScreen } from './src/screens/ViewAllTaxEntries.tsx';
+import { ViewAllAdsScreen } from './src/screens/ViewAllAds.tsx';
+import { AdAorEScreen } from './src/screens/AdsCreateOrEditScreen.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
+  AdAorE: {
+    item?: any;
+  };
   RegisterStation: undefined;
   ViewAllTaxEntries: undefined;
+  ViewAllAds: undefined;
   AdminSearchScreen: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
@@ -432,6 +438,11 @@ const App = () => {
               <Stack.Screen
                 name="ViewAllSchools"
                 component={ViewAllSchoolsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ViewAllAds"
+                component={ViewAllAdsScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

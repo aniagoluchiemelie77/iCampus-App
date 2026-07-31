@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LineChart } from "react-native-chart-kit";
+import { LineChart } from 'react-native-chart-kit';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { AbstractChartConfig } from 'react-native-chart-kit/dist/AbstractChart';
 import { TaxEntry, EntityItem } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
+import { getAds } from '../api/localGetApis';
+import AdBanner from './AdsBanner';
+import { AdItem } from '../types/firebase';
 
 interface SparklineProps {
   data: number[];
@@ -24,6 +27,10 @@ interface EntityPreviewProps {
 interface TaxEntryPreviewProps {
   title: string;
   items: TaxEntry[];
+  onViewAll: () => void;
+}
+interface AdsPreviewProps {
+  title: string;
   onViewAll: () => void;
 }
 interface FinanceSectionProps {
@@ -63,7 +70,7 @@ export const Sparkline = ({
           backgroundGradientTo: bgTo,
           color: (_opacity = 1) => color,
           strokeWidth: 2,
-        } as AbstractChartConfig
+        } as any
       }
       withDots={false}
       withInnerLines={false}
@@ -387,6 +394,44 @@ export const TaxEntryPreviewSection = ({
           </View>
         );
       })}
+    </View>
+  );
+};
+export const AdsPreviewSection = ({
+  title = 'Tax Entries',
+  onViewAll,
+}: AdsPreviewProps) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation<any>();
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [loadingAds, setLoadingAds] = useState(true);
+  useEffect(() => {
+    const fetchAdvertisements = async () => {
+      setLoadingAds(true);
+      const result = await getAds();
+      if (result.success) {
+        setAds(result.data);
+      }
+      setLoadingAds(false);
+    };
+
+    fetchAdvertisements();
+  }, []);
+
+  return (
+    <View
+      style={[styles.listCard, { backgroundColor: colors.backgroundSecondary }]}
+    >
+      <View style={styles.headerRow}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
+        <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
+          <Text style={{ color: colors.btnTextColor }}>View All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
     </View>
   );
 };

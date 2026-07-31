@@ -346,3 +346,23 @@ export const deleteMessageApi = async (messageId: string) => {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const deleteAdApi = async (adId: string | number) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/ads/${adId}/delete`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Failed to delete advertisement.' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error invoking deleteAdApi:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

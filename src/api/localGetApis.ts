@@ -1,4 +1,4 @@
-import { User, CreateTestPayload, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException} from '../types/firebase';
+import { User, CreateTestPayload, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException, AdItem} from '../types/firebase';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
@@ -1939,5 +1939,31 @@ export const fetchTaxEntries = async (page: number = 1, limit: number = 10) => {
       data: [],
       message: 'Network error while fetching tax entries',
     };
+  }
+};
+export const getAds = async (): Promise<{ success: boolean; data: AdItem[] }> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}users/ads/fetch-active`, {
+      headers,
+    });
+    const result = await response.json();
+    
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'Failed to fetch advertisements',
+      });
+      return { success: false, data: [] };
+    }
+
+    return { 
+      success: true, 
+      data: result.data || [], 
+    };
+  } catch (error: any) {
+    console.error("Fetch Ads Error:", error);
+    return { success: false, data: [] };
   }
 };

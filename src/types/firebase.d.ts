@@ -975,3 +975,12 @@ export interface EntityItem {
   address?: string;
   createdAt?: string | Date;
 }
+export interface AdItem {
+  id: string | number;
+  type: 'image' | 'video';
+  mediaUrl: string;
+  targetUrl?: string;
+  advertiserLogo: string;
+  advertiserName: string;
+  tagline?: string;
+}

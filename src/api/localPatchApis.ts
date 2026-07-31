@@ -526,3 +526,21 @@ export const editMessageApi = async (messageId: string, newText: string) => {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const updateAdApi = async (adId: string | number, updateData: any) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/ads/${adId}/update`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true, data: data.ad || data } 
+      : { success: false, error: data.message || 'Failed to update advertisement.' };
+  } catch (error) {
+    console.error("Update Ad API Error:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

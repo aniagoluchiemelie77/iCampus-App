@@ -2024,3 +2024,28 @@ export const requestDropStationApi = async (stationData: {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const createAdApi = async (adData: {
+  type: 'image' | 'video';
+  mediaUrl: string;
+  targetUrl?: string;
+  advertiserLogo: string;
+  advertiserName: string;
+  tagline?: string;
+}) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/ads/create`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(adData),
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true, data: data } 
+      : { success: false, error: data.message || 'Failed to create advertisement.' };
+  } catch (error) {
+    console.error("Create Ad API Error:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

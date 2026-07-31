@@ -36,6 +36,7 @@ import {
   FinanceSection,
   SystemHealthSection,
   TaxEntryPreviewSection,
+  AdsPreviewSection,
 } from './adminMetricsComponents.tsx';
 import { TaxEntry, EntityItem } from '../types/firebase';
 interface LocationStat {
@@ -560,6 +561,12 @@ export const Overview = () => {
           trendData={
             stats.liquidityTrend || { labels: [], inFlow: [], outFlow: [] }
           }
+        />
+      )}
+      {canViewFinance && (
+        <AdsPreviewSection
+          title="Advertisement Banners"
+          onViewAll={() => navigate('ViewAllAds')}
         />
       )}
       {canViewFinance && (

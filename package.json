@@ -69,6 +69,7 @@
     "react-native-linear-gradient": "^2.8.3",
     "react-native-live-audio-stream": "^1.1.1",
     "react-native-modal": "^14.0.0-rc.1",
+    "react-native-nitro-modules": "^0.36.4",
     "react-native-otp-inputs": "^7.4.0",
     "react-native-pager-view": "^8.0.4",
     "react-native-paper": "^5.15.3",
