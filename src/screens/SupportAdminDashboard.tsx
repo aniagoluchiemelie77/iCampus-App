@@ -18,6 +18,7 @@ import { ActivityIndicator } from 'react-native-paper';
 import { homeStyles } from '../assets/styles/colors.ts';
 import { CATEGORY_ACCESS, CategoryKey } from '../constants/inAppConstants.ts';
 import { AdminExpandableFAB } from '../components/AdminExpandableFab.tsx';
+import { useAppDataContext } from '../context/EventContext';
 import {
   AdminManagementSection,
   SupportTicketSection,
@@ -64,6 +65,7 @@ const DashboardSkeleton = () => {
 export const AdminDashboard = () => {
   const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.admin);
+  const { unreadEmailSupportCount } = useAppDataContext();
   const [activeTab, setActiveTab] = useState('Overview');
   const navigation = useNavigation<any>();
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
@@ -74,14 +76,16 @@ export const AdminDashboard = () => {
     return roles.includes(currentUser.adminType as any);
   });
   const ActiveComponent = TABS[activeTab as TabKey];
-  const isSuperAdmin = currentUser.adminType === 'super_admin';
+  const canViewFabWidgets =
+    currentUser.adminType === 'super_admin' ||
+    currentUser.adminType === 'support';
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Admin Dashboard"
         subtitle="Manage system administrators and team access"
         rightElement={
-          isSuperAdmin ? (
+          canViewFabWidgets ? (
             <TouchableOpacity
               onPress={() => navigation.navigate('AdminFormPage')}
               style={[styles.topBtn, { backgroundColor: colors.btnColor }]}
@@ -161,7 +165,7 @@ export const AdminDashboard = () => {
         <TouchableOpacity
           style={homeStyles.fab}
           onPress={() => {
-            if (isSuperAdmin) {
+            if (canViewFabWidgets) {
               setFabMenuVisible(true);
             } else {
               navigation.navigate('AdminSearchScreen');
@@ -169,7 +173,7 @@ export const AdminDashboard = () => {
           }}
         >
           <MaterialIcons
-            name={isSuperAdmin ? 'widgets-outlined' : 'search-outlined'}
+            name={canViewFabWidgets ? 'widgets-outlined' : 'search-outlined'}
             size={28}
             color={colors.btnTextColor}
           />
@@ -178,7 +182,8 @@ export const AdminDashboard = () => {
       <AdminExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['Search', 'Notify']}
+        actions={['Search', 'Notify', 'Support Inquiries']}
+        unreadSupportCount={unreadEmailSupportCount}
       />
     </View>
   );

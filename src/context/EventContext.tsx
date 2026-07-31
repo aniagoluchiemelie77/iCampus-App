@@ -15,6 +15,7 @@ import type {
   MarketplaceOrder,
   ProductSale,
   Review,
+  SupportTicket,
 } from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from '../components/HomeScreenComponents';
@@ -36,6 +37,7 @@ import {
   fetchSellerSalesAPI,
   fetchPendingOrdersAPI,
   fetchUserReviewsAPI,
+  fetchTicketsAPI,
 } from '../api/localGetApis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -59,6 +61,7 @@ interface AppDataContextType {
   allReviews: any[];
   syncCatalog: () => Promise<void>;
   deleteProductLocal: (productId: string) => Promise<void>;
+  emailSupportTickets: SupportTicket[];
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
   refreshReviews: () => Promise<void>;
   handleDeletePost: (postId: string) => Promise<void>;
@@ -89,6 +92,9 @@ interface AppDataContextType {
   handleAddAllFavoritesToCart: () => Promise<void>;
   fetchPendingOrders: () => Promise<void>;
   handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
+  unreadEmailSupportCount: number;
+  isEmailSupportLoading: boolean;
+  fetchEmailSupportTickets: () => Promise<void>;
 }
 
 interface AppDataProviderProps {
@@ -115,6 +121,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [sellerSales, setSellerSales] = useState<ProductSale[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [allReviews, setAllReviews] = useState<Review[]>([]);
+  const [emailSupportTickets, setEmailSupportTickets] = useState<
+    SupportTicket[]
+  >([]);
+  const [isEmailSupportLoading, setIsEmailSupportLoading] = useState(false);
 
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
@@ -699,6 +709,20 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       throw error;
     }
   };
+  const fetchEmailSupportTickets = async () => {
+    setIsEmailSupportLoading(true);
+    const result = await fetchTicketsAPI(20);
+    if (result.success) {
+      const externalInquiries = result.tickets.filter(
+        (ticket: any) => ticket.source === 'email' || ticket.guestEmail,
+      );
+      setEmailSupportTickets(externalInquiries);
+    }
+    setIsEmailSupportLoading(false);
+  };
+  const unreadEmailSupportCount = emailSupportTickets.filter(
+    (ticket: any) => ticket.status === 'open',
+  ).length;
 
   useEffect(() => {
     fetchReviews();
@@ -738,6 +762,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         fetchPendingOrders,
         isOrdersLoading,
         handleCancelOrder,
+        emailSupportTickets,
+        unreadEmailSupportCount,
+        isEmailSupportLoading,
+        fetchEmailSupportTickets,
       }}
     >
       {children}

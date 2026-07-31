@@ -939,21 +939,24 @@ export interface Review {
 export interface SupportTicket
   {
     userId: string;
+    guestEmail?: string;
     ticketRefId: string;
     source: "in-app"| "email";
     originalMessage?: string;
     category: 
-     "technical" | "billing" | "content" | "other";
+     "technical" | "billing" | "content" | "other" | 'general';
     summary?: string;
     severity: "low" | "medium" | "high" | "critical";
     status: "open" | "pending";
-    thread: [
+    thread?: [
       {
         sender: string;
         message: string;
         timestamp: Date;
       },
     ],
+  createdAt?: string;
+  updatedAt?: string;
   };
 export interface TaxEntry
   {

@@ -18,6 +18,7 @@ import { useFormHydration } from '../hooks/useAdminInputFormHydration.ts';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 
 export const AdTypePicker = ({
   value,
@@ -37,7 +38,12 @@ export const AdTypePicker = ({
         style={[styles.inputWrapper, { borderColor: colors.border }]}
         onPress={() => setModalVisible(true)}
       >
-        <Text style={[styles.dropDownText, { color: colors.text, textTransform: 'capitalize' }]}>
+        <Text
+          style={[
+            styles.dropDownText,
+            { color: colors.text, textTransform: 'capitalize' },
+          ]}
+        >
           {value || 'Select Ad Type'}
         </Text>
         <MaterialIcons name="arrow-drop-down" size={24} color={colors.text} />
@@ -78,7 +84,7 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
   const navigation = useNavigation<any>();
   const { colors: themeColors } = useTheme();
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const adToEdit = route.params?.item;
   const [formData, setFormData] = useFormHydration(
     {
@@ -91,7 +97,7 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
     },
     adToEdit,
   );
-  
+
   const isEditing = !!adToEdit;
   const currentUser = useAppSelector(state => state.admin);
 
@@ -102,26 +108,33 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
   }
 
   const handleSave = async () => {
-    if (!formData.mediaUrl || !formData.advertiserName || !formData.advertiserLogo) {
+    if (
+      !formData.mediaUrl ||
+      !formData.advertiserName ||
+      !formData.advertiserLogo
+    ) {
       Toast.show({
         type: 'error',
         text1: 'Validation Error',
-        text2: 'Please fill out all required fields (Media URL, Advertiser Name, Logo).',
+        text2:
+          'Please fill out all required fields (Media URL, Advertiser Name, Logo).',
       });
       return;
     }
 
     setIsSaving(true);
     try {
-      const result = isEditing 
-        ? await updateAdApi(adToEdit.id, formData) 
+      const result = isEditing
+        ? await updateAdApi(adToEdit.id, formData)
         : await createAdApi(formData);
 
       if (result.success) {
         Toast.show({
           type: 'success',
           text1: 'Success',
-          text2: isEditing ? 'Advertisement updated successfully.' : 'Advertisement created successfully.',
+          text2: isEditing
+            ? 'Advertisement updated successfully.'
+            : 'Advertisement created successfully.',
         });
         navigation.goBack();
       } else {
@@ -143,13 +156,29 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
   };
 
   return (
-    <View style={[styles.mainContainer, { backgroundColor: themeColors.background }]}>
+    <View
+      style={[
+        styles.mainContainer,
+        { backgroundColor: themeColors.background },
+      ]}
+    >
       <PageHeader
-        title={isEditing ? 'Edit Advertisement Banner' : 'Create Advertisement Banner'}
-        subtitle={isEditing ? `Managing ${formData.advertiserName}` : 'Add a new sponsor slot'}
+        title={
+          isEditing
+            ? 'Edit Advertisement Banner'
+            : 'Create Advertisement Banner'
+        }
+        subtitle={
+          isEditing
+            ? `Managing ${formData.advertiserName}`
+            : 'Add a new sponsor slot'
+        }
       />
 
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.content}
+      >
         <AdTypePicker
           value={formData.type}
           onSelect={type => setFormData({ ...formData, type })}
@@ -211,14 +240,27 @@ const styles = StyleSheet.create({
     padding: 15,
     borderWidth: 1,
     borderRadius: 8,
-    width: '100%'
+    width: '100%',
   },
   dropDownText: {
     fontSize: 14,
   },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { margin: 0, padding: 20, borderTopLeftRadius: 25, borderTopRightRadius: 25 },
-  option: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#ccc' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    margin: 0,
+    padding: 20,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+  },
+  option: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
   scrollContainer: { flex: 1 },
   submitBtn: {
     width: '80%',

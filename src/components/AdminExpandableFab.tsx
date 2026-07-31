@@ -10,20 +10,26 @@ interface FABProps {
   isVisible: boolean;
   onClose: () => void;
   actions: string[];
+  unreadSupportCount?: number;
 }
 const ACTION_CONFIG: Record<
   string,
   { icon: string; route: string; params?: any; category?: string }
 > = {
   // --- General ---
-  'Search': {
+  Search: {
     icon: 'search-outlined',
     route: 'AdminSearchScreen',
     params: {},
   },
-  'Notify': {
+  Notify: {
     icon: 'notification-add-outlined',
     route: 'CreateNotification',
+    params: {},
+  },
+  'Support Inquiries': {
+    icon: 'email-outlined',
+    route: 'ViewAllSupportInquiries',
     params: {},
   },
 };
@@ -32,6 +38,7 @@ export const AdminExpandableFAB = ({
   isVisible,
   onClose,
   actions,
+  unreadSupportCount = 0,
 }: FABProps) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
@@ -67,6 +74,8 @@ export const AdminExpandableFAB = ({
       <View style={styles.fabMenuContainer}>
         {actions.map((label: string, index: number) => {
           const config = ACTION_CONFIG[label];
+          const showBadge =
+            label === 'Support Inquiries' && unreadSupportCount > 0;
           return (
             <View
               key={index}
@@ -81,7 +90,7 @@ export const AdminExpandableFAB = ({
               <TouchableOpacity
                 style={[styles.miniFab, { backgroundColor: colors.btnColor }]}
                 onPress={() => {
-                    handleAction(label)
+                  handleAction(label);
                 }}
               >
                 <MaterialIcons
@@ -90,6 +99,20 @@ export const AdminExpandableFAB = ({
                   color={colors.btnTextColor}
                 />
               </TouchableOpacity>
+              {showBadge && (
+                <View
+                  style={[
+                    styles.badgeContainer,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                >
+                  <Text
+                    style={[styles.badgeText, { color: colors.btnTextColor }]}
+                  >
+                    {unreadSupportCount > 99 ? '99+' : unreadSupportCount}
+                  </Text>
+                </View>
+              )}
             </View>
           );
         })}
@@ -121,7 +144,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(19, 18, 18, 0.4)',
   },
   fabMenuContainer: {
@@ -153,5 +176,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
