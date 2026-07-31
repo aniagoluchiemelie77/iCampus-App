@@ -143,13 +143,19 @@ import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
 import { AllTaxEntriesScreen } from './src/screens/ViewAllTaxEntries.tsx';
 import { ViewAllAdsScreen } from './src/screens/ViewAllAds.tsx';
 import { AdAorEScreen } from './src/screens/AdsCreateOrEditScreen.tsx';
+import { ViewAllSupportInquiriesScreen } from './src/screens/SupportInquiriesScreen.tsx';
+import { SupportChatScreen } from './src/screens/SupportEmailsChat.tsx';
 export const baseUrl = 'http://192.168.1.98:5000/';
 
 export type RootStackParamList = {
   SignUp: undefined;
+  SupportChat: {
+    ticketRefId: string;
+  };
   AdAorE: {
     item?: any;
   };
+  ViewAllSupportInquiries: undefined;
   RegisterStation: undefined;
   ViewAllTaxEntries: undefined;
   ViewAllAds: undefined;
@@ -433,6 +439,21 @@ const App = () => {
               <Stack.Screen
                 name="SignUp"
                 component={SignUpScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ViewAllSupportInquiries"
+                component={ViewAllSupportInquiriesScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="AdAorE"
+                component={AdAorEScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="SupportChat"
+                component={SupportChatScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

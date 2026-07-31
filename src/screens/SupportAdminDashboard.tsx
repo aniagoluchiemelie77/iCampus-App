@@ -182,7 +182,7 @@ export const AdminDashboard = () => {
       <AdminExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['Search', 'Notify', 'Support Inquiries']}
+        actions={['Search', 'Support Inquiries']}
         unreadSupportCount={unreadEmailSupportCount}
       />
     </View>

@@ -22,11 +22,6 @@ const ACTION_CONFIG: Record<
     route: 'AdminSearchScreen',
     params: {},
   },
-  Notify: {
-    icon: 'notification-add-outlined',
-    route: 'CreateNotification',
-    params: {},
-  },
   'Support Inquiries': {
     icon: 'email-outlined',
     route: 'ViewAllSupportInquiries',

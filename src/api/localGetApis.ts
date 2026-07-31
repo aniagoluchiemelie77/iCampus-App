@@ -1967,3 +1967,34 @@ export const getAds = async (): Promise<{ success: boolean; data: AdItem[] }> =>
     return { success: false, data: [] };
   }
 };
+export const fetchSupportTicketByRefIdAPI = async (ticketRefId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/support-tickets/${ticketRefId}/fetch`, {
+      method: 'GET',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data?.message || 'Failed to fetch support ticket',
+      };
+    }
+    
+    return {
+      success: true,
+      ticket: data.ticket || data.data || data,
+      message: 'Success',
+    };
+  } catch (error) {
+    console.error("fetchSupportTicketByRefIdAPI Error:", error);
+    return { 
+      success: false, 
+      ticket: null, 
+      message: 'Connection to server failed' 
+    };
+  }
+};

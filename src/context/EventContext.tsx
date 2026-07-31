@@ -48,6 +48,7 @@ import {
   toggleCommentLikeAPI,
   cancelOrderAPI,
 } from '../api/localPostApis';
+import { hasSuffix } from 'react-native-reanimated/lib/typescript/common';
 interface AppDataContextType {
   posts: Posts[];
   pendingOrders: MarketplaceOrder[];
@@ -94,7 +95,9 @@ interface AppDataContextType {
   handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
   unreadEmailSupportCount: number;
   isEmailSupportLoading: boolean;
-  fetchEmailSupportTickets: () => Promise<void>;
+  isFetchingMore: boolean;
+  nextCursor: string | null;
+  fetchEmailSupportTickets: (cursor?: string, limit?: number) => Promise<void>;
 }
 
 interface AppDataProviderProps {
@@ -125,6 +128,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     SupportTicket[]
   >([]);
   const [isEmailSupportLoading, setIsEmailSupportLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
@@ -709,16 +714,33 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       throw error;
     }
   };
-  const fetchEmailSupportTickets = async () => {
-    setIsEmailSupportLoading(true);
-    const result = await fetchTicketsAPI(20);
+  const fetchEmailSupportTickets = async (
+    cursor: string = '',
+    limit: number = 15,
+  ) => {
+    if (cursor) {
+      setIsFetchingMore(true);
+    } else {
+      setIsEmailSupportLoading(true);
+    }
+
+    const result = await fetchTicketsAPI(limit, cursor);
+
     if (result.success) {
       const externalInquiries = result.tickets.filter(
         (ticket: any) => ticket.source === 'email' || ticket.guestEmail,
       );
-      setEmailSupportTickets(externalInquiries);
+
+      setEmailSupportTickets(prevTickets => {
+        return cursor
+          ? [...prevTickets, ...externalInquiries]
+          : externalInquiries;
+      });
+      setNextCursor(result.nextCursor);
     }
+
     setIsEmailSupportLoading(false);
+    setIsFetchingMore(false);
   };
   const unreadEmailSupportCount = emailSupportTickets.filter(
     (ticket: any) => ticket.status === 'open',
@@ -766,6 +788,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         unreadEmailSupportCount,
         isEmailSupportLoading,
         fetchEmailSupportTickets,
+        nextCursor,
+        isFetchingMore,
       }}
     >
       {children}

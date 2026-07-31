@@ -2049,3 +2049,24 @@ export const createAdApi = async (adData: {
     return { success: false, error: 'Network error occurred.' };
   }
 };
+export const sendSupportMessageApi = async (ticketRefId: string, messageData: {
+  message: string;
+  attachments?: { url: string; type: 'image' | 'file'; fileName?: string }[];
+}) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${baseUrl}admins/support-tickets/${ticketRefId}/reply`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(messageData),
+    });
+
+    const data = await response.json();
+    return response.ok 
+      ? { success: true, data: data } 
+      : { success: false, error: data.message || 'Failed to send support message.' };
+  } catch (error) {
+    console.error("Send Support Message API Error:", error);
+    return { success: false, error: 'Network error occurred.' };
+  }
+};

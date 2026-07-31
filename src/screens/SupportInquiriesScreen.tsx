@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,155 +6,194 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Image,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { PageHeader } from '../components/PageHeader';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
 import { useAppDataContext } from '../context/EventContext';
+import { UserAvatar } from '../components/UserAvatar';
 
 dayjs.extend(relativeTime);
 
 export const ViewAllSupportInquiriesScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const { emailSupportTickets, isEmailSupportLoading, fetchEmailSupportTickets } = useAppDataContext();
-  const [activeTab, setActiveTab] = useState<'all' | 'open' | 'resolved'>('all');
+  const {
+    emailSupportTickets,
+    isEmailSupportLoading,
+    fetchEmailSupportTickets,
+    nextCursor,
+    isFetchingMore,
+  } = useAppDataContext();
+  const [activeTab, setActiveTab] = useState<'all' | 'open' | 'resolved'>(
+    'all',
+  );
 
   useEffect(() => {
     fetchEmailSupportTickets();
   }, [fetchEmailSupportTickets]);
 
-  // Filter tickets based on the active tab selection
   const filteredTickets = emailSupportTickets.filter((ticket: any) => {
-    if (activeTab === 'open') return ticket.status === 'open' || ticket.status === 'pending';
-    if (activeTab === 'resolved') return ticket.status === 'resolved' || ticket.status === 'closed';
-    return true; // 'all'
+    if (activeTab === 'open')
+      return ticket.status === 'open' || ticket.status === 'pending';
+    if (activeTab === 'resolved')
+      return ticket.status === 'resolved' || ticket.status === 'closed';
+    return true;
   });
 
   const handleTicketPress = (ticket: any) => {
-    // Navigate individually to the chat/detail screen using the inquiry reference ID
-    navigation.navigate('SupportChatScreen', {
+    navigation.navigate('SupportChat', {
       ticketRefId: ticket.ticketRefId,
-      senderEmail: ticket.guestEmail || ticket.userId,
     });
+  };
+  const handleLoadMore = () => {
+    if (isFetchingMore || isEmailSupportLoading || !nextCursor) return;
+
+    fetchEmailSupportTickets(nextCursor, 15);
+  };
+  const handleRefresh = () => {
+    fetchEmailSupportTickets('', 15);
   };
 
   const tabs: ('all' | 'open' | 'resolved')[] = ['all', 'open', 'resolved'];
 
-  // Helper generator for initials avatar if sender image is unavailable
-  const getAvatarUrl = (email: string) => {
-    const cleanEmail = email ? email.trim().toLowerCase() : 'support@useicampus.io';
-    const name = cleanEmail.split('@')[0];
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=128`;
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Support Inquiries" />
-
-      {/* Filter Tabs */}
-      <View style={[styles.tabBar, { backgroundColor: colors.backgroundSecondary }]}>
-        {tabs.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && { borderBottomColor: PRIMARY_COLOR }]}
-          >
-            <Text
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[
+          styles.tabContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <View style={styles.tabBar}>
+          {tabs.map(tab => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
               style={[
-                styles.tabText,
-                { color: activeTab === tab ? colors.primary : colors.text },
+                styles.tab,
+                activeTab === tab && { borderBottomColor: colors.primary },
               ]}
             >
-              {tab.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: activeTab === tab ? colors.primary : colors.text },
+                ]}
+              >
+                {tab.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
 
       {isEmailSupportLoading && emailSupportTickets.length === 0 ? (
         <ActivityIndicator
           size="large"
           color={colors.primary}
-          style={{ marginTop: 30 }}
+          style={{ marginTop: 20 }}
         />
       ) : (
         <FlatList
           data={filteredTickets}
           keyExtractor={item => item.ticketRefId}
           renderItem={({ item }) => {
-            const lastMessage = item.thread?.[item.thread.length - 1]?.message || item.originalMessage;
+            const lastMessage =
+              item.thread?.[item.thread.length - 1]?.message ||
+              item.originalMessage;
             const senderEmail = item.guestEmail || item.userId;
             const isOpen = item.status === 'open' || item.status === 'pending';
 
             return (
               <TouchableOpacity
-                style={[styles.ticketCard, { backgroundColor: colors.backgroundSecondary }]}
+                style={[
+                  styles.ticketCard,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
                 onPress={() => handleTicketPress(item)}
                 activeOpacity={0.7}
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.senderInfo}>
-                    <Image
-                      source={{ uri: getAvatarUrl(senderEmail) }}
-                      style={styles.avatar}
-                    />
+                    <UserAvatar firstName={senderEmail} style={styles.avatar} />
                     <View style={styles.senderTextContainer}>
-                      <Text style={[styles.senderEmail, { color: colors.primary }]} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.senderEmail,
+                          { color: colors.textDarker },
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
                         {senderEmail}
                       </Text>
-                      <Text style={[styles.ticketIdText, { color: colors.text }]} numberOfLines={1}>
+                      <Text
+                        style={[styles.ticketIdText, { color: colors.text }]}
+                        numberOfLines={1}
+                      >
                         Ref: {item.ticketRefId}
                       </Text>
                     </View>
                   </View>
-
-                  <View style={[
-                    styles.statusBadge, 
-                    { backgroundColor: isOpen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)' }
-                  ]}>
-                    <Text style={[
-                      styles.statusText, 
-                      { color: isOpen ? '#EF4444' : '#10B981' }
-                    ]}>
-                      {item.status.toUpperCase()}
+                  <View style={[styles.statusBadge]}>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: isOpen
+                            ? colors.pendingDelivery
+                            : colors.success,
+                        },
+                      ]}
+                    >
+                      {item.status}
                     </Text>
                   </View>
                 </View>
+                {item.summary && (
+                  <Text
+                    style={[styles.subjectText, { color: colors.text }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.summary || 'External Support Inquiry'}
+                  </Text>
+                )}
 
-                <Text style={[styles.subjectText, { color: colors.primary }]} numberOfLines={1}>
-                  {item.summary || 'External Support Inquiry'}
-                </Text>
-
-                <Text style={[styles.messageSnippet, { color: colors.text }]} numberOfLines={2}>
+                <Text
+                  style={[styles.messageSnippet, { color: colors.text }]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
                   {lastMessage}
                 </Text>
-
-                <View style={styles.cardFooter}>
-                  <Text style={[styles.timestampText, { color: colors.text }]}>
-                    {dayjs(item.updatedAt || item.createdAt).fromNow()}
-                  </Text>
-                  <MaterialIcons name="chevron-right" size={20} color={colors.text} />
-                </View>
+                <Text style={[styles.timestampText, { color: colors.text }]}>
+                  {dayjs(item.updatedAt || item.createdAt).fromNow()}
+                </Text>
               </TouchableOpacity>
             );
           }}
-          refreshing={isEmailSupportLoading}
-          onRefresh={fetchEmailSupportTickets}
           ListEmptyComponent={
             <EmptyState
-              iconName="mail-outline"
+              iconName="email-outlined"
               title="No Support Inquiries"
               subtitle="All clean! There are no external emails or inquiries matching this filter."
             />
           }
           contentContainerStyle={styles.listContent}
+          refreshing={isEmailSupportLoading}
+          onRefresh={handleRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
         />
       )}
     </View>
@@ -166,25 +205,22 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
-    borderRadius: 8,
-    overflow: 'hidden',
   },
   tab: {
-    flex: 1,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
-    paddingVertical: 12,
+    padding: 10,
+    borderRadius: 10,
     alignItems: 'center',
   },
-  tabText: { fontSize: 13, fontWeight: '600' },
+  tabText: { fontSize: 14, fontWeight: '600' },
   listContent: { paddingBottom: 20 },
   ticketCard: {
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -217,6 +253,7 @@ const styles = StyleSheet.create({
   ticketIdText: {
     fontSize: 11,
     opacity: 0.7,
+    marginTop: 3,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -228,25 +265,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   subjectText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },
   messageSnippet: {
-    fontSize: 13,
+    fontSize: 14,
     opacity: 0.85,
-    marginBottom: 10,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(150,150,150,0.2)',
-    paddingTop: 8,
+    marginBottom: 6,
   },
   timestampText: {
     fontSize: 11,
     opacity: 0.6,
+    alignSelf: 'flex-end',
+  },
+  tabContainer: {
+    marginVertical: 15,
   },
 });
