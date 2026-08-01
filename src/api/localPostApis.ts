@@ -11,8 +11,6 @@ import {
 } from 'react-native';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 
-const token = await AsyncStorage.getItem('accessToken');
-
 interface ServiceResponse {
   success: boolean;
   message: string;
@@ -1093,6 +1091,7 @@ export const requestPayoutAPI = async (amount: number) => {
 };
 export const uploadLessonVideoAPI = async (fileUri: string, fileName: string, fileType: string) => {
   try {
+    const token = await AsyncStorage.getItem('accessToken');
     const url = `${baseUrl}users/lecturers/class/upload-video`;
     const formData = new FormData();
     const cleanUri = Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri;
@@ -1140,6 +1139,7 @@ export const saveProductApiCall = async (
   onProgress?: (percentage: number) => void
 ) => {
   const isEditing = !!productId;
+  const token = await AsyncStorage.getItem('accessToken');
 
   const multipartFields: any[] = [
     { name: 'title', data: String(payload.title) },

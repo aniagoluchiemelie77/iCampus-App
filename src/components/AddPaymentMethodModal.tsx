@@ -29,7 +29,7 @@ import {
   getBin,
   fetchCardInfo,
   formatCardNumber,
-} from '../utils/UserTransactionsHelpers.tsx';
+} from '../utils/UserTransactionsHelpers';
 import { User } from '../types/firebase';
 import { fetchSupportedBanks } from '../api/localGetApis.ts';
 const { width } = Dimensions.get('window');

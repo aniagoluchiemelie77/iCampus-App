@@ -26,7 +26,7 @@ import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
 import { Notification } from '../types/firebase';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
-import { NotificationItem } from '@components/NotificationItem';
+import { NotificationItem } from '../components/NotificationItem';
 import { navigate } from '../context/navigationContext.ts';
 import { SchoolDetailModal } from './schoolDetailsModal.tsx';
 import { DropOffStationDetailModal } from './dropOffStationModal.tsx';
