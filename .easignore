@@ -1,0 +1,3 @@
+# .easignore
+# Negate google-services.json so EAS includes it in the cloud upload
+!google-services.json
