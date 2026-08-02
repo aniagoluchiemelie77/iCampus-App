@@ -1,4 +1,4 @@
-package com.tempproject
+package com.icampus
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
