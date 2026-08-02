@@ -29,3 +29,16 @@ index 9b5638c..d194c8f 100644
 +    implementation "com.facebook.react:react-native:+"  
  }
  
+diff --git a/node_modules/react-native-ble-peripheral/android/src/main/java/com/himelbrand/ble/peripheral/RNBLEModule.java b/node_modules/react-native-ble-peripheral/android/src/main/java/com/himelbrand/ble/peripheral/RNBLEModule.java
+index 71a5f60..dd6e197 100644
+--- a/node_modules/react-native-ble-peripheral/android/src/main/java/com/himelbrand/ble/peripheral/RNBLEModule.java
++++ b/node_modules/react-native-ble-peripheral/android/src/main/java/com/himelbrand/ble/peripheral/RNBLEModule.java
+@@ -22,7 +22,7 @@ import android.content.Context;
+ import android.os.Bundle;
+ import android.os.Handler;
+ import android.os.ParcelUuid;
+-import android.support.v7.app.AppCompatActivity;
++import android.app.Activity;
+ import android.text.TextUtils;
+ import android.util.Log;
+ 
