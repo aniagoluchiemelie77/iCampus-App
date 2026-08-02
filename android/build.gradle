@@ -26,13 +26,11 @@ allprojects {
         google()
         mavenCentral()
     }
-}
-configurations.all {
-    resolutionStrategy {
-        eachDependency { details ->
-            if (details.requested.group == 'com.android.support') {
-                details.exclude()
-            }
+    
+    configurations.all {
+        resolutionStrategy {
+            exclude group: 'com.android.support', module: 'support-v4'
+            exclude group: 'com.android.support', module: 'appcompat-v7'
         }
     }
 }

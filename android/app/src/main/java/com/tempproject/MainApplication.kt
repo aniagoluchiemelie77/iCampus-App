@@ -27,14 +27,7 @@ class MainApplication : Application(), ReactApplication {
       }
 
   override val reactHost: ReactHost
-    get() = getDefaultReactHost(
-        context = applicationContext,
-        packageList = PackageList(this).packages,
-        jsMainModulePath = "index",
-        jsBundleAssetPath = "index.android.bundle",
-        isHermesEnabled = BuildConfig.IS_HERMES_ENABLED,
-        useDevSupport = BuildConfig.DEBUG
-    )
+    get() = getDefaultReactHost(applicationContext, reactNativeHost)
 
   override fun onCreate() {
     super.onCreate()
