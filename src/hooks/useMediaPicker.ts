@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
 import { pick, types, errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import Toast from 'react-native-toast-message';
-import { launchImageLibrary } from 'react-native-image-picker';
 
 export const useMediaPicker = () => {
   const pickImage = useCallback(async () => {
@@ -68,18 +67,6 @@ export const useMediaPicker = () => {
     }
   }, []);
 
-  const pickLessonVideo = useCallback(async () => {
-    try {
-      const [res] = await pick({ type: [types.video] });
-      return { 
-        uri: res.uri, 
-        name: res.name || 'video.mp4', 
-        type: res.type || 'video/mp4' 
-      };
-    } catch (e) { 
-      return null; 
-    }
-  }, []);
 
   const pickDigitalFile = useCallback(async () => {
     try {
@@ -106,32 +93,12 @@ export const useMediaPicker = () => {
     }
   }, []);
 
-  const pickCourseThumbnail = useCallback(async (): Promise<string | null> => {
-    return new Promise((resolve) => {
-      launchImageLibrary(
-        { mediaType: 'photo', quality: 1 },
-        (response) => {
-          if (response.didCancel) {
-            resolve(null);
-          } else if (response.errorCode) {
-            console.log('ImagePicker Error: ', response.errorMessage);
-            resolve(null);
-          } else {
-            const uri = response.assets?.[0]?.uri;
-            resolve(uri || null);
-          }
-        }
-      );
-    });
-  }, []);
 
   return { 
-    pickCourseThumbnail, 
     pickImage, 
     pickDocument, 
     pickImageFromCamera, 
     pickProductImages, 
-    pickLessonVideo, 
     pickDigitalFile 
   };
 };

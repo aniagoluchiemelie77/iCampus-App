@@ -166,7 +166,7 @@ export const SearchScreen = () => {
   };
 
   return (
-    <View style={[StyleSheet.absoluteFillObject]}>
+    <View style={[StyleSheet.absoluteFill]}>
       <PageHeader title="iCampus Search" showBackButton={false} />
       <View
         style={[

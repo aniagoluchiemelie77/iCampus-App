@@ -40,10 +40,8 @@ const linking = {
       PostDetailScreen: 'post/:postId',
       ProductDetails: 'product/:productId',
       Profile: 'user/:identifier',
-      Chat: 'chat/:recipientId',
       CartScreen: 'cart',
       SalesHub: 'product/seller-hub',
-      CourseLearningScreen: 'course/:courseId',
       Settings: 'settings',
       EditProfile: 'profile/edit',
       ResetPasswordScreen: 'reset-password',
@@ -98,8 +96,6 @@ import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 import { ICashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
 import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
 import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
-import { ChatScreen } from './src/screens/ChatScreen.tsx';
-import { MessagesListScreen } from './src/screens/MessagesListScreen.tsx';
 import { EditProfileScreen } from './src/screens/EditProfileScreen.tsx';
 import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScreen.tsx';
 import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
@@ -114,9 +110,6 @@ import { FavoritesScreen } from './src/screens/FavoritesScreen.tsx';
 import { MarketplacePurchaseSuccessScreen } from './src/screens/MarketPurchaseSuccessScreen.tsx';
 import { OrderVerificationSuccess } from './src/screens/OrderVerificationScreen.tsx';
 import { PendingOrdersScreen } from './src/screens/PendingOrdersScreen.tsx';
-import { DownloadsScreen } from './src/screens/CourseDownloadsScreen.tsx';
-import { CourseLearningScreen } from './src/screens/DownloadsWatchScreen.tsx';
-import { CertificateScreen } from './src/screens/CourseCompletionSuccessScreen.tsx';
 import { MerchantDashboard } from './src/screens/MerchantScreen.tsx';
 import { CreateProductScreen } from './src/screens/CreateProductScreen.tsx';
 import { PayoutSuccess } from './src/screens/PayoutSuccessScreen.tsx';
@@ -194,7 +187,6 @@ export type RootStackParamList = {
     } | null;
   };
   AdminFormPage: { admin?: any };
-  Chat: { recipientId: string };
   ICashBuyPage: { refresh?: boolean };
   CreatePost: {
     type?: 'post' | 'poll' | 'job' | 'event';
@@ -212,27 +204,6 @@ export type RootStackParamList = {
   };
   ICashWithdrawPage: undefined;
   FAQScreen: undefined;
-  DownloadsScreen: undefined;
-  CourseLearningScreen: {
-    courseProduct: any;
-    userProgress: {
-      completedLessons: string[];
-      lastAccessed: Date | string;
-      progress: number;
-    };
-  };
-  CertificateScreen: {
-    certificateUrl: string;
-    certificateId: string;
-    details: {
-      studentName: string;
-      courseTitle: string;
-      lecturers: string[];
-      institution: string;
-      logoUrl: string;
-      issueDate: string;
-    };
-  };
   Notifications: undefined;
   NotificationSettings: undefined;
   ProductPublishSuccess: {
@@ -250,7 +221,6 @@ export type RootStackParamList = {
     productType: 'product' | 'seller' | 'agent' | 'course' | 'lecturer';
   };
   Welcome: { route: string };
-  MessagesList: undefined;
   LinkedDevicesScreen: undefined;
   BlockedUsers: undefined;
   ResetPasswordScreen: undefined;
@@ -617,28 +587,8 @@ const App = () => {
                 options={{ headerShown: false }}
               />
               <Stack.Screen
-                name="CertificateScreen"
-                component={CertificateScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
                 name="Notifications"
                 component={Notifications}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="DownloadsScreen"
-                component={DownloadsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="CourseLearningScreen"
-                component={CourseLearningScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="MessagesList"
-                component={MessagesListScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen
@@ -685,11 +635,6 @@ const App = () => {
               <Stack.Screen
                 name="FlutterwaveWebview"
                 component={FlutterwaveWebview}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Chat"
-                component={ChatScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

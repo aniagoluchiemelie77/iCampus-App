@@ -20,8 +20,6 @@ import {
 } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
-import { formatTime } from '../utils/durationFormatter';
-import { formatCount } from '../utils/followCountFormatter';
 import { logProductImpressionAPI } from '../api/localPatchApis';
 import { searchUsersByUid } from '../api/localGetApis';
 import { UserIdentity } from '../components/UserIdentity';
@@ -99,11 +97,6 @@ export const ProductDetailScreen = () => {
     item => item.productId === product.productId,
   );
   const isAlreadyInCart = !!existingItem;
-  const totalDuration =
-    product?.courseDetails?.content?.reduce(
-      (acc, item) => acc + (item.duration || 0),
-      0,
-    ) || 0;
   const gateways = product?.physicalDetails?.sellerGateways || [];
   const hasHome = gateways.includes('home_delivery');
   const stations = product?.physicalDetails?.dropOffAddress || [];
@@ -214,46 +207,6 @@ export const ProductDetailScreen = () => {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            </View>
-          )}
-          {product.type === 'course' && product.courseDetails && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Course Info
-              </Text>
-              <View style={styles.rowDiv}>
-                <View style={styles.infoRow}>
-                  <MaterialIcons
-                    name="schedule-outlined"
-                    size={22}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    Duration: {formatTime(totalDuration)}
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <MaterialIcons
-                    name="people-outlined"
-                    size={20}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {formatCount(product.courseDetails.studentsEnrolled.length)}{' '}
-                    Students Enrolled
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <MaterialIcons
-                    name="star-outline"
-                    size={20}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {formatCount(product.courseDetails.totalReviews)} Reviews
-                  </Text>
-                </View>
               </View>
             </View>
           )}

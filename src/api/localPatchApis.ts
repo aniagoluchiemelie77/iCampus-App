@@ -209,43 +209,6 @@ export const toggleFavoriteAPI = async (productId: string) => {
     return { success: false, message: "Network error" };
   }
 };
-export const updateCourseProgressAPI = async (
-  productId: string,
-  progress: number,
-  completedLessons: string[]
-) => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/downloads/update-progress`, {
-      method: 'PATCH', 
-      headers,
-      body: JSON.stringify({
-        productId,
-        progress, 
-        completedLessons, 
-        lastWatched: new Date().toISOString(),
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to update course progress',
-      };
-    }
-    return {
-      success: true,
-      data: data,
-      message: 'Progress saved successfully',
-    };
-  } catch (error) {
-    console.error("updateCourseProgressAPI Error:", error);
-    return { 
-      success: false, 
-      message: 'Connection to server failed. Please check your data.' 
-    };
-  }
-};
 export const logProductImpressionAPI = async (productId: string) => {
   try {
     const headers = await getAuthHeaders();
@@ -505,24 +468,6 @@ export const updateStationApi = async (stationId: string, updateData: any) => {
       : { success: false, error: data.message || 'Failed to update station.' };
   } catch (error) {
     console.error("Update Station API Error:", error);
-    return { success: false, error: 'Network error occurred.' };
-  }
-};
-export const editMessageApi = async (messageId: string, newText: string) => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/messages/${messageId}/update`, {
-      method: 'PATCH',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: newText }),
-    });
-
-    const data = await response.json();
-    return response.ok 
-      ? { success: true } 
-      : { success: false, error: data.message || 'Failed to edit message.' };
-  } catch (error) {
-    console.error("Edit Message API Error:", error);
     return { success: false, error: 'Network error occurred.' };
   }
 };

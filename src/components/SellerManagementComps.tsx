@@ -638,7 +638,12 @@ export const ProductList = () => {
     const isOutOfStock = isPhysical && item.amountInStock === 0;
 
     return (
-      <TouchableOpacity style={[styles.card, {backgroundColor: themeColors.backgroundSecondary}]}>
+      <TouchableOpacity
+        style={[
+          styles.card,
+          { backgroundColor: themeColors.backgroundSecondary },
+        ]}
+      >
         <View style={styles.imageContainer}>
           <Image
             source={{
@@ -646,63 +651,63 @@ export const ProductList = () => {
             }}
             style={styles.thumbnail}
           />
-          <View style={[styles.typeBadge, {backgroundColor: themeColors.backgroundSecondary}]}>
-            <Text style={[styles.typeText, {color: themeColors.text}]}>{item.niche}</Text>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: themeColors.backgroundSecondary },
+            ]}
+          >
+            <Text style={[styles.typeText, { color: themeColors.text }]}>
+              {item.niche}
+            </Text>
           </View>
         </View>
         <View style={styles.infoContainer}>
-            <Text style={[styles.title, {color: themeColors.textDarker}]}>
-              {item.title}
-            </Text>
+          <Text style={[styles.title, { color: themeColors.textDarker }]}>
+            {item.title}
+          </Text>
           <View style={styles.detailsRow}>
             <View style={styles.badge}>
-            {isPhysical ? (
-              <>
-                <MaterialIcons
-                  name="inventory-outlined"
-                  size={16}
-                  color={
-                    isOutOfStock
-                      ? themeColors.primary
-                      : isLowStock
-                      ? themeColors.primaryTint
-                      : themeColors.text
-                  }
-                />
-                <Text
-                  style={[
-                    styles.detailText,
-                    isOutOfStock ? { color: themeColors.primary } : {color: themeColors.text}
-                  ]}
-                >
-                  {isOutOfStock
-                    ? 'Out of Stock'
-                    : `${item.amountInStock} in Stock`}
-                </Text>
-              </>
-            ) : item.type === 'course' ? (
-              <>
-                <MaterialIcons
-                  name="play-circle-outline"
-                  size={14}
-                  color={themeColors.text}
-                />
-                <Text style={[styles.detailText, {color: themeColors.text}]}>
-                  {item.courseDetails?.content.length || 0} Lessons
-                </Text>
-              </>
-            ) : (
-              <>
-                <MaterialIcons
-                  name="insert-drive-file"
-                  size={14}
-                  color={themeColors.text}
-                />
-                <Text style={[styles.detailText, {color: themeColors.text}]}>
-                  {item.fileDetails?.fileFormat?.toUpperCase() || 'FILE'}
-                </Text>
-              </>
-            )}
+              {isPhysical ? (
+                <>
+                  <MaterialIcons
+                    name="inventory-outlined"
+                    size={16}
+                    color={
+                      isOutOfStock
+                        ? themeColors.primary
+                        : isLowStock
+                          ? themeColors.primaryTint
+                          : themeColors.text
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.detailText,
+                      isOutOfStock
+                        ? { color: themeColors.primary }
+                        : { color: themeColors.text },
+                    ]}
+                  >
+                    {isOutOfStock
+                      ? 'Out of Stock'
+                      : `${item.amountInStock} in Stock`}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <MaterialIcons
+                    name="insert-drive-file"
+                    size={14}
+                    color={themeColors.text}
+                  />
+                  <Text
+                    style={[styles.detailText, { color: themeColors.text }]}
+                  >
+                    {item.fileDetails?.fileFormat?.toUpperCase() || 'FILE'}
+                  </Text>
+                </>
+              )}
             </View>
             <CurrencyDisplay value={item.priceInPoints} size="medium" />
           </View>

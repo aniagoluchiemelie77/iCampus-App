@@ -1,4 +1,4 @@
-import { User, CreateTestPayload, EnrichedCourseProduct, DropOffStation, Notification, Book, Lecture, Course, CourseException, AdItem} from '../types/firebase';
+import { User, CreateTestPayload, DropOffStation, Notification, Book, Lecture, Course, CourseException, AdItem} from '../types/firebase';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
@@ -182,78 +182,6 @@ export const getBlockedUsers = async (
     return [];
   }
 };
-export const getConversations = async (
-  userId: string,
-  pageNum: number,
-): Promise<{ success: boolean; data: any[]; hasMore: boolean }> => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/messages/conversations/${userId}?page=${pageNum}`,
-      {
-        headers
-      }
-    );
-    const result = await response.json();
-    
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result.message || 'Failed to fetch conversations',
-      });
-      return { success: false, data: [], hasMore: false };
-    }
-    return { 
-      success: true, 
-      data: result.data || [], 
-      hasMore: result.hasMore 
-    };
-  } catch (error: any) {
-    console.error("Fetch Conversations Error:", error);
-    return { success: false, data: [], hasMore: false };
-  }
-};
-export const fetchMessages = async (
-  recipientId: string,
-  pageNum: number,
-  limit: number = 20
-): Promise<{ success: boolean; data: any[]; hasMore: boolean }> => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/messages/fetchMessage/${recipientId}?page=${pageNum}&limit=${limit}`,
-      {
-        headers
-      }
-    );
-    
-    const result = await response.json();
-
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result.message || 'Failed to fetch messages',
-      });
-      return { success: false, data: [], hasMore: false };
-    }
-
-    return {
-      success: true,
-      data: result.data || [],
-      hasMore: result.hasMore ?? false
-    };
-  } catch (error: any) {
-    console.error("Fetch Messages Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'An unexpected error occurred while loading messages.',
-    });
-    return { success: false, data: [], hasMore: false };
-  }
-};
 export const searchUsers = async ({
   q,
   uid,
@@ -360,39 +288,6 @@ export const signupFetchInstitutions = async (country: string) => {
     };
   }
 };
-export const fetchLeaderboards = async () => {
-  try {
-    const url = `${baseUrl}users/fetchLeaderBoards`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const data = await response.json();
-    if (response.ok && data.success) {
-      return {
-        success: true,
-        data: {
-          students: data.data.students || [],
-          instructors: data.data.instructors || [],
-          institutions: data.data.institutions || [],
-        },
-        message: 'Leaderboards loaded successfully',
-      };
-    }
-
-    return {
-      success: false,
-      message: data?.message || 'Failed to fetch leaderboards',
-    };
-  } catch (error: any) {
-    console.error("Leaderboard API Error:", error);
-    return {
-      success: false,
-      message: 'Network error while fetching leaderboards',
-    };
-  }
-};
 export const fetchProductsAPI = async ({ 
   q = '', 
   category = 'all', 
@@ -482,27 +377,6 @@ export const fetchPendingOrdersAPI = async () => {
       data: [], 
       message: 'Network error occurred while fetching orders' 
     };
-  }
-};
-export const getUserDownloads = async (): Promise<{ success: boolean; data: EnrichedCourseProduct[] }> => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/downloads/fetch-all`, {
-      headers
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Download Error',
-        text2: result.message || 'Could not load your library',
-      });
-      return { success: false, data: [] };
-    }
-    return { success: true, data: result.data }; 
-  } catch (error) {
-    console.error("Fetch Downloads Error:", error);
-    return { success: false, data: [] };
   }
 };
 export const fetchSellerSalesAPI = async () => {

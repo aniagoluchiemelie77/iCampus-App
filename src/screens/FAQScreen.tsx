@@ -12,12 +12,6 @@ interface FAQItemType {
 }
 const FAQ_DATA: FAQItemType[] = [
   {
-    id: 'iscore-1',
-    question: 'What is the Unified iScore and how is it calculated?',
-    answer:
-      'The iScore is a comprehensive metric (capped at 100) that measures your platform engagement, performance, and reputation. It dynamically adjusts its calculation rules depending on whether you are a Student, Lecturer, or standard user. \n Reputation accounts for up to 20 points of your score. It aggregates ratings from your profile reviews.\n•  For Lecturers, points are driven by review averages and active time. \n• For students, points are calculated from your average Test Scores and lecture attendance rates.\n• For normal users, iScore relies entirely on community metrics, combining library usage and platform activity. \n You can also earn points by launching library sessions, downloading books, and interacting with the in-app AI Assistant. \n Lastly, to prevent jarring monthly jumps, iCampus uses a smoothing formula. It carries forward 30% of your previous month’s iScore and blends it with 70% of your current month’s calculated iScore.',
-  },
-  {
     id: 'icash-1',
     question: 'What is iCash?',
     answer:
@@ -73,7 +67,7 @@ const FAQ_DATA: FAQItemType[] = [
   },
   {
     id: 'acad-3',
-    question: 'What happens if I exhaust my free monthly exceptions?',
+    question: 'What happens if I exhaust my free monthly lecture exceptions?',
     answer:
       'If you have exhausted your free monthly allowance, you can purchase additional exceptions at a cost of 0.5 iCash each. Please note that if a lecturer disapproves or cancels a purchased exception, no refunds are issued.',
   },

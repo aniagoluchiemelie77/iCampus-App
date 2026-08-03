@@ -26,7 +26,6 @@ import messaging from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from '../types/firebase';
-import { RankingScreen } from '../components/RankingScreen';
 import { SearchScreen } from '../components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
 import {
@@ -260,9 +259,6 @@ const HomeScreen = () => {
           <View key="3">
             <StoreScreen />
           </View>
-          <View key="4">
-            <RankingScreen />
-          </View>
         </PagerView>
 
         <View
@@ -299,12 +295,6 @@ const HomeScreen = () => {
             icon="shopping-cart"
             active={activeIcon === 'store'}
             onPress={() => setActiveIcon('store')}
-          />
-          <TabBarItem
-            label="Ranking"
-            icon="emoji-events"
-            active={activeIcon === 'ranking'}
-            onPress={() => setActiveIcon('ranking')}
           />
         </View>
       </View>

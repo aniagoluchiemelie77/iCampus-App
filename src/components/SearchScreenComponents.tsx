@@ -11,7 +11,6 @@ import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT_MAIN,
 } from '../assets/styles/colors';
-import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { formatCount } from '../utils/followCountFormatter';
 
 interface CourseSearchCardProps {
@@ -23,7 +22,6 @@ interface CourseSearchCardProps {
 
 export const CourseSearchCard = ({
   item,
-  navigation,
   colors,
   onPress,
 }: CourseSearchCardProps) => {
@@ -40,9 +38,6 @@ export const CourseSearchCard = ({
     if (onPress) {
       onPress();
       return;
-    }
-    if (item.isPremiumPaid) {
-      navigation.navigate('ProductDetails', { productId: item.id });
     }
   };
 
@@ -66,15 +61,9 @@ export const CourseSearchCard = ({
       )}
       <View style={styles.infoMetaContainer}>
         <View style={styles.badgeRow}>
-          {item.isPremiumPaid ? (
-            <View style={styles.premiumBadge}>
-              <Text style={styles.premiumBadgeText}>Premium Masterclass</Text>
-            </View>
-          ) : (
-            <View style={styles.academicBadge}>
-              <Text style={styles.academicBadgeText}>Institutional</Text>
-            </View>
-          )}
+          <View style={styles.academicBadge}>
+            <Text style={styles.academicBadgeText}>Institutional</Text>
+          </View>
         </View>
 
         <Text
@@ -89,9 +78,6 @@ export const CourseSearchCard = ({
         >
           By {item.instructors}
         </Text>
-        {item.isPremiumPaid && (
-          <CurrencyDisplay value={item.price} size="small" />
-        )}
         <View style={styles.metricRowGroup}>
           <MaterialIcons
             name="people-outlined"

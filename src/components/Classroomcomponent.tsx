@@ -25,10 +25,7 @@ import {
   fetchLecturerCoursesAPI,
 } from '../api/localGetApis.ts';
 import { createManualCourseAPI } from '../api/localPostApis.ts';
-import { useAppDataContext } from '../context/EventContext.tsx';
-import { ProductCard } from './ProductCard';
 import { useTheme } from '../context/ThemeContext';
-import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { CourseSearchCard } from './SearchScreenComponents.tsx';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
@@ -56,7 +53,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [courses, setCourses] = useState<Course[]>([]);
-  const { allProducts } = useAppDataContext();
   const [isLoading, setLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -219,44 +215,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       setUploading(false);
       setProgress(0);
     }
-  };
-  const renderDiscover = () => {
-    const courseProducts = allProducts.filter(
-      product => product.type === 'course',
-    );
-
-    return (
-      <View style={styles.discoverWrapper}>
-        <Text style={[styles.sectionTitleText, { color: colors.textDarker }]}>
-          For You
-        </Text>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={courseProducts}
-          keyExtractor={item => item.productId}
-          renderItem={({ item: product }) => (
-            <View style={styles.productCardWrapper}>
-              <ProductCard
-                product={product}
-                onPress={() =>
-                  navigation.navigate('ProductDetails', {
-                    productId: product.productId,
-                  })
-                }
-              />
-            </View>
-          )}
-          ListEmptyComponent={
-            <EmptyState
-              iconName="production-quantity-limits-outlined"
-              title="Courses not Found"
-              subtitle="Looks like there's no courses created yet."
-            />
-          }
-        />
-      </View>
-    );
   };
   const handleManualCourseSubmit = async (newCourseData: {
     courseTitle: string;
@@ -653,7 +611,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           )}
         </>
       )}
-      {renderDiscover()}
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={homeStyles.fab}

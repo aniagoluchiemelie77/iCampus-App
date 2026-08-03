@@ -57,7 +57,7 @@ export const ViewAllSchoolsScreen = () => {
         renderItem={({ item }) => (
           <SchoolItem
             item={item}
-            onDelete={async id => {
+            onDelete={async (id: any) => {
               const result = await deleteInstitutionApi(id);
               if (result.success) {
                 fetchSchools(1);
@@ -69,7 +69,7 @@ export const ViewAllSchoolsScreen = () => {
                 });
               }
             }}
-            onEdit={i => {
+            onEdit={(i: any) => {
               navigate('SchoolAorE', { item: i });
             }}
           />

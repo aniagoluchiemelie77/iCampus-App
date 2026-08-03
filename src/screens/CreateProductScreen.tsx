@@ -27,9 +27,8 @@ import {
   GeolocationPosition,
   GeolocationError,
 } from '../types/firebase';
-import Video from 'react-native-video';
 import { useNavigation } from '@react-navigation/native';
-import { uploadLessonVideoAPI, saveProductApiCall } from '../api/localPostApis';
+import { saveProductApiCall } from '../api/localPostApis';
 import { fetchDropOffStationsAPI } from '../api/localGetApis';
 import {
   uploadFileToFirebaseClient,
@@ -44,7 +43,6 @@ import {
   StepHeader,
   CompleteFormInputs,
   UIContentItem,
-  VideoDurationExtractor,
   PriceSectionComponent,
 } from '../components/CreateProductComponents.tsx';
 
@@ -93,10 +91,6 @@ export const CreateProductScreen = ({ route }: any) => {
         dropOffAddress: [],
         colors: [],
         sizes: [],
-      },
-      courseDetails: {
-        additionalLecturersRaw: '',
-        content: [],
       },
       fileDetails: {
         fileName: '',
@@ -168,12 +162,7 @@ export const CreateProductScreen = ({ route }: any) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveStep(activeStep === step ? 0 : step);
   };
-  const {
-    pickLessonVideo,
-    pickDigitalFile,
-    pickCourseThumbnail,
-    pickProductImages,
-  } = useMediaPicker();
+  const { pickDigitalFile, pickProductImages } = useMediaPicker();
   const { userCoords } = useLocationServices();
   const handleAddProductImages = async () => {
     const selectedUris = await pickProductImages(5);
@@ -187,40 +176,6 @@ export const CreateProductScreen = ({ route }: any) => {
           mediaUrls: [...currentMedia, ...selectedUris].slice(0, 5),
         } as any;
       });
-    }
-  };
-  const handleLessonUpload = async (index: number) => {
-    const file = await pickLessonVideo();
-    if (!file) return;
-    setFormInputs(prev => {
-      const updatedLessons = [...(prev.lessons || [])];
-      if (updatedLessons[index]) {
-        updatedLessons[index] = {
-          ...updatedLessons[index],
-          videoUrl: file.uri,
-        };
-      }
-      return { ...prev, lessons: updatedLessons };
-    });
-
-    const result = await uploadLessonVideoAPI(
-      file.uri,
-      file.name || 'video.mp4',
-      file.type || 'video/mp4',
-    );
-    setFormInputs(prev => {
-      const updatedLessons = [...(prev.lessons || [])];
-      if (updatedLessons[index]) {
-        updatedLessons[index] = {
-          ...updatedLessons[index],
-          videoUrl: result.success ? result.data.permanentUrl : '',
-        };
-      }
-      return { ...prev, lessons: updatedLessons };
-    });
-
-    if (!result.success) {
-      Alert.alert('Upload Notice', result.message);
     }
   };
   const handleDigitalFilePick = async () => {
@@ -255,16 +210,6 @@ export const CreateProductScreen = ({ route }: any) => {
 
     if (!uploadResult.success) {
       Alert.alert('Upload Failed', uploadResult.message);
-    }
-  };
-  const handleThumbnailPick = async () => {
-    const uri = await pickCourseThumbnail();
-
-    if (uri) {
-      setFormInputs(prev => ({
-        ...prev,
-        mediaUrls: [uri],
-      }));
     }
   };
   const requestLocationPermission = async (): Promise<boolean> => {
@@ -342,7 +287,6 @@ export const CreateProductScreen = ({ route }: any) => {
       price,
       niche,
       physicalDetails,
-      courseDetails,
       fileDetails,
       mediaUrls,
     } = formInputs;
@@ -427,7 +371,6 @@ export const CreateProductScreen = ({ route }: any) => {
         mediaUrls: finalThumbnails,
         niche,
         physicalDetails,
-        courseDetails,
         fileDetails,
         lessons,
       };
@@ -523,32 +466,12 @@ export const CreateProductScreen = ({ route }: any) => {
           updated.physicalDetails = {
             weightKg: '',
             inStock: '',
-            sellerGateways: ['drop_off'], // Matched your original default
+            sellerGateways: ['drop_off'],
             dropOffAddress: [],
             colors: [],
             sizes: [],
-          };
-          updated.courseDetails = { additionalLecturersRaw: '', content: [] };
-          updated.lessons = [];
-        } else if (computedType === 'course') {
-          updated.physicalDetails = {
-            weightKg: '',
-            inStock: '',
-            sellerGateways: ['drop_off'], // Matched your original default
-            dropOffAddress: [],
-            colors: [],
-            sizes: [],
-          };
-          updated.fileDetails = {
-            fileName: '',
-            fileSizeInMB: 0,
-            fileFormat: '',
-            fileUrl: '',
-            isUploading: false,
           };
         } else if (computedType === 'physical') {
-          updated.courseDetails = { additionalLecturersRaw: '', content: [] };
-          updated.lessons = [];
           updated.fileDetails = {
             fileName: '',
             fileSizeInMB: 0,
@@ -570,10 +493,6 @@ export const CreateProductScreen = ({ route }: any) => {
         physicalDetails: {
           ...initialFormInputs.physicalDetails,
           ...(existingProduct.physicalDetails || {}),
-        },
-        courseDetails: {
-          ...initialFormInputs.courseDetails,
-          ...(existingProduct.courseDetails || {}),
         },
         fileDetails: {
           ...initialFormInputs.fileDetails,
@@ -676,254 +595,45 @@ export const CreateProductScreen = ({ route }: any) => {
         />
         {activeStep === 2 && (
           <View style={styles.expandedContent}>
-            {formInputs.productType !== 'course' ? (
-              <>
-                {images.length > 0 && (
-                  <ScrollView horizontal style={styles.thumbnailContainer}>
-                    {images.map((uri, idx) => (
-                      <View key={idx} style={styles.thumbnailWrapper}>
-                        <Image source={{ uri }} style={styles.thumbnail} />
-                        <TouchableOpacity
-                          style={[
-                            styles.removeBadge,
-                            { backgroundColor: colors.backgroundSecondary },
-                          ]}
-                          onPress={() =>
-                            setImages(prev => prev.filter((_, i) => i !== idx))
-                          }
-                        >
-                          <MaterialIcons
-                            name="cancel-outlined"
-                            size={18}
-                            color={colors.primary}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-                <TouchableOpacity
-                  style={styles.uploadPlaceholder}
-                  onPress={handleAddProductImages}
-                >
-                  <MaterialIcons
-                    name="cloud-upload-outlined"
-                    size={29}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.uploadText, { color: colors.primary }]}>
-                    Tap to upload product images
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.sectionSubtitle, { color: colors.text }]}>
-                  Build your curriculum. Add lessons and attach video files.
-                </Text>
-                <Text style={[styles.miniLabel, { color: colors.text }]}>
-                  Course Cover Thumbnail
-                </Text>
-                {courseThumbnail ? (
-                  <View style={styles.courseThumbnailPreviewWrapper}>
-                    <Image
-                      source={{ uri: courseThumbnail }}
-                      style={styles.courseThumbnailPreview}
-                    />
-                    <TouchableOpacity
-                      style={[
-                        styles.removeBadge,
-                        { backgroundColor: colors.backgroundSecondary },
-                      ]}
-                      onPress={() => setCourseThumbnail(null)}
-                    >
-                      <MaterialIcons
-                        name="cancel-outlined"
-                        size={16}
-                        color={colors.primary}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.courseThumbnailPlaceholder}
-                    onPress={handleThumbnailPick}
-                  >
-                    <MaterialIcons
-                      name="image-search-outlined"
-                      size={24}
-                      color={colors.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.courseThumbnailPlaceholderText,
-                        { color: colors.primary },
-                      ]}
-                    >
-                      Upload Course Thumbnail
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                <Text style={[styles.miniLabel, { color: colors.text }]}>
-                  Lessons & Video Modules
-                </Text>
-                {formInputs.lessons.map((lesson, index) => (
-                  <View key={index}>
-                    <View style={styles.lessonHeaderRow}>
-                      <Text
-                        style={[
-                          styles.lessonNumberLabel,
-                          { color: colors.text },
-                        ]}
-                      >
-                        Lesson {index + 1}
-                      </Text>
+            <>
+              {images.length > 0 && (
+                <ScrollView horizontal style={styles.thumbnailContainer}>
+                  {images.map((uri, idx) => (
+                    <View key={idx} style={styles.thumbnailWrapper}>
+                      <Image source={{ uri }} style={styles.thumbnail} />
                       <TouchableOpacity
+                        style={[
+                          styles.removeBadge,
+                          { backgroundColor: colors.backgroundSecondary },
+                        ]}
                         onPress={() =>
-                          setFormInputs(prev => ({
-                            ...prev,
-                            lessons: prev.lessons.filter((_, i) => i !== index),
-                          }))
+                          setImages(prev => prev.filter((_, i) => i !== idx))
                         }
                       >
                         <MaterialIcons
-                          name="delete-outlined"
-                          size={20}
+                          name="cancel-outlined"
+                          size={18}
                           color={colors.primary}
                         />
                       </TouchableOpacity>
                     </View>
-                    <TextInput
-                      style={[styles.input, { color: colors.text }]}
-                      placeholderTextColor={colors.inputTextHolder}
-                      placeholder="Lesson Title (e.g., Intro to Programming)"
-                      value={lesson.title}
-                      onChangeText={text => {
-                        setFormInputs(prev => {
-                          const updatedLessons = [...prev.lessons];
-                          updatedLessons[index] = {
-                            ...updatedLessons[index],
-                            title: text,
-                          };
-                          return { ...prev, lessons: updatedLessons };
-                        });
-                      }}
-                    />
-                    <View style={styles.lessonMetaRow}>
-                      <TouchableOpacity
-                        style={[
-                          styles.videoAttachBtn,
-                          { backgroundColor: colors.btnColor },
-                        ]}
-                        onPress={() => {
-                          handleLessonUpload(index);
-                        }}
-                      >
-                        <MaterialIcons
-                          name="video-library-outlined"
-                          size={20}
-                          color={colors.btnTextColor}
-                        />
-                        <Text
-                          style={[
-                            styles.videoAttachText,
-                            { color: colors.btnTextColor },
-                          ]}
-                        >
-                          {lesson.videoUrl ? 'Video Attached' : 'Upload Video'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.previewToggle,
-                          lesson.isFreePreview && styles.previewToggleActive,
-                        ]}
-                        onPress={() => {
-                          setFormInputs(prev => {
-                            const updatedLessons = [...prev.lessons];
-                            updatedLessons[index] = {
-                              ...updatedLessons[index],
-                              isFreePreview:
-                                !updatedLessons[index].isFreePreview,
-                            };
-                            return { ...prev, lessons: updatedLessons };
-                          });
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.previewToggleText,
-                            lesson.isFreePreview
-                              ? { color: colors.primary }
-                              : { color: colors.text },
-                          ]}
-                        >
-                          Free Preview
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    {lesson.videoUrl ? (
-                      <View style={styles.videoPreviewWrapper}>
-                        <Video
-                          source={{ uri: lesson.videoUrl }}
-                          style={styles.videoPreview}
-                          controls={true}
-                          resizeMode="contain"
-                          muted={true}
-                          paused={true}
-                        />
-                        <TouchableOpacity
-                          style={[
-                            styles.removeVideoBadge,
-                            { backgroundColor: colors.backgroundSecondary },
-                          ]}
-                          onPress={() => {
-                            setFormInputs(prev => {
-                              const updatedLessons = [...prev.lessons];
-                              updatedLessons[index] = {
-                                ...updatedLessons[index],
-                                videoUrl: '',
-                              };
-                              return { ...prev, lessons: updatedLessons };
-                            });
-                          }}
-                        >
-                          <MaterialIcons
-                            name="cancel-outlined"
-                            size={16}
-                            color={colors.primary}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    ) : null}
-                  </View>
-                ))}
-                <TouchableOpacity
-                  style={styles.addLessonBtn}
-                  onPress={() =>
-                    setFormInputs(prev => ({
-                      ...prev,
-                      lessons: [
-                        ...prev.lessons,
-                        {
-                          title: '',
-                          videoUrl: '',
-                          duration: 0,
-                          isFreePreview: false,
-                        },
-                      ],
-                    }))
-                  }
-                >
-                  <MaterialIcons name="add" size={22} color={colors.primary} />
-                  <Text
-                    style={[styles.addLessonBtnText, { color: colors.primary }]}
-                  >
-                    Add New Lesson
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+                  ))}
+                </ScrollView>
+              )}
+              <TouchableOpacity
+                style={styles.uploadPlaceholder}
+                onPress={handleAddProductImages}
+              >
+                <MaterialIcons
+                  name="cloud-upload-outlined"
+                  size={29}
+                  color={colors.primary}
+                />
+                <Text style={[styles.uploadText, { color: colors.primary }]}>
+                  Tap to upload product images
+                </Text>
+              </TouchableOpacity>
+            </>
           </View>
         )}
       </View>
@@ -1280,7 +990,7 @@ export const CreateProductScreen = ({ route }: any) => {
                         ({
                           ...prev,
                           additionalLecturersRaw: text,
-                        } as any),
+                        }) as any,
                     )
                   }
                   autoCorrect={false}
@@ -1375,19 +1085,6 @@ export const CreateProductScreen = ({ route }: any) => {
           Publish Product
         </Text>
       </TouchableOpacity>
-      {activeExtractingUri && (
-        <VideoDurationExtractor
-          uri={activeExtractingUri.uri}
-          onDurationExtracted={durationInSeconds => {
-            setLessons(prev => {
-              const updated = [...prev];
-              updated[activeExtractingUri.index].duration = durationInSeconds;
-              return updated;
-            });
-            setActiveExtractingUri(null);
-          }}
-        />
-      )}
       <Modal
         visible={isSubmitting}
         transparent={true}

@@ -14,7 +14,7 @@ import {
   StyleSheet,
   ScrollView
 } from 'react-native';
-import { CourseSearchCard } from '../components/SearchScreen.tsx';
+import { CourseSearchCard } from '../components/SearchScreenComponents';
 import { generateSessions } from '../utils/courseHelper.ts';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';

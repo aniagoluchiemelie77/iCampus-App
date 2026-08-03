@@ -8,7 +8,6 @@ import {
   StyleSheet
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Video from 'react-native-video';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import {
   CATEGORY_MAX_PRICES,
@@ -51,7 +50,7 @@ export interface CompleteFormInputs {
   description: string;
   price: string;
   niche: string;
-  productType: 'physical' | 'file' | 'course';
+  productType: 'physical' | 'file';
   physicalDetails: {
     weightKg: string;
     inStock: string;
@@ -59,10 +58,6 @@ export interface CompleteFormInputs {
     dropOffAddress: DropOffStation[];
     colors: string[];
     sizes: string[];
-  };
-  courseDetails: {
-    additionalLecturersRaw: string;
-    content: UIContentItem[];
   };
   fileDetails: {
     fileName: string;
@@ -72,34 +67,9 @@ export interface CompleteFormInputs {
     isUploading: boolean;
     rawBlobOrFile?: any;
   };
-  lessons: {
-    title: string;
-    videoUrl: string;
-    duration: number;
-    isFreePreview: boolean;
-  }[];
   mediaUrls: string[];
 }
 
-export const VideoDurationExtractor = ({
-  uri,
-  onDurationExtracted,
-}: VideoDurationExtractorProps) => {
-  return (
-    <Video
-      source={{ uri }}
-      paused={true}
-      mixWithOthers="mix"
-      style={{ width: 0, height: 0, position: 'absolute' }}
-      onLoad={meta => {
-        if (meta && meta.duration) {
-          onDurationExtracted(Math.round(meta.duration));
-        }
-      }}
-      onError={err => console.log('Metadata extraction failed:', err)}
-    />
-  );
-};
 export function PriceSectionComponent({
   userCountry = 'Nigeria',
   formInputs,

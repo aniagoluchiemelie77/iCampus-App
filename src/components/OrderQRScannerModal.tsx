@@ -50,7 +50,7 @@ export const OrderScannerModal = ({ isVisible, onClose, onSuccess, instructionTe
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
   },

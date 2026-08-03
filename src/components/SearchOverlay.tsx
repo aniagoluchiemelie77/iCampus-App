@@ -66,7 +66,7 @@ export const UserSearchOverlay = ({
   }, [searchQuery, currentUser]);
 
   return (
-    <View style={StyleSheet.absoluteFillObject}>
+    <View style={StyleSheet.absoluteFill}>
       <View
         style={[
           styles.activeSearchHeader,

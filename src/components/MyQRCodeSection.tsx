@@ -14,7 +14,6 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { markOrderAsDroppedOffAPI } from '../api/localPatchApis';
@@ -82,7 +81,6 @@ export const MyQRCodeSection = ({ itagusername }: { itagusername: string }) => {
 export const OrderAccordion = ({ order }: OrderProps) => {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
-  const navigation = useNavigation<any>();
 
   const toggleAccordion = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -115,8 +113,8 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                 backgroundColor: isPending
                   ? colors.pendingDelivery
                   : isDroppedOff
-                  ? colors.primaryTint
-                  : colors.text,
+                    ? colors.primaryTint
+                    : colors.text,
               },
             ]}
           />
@@ -215,24 +213,6 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                     ]}
                   >
                     Download File
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {order.productType === 'course' && (
-                <TouchableOpacity
-                  style={[
-                    QRCodeStyles.accessButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                  onPress={() => navigation.navigate('MyDownloads')}
-                >
-                  <Text
-                    style={[
-                      QRCodeStyles.accessButtonText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Go to My Downloads
                   </Text>
                 </TouchableOpacity>
               )}

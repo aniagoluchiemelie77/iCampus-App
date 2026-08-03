@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   soldOutOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignContent: 'center',
     position: 'absolute',
     top: 3,

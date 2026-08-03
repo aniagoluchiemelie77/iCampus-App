@@ -258,8 +258,6 @@ export interface User {
   userAccountDetails?: UserBankOrCardDetails['userId'];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string,
-  currentIScore?: number,
-  previousIScore?: number,
   itagusername?: string,
   skills?: string[]; 
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
@@ -383,7 +381,7 @@ export interface Product {
   impressions: number;
   sales: number;
   schoolName?: string;
-  type: 'physical' | 'course' | 'file';
+  type: 'physical' | 'file';
   category: string;
   title: string;
   description?: string;
@@ -398,19 +396,6 @@ export interface Product {
     sellerGateways: DeliveryGateway[];
     isNationalShippingAvailable?: boolean;
     dropOffAddress: DropOffStation[];
-  };
-  courseDetails?: {
-    courseId: string; 
-    lecturerIds: string[];
-    totalReviews: number;
-    studentsEnrolled: string[];
-    totalLessons: number; 
-    content: {
-      title: string;
-      videoUrl: string;
-      duration: number; 
-      isFreePreview: boolean;
-    }[];
   };
   fileDetails?: {
     fileName: string;
@@ -430,7 +415,6 @@ export interface Product {
   createdAt: string;
   niche:
       "Electronics" |
-      "Courses" |
       "Documents" |
       "Fashion" |
       "Stationery" |
@@ -446,7 +430,7 @@ export interface ProductSale {
   sellerId: string;
   productId: string;
   orderId: string;
-  productType: 'physical' | 'file' | 'course';
+  productType: 'physical' | 'file';
   quantity: number;
   amountPaid: number;
   buyerId: string;
@@ -459,7 +443,7 @@ export interface MarketplaceOrder {
   sellerId: string;
   productId: string;
   productName: string;
-  productType: 'physical' | 'file' | 'course'; 
+  productType: 'physical' | 'file'; 
   deliveryMethod: DeliveryGateway;
   quantity: number;
   cancellationReason: string;
@@ -847,36 +831,11 @@ export interface StatsData {
   monthly: Array<{ _id: number; total: number }>;
   currency: string;
 }
-export interface RankCardProps {
-  item: User;
-  rank: number; 
-  userRole: UserType;
-  navigation: NavigationProp<any>;
-}
-export interface RankCardCarouselProps {
-  userRole: UserType;
-  navigation: NavigationProp<any>;
-  data: User[];
-}
 export interface Attachment {
   url: string;
   type: AttachmentType;
   fileName?: string; 
   fileSize?: number;
-}
-export interface ChatMessage {
-  id: string;
-  text?: string; 
-  senderId: string;
-  recipientId?: string;
-  firstName: string;
-  lastName?: string;
-  timestamp: string;
-  profilePic?: string;
-  status: MessageStatus;
-  attachments?: Attachment[];
-  isEdited?: boolean;
-  deletedBy?: string;
 }
 export type AssistantMessage = {
   role: 'user' | 'model';
@@ -916,11 +875,6 @@ export type VerifiedInstructor = {
   schoolAvatarUrl: string;
   email: string;
 };
-export interface EnrichedCourseProduct extends Product {
-  progress: number;
-  lastAccessed: string;
-  completedLessons?: string[];
-}
 export interface Review {
   reviewerId: string;
   targetId: string;
@@ -936,6 +890,20 @@ export interface Review {
   },
   createdAt: Date
 };
+export interface ChatMessage {
+  id: string;
+  text?: string; 
+  senderId: string;
+  recipientId?: string;
+  firstName: string;
+  lastName?: string;
+  timestamp: string;
+  profilePic?: string;
+  status: MessageStatus;
+  attachments?: Attachment[];
+  isEdited?: boolean;
+  deletedBy?: string;
+}
 export interface SupportTicket
   {
     userId: string;

@@ -168,7 +168,7 @@ export const AdminSearchScreen = () => {
   };
 
   return (
-    <View style={[StyleSheet.absoluteFillObject]}>
+    <View style={[StyleSheet.absoluteFill]}>
       <PageHeader title="iCampus Admin Search" />
       <View
         style={[

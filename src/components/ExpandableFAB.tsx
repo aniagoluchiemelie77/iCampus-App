@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(19, 18, 18, 0.4)',
   },
   fabMenuContainer: {

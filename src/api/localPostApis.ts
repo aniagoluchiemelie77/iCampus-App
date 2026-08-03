@@ -296,37 +296,6 @@ export const toggleBlockUser = async (
     return { success: false, message: error.message };
   }
 };
-export const markAllMessagesRead = async (
-  userId: string,
-): Promise<{ success: boolean }> => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/messages/mark-all-read/${userId}`, {
-      method: 'POST',
-      headers
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      Toast.show({
-        type: 'error',
-        text1: 'Mark Error',
-        text2: data.error || 'Failed to update',
-      });
-      return { success: false };
-    }
-
-    Toast.show({ type: 'success', text1: 'All messages marked as read' });
-    return { success: true };
-  } catch (error: any) {
-    Toast.show({
-      type: 'error',
-      text1: 'Update Error',
-      text2: error.message || 'Check your connection',
-    });
-    return { success: false };
-  }
-};
 export const verifyICashPin = async (
   pin: string,
 ): Promise<{ success: boolean; message?: string; isSuspended?: boolean; attemptsRemaining?: number }> => {
@@ -1045,24 +1014,6 @@ export const cancelOrderAPI = async (orderId: string, reason: string) => {
     };
   }
 };
-export const generateCertificateAPI = async (productId: string) => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/downloads/generate-certificate`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ productId }),
-    });
-    const data = await response.json();
-    return {
-      success: response.ok,
-      data: data,
-      message: data.message || 'Failed to generate certificate',
-    };
-  } catch (error) {
-    return { success: false, message: 'Server connection failed' };
-  }
-};
 export const requestPayoutAPI = async (amount: number) => {
   try {
     const url = `${baseUrl}store/payouts/request-payout`;
@@ -1087,50 +1038,6 @@ export const requestPayoutAPI = async (amount: number) => {
     };
   } catch (error) {
     return { success: false, message: 'Network error during payout' };
-  }
-};
-export const uploadLessonVideoAPI = async (fileUri: string, fileName: string, fileType: string) => {
-  try {
-    const token = await AsyncStorage.getItem('accessToken');
-    const url = `${baseUrl}users/lecturers/class/upload-video`;
-    const formData = new FormData();
-    const cleanUri = Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri;
-    formData.append('video', {
-      uri: cleanUri,
-      name: fileName,
-      type: fileType,
-    } as any);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to complete video verification process.',
-        data: null,
-      };
-    }
-
-    return {
-      success: true,
-      message: result.message,
-      data: result.data, // Structure containing permanentUrl and verification status
-    };
-  } catch (error) {
-    console.error('Multipart upload network connection failure:', error);
-    return { 
-      success: false, 
-      message: 'Network connection failure while transmitting media file.', 
-      data: null 
-    };
   }
 };
 export const saveProductApiCall = async (

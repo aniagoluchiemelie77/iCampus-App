@@ -41,12 +41,6 @@ interface Props {
   colors: any;
   socket: any;
 }
-interface MessageBellProps {
-  navigation: any;
-  initialCount?: number;
-  colors: any;
-  socket: any;
-}
 
 interface ProfileModalProps {
   visible: boolean;
@@ -163,18 +157,6 @@ const ProfileModal = ({
             Sales Hub
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={modalStyles.item}
-          onPress={() => {
-            onClose();
-            navigation.navigate('DownloadsScreen');
-          }}
-        >
-          <MaterialIcons name="folder-special" size={24} color={colors.text} />
-          <Text style={[modalStyles.itemText, { color: colors.text }]}>
-            My Downloads
-          </Text>
-        </TouchableOpacity>
 
         {/* 2. SETTINGS SECTION */}
         <View style={modalStyles.separator} />
@@ -220,7 +202,7 @@ export const NotificationBell: React.FC<Props> = ({
   navigation,
   initialCount = 0,
   colors,
-  socket
+  socket,
 }) => {
   const [unreadCount, setUnreadCount] = useState(initialCount);
 
@@ -260,76 +242,6 @@ export const NotificationBell: React.FC<Props> = ({
             style={[
               HomeScreenComponentStyles.badgeText,
               { color: colors.btnTextColor },
-            ]}
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-};
-export const MessageBell: React.FC<MessageBellProps> = ({
-  navigation,
-  initialCount = 0,
-  colors,
-  socket
-}) => {
-  const [unreadCount, setUnreadCount] = useState(initialCount);
-  const currentUser = useAppSelector(state => state.user);
-
-  useEffect(() => {
-    if (!socket || !currentUser?.uid) return;
-    const handleNewMsg = (newMessage: any) => {
-      if (
-        newMessage.recipientId === currentUser.uid &&
-        newMessage.senderId !== currentUser.uid
-      ) {
-        setUnreadCount(prev => prev + 1);
-      }
-    };
-    const handleMessagesSeen = ({ readerId }: { readerId: string }) => {
-      if (readerId === currentUser.uid) {
-        setUnreadCount(0);
-      }
-    };
-
-    socket.on('receive_message', handleNewMsg);
-    socket.on('messages_seen', handleMessagesSeen);
-
-    return () => {
-      socket.off('receive_message', handleNewMsg);
-      socket.off('messages_seen', handleMessagesSeen);
-    };
-  }, [socket, currentUser?.uid]);
-
-  const handlePress = () => {
-    setUnreadCount(0);
-    navigation.navigate('MessagesList');
-  };
-
-  return (
-    <TouchableOpacity
-      onPress={handlePress}
-      style={[
-        HomeScreenComponentStyles.notificationContainer,
-        { marginLeft: 3 },
-      ]}
-      activeOpacity={0.7}
-    >
-      <MaterialIcons name="chat-outlined" size={23} color={colors.primary} />
-
-      {unreadCount > 0 && (
-        <View
-          style={[
-            HomeScreenComponentStyles.badge,
-            { backgroundColor: colors.primary },
-          ]}
-        >
-          <Text
-            style={[
-              HomeScreenComponentStyles.badgeText,
-              { color: colors.btnTextColor, fontWeight: '700' },
             ]}
           >
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -394,35 +306,38 @@ export function Home() {
     loadPosts(true);
   }, [loadPosts]);
   useEffect(() => {
-  const currentSocket = socket?.current;
-  if (!currentSocket) return;
+    const currentSocket = socket?.current;
+    if (!currentSocket) return;
 
-  currentSocket.on('new_post', (newPost: Posts) => {
-    setPendingPosts(prev => {
-      if (prev.find(p => p.postId === newPost.postId)) return prev;
-      return [newPost, ...prev];
+    currentSocket.on('new_post', (newPost: Posts) => {
+      setPendingPosts(prev => {
+        if (prev.find(p => p.postId === newPost.postId)) return prev;
+        return [newPost, ...prev];
+      });
     });
-  });
 
-  currentSocket.on('post_stats_updated', (data: { postId: string; stats: any }) => {
-    setPosts(prevPosts =>
-      prevPosts.map(post => {
-        if (post.postId === data.postId) {
-          return {
-            ...post,
-            ...(data.stats || {}),
-          };
-        }
-        return post;
-      }),
+    currentSocket.on(
+      'post_stats_updated',
+      (data: { postId: string; stats: any }) => {
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            if (post.postId === data.postId) {
+              return {
+                ...post,
+                ...(data.stats || {}),
+              };
+            }
+            return post;
+          }),
+        );
+      },
     );
-  });
 
-  return () => {
-    currentSocket.off('new_post');
-    currentSocket.off('post_stats_updated');
-  };
-}, [setPosts, currentUser.uid, socket]);
+    return () => {
+      currentSocket.off('new_post');
+      currentSocket.off('post_stats_updated');
+    };
+  }, [setPosts, currentUser.uid, socket]);
   const onViewableItemsChanged = useRef(
     ({
       viewableItems,
@@ -472,12 +387,6 @@ export function Home() {
         <Logo />
         <View style={homeStyles.headerContainerDiv}>
           <NotificationBell
-            navigation={navigation}
-            initialCount={0}
-            colors={colors}
-            socket={socket}
-          />
-          <MessageBell
             navigation={navigation}
             initialCount={0}
             colors={colors}

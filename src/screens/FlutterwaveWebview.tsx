@@ -121,7 +121,7 @@ const FlutterwaveWebview = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
   loader: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignContent: 'center',
     flex: 1,
   },
