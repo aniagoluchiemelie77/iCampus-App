@@ -193,29 +193,6 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               >
                 Transaction Completed
               </Text>
-              {order.productType === 'file' && order.fileUrl && (
-                <TouchableOpacity
-                  style={[
-                    QRCodeStyles.downloadButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                  onPress={() => handleDownload(order.fileUrl!)}
-                >
-                  <MaterialIcons
-                    name="file-download"
-                    size={20}
-                    color={colors.btnTextColor}
-                  />
-                  <Text
-                    style={[
-                      QRCodeStyles.downloadButtonText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Download File
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           )}
         </View>

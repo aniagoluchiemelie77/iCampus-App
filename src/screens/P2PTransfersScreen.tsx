@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
-import { Camera } from 'react-native-vision-camera';
+import { useCameraPermission } from 'react-native-vision-camera';
 import { useCameraDevice } from 'react-native-vision-camera';
 import { useAppSelector } from '../hooks/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
@@ -74,7 +74,7 @@ export const IcashP2PScreen = () => {
   const [step, setStep] = useState<'selection' | 'tagInput'>('selection');
   const [scannerVisible, setScannerVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasPermission, setHasPermission] = React.useState(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<ITagSearchResult | null>(
@@ -179,32 +179,33 @@ export const IcashP2PScreen = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [recipientTag]);
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
-      const status = await Camera.requestCameraPermission();
-      setHasPermission(status === 'granted');
+      if (!hasPermission) {
+        const granted = await requestPermission();
 
-      if (status === 'denied') {
-        Alert.alert(
-          'Camera Permission Required',
-          'To scan QR codes, we need access to your camera. Please enable it in your device settings.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
-                } else {
-                  Linking.openSettings();
-                }
+        if (!granted) {
+          Alert.alert(
+            'Camera Permission Required',
+            'To scan QR codes, we need access to your camera. Please enable it in your device settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Open Settings',
+                onPress: () => {
+                  if (Platform.OS === 'ios') {
+                    Linking.openURL('app-settings:');
+                  } else {
+                    Linking.openSettings();
+                  }
+                },
               },
-            },
-          ],
-        );
+            ],
+          );
+        }
       }
     })();
-  }, []);
+  }, [hasPermission, requestPermission]);
 
   return (
     <ScrollView

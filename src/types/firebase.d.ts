@@ -381,7 +381,7 @@ export interface Product {
   impressions: number;
   sales: number;
   schoolName?: string;
-  type: 'physical' | 'file';
+  type: 'physical';
   category: string;
   title: string;
   description?: string;
@@ -397,14 +397,6 @@ export interface Product {
     isNationalShippingAvailable?: boolean;
     dropOffAddress: DropOffStation[];
   };
-  fileDetails?: {
-    fileName: string;
-    fileSizeInMB: number;
-    fileFormat: string;
-    fileUrl: string; 
-    hasPassword: boolean; 
-    isUploading: boolean;
-  };
   ratings: {
     userId: string;
     score: number;
@@ -415,16 +407,12 @@ export interface Product {
   createdAt: string;
   niche:
       "Electronics" |
-      "Documents" |
       "Fashion" |
       "Stationery" |
       "Snacks and Deserts" |
       "Food" | 
-      'Templates' | 
-      'Software Assets' |
-      'Audio Resources' | 
       'Health & Beauty' | 
-      'Crafts'
+      'Footwears'
 }
 export interface ProductSale {
   sellerId: string;

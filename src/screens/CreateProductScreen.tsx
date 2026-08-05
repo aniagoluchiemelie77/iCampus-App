@@ -42,23 +42,17 @@ import { useLocationServices } from '../hooks/useLocationService.ts';
 import {
   StepHeader,
   CompleteFormInputs,
-  UIContentItem,
   PriceSectionComponent,
 } from '../components/CreateProductComponents.tsx';
 
 const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
-  Documents: 'file',
-  Templates: 'file',
-  'Software Assets': 'file',
-  Courses: 'course',
-  'Audio Resources': 'course',
   Electronics: 'physical',
   Fashion: 'physical',
   Stationery: 'physical',
   'Snacks and Deserts': 'physical',
   Food: 'physical',
   'Health & Beauty': 'physical',
-  Crafts: 'physical',
+  Footwears: 'physical',
 };
 if (
   Platform.OS === 'android' &&
@@ -83,7 +77,6 @@ export const CreateProductScreen = ({ route }: any) => {
       price: '',
       niche: '',
       productType: 'physical',
-      lessons: [],
       physicalDetails: {
         weightKg: '',
         inStock: '',
@@ -91,13 +84,6 @@ export const CreateProductScreen = ({ route }: any) => {
         dropOffAddress: [],
         colors: [],
         sizes: [],
-      },
-      fileDetails: {
-        fileName: '',
-        fileSizeInMB: 0,
-        fileFormat: '',
-        fileUrl: '',
-        isUploading: false,
       },
       mediaUrls: [],
     }),
@@ -146,12 +132,6 @@ export const CreateProductScreen = ({ route }: any) => {
   const [images, setImages] = useState<string[]>([]);
   const [colorInput, setColorInput] = useState('');
   const [sizeInput, setSizeInput] = useState('');
-  const [courseThumbnail, setCourseThumbnail] = useState<string | null>(null);
-  const [lessons, setLessons] = useState<UIContentItem[]>([]);
-  const [activeExtractingUri, setActiveExtractingUri] = useState<{
-    uri: string;
-    index: number;
-  } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formInputs, setFormInputs] =
@@ -281,15 +261,8 @@ export const CreateProductScreen = ({ route }: any) => {
     setSizeInput('');
   };
   const handlePublishProduct = async () => {
-    const {
-      title,
-      description,
-      price,
-      niche,
-      physicalDetails,
-      fileDetails,
-      mediaUrls,
-    } = formInputs;
+    const { title, description, price, niche, physicalDetails, mediaUrls } =
+      formInputs;
 
     if (
       !title.trim() ||
@@ -315,29 +288,6 @@ export const CreateProductScreen = ({ route }: any) => {
           text1: 'Missing Info',
           text2:
             'Please specify valid stock availability for your physical product.',
-        });
-        return;
-      }
-    }
-
-    if (productType === 'file') {
-      // Only throw validation error if it is a new asset build without a file path tracking reference
-      if (!fileDetails?.rawBlobOrFile?.uri && !fileDetails?.fileUrl) {
-        Toast.show({
-          type: 'error',
-          text1: 'Missing Asset',
-          text2: 'Please attach the digital product file before publishing.',
-        });
-        return;
-      }
-    }
-
-    if (productType === 'course') {
-      if (!lessons || lessons.length === 0) {
-        Toast.show({
-          type: 'error',
-          text1: 'Missing Content',
-          text2: 'Please add at least one lesson module to your course.',
         });
         return;
       }
@@ -371,8 +321,6 @@ export const CreateProductScreen = ({ route }: any) => {
         mediaUrls: finalThumbnails,
         niche,
         physicalDetails,
-        fileDetails,
-        lessons,
       };
       const result = await saveProductApiCall(
         formPayload,
@@ -471,14 +419,6 @@ export const CreateProductScreen = ({ route }: any) => {
             colors: [],
             sizes: [],
           };
-        } else if (computedType === 'physical') {
-          updated.fileDetails = {
-            fileName: '',
-            fileSizeInMB: 0,
-            fileFormat: '',
-            fileUrl: '',
-            isUploading: false,
-          };
         }
 
         return updated;
@@ -494,11 +434,6 @@ export const CreateProductScreen = ({ route }: any) => {
           ...initialFormInputs.physicalDetails,
           ...(existingProduct.physicalDetails || {}),
         },
-        fileDetails: {
-          ...initialFormInputs.fileDetails,
-          ...(existingProduct.fileDetails || {}),
-        },
-        lessons: existingProduct.lessons || [],
       });
     }
   }, [initialFormInputs, existingProduct]);
@@ -585,11 +520,7 @@ export const CreateProductScreen = ({ route }: any) => {
       >
         <StepHeader
           number={2}
-          title={
-            productType === 'course'
-              ? 'Course Lessons & Video Curriculum'
-              : 'Media & Photos'
-          }
+          title={'Media & Photos'}
           currentStep={activeStep}
           toggleStep={toggleStep}
         />
@@ -643,420 +574,327 @@ export const CreateProductScreen = ({ route }: any) => {
         <StepHeader
           number={3}
           toggleStep={toggleStep}
-          title={`${
-            productType.charAt(0).toUpperCase() + productType.slice(1)
-          } Details`}
+          title={`Product Details`}
           currentStep={activeStep}
         />
         {activeStep === 3 && (
           <View style={styles.expandedContent}>
-            {productType === 'physical' && (
-              <>
-                <View style={styles.row}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={[styles.label, { color: colors.text }]}>
-                      Weight (Kg)
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        { color: colors.text, width: 'auto' },
-                      ]}
-                      placeholderTextColor={colors.inputTextHolder}
-                      placeholder="0.5"
-                      keyboardType="numeric"
-                      value={formInputs.physicalDetails.weightKg}
-                      onChangeText={text => {
-                        const cleanFloat = text
-                          .replace(/[^0-9.]/g, '')
-                          .replace(/(\..*?)\..*/g, '$1');
-                        setFormInputs(prev => ({
-                          ...prev,
-                          physicalDetails: {
-                            ...prev.physicalDetails,
-                            weightKg: cleanFloat,
-                          },
-                        }));
-                      }}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.label, { color: colors.text }]}>
-                      Stock Quantity
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        { color: colors.text, width: 'auto' },
-                      ]}
-                      placeholder="10"
-                      placeholderTextColor={colors.inputTextHolder}
-                      keyboardType="number-pad"
-                      value={formInputs.physicalDetails.inStock}
-                      onChangeText={text => {
-                        const cleanInt = text.replace(/[^0-9]/g, '');
-                        setFormInputs(prev => ({
-                          ...prev,
-                          physicalDetails: {
-                            ...prev.physicalDetails,
-                            inStock: cleanInt,
-                          },
-                        }));
-                      }}
-                    />
-                  </View>
-                </View>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Available Colors (Optional)
-                </Text>
-                <View style={styles.tagInputContainer}>
+            <>
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={[styles.label, { color: colors.text }]}>
+                    Weight (Kg)
+                  </Text>
                   <TextInput
                     style={[
                       styles.input,
-                      { flex: 1, width: 'auto', color: colors.text },
+                      { color: colors.text, width: 'auto' },
                     ]}
-                    placeholder="e.g. Red, Blue, Matte Black"
-                    value={colorInput}
                     placeholderTextColor={colors.inputTextHolder}
-                    onChangeText={setColorInput}
-                    onSubmitEditing={handleAddColor}
+                    placeholder="0.5"
+                    keyboardType="numeric"
+                    value={formInputs.physicalDetails.weightKg}
+                    onChangeText={text => {
+                      const cleanFloat = text
+                        .replace(/[^0-9.]/g, '')
+                        .replace(/(\..*?)\..*/g, '$1');
+                      setFormInputs(prev => ({
+                        ...prev,
+                        physicalDetails: {
+                          ...prev.physicalDetails,
+                          weightKg: cleanFloat,
+                        },
+                      }));
+                    }}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.addTagButton,
-                      { backgroundColor: colors.btnColor },
-                    ]}
-                    onPress={handleAddColor}
-                  >
-                    <Text
-                      style={[
-                        styles.addTagButtonText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Add
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-                <View style={styles.tagWrapper}>
-                  {(formInputs.physicalDetails?.colors || []).map(
-                    (color, index) => (
-                      <TouchableOpacity
-                        key={`color-${index}`}
-                        style={styles.tagBadge}
-                        onPress={() =>
-                          setFormInputs((prev: any) => {
-                            const currentColors =
-                              prev.physicalDetails?.colors || [];
-                            return {
-                              ...prev,
-                              physicalDetails: {
-                                ...prev.physicalDetails,
-                                colors: currentColors.filter(
-                                  (c: string) => c !== color,
-                                ),
-                              },
-                            };
-                          })
-                        }
-                      >
-                        <Text style={[styles.tagText, { color: colors.text }]}>
-                          {color} ✕
-                        </Text>
-                      </TouchableOpacity>
-                    ),
-                  )}
-                </View>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Available Sizes (Optional)
-                </Text>
-                <View style={styles.tagInputContainer}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: colors.text }]}>
+                    Stock Quantity
+                  </Text>
                   <TextInput
                     style={[
                       styles.input,
-                      { flex: 1, marginBottom: 0, color: colors.text },
+                      { color: colors.text, width: 'auto' },
                     ]}
-                    placeholder="e.g. Medium, XL, 42, 10 inches"
-                    value={sizeInput}
+                    placeholder="10"
                     placeholderTextColor={colors.inputTextHolder}
-                    onChangeText={setSizeInput}
-                    onSubmitEditing={handleAddSize}
+                    keyboardType="number-pad"
+                    value={formInputs.physicalDetails.inStock}
+                    onChangeText={text => {
+                      const cleanInt = text.replace(/[^0-9]/g, '');
+                      setFormInputs(prev => ({
+                        ...prev,
+                        physicalDetails: {
+                          ...prev.physicalDetails,
+                          inStock: cleanInt,
+                        },
+                      }));
+                    }}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.addTagButton,
-                      { backgroundColor: colors.btnColor },
-                    ]}
-                    onPress={handleAddSize}
-                  >
-                    <Text
-                      style={[
-                        styles.addTagButtonText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Add
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-                <View style={styles.tagWrapper}>
-                  {(formInputs.physicalDetails?.sizes || []).map(
-                    (size, index) => (
-                      <TouchableOpacity
-                        key={`size-${index}`}
-                        style={[styles.tagBadge]}
-                        onPress={() =>
-                          setFormInputs((prev: any) => {
-                            // Typing 'prev' as any prevents any trailing syntax errors
-                            const currentSizes =
-                              prev.physicalDetails?.sizes || [];
-                            return {
-                              ...prev,
-                              physicalDetails: {
-                                ...prev.physicalDetails,
-                                sizes: currentSizes.filter(
-                                  (s: string) => s !== size,
-                                ),
-                              },
-                            };
-                          })
-                        }
-                      >
-                        <Text style={[styles.tagText, { color: colors.text }]}>
-                          {size} ✕
-                        </Text>
-                      </TouchableOpacity>
-                    ),
-                  )}
-                </View>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Fulfillment / Delivery Options
-                </Text>
-                <Text style={[styles.subLabel, { color: colors.text }]}>
-                  How will the buyer receive this item? Select all that apply.
-                </Text>
-                <View style={styles.gatewayRow}>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
+              </View>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Available Colors (Optional)
+              </Text>
+              <View style={styles.tagInputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, width: 'auto', color: colors.text },
+                  ]}
+                  placeholder="e.g. Red, Blue, Matte Black"
+                  value={colorInput}
+                  placeholderTextColor={colors.inputTextHolder}
+                  onChangeText={setColorInput}
+                  onSubmitEditing={handleAddColor}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.addTagButton,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                  onPress={handleAddColor}
+                >
+                  <Text
                     style={[
-                      styles.gatewayChip,
-                      formInputs.physicalDetails.sellerGateways.includes(
-                        'drop_off',
-                      ) && styles.activeChip,
+                      styles.addTagButtonText,
+                      { color: colors.btnTextColor },
                     ]}
-                    onPress={() => {
-                      setFormInputs(prev => {
-                        const currentGateways =
-                          prev.physicalDetails.sellerGateways;
-                        const hasIt = currentGateways.includes('drop_off');
-
-                        const updatedGateways = hasIt
-                          ? currentGateways.filter(g => g !== 'drop_off')
-                          : [...currentGateways, 'drop_off'];
-
-                        return {
-                          ...prev,
-                          physicalDetails: {
-                            ...prev.physicalDetails,
-                            sellerGateways:
-                              updatedGateways as typeof currentGateways,
-                            dropOffAddress: hasIt
-                              ? []
-                              : prev.physicalDetails.dropOffAddress,
-                          },
-                        };
-                      });
-                    }}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        formInputs.physicalDetails.sellerGateways.includes(
-                          'drop_off',
-                        )
-                          ? { color: colors.primary }
-                          : { color: colors.text },
-                      ]}
-                    >
-                      Drop-off Station
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={[
-                      styles.gatewayChip,
-                      formInputs.physicalDetails.sellerGateways.includes(
-                        'home_delivery',
-                      ) && styles.activeChip,
-                    ]}
-                    onPress={() => {
-                      setFormInputs(prev => {
-                        const currentGateways =
-                          prev.physicalDetails.sellerGateways;
-                        const hasIt = currentGateways.includes('home_delivery');
-
-                        const updatedGateways = hasIt
-                          ? currentGateways.filter(g => g !== 'home_delivery')
-                          : [...currentGateways, 'home_delivery'];
-
-                        return {
-                          ...prev,
-                          physicalDetails: {
-                            ...prev.physicalDetails,
-                            sellerGateways:
-                              updatedGateways as typeof currentGateways,
-                          },
-                        };
-                      });
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        formInputs.physicalDetails.sellerGateways.includes(
-                          'home_delivery',
-                        )
-                          ? { color: colors.primary }
-                          : { color: colors.text },
-                      ]}
-                    >
-                      Home Delivery
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                {formInputs.physicalDetails.sellerGateways.includes(
-                  'drop_off',
-                ) && (
-                  <>
-                    <Text style={[styles.label, { color: colors.text }]}>
-                      Select Drop-off Hubs Nearby
-                    </Text>
-                    <Text style={[styles.subLabel, { color: colors.text }]}>
-                      Choose where you can physically drop your products for
-                      pickup by the buyer upon sale.
-                    </Text>
-                    <StationCarousel
-                      stations={stations}
-                      selectedStation={null}
-                      onSelect={station => {
-                        setFormInputs(prev => {
-                          const currentAddresses =
-                            prev.physicalDetails.dropOffAddress;
-                          const alreadySelected = currentAddresses.some(
-                            s => s.code === station.code,
-                          );
-
-                          const updatedStations = alreadySelected
-                            ? currentAddresses.filter(
-                                s => s.code !== station.code,
-                              )
-                            : [...currentAddresses, station];
-
+                    Add
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.tagWrapper}>
+                {(formInputs.physicalDetails?.colors || []).map(
+                  (color, index) => (
+                    <TouchableOpacity
+                      key={`color-${index}`}
+                      style={styles.tagBadge}
+                      onPress={() =>
+                        setFormInputs((prev: any) => {
+                          const currentColors =
+                            prev.physicalDetails?.colors || [];
                           return {
                             ...prev,
                             physicalDetails: {
                               ...prev.physicalDetails,
-                              dropOffAddress:
-                                updatedStations as typeof currentAddresses,
+                              colors: currentColors.filter(
+                                (c: string) => c !== color,
+                              ),
                             },
                           };
-                        });
-                      }}
-                      userCoords={userCoords}
-                    />
-                  </>
+                        })
+                      }
+                    >
+                      <Text style={[styles.tagText, { color: colors.text }]}>
+                        {color} ✕
+                      </Text>
+                    </TouchableOpacity>
+                  ),
                 )}
-              </>
-            )}
-            {productType === 'course' && (
-              <>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Co-Lecturers / Instructors (Optional)
-                </Text>
-                <Text style={[styles.subLabel, { color: colors.text }]}>
-                  You are automatically assigned as the primary instructor. Add
-                  your co-creator's fullname if you are co-authoring this course
-                  (Optional).
-                </Text>
-
+              </View>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Available Sizes (Optional)
+              </Text>
+              <View style={styles.tagInputContainer}>
                 <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="e.g. John Mark"
+                  style={[
+                    styles.input,
+                    { flex: 1, marginBottom: 0, color: colors.text },
+                  ]}
+                  placeholder="e.g. Medium, XL, 42, 10 inches"
+                  value={sizeInput}
                   placeholderTextColor={colors.inputTextHolder}
-                  value={(formInputs as any).additionalLecturersRaw || ''}
-                  onChangeText={text =>
-                    setFormInputs(
-                      prev =>
-                        ({
-                          ...prev,
-                          additionalLecturersRaw: text,
-                        }) as any,
-                    )
-                  }
-                  autoCorrect={false}
+                  onChangeText={setSizeInput}
+                  onSubmitEditing={handleAddSize}
                 />
-              </>
-            )}
-            {productType === 'file' && (
-              <>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Upload Digital Product Asset
-                </Text>
-                <Text style={[styles.subLabel, { color: colors.text }]}>
-                  Upload the document, textbook, or source archive. Buyers will
-                  instantly unlock download access post-checkout.
-                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.addTagButton,
+                    { backgroundColor: colors.btnColor },
+                  ]}
+                  onPress={handleAddSize}
+                >
+                  <Text
+                    style={[
+                      styles.addTagButtonText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Add
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.tagWrapper}>
+                {(formInputs.physicalDetails?.sizes || []).map(
+                  (size, index) => (
+                    <TouchableOpacity
+                      key={`size-${index}`}
+                      style={[styles.tagBadge]}
+                      onPress={() =>
+                        setFormInputs((prev: any) => {
+                          // Typing 'prev' as any prevents any trailing syntax errors
+                          const currentSizes =
+                            prev.physicalDetails?.sizes || [];
+                          return {
+                            ...prev,
+                            physicalDetails: {
+                              ...prev.physicalDetails,
+                              sizes: currentSizes.filter(
+                                (s: string) => s !== size,
+                              ),
+                            },
+                          };
+                        })
+                      }
+                    >
+                      <Text style={[styles.tagText, { color: colors.text }]}>
+                        {size} ✕
+                      </Text>
+                    </TouchableOpacity>
+                  ),
+                )}
+              </View>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Fulfillment / Delivery Options
+              </Text>
+              <Text style={[styles.subLabel, { color: colors.text }]}>
+                How will the buyer receive this item? Select all that apply.
+              </Text>
+              <View style={styles.gatewayRow}>
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  style={styles.fileUploadBox}
-                  onPress={handleDigitalFilePick}
-                  disabled={formInputs.fileDetails.isUploading}
+                  style={[
+                    styles.gatewayChip,
+                    formInputs.physicalDetails.sellerGateways.includes(
+                      'drop_off',
+                    ) && styles.activeChip,
+                  ]}
+                  onPress={() => {
+                    setFormInputs(prev => {
+                      const currentGateways =
+                        prev.physicalDetails.sellerGateways;
+                      const hasIt = currentGateways.includes('drop_off');
+
+                      const updatedGateways = hasIt
+                        ? currentGateways.filter(g => g !== 'drop_off')
+                        : [...currentGateways, 'drop_off'];
+
+                      return {
+                        ...prev,
+                        physicalDetails: {
+                          ...prev.physicalDetails,
+                          sellerGateways:
+                            updatedGateways as typeof currentGateways,
+                          dropOffAddress: hasIt
+                            ? []
+                            : prev.physicalDetails.dropOffAddress,
+                        },
+                      };
+                    });
+                  }}
                 >
-                  {formInputs.fileDetails.isUploading ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : formInputs.fileDetails.fileUrl ? (
-                    <>
-                      <MaterialIcons
-                        name="insert-drive-file-outlined"
-                        size={25}
-                        color={colors.primary}
-                      />
-                      <Text
-                        style={[styles.fileNameText, { color: colors.text }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {formInputs.fileDetails.fileName}
-                      </Text>
-                      <Text
-                        style={[styles.fileMetaText, { color: colors.text }]}
-                      >
-                        {formInputs.fileDetails.fileFormat} •{' '}
-                        {formInputs.fileDetails.fileSizeInMB} MB
-                      </Text>
-                      <Text
-                        style={[styles.reUploadText, { color: colors.primary }]}
-                      >
-                        Tap to replace file
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <MaterialIcons
-                        name="file-upload-outlined"
-                        size={25}
-                        color={colors.primary}
-                      />
-                      <Text
-                        style={[styles.uploadBoxText, { color: colors.text }]}
-                      >
-                        Select PDF, ZIP, EPUB, or Source Document
-                      </Text>
-                    </>
-                  )}
+                  <Text
+                    style={[
+                      styles.chipText,
+                      formInputs.physicalDetails.sellerGateways.includes(
+                        'drop_off',
+                      )
+                        ? { color: colors.primary }
+                        : { color: colors.text },
+                    ]}
+                  >
+                    Drop-off Station
+                  </Text>
                 </TouchableOpacity>
-              </>
-            )}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[
+                    styles.gatewayChip,
+                    formInputs.physicalDetails.sellerGateways.includes(
+                      'home_delivery',
+                    ) && styles.activeChip,
+                  ]}
+                  onPress={() => {
+                    setFormInputs(prev => {
+                      const currentGateways =
+                        prev.physicalDetails.sellerGateways;
+                      const hasIt = currentGateways.includes('home_delivery');
+
+                      const updatedGateways = hasIt
+                        ? currentGateways.filter(g => g !== 'home_delivery')
+                        : [...currentGateways, 'home_delivery'];
+
+                      return {
+                        ...prev,
+                        physicalDetails: {
+                          ...prev.physicalDetails,
+                          sellerGateways:
+                            updatedGateways as typeof currentGateways,
+                        },
+                      };
+                    });
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      formInputs.physicalDetails.sellerGateways.includes(
+                        'home_delivery',
+                      )
+                        ? { color: colors.primary }
+                        : { color: colors.text },
+                    ]}
+                  >
+                    Home Delivery
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {formInputs.physicalDetails.sellerGateways.includes(
+                'drop_off',
+              ) && (
+                <>
+                  <Text style={[styles.label, { color: colors.text }]}>
+                    Select Drop-off Hubs Nearby
+                  </Text>
+                  <Text style={[styles.subLabel, { color: colors.text }]}>
+                    Choose where you can physically drop your products for
+                    pickup by the buyer upon sale.
+                  </Text>
+                  <StationCarousel
+                    stations={stations}
+                    selectedStation={null}
+                    onSelect={station => {
+                      setFormInputs(prev => {
+                        const currentAddresses =
+                          prev.physicalDetails.dropOffAddress;
+                        const alreadySelected = currentAddresses.some(
+                          s => s.code === station.code,
+                        );
+
+                        const updatedStations = alreadySelected
+                          ? currentAddresses.filter(
+                              s => s.code !== station.code,
+                            )
+                          : [...currentAddresses, station];
+
+                        return {
+                          ...prev,
+                          physicalDetails: {
+                            ...prev.physicalDetails,
+                            dropOffAddress:
+                              updatedStations as typeof currentAddresses,
+                          },
+                        };
+                      });
+                    }}
+                    userCoords={userCoords}
+                  />
+                </>
+              )}
+            </>
           </View>
         )}
       </View>

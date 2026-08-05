@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Camera, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
+import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 interface OrderScannerProps {
@@ -10,32 +10,43 @@ interface OrderScannerProps {
   instructionText?: string;
 }
 
-export const OrderScannerModal = ({ isVisible, onClose, onSuccess, instructionText }: OrderScannerProps) => {
+export const OrderScannerModal = ({
+  isVisible,
+  onClose,
+  onSuccess,
+  instructionText,
+}: OrderScannerProps) => {
+  const cameraRef = useRef<any>(null);
   const device = useCameraDevice('back');
+  const useCodeScanner = (params: any) =>
+    (Camera as any).useCodeScanner
+      ? (Camera as any).useCodeScanner(params)
+      : params;
   const codeScanner = useCodeScanner({
     codeTypes: ['qr'],
-    onCodeScanned: (codes) => {
+    onCodeScanned: (codes: any[]) => {
       if (codes.length > 0 && codes[0].value) {
         onSuccess(codes[0].value);
       }
-    }
+    },
   });
   if (!device) return null;
   return (
     <Modal visible={isVisible} animationType="slide" transparent={false}>
       <View style={styles.container}>
-        <Camera
-          style={StyleSheet.absoluteFill}
-          device={device}
-          isActive={isVisible}
-          codeScanner={codeScanner}
-        />
-        
+        {React.createElement(Camera as any, {
+          style: StyleSheet.absoluteFill,
+          device: device,
+          isActive: isVisible,
+          codeScanner: codeScanner,
+          ref: cameraRef,
+        })}
+
         {/* Overlay UI */}
         <View style={styles.overlay}>
           <View style={styles.scanFrame} />
           <Text style={styles.instruction}>
-            {instructionText || "Align Order QR within the frame"}
+            {instructionText || 'Align Order QR within the frame'}
           </Text>
         </View>
 

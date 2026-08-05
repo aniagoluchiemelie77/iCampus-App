@@ -41,8 +41,6 @@ export const TIER_COLORS: Record<string, string> = {
   enterprise: ENTERPRISE_BADGE_COLOR 
 } as const;
 export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
-  file: 100,
-  course: 500,
   physical: 1000,
 } as const;
 export const ICASH_PIN_MAX_ATTEMPTS = 5 as const ;

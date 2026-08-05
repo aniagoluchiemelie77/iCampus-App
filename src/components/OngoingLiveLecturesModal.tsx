@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Modal, Portal } from 'react-native-paper';
 import { Lecture } from '../types/firebase';
-import {LiveClassSessionStyles} from './StudentLiveClassSession';
 import { useTheme } from '../context/ThemeContext';
 
 interface OngoingLectureModalProps {
@@ -25,43 +24,27 @@ export const OngoingLectureModal = ({
       <Modal
         visible={visible}
         onDismiss={onDismiss}
-        contentContainerStyle={LiveClassSessionStyles.modalOverlay}
+        contentContainerStyle={styles.modalOverlay}
       >
         <View
           style={[
-            LiveClassSessionStyles.modalContainer,
+            styles.modalContainer,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <Text
-            style={[
-              LiveClassSessionStyles.modalTitle,
-              { color: colors.textDarker },
-            ]}
-          >
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
             {lecture?.topicName} - Live Lecture Ongoing!
           </Text>
-          <Text
-            style={[
-              LiveClassSessionStyles.modalSubText,
-              { color: colors.text },
-            ]}
-          >
+          <Text style={[styles.modalSubText, { color: colors.text }]}>
             Your online class is currently live. Would you like to join now?
           </Text>
-          <View style={LiveClassSessionStyles.row}>
+          <View style={styles.row}>
             <TouchableOpacity
               onPress={onDismiss}
-              style={[
-                LiveClassSessionStyles.reviewModalBtn,
-                { borderColor: colors.primary },
-              ]}
+              style={[styles.reviewModalBtn, { borderColor: colors.primary }]}
             >
               <Text
-                style={[
-                  LiveClassSessionStyles.reviewModalBtnText,
-                  { color: colors.primary },
-                ]}
+                style={[styles.reviewModalBtnText, { color: colors.primary }]}
               >
                 Not Now
               </Text>
@@ -69,13 +52,13 @@ export const OngoingLectureModal = ({
             <TouchableOpacity
               onPress={onJoin}
               style={[
-                LiveClassSessionStyles.reviewModalBtn,
+                styles.reviewModalBtn,
                 { backgroundColor: colors.btnColor },
               ]}
             >
               <Text
                 style={[
-                  LiveClassSessionStyles.reviewModalBtnText,
+                  styles.reviewModalBtnText,
                   { color: colors.btnTextColor },
                 ]}
               >
@@ -88,3 +71,51 @@ export const OngoingLectureModal = ({
     </Portal>
   );
 };
+export const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    alignContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    width: '80%',
+    borderRadius: 15,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  modalSubText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 15,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+  },
+  reviewModalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    alignContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  reviewModalBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});

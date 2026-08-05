@@ -22,7 +22,7 @@ import { homeStyles } from '../assets/styles/colors';
 import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from '../types/firebase';
@@ -120,6 +120,7 @@ const HomeScreen = () => {
     const index = e.nativeEvent.position;
     setActiveIcon(screens[index]);
   };
+  const messagingInstance = getMessaging();
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24;
@@ -145,10 +146,13 @@ const HomeScreen = () => {
     }
   }, [route.params?.activeTab]);
   useEffect(() => {
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      playNotificationSound();
-      console.log('A new FCM message arrived!', remoteMessage);
-    });
+    const unsubscribe = onMessage(
+      messagingInstance,
+      async (remoteMessage: any) => {
+        playNotificationSound();
+        console.log('A new FCM message arrived!', remoteMessage);
+      },
+    );
 
     return unsubscribe;
   }, []);

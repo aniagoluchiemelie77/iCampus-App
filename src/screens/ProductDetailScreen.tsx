@@ -210,26 +210,6 @@ export const ProductDetailScreen = () => {
               </View>
             </View>
           )}
-          {product.type === 'file' && product.fileDetails && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                File Specifications
-              </Text>
-              <View style={styles.rowDiv}>
-                <View style={styles.infoRow}>
-                  <MaterialIcons
-                    name="insert-drive-file-outlined"
-                    size={20}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {product.fileDetails.fileFormat.toUpperCase()} •{' '}
-                    {product.fileDetails.fileSizeInMB} MB
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
           {product.type === 'physical' && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>

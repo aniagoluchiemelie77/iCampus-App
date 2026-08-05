@@ -371,9 +371,9 @@ const CreateAssignmentModal = ({
         });
       }
     } catch (err: any) {
-      if (
-        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
-      ) {
+      if (!(
+        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+      )) {
         Toast.show({
           type: 'error',
           text1: 'Document Error',
@@ -658,8 +658,8 @@ const CreateAssignmentModal = ({
                 {isUploadingMedia
                   ? 'Uploading Asset...'
                   : isSaving
-                  ? 'Creating...'
-                  : 'Add Assignment'}
+                    ? 'Creating...'
+                    : 'Add Assignment'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1339,9 +1339,9 @@ export const RenderMaterials = ({
         }
       }
     } catch (err: any) {
-      if (
-        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
-      ) {
+      if (!(
+        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+      )) {
         Toast.show({
           type: 'error',
           text1: 'Document Error',
@@ -1866,8 +1866,8 @@ export const RenderStudentExceptions = ({
                 item.status === 'approved'
                   ? 'check-circle-outlined'
                   : item.status === 'rejected'
-                  ? 'error-outline-outlined'
-                  : 'access-time-outlined'
+                    ? 'error-outline-outlined'
+                    : 'access-time-outlined'
               }
               size={14}
               color={colors.primary}
@@ -3583,7 +3583,7 @@ export const RenderStudentTest = ({
 
   const appState = useRef(AppState.currentState);
   const lookAwayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef<any>(null);
   const device = useCameraDevice('front');
   const [isUploading, setIsUploading] = useState(false);
   const gradeShortAnswersWithAI = async (shortAnswerPairs: any[]) => {
