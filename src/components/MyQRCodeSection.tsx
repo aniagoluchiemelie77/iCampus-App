@@ -7,7 +7,6 @@ import {
   StyleSheet,
   LayoutAnimation,
   TouchableOpacity,
-  Linking,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -35,15 +34,6 @@ interface FAQItemProps {
   question: string;
   answer: string;
 }
-const handleDownload = (url: string) => {
-  if (!url) {
-    Alert.alert('Error', 'Download link not available.');
-    return;
-  }
-  Linking.openURL(url).catch(() =>
-    Alert.alert('Error', 'Could not open download link.'),
-  );
-};
 export const MyQRCodeSection = ({ itagusername }: { itagusername: string }) => {
   const { colors } = useTheme();
   return (
