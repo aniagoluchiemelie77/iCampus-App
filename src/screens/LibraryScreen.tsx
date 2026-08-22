@@ -91,7 +91,7 @@ export const LibraryScreen: React.FC = () => {
     setLoading(true);
     const userDept = user?.department || '';
     try {
-      const result = await fetchFeaturedBooksByDepartment(userDept);
+      const result = await fetchFeaturedBooksByDepartment({department: userDept});
 
       if (result.success) {
         setBooks(result.books);
@@ -238,7 +238,12 @@ export const LibraryScreenStyles = StyleSheet.create({
   infoContainer: { flex: 1, padding: 12 },
   title: { fontSize: 14, fontWeight: '700' },
   author: { fontSize: 13, color: PRIMARY_COLOR_TINT, marginTop: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
   badge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -248,12 +253,7 @@ export const LibraryScreenStyles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY_COLOR },
   sizeText: { fontSize: 12 },
   downloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingHorizontal: 15,
   },
   downloadText: { fontSize: 14, fontWeight: '600', marginLeft: 6 },
   placeholderOverlay: {
@@ -268,7 +268,8 @@ export const LibraryScreenStyles = StyleSheet.create({
   },
   loaderContainer: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingText: {
     marginTop: 15,

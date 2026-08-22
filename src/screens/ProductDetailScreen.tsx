@@ -13,6 +13,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
 import { useAppDataContext } from '../context/EventContext';
 import { PageHeader } from '../components/PageHeader';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   PRIMARY_COLOR,
   PRIMARY_COLOR_TINT,
@@ -210,26 +211,6 @@ export const ProductDetailScreen = () => {
               </View>
             </View>
           )}
-          {product.type === 'file' && product.fileDetails && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                File Specifications
-              </Text>
-              <View style={styles.rowDiv}>
-                <View style={styles.infoRow}>
-                  <MaterialIcons
-                    name="insert-drive-file-outlined"
-                    size={20}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {product.fileDetails.fileFormat.toUpperCase()} •{' '}
-                    {product.fileDetails.fileSizeInMB} MB
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
           {product.type === 'physical' && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -319,21 +300,16 @@ export const ProductDetailScreen = () => {
               <Text style={[styles.sectionTitle2, { color: colors.text }]}>
                 More by this seller
               </Text>
-              <TouchableOpacity
+              <CustomButton
+                title='See All'
                 onPress={() =>
                   navigation.navigate('SellerProducts', {
                     sellerId: product.sellerId,
                     seller: seller,
                   })
                 }
-                style={[styles.moreBtn, { backgroundColor: colors.btnColor }]}
-              >
-                <Text
-                  style={[styles.moreBtnText, { color: colors.btnTextColor }]}
-                >
-                  See All
-                </Text>
-              </TouchableOpacity>
+                style={styles.moreBtn}
+              />
             </View>
             <FlatList
               data={moreProducts}
@@ -362,9 +338,7 @@ export const ProductDetailScreen = () => {
             onPress={() => handleToggleFavorite(product.productId)}
           >
             <MaterialIcons
-              name={
-                isFavorite ? 'favorite-outlined' : 'favorite-border-outlined'
-              }
+              name={isFavorite ? 'favorite' : 'favorite-border'}
               size={28}
               color={colors.primary}
             />
@@ -377,15 +351,17 @@ export const ProductDetailScreen = () => {
               }
             >
               <MaterialIcons
-                name={'shopping-cart-outlined'}
+                name={'shopping-cart'}
                 size={28}
                 color={colors.primary}
+                style={{ padding: 10 }}
               />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          style={[styles.checkoutBtn, { backgroundColor: colors.btnColor }]}
+        <CustomButton
+          title="Buy Now"
+          style={[styles.checkoutBtn]}
           onPress={() =>
             navigation.navigate('Checkout', {
               productId,
@@ -394,11 +370,7 @@ export const ProductDetailScreen = () => {
               size: selectedSize,
             })
           }
-        >
-          <Text style={[styles.btnText, { color: colors.btnTextColor }]}>
-            Buy Now
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
     </View>
   );
@@ -628,7 +600,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     justifyContent: 'center',
-    alignContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fadccc',
   },
   selectedSize: {
@@ -653,7 +625,8 @@ const styles = StyleSheet.create({
   qtyBtn: {
     padding: 15,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -701,7 +674,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnText: {
     fontSize: 14,
@@ -725,7 +699,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   moreSection: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   moreHeader: {
     flexDirection: 'row',
@@ -735,9 +710,7 @@ const styles = StyleSheet.create({
   },
   moreBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignContent: 'center',
+    width: 'auto'
   },
   moreBtnText: {
     fontSize: 14,

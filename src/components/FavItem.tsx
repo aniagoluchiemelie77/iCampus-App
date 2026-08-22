@@ -47,7 +47,7 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
             style={[styles.removeButton, { backgroundColor: colors.btnColor }]}
           >
             <MaterialIcons
-              name="delete-outlined"
+              name="delete"
               size={18}
               color={colors.btnTextColor}
             />
@@ -99,7 +99,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   removeButton: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,

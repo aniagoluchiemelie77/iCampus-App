@@ -32,6 +32,7 @@ import RNPickerSelect from 'react-native-picker-select';
 import moment from 'moment';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../context/UserSlice';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import Svg, {
   Polyline,
   Defs,
@@ -75,20 +76,29 @@ const ProductListHeader = ({
   onAdd: () => void;
 }) => {
   const { colors: themeColors } = useTheme();
-  return(
-  <View style={[styles.listHeader, {backgroundColor: themeColors.backgroundSecondary}]}>
-    <Text style={[styles.countText, {color: themeColors.textDarker}]}>
-      {count} {count === 1 ? 'Product' : 'Products'}
-    </Text>
-    <TouchableOpacity style={[styles.addBtn, {backgroundColor: themeColors.btnColor}]} onPress={onAdd}>
-      <MaterialIcons name="add-business-outlined" size={20} color={themeColors.btnTextColor} />
-      <Text style={[styles.addBtnText, {marginLeft: 4, color: themeColors.btnTextColor}]}>New</Text>
-    </TouchableOpacity>
-  </View>
-)};
+  return (
+    <View
+      style={[
+        styles.listHeader,
+        { backgroundColor: themeColors.backgroundSecondary },
+      ]}
+    >
+      <Text style={[styles.countText, { color: themeColors.textDarker }]}>
+        {count} {count === 1 ? 'Product' : 'Products'}
+      </Text>
+      <CustomButton
+        title="Create New Listing"
+        style={[styles.addBtn, { backgroundColor: themeColors.btnColor }]}
+        onPress={onAdd}
+        iconName="add-business"
+        iconColor="#fff"
+      />
+    </View>
+  );
+};
 const ProductEmptyState = ({ onAdd }: { onAdd: () => void }) => (
   <EmptyState
-    iconName="store-front-outlined"
+    iconName="store-front"
     title="No Products Found"
     subtitle="You haven't listed any items for sale yet. Start your journey by adding your first product!"
     buttonText="Create Product"
@@ -192,7 +202,7 @@ export const OrdersList = () => {
         ]}
       >
         <MaterialIcons
-          name="hourglass-disabled-outlined"
+          name="hourglass-disabled"
           size={50}
           color={themeColors.text}
         />
@@ -212,7 +222,7 @@ export const OrdersList = () => {
             sellerOrders.filter(o => o.status === 'pending_delivery').length,
           )}
           color={themeColors.pendingDelivery}
-          icon="delivery-dining-outlined"
+          icon="delivery-dining"
         />
         <StatusCard
           label="Completed"
@@ -220,7 +230,7 @@ export const OrdersList = () => {
             sellerOrders.filter(o => o.status === 'completed').length,
           )}
           color={themeColors.success}
-          icon="check-circle-outlined"
+          icon="check-circle"
         />
         <StatusCard
           label="Cancelled"
@@ -228,7 +238,7 @@ export const OrdersList = () => {
             sellerOrders.filter(o => o.status === 'cancelled').length,
           )}
           color={themeColors.primary}
-          icon="cancel-outlined"
+          icon="cancel"
         />
       </View>
       <FlatList
@@ -301,19 +311,13 @@ export const OverviewsScreenComponent = () => {
           <Text style={[styles.emptyStateSub, { color: themeColors.text }]}>
             You haven't uploaded any products yet.
           </Text>
-          <TouchableOpacity
-            style={[
-              styles.addBtnSmall,
-              { backgroundColor: themeColors.btnColor },
-            ]}
+          <CustomButton
+            title="Upload First Product"
             onPress={() => navigation.navigate('CreateProduct')}
-          >
-            <Text
-              style={[styles.addBtnText, { color: themeColors.btnTextColor }]}
-            >
-              Upload First Product
-            </Text>
-          </TouchableOpacity>
+            style={[
+              styles.addBtnSmall
+            ]}
+          />
         </View>
       ) : (
         <>
@@ -466,7 +470,7 @@ export const OverviewsScreenComponent = () => {
                       Total Generated Income
                     </Text>
                     <MaterialIcons
-                      name="diamond-outlined"
+                      name="diamond"
                       size={16}
                       color={themeColors.primary}
                     />
@@ -488,7 +492,7 @@ export const OverviewsScreenComponent = () => {
                       Available For Payout
                     </Text>
                     <MaterialIcons
-                      name="diamond-outlined"
+                      name="diamond"
                       size={16}
                       color={themeColors.success}
                     />
@@ -512,7 +516,7 @@ export const OverviewsScreenComponent = () => {
                     .length,
                 )}
                 color={themeColors.pendingDelivery}
-                icon="delivery-dining-outlined"
+                icon="delivery-dining"
               />
               <StatusCard
                 label="Completed Orders"
@@ -520,7 +524,7 @@ export const OverviewsScreenComponent = () => {
                   sellerOrders.filter(o => o.status === 'completed').length,
                 )}
                 color={themeColors.success}
-                icon="check-circle-outlined"
+                icon="check-circle"
               />
               <StatusCard
                 label="Cancelled Orders"
@@ -528,7 +532,7 @@ export const OverviewsScreenComponent = () => {
                   sellerOrders.filter(o => o.status === 'cancelled').length,
                 )}
                 color={themeColors.primary}
-                icon="cancel-outlined"
+                icon="cancel"
               />
             </View>
           )}
@@ -668,46 +672,29 @@ export const ProductList = () => {
           </Text>
           <View style={styles.detailsRow}>
             <View style={styles.badge}>
-              {isPhysical ? (
-                <>
-                  <MaterialIcons
-                    name="inventory-outlined"
-                    size={16}
-                    color={
-                      isOutOfStock
-                        ? themeColors.primary
-                        : isLowStock
-                          ? themeColors.primaryTint
-                          : themeColors.text
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.detailText,
-                      isOutOfStock
-                        ? { color: themeColors.primary }
-                        : { color: themeColors.text },
-                    ]}
-                  >
-                    {isOutOfStock
-                      ? 'Out of Stock'
-                      : `${item.amountInStock} in Stock`}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <MaterialIcons
-                    name="insert-drive-file"
-                    size={14}
-                    color={themeColors.text}
-                  />
-                  <Text
-                    style={[styles.detailText, { color: themeColors.text }]}
-                  >
-                    {item.fileDetails?.fileFormat?.toUpperCase() || 'FILE'}
-                  </Text>
-                </>
-              )}
+              <MaterialIcons
+                name="inventory"
+                size={16}
+                color={
+                  isOutOfStock
+                    ? themeColors.primary
+                    : isLowStock
+                      ? themeColors.primaryTint
+                      : themeColors.text
+                }
+              />
+              <Text
+                style={[
+                  styles.detailText,
+                  isOutOfStock
+                    ? { color: themeColors.primary }
+                    : { color: themeColors.text },
+                ]}
+              >
+                {isOutOfStock
+                  ? 'Out of Stock'
+                  : `${item.amountInStock} in Stock`}
+              </Text>
             </View>
             <CurrencyDisplay value={item.priceInPoints} size="medium" />
           </View>
@@ -720,18 +707,20 @@ export const ProductList = () => {
               }
             >
               <MaterialIcons
-                name="edit-outlined"
+                name="edit"
                 size={22}
                 color={themeColors.primary}
+                style={{padding: 10}}
               />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleDeletePress(item.productId, item.title)}
             >
               <MaterialIcons
-                name="delete-outlined"
+                name="delete"
                 size={22}
                 color={themeColors.primary}
+                style={{padding: 10}}
               />
             </TouchableOpacity>
           </View>
@@ -745,22 +734,32 @@ export const ProductList = () => {
   return (
     <ScrollView>
       {!hasProducts ? (
-        <View style={[styles.emptyStateCard, {backgroundColor: themeColors.backgroundSecondary}]}>
+        <View
+          style={[
+            styles.emptyStateCard,
+            { backgroundColor: themeColors.backgroundSecondary },
+          ]}
+        >
           <MaterialIcons
             name="add-shopping-cart"
             size={60}
             color={themeColors.primary}
           />
-          <Text style={[styles.emptyStateTitle, {color: themeColors.textDarker}]}>Start Selling</Text>
-          <Text style={[styles.emptyStateSub, {color: themeColors.text}]}>
+          <Text
+            style={[styles.emptyStateTitle, { color: themeColors.textDarker }]}
+          >
+            Start Selling
+          </Text>
+          <Text style={[styles.emptyStateSub, { color: themeColors.text }]}>
             You haven't uploaded any products yet.
           </Text>
-          <TouchableOpacity
-            style={[styles.addBtnSmall, {backgroundColor: themeColors.btnColor}]}
+          <CustomButton
+            title="Upload First Listing"
             onPress={() => navigation.navigate('CreateProduct')}
-          >
-            <Text style={[styles.addBtnText, {color: themeColors.btnTextColor}]}>Create Listing</Text>
-          </TouchableOpacity>
+            style={[
+              styles.addBtnSmall
+            ]}
+          />
         </View>
       ) : (
         <>
@@ -769,7 +768,7 @@ export const ProductList = () => {
               label="Total Products Count"
               count={formatStatNumber(sellerProducts.length)}
               color={themeColors.textDarker}
-              icon="store-front-outlined"
+              icon="store-front"
             />
           </View>
           <FlatList
@@ -865,63 +864,84 @@ export const PayoutView = () => {
     setRequesting(false);
   };
   const renderHistoryItem = (item: Payout) => (
-    <View style={[styles.historyCard, {backgroundColor: themeColors.backgroundSecondary}]}>
+    <View
+      style={[
+        styles.historyCard,
+        { backgroundColor: themeColors.backgroundSecondary },
+      ]}
+    >
       <View style={styles.historyInfo}>
-        <Text style={[styles.refText, {color: themeColors.text}]}>{item.reference}</Text>
-        <Text style={[styles.historyDate, {color: themeColors.text}]}>
+        <Text style={[styles.refText, { color: themeColors.text }]}>
+          {item.reference}
+        </Text>
+        <Text style={[styles.historyDate, { color: themeColors.text }]}>
           {moment(item.createdAt).format('MMM DD, YYYY • HH:mm')}
         </Text>
       </View>
       <View style={styles.historyRight}>
-        <CurrencyDisplay value={item.amount} size="small" isSuccess={true}/>
-        <Text style={[styles.statusBadge, {color: themeColors.success}]}>{item.status}</Text>
+        <CurrencyDisplay value={item.amount} size="small" isSuccess={true} />
+        <Text style={[styles.statusBadge, { color: themeColors.success }]}>
+          {item.status}
+        </Text>
       </View>
     </View>
   );
   const renderHeader = () => (
     <View style={styles.balanceCard}>
-      <Text style={[styles.balanceLabel, {color: themeColors.textDarker}]}>Available for Payout</Text>
+      <Text style={[styles.balanceLabel, { color: themeColors.textDarker }]}>
+        Available for Payout
+      </Text>
       <CurrencyDisplay value={currentBalance} size="large" isSuccess={true} />
       {!isVerified || !currentUser.twoFactorEnabled ? (
         <>
-          <Text style={[styles.warningText, {color: themeColors.primary}]}>
-            {!isVerified ? 'Account verification' : 'Icash PIN' } is required for payout
+          <Text style={[styles.warningText, { color: themeColors.primary }]}>
+            {!isVerified ? 'Account verification' : 'Icash PIN'} is required for
+            payout
           </Text>
-          <TouchableOpacity
-            style={[styles.verifyBtn, {backgroundColor: themeColors.btnColor}]}
+          <CustomButton
+            title={!isVerified ? 'Verify Identity' : 'Create Icash PIN'}
+            style={[
+              styles.verifyBtn
+            ]}
             onPress={() => {
-              if (!isVerified){
+              if (!isVerified) {
                 navigation.navigate('PersonaVerify');
-              }else {
+              } else {
                 navigation.navigate('iCashSecurity');
               }
             }}
-          >
-            <Text style={[styles.verifyBtnText, {color: themeColors.btnTextColor}]}>
-              {!isVerified ? 'Verify Identity' : 'Create Icash PIN' }
-            </Text>
-          </TouchableOpacity>
+          />
         </>
       ) : (
         <TouchableOpacity
           style={[
             styles.withdrawBtn,
             (currentBalance <= 0 || requesting) && styles.disabledBtn,
-            {backgroundColor: themeColors.btnColor}
+            { backgroundColor: themeColors.btnColor },
           ]}
           onPress={handleWithdraw}
           disabled={currentBalance <= 0 || requesting}
         >
           {requesting ? (
-            <ActivityIndicator color={themeColors.btnTextColor} size={'small'} />
+            <ActivityIndicator
+              color={themeColors.btnTextColor}
+              size={'small'}
+            />
           ) : (
             <>
               <MaterialIcons
-                name="account-balance-wallet-outlined"
+                name="account-balance-wallet"
                 size={20}
                 color={themeColors.btnTextColor}
               />
-              <Text style={[styles.withdrawBtnText, {color: themeColors.btnTextColor}]}>Withdraw Funds</Text>
+              <Text
+                style={[
+                  styles.withdrawBtnText,
+                  { color: themeColors.btnTextColor },
+                ]}
+              >
+                Withdraw Funds
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -1060,8 +1080,7 @@ export const SalesScreen = () => {
     return {
       total: currentMonthTotal,
       trend: (currentMonthTotal >= prevMonthTotal ? 'up' : 'down') as
-        | 'up'
-        | 'down',
+        'up' | 'down',
     };
   }, [selectedMonth, selectedYear, sellerSales]);
   const totalIncome: number = sellerSales.reduce(
@@ -1090,14 +1109,13 @@ export const SalesScreen = () => {
           <Text style={[styles.emptyStateSub, { color: colors.text }]}>
             You haven't uploaded any products yet.
           </Text>
-          <TouchableOpacity
-            style={[styles.addBtnSmall, { backgroundColor: colors.btnColor }]}
+          <CustomButton
+            title='Upload First Listing'
+            style={[
+              styles.verifyBtn
+            ]}
             onPress={() => navigation.navigate('CreateProduct')}
-          >
-            <Text style={[styles.addBtnText, { color: colors.btnTextColor }]}>
-              Upload First Product
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
       ) : (
         <>
@@ -1106,13 +1124,13 @@ export const SalesScreen = () => {
               label="Total Generated Income"
               count={totalIncome}
               color={colors.pendingDelivery}
-              icon="diamond-outlined"
+              icon="diamond"
             />
             <StatusCardMini
               label="Available For Payout"
               count={currentBalance}
               color={colors.success}
-              icon="diamond-outlined"
+              icon="diamond"
               isSuccess={true}
             />
           </View>
@@ -1122,7 +1140,9 @@ export const SalesScreen = () => {
               { backgroundColor: colors.backgroundSecondary },
             ]}
           >
-            <Text style={[styles.chartTitle, {color: colors.textDarker}]}>Revenue Trend</Text>
+            <Text style={[styles.chartTitle, { color: colors.textDarker }]}>
+              Revenue Trend
+            </Text>
             <CurrencyDisplay value={monthlyStats.total} size="medium" />
           </View>
           <View
@@ -1259,8 +1279,8 @@ export const ReviewsSection = () => {
     numericAvg < 2
       ? colors.primary
       : numericAvg < 3.5
-      ? colors.primaryTint
-      : colors.success;
+        ? colors.primaryTint
+        : colors.success;
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await refreshReviews();
@@ -1290,8 +1310,8 @@ export const ReviewsSection = () => {
             {numericAvg < 2
               ? 'Poor Performance'
               : numericAvg < 3.5
-              ? 'Average'
-              : 'Excellent'}
+                ? 'Average'
+                : 'Excellent'}
           </Text>
         </View>
       </View>
@@ -1304,7 +1324,7 @@ export const ReviewsSection = () => {
         }
         ListEmptyComponent={
           <EmptyState
-            iconName="rate-review-outlined"
+            iconName="rate-review"
             title="No Reviews Yet"
             subtitle="When customers rate your products or service, they will appear here."
             buttonText="Refresh Now"
@@ -1363,7 +1383,8 @@ const styles = StyleSheet.create({
   emptyStateCard: {
     padding: 15,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
   },
   emptyStateTitle: {
@@ -1377,9 +1398,7 @@ const styles = StyleSheet.create({
   },
   addBtnSmall: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignContent: 'center',
-    borderRadius: 15,
+    marginTop: 10
   },
   addBtnText: { fontWeight: '600', fontSize: 14 },
   newsCard: { padding: 15, borderRadius: 15, alignItems: 'center' },
@@ -1477,12 +1496,18 @@ const styles = StyleSheet.create({
   },
   statusIconContainer: {
     marginBottom: 10,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   incomeCurrency: {
     flex: 1,
   },
-  emptyContainer: { flex: 1, alignContent: 'center', padding: 10 },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
   emptyText: { fontSize: 14, marginTop: 15 },
   header: {
     padding: 20,
@@ -1498,13 +1523,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15
+    marginBottom: 15,
   },
   count: {
     fontSize: 12,
   },
   avgContainer: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexDirection: 'row',
   },
   ratingRow: {
@@ -1522,7 +1548,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     marginLeft: 6,
   },
-  chartTitle: {fontSize: 18, fontWeight: 'bold' },
+  chartTitle: { fontSize: 18, fontWeight: 'bold' },
   buyerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1561,19 +1587,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
     padding: 15,
-    borderRadius: 15
+    borderRadius: 15,
   },
   countText: {
     fontSize: 18,
     fontWeight: 'bold',
   },
   addBtn: {
-    flexDirection: 'row',
-    paddingVertical: 10,
+    width: 'auto',
     paddingHorizontal: 15,
-    borderRadius: 15,
-    alignItems: 'center',
-    elevation: 2,
   },
   card: {
     flexDirection: 'row',
@@ -1585,7 +1607,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   imageContainer: {
     position: 'relative',
@@ -1601,7 +1623,8 @@ const styles = StyleSheet.create({
     left: 5,
     padding: 5,
     borderRadius: 3,
-    alignContent: 'center'
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   typeText: {
     fontSize: 9,
@@ -1616,7 +1639,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15
+    marginBottom: 15,
   },
   badge: {
     flexDirection: 'row',
@@ -1630,7 +1653,7 @@ const styles = StyleSheet.create({
   statsFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-end'
+    alignSelf: 'flex-end',
   },
   listContainer: {
     paddingBottom: 40,
@@ -1644,7 +1667,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   balanceLabel: {
     fontSize: 18,
@@ -1656,7 +1679,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 20,
   },
   withdrawBtnText: {
@@ -1665,11 +1689,8 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   verifyBtn: {
-    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 15,
-    marginTop: 10,
-    alignContent: 'center',
+    marginTop: 20
   },
   verifyBtnText: {
     fontWeight: '700',
@@ -1702,7 +1723,7 @@ const styles = StyleSheet.create({
   },
   historyRight: {
     marginRight: 8,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   statusBadge: {
     fontSize: 12,

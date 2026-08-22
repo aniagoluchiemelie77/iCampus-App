@@ -66,7 +66,7 @@ export const AttachmentModal = ({
               <View
                 style={[styles.iconCircle, { backgroundColor: colors.primary }]}
               >
-                <MaterialIcons name="image-outlined" size={28} color="#fff" />
+                <MaterialIcons name="file-image" size={28} color="#fff" />
               </View>
               <Text style={[styles.optionText, { color: colors.text }]}>
                 Gallery
@@ -84,11 +84,7 @@ export const AttachmentModal = ({
               <View
                 style={[styles.iconCircle, { backgroundColor: colors.primary }]}
               >
-                <MaterialIcons
-                  name="insert-drive-file-outlined"
-                  size={28}
-                  color="#fff"
-                />
+                <MaterialIcons name="file" size={28} color="#fff" />
               </View>
               <Text style={[styles.optionText, { color: colors.text }]}>
                 Document
@@ -108,11 +104,7 @@ export const AttachmentModal = ({
                     { backgroundColor: colors.primary },
                   ]}
                 >
-                  <MaterialIcons
-                    name="photo-camera-outlined"
-                    size={28}
-                    color="#fff"
-                  />
+                  <MaterialIcons name="camera-alt" size={28} color="#fff" />
                 </View>
                 <Text style={[styles.optionText, { color: colors.text }]}>
                   Camera
@@ -165,7 +157,7 @@ export const ChatInput = ({
         style={styles.iconButton}
         onPress={handleAttachmentPress}
       >
-        <MaterialIcons name="attach-file" size={26} color={colors.primary} />
+        <MaterialIcons name="attachment" size={26} color={colors.primary} />
       </TouchableOpacity>
       {value.trim().length > 0 && (
         <TouchableOpacity

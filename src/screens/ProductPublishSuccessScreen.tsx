@@ -11,6 +11,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { CommonActions } from '@react-navigation/native';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -45,11 +46,7 @@ export const ProductPublishSuccess = ({ route, navigation }: Props) => {
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        <MaterialIcons
-          name="check-circle-outlined"
-          size={60}
-          color={colors.primary}
-        />
+        <MaterialIcons name="check-circle" size={100} color={colors.primary} />
         <Text style={[styles.congrats, { color: colors.textDarker }]}>
           {isEditing ? 'Changes Saved!' : 'Product Live!'}
         </Text>
@@ -62,15 +59,11 @@ export const ProductPublishSuccess = ({ route, navigation }: Props) => {
             ? 'Your store updates have synchronized across all client network channels.'
             : 'Your product has been deployed to the global network catalog and marketplace.'}
         </Text>
-
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
+        <CustomButton
+          title="Product Management Screen"
+          style={styles.button}
           onPress={navigateToManagement}
-        >
-          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-            Product Management Screen
-          </Text>
-        </TouchableOpacity>
+        />
 
         <TouchableOpacity
           onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
@@ -85,18 +78,24 @@ export const ProductPublishSuccess = ({ route, navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15, alignContent: 'center' },
-  subContainer: { padding: 20, alignContent: 'center', borderRadius: 15 },
+  container: {
+    flex: 1,
+    padding: 15,
+    justifyContent: 'center',
+    alignContent: 'center',
+  },
+  subContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+  },
   congrats: { fontSize: 18, fontWeight: 'bold', marginVertical: 15 },
   productTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
   infoText: { marginBottom: 20, fontSize: 14 },
   button: {
-    width: '80%',
-    borderRadius: 15,
-    alignItems: 'center',
-    paddingVertical: 14,
+    paddingHorizontal: 15,
     marginBottom: 20,
-    alignSelf: 'center',
   },
   buttonText: { fontWeight: 'bold', fontSize: 14 },
   backHome: {

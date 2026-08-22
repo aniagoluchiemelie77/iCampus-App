@@ -80,7 +80,7 @@ export const CourseSearchCard = ({
         </Text>
         <View style={styles.metricRowGroup}>
           <MaterialIcons
-            name="people-outlined"
+            name="people"
             size={14}
             color={colors.primaryTint}
             style={{ marginRight: 4 }}
@@ -96,7 +96,7 @@ export const CourseSearchCard = ({
           <View style={styles.rowDiv}>
             <View style={styles.metricColGroup}>
               <MaterialIcons
-                name="calendar-month-outlined"
+                name="calendar-month"
                 size={16}
                 color={colors.text}
                 style={{ marginBottom: 4 }}
@@ -109,7 +109,7 @@ export const CourseSearchCard = ({
             </View>
             <View style={styles.metricColGroup}>
               <MaterialIcons
-                name="calendar-month-outlined"
+                name="calendar-month"
                 size={16}
                 color={colors.text}
                 style={{ marginBottom: 4 }}
@@ -122,7 +122,7 @@ export const CourseSearchCard = ({
             </View>
             <View style={styles.metricColGroup}>
               <MaterialIcons
-                name="scale-outlined"
+                name="scale"
                 size={16}
                 color={colors.text}
                 style={{ marginBottom: 4 }}
@@ -227,25 +227,13 @@ export const ResourceSearchCard = ({
         </View>
       </View>
       <View style={styles.actionContainer}>
-        {item.isPremiumPaid ? (
-          <View style={[styles.priceBadge, { backgroundColor: '#FF950020' }]}>
-            <MaterialIcons
-              name="star-circle"
-              size={14}
-              color="#FF9500"
-              style={{ marginRight: 2 }}
-            />
-            <Text style={[styles.priceText, { color: '#FF9500' }]}>
-              {item.price > 0 ? `${item.price} pts` : 'Free'}
-            </Text>
-          </View>
-        ) : (
+        
           <MaterialIcons
             name="chevron-right"
             size={20}
             color={colors.text || '#7F8C8D'}
           />
-        )}
+
       </View>
     </TouchableOpacity>
   );
@@ -268,7 +256,8 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 12,
     backgroundColor: PRIMARY_COLOR,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   initialsText: {
     color: PRIMARY_COLOR_TINT_MAIN,
@@ -342,7 +331,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 10,
     backgroundColor: PRIMARY_COLOR,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   metaContainer: {
     flex: 1,

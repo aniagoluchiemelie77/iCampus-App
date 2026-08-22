@@ -1,30 +1,25 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { PRIMARY_COLOR_TINT, PRIMARY_COLOR_TINT_MAIN } from './colors';
 
 const { width } = Dimensions.get('window');
-const icons = ['bookshelf', 'star', 'podium', 'cart', 'bank', 'diamond'];
 
-const NUM_COLUMNS = 8; // Number of icons per row
-const ICON_SIZE = 40;
-const ICON_SPACING = 20; // Space between icons
+const icons = ['auto-stories', 'shopping-cart', 'account-balance', 'diamond'];
+
+const ICON_SPACING = 20;
 
 export const IconBackground = () => {
   const iconElements = [];
-
   const totalIcons = 200;
 
   for (let i = 0; i < totalIcons; i++) {
     const icon = icons[i % icons.length];
     const size = i % 7 === 0 ? 27 : 20;
-    const color = i % 5 === 0 ? 'rgb(247, 219, 207)' : 'rgb(244, 218, 207)';
-
-    const row = Math.floor(i / NUM_COLUMNS);
-    const col = i % NUM_COLUMNS;
-    console.log(row, col, ICON_SIZE);
+    const color = i % 5 === 0 ? PRIMARY_COLOR_TINT : PRIMARY_COLOR_TINT_MAIN;
 
     iconElements.push(
-      <MaterialCommunityIcons
+      <MaterialIcons
         key={i}
         name={icon}
         size={size}
@@ -45,10 +40,14 @@ export const IconBackground = () => {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: width,
+    zIndex: 0,
+    pointerEvents: 'none',
   },
   grid: {
     flexDirection: 'row',

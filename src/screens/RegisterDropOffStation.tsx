@@ -7,6 +7,7 @@ import { InputGroup } from '../components/InputGroup';
 import { useLocationServices } from '../hooks/useLocationService.ts'; 
 import {useMediaPicker} from '../hooks/useMediaPicker.ts';
 import {ImagePickerModal} from '../components/ImagePickerModal.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   uploadToFirebase
 } from '../utils/CloudinaryPresetHelper.ts';
@@ -20,119 +21,170 @@ export const RegisterStationScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const { userCoords } = useLocationServices();
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ name: '', address: '', images: [] as string[] });
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
+    images: [] as string[],
+  });
 
   const isLocationReady = !!userCoords;
   const { pickImage, pickImageFromCamera } = useMediaPicker();
 
-const handleSelectOption = async (option: 'camera' | 'library') => {
+  const handleSelectOption = async (option: 'camera' | 'library') => {
     setModalVisible(false);
-    const fileData = option === 'camera' ? await pickImageFromCamera() : await pickImage();
-    
+    const fileData =
+      option === 'camera' ? await pickImageFromCamera() : await pickImage();
+
     if (fileData) {
-      setFormData(prev => ({ ...prev, images: [...prev.images, fileData.uri] }));
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, fileData.uri],
+      }));
     }
   };
 
   const submitRegistration = async () => {
-  if (!formData.name || !formData.address || formData.images.length === 0 || !userCoords) {
-      return Alert.alert("Missing Info", "Please fill all fields, add at least one image, and ensure location is active.");
+    if (
+      !formData.name ||
+      !formData.address ||
+      formData.images.length === 0 ||
+      !userCoords
+    ) {
+      return Alert.alert(
+        'Missing Info',
+        'Please fill all fields, add at least one image, and ensure location is active.',
+      );
     }
 
-  try {
-    setSubmitting(true);
-    const uploadedUrls: string[] = [];
-    for (const uri of formData.images) {
-      const url = await uploadToFirebase(uri); 
-      uploadedUrls.push(url);
-    }
-    const payload = {
-      name: formData.name,
-      address: formData.address,
-      images: uploadedUrls,
-      latitude: userCoords.lat,
-      longitude: userCoords.lng,
-    };
-    const result = await requestDropStationApi(payload);
+    try {
+      setSubmitting(true);
+      const uploadedUrls: string[] = [];
+      for (const uri of formData.images) {
+        const url = await uploadToFirebase(uri);
+        uploadedUrls.push(url);
+      }
+      const payload = {
+        name: formData.name,
+        address: formData.address,
+        images: uploadedUrls,
+        latitude: userCoords.lat,
+        longitude: userCoords.lng,
+      };
+      const result = await requestDropStationApi(payload);
 
-    if (result.success) {
+      if (result.success) {
         Toast.show({
-        type: 'success',
-        text2: 'Drop-Off Station registeration request submitted successfully.'
-      });
-      setSubmitting(false)
-      navigation.goBack();
-    } else {
+          type: 'success',
+          text2:
+            'Drop-Off Station registeration request submitted successfully.',
+        });
         setSubmitting(false);
+        navigation.goBack();
+      } else {
+        setSubmitting(false);
+        Toast.show({
+          type: 'error',
+          text1: 'Request Error',
+          text2: result.error,
+        });
+      }
+    } catch (error: any) {
+      setSubmitting(false);
       Toast.show({
         type: 'error',
-        text1: 'Request Error',
-        text2: result.error
+        text1: 'Network Error',
+        text2:
+          error.message || 'An error occurred during submission, please retry.',
       });
     }
-  } catch (error: any) {
-    setSubmitting(false);
-    Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: error.message || 'An error occurred during submission, please retry.'
-      });
-  }
-};
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader title="Request Drop-Off Station Registeration" showBackButton={true} />
-      
+      <PageHeader
+        title="Request Drop-Off Station Registeration"
+        showBackButton={true}
+      />
+
       <ScrollView contentContainerStyle={styles.content}>
-          <MaterialIcons name="storefront" size={60} color={colors.textDarker} style={styles.mainIcon} />
-          <Text style={[styles.title, { color: colors.text }]}>Join as a Drop-Off Hub</Text>
-          <Text style={[styles.subtext, { color: colors.text }]}>
-            Provide your business details below. Your location will be automatically captured to help iCampus users find your station. Please stand at your business location (kiosk, shop, or office) before submitting. Do not register from residential/private bedrooms.
-          </Text>
-        <InputGroup 
-          label="Station Name" 
-          placeholder="e.g. Victor's Tech Hub" 
-          onChangeText={(val) => setFormData({ ...formData, name: val })} 
+        <MaterialIcons
+          name="storefront"
+          size={60}
+          color={colors.textDarker}
+          style={styles.mainIcon}
         />
-        <InputGroup 
-          label="Full Address" 
-          placeholder="Enter detailed street address" 
-          onChangeText={(val) => setFormData({ ...formData, address: val })} 
+        <Text style={[styles.title, { color: colors.text }]}>
+          Join as a Drop-Off Hub
+        </Text>
+        <Text style={[styles.subtext, { color: colors.text }]}>
+          Provide your business details below. Your location will be
+          automatically captured to help iCampus users find your station. Please
+          stand at your business location (kiosk, shop, or office) before
+          submitting. Do not register from residential/private bedrooms.
+        </Text>
+        <InputGroup
+          label="Station Name"
+          placeholder="e.g. Victor's Tech Hub"
+          onChangeText={val => setFormData({ ...formData, name: val })}
         />
-        <View style={[styles.locationBadge, { backgroundColor: colors.backgroundSecondary }]}>
-          <MaterialIcons 
-            name={isLocationReady ? "location-on" : "location-off"} 
-            size={20} 
-            color={isLocationReady ? colors.primary : colors.text} 
+        <InputGroup
+          label="Full Address"
+          placeholder="Enter detailed street address"
+          onChangeText={val => setFormData({ ...formData, address: val })}
+        />
+        <View
+          style={[
+            styles.locationBadge,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <MaterialIcons
+            name={isLocationReady ? 'location-on' : 'location-off'}
+            size={20}
+            color={isLocationReady ? colors.primary : colors.text}
           />
           <Text style={[styles.text, { color: colors.text }]}>
-            {isLocationReady 
-              ? `Captured: ${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)}` 
-              : "Locating your station..."}
+            {isLocationReady
+              ? `Captured: ${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)}`
+              : 'Locating your station...'}
           </Text>
         </View>
-        <Text style={[styles.text, { color: colors.text, marginBottom: 15 }]}>Station Photos (Required)</Text>
+        <Text style={[styles.text, { color: colors.text, marginBottom: 15 }]}>
+          Station Photos (Required)
+        </Text>
         <View style={styles.imageRow}>
           {formData.images.map((uri, idx) => (
             <Image key={idx} source={{ uri }} style={styles.thumb} />
           ))}
-          <TouchableOpacity style={[styles.addBtn, { borderColor: colors.border }]} onPress={() => setModalVisible(true)}>
-            <MaterialIcons name="add-a-photo-outlined" size={24} color={colors.primary} />
+          <TouchableOpacity
+            style={[styles.addBtn, { borderColor: colors.border }]}
+            onPress={() => setModalVisible(true)}
+          >
+            <MaterialIcons
+              name="add-a-photo"
+              size={24}
+              color={colors.primary}
+            />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={[styles.submitButton, { backgroundColor: isLocationReady ? colors.btnColor : colors.primaryTint }]}
+        <CustomButton
+          title={submitting ? 'Submitting...' : 'Submit Request'}
+          style={[
+            styles.submitButton,
+            {
+              backgroundColor: isLocationReady
+                ? colors.btnColor
+                : colors.primaryTint,
+            },
+          ]}
           disabled={!isLocationReady}
           onPress={submitRegistration}
-        >
-          <Text style={[styles.submitButtonText, { color: colors.btnTextColor }]}>{submitting ? "Submitting..." : 'Submit Request'}</Text>
-        </TouchableOpacity>
+        />
       </ScrollView>
-      <ImagePickerModal 
-        visible={modalVisible} 
-        onClose={() => setModalVisible(false)} 
-        onSelect={handleSelectOption} 
+      <ImagePickerModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSelect={handleSelectOption}
       />
     </View>
   );
@@ -141,35 +193,48 @@ const handleSelectOption = async (option: 'camera' | 'library') => {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
   content: { paddingHorizontal: 20 },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, alignSelf: 'center' },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    alignSelf: 'center',
+  },
   subtext: { textAlign: 'center', fontSize: 14 },
   text: { fontSize: 14 },
-  locationBadge: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between',
-    padding: 15, 
-    borderRadius: 10, 
-    marginBottom: 20 
-  },
-  submitButton: { 
-    width: '80%',
-    borderRadius: 15, 
+  locationBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-    paddingVertical: 12
+    justifyContent: 'space-between',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
   },
-  submitButtonText: { 
+  submitButton: {
+    paddingHorizontal: 15,
+  },
+  submitButtonText: {
     fontSize: 14,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
-  mainIcon:{
+  mainIcon: {
     alignSelf: 'center',
-    marginBottom: 20
+    marginBottom: 20,
   },
-  warningBox: { flexDirection: 'row', padding: 15, borderRadius: 8, marginVertical: 15 },
+  warningBox: {
+    flexDirection: 'row',
+    padding: 15,
+    borderRadius: 8,
+    marginVertical: 15,
+  },
   warningText: { flex: 1, marginLeft: 10, fontSize: 13, lineHeight: 18 },
   imageRow: { flexDirection: 'row', marginVertical: 10 },
-  addBtn: { width: 80, height: 80, borderRadius: 10, borderWidth: 2, borderStyle: 'dashed', alignContent: 'center' },
+  addBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignContent: 'center',
+  },
   thumb: { width: 80, height: 80, borderRadius: 10, marginRight: 10 },
 });

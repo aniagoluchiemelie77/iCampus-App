@@ -113,11 +113,7 @@ export const TermsScreen = () => {
           >
             Contact Support
           </Text>
-          <MaterialIcons
-            name="email-outlined"
-            size={17}
-            color={colors.btnTextColor}
-          />
+          <MaterialIcons name="email" size={17} color={colors.btnTextColor} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -161,7 +157,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexDirection: 'row'
   },
   contactButtonText:{

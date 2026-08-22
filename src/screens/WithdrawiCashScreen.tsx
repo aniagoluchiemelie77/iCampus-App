@@ -21,6 +21,7 @@ import { UserBankOrCardDetails } from '../types/firebase';
 import { getUserPaymentMethods } from '../api/localGetApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   USD_EQUIVALENCE_OF_1_ICASH,
   WITHDRAWAL_FEE_PERCENT,
@@ -171,7 +172,7 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
         </Text>
         <View style={iCashActionsStyles.inputContainer}>
           <MaterialIcons
-            name="diamond-outlined"
+            name="diamond"
             size={20}
             color={colors.primary}
             style={{ marginRight: 5 }}
@@ -218,11 +219,7 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
         </View>
         {!hasPaymentMethod && (
           <View style={iCashActionsStyles.warningBox}>
-            <MaterialIcons
-              name="info-outlined"
-              size={20}
-              color={colors.primary}
-            />
+            <MaterialIcons name="info" size={20} color={colors.primary} />
             <Text
               style={[
                 iCashActionsStyles.warningText,
@@ -251,10 +248,20 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
             />
           ))}
         </ScrollView>
-        <TouchableOpacity
+        <CustomButton
+          title={
+            !iCashAmount || parseFloat(iCashAmount) <= 0
+              ? 'Enter Amount'
+              : parseFloat(iCashAmount) > (user?.pointsBalance || 0)
+                ? 'Insufficient Balance'
+                : !hasPaymentMethod
+                  ? 'Add Bank Account'
+                  : !selectedMethod
+                    ? 'Select a Bank Account'
+                    : 'Confirm Withdrawal'
+          }
           style={[
             iCashActionsStyles.buyBtn,
-            { backgroundColor: colors.btnColor },
             (!iCashAmount ||
               parseFloat(iCashAmount) <= 0 ||
               parseFloat(iCashAmount) > (user?.pointsBalance || 0)) && {
@@ -263,28 +270,7 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
           ]}
           onPress={handleWithdrawTrigger}
           disabled={isButtonDisabled}
-        >
-          <Text
-            style={[
-              iCashActionsStyles.buyBtnText,
-              { color: colors.btnTextColor },
-            ]}
-          >
-            {!iCashAmount || parseFloat(iCashAmount) <= 0 ? (
-              'Enter Amount'
-            ) : parseFloat(iCashAmount) > (user?.pointsBalance || 0) ? (
-              'Insufficient Balance'
-            ) : !hasPaymentMethod ? (
-              'Add Bank Account'
-            ) : !selectedMethod ? (
-              'Select a Bank Account'
-            ) : isProcessing ? (
-              <ActivityIndicator size={'small'} color={colors.btnTextColor} />
-            ) : (
-              'Confirm Withdrawal'
-            )}
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
       <AddPaymentModal
         visible={showAddCardModal}
@@ -389,6 +375,11 @@ export const ICashWithdrawPage = ({ navigation }: any) => {
                     Pay
                   </Text>
                 </TouchableOpacity>
+                <CustomButton
+                  title={'Pay'}
+                  style={[iCashActionsStyles.payBtn]}
+                  onPress={() => setStep('pin')}
+                />
               </View>
             </View>
           </Modal>

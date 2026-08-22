@@ -15,6 +15,7 @@ import { useAppDataContext } from '../context/EventContext';
 import { FavItem } from '../components/FavItem';
 import { useTheme } from '../context/ThemeContext';
 import { User, Product } from '../types/firebase';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const FavoritesScreen = () => {
   const { colors } = useTheme();
@@ -67,18 +68,12 @@ export const FavoritesScreen = () => {
         showBackButton={true}
         rightElement={
           favoriteItems.length > 0 ? (
-            <TouchableOpacity
+            <CustomButton
+              title="Clear Favorites"
               onPress={handleConfirmClearAll}
-              style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[styles.headerBtnText, { color: colors.btnTextColor }]}
-              >
-                Clear Favorites
-              </Text>
-            </TouchableOpacity>
-          ) : undefined // Safely hide clear button when list is already empty
+              style={styles.headerBtn}
+            />
+          ) : undefined
         }
       />
 
@@ -112,15 +107,11 @@ export const FavoritesScreen = () => {
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <TouchableOpacity
-            style={[styles.checkoutBtn, { backgroundColor: colors.btnColor }]}
+          <CustomButton
+            title="Add all to cart"
+            style={styles.checkoutBtn}
             onPress={handleAddAllFavoritesToCart}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.checkoutText, { color: colors.btnTextColor }]}>
-              Add all to cart
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
       )}
     </SafeAreaView>
@@ -133,7 +124,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 20,
     marginVertical: 10,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
   },
   footer: {
@@ -145,19 +137,11 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   checkoutBtn: {
-    width: '80%',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignContent: 'center',
-    alignSelf: 'center',
+    paddingHorizontal: 15,
   },
   checkoutText: { fontSize: 14, fontWeight: '700' },
   headerBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 13,
-    alignContent: 'center',
   },
   headerBtnText: {
     fontSize: 14,

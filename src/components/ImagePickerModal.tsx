@@ -16,22 +16,51 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
   onSelect 
 }) => {
     const { colors } = useTheme();
-    return(
-  <Modal isVisible={visible} swipeDirection="down" onBackdropPress={() => onClose()} onSwipeComplete={() => onClose()} style={styles.modalOverride}>
-    <View style={styles.overlay}>
-      <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
-        <TouchableOpacity style={styles.option} onPress={() => onSelect('camera')}>
-          <MaterialIcons name="camera-alt-outlined" size={24} color={colors.textDarker} />
-          <Text style={[styles.text, {color: colors.textDarker}]}>Take Photo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => onSelect('library')}>
-          <MaterialIcons name="add-photo-alternate-outlined" size={24} color={colors.textDarker} />
-          <Text style={[styles.text, {color: colors.textDarker}]}>Choose from Library</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-)};
+    return (
+      <Modal
+        isVisible={visible}
+        swipeDirection="down"
+        onBackdropPress={() => onClose()}
+        onSwipeComplete={() => onClose()}
+        style={styles.modalOverride}
+      >
+        <View style={styles.overlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => onSelect('camera')}
+            >
+              <MaterialIcons
+                name="camera-alt"
+                size={24}
+                color={colors.textDarker}
+              />
+              <Text style={[styles.text, { color: colors.textDarker }]}>
+                Take Photo
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => onSelect('library')}
+            >
+              <MaterialIcons
+                name="library"
+                size={24}
+                color={colors.textDarker}
+              />
+              <Text style={[styles.text, { color: colors.textDarker }]}>
+                Choose from Library
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );};
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },

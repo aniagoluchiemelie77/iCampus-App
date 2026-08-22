@@ -32,6 +32,7 @@ export const PageHeader = ({
               name="chevron-left"
               size={32}
               color={colors.primary}
+              style={{padding: 10}}
             />
           </TouchableOpacity>
         )}

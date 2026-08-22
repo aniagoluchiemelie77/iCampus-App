@@ -18,6 +18,7 @@ import { useFormHydration } from '../hooks/useAdminInputFormHydration.ts';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const RolePicker = ({
   value,
@@ -144,8 +145,8 @@ export const AdminFormPage = ({ route }: { route: any }) => {
           value={formData.adminType}
           onSelect={role => setFormData({ ...formData, adminType: role })}
         />
-
-        <TouchableOpacity
+        <CustomButton
+          title={isSaving ? 'Saving...' : 'Save Changes'}
           style={[
             styles.submitBtn,
             {
@@ -155,11 +156,7 @@ export const AdminFormPage = ({ route }: { route: any }) => {
           ]}
           onPress={handleSave}
           disabled={isSaving}
-        >
-          <Text style={[styles.btnText, { color: themeColors.btnTextColor }]}>
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
+        />
       </ScrollView>
     </View>
   );
@@ -174,17 +171,23 @@ const styles = StyleSheet.create({
     padding: 15,
     borderWidth: 1,
     borderRadius: 8,
+    width: '100%',
   },
-  modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   modalContent: { margin: 20, padding: 20, borderRadius: 12 },
-  option: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#ccc' },
+  option: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
   submitBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 15,
-    alignItems: 'center',
-    marginTop: 10,
+    paddingHorizontal: 15,
+    marginTop: 20,
   },
   btnText: { fontSize: 14, fontWeight: 'bold' },
-  content:{paddingBottom: 20}
+  content: { paddingBottom: 20 },
 });

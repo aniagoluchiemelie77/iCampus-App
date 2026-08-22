@@ -74,7 +74,12 @@ export const UserSearchOverlay = ({
         ]}
       >
         <TouchableOpacity onPress={onClose}>
-          <MaterialIcons name="arrow-back" size={24} color={themeColors.text} />
+          <MaterialIcons
+            name="chevron-left"
+            size={24}
+            color={themeColors.text}
+            style={{ padding: 10 }}
+          />
         </TouchableOpacity>
         <TextInput
           autoFocus

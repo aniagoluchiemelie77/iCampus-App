@@ -8,6 +8,9 @@ import {
   KeyboardAvoidingView,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
+  Dimensions,
+  Pressable,
 } from 'react-native';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -16,10 +19,15 @@ import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import { isValidPassword } from '../utils/SignupHelpers';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 type ChangePasswordParams = {
   email: string;
 };
+
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ChangePasswordScreen() {
   const { colors } = useTheme();
@@ -27,25 +35,17 @@ export default function ChangePasswordScreen() {
     useRoute<RouteProp<{ params: ChangePasswordParams }, 'params'>>();
   const navigation = useNavigation<any>();
   const email = route.params?.email || '';
-
-  // Core Inputs State Matrix
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // Alert Component Layer State Tracking
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
   const [isVerifying, setVerifying] = useState(false);
-
-  // Structural Ref to track asynchronous unmount events
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // CLEANUP LEAK LAYER: Prevent background execution errors on unmounted components
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -55,7 +55,6 @@ export default function ChangePasswordScreen() {
   }, []);
 
   const handleChangePassword = async () => {
-    // Basic structural guards
     if (!password.trim() || !confirmPassword.trim()) {
       setAlertType('warning');
       setAlertMessage('Please fill in all security parameter fields.');
@@ -73,8 +72,7 @@ export default function ChangePasswordScreen() {
     }
 
     try {
-      setVerifying(true); // Establish request synchronization thread lock
-
+      setVerifying(true);
       const response = await changePassword(email, password, confirmPassword);
 
       if (response && response.success) {
@@ -83,224 +81,227 @@ export default function ChangePasswordScreen() {
           'Password updated successfully. Redirecting to login context...',
         );
         setAlertVisible(true);
-
-        // Assign timeout path to explicit reference pointer for clean tracking
         timeoutRef.current = setTimeout(() => {
           navigation.reset({
             index: 0,
-            routes: [{ name: 'Login' }], // Hard clear history stack to prevent back-navigation exploits
+            routes: [{ name: 'Login' }],
           });
         }, 2500);
       } else {
-        throw new Error(
+        setAlertType('error');
+        setAlertMessage(
           response?.message || 'Upstream identity validation rejected update.',
         );
+        setAlertVisible(true);
       }
     } catch (err: any) {
-      console.error('[PASSWORD_RESET_CRITICAL_FAILURE]', err);
       setAlertType('error');
       setAlertMessage(
         err.message || 'Password reset attempt unsuccessful. Try again.',
       );
       setAlertVisible(true);
     } finally {
-      setVerifying(false); // Drop thread execution block
+      setVerifying(false);
     }
   };
-
-  // Pre-calculate verification status strings to keep layout clean
   const isFormValid =
     isValidPassword(password) && confirmPassword === password && !isVerifying;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <IconBackground />
-
-      <View style={styles.cardContainer}>
-        <Text style={[styles.mainHeader, { color: colors.text }]}>
-          Forgot Password
-        </Text>
-
-        {/* Field One: Primary Password Input */}
-        <Text style={[styles.inputLabel, { color: colors.text }]}>
-          Enter your New Password:
-        </Text>
-        <View
-          style={[
-            styles.inputWrapper,
-            { backgroundColor: colors.backgroundSecondary || '#F5F5F5' },
-          ]}
+      <KeyboardAvoidingView
+        style={styles.bkg}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
         >
-          <TextInput
-            placeholder="Enter your password..."
-            placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
-            style={[styles.textInput, { color: colors.text }]}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            autoCapitalize="none" // SECURITY CRITICAL FIX
-            autoCorrect={false}
-            textContentType="newPassword" // SECURITY CRITICAL FIX
-            editable={!isVerifying}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(prev => !prev)}
-            accessibilityLabel="Toggle password visibility"
-            activeOpacity={0.6}
-          >
+          <View style={styles.cardContainer}>
             <MaterialIcons
-              name={showPassword ? 'visibility' : 'visibility-off'}
-              size={22}
-              color={colors.primary}
-              style={styles.iconPadding}
+              name="lock-outline"
+              size={60}
+              color={PRIMARY_COLOR}
             />
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.mainHeader}>Change Password</Text>
 
-        {password.length > 0 && !isValidPassword(password) && (
-          <Text style={styles.validationText}>
-            Password must be at least 13 characters and include uppercase,
-            lowercase, a number, and a symbol.
-          </Text>
-        )}
-
-        {/* Field Two: Password Confirmation Match Input */}
-        <Text style={[styles.inputLabel, { color: colors.text }]}>
-          Confirm your New Password:
-        </Text>
-        <View
-          style={[
-            styles.inputWrapper,
-            { backgroundColor: colors.backgroundSecondary || '#F5F5F5' },
-          ]}
-        >
-          <TextInput
-            placeholder="Confirm your new password..."
-            placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
-            style={[styles.textInput, { color: colors.text }]}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry={!showConfirmPassword}
-            autoCapitalize="none" // SECURITY CRITICAL FIX
-            autoCorrect={false}
-            textContentType="newPassword" // SECURITY CRITICAL FIX
-            editable={!isVerifying}
-          />
-          <TouchableOpacity
-            onPress={() => setShowConfirmPassword(prev => !prev)}
-            accessibilityLabel="Toggle confirmation visibility"
-            activeOpacity={0.6}
-          >
-            <MaterialIcons
-              name={showConfirmPassword ? 'visibility' : 'visibility-off'}
-              size={22}
-              color={colors.primary}
-              style={styles.iconPadding}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {confirmPassword.length > 0 && confirmPassword !== password && (
-          <Text style={styles.validationText}>Passwords do not match.</Text>
-        )}
-
-        {/* Action Dispatcher Trigger */}
-        <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            { backgroundColor: colors.btnColor },
-            !isFormValid && { opacity: 0.5 },
-          ]}
-          onPress={handleChangePassword}
-          disabled={!isFormValid}
-          activeOpacity={0.8}
-        >
-          {isVerifying ? (
-            <ActivityIndicator size="small" color={colors.btnTextColor} />
-          ) : (
-            <Text
-              style={[styles.submitBtnText, { color: colors.btnTextColor }]}
-            >
-              Change Password
+            <Text style={[styles.inputLabel, { color: colors.text }]}>
+              Enter your New Password:
             </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+            <View style={styles.passwordInput}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(prev => !prev)}
+                accessibilityLabel="Toggle password visibility"
+                activeOpacity={0.6}
+              >
+                <MaterialIcons
+                  name={showPassword ? 'visibility' : 'visibility-off'}
+                  size={20}
+                  color={colors.primary}
+                  style={{ marginRight: 7 }}
+                />
+              </TouchableOpacity>
+              <TextInput
+                placeholder="Enter your password..."
+                placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
+                style={[styles.input2, { color: colors.text }]}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCorrect={false}
+                textContentType="newPassword"
+                editable={!isVerifying}
+              />
+            </View>
 
-      <SweetAlertModal
-        visible={alertVisible}
-        onConfirm={() => setAlertVisible(false)}
-        title={
-          alertType === 'success'
-            ? 'Success!'
-            : alertType === 'error'
-            ? 'Oops!'
-            : 'Warning!'
-        }
-        message={alertMessage}
-        type={alertType}
-      />
-    </KeyboardAvoidingView>
+            {password.length > 0 && !isValidPassword(password) && (
+              <Text style={styles.validationText}>
+                Password must be at least 13 characters, include uppercase,
+                lowercase, a number, and a symbol.
+              </Text>
+            )}
+
+            {/* Field Two: Password Confirmation Match Input */}
+            <Text style={[styles.inputLabel, { color: colors.text }]}>
+              Confirm your New Password:
+            </Text>
+            <View style={styles.passwordInput}>
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(prev => !prev)}
+                accessibilityLabel="Toggle confirmation visibility"
+                activeOpacity={0.6}
+              >
+                <MaterialIcons
+                  name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+                  size={20}
+                  color={colors.primary}
+                  style={{ marginRight: 7 }}
+                />
+              </TouchableOpacity>
+              <TextInput
+                placeholder="Confirm your new password..."
+                placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
+                style={[styles.input2, { color: colors.text }]}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                autoCorrect={false}
+                textContentType="newPassword"
+                editable={!isVerifying}
+              />
+            </View>
+
+            {confirmPassword.length > 0 && confirmPassword !== password && (
+              <Text style={styles.validationText}>Passwords do not match.</Text>
+            )}
+
+            <CustomButton
+              title="Change Password"
+              style={[styles.submitBtn]}
+              onPress={handleChangePassword}
+              disabled={!isFormValid}
+            />
+          </View>
+        </ScrollView>
+
+        <SweetAlertModal
+          visible={alertVisible}
+          onConfirm={() => setAlertVisible(false)}
+          title={
+            alertType === 'success'
+              ? 'Success!'
+              : alertType === 'error'
+                ? 'Oops!'
+                : 'Warning!'
+          }
+          message={alertMessage}
+          type={alertType}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
-  container: {
+  bkg: {
     flex: 1,
-    justifyContent: 'center',
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
   },
   cardContainer: {
-    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: 400,
     width: '100%',
-  },
-  mainHeader: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 24,
-    textAlign: 'center',
+    padding: 25,
+    backgroundColor: '#fff',
+    zIndex: 10,
+    borderRadius: 15,
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 54,
+    marginBottom: 15,
     width: '100%',
   },
-  textInput: {
+  input2: {
     flex: 1,
-    fontSize: 15,
-    height: '100%',
-    paddingVertical: 0,
+    fontSize: 14,
+    backgroundColor: 'transparent',
+    color: '#222',
   },
   iconPadding: {
     padding: 4,
   },
   validationText: {
-    color: '#D32F2F',
+    color: PRIMARY_COLOR,
     fontSize: 12,
-    marginTop: 6,
-    paddingHorizontal: 4,
-    lineHeight: 16,
-  },
-  submitBtn: {
-    height: 52,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
+    marginBottom: 15,
     width: '100%',
   },
+  submitBtn: {
+    paddingHorizontal: 15,
+    marginTop: 12,
+  },
   submitBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  mainHeader: {
+    fontSize: 25,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+    marginVertical: 25,
+    alignSelf: 'center',
+  },
+  passwordInput: {
+    width: '100%',
+    borderRadius: 5,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    height: 60,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f0eb',
+    position: 'relative',
   },
 });

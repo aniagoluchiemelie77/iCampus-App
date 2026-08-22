@@ -64,7 +64,7 @@ const StationCard = ({
         {isSelected && (
           <View style={[styles.badge, { backgroundColor: colors.btnColor }]}>
             <MaterialIcons
-              name="check-circle-outlined"
+              name="check-circle"
               size={16}
               color={colors.btnTextColor}
             />

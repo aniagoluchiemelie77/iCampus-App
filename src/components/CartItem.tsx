@@ -85,7 +85,7 @@ export const CartItem: React.FC<CartItemProps> = ({
             style={styles.removeButton}
           >
             <MaterialIcons
-              name="delete-outlined"
+              name="delete"
               size={18}
               color={colors.primary}
             />
@@ -162,7 +162,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   removeButton: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,

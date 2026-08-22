@@ -6,9 +6,11 @@ import React, {
   useMemo,
 } from 'react';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { IconOutline } from '@ant-design/icons-react-native';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import * as RNHTMLtoPDF from 'react-native-html-to-pdf';
 import ReactNativeBlobUtil from 'react-native-blob-util';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   View,
   TextInput,
@@ -216,9 +218,10 @@ export const CourseSearchBar: React.FC<SearchBarProps> = ({
         {textInput.length > 0 && Platform.OS === 'android' && (
           <TouchableOpacity onPress={() => setTextInput('')}>
             <MaterialIcons
-              name="cancel-outlined"
-              size={18}
+              name="cancel"
+              size={20}
               color={colors.inputTextHolder}
+              style={{ padding: 10 }}
             />
           </TouchableOpacity>
         )}
@@ -262,9 +265,10 @@ export const FloatingCalculator = ({
         </Text>
         <TouchableOpacity onPress={onClose}>
           <MaterialIcons
-            name="cancel-outlined"
+            name="cancel"
             size={20}
             color={colors.primary}
+            style={{ padding: 10 }}
           />
         </TouchableOpacity>
       </View>
@@ -371,9 +375,9 @@ const CreateAssignmentModal = ({
         });
       }
     } catch (err: any) {
-      if (
-        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
-      ) {
+      if (!(
+        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+      )) {
         Toast.show({
           type: 'error',
           text1: 'Document Error',
@@ -525,7 +529,7 @@ const CreateAssignmentModal = ({
             onPress={() => setOpen(true)}
           >
             <MaterialIcons
-              name="calendar-month-outlined"
+              name="calendar-month"
               size={20}
               color={colors.btnTextColor}
             />
@@ -578,7 +582,7 @@ const CreateAssignmentModal = ({
               onPress={handlePickFile}
             >
               <MaterialIcons
-                name="insert-drive-file-outlined"
+                name="insert-drive-file"
                 size={18}
                 color={colors.primary}
               />
@@ -603,11 +607,7 @@ const CreateAssignmentModal = ({
               ]}
               onPress={handlePickImage}
             >
-              <MaterialIcons
-                name="image-outlined"
-                size={18}
-                color={colors.primary}
-              />
+              <MaterialIcons name="image" size={18} color={colors.primary} />
               <Text
                 style={[
                   CourseActionStyles.filePickerText,
@@ -641,27 +641,19 @@ const CreateAssignmentModal = ({
                 Cancel
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.saveBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={handleCreate}
-              disabled={isUploadingMedia}
-            >
-              <Text
-                style={[
-                  CourseActionStyles.saveBtnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                {isUploadingMedia
+            <CustomButton
+              title={
+                isUploadingMedia
                   ? 'Uploading Asset...'
                   : isSaving
-                  ? 'Creating...'
-                  : 'Add Assignment'}
-              </Text>
-            </TouchableOpacity>
+                    ? 'Creating...'
+                    : 'Add Assignment'
+              }
+              onPress={handleCreate}
+              disabled={isSaving}
+              isLoading={isSaving}
+              style={CourseActionStyles.saveBtn}
+            />
           </View>
         </View>
       </View>
@@ -824,11 +816,7 @@ export const AddExceptionModal = ({
                 { borderLeftColor: colors.primary },
               ]}
             >
-              <MaterialIcons
-                name="info-outlined"
-                size={16}
-                color={colors.primary}
-              />
+              <MaterialIcons name="info" size={16} color={colors.primary} />
               <Text
                 style={[CourseActionStyles.costText, { color: colors.primary }]}
               >
@@ -853,18 +841,13 @@ export const AddExceptionModal = ({
                   Cancel
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.saveBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
+              <CustomButton
+                title={isSaving ? 'Submitting...' : 'Submit Request'}
                 onPress={handleSubmit}
                 disabled={isSaving}
-              >
-                <Text style={CourseActionStyles.saveBtnText}>
-                  {isSaving ? 'Submitting...' : 'Submit Request'}
-                </Text>
-              </TouchableOpacity>
+                isLoading={isSaving}
+                style={CourseActionStyles.saveBtn}
+              />
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -921,9 +904,10 @@ export const DetailHeader = ({
             {searchQuery.length > 0 && Platform.OS === 'android' && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
                 <MaterialIcons
-                  name="cancel-outlined"
+                  name="cancel"
                   size={18}
                   color={colors.inputTextHolder}
+                  style={{ padding: 10 }}
                 />
               </TouchableOpacity>
             )}
@@ -1070,27 +1054,13 @@ export const RenderContents = ({
               }
               rightElement={
                 userRole === 'lecturer' && (
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.addContentBtn,
-                      { borderColor: colors.primary },
-                    ]}
+                  <CustomButton
+                    title="Add New Topic"
                     onPress={() => openModal()}
-                  >
-                    <MaterialIcons
-                      name="add"
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <Text
-                      style={[
-                        CourseActionStyles.addContentText,
-                        { color: colors.primary },
-                      ]}
-                    >
-                      Add New Topic
-                    </Text>
-                  </TouchableOpacity>
+                    iconName="add"
+                    iconColor="#fff"
+                    style={CourseActionStyles.addContentBtn}
+                  />
                 )
               }
             />
@@ -1139,7 +1109,7 @@ export const RenderContents = ({
                   style={CourseActionStyles.iconBtn}
                 >
                   <MaterialIcons
-                    name="delete-outlined"
+                    name="delete"
                     size={20}
                     color={colors.primary}
                   />
@@ -1215,22 +1185,11 @@ export const RenderContents = ({
                       Cancel
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.saveBtn,
-                      { backgroundColor: colors.btnColor },
-                    ]}
+                  <CustomButton
+                    title="Save Changes"
                     onPress={handleSave}
-                  >
-                    <Text
-                      style={[
-                        CourseActionStyles.saveBtnText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Save Changes
-                    </Text>
-                  </TouchableOpacity>
+                    style={CourseActionStyles.saveBtn}
+                  />
                 </View>
               </View>
             </View>
@@ -1339,9 +1298,9 @@ export const RenderMaterials = ({
         }
       }
     } catch (err: any) {
-      if (
-        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
-      ) {
+      if (!(
+        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+      )) {
         Toast.show({
           type: 'error',
           text1: 'Document Error',
@@ -1421,23 +1380,14 @@ export const RenderMaterials = ({
             title="Course Materials"
             rightElement={
               userRole === 'lecturer' && (
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.addButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                <CustomButton
+                  title="Save Changes"
                   onPress={handleAddMaterial}
                   disabled={isUploading}
-                >
-                  <Text
-                    style={[
-                      CourseActionStyles.addBtnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    {isUploading ? 'Uploading...' : 'Add Material'}
-                  </Text>
-                </TouchableOpacity>
+                  iconName="add"
+                  iconColor="#fff"
+                  style={CourseActionStyles.addButton}
+                />
               )
             }
           />
@@ -1463,7 +1413,7 @@ export const RenderMaterials = ({
             ]}
           >
             <MaterialIcons
-              name="picture-as-pdf-outlined"
+              name="picture-as-pdf"
               size={32}
               color={colors.primary}
             />
@@ -1483,7 +1433,7 @@ export const RenderMaterials = ({
                   onPress={() => handleDownload(item.url, fileName)}
                 >
                   <MaterialIcons
-                    name="file-download-outlined"
+                    name="file-download"
                     size={20}
                     color={colors.primary}
                   />
@@ -1494,7 +1444,7 @@ export const RenderMaterials = ({
                     onPress={() => handleDelete(item.url)}
                   >
                     <MaterialIcons
-                      name="delete-outlined"
+                      name="delete"
                       size={20}
                       color={colors.primary}
                     />
@@ -1640,22 +1590,13 @@ export const RenderAssignments = ({
               title="Assignments & Tasks"
               rightElement={
                 userRole === 'lecturer' && (
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.addButton,
-                      { backgroundColor: colors.btnColor },
-                    ]}
+                  <CustomButton
+                    title="Create"
                     onPress={() => setModalVisible(true)}
-                  >
-                    <Text
-                      style={[
-                        CourseActionStyles.addBtnText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Create
-                    </Text>
-                  </TouchableOpacity>
+                    iconName="add"
+                    iconColor="#fff"
+                    style={CourseActionStyles.addButton}
+                  />
                 )
               }
             />
@@ -1718,7 +1659,7 @@ export const RenderAssignments = ({
                   onPress={() => handleAssignmentDelete(item.id, item.title)}
                 >
                   <MaterialIcons
-                    name="delete-outlined"
+                    name="delete"
                     color={colors.primary}
                     size={20}
                   />
@@ -1729,7 +1670,7 @@ export const RenderAssignments = ({
         }}
         ListEmptyComponent={
           <EmptyState
-            iconName="content-paste-off-outlined"
+            iconName="content-paste-off"
             title="No Assignments Posted"
             subtitle="Check back later for upcoming tasks and deadlines."
             buttonText={
@@ -1801,25 +1742,17 @@ export const RenderStudentExceptions = ({
             subtitle={`${usedThisMonth} / ${planLimit} free used`}
             rightElement={
               !isDisabled && (
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.addBtn,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                  onPress={onAddPress}
-                >
-                  <MaterialIcons name="add" size={20} color={colors.primary} />
-                  <Text
-                    style={[
-                      CourseActionStyles.addBtnText2,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    {isOverTierLimit
+                <CustomButton
+                  title={
+                    isOverTierLimit
                       ? 'Buy Extra Exception'
-                      : 'Request Exception'}
-                  </Text>
-                </TouchableOpacity>
+                      : 'Request Exception'
+                  }
+                  onPress={onAddPress}
+                  iconName="add"
+                  iconColor="#fff"
+                  style={CourseActionStyles.addButton}
+                />
               )
             }
           />
@@ -1864,10 +1797,10 @@ export const RenderStudentExceptions = ({
             <MaterialIcons
               name={
                 item.status === 'approved'
-                  ? 'check-circle-outlined'
+                  ? 'check-circle'
                   : item.status === 'rejected'
-                  ? 'error-outline-outlined'
-                  : 'access-time-outlined'
+                    ? 'error-outline'
+                    : 'access-time'
               }
               size={14}
               color={colors.primary}
@@ -1962,52 +1895,25 @@ export const RenderLecturerExceptionsManage = ({
 
           {item.status === 'pending' ? (
             <View style={CourseActionStyles.actionRow2}>
-              <TouchableOpacity
-                style={CourseActionStyles.approveBtn}
+              <CustomButton
+                title="Approve"
                 onPress={() => onUpdateStatus(item.id, 'approved')}
-              >
-                <MaterialIcons
-                  name="check-circle-outlined"
-                  size={22}
-                  color={colors.primary}
-                />
-                <Text
-                  style={[
-                    CourseActionStyles.btnText,
-                    { color: colors.primary, marginTop: 4 },
-                  ]}
-                >
-                  Approve
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={CourseActionStyles.rejectBtn}
+                iconName="check-circle"
+                iconColor="#fff"
+                style={CourseActionStyles.approveBtn}
+              />
+              <CustomButton
+                title="Reject"
                 onPress={() => onUpdateStatus(item.id, 'rejected')}
-              >
-                <MaterialIcons
-                  name="cancel-outlined"
-                  size={22}
-                  color={colors.primary}
-                />
-                <Text
-                  style={[
-                    CourseActionStyles.btnText,
-                    { color: colors.primary, marginTop: 4 },
-                  ]}
-                >
-                  Reject
-                </Text>
-              </TouchableOpacity>
+                iconName="cancel"
+                iconColor="#fff"
+                style={CourseActionStyles.approveBtn}
+              />
             </View>
           ) : (
             <View style={CourseActionStyles.finalStatusContainer}>
               <MaterialIcons
-                name={
-                  item.status === 'approved'
-                    ? 'check-circle-outlined'
-                    : 'cancel-outlined'
-                }
+                name={item.status === 'approved' ? 'check-circle' : 'cancel'}
                 size={22}
                 color={colors.primary}
                 style={{ marginRight: 8 }}
@@ -2026,7 +1932,7 @@ export const RenderLecturerExceptionsManage = ({
       )}
       ListEmptyComponent={
         <EmptyState
-          iconName="done-all-outlined"
+          iconName="done-all"
           title="All Caught Up!"
           subtitle="There are no pending student exceptions requiring your approval right now."
           style={{ marginTop: 80 }}
@@ -2235,7 +2141,7 @@ export const RenderScheduleLecture = ({
         />
         {form.lectureType === 'Online' && (
           <MaterialIcons
-            name="check-circle-outlined"
+            name="check-circle"
             size={16}
             color={colors.btnTextColor}
           />
@@ -2250,11 +2156,7 @@ export const RenderScheduleLecture = ({
           ]}
           onPress={() => showPicker('date')}
         >
-          <MaterialIcons
-            name="calendar-month-outlined"
-            size={24}
-            color={colors.text}
-          />
+          <MaterialIcons name="calendar-month" size={24} color={colors.text} />
           <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
             Date
           </Text>
@@ -2271,11 +2173,7 @@ export const RenderScheduleLecture = ({
           ]}
           onPress={() => showPicker('startTime')}
         >
-          <MaterialIcons
-            name="schedule-outlined"
-            size={24}
-            color={colors.text}
-          />
+          <MaterialIcons name="schedule" size={24} color={colors.text} />
           <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
             Start Time
           </Text>
@@ -2292,11 +2190,7 @@ export const RenderScheduleLecture = ({
           ]}
           onPress={() => showPicker('endTime')}
         >
-          <MaterialIcons
-            name="schedule-outlined"
-            size={24}
-            color={colors.text}
-          />
+          <MaterialIcons name="schedule" size={24} color={colors.text} />
           <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
             Ends
           </Text>
@@ -2314,11 +2208,7 @@ export const RenderScheduleLecture = ({
         <TouchableOpacity
           onPress={() => setRepeatWeeks(Math.max(1, repeatWeeks - 1))}
         >
-          <MaterialIcons
-            name="remove-outlined"
-            size={24}
-            color={colors.primary}
-          />
+          <MaterialIcons name="remove" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={[CourseActionStyles.repeatValue, { color: colors.text }]}>
           {repeatWeeks} {repeatWeeks > 1 ? 'Weeks' : 'Week'}
@@ -2326,30 +2216,17 @@ export const RenderScheduleLecture = ({
         <TouchableOpacity
           onPress={() => setRepeatWeeks(Math.min(12, repeatWeeks + 1))}
         >
-          <MaterialIcons name="add-outlined" size={24} color={colors.primary} />
+          <MaterialIcons name="add" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={[
-          CourseActionStyles.submitButton,
-          { backgroundColor: colors.btnColor },
-        ]}
+      <CustomButton
+        title="Save Lecture Schedule"
         onPress={validateAndSave}
         disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color={colors.btnTextColor} size={'small'} />
-        ) : (
-          <Text
-            style={[
-              CourseActionStyles.submitText,
-              { color: colors.btnTextColor },
-            ]}
-          >
-            Save Lecture Schedule
-          </Text>
-        )}
-      </TouchableOpacity>
+        iconName="add"
+        iconColor="#fff"
+        style={CourseActionStyles.submitButton}
+      />
       <Modal visible={showTopicPicker} transparent animationType="fade">
         <Pressable
           style={CourseActionStyles.modalOverlayEnd}
@@ -2390,7 +2267,7 @@ export const RenderScheduleLecture = ({
                   </Text>
                   {form.topicName === item && (
                     <MaterialIcons
-                      name="check-circle-outlined"
+                      name="check-circle"
                       size={18}
                       color={colors.primary}
                     />
@@ -2417,7 +2294,7 @@ export const RenderScheduleLecture = ({
             ]}
           >
             <MaterialIcons
-              name="error-outline-outlined"
+              name="error-outline"
               size={50}
               color={colors.primary}
             />
@@ -2549,11 +2426,7 @@ export const QuickPublicMeeting = () => {
           ]}
           onPress={() => showPicker('date')}
         >
-          <MaterialIcons
-            name="calendar-month-outlined"
-            size={24}
-            color={colors.text}
-          />
+          <MaterialIcons name="calendar-month" size={24} color={colors.text} />
           <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
             Date
           </Text>
@@ -2570,11 +2443,7 @@ export const QuickPublicMeeting = () => {
           ]}
           onPress={() => showPicker('startTime')}
         >
-          <MaterialIcons
-            name="schedule-outlined"
-            size={24}
-            color={colors.text}
-          />
+          <MaterialIcons name="schedule" size={24} color={colors.text} />
           <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
             Start Time
           </Text>
@@ -2591,11 +2460,7 @@ export const QuickPublicMeeting = () => {
           ]}
           onPress={() => showPicker('endTime')}
         >
-          <MaterialIcons
-            name="schedule-outlined"
-            size={24}
-            color={colors.text}
-          />
+          <MaterialIcons name="schedule" size={24} color={colors.text} />
           <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
             Ends
           </Text>
@@ -2606,23 +2471,14 @@ export const QuickPublicMeeting = () => {
           </Text>
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={[
-          CourseActionStyles.submitButton,
-          { backgroundColor: colors.btnColor },
-        ]}
+      <CustomButton
+        title="Schedule Meeting"
         onPress={handleSave}
         disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator color={colors.btnTextColor} />
-        ) : (
-          <Text style={{ color: colors.btnTextColor }}>
-            Generate Meeting Link
-          </Text>
-        )}
-      </TouchableOpacity>
+        iconName="add"
+        iconColor="#fff"
+        style={CourseActionStyles.submitButton}
+      />
       <Modal visible={!!successData} transparent animationType="slide">
         <View style={CourseActionStyles.modalOverlay}>
           <View
@@ -2632,7 +2488,7 @@ export const QuickPublicMeeting = () => {
             ]}
           >
             <MaterialIcons
-              name="check-circle-outlined"
+              name="check-circle"
               color={colors.success}
               size={60}
             />
@@ -2660,29 +2516,15 @@ export const QuickPublicMeeting = () => {
             />
 
             <View style={CourseActionStyles.rowDiv}>
-              <TouchableOpacity
+              <CustomButton
+                title="Copy Link"
                 onPress={() => Clipboard.setString(successData?.link || '')}
-                style={[
-                  CourseActionStyles.classActionBtns,
-                  { backgroundColor: colors.btnColor },
-                ]}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.classActionBtnText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  Copy Link
-                </Text>
-                <MaterialIcons
-                  name="content-copy-outlined"
-                  color={colors.btnTextColor}
-                  size={20}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
+                iconName="content-copy"
+                iconColor="#fff"
+                style={CourseActionStyles.classActionBtns}
+              />
+              <CustomButton
+                title="Share Link"
                 onPress={async () => {
                   try {
                     await Share.share({
@@ -2696,25 +2538,10 @@ export const QuickPublicMeeting = () => {
                     console.error('Error sharing:', error);
                   }
                 }}
-                style={[
-                  CourseActionStyles.classActionBtns,
-                  { backgroundColor: colors.btnColor },
-                ]}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.classActionBtnText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  Share
-                </Text>
-                <MaterialIcons
-                  name="share"
-                  color={colors.btnTextColor}
-                  size={20}
-                />
-              </TouchableOpacity>
+                iconName="share"
+                iconColor="#fff"
+                style={CourseActionStyles.classActionBtns}
+              />
             </View>
           </View>
         </View>
@@ -3057,33 +2884,19 @@ export const RenderLecturerTestManage = ({
                 </Text>
               </TouchableOpacity>
               {isPastDue && item.isPublished ? (
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.downloadTestBtn,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                <CustomButton
+                  title="Download Assessment Report"
                   onPress={() =>
                     downloadAssessmentReport(item.id!, item.title!)
                   }
-                >
-                  <MaterialIcons
-                    name="assessment-outlined"
-                    size={20}
-                    color={colors.btnTextColor}
-                  />
-                  <Text
-                    style={[
-                      CourseActionStyles.downloadBtnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Download Assessment Analysis
-                  </Text>
-                </TouchableOpacity>
+                  iconName="assessment"
+                  iconColor="#fff"
+                  style={CourseActionStyles.downloadTestBtn}
+                />
               ) : (
                 <View style={[CourseActionStyles.downloadTestBtn]}>
                   <MaterialIcons
-                    name="access-time-outlined"
+                    name="access-time"
                     size={20}
                     color={colors.primary}
                   />
@@ -3106,11 +2919,8 @@ export const RenderLecturerTestManage = ({
             <PageHeader
               title="Assessments"
               rightElement={
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.createCard,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                <CustomButton
+                  title="Create Assessment"
                   onPress={() => {
                     setEditingId(null);
                     setTestForm({
@@ -3124,21 +2934,10 @@ export const RenderLecturerTestManage = ({
                     });
                     setIsModalVisible(true);
                   }}
-                >
-                  <MaterialIcons
-                    name="add"
-                    size={24}
-                    color={colors.btnTextColor}
-                  />
-                  <Text
-                    style={[
-                      CourseActionStyles.createCardText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Create New Assessment
-                  </Text>
-                </TouchableOpacity>
+                  iconName="add"
+                  iconColor="#fff"
+                  style={CourseActionStyles.createCard}
+                />
               }
             />
             {shouldShowSearch && (
@@ -3244,9 +3043,10 @@ export const RenderLecturerTestManage = ({
                   </Text>
                   <TouchableOpacity onPress={() => removeQuestion(q.id)}>
                     <MaterialIcons
-                      name="cancel-outlined"
+                      name="cancel"
                       size={22}
                       color={colors.primary}
+                      style={{ padding: 10 }}
                     />
                   </TouchableOpacity>
                 </View>
@@ -3343,9 +3143,10 @@ export const RenderLecturerTestManage = ({
                             onPress={() => removeOption(q.id, oIdx)}
                           >
                             <MaterialIcons
-                              name="cancel-outlined"
+                              name="cancel"
                               size={22}
                               color={colors.primary}
+                              style={{ padding: 10 }}
                             />
                           </TouchableOpacity>
                         )}
@@ -3412,7 +3213,7 @@ export const RenderLecturerTestManage = ({
                 onPress={() => showPicker('date')}
               >
                 <MaterialIcons
-                  name="calendar-month-outlined"
+                  name="calendar-month"
                   size={24}
                   color={colors.text}
                 />
@@ -3442,11 +3243,7 @@ export const RenderLecturerTestManage = ({
                 ]}
                 onPress={() => showPicker('startTime')}
               >
-                <MaterialIcons
-                  name="schedule-outlined"
-                  size={24}
-                  color={colors.text}
-                />
+                <MaterialIcons name="schedule" size={24} color={colors.text} />
                 <Text
                   style={[
                     CourseActionStyles.microLabel,
@@ -3473,11 +3270,7 @@ export const RenderLecturerTestManage = ({
                 ]}
                 onPress={() => showPicker('endTime')}
               >
-                <MaterialIcons
-                  name="schedule-outlined"
-                  size={24}
-                  color={colors.text}
-                />
+                <MaterialIcons name="schedule" size={24} color={colors.text} />
                 <Text
                   style={[
                     CourseActionStyles.microLabel,
@@ -3501,38 +3294,29 @@ export const RenderLecturerTestManage = ({
 
             <TouchableOpacity
               style={[
-                CourseActionStyles.addBtn,
-                { backgroundColor: colors.btnColor },
+                CourseActionStyles.addBtn2,
+                { borderColor: colors.btnColor },
               ]}
               onPress={addQuestion}
             >
-              <MaterialIcons name="add" size={22} color={colors.btnTextColor} />
+              <MaterialIcons name="add" size={22} color={colors.primary} />
               <Text
                 style={[
                   CourseActionStyles.addBtnText3,
-                  { color: colors.btnTextColor },
+                  { color: colors.primary },
                 ]}
               >
                 Add Question
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            <CustomButton
+              title="Publish"
               onPress={() => handleFinalize(true)}
               disabled={loading}
-              style={[
-                CourseActionStyles.publishHeaderBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
-            >
-              <Text
-                style={[
-                  CourseActionStyles.publishHeaderText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Publish
-              </Text>
-            </TouchableOpacity>
+              iconName="add"
+              iconColor="#fff"
+              style={CourseActionStyles.publishHeaderBtn}
+            />
             <View style={{ height: 30 }} />
           </ScrollView>
         </SafeAreaView>
@@ -3583,7 +3367,7 @@ export const RenderStudentTest = ({
 
   const appState = useRef(AppState.currentState);
   const lookAwayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef<any>(null);
   const device = useCameraDevice('front');
   const [isUploading, setIsUploading] = useState(false);
   const gradeShortAnswersWithAI = async (shortAnswerPairs: any[]) => {
@@ -3968,7 +3752,7 @@ export const RenderStudentTest = ({
               showsVerticalScrollIndicator={false}
             >
               <MaterialIcons
-                name="info-outlined"
+                name="info"
                 size={50}
                 color={colors.primary}
                 style={CourseActionStyles.centerIcon}
@@ -4014,43 +3798,19 @@ export const RenderStudentTest = ({
                   Goodluck and we hope you have a good test!
                 </Text>
               </View>
-
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.startBtn,
-                  { backgroundColor: colors.btnColor },
-                  isUploading && CourseActionStyles.disabledBtn,
-                ]}
+              <CustomButton
+                title="Verify Identity & Start"
                 onPress={startTestWithSecurity}
                 disabled={isUploading}
-              >
-                {isUploading ? (
-                  <ActivityIndicator
-                    color={colors.btnTextColor}
-                    size={'small'}
-                  />
-                ) : (
-                  <Text
-                    style={[
-                      CourseActionStyles.startBtnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Verify Identity & Start
-                  </Text>
-                )}
-              </TouchableOpacity>
+                style={CourseActionStyles.publishHeaderBtn}
+              />
             </ScrollView>
           </View>
         </View>
       </Modal>
       <View style={CourseActionStyles.header}>
         <View style={CourseActionStyles.sideBySideCenteredRow}>
-          <MaterialIcons
-            name="access-time-outlined"
-            size={20}
-            color={colors.text}
-          />
+          <MaterialIcons name="access-time" size={20} color={colors.text} />
           <Text
             style={[
               CourseActionStyles.timer,
@@ -4076,11 +3836,7 @@ export const RenderStudentTest = ({
           Question {currentIndex + 1} of {activeQuestions.length}
         </Text>
         <TouchableOpacity onPress={() => setIsCalcVisible(true)}>
-          <MaterialIcons
-            name="calculate-outlined"
-            size={22}
-            color={colors.primary}
-          />
+          <IconOutline name="calculator" size={24} color={PRIMARY_COLOR} />
         </TouchableOpacity>
       </View>
       {isStarted && !isFinished && (
@@ -4145,59 +3901,26 @@ export const RenderStudentTest = ({
           </View>
 
           <View style={CourseActionStyles.testSideBySide}>
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.submitBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title="Previous"
               onPress={() =>
                 currentIndex > 0 && setCurrentIndex(currentIndex - 1)
               }
-            >
-              <Text
-                style={[
-                  CourseActionStyles.submitBtnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Prev
-              </Text>
-            </TouchableOpacity>
+              style={CourseActionStyles.submitBtn} 
+            />
 
             {currentIndex === activeQuestions.length - 1 ? (
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.submitBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
+              <CustomButton
+                title="Submit Test"
                 onPress={handleFinalSubmit}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.submitBtnText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  Submit Test
-                </Text>
-              </TouchableOpacity>
+                style={CourseActionStyles.submitBtn} 
+              />
             ) : (
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.submitBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
+              <CustomButton
+                title="Next"
                 onPress={() => setCurrentIndex(currentIndex + 1)}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.submitBtnText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  Next
-                </Text>
-              </TouchableOpacity>
+                style={CourseActionStyles.submitBtn} 
+              />
             )}
           </View>
         </>
@@ -4212,11 +3935,7 @@ export const RenderStudentTest = ({
           >
             {impersonationError ? (
               <>
-                <MaterialIcons
-                  name="cancel-outlined"
-                  size={60}
-                  color={colors.primary}
-                />
+                <MaterialIcons name="cancel" size={60} color={colors.primary} />
                 <Text
                   style={[
                     CourseActionStyles.scoreTitle,
@@ -4235,27 +3954,16 @@ export const RenderStudentTest = ({
                   {impersonationError ||
                     'Your identity could not be verified on suspicions of impersonation.'}
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.startBtn,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                <CustomButton
+                  title="Redo Test"
                   onPress={startTestWithSecurity}
-                >
-                  <Text
-                    style={[
-                      CourseActionStyles.startBtnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Redo Test (Contact Admin if issue persists)
-                  </Text>
-                </TouchableOpacity>
+                  style={CourseActionStyles.startBtn} 
+                />
               </>
             ) : (
               <>
                 <MaterialIcons
-                  name="check-circle-outlined"
+                  name="check-circle"
                   size={50}
                   color={colors.primary}
                 />
@@ -4297,12 +4005,9 @@ export const RenderStudentTest = ({
                   {getAdvice((finalResult.score / finalResult.total) * 100).msg}
                 </Text>
                 <View style={CourseActionStyles.sideBySideCenteredRowSB}>
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.startBtn,
-                      { backgroundColor: colors.btnColor },
-                    ]}
-                    onPress={() => {
+                  <CustomButton
+                    title="Back to Home"
+                  onPress={() => {
                       navigation.reset({
                         index: 0,
                         routes: [
@@ -4315,37 +4020,15 @@ export const RenderStudentTest = ({
                         ],
                       });
                     }}
-                  >
-                    <Text
-                      style={[
-                        CourseActionStyles.startBtnText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Back to Home
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.startBtn,
-                      { backgroundColor: colors.btnColor },
-                    ]}
+                    style={CourseActionStyles.startBtn} 
+                  />
+                  <CustomButton
+                    title="Download Test Review"
                     onPress={downloadStudentResultSheet}
-                  >
-                    <MaterialIcons
-                      name="download-outlined"
-                      size={20}
-                      color={colors.btnTextColor}
-                    />
-                    <Text
-                      style={[
-                        CourseActionStyles.startBtnText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Download Test Review
-                    </Text>
-                  </TouchableOpacity>
+                    iconName="download"
+                    iconColor="#fff"
+                    style={CourseActionStyles.startBtn} 
+                  />
                 </View>
               </>
             )}
@@ -4394,18 +4077,21 @@ export const RenderViewLectureSchedule = ({
   const today = new Date().toISOString().split('T')[0];
 
   const sections = useMemo(() => {
-    const groups = lectures.reduce((acc, lecture) => {
-      const dateKey =
-        lecture.date instanceof Date
-          ? lecture.date.toISOString().split('T')[0]
-          : String(lecture.date);
+    const groups = lectures.reduce(
+      (acc, lecture) => {
+        const dateKey =
+          lecture.date instanceof Date
+            ? lecture.date.toISOString().split('T')[0]
+            : String(lecture.date);
 
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(lecture);
-      return acc;
-    }, {} as Record<string, Lecture[]>);
+        if (!acc[dateKey]) {
+          acc[dateKey] = [];
+        }
+        acc[dateKey].push(lecture);
+        return acc;
+      },
+      {} as Record<string, Lecture[]>,
+    );
 
     return Object.keys(groups)
       .sort()
@@ -4618,18 +4304,21 @@ export const LecturerLectureScheduleView = ({
   const today = new Date().toISOString().split('T')[0];
 
   const sections = useMemo(() => {
-    const groups = lectures.reduce((acc, lecture) => {
-      const dateKey =
-        lecture.date instanceof Date
-          ? lecture.date.toISOString().split('T')[0]
-          : String(lecture.date);
+    const groups = lectures.reduce(
+      (acc, lecture) => {
+        const dateKey =
+          lecture.date instanceof Date
+            ? lecture.date.toISOString().split('T')[0]
+            : String(lecture.date);
 
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(lecture);
-      return acc;
-    }, {} as Record<string, Lecture[]>);
+        if (!acc[dateKey]) {
+          acc[dateKey] = [];
+        }
+        acc[dateKey].push(lecture);
+        return acc;
+      },
+      {} as Record<string, Lecture[]>,
+    );
 
     return Object.keys(groups)
       .sort()
@@ -4786,47 +4475,25 @@ export const LecturerLectureScheduleView = ({
                 alignItems: 'center',
               }}
             >
-              <TouchableOpacity
-                style={[CourseActionStyles.startBtn, { flexDirection: 'row' }]}
+              <CustomButton
+                title="Edit"
                 onPress={() => {
                   handleOpenEditModal(item);
                 }}
-              >
-                <MaterialIcons
-                  name="edit-outlined"
-                  size={22}
-                  color={colors.primary}
-                />
-                <Text
-                  style={[
-                    CourseActionStyles.startBtnText2,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Edit
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[CourseActionStyles.startBtn, { marginLeft: 7 }]}
+                iconName="edit"
+                iconColor="#fff"
+                style={CourseActionStyles.startBtn} 
+              />
+              <CustomButton
+                title="Delete"
                 onPress={() => {
                   setSelectedLecture(item);
                   setShowDeleteModal(true);
                 }}
-              >
-                <MaterialIcons
-                  name="delete-outlined"
-                  size={22}
-                  color={colors.primary}
-                />
-                <Text
-                  style={[
-                    CourseActionStyles.startBtnText2,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Delete
-                </Text>
-              </TouchableOpacity>
+                iconName="delete"
+                iconColor="#fff"
+                style={[CourseActionStyles.startBtn, {marginLeft: 10}]} 
+              />
             </View>
           </View>
           <Text
@@ -5003,28 +4670,20 @@ export const LecturerLectureScheduleView = ({
               <View
                 style={[CourseActionStyles.modalActions, { marginTop: 25 }]}
               >
-                <TouchableOpacity
+                <CustomButton
+                  title="Cancel"
                   onPress={() => setShowPostponeModal(false)}
-                  style={[CourseActionStyles.rejectBtn]}
-                >
-                  <Text style={{ color: colors.primary }}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                  iconName="cancel"
+                  iconColor="#fff"
+                  style={CourseActionStyles.approveBtn}
+                />
+                <CustomButton
+                  title="Save Changes"
                   onPress={handleEditSave}
-                  style={[
-                    CourseActionStyles.approveBtn,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      CourseActionStyles.btnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Save Changes
-                  </Text>
-                </TouchableOpacity>
+                  iconName="check-circle"
+                  iconColor="#fff"
+                  style={CourseActionStyles.approveBtn}
+                />
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -5065,25 +4724,15 @@ export const LecturerLectureScheduleView = ({
                     Cancel
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+
+                <CustomButton
+                  title="Confirm Delete"
                   onPress={() => {
                     onDeleteLecture(selectedLecture!.id);
                     setShowDeleteModal(false);
                   }}
-                  style={[
-                    CourseActionStyles.approveBtn,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      CourseActionStyles.btnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Confirm Delete
-                  </Text>
-                </TouchableOpacity>
+                  style={CourseActionStyles.approveBtn}
+                />
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -5184,27 +4833,13 @@ export const AssessmentReportScreen = ({ route }: any) => {
       <PageHeader
         title={`Assessment Analyis Report for ${reportData.test.title}`}
         rightElement={
-          <TouchableOpacity
-            style={[
-              CourseActionStyles.downloadBtn,
-              { backgroundColor: colors.btnColor },
-            ]}
+          <CustomButton
+            title="Download Report"
             onPress={handleDownloadPDF}
-          >
-            <MaterialIcons
-              name="file-download-outlined"
-              size={24}
-              color="#fff"
-            />
-            <Text
-              style={[
-                CourseActionStyles.downloadText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              Download Report
-            </Text>
-          </TouchableOpacity>
+            iconName="file-download"
+            iconColor="#fff"
+            style={CourseActionStyles.downloadBtn} 
+          />
         }
       />
       <View style={CourseActionStyles.row}>
@@ -5290,31 +4925,31 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
   const [attendanceWeight, setAttendanceWeight] = useState('40');
   const [testWeight, setTestWeight] = useState('60');
   const [downloading, setDownloading] = useState(false);
- const hasAttendance = data.some(s => s.attendanceRecords?.length > 0);
- const hasTests = data.some(s => s.testSubmissions?.length > 0);
+  const hasAttendance = data.some(s => s.attendanceRecords?.length > 0);
+  const hasTests = data.some(s => s.testSubmissions?.length > 0);
 
- const finalMark =
-   (hasAttendance ? parseFloat(attendanceWeight || '0') : 0) +
-   (hasTests ? parseFloat(testWeight || '0') : 0);
- const xFactor = finalMark / 100;
+  const finalMark =
+    (hasAttendance ? parseFloat(attendanceWeight || '0') : 0) +
+    (hasTests ? parseFloat(testWeight || '0') : 0);
+  const xFactor = finalMark / 100;
 
- const handleDownload = async () => {
-   setDownloading(true);
+  const handleDownload = async () => {
+    setDownloading(true);
 
-   const attVal = hasAttendance ? parseFloat(attendanceWeight || '0') : 0;
-   const testVal = hasTests ? parseFloat(testWeight || '0') : 0;
+    const attVal = hasAttendance ? parseFloat(attendanceWeight || '0') : 0;
+    const testVal = hasTests ? parseFloat(testWeight || '0') : 0;
 
-   const totalWeight = attVal + testVal || 1;
+    const totalWeight = attVal + testVal || 1;
 
-   const attW = attVal / totalWeight;
-   const testW = testVal / totalWeight;
+    const attW = attVal / totalWeight;
+    const testW = testVal / totalWeight;
 
-   const tableRows = data
-     .map(s => {
-       const attScore = (s.attendanceSum || 0) * attW;
-       const testScore = (s.testSum || 0) * testW;
-       const finalScore = attScore + testScore;
-       return `
+    const tableRows = data
+      .map(s => {
+        const attScore = (s.attendanceSum || 0) * attW;
+        const testScore = (s.testSum || 0) * testW;
+        const finalScore = attScore + testScore;
+        return `
         <tr>
           <td>${s.studentName}</td>
           <td>${s.matricNumber}</td>
@@ -5322,10 +4957,10 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
           ${hasTests ? `<td>${s.testSum?.toFixed(2) || 0}</td>` : ''}
           <td><strong>${finalScore.toFixed(2)}</strong></td>
         </tr>`;
-     })
-     .join('');
+      })
+      .join('');
 
-   const htmlContent = `
+    const htmlContent = `
     <html>
       <head>
         <style>
@@ -5353,147 +4988,138 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     </html>
   `;
 
-   try {
-     const options = {
-       html: htmlContent,
-       fileName: 'Gradebook_Report',
-       directory: 'Documents',
-     };
-     const file = await (RNHTMLtoPDF as any).convert(options);
+    try {
+      const options = {
+        html: htmlContent,
+        fileName: 'Gradebook_Report',
+        directory: 'Documents',
+      };
+      const file = await (RNHTMLtoPDF as any).convert(options);
 
-     if (file.filePath) {
-       await Share.share({
-         url: `file://${file.filePath}`,
-         title: 'Download Gradebook',
-       });
-     }
-     setDownloading(false);
-   } catch (error) {
-     console.error('Export Error:', error);
-   }
- };
- const loadData = useCallback(async () => {
-   setLoading(true);
-   const result = await fetchCourseGradebook(courseId);
+      if (file.filePath) {
+        await Share.share({
+          url: `file://${file.filePath}`,
+          title: 'Download Gradebook',
+        });
+      }
+      setDownloading(false);
+    } catch (error) {
+      console.error('Export Error:', error);
+    }
+  };
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const result = await fetchCourseGradebook(courseId);
 
-   if (result.success) {
-     setData(result.data);
-   } else {
-     Alert.alert('Error', result.message);
-   }
-   setLoading(false);
- }, [courseId]);
- useEffect(() => {
-   loadData();
- }, [loadData]);
+    if (result.success) {
+      setData(result.data);
+    } else {
+      Alert.alert('Error', result.message);
+    }
+    setLoading(false);
+  }, [courseId]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
- return (
-   <View
-     style={[
-       CourseActionStyles.container,
-       { backgroundColor: colors.background },
-     ]}
-   >
-     <PageHeader title="Grade Accelerator" />
-     <MaterialIcons
-       name="poll-outlined"
-       size={60}
-       color={colors.textDarker}
-       style={CourseActionStyles.mainIcon}
-     />
-     {hasAttendance && (
-       <>
-         <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
-           Attendance Weight
-         </Text>
-         <TextInput
-           placeholder="Attendance Weight % (e.g., 40)"
-           value={attendanceWeight}
-           onChangeText={setAttendanceWeight}
-           keyboardType="numeric"
-           style={[
-             CourseActionStyles.input,
-             {
-               color: colors.text,
-               backgroundColor: colors.backgroundSecondary,
-               borderColor: colors.border,
-             },
-           ]}
-           placeholderTextColor={colors.inputTextHolder}
-         />
-       </>
-     )}
-     {hasTests && (
-       <>
-         <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
-           Test Weight
-         </Text>
-         <TextInput
-           placeholder="Test Weight % (e.g., 60)"
-           value={testWeight}
-           onChangeText={setTestWeight}
-           keyboardType="numeric"
-           style={[
-             CourseActionStyles.input,
-             {
-               color: colors.text,
-               backgroundColor: colors.backgroundSecondary,
-               borderColor: colors.border,
-             },
-           ]}
-           placeholderTextColor={colors.inputTextHolder}
-         />
-       </>
-     )}
-     {hasTests ||
-       (hasAttendance && (
-         <TouchableOpacity
-           onPress={handleDownload}
-           style={[
-             CourseActionStyles.addBtn,
-             { backgroundColor: colors.btnColor },
-           ]}
-           disabled={downloading}
-         >
-           <Text
-             style={[
-               CourseActionStyles.addBtnText,
-               { color: colors.btnTextColor },
-             ]}
-           >
-             {downloading ? 'Downloading...' : 'Download Report'}
-           </Text>
-         </TouchableOpacity>
-       ))}
-     {loading ? (
-       <View
-         style={[
-           CourseActionStyles.container,
-           { backgroundColor: colors.background },
-         ]}
-       >
-         <ActivityIndicator size="large" color={colors.primary} />
-       </View>
-     ) : data.length === 0 ? (
-       <EmptyState
-         iconName="assessment"
-         title="No Grade Data Found"
-         subtitle="There are no activities recorded for this course yet."
-         buttonText="Refresh"
-         onPress={loadData}
-       />
-     ) : (
-       <>
-         <FlatList
-           data={data}
-           renderItem={({ item }) => (
-             <StudentGradeCard student={item} xFactor={xFactor} />
-           )}
-         />
-       </>
-     )}
-   </View>
- );
+  return (
+    <View
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
+      <PageHeader title="Grade Accelerator" />
+      <MaterialIcons
+        name="poll"
+        size={60}
+        color={colors.textDarker}
+        style={CourseActionStyles.mainIcon}
+      />
+      {hasAttendance && (
+        <>
+          <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
+            Attendance Weight
+          </Text>
+          <TextInput
+            placeholder="Attendance Weight % (e.g., 40)"
+            value={attendanceWeight}
+            onChangeText={setAttendanceWeight}
+            keyboardType="numeric"
+            style={[
+              CourseActionStyles.input,
+              {
+                color: colors.text,
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholderTextColor={colors.inputTextHolder}
+          />
+        </>
+      )}
+      {hasTests && (
+        <>
+          <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
+            Test Weight
+          </Text>
+          <TextInput
+            placeholder="Test Weight % (e.g., 60)"
+            value={testWeight}
+            onChangeText={setTestWeight}
+            keyboardType="numeric"
+            style={[
+              CourseActionStyles.input,
+              {
+                color: colors.text,
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholderTextColor={colors.inputTextHolder}
+          />
+        </>
+      )}
+      {hasTests ||
+        (hasAttendance && (
+          <CustomButton
+            title={downloading ? 'Downloading...' : 'Download Report'}
+            onPress={handleDownload}
+            disabled={downloading}
+            iconName="file-download"
+            iconColor="#fff"
+            style={CourseActionStyles.addBtn} 
+          />
+        ))}
+      {loading ? (
+        <View
+          style={[
+            CourseActionStyles.container,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : data.length === 0 ? (
+        <EmptyState
+          iconName="assessment"
+          title="No Grade Data Found"
+          subtitle="There are no activities recorded for this course yet."
+          buttonText="Refresh"
+          onPress={loadData}
+        />
+      ) : (
+        <>
+          <FlatList
+            data={data}
+            renderItem={({ item }) => (
+              <StudentGradeCard student={item} xFactor={xFactor} />
+            )}
+          />
+        </>
+      )}
+    </View>
+  );
 };
 export const CourseActionStyles = StyleSheet.create({
   safeArea: { flex: 1 },
@@ -5525,7 +5151,8 @@ export const CourseActionStyles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   numberText: { fontSize: 14, fontWeight: 'bold' },
@@ -5550,7 +5177,8 @@ export const CourseActionStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   downloadCircle: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   assignmentCard: {
     flexDirection: 'row',
@@ -5577,9 +5205,8 @@ export const CourseActionStyles = StyleSheet.create({
     borderRadius: 12,
   },
   addButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingHorizontal: 15,
+    width: 'auto',
   },
   addBtnText: { fontSize: 14, fontWeight: 'bold' },
   addBtnText3: {
@@ -5592,12 +5219,8 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 14,
   },
   addContentBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    marginTop: 20,
+    paddingHorizontal: 15,
+    width: 'auto',
   },
   addContentText: {
     fontWeight: '700',
@@ -5609,7 +5232,8 @@ export const CourseActionStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalOverlayEnd: {
     flex: 1,
@@ -5656,7 +5280,8 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 12,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
   },
   cancelBtnText: {
@@ -5664,10 +5289,8 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: '600',
   },
   saveBtn: {
-    paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 12,
-    alignContent: 'center',
+    width: 'auto',
   },
   saveBtnText: {
     fontSize: 14,
@@ -5822,20 +5445,12 @@ export const CourseActionStyles = StyleSheet.create({
     gap: 12,
   },
   approveBtn: {
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignContent: 'center',
+    width: 'auto',
+    paddingHorizontal: 15,
   },
   rejectBtn: {
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    paddingVertical: 10,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    alignContent: 'center',
+    width: 'auto',
+    paddingHorizontal: 15,
   },
   btnText: {
     fontSize: 14,
@@ -5893,6 +5508,14 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 12,
+  },
+  addBtn2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   exceptionCard: {
     padding: 16,
@@ -6055,7 +5678,8 @@ export const CourseActionStyles = StyleSheet.create({
   },
   typeOption: {
     padding: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 12,
     elevation: 3,
     shadowColor: '#000',
@@ -6086,13 +5710,7 @@ export const CourseActionStyles = StyleSheet.create({
     flex: 1,
   },
   submitButton: {
-    borderRadius: 14,
-    paddingVertical: 15,
-    marginTop: 10,
-    marginBottom: 30,
-    alignContent: 'center',
-    width: '80%',
-    alignSelf: 'center',
+    marginVertical: 20,
   },
   submitText: {
     fontSize: 14,
@@ -6101,7 +5719,8 @@ export const CourseActionStyles = StyleSheet.create({
   alertOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   alertBox: {
     borderRadius: 25,
@@ -6129,7 +5748,8 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 14,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   alertButtonText: {
     fontSize: 14,
@@ -6149,7 +5769,8 @@ export const CourseActionStyles = StyleSheet.create({
   successOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   successBox: {
@@ -6183,10 +5804,7 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 10,
   },
   doneButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    alignItems: 'center',
+    paddingHorizontal: 15,
   },
   doneButtonText: {
     fontSize: 14,
@@ -6247,11 +5865,8 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: '700',
   },
   createCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 15,
+    width: 'auto',
   },
   createCardText: {
     marginLeft: 5,
@@ -6292,12 +5907,7 @@ export const CourseActionStyles = StyleSheet.create({
     borderColor: PRIMARY_COLOR_TINT,
   },
   publishHeaderBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 13,
-    alignContent: 'center',
-    width: '80%',
-    alignSelf: 'center',
+    paddingHorizontal: 15,
     marginTop: 20,
   },
   publishHeaderText: {
@@ -6351,7 +5961,8 @@ export const CourseActionStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addOptionText: {
     fontSize: 14,
@@ -6440,8 +6051,7 @@ export const CourseActionStyles = StyleSheet.create({
   },
   submitBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 13,
-    borderRadius: 12,
+    width: 'auto',
   },
   submitBtnText: { fontSize: 14, fontWeight: 'bold' },
   //
@@ -6472,10 +6082,7 @@ export const CourseActionStyles = StyleSheet.create({
     marginBottom: 10,
   },
   startBtn: {
-    paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 13,
-    alignItems: 'center',
   },
   startBtnText: {
     fontSize: 14,
@@ -6561,11 +6168,13 @@ export const CourseActionStyles = StyleSheet.create({
   centered: {
     flex: 1,
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centeredSecondary: {
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 15,
   },
   emptyDivContainer: {
@@ -6605,7 +6214,8 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
   },
   lectureTimeColumn: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 15,
   },
   timeText: {
@@ -6640,7 +6250,8 @@ export const CourseActionStyles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 13,
     zIndex: 100,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     elevation: 5,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOpacity: 0.3,
@@ -6684,17 +6295,7 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 10,
   },
   downloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 13,
-    elevation: 2,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    marginLeft: 8,
   },
   downloadText: {
     marginLeft: 5,
@@ -6795,15 +6396,13 @@ export const CourseActionStyles = StyleSheet.create({
     flex: 1,
     height: 30,
     margin: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 4,
   },
   downloadTestBtn: {
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 'auto',
   },
   downloadBtnText: {
     fontSize: 14,
@@ -6836,7 +6435,8 @@ export const CourseActionStyles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 7,
   },
   topPerformersdivText: {
@@ -6849,11 +6449,8 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 14,
   },
   classActionBtns: {
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 'auto',
     paddingHorizontal: 15,
-    paddingVertical: 10,
   },
   classActionBtnText: { fontSize: 14, fontWeight: 'bold', marginRight: 4 },
   text: { fontSize: 14, fontWeight: 'bold', marginRight: 15 },

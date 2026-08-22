@@ -19,6 +19,7 @@ import {
   launchImageLibrary,
   ImageLibraryOptions,
 } from 'react-native-image-picker';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { UserAvatar } from '../components/UserAvatar';
 import { UserIdentity } from '../components/UserIdentity';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -84,8 +85,7 @@ const CreatePost = ({ route, navigation }: Props) => {
               ? editPostData.media.url
               : [editPostData.media.url]) as string[],
             type: (editPostData.media?.mediaType || 'image') as
-              | 'image'
-              | 'video',
+              'image' | 'video',
             isExisting: true,
           },
         ]
@@ -122,11 +122,7 @@ const CreatePost = ({ route, navigation }: Props) => {
     setJobMetadata(prev => ({
       ...prev,
       type: jobType as
-        | 'Full-time'
-        | 'Part-time'
-        | 'Internship'
-        | 'Contract'
-        | 'Freelance',
+        'Full-time' | 'Part-time' | 'Internship' | 'Contract' | 'Freelance',
     }));
   }, [jobType]);
   const handleConfirm = (event: any, selectedDate?: Date) => {
@@ -371,29 +367,20 @@ const CreatePost = ({ route, navigation }: Props) => {
             isEditMode
               ? 'Edit Post'
               : postType === 'poll'
-              ? 'Create Poll'
-              : postType === 'job'
-              ? 'Create Job'
-              : postType === 'event'
-              ? 'Create Event'
-              : 'Create Post'
+                ? 'Create Poll'
+                : postType === 'job'
+                  ? 'Create Job'
+                  : postType === 'event'
+                    ? 'Create Event'
+                    : 'Create Post'
           }
           rightElement={
-            <TouchableOpacity
-              style={[
-                styles.postBtn,
-                { backgroundColor: colors.btnColor },
-                !canPost && styles.disabledBtn,
-              ]}
+            <CustomButton
+              title={isEditMode ? 'Save' : 'Post'}
+              style={[styles.postBtn, !canPost && styles.disabledBtn]}
               disabled={!canPost}
               onPress={handleCreateOrUpdatePost}
-            >
-              <Text
-                style={[styles.postBtnText, { color: colors.btnTextColor }]}
-              >
-                {isEditMode ? 'Save' : 'Post'}
-              </Text>
-            </TouchableOpacity>
+            />
           }
         />
 
@@ -430,9 +417,10 @@ const CreatePost = ({ route, navigation }: Props) => {
                 {pollOptions.length > 2 && (
                   <TouchableOpacity onPress={() => removeOption(index)}>
                     <MaterialIcons
-                      name="cancel-outlined"
+                      name="cancel"
                       size={20}
                       color={colors.primary}
+                      style={{padding: 10}}
                     />
                   </TouchableOpacity>
                 )}
@@ -504,7 +492,7 @@ const CreatePost = ({ route, navigation }: Props) => {
                 onPress={() => showPicker('date')}
               >
                 <MaterialIcons
-                  name="calendar-month-outlined"
+                  name="calendar-month"
                   size={24}
                   color={colors.text}
                 />
@@ -521,11 +509,7 @@ const CreatePost = ({ route, navigation }: Props) => {
                 style={[styles.dateTimeBox, { borderColor: colors.border }]}
                 onPress={() => showPicker('startTime')}
               >
-                <MaterialIcons
-                  name="schedule-outlined"
-                  size={24}
-                  color={colors.text}
-                />
+                <MaterialIcons name="schedule" size={24} color={colors.text} />
                 <Text style={[styles.microLabel, { color: colors.text }]}>
                   Start Time
                 </Text>
@@ -539,11 +523,7 @@ const CreatePost = ({ route, navigation }: Props) => {
                 style={[styles.dateTimeBox, { borderColor: colors.border }]}
                 onPress={() => showPicker('endTime')}
               >
-                <MaterialIcons
-                  name="schedule-outlined"
-                  size={24}
-                  color={colors.text}
-                />
+                <MaterialIcons name="schedule" size={24} color={colors.text} />
                 <Text style={[styles.microLabel, { color: colors.text }]}>
                   Ends
                 </Text>
@@ -588,9 +568,10 @@ const CreatePost = ({ route, navigation }: Props) => {
                   }
                 >
                   <MaterialIcons
-                    name="cancel-outlined"
+                    name="cancel"
                     size={22}
                     color={colors.primary}
+                    style={{ padding: 10 }}
                   />
                 </TouchableOpacity>
               </View>
@@ -646,11 +627,7 @@ const CreatePost = ({ route, navigation }: Props) => {
           ]}
           disabled={postType === 'poll' || mediaList.length >= 4}
         >
-          <MaterialIcons
-            name="image-outlined"
-            size={26}
-            color={colors.primary}
-          />
+          <MaterialIcons name="image" size={26} color={colors.primary} />
           <Text style={[styles.toolbarText, { color: colors.primary }]}>
             Photo/Video
           </Text>
@@ -671,7 +648,7 @@ const CreatePost = ({ route, navigation }: Props) => {
               </Text>
               {isSuccess && (
                 <MaterialIcons
-                  name="check-circle-outlined"
+                  name="check-circle"
                   size={24}
                   color={colors.success}
                 />
@@ -775,7 +752,8 @@ const styles = StyleSheet.create({
   mediaPreview: { width: 80, height: 80, borderRadius: 8 },
   videoPlaceholder: {
     backgroundColor: PRIMARY_COLOR,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateTimeRow: {
     flexDirection: 'row',
@@ -789,7 +767,12 @@ const styles = StyleSheet.create({
     padding: 7,
     borderRadius: 4,
   },
-  toolbarBtn: { alignContent: 'center', borderWidth: 1, padding: 9 },
+  toolbarBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    padding: 9,
+  },
   toolbarText: {
     marginTop: 5,
     fontWeight: 'bold',

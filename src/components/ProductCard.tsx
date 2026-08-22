@@ -142,6 +142,7 @@ export const ProductCard = ({
               name={isFavorited ? 'favorite' : 'favorite-border'}
               size={22}
               color={colors.primary}
+              style={{ padding: 10 }}
             />
           </TouchableOpacity>
 
@@ -150,6 +151,7 @@ export const ProductCard = ({
               name={isInCart ? 'shopping-cart' : 'add-shopping-cart'}
               size={20}
               color={colors.primary}
+              style={{ padding: 10 }}
             />
           </TouchableOpacity>
         </View>
@@ -209,7 +211,8 @@ const styles = StyleSheet.create({
   },
   soldOutOverlay: {
     ...StyleSheet.absoluteFill,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'absolute',
     top: 3,
     right: 3,

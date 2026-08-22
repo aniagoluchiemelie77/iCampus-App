@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestPinReset } from '../api/localPostApis.ts';
 import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '@env';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { LogoutModal } from '../components/LogoutModal.tsx';
 import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';
 import { updateThemeState } from '../context/UserSlice.ts';
@@ -170,7 +171,7 @@ export const Settings = () => {
           rightElement={
             <TouchableOpacity>
               <MaterialIcons
-                name="help-outline-outlined"
+                name="help-outline"
                 size={24}
                 color={colors.primaryTint}
               />
@@ -191,13 +192,13 @@ export const Settings = () => {
             onPress={() => navigation.navigate('BlockedUsers')}
           />
           <SettingItem
-            icon="verified-outlined"
+            icon="verified"
             title="Subscription"
             subtitle="Manage your Premium plan"
             onPress={() => navigation.navigate('Subscription')}
           />
           <SettingItem
-            icon="fingerprint-outlined"
+            icon="fingerprint"
             title="Biometric Login"
             subtitle={`Use ${biometryType} to secure your account`}
             toggle
@@ -205,7 +206,7 @@ export const Settings = () => {
             onPress={toggleBiometrics}
           />
           <SettingItem
-            icon="lock-reset-outlined"
+            icon="lock-reset"
             title="Reset iCashPin"
             subtitle={
               isResetting ? 'Requesting...' : 'Security for your campus wallet'
@@ -213,19 +214,19 @@ export const Settings = () => {
             onPress={throttledReset}
           />
           <SettingItem
-            icon="lock-reset-outlined"
+            icon="lock-reset"
             title="Reset Login Password"
             subtitle="Manage your iCampus login password"
             onPress={() => navigation.navigate('ResetPasswordScreen')}
           />
           <SettingItem
-            icon="email-outlined"
+            icon="email"
             title="Emails"
             subtitle="Manage your iCampus emails"
             onPress={() => navigation.navigate('EmailsScreen')}
           />
           <SettingItem
-            icon="smartphone-outlined"
+            icon="smartphone"
             title="Phone Numbers"
             subtitle="Manage your phone numbers"
             onPress={() => navigation.navigate('PhoneScreen')}
@@ -234,21 +235,21 @@ export const Settings = () => {
         <SectionHeader title="App Settings" />
         <View style={styles.group}>
           <SettingItem
-            icon="palette-outlined"
+            icon="palette"
             title="Theme"
             subtitle={
               user.theme === 'system'
                 ? 'System Default'
                 : isCurrentlyDark
-                ? 'Dark Mode'
-                : 'Light Mode'
+                  ? 'Dark Mode'
+                  : 'Light Mode'
             }
             toggle
             value={isCurrentlyDark}
             onPress={handleThemeToggle}
           />
           <SettingItem
-            icon="auto-awesome-outlined"
+            icon="auto-awesome"
             title="iAssistant"
             subtitle="Your iCampus AI assistant"
             onPress={() =>
@@ -261,7 +262,7 @@ export const Settings = () => {
             }
           />
           <SettingItem
-            icon="notifications-active-outlined"
+            icon="notifications-active"
             title="Notifications"
             onPress={() => navigation.navigate('NotificationSettings')}
           />
@@ -269,7 +270,7 @@ export const Settings = () => {
         <SectionHeader title="Support" />
         <View style={styles.group}>
           <SettingItem
-            icon="help-center-outlined"
+            icon="help-center"
             title="Help Center"
             onPress={() => {
               navigation.navigate('Assistant', {
@@ -283,12 +284,12 @@ export const Settings = () => {
             }}
           />
           <SettingItem
-            icon="alternate-email-outlined"
+            icon="alternate-email"
             title="Contact Us"
             onPress={() => {}}
           />
           <SettingItem
-            icon="help-center-outlined"
+            icon="help-center"
             title="Frequently Asked Questions (FAQs)"
             onPress={() => navigation.navigate('FAQScreen')}
           />
@@ -296,7 +297,7 @@ export const Settings = () => {
         <SectionHeader title="Partner With Us" />
         <View style={styles.group}>
           <SettingItem
-            icon="storefront-outlined"
+            icon="storefront"
             title="Register a Drop-Off (Pickup) Station"
             subtitle="Register your business location as an iCampus hub"
             onPress={() => navigation.navigate('RegisterStation')}
@@ -305,7 +306,7 @@ export const Settings = () => {
         <SectionHeader title="Spread the Word" />
         <View style={styles.group}>
           <SettingItem
-            icon="star-rate-outlined"
+            icon="star-rate"
             title="Rate iCampus"
             subtitle="Let us know how we're doing"
             onPress={() => {
@@ -328,17 +329,14 @@ export const Settings = () => {
             Log Out
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
+        <CustomButton
+          title="Delete Account"
           style={[
             styles.logoutButton,
             { backgroundColor: colors.btnColor, marginTop: 0 },
           ]}
           onPress={() => setDeleteModalVisible(true)}
-        >
-          <Text style={[styles.deleteText, { color: colors.btnTextColor }]}>
-            Delete Account
-          </Text>
-        </TouchableOpacity>
+        />
 
         <Text style={[styles.versionText, { color: colors.text }]}>
           App Version: {version} ({buildNumber})
@@ -373,12 +371,7 @@ const styles = StyleSheet.create({
     borderColor: PRIMARY_COLOR_TINT,
   },
   logoutButton: {
-    marginVertical: 20,
-    paddingVertical: 15,
-    borderRadius: 15,
-    alignContent: 'center',
-    width: '100%',
-    alignSelf: 'center',
+    paddingHorizontal: 15,
   },
   logoutText: {
     fontSize: 14,

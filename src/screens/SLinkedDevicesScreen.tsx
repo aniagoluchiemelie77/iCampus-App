@@ -50,10 +50,7 @@ export const LinkedDevicesScreen = () => {
   }) => {
     try {
       setIsRevoking(deviceIdToRevoke);
-      const result = await revokeDeviceSession(
-        currentUser.uid,
-        deviceIdToRevoke,
-      );
+      const result = await revokeDeviceSession(deviceIdToRevoke);
       if (result.success) {
         const updatedSessions = currentUser.sessions!.filter(
           s => s.deviceId !== deviceIdToRevoke,

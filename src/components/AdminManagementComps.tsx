@@ -23,7 +23,7 @@ import {
 import { deleteAdminApi } from '../api/localDeleteApis';
 import { useNavigation } from '@react-navigation/native';
 import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
-import { Notification } from '../types/firebase';
+import { Notification, SchoolMetrics } from '../types/firebase';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { NotificationItem } from '../components/NotificationItem';
@@ -37,13 +37,17 @@ import {
   SystemHealthSection,
   TaxEntryPreviewSection,
   AdsPreviewSection,
+  SchoolAdminDashboardView,
 } from './adminMetricsComponents.tsx';
 import { TaxEntry, EntityItem } from '../types/firebase';
 interface LocationStat {
   _id: string; // The location name
   count: number;
 }
-interface DashboardStats {
+
+export interface DashboardStats {
+  schoolMetrics?: SchoolMetrics;
+
   activeUsers: number;
   platformLiquidity: number;
   payoutStats: { _id: string; totalAmount: number; count: number }[];
@@ -148,11 +152,7 @@ export const AdminManagementSection = () => {
               style={styles.removeBtn}
               onPress={() => handleRemoveAdmin(item.uid)}
             >
-              <MaterialIcons
-                name="delete-outlined"
-                size={22}
-                color={colors.primary}
-              />
+              <MaterialIcons name="delete" size={22} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
@@ -478,7 +478,7 @@ export const SupportTicketSection = () => {
       <View style={styles.cardBody}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <MaterialIcons
-            name="error-outlined"
+            name="error"
             size={14}
             color={getSeverityColor(item.severity)}
           />
@@ -546,6 +546,12 @@ export const Overview = () => {
 
   const canViewFinance = ['super_admin', 'finance'].includes(admin.adminType);
   const canViewSystem = ['super_admin', 'analyst'].includes(admin.adminType);
+  const canViewInstitutions = ['super_admin', 'support'].includes(
+    admin.adminType,
+  );
+  const canViewSchoolMetrics = ['super_admin', 'school_administrator'].includes(
+    admin.adminType,
+  );
 
   return (
     <View style={{ flex: 1 }}>
@@ -563,7 +569,7 @@ export const Overview = () => {
           }
         />
       )}
-      {canViewFinance && (
+      {canViewSchoolMetrics && (
         <AdsPreviewSection
           title="Advertisement Banners"
           onViewAll={() => navigate('ViewAllAds')}
@@ -576,26 +582,33 @@ export const Overview = () => {
           onViewAll={() => navigate('ViewAllTaxEntries')}
         />
       )}
-      <EntityPreviewSection
-        title="iCampus Authorized Institutions"
-        items={stats?.recentSchools?.items || []}
-        total={stats?.recentSchools?.total || 0}
-        onViewAll={() => navigate('ViewAllSchools')}
-        onItemPress={item => {
-          setSelectedId(item.id ? item.id : null);
-          setModalVisible(true);
-        }}
-      />
-      <EntityPreviewSection
-        title="Recent Drop Off Stations"
-        items={stats?.recentStations?.items || []}
-        total={stats?.recentStations?.total || 0}
-        onViewAll={() => navigate('ViewAllDropStations')}
-        onItemPress={item => {
-          setSelectedId(item.id ? item.id : null);
-          setdropOffModalVisible(true);
-        }}
-      />
+      {canViewInstitutions && (
+        <>
+          <EntityPreviewSection
+            title="iCampus Authorized Institutions"
+            items={stats?.recentSchools?.items || []}
+            total={stats?.recentSchools?.total || 0}
+            onViewAll={() => navigate('ViewAllSchools')}
+            onItemPress={item => {
+              setSelectedId(item.id ? item.id : null);
+              setModalVisible(true);
+            }}
+          />
+          <EntityPreviewSection
+            title="Recent Drop Off Stations"
+            items={stats?.recentStations?.items || []}
+            total={stats?.recentStations?.total || 0}
+            onViewAll={() => navigate('ViewAllDropStations')}
+            onItemPress={item => {
+              setSelectedId(item.id ? item.id : null);
+              setdropOffModalVisible(true);
+            }}
+          />
+        </>
+      )}
+      {canViewSchoolMetrics && stats?.schoolMetrics && (
+        <SchoolAdminDashboardView metrics={stats?.schoolMetrics!} />
+      )}
       <SchoolDetailModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}

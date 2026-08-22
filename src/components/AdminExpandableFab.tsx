@@ -117,7 +117,7 @@ export const AdminExpandableFAB = ({
           onPress={onClose}
         >
           <MaterialIcons
-            name="close-outlined"
+            name="close"
             size={30}
             color={colors.btnTextColor}
           />
@@ -179,7 +179,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     minWidth: 18,
     height: 18,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 4,
   },
   badgeText: {

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface ImageConfirmationModalProps {
   isVisible: boolean;
@@ -25,25 +26,20 @@ export const ImageConfirmationModal = ({
   isUploading,
 }: ImageConfirmationModalProps) => {
   return (
-    <Modal 
-        isVisible={isVisible}
-        onBackdropPress={() => onClose()}
-        swipeDirection="down"
-        onSwipeComplete={() => onClose()}
+    <Modal
+      isVisible={isVisible}
+      onBackdropPress={() => onClose()}
+      swipeDirection="down"
+      onSwipeComplete={() => onClose()}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.popupCenter}>
           <View style={styles.topHeader}>
-            <Text style={styles.modalTitle}>
-              Confirm Profile Photo
-            </Text>
+            <Text style={styles.modalTitle}>Confirm Profile Photo</Text>
           </View>
 
           {imageUri && (
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.modalImage}
-            />
+            <Image source={{ uri: imageUri }} style={styles.modalImage} />
           )}
 
           <View style={styles.modalButtons}>
@@ -54,17 +50,12 @@ export const ImageConfirmationModal = ({
             >
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.confirmButton}
+            <CustomButton
+              title={isUploading ? 'Uploading...' : 'Confirm'}
               onPress={onConfirm}
               disabled={isUploading}
-            >
-              <Text style={styles.buttonText}>
-                {isUploading ? 'Uploading...' : 'Confirm'}
-              </Text>
-            </TouchableOpacity>
-
-            
+              style={styles.confirmButton}
+            />
           </View>
         </View>
       </View>
@@ -75,7 +66,8 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   popupCenter: {
     width: '80%',
@@ -85,16 +77,17 @@ const styles = StyleSheet.create({
     elevation: 5,
     alignItems: 'center',
   },
-    topHeader: {
+  topHeader: {
     marginBottom: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-    modalTitle: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: 700,
-    color: '#222'
+    color: '#222',
   },
-    modalImage: {
+  modalImage: {
     width: '100%',
     height: 350,
     borderRadius: 10,
@@ -102,33 +95,32 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     resizeMode: 'cover',
   },
-   modalButtons: {
+  modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
   },
-   confirmButton: {
-      backgroundColor: PRIMARY_COLOR,
-      paddingVertical: 10,
-      paddingHorizontal: 15,
-      borderRadius: 15,
-      alignContent: 'center',
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    cancelText: {
-        color: PRIMARY_COLOR,
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    cancelButton: {
-        backgroundColor: '#fadccc',
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 10,
-        alignContent: 'center',
-    },
+  confirmButton: {
+    backgroundColor: PRIMARY_COLOR,
+    width: 'auto',
+    paddingHorizontal: 15,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelText: {
+    color: PRIMARY_COLOR,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelButton: {
+    backgroundColor: '#fadccc',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

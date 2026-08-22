@@ -11,6 +11,7 @@
     "postinstall": "patch-package && jetify"
   },
   "dependencies": {
+    "@ant-design/icons-react-native": "^2.3.2",
     "@bam.tech/react-native-image-resizer": "^3.0.11",
     "@google/generative-ai": "^0.24.1",
     "@react-native-async-storage/async-storage": "^3.1.1",
@@ -92,7 +93,7 @@
     "react-native-vector-icons": "^10.3.0",
     "react-native-video": "^6.19.2",
     "react-native-view-shot": "^5.1.1",
-    "react-native-vision-camera": "^5.2.0",
+    "react-native-vision-camera": "^5.2.2",
     "react-native-webrtc": "^124.0.8",
     "react-native-webview": "^14.0.1",
     "react-native-worklets": "^0.11.3",

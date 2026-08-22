@@ -13,13 +13,12 @@ export function navigate<RouteName extends keyof RootStackParamList>(
   name: undefined extends RootStackParamList[RouteName] ? RouteName : never
 ): void;
 
-
 export function navigate(name: any, params?: any) {
   if (navigationRef.isReady()) {
     if (params !== undefined) {
-      navigationRef.navigate(name, params);
+      (navigationRef.navigate as any)(name, params);
     } else {
-      navigationRef.navigate(name);
+      (navigationRef.navigate as any)(name);
     }
   }
 }

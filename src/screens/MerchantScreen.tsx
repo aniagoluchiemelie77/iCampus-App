@@ -7,7 +7,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { UserAvatar } from '../components/UserAvatar';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { UserIdentity } from '../components/UserIdentity';
@@ -23,6 +22,7 @@ import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator } from 'react-native-paper';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const TABS = {
   Overview: OverviewsScreenComponent,
@@ -56,19 +56,13 @@ export const MerchantDashboard = () => {
         title="Merchant Hub"
         subtitle="Manage your products & earnings"
         rightElement={
-          <TouchableOpacity
+          <CustomButton
+            title="Add Product"
             onPress={() => navigation.navigate('CreateProduct')}
-            style={[styles.topBtn, { backgroundColor: colors.btnColor }]}
-          >
-            <Text style={[styles.topBtnText, { color: colors.btnTextColor }]}>
-              Add Product
-            </Text>
-            <MaterialIcons
-              name="add-business-outlined"
-              size={22}
-              color={colors.btnTextColor}
-            />
-          </TouchableOpacity>
+            style={styles.topBtn}
+            iconName="add-business"
+            iconColor="#fff"
+          />
         }
       />
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -163,7 +157,8 @@ export const styles = StyleSheet.create({
   tab: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
     marginRight: 8,
@@ -197,18 +192,15 @@ export const styles = StyleSheet.create({
   },
   topBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignContent: 'center',
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 'auto',
   },
   topBtnText: {
     marginRight: 4,
     fontSize: 14,
   },
   skeletonContainer: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   skeletonText: {

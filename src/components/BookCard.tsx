@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { View, Text, Image } from 'react-native';
 import { Book } from '../types/firebase';
 import { LibraryScreenStyles } from '../screens/LibraryScreen';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const BookCard = ({
   book,
@@ -54,27 +54,13 @@ export const BookCard = ({
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            LibraryScreenStyles.downloadBtn,
-            { backgroundColor: colors.btnColor },
-          ]}
+        <CustomButton
+          title="Download"
           onPress={onDownload}
-        >
-          <MaterialIcons
-            name="cloud-download-outlined"
-            size={20}
-            color="#FFF"
-          />
-          <Text
-            style={[
-              LibraryScreenStyles.downloadText,
-              { color: colors.btnTextColor },
-            ]}
-          >
-            Download
-          </Text>
-        </TouchableOpacity>
+          iconName="cloud-download"
+          iconColor="#fff"
+          style={LibraryScreenStyles.downloadBtn}
+        />
       </View>
     </View>
   );

@@ -25,10 +25,10 @@ const SweetAlertModal: React.FC<SweetAlertModalProps> = ({
 }) => {
   const { colors } = useTheme();
   const iconMap = {
-    success: 'check-circle-outlined',
-    error: 'error-outline-outlined',
-    warning: 'warning-amber-outlined',
-    info: 'info-outlined',
+    success: 'check-circle',
+    error: 'error-outline',
+    warning: 'warning-amber',
+    info: 'info-outline',
   };
 
   const iconColorMap = {
@@ -45,10 +45,7 @@ const SweetAlertModal: React.FC<SweetAlertModalProps> = ({
         style={SweetAlertPopupStyles.bckg}
       >
         <View
-          style={[
-            SweetAlertPopupStyles.container,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
+          style={[SweetAlertPopupStyles.container, { backgroundColor: '#fff' }]}
         >
           <MaterialIcons
             name={iconMap[type]}
@@ -56,12 +53,10 @@ const SweetAlertModal: React.FC<SweetAlertModalProps> = ({
             color={iconColorMap[type]}
             style={SweetAlertPopupStyles.icon}
           />
-          <Text
-            style={[SweetAlertPopupStyles.title, { color: colors.textDarker }]}
-          >
+          <Text style={[SweetAlertPopupStyles.title, { color: '#222' }]}>
             {title}
           </Text>
-          <Text style={[SweetAlertPopupStyles.message, { color: colors.text }]}>
+          <Text style={[SweetAlertPopupStyles.message, { color: '#333' }]}>
             {message}
           </Text>
           <TouchableOpacity
@@ -90,8 +85,9 @@ export default SweetAlertModal;
 export const SweetAlertPopupStyles = StyleSheet.create({
   bckg: {
     flex: 1,
-    alignContent: 'center',
-    backgroundColor: '#111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#222',
   },
   container: {
     padding: 25,
@@ -111,10 +107,11 @@ export const SweetAlertPopupStyles = StyleSheet.create({
     marginBottom: 15,
   },
   button: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 60,
+    width: '100%',
   },
   buttonText: {
     fontSize: 14,

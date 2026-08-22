@@ -12,6 +12,7 @@ import {
   StyleSheet,
   TextInput,
 } from 'react-native';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
@@ -35,6 +36,7 @@ export const EditiTagModal = ({
   iTagData,
   onSave,
 }: EditiTagModalProps) => {
+  const usernameRegex = /^[a-z0-9_]{3,20}$/;
   const { colors } = useTheme();
   const isPremium = iTagData.tier === 'premium';
   const isPro = iTagData.tier === 'pro';
@@ -50,6 +52,7 @@ export const EditiTagModal = ({
   // Username validation states
   const [isChecking, setIsChecking] = useState(false);
   const [usernameError, setUsernameError] = useState('');
+  const [isUsernameValid, setIsUsernameValid] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // 1. Image Picker Logic
@@ -123,6 +126,25 @@ export const EditiTagModal = ({
       setLoading(false);
     }
   };
+  const validateUsername = (text: string) => {
+    setUsername(text);
+
+    if (text.length === 0) {
+      setUsernameError('');
+      setIsUsernameValid(false);
+      return;
+    }
+
+    if (!usernameRegex.test(text)) {
+      setUsernameError(
+        'Only lowercase letters, numbers, and underscores allowed.',
+      );
+      setIsUsernameValid(false);
+    } else {
+      setUsernameError('');
+      setIsUsernameValid(true);
+    }
+  };
   const checkUsername = useMemo(
     () =>
       debounce(async (val: string) => {
@@ -182,7 +204,7 @@ export const EditiTagModal = ({
                   </Text>
                 </View>
                 <View style={styles.inputContainer}>
-                  {!isChecking && !usernameError && username.length >= 3 && (
+                  {!isChecking && isUsernameValid && (
                     <View style={styles.iconWrapper}>
                       <MaterialIcons
                         name="check-circle"
@@ -198,7 +220,11 @@ export const EditiTagModal = ({
                       { color: colors.text },
                     ]}
                     value={username}
-                    onChangeText={setUsername}
+                    onChangeText={text => {
+                      const lowerText = text.toLowerCase();
+                      setUsername(lowerText);
+                      validateUsername(lowerText);
+                    }}
                     autoCapitalize="none"
                     placeholder="Enter iTag username"
                     placeholderTextColor={colors.inputTextHolder}
@@ -293,25 +319,13 @@ export const EditiTagModal = ({
                 Cancel
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.saveBtn,
-                { backgroundColor: colors.btnColor },
-                (!!usernameError || loading) && { opacity: 0.5 },
-              ]}
+            <CustomButton
+              title="Save Changes"
               onPress={handleSave}
               disabled={!!usernameError || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text
-                  style={[styles.saveBtnText, { color: colors.btnTextColor }]}
-                >
-                  Save Changes
-                </Text>
-              )}
-            </TouchableOpacity>
+              isLoading={loading}
+              style={styles.saveBtn}
+            />
           </View>
         </View>
       </View>
@@ -381,9 +395,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
+    marginTop: 15,
   },
   saveBtnText: {
     fontWeight: '700',

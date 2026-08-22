@@ -8,6 +8,7 @@ import { patchUserProfile } from '../api/localPatchApis';
 import { updateUserImage } from '../context/UserSlice';
 import { useDispatch } from 'react-redux';
 import Toast from 'react-native-toast-message';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -183,7 +184,7 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
       {/* Owner Edit Overlay */}
       {isOwner && (
         <TouchableOpacity style={styles.editBtn} onPress={handlePickImage}>
-          <MaterialIcons name="photo-camera" size={20} color="#FFF" />
+          <MaterialIcons name="camera-alt" size={20} color="#FFF" />
         </TouchableOpacity>
       )}
       {/* Confirmation Modal */}
@@ -202,17 +203,12 @@ export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
               >
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <CustomButton
+                title="Set as Profile Pic"
                 onPress={handleConfirmUpload}
                 style={styles.confirmBtn}
                 disabled={isUploading}
-              >
-                {isUploading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.confirmBtnText}>Set as Profile Pic</Text>
-                )}
-              </TouchableOpacity>
+              />
             </View>
           </View>
         </View>
@@ -236,7 +232,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: PRIMARY_COLOR,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fallbackText: {
     fontSize: 20,
@@ -312,10 +309,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   confirmBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    padding: 15,
-    borderRadius: 15,
-    alignItems: 'center',
+    paddingHorizontal: 15,
+    width: 'auto',
   },
   confirmBtnText: {
     fontSize: 14,

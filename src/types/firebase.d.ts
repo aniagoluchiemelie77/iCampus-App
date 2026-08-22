@@ -8,7 +8,7 @@ export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
 export type ThemeType = 'light' | 'dark' | 'system';
-export type AdminRole = "super_admin" | "moderator" | "support" | "finance" | "analyst";
+export type AdminRole = "super_admin" | "moderator" | "support" | "finance" | "analyst" | 'school_administrator';
 export type SuspiciousActivityType = 
   | "UNRECOGNIZED_LOCATION"
   | "HEAVY_TRANSFER"
@@ -262,6 +262,7 @@ export interface User {
   skills?: string[]; 
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   isSuspended: boolean;
+  isInstitutionAdmin: boolean
 };
 export interface Admin {
   uid: string;
@@ -275,6 +276,7 @@ export interface Admin {
   lastAccessed: string;
   sessions?: UserSession[];
   createdAt: string;
+  schoolCode?: string;
 }
 export interface Notification<T extends keyof ActionPayloadMap = any> {
   notificationId: string; 
@@ -381,7 +383,7 @@ export interface Product {
   impressions: number;
   sales: number;
   schoolName?: string;
-  type: 'physical' | 'file';
+  type: 'physical';
   category: string;
   title: string;
   description?: string;
@@ -397,14 +399,6 @@ export interface Product {
     isNationalShippingAvailable?: boolean;
     dropOffAddress: DropOffStation[];
   };
-  fileDetails?: {
-    fileName: string;
-    fileSizeInMB: number;
-    fileFormat: string;
-    fileUrl: string; 
-    hasPassword: boolean; 
-    isUploading: boolean;
-  };
   ratings: {
     userId: string;
     score: number;
@@ -415,16 +409,12 @@ export interface Product {
   createdAt: string;
   niche:
       "Electronics" |
-      "Documents" |
       "Fashion" |
       "Stationery" |
       "Snacks and Deserts" |
       "Food" | 
-      'Templates' | 
-      'Software Assets' |
-      'Audio Resources' | 
       'Health & Beauty' | 
-      'Crafts'
+      'Footwears'
 }
 export interface ProductSale {
   sellerId: string;
@@ -464,48 +454,6 @@ export interface WithdrawalRequest {
   pointsRequested: number;
   requestedAt: string;
   status: 'pending' | 'approved' | 'rejected';
-}
-export interface CalendarEvent {
-   _id: string;
-  id: string;
-  userId?: User.id;
-  createdBy: string; // UID of the user
-  creatorType: UserType;
-  title: string;
-  description?: string;
-  courseTitle?: string;
-  department?: string;
-  level?: string;
-  startDate: string;
-  endDate: string;
-  eventType?: string;// optional if using startDate/endDate
-  lectureType?: string; // for lecturer events
-  visibility?: 'private' | 'department' | 'public';
-  restriction?: string; // controls who can see it
-  createdAt: string;
-  eventTime?: string;
-  location?: string;
-  eventStartTime?: string; // e.g., "14:00"
-  eventEndTime?: string;   // e.g., "15:30"
-  isRecurring?: boolean;
-  recurrenceRule?: string; // e.g., "FREQ=WEEKLY;BYDAY=MO,WE,FR"
-  tags?: string[]; // e.g., ['exam', 'group meeting', 'revision']
-}
-export interface EventReminder {
-  eventId: string;
-  userId: string;
-  reminderTime: string;
-  event?: EventNote;
-}
-export interface EventNote {
-  eventId: string;
-  userId: string;
-  content: string;
-  timestamp: string;
-  location?: string;
-  isRecurring?: boolean;
-  recurrenceRule?: string;
-  tags?: string[]; // e.g., ['exam', 'group meeting', 'revision']
 }
 export interface iCampusOperationalInstitutionSchema {
   id?: string;
@@ -812,7 +760,6 @@ export interface ITag {
   username: string;
   cardHolderName: string;
   cardNumber: string; // Masked or full: "3021 **** **** ****"
-  expiryDate: string; // "04/28"
   layoutType: 'modern';
   tier: 'pro' | 'premium' | 'free';
   designOptions: {
@@ -858,6 +805,31 @@ export type VerifiedStudent = {
   isStillInSchool?: boolean;
   email: string;
 };
+export interface SchoolMetrics {
+  users: {
+    verifiedStudents: number;
+    verifiedLecturers: number;
+    onboardingGrowth: {
+      month: string;
+      students: number;
+      lecturers: number;
+    }[];
+  };
+  courses: {
+    totalActiveCourses: number;
+    departmentBreakdown: Record<string, number>;
+    allocationStatus: {
+      assigned: number;
+      unassigned: number;
+    };
+    studentEnrollmentDensity: number;
+  };
+  academics: {
+    totalAssessmentsCreated: number;
+    testSubmissionsCount: number;
+    attendanceSyncVolume: number;
+  };
+}
 
 export type SignupResponse = {
   verified?: boolean;
@@ -954,4 +926,7 @@ export interface AdItem {
   advertiserLogo: string;
   advertiserName: string;
   tagline?: string;
+  addedBy: string;
+  schoolCode?: string;
+  creatorType: 'school_administrator' | 'super_admin';
 }

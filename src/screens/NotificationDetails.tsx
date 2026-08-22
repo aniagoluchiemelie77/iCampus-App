@@ -18,6 +18,7 @@ import { formatDateWithSuffix } from '../utils/dateFormatter';
 import { PageHeader } from '../components/PageHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export default function NotificationDetails() {
   const { colors } = useTheme();
@@ -141,22 +142,14 @@ export default function NotificationDetails() {
               : 'Date not available'}
           </Text>
           {isBtnVisible && (
-            <TouchableOpacity
+            <CustomButton
+              title={isdownloadCert ? 'Download Certificate' : 'View Details'}
               onPress={handleAction}
               style={[
                 NotificationDetailsStyles.btn,
                 { backgroundColor: colors.btnColor },
               ]}
-            >
-              <Text
-                style={[
-                  NotificationDetailsStyles.btnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                {isdownloadCert ? 'Download Certificate' : 'View Details'}
-              </Text>
-            </TouchableOpacity>
+            />
           )}
         </View>
       ) : (
@@ -194,10 +187,8 @@ const NotificationDetailsStyles = StyleSheet.create({
     fontSize: 12,
   },
   btn: {
-    paddingVertical: 10,
+    width: 'auto',
     paddingHorizontal: 16,
-    borderRadius: 15,
-    alignContent: 'center',
   },
   btnText: {
     fontSize: 14,

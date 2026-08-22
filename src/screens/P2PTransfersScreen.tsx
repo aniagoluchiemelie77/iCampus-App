@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
-import { Camera } from 'react-native-vision-camera';
+import { useCameraPermission } from 'react-native-vision-camera';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { useCameraDevice } from 'react-native-vision-camera';
 import { useAppSelector } from '../hooks/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
@@ -74,7 +75,7 @@ export const IcashP2PScreen = () => {
   const [step, setStep] = useState<'selection' | 'tagInput'>('selection');
   const [scannerVisible, setScannerVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasPermission, setHasPermission] = React.useState(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<ITagSearchResult | null>(
@@ -179,32 +180,33 @@ export const IcashP2PScreen = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [recipientTag]);
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
-      const status = await Camera.requestCameraPermission();
-      setHasPermission(status === 'granted');
+      if (!hasPermission) {
+        const granted = await requestPermission();
 
-      if (status === 'denied') {
-        Alert.alert(
-          'Camera Permission Required',
-          'To scan QR codes, we need access to your camera. Please enable it in your device settings.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
-                } else {
-                  Linking.openSettings();
-                }
+        if (!granted) {
+          Alert.alert(
+            'Camera Permission Required',
+            'To scan QR codes, we need access to your camera. Please enable it in your device settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Open Settings',
+                onPress: () => {
+                  if (Platform.OS === 'ios') {
+                    Linking.openURL('app-settings:');
+                  } else {
+                    Linking.openSettings();
+                  }
+                },
               },
-            },
-          ],
-        );
+            ],
+          );
+        }
       }
     })();
-  }, []);
+  }, [hasPermission, requestPermission]);
 
   return (
     <ScrollView
@@ -258,13 +260,13 @@ export const IcashP2PScreen = () => {
               <FeatureCard
                 title="Scan QR Code"
                 sub="Scan to pay instantly"
-                icon="qr-code-outlined"
+                icon="qr-code"
                 onPress={() => setScannerVisible(true)}
               />
               <FeatureCard
                 title="Send via iTag"
                 sub="Search @username"
-                icon="alternate-email-outlined"
+                icon="alternate-email"
                 onPress={() => setStep('tagInput')}
               />
             </View>
@@ -318,7 +320,7 @@ export const IcashP2PScreen = () => {
                     ]}
                   >
                     <MaterialIcons
-                      name="diamond-outlined"
+                      name="diamond"
                       size={24}
                       color={colors.primary}
                       style={{ marginHorizontal: 5 }}
@@ -332,7 +334,8 @@ export const IcashP2PScreen = () => {
                       placeholderTextColor={colors.inputTextHolder}
                     />
                   </View>
-                  <TouchableOpacity
+                  <CustomButton
+                    title={getButtonText()}
                     style={[
                       styles.sendButton,
                       !canContinue && styles.disabledButton,
@@ -340,16 +343,7 @@ export const IcashP2PScreen = () => {
                     ]}
                     onPress={handleContinue}
                     disabled={!canContinue}
-                  >
-                    <Text
-                      style={[
-                        styles.sendButtonText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      {getButtonText()}
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 </>
               )}
             </>
@@ -385,9 +379,10 @@ export const IcashP2PScreen = () => {
             onPress={() => setScannerVisible(false)}
           >
             <MaterialIcons
-              name="cancel-outlined"
+              name="cancel"
               size={30}
               color={colors.text}
+              style={{ padding: 10 }}
             />
           </TouchableOpacity>
           <Text style={[styles.qrText, { color: colors.btnTextColor }]}>
@@ -409,7 +404,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingBottom: 30,
   },
   tabWrapper: {
@@ -418,7 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   tab: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 15,
     borderRadius: 10,
     borderBottomWidth: 2,
@@ -470,7 +467,8 @@ const styles = StyleSheet.create({
   fullScreenModal: {
     flex: 1,
     backgroundColor: '#000',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 10,
     position: 'relative',
   },
@@ -499,10 +497,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sendButton: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignContent: 'center',
+    paddingHorizontal: 15,
     marginTop: 15,
   },
   sendButtonText: {

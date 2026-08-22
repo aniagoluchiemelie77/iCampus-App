@@ -24,6 +24,7 @@ import { useDispatch } from 'react-redux';
 import { isValidEmail } from '../utils/SignupHelpers.ts';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const EmailsScreen = () => {
   const { colors } = useTheme();
@@ -191,7 +192,7 @@ export const EmailsScreen = () => {
                   onPress={() => handleDeleteRecovery(item.email)}
                 >
                   <MaterialIcons
-                    name="delete-outline-outlined"
+                    name="delete-outline"
                     size={16}
                     color={colors.primary}
                   />
@@ -233,19 +234,11 @@ export const EmailsScreen = () => {
                 {emailError && (
                   <Text style={styles.emailErrorText}>{emailError}</Text>
                 )}
-                <TouchableOpacity
-                  style={[
-                    [styles.inlineButton, { backgroundColor: colors.btnColor }],
-                    { marginTop: 10 },
-                  ]}
+                <CustomButton
+                  title="Send Verification Code"
+                  style={[styles.inlineButtonMain]}
                   onPress={handleSendCode}
-                >
-                  <Text
-                    style={[styles.buttonText, { color: colors.btnTextColor }]}
-                  >
-                    Send Verification Code
-                  </Text>
-                </TouchableOpacity>
+                />
               </>
             )}
             {step === 'verifyCode' && (
@@ -271,19 +264,11 @@ export const EmailsScreen = () => {
                 >
                   Code expires in: {formatSignupTime(timer)}
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.inlineButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                <CustomButton
+                  title="Verify & Update"
+                  style={[styles.inlineButtonMain]}
                   onPress={handleVerify}
-                >
-                  <Text
-                    style={[styles.buttonText, { color: colors.btnTextColor }]}
-                  >
-                    Verify & Update
-                  </Text>
-                </TouchableOpacity>
+                />
               </>
             )}
           </>
@@ -299,7 +284,7 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: 15,
-    borderRadius: 15
+    borderRadius: 15,
   },
   header: {
     fontSize: 18,
@@ -310,8 +295,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
-    alignContent: 'center',
-    marginVertical: 10
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  inlineButtonMain: {
+    paddingHorizontal: 15,
+    marginTop: 20,
   },
   buttonText: {
     fontWeight: '600',

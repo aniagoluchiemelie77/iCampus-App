@@ -184,7 +184,7 @@ export const ViewAllSupportInquiriesScreen = () => {
           }}
           ListEmptyComponent={
             <EmptyState
-              iconName="email-outlined"
+              iconName="email"
               title="No Support Inquiries"
               subtitle="All clean! There are no external emails or inquiries matching this filter."
             />

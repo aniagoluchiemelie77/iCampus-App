@@ -43,7 +43,7 @@ useEffect(() => {
   const fetchTicketThread = async () => {
     try {
       setLoading(true);
-      const result = await fetchSupportTicketByRefIdAPI(ticketRefId);
+      const result = await fetchSupportTicketByRefIdAPI({ ticketRefId });
       
       if (result.success && result.ticket && isMounted) {
         const currentTicket = result.ticket;
@@ -158,7 +158,7 @@ useEffect(() => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <PageHeader title='Support Inquiry' subtitle={`#${ticketRefId}`} />
+      <PageHeader title="Support Inquiry" subtitle={`#${ticketRefId}`} />
 
       {/* Message List */}
       {loading ? (
@@ -182,7 +182,7 @@ useEffect(() => {
           )}
           ListEmptyComponent={
             <EmptyState
-              iconName="speaker-notes-off-outlined"
+              iconName="speaker-notes-off"
               title="No Thread History"
               subtitle="Start the conversation by sending a message below."
             />

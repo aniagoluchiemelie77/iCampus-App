@@ -3,6 +3,10 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 import { TAB_TO_CATEGORY, TabName } from '../constants/inAppConstants.ts';
+
+interface ApiRequestOptions {
+  signal?: AbortSignal;
+}
 interface CheckITagResponse {
   success: boolean;
   available: boolean;
@@ -32,6 +36,9 @@ interface FetchCourseResponse {
   course?: Course;
   message?: string;
 }
+interface FetchSupportedBanksParams extends ApiRequestOptions {
+  countryCode: string;
+}
 interface GetTimelineResponse {
   success: boolean;
   data?: Lecture[];
@@ -42,6 +49,21 @@ interface CheckAssessmentStatusResponse {
   hasSubmitted?: boolean;
   test?: CreateTestPayload | null;
   message?: string;
+}
+interface GetCourseDetailsParams extends ApiRequestOptions {
+  courseId: string;
+}
+interface FetchPostsParams extends ApiRequestOptions {
+  limit?: number;
+  cursor?: string;
+}
+interface SearchUserProfileParams extends ApiRequestOptions {
+  identifier: string;
+  currentUser: User;
+}
+interface FetchLecturerCoursesParams extends FetchStudentCoursesParams, ApiRequestOptions {}
+interface GetCourseDetailsOngoingParams extends ApiRequestOptions {
+  courseId: string;
 }
 interface GetAssessmentsResponse {
   success: boolean;
@@ -58,9 +80,24 @@ interface ApiResponse {
   data?: any;
   error?: string;
 }
-interface TransactionStatsParams {
-  month?: string | number;
-  year?: string | number;
+interface AdminFetchUserNotificationsParams extends ApiRequestOptions {
+  userId: string;
+  limit?: number;
+}
+interface GetTransactionByIdParams extends ApiRequestOptions {
+  transactionId: string;
+}
+interface FetchAllLecturesParams extends ApiRequestOptions {
+  courseId: string;
+}
+interface TransactionStatsParams extends ApiRequestOptions {
+  month?: number;
+  year?: number;
+}
+interface GetNotificationsParams extends ApiRequestOptions {
+  tabName: TabName;
+  page?: number;
+  limit?: number;
 }
 interface SearchUserParams {
   q?: string;
@@ -68,10 +105,36 @@ interface SearchUserParams {
   viewerTier: string;
   viewerRole: string;
 }
- interface GetTransactionsParams {
+interface FetchMyCoursesParams extends FetchStudentCoursesParams, ApiRequestOptions {}
+interface FetchFeaturedBooksParams extends ApiRequestOptions {
+  department: string;
+}
+interface FetchSupportTicketParams extends ApiRequestOptions {
+  ticketRefId: string;
+}
+interface AdminFetchUserDetailsParams extends ApiRequestOptions {
+  userId: string;
+}
+interface GetCourseExceptionsParams extends ApiRequestOptions {
+  courseId: string;
+}
+interface GetBlockedUsersParams extends ApiRequestOptions {
+  userId: string;
+}
+interface GetCourseAssessmentsParams extends ApiRequestOptions {
+  courseId: string;
+}
+interface FetchTicketsParams extends ApiRequestOptions {
+  limit?: number;
+  cursor?: string;
+}
+interface GetTransactionsParams extends ApiRequestOptions {
   page: number;
   limit: number;
   searchQuery?: string;
+}
+interface GetLectureExceptionsParams extends ApiRequestOptions {
+  lectureId: string;
 }
 interface FetchStudentCoursesParams {
   semester?: string;
@@ -80,36 +143,61 @@ interface FetchStudentCoursesParams {
   limit?: number
 }
 
-export const searchUserProfile = async (identifier: string, currentUser: User) => {
-  const params = new URLSearchParams({
-    viewerUid: currentUser.uid,
-    viewerTier: currentUser.tier || 'free',
-    viewerRole: currentUser.usertype || '',
-    viewerFirstname: currentUser.firstname || '',
-  });
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${baseUrl}users/profile/search/${identifier}?${params.toString()}`, {
-    method: 'GET',
-    headers,
-  });
-  const result = await response.json();
-  if (!response.ok) {
+export const searchUserProfile = async ({
+  identifier,
+  currentUser,
+  signal,
+}: SearchUserProfileParams): Promise<any> => {
+  try {
+    const params = new URLSearchParams({
+      viewerUid: currentUser.uid,
+      viewerTier: currentUser.tier || 'free',
+      viewerRole: currentUser.usertype || '',
+      viewerFirstname: currentUser.firstname || '',
+    });
+    
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${baseUrl}users/profile/search/${identifier}?${params.toString()}`,
+      {
+        method: 'GET',
+        headers,
+        signal,
+      }
+    );
+    
+    const result = await response.json();
+    if (!response.ok) {
+      Toast.show({
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: result.message || 'An unexpected error occurred',
+      });
+      return null;
+    }
+    return result.data;
+  } catch (error: any) {
+    if (error.name === 'AbortError') return null;
+
+    console.error('Search User Profile Error:', error);
     Toast.show({
       type: 'error',
-      text1: 'Fetch Error',
-      text2: result.message || 'An unexpected error occurred',
+      text1: 'Connection Error',
+      text2: 'Could not connect to the server',
     });
+    return null;
   }
-  return result.data; 
 };
-export const fetchSupportedBanks = async (
-  countryCode: string,
-): Promise<{ label: string; value: string }[]> => {
+export const fetchSupportedBanks = async ({
+  countryCode,
+  signal,
+}: FetchSupportedBanksParams): Promise<{ label: string; value: string }[]> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/payments/banks/${countryCode}`, {
       method: 'GET',
       headers,
+      signal,
     });
 
     const json = await response.json();
@@ -122,7 +210,9 @@ export const fetchSupportedBanks = async (
     }
 
     return [];
-  } catch (err) {
+  } catch (err: any) {
+    if (err.name === 'AbortError') return [];
+    
     console.error('Bank fetch failed:', err);
     return [];
   }
@@ -130,37 +220,57 @@ export const fetchSupportedBanks = async (
 export const getUserPaymentMethods = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
 
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/payment-methods/${userId}`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const url = `${cleanBaseUrl}/user/payment-methods/${userId}`;
+
+    const response = await fetch(url, {
       method: 'GET',
-      headers,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
     const result = await response.json();
+
     if (!response.ok) {
       Toast.show({
         type: 'error',
         text1: 'Fetch Error',
         text2: result.message || 'Failed to fetch payment methods',
       });
+      return [];
     }
+
     const methods = Array.isArray(result) ? result : result.data;
     return Array.isArray(methods) ? methods : [];
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
     console.error('PaymentMethodService Error:', error);
     return [];
   }
 };
-export const getBlockedUsers = async (
-  userId: string,
-): Promise<any[]> => {
+export const getBlockedUsers = async ({
+  userId,
+  signal,
+}: GetBlockedUsersParams): Promise<any[]> => {
   if (!userId) return [];
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/blocked-list/${userId}`, {
       method: 'GET',
       headers,
+      signal,
     });
+    
     const result = await response.json();
     if (!response.ok) {
       Toast.show({
@@ -173,6 +283,8 @@ export const getBlockedUsers = async (
     const list = Array.isArray(result) ? result : result.blockedUsers || result.data;
     return Array.isArray(list) ? list : [];
   } catch (error: any) {
+    if (error.name === 'AbortError') return [];
+
     console.error('BlockedUsersService Error:', error);
     Toast.show({
       type: 'error',
@@ -187,35 +299,61 @@ export const searchUsers = async ({
   uid,
   viewerTier,
   viewerRole,
-}: SearchUserParams): Promise<any> => {
+  signal,
+}: SearchUserParams & { signal?: AbortSignal }): Promise<any> => {
   if (!uid && (!q || q.length < 2)) return null;
+
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const queryParams = new URLSearchParams({
-      viewerTier,
-      viewerRole,
+      viewerTier: viewerTier || '',
+      viewerRole: viewerRole || '',
     });
     
     if (uid) queryParams.append('uid', uid);
     if (q) queryParams.append('q', q);
+
     const headers = await getAuthHeaders();
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     const response = await fetch(
-      `${baseUrl}users/search?${queryParams.toString()}`,
+      `${cleanBaseUrl}/users/search?${queryParams.toString()}`,
       {
         method: 'GET',
-        headers,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       }
     );
+
+    clearTimeout(timeoutId);
     const result = await response.json();
-    if (!response.ok) {
+
+    if (!response.ok || !result.success) {
       Toast.show({
         type: 'error',
         text1: 'Search Error',
-        text2: result.message || 'Search execution failed',
+        text2: result?.message || 'Search execution failed',
       });
       return null;
     }
     return result.data;
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      return null;
+    }
+
     console.error("Search API Error:", error);
     return null;
   }
@@ -224,46 +362,77 @@ export const searchUsersByUid = async (
   uid: string,
   viewerTier: string,
   viewerRole: string,
+  signal?: AbortSignal
 ): Promise<any[]> => {
+  if (!uid) return [];
+
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     const response = await fetch(
-      `${baseUrl}users/search?q=${encodeURIComponent(uid)}&viewerTier=${viewerTier}&viewerRole=${viewerRole}`,
+      `${cleanBaseUrl}/users/search?q=${encodeURIComponent(uid)}&viewerTier=${encodeURIComponent(viewerTier)}&viewerRole=${encodeURIComponent(viewerRole)}`,
       {
         method: 'GET',
-        headers,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       }
     );
 
+    clearTimeout(timeoutId);
     const result = await response.json();
-    if (!response.ok) {
+
+    if (!response.ok || !result.success) {
       Toast.show({
         type: 'error',
         text1: 'Fetch Error',
-        text2: result.message || 'Search failed',
+        text2: result?.message || 'Search failed',
       });
       return [];
     }
-    return Array.isArray(result.data) ? result.data : [result.data];
-  } catch (error) {
-    console.error("Search API Error:", error);
+    return Array.isArray(result.data) ? result.data : [result.data].filter(Boolean);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      return [];
+    }
+
+    console.error("Search By UID API Error:", error);
     return [];
   }
 };
 export const signupFetchInstitutions = async (country: string) => {
+  const TIMEOUT_MS = 6000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
-    const headers = await getAuthHeaders();
     const response = await fetch(
-      `${baseUrl}users/institutions?country=${country}`,
+      `${baseUrl}users/institutions?country=${encodeURIComponent(country)}`,
       {
         method: 'GET',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       }
     );
+
+    clearTimeout(timeoutId);
     const data = await response.json();
 
     if (response.ok) {
-      const formatted = data.institutions.map((i: any) => ({
+      const formatted = (data.institutions || []).map((i: any) => ({
         label: i.name,
         value: i.name,
       }));
@@ -281,219 +450,432 @@ export const signupFetchInstitutions = async (country: string) => {
       message: data?.message || 'Failed to fetch institutions',
     };
   } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, aborted: true };
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      return { success: false, aborted: true, message: 'Request timed out loading institutions.' };
+    }
+
     return { 
       success: false, 
       message: 'Network error while fetching institutions' 
     };
   }
 };
-export const fetchProductsAPI = async ({ 
-  q = '', 
-  category = 'all', 
-  cursor = '', 
-  limit = 10 
-}) => {
-  try {
-    const categoryParam = category === 'all' ? '' : encodeURIComponent(category);
-    const queryParam = encodeURIComponent(q);
-    const url = `${baseUrl}store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursor}&limit=${limit}`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const result = await response.json();
-    if (!response.ok) {
+export const fetchProductsAPI = async (
+  { 
+    q = '', 
+    category = 'all', 
+    cursor = '', 
+    limit = 10 
+  },
+  maxRetries = 3
+) => {
+  let attempt = 0;
+  const TIMEOUT_MS = 8000;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      const categoryParam = category === 'all' ? '' : encodeURIComponent(category);
+      const queryParam = encodeURIComponent(q);
+      const cursorParam = encodeURIComponent(cursor);
+      
+      const url = `${cleanBaseUrl}/store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursorParam}&limit=${limit}`;
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            message: result.message || 'Failed to fetch store items',
+          };
+        }
+        throw new Error(result.message || `Server error: ${response.status}`);
+      }
+
       return {
-        success: false,
-        message: result.message || 'Failed to fetch store items',
+        success: true,
+        data: result.products || [],
+        nextCursor: result.nextCursor || null,
       };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = error.name === 'AbortError';
+      const errorMessage = isTimeout 
+        ? 'Products fetch request timed out.' 
+        : (error.message || 'Network error.');
+
+      if (attempt >= maxRetries) {
+        console.error("fetchProductsAPI Error after retries:", errorMessage);
+        return { success: false, data: [], message: errorMessage };
+      }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`Fetch products attempt ${attempt} failed (${errorMessage}). Retrying in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
     }
-    return {
-      success: response.ok,
-      data: result.products || [],
-      nextCursor: result.nextCursor || null,
-    };
-  } catch (error) {
-    console.error("fetchProductsAPI Error:", error);
-    return { success: false, data: [], message: 'Network error' };
   }
+
+  return { success: false, data: [], message: 'Network error occurred.' };
 };
-export const fetchAllProductsAPI = async () => {
+export const fetchAllProductsAPI = async (forceRefresh = false) => {
+  const CACHE_KEY = "local_catalog_cache";
+  if (!forceRefresh) {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) return { success: true, data: JSON.parse(cached), source: "local" };
+  }
+
   try {
-    const url = `${baseUrl}store/fetch-all-products`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const response = await fetch(`${baseUrl}store/fetch-all-products`, {
       method: 'GET',
-      headers,
+      headers: await getAuthHeaders(),
     });
+
     const result = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to sync store catalog',
-      };
-    }
-    return {
-      success: true,
-      data: result.products,
-    };
+    
+    if (!response.ok) throw new Error(result.message || 'Sync failed');
+    localStorage.setItem(CACHE_KEY, JSON.stringify(result.products));
+
+    return { success: true, data: result.products };
   } catch (error) {
     console.error("fetchAllProductsAPI Error:", error);
+    const fallback = localStorage.getItem(CACHE_KEY);
     return { 
       success: false, 
-      data: [], 
-      message: 'Network error while syncing catalog' 
+      data: fallback ? JSON.parse(fallback) : [], 
+      message: 'Network error. Using offline mode.' 
     };
   }
 };
-export const fetchPendingOrdersAPI = async () => {
+export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
+  let attempt = 0;
+  const TIMEOUT_MS = 10000;
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const url = `${cleanBaseUrl}/store/orders/pending`;
+      const headers = await getAuthHeaders();
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        if (response.status >= 400 && response.status < 500) {
+          // Client-side errors shouldn't necessarily trigger retries
+          return {
+            success: false,
+            data: [],
+            message: result.message || 'Failed to fetch pending orders',
+          };
+        }
+        throw new Error(result.message || `Server error: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        data: result.data || [],
+      };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = error.name === 'AbortError';
+      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
+
+      if (attempt >= maxRetries) {
+        console.error("fetchPendingOrdersAPI Error (Max retries reached):", errorMessage);
+        return { 
+          success: false, 
+          data: [], 
+          message: errorMessage 
+        };
+      }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`Fetch pending orders attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
+  }
+
+  return { success: false, data: [], message: 'Max retry attempts reached.' };
+};
+export const fetchSellerSalesAPI = async (maxRetries = 3) => {
+  let attempt = 0;
+  const TIMEOUT_MS = 10000;
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const url = `${cleanBaseUrl}/store/sales/history`;
+      const headers = await getAuthHeaders();
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            data: [],
+            message: result.message || 'Failed to fetch sales history',
+          };
+        }
+        throw new Error(result.message || `Server error: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        data: result.data || [],
+      };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = error.name === 'AbortError';
+      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
+
+      if (attempt >= maxRetries) {
+        console.error("fetchSellerSalesAPI Error (Max retries reached):", errorMessage);
+        return { 
+          success: false, 
+          data: [], 
+          message: errorMessage 
+        };
+      }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`Fetch seller sales attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
+  }
+
+  return { success: false, data: [], message: 'Max retry attempts reached.' };
+};
+export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
-    const url = `${baseUrl}store/orders/pending`;
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const url = `${cleanBaseUrl}/reviews/fetch-seller-reviews`; 
     const headers = await getAuthHeaders();
+
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
     const result = await response.json();
 
-    if (!response.ok) {
+    if (!response.ok || !result.success) {
+      Toast.show({ 
+        type: 'error', 
+        text1: 'Fetch Error', 
+        text2: result?.message || 'Failed to fetch sales reviews' 
+      });
       return {
         success: false,
-        message: result.message || 'Failed to fetch pending orders',
+        data: [],
+        message: result?.message || 'Failed to fetch sales reviews',
       };
     }
 
     return {
       success: true,
-      data: result.data || [],
-    };
-  } catch (error) {
-    console.error("fetchPendingOrdersAPI Error:", error);
-    return { 
-      success: false, 
-      data: [], 
-      message: 'Network error occurred while fetching orders' 
-    };
-  }
-};
-export const fetchSellerSalesAPI = async () => {
-  try {
-    const url = `${baseUrl}store/sales/history`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to fetch sales history',
-      };
-    }
-    return {
-      success: true,
-      data: result.data || [],
-    };
-  } catch (error) {
-    console.error("fetchSellerSalesAPI Error:", error);
-    return { 
-      success: false, 
-      data: [], 
-      message: 'Network error occurred while fetching sales' 
-    };
-  }
-};
-export const fetchUserReviewsAPI = async () => {
-  try {
-    const url = `${baseUrl}reviews/fetch-seller-reviews`; 
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to fetch sales reviews',
-      };
-    }
-    return {
-      success: response.ok,
       data: result.data || [],
       message: result.message
     };
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'Request timed out.' });
+      return { success: false, data: [], message: 'Reviews fetch request timed out.' };
+    }
+
+    Toast.show({ type: 'error', text1: 'Network Error', text2: 'Network error fetching reviews.' });
     return { success: false, data: [], message: 'Network error fetching reviews' };
   }
 };
-export const fetchPayoutHistoryAPI = async () => {
-  try {
-    const url = `${baseUrl}payouts/fetch-history`; 
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to fetch payout history',
-      };
-    }
-    return {
-      success: response.ok,
-      data: result.data || [],
-      message: result.message,
-    };
-  } catch (error) {
-    return { success: false, data: [], message: 'Network error fetching payouts' };
-  }
-};
-export const fetchDropOffStationsAPI = async (lat?: number, lng?: number) => {
-  try {
-    let url = `${baseUrl}store/drop-off-stations/fetch`;
-    if (lat !== undefined && lng !== undefined) {
-      url += `?lat=${lat}&lng=${lng}`;
-    }
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to fetch drop-off stations',
-        data: [],
-      };
-    }
+export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
+  let attempt = 0;
+  const TIMEOUT_MS = 10000;
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    return {
-      success: true,
-      data: (result.data as DropOffStation[]) || [],
-      message: result.message,
-    };
-  } catch (error) {
-    return { 
-      success: false, 
-      data: [], 
-      message: 'Network error fetching drop-off stations' 
-    };
+  while (attempt < maxRetries) {
+    attempt++;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const url = `${cleanBaseUrl}/store/payouts/fetch-history`; 
+      const headers = await getAuthHeaders();
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            data: [],
+            message: result.message || 'Failed to fetch payout history',
+          };
+        }
+        throw new Error(result.message || `Server error: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        data: result.data || [],
+        message: result.message,
+      };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = error.name === 'AbortError';
+      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
+
+      if (attempt >= maxRetries) {
+        console.error("fetchPayoutHistoryAPI Error (Max retries reached):", errorMessage);
+        return { 
+          success: false, 
+          data: [], 
+          message: errorMessage 
+        };
+      }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`Fetch payout history attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
   }
+
+  return { success: false, data: [], message: 'Max retry attempts reached.' };
 };
-export const fetchUserConnections = async (): Promise<{success: boolean; message?: string; data: any}> => {
+export const fetchDropOffStationsAPI = async (lat?: number, lng?: number, maxRetries = 3) => {
+  let attempt = 0;
+  const TIMEOUT_MS = 10000;
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      let url = `${cleanBaseUrl}/store/drop-off-stations/fetch`;
+      if (lat !== undefined && lng !== undefined) {
+        url += `?lat=${lat}&lng=${lng}`;
+      }
+
+      const headers = await getAuthHeaders();
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            data: [],
+            message: result.message || 'Failed to fetch drop-off stations',
+          };
+        }
+        throw new Error(result.message || `Server error: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        data: (result.data as DropOffStation[]) || [],
+        message: result.message,
+      };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = error.name === 'AbortError';
+      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
+
+      if (attempt >= maxRetries) {
+        console.error("fetchDropOffStationsAPI Error (Max retries reached):", errorMessage);
+        return { 
+          success: false, 
+          data: [], 
+          message: errorMessage 
+        };
+      }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`Fetch drop-off stations attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
+  }
+
+  return { success: false, data: [], message: 'Max retry attempts reached.' };
+};
+export const fetchUserConnections = async (
+  options?: ApiRequestOptions
+): Promise<{ success: boolean; message?: string; data: any }> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/fetch-connections`, {
       method: 'GET',
       headers,
+      signal: options?.signal,
     });
 
     const result = await response.json();
@@ -506,11 +888,14 @@ export const fetchUserConnections = async (): Promise<{success: boolean; message
     }
     return {
       success: true,
-      data: result.data
-    } 
-      
-  } catch (error) {
-    console.error("Fetch Connections Error:", error);
+      data: result.data,
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.log('Fetch connections request was cancelled.');
+      return { success: false, message: 'Cancelled', data: [] };
+    }
+    console.error('Fetch Connections Error:', error);
     return {
       success: false,
       message: 'Check network connection.',
@@ -518,14 +903,18 @@ export const fetchUserConnections = async (): Promise<{success: boolean; message
     };
   }
 };
-export const searchUsersByITag = async (tag: string): Promise<any> => {
+export const searchUsersByITag = async (
+  tag: string,
+  options?: ApiRequestOptions
+): Promise<any> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(
-      `${baseUrl}user/iTag/search/${encodeURIComponent(tag)}`, 
+      `${baseUrl}user/iTag/search/${encodeURIComponent(tag)}`,
       {
         method: 'GET',
-        headers
+        headers,
+        signal: options?.signal,
       }
     );
     const result = await response.json();
@@ -538,8 +927,10 @@ export const searchUsersByITag = async (tag: string): Promise<any> => {
       return null;
     }
     return result;
-  } catch (error) {
-    console.error("iTag Search API Error:", error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') return null; 
+    
+    console.error('iTag Search API Error:', error);
     Toast.show({
       type: 'error',
       text1: 'Network Anomaly',
@@ -549,13 +940,15 @@ export const searchUsersByITag = async (tag: string): Promise<any> => {
   }
 };
 export const fetchNotificationDetails = async (
-  notificationId: string
+  notificationId: string,
+  options?: ApiRequestOptions
 ): Promise<{ success: boolean; notification: Notification | null }> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/notifications/${notificationId}`, {
       method: 'GET',
-      headers
+      headers,
+      signal: options?.signal,
     });
 
     const result = await response.json();
@@ -568,12 +961,14 @@ export const fetchNotificationDetails = async (
       return { success: false, notification: null };
     }
 
-    return { 
-      success: true, 
-      notification: result.notification 
+    return {
+      success: true,
+      notification: result.notification,
     };
   } catch (error: any) {
-    console.error("Fetch Notification Detail Utility Error:", error);
+    if (error.name === 'AbortError') return { success: false, notification: null };
+
+    console.error('Fetch Notification Detail Utility Error:', error);
     Toast.show({
       type: 'error',
       text1: 'Connection Error',
@@ -583,7 +978,8 @@ export const fetchNotificationDetails = async (
   }
 };
 export const fetchNotificationsByTab = async (
-  activeTab: 'all' | 'finance' | 'unread'
+  activeTab: 'all' | 'finance' | 'unread',
+  options?: ApiRequestOptions
 ): Promise<{ success: boolean; notifications: Notification[] }> => {
   try {
     const params = new URLSearchParams();
@@ -593,12 +989,15 @@ export const fetchNotificationsByTab = async (
       params.append('unread', 'true');
     }
     const queryString = params.toString();
-    const finalUrl = queryString ? `${baseUrl}users/get-notifications?${queryString}` : `${baseUrl}users/get-notifications`;
+    const finalUrl = queryString
+      ? `${baseUrl}users/get-notifications?${queryString}`
+      : `${baseUrl}users/get-notifications`;
     const headers = await getAuthHeaders();
 
     const response = await fetch(finalUrl, {
       method: 'GET',
-      headers
+      headers,
+      signal: options?.signal,
     });
 
     const result = await response.json();
@@ -617,7 +1016,9 @@ export const fetchNotificationsByTab = async (
       notifications: result.notifications || [],
     };
   } catch (error: any) {
-    console.error("Fetch Notifications Utility Error:", error);
+    if (error.name === 'AbortError') return { success: false, notifications: [] };
+
+    console.error('Fetch Notifications Utility Error:', error);
     Toast.show({
       type: 'error',
       text1: 'Connection Error',
@@ -627,33 +1028,62 @@ export const fetchNotificationsByTab = async (
   }
 };
 export const checkITagAvailability = async (
-  username: string
+  username: string,
+  signal?: AbortSignal
 ): Promise<CheckITagResponse> => {
+  const TIMEOUT_MS = 5000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/check-itag/${encodeURIComponent(username)}`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    
+    const response = await fetch(`${cleanBaseUrl}/users/check-itag/${encodeURIComponent(username.trim())}`, {
       method: 'GET',
-      headers
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
     const result = await response.json();
+
     if (!response.ok) {
-      return { success: false, available: false, message: result.message };
+      return { success: false, available: false, message: result?.message || 'Failed to check availability' };
     }
+
     return { 
       success: true, 
-      available: result.available ?? false 
+      available: result.available ?? false,
+      message: result.message
     };
   } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      return { success: false, available: false, message: 'Request timed out.' };
+    }
+
     console.error("Check iTag Utility Error:", error);
-    return { success: false, available: false, message: error.message };
+    return { success: false, available: false, message: error?.message || 'Network error.' };
   }
 };
-export const fetchOngoingLecture = async (): Promise<OngoingLectureResponse> => {
+export const fetchOngoingLecture = async (
+  options?: ApiRequestOptions
+): Promise<OngoingLectureResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/lectures/ongoing`, {
       method: 'GET',
-      headers
+      headers,
+      signal: options?.signal,
     });
     const result = await response.json();
     if (!response.ok) {
@@ -664,21 +1094,26 @@ export const fetchOngoingLecture = async (): Promise<OngoingLectureResponse> => 
       ongoing: result.ongoing ?? false,
       lecture: result.lecture || null,
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { success: false, ongoing: false, lecture: null };
+    }
     console.error("Fetch Ongoing Lecture Utility Error:", error);
     return { success: false, ongoing: false, lecture: null };
   }
 };
-export const fetchFeaturedBooksByDepartment = async (
-  department: string
-): Promise<{ success: boolean; books: Book[] }> => {
+export const fetchFeaturedBooksByDepartment = async ({
+  department,
+  signal,
+}: FetchFeaturedBooksParams): Promise<{ success: boolean; books: Book[] }> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/library/featured?department=${encodeURIComponent(department)}`,
       {
         method: 'GET',
-        headers
+        headers,
+        signal,
       }
     );
 
@@ -693,7 +1128,6 @@ export const fetchFeaturedBooksByDepartment = async (
       return { success: false, books: [] };
     }
 
-    // Checking if the backend returns the array directly or wrapped inside an object
     const booksArray = Array.isArray(data) ? data : data.books || [];
 
     return { 
@@ -701,6 +1135,8 @@ export const fetchFeaturedBooksByDepartment = async (
       books: booksArray 
     };
   } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, books: [] };
+
     console.error("Fetch Featured Books Utility Error:", error);
     Toast.show({
       type: 'error',
@@ -711,95 +1147,154 @@ export const fetchFeaturedBooksByDepartment = async (
   }
 };
 export const searchLibraryBooks = async (
-  query: string
+  query: string,
+  signal?: AbortSignal
 ): Promise<SearchBooksResponse> => {
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     const response = await fetch(
-      `${baseUrl}users/library/search?q=${encodeURIComponent(query)}`,
+      `${cleanBaseUrl}/users/library/search?q=${encodeURIComponent(query.trim())}`,
       {
         method: 'GET',
-        headers
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       }
     );
 
+    clearTimeout(timeoutId);
     const data = await response.json();
 
-    if (!response.ok) {
+    if (!response.ok || !data.success) {
       return { success: false, books: [] };
     }
+
     const booksArray = Array.isArray(data) ? data : data.books || [];
 
     return {
       success: true,
       books: booksArray,
     };
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      console.warn("Search Library Request Timed Out");
+      return { success: false, books: [] };
+    }
+
     console.error("Search Library Utility Error:", error);
     return { success: false, books: [] };
   }
 };
-export const getUserAccountState = async (): Promise<any> => {
+export const getUserAccountState = async (
+  signal?: AbortSignal
+): Promise<{ success: boolean; user?: { uid: string; isSuspended: boolean }; error?: string }> => {
+  const TIMEOUT_MS = 6000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/check-account-state`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+    const response = await fetch(`${cleanBaseUrl}/users/check-account-state`, {
       method: 'GET',
-      headers
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
     const data = await response.json();
-    if (!response.ok) {
+
+    if (!response.ok || !data.success) {
+      const errorMsg = data?.message || `Request failed with status ${response.status}`;
       Toast.show({
         type: 'error',
         text1: 'Fetch Error',
-        text2: `Request failed with status ${response.status}`
+        text2: errorMsg,
       });
       return { 
         success: false, 
-        error: data.message || `Request failed with status ${response.status}` 
+        error: errorMsg 
       };
     }
+
     return {
       success: true,
       user: data.user,
     };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
 
-  } catch (error) {
-    console.error("Get User Profile Utility Error:", error);
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Request timed out.' };
+    }
+
+    console.error("Get Account State Utility Error:", error);
     Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: 'An unknown error occurred'
-      });
+      type: 'error',
+      text1: 'Network Error',
+      text2: 'An unknown error occurred',
+    });
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unknown error occurred' 
     };
   }
 };
-export const getCourseDetailsForOngoingLecture = async (courseId: string): Promise<GetCourseResponse> => {
+export const getCourseDetailsForOngoingLecture = async ({
+  courseId,
+  signal,
+}: GetCourseDetailsOngoingParams): Promise<GetCourseResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/course/ongoing-lecture/${courseId}`, {
       method: 'GET',
-      headers
+      headers,
+      signal,
     });
     const data = await response.json();
     if (!response.ok) {
       return { success: false, error: data.message || 'Failed to fetch course details' };
     }
     return { success: true, data };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
+
     console.error("Get Course Details Utility Error:", error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
-export const getAllExceptionsForOngoingLecture = async (lectureId: string): Promise<GetExceptionsResponse> => {
+export const getAllExceptionsForOngoingLecture = async ({
+  lectureId,
+  signal,
+}: GetLectureExceptionsParams): Promise<GetExceptionsResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/exceptions/lectures/${lectureId}`, {
       method: 'GET',
-      headers
+      headers,
+      signal,
     });
     const data = await response.json();
 
@@ -808,17 +1303,23 @@ export const getAllExceptionsForOngoingLecture = async (lectureId: string): Prom
     }
     const exceptionsArray = Array.isArray(data) ? data : data.exceptions || [];
     return { success: true, data: exceptionsArray };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
+
     console.error("Get Lecture Exceptions Utility Error:", error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
-export const getCourseDetails = async (courseId: string): Promise<FetchCourseResponse> => {
+export const getCourseDetails = async ({
+  courseId,
+  signal,
+}: GetCourseDetailsParams): Promise<FetchCourseResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/courses/fetch-course-details/${courseId}`, {
       method: 'GET',
-      headers
+      headers,
+      signal,
     });
 
     const result = await response.json();
@@ -835,7 +1336,9 @@ export const getCourseDetails = async (courseId: string): Promise<FetchCourseRes
       course: result.data || result.course,
     };
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
+
     console.error('Fetch Course Details Utility Error:', error);
     return { 
       success: false, 
@@ -843,12 +1346,15 @@ export const getCourseDetails = async (courseId: string): Promise<FetchCourseRes
     };
   }
 };
-export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse> => {
+export const getStudentLecturesTimeline = async (
+  options?: ApiRequestOptions
+): Promise<GetTimelineResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/student/class/lectures/timeline`, {
       method: 'GET',
-      headers
+      headers,
+      signal: options?.signal,
     });
 
     const result = await response.json();
@@ -862,7 +1368,9 @@ export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse>
       success: true,
       data: result.data || []
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
+
     console.error('Get Lectures Timeline Utility Error:', error);
     return { 
       success: false, 
@@ -870,12 +1378,15 @@ export const getStudentLecturesTimeline = async (): Promise<GetTimelineResponse>
     };
   }
 };
-export const getLecturersLecturesTimeline = async (): Promise<GetTimelineResponse> => {
+export const getLecturersLecturesTimeline = async (
+  options?: ApiRequestOptions
+): Promise<GetTimelineResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/lecturers/class/lectures/timeline`, {
       method: 'GET',
-      headers
+      headers,
+      signal: options?.signal,
     });
 
     const result = await response.json();
@@ -889,7 +1400,9 @@ export const getLecturersLecturesTimeline = async (): Promise<GetTimelineRespons
       success: true,
       data: result.data || []
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
+
     console.error('Get Lectures Timeline Utility Error:', error);
     return { 
       success: false, 
@@ -899,7 +1412,8 @@ export const getLecturersLecturesTimeline = async (): Promise<GetTimelineRespons
 };
 export const checkAssessmentStatus = async (
   courseId: string,
-  assessmentId: string
+  assessmentId: string,
+  signal?: AbortSignal
 ): Promise<CheckAssessmentStatusResponse> => {
   try {
     const headers = await getAuthHeaders();
@@ -907,7 +1421,8 @@ export const checkAssessmentStatus = async (
       `${baseUrl}users/student/class/courses/${courseId}/assessments/${assessmentId}/check-status`,
       {
         method: 'GET',
-        headers
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        signal,
       }
     );
     const result = await response.json();
@@ -923,7 +1438,8 @@ export const checkAssessmentStatus = async (
       test: result.test || null,
     };
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
     console.error('Check Assessment Status Utility Error:', error);
     return { 
       success: false, 
@@ -931,14 +1447,18 @@ export const checkAssessmentStatus = async (
     };
   }
 };
-export const getCourseExceptions = async (courseId: string): Promise<GetExceptionsResponse> => {
+export const getCourseExceptions = async ({
+  courseId,
+  signal,
+}: GetCourseExceptionsParams): Promise<GetExceptionsResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/exceptions?courseId=${courseId}`,
       {
         method: 'GET',
-        headers
+        headers,
+        signal,
       }
     );
 
@@ -956,7 +1476,10 @@ export const getCourseExceptions = async (courseId: string): Promise<GetExceptio
       data: exceptionsArray 
     };
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Request cancelled.' };
+    }
     console.error("Get Course Exceptions Utility Error:", error);
     return { 
       success: false, 
@@ -964,14 +1487,18 @@ export const getCourseExceptions = async (courseId: string): Promise<GetExceptio
     };
   }
 };
-export const getCourseAssessments = async (courseId: string): Promise<GetAssessmentsResponse> => {
+export const getCourseAssessments = async ({
+  courseId,
+  signal,
+}: GetCourseAssessmentsParams): Promise<GetAssessmentsResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
       {
         method: 'GET',
-        headers
+        headers,
+        signal,
       }
     );
     const result = await response.json();
@@ -986,7 +1513,9 @@ export const getCourseAssessments = async (courseId: string): Promise<GetAssessm
       success: true,
       data: assessmentsArray,
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
+
     console.error("Get Assessments Utility Error:", error);
     return {
       success: false,
@@ -1006,47 +1535,102 @@ export const searchICashMarketLocal = (query: string, catalog: any[]): any[] => 
     );
   });
 };
-export const searchCourses = async (query: string): Promise<SearchCoursesResponse[]> => {
+export const searchCourses = async (
+  query: string,
+  signal?: AbortSignal
+): Promise<SearchCoursesResponse[]> => {
+  if (!query || query.trim().length < 2) return [];
+
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     const response = await fetch(
-      `${baseUrl}users/courses/search?q=${encodeURIComponent(query)}`,
+      `${cleanBaseUrl}/users/courses/search?q=${encodeURIComponent(query)}`,
       {
         method: 'GET',
-        headers
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       }
     );
+
+    clearTimeout(timeoutId);
     const result = await response.json();
-    if (!response.ok) {
-      console.error('Unified course endpoint returned error status:', result.message);
+
+    if (!response.ok || !result.success) {
+      console.error('Unified course endpoint returned error status:', result?.message);
       return [];
     }
+
     return Array.isArray(result.courses) ? result.courses : [];
-    
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      return [];
+    }
+
     console.error("Search Courses Utility Error:", error);
     return [];
   }
 };
-export const searchAcademicResources = async (query: string): Promise<any[]> => {
+export const searchAcademicResources = async (
+  query: string,
+  signal?: AbortSignal
+): Promise<any[]> => {
+  if (!query || query.trim().length < 2) return [];
+
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
-    const encodedQuery = encodeURIComponent(query);
+    const encodedQuery = encodeURIComponent(query.trim());
     const headers = await getAuthHeaders();
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     const response = await fetch(
-      `${baseUrl}users/courses/resources/search?q=${encodedQuery}`,
+      `${cleanBaseUrl}/users/courses/resources/search?q=${encodedQuery}`,
       {
         method: 'GET',
-        headers
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       }
     );
 
+    clearTimeout(timeoutId);
     const result = await response.json();
-    if (response.ok && result.success) {
+
+    if (response.ok && result.success && Array.isArray(result.resources)) {
       return result.resources;
     }
     
     return [];
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      return [];
+    }
+
     console.error("Client side searchAcademicResources failed: ", error);
     return [];
   }
@@ -1068,12 +1652,16 @@ export const fetchAllAssignments = async (courseId: string): Promise<ApiResponse
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
-export const fetchAllLecturesByCourseId = async (courseId: string): Promise<ApiResponse> => {
+export const fetchAllLecturesByCourseId = async ({
+  courseId,
+  signal,
+}: FetchAllLecturesParams): Promise<ApiResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/courses/${courseId}/fetch-all-lectures`, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const result = await response.json();
@@ -1085,17 +1673,23 @@ export const fetchAllLecturesByCourseId = async (courseId: string): Promise<ApiR
     }
     return { success: true, data: Array.isArray(result.lectures) ? result.lectures : [] };
   } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
+
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
-export const getAssessmentAnalysisUrl = async (testId: string): Promise<ApiResponse> => {
+export const getAssessmentAnalysisUrl = async (
+  testId: string,
+  signal?: AbortSignal
+): Promise<ApiResponse> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(
       `${baseUrl}users/lecturers/class/tests/${testId}/analysis-data`, 
       {
         method: 'GET',
-        headers
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        signal,
       }
     );
     const result = await response.json();  
@@ -1107,47 +1701,53 @@ export const getAssessmentAnalysisUrl = async (testId: string): Promise<ApiRespo
     }
     return { success: true, data: result };
   } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
 export const getTransactionStats = async (
-  params?: TransactionStatsParams 
+  params?: TransactionStatsParams
 ): Promise<ApiResponse> => {
   try {
     const queryParams = new URLSearchParams();
     if (params?.month) queryParams.append('month', params.month.toString());
     if (params?.year) queryParams.append('year', params.year.toString());
-    
+
     const queryString = queryParams.toString();
     const url = `${baseUrl}user/transactions/stats${queryString ? `?${queryString}` : ''}`;
     const headers = await getAuthHeaders();
 
     const response = await fetch(url, {
       method: 'GET',
-      headers
+      headers,
+      signal: params?.signal,
     });
-    
+
     const result = await response.json();
-    
+
     if (!response.ok) {
       return {
         success: false,
-        error: result.error || result.message || 'Failed to fetch statistics.'
+        error: result.error || result.message || 'Failed to fetch statistics.',
       };
     }
-    
+
     return { success: true, data: result };
   } catch (error: any) {
-    return { 
-      success: false, 
-      error: error.message || 'Network error occurred.' 
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Request cancelled.' };
+    }
+    return {
+      success: false,
+      error: error.message || 'Network error occurred.',
     };
   }
 };
 export const getMyTransactions = async ({
   page,
   limit,
-  searchQuery
+  searchQuery,
+  signal,
 }: GetTransactionsParams): Promise<ApiResponse> => {
   try {
     let url = `${baseUrl}user/my-transactions?page=${page}&limit=${limit}`;
@@ -1157,30 +1757,38 @@ export const getMyTransactions = async ({
     const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
-      headers
+      headers,
+      signal,
     });
 
     const result = await response.json();
     if (!response.ok || !result.success) {
       return {
         success: false,
-        error: result.error || result.message || 'Failed to fetch transaction history.'
+        error: result.error || result.message || 'Failed to fetch transaction history.',
       };
     }
     return { success: true, data: result };
   } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Request cancelled.' };
+    }
     return {
       success: false,
-      error: error.message || 'Network error occurred.'
+      error: error.message || 'Network error occurred.',
     };
   }
 };
-export const getTransactionByIdAPI = async (transactionId: string) => {
+export const getTransactionByIdAPI = async ({
+  transactionId,
+  signal,
+}: GetTransactionByIdParams) => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}user/transactions/fetch-transaction/${transactionId}`, {
       method: 'GET',
-      headers
+      headers,
+      signal,
     });
     
     const data = await response.json();
@@ -1194,38 +1802,67 @@ export const getTransactionByIdAPI = async (transactionId: string) => {
     
     return {
       success: true,
-      data: data.data, // Accessing data sub-property based on your previous structures
+      data: data.data,
       message: 'Success',
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, data: null, message: 'Request cancelled.' };
+
     console.error("getTransactionByIdAPI Error:", error);
     return { success: false, data: null, message: 'Connection to server failed' };
   }
 };
-export const refreshUserProfileAPI = async () => {
+export const refreshUserProfileAPI = async (
+  signal?: AbortSignal
+): Promise<{ success: boolean; user?: any; accessToken?: string; refreshToken?: string; message: string }> => {
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/refresh-user-details`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+    const response = await fetch(`${cleanBaseUrl}/users/refresh-user-details`, {
       method: 'GET',
-      headers
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
     const data = await response.json();
-    if (!response.ok) {
+
+    if (!response.ok || !data.success) {
       return {
         success: false,
         message: data?.message || 'Failed to sync profile data',
       };
     }
+
     return {
       success: true,
-      user: data.user,         
+      user: data.user,        
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       message: data.message || 'Profile updated successfully',
     };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
 
-  } catch (error) {
+    if (error.name === 'AbortError') {
+      return {
+        success: false,
+        message: 'Profile refresh request timed out.',
+      };
+    }
+
     console.error("fetchUserProfileAPI Error:", error);
     return { 
       success: false, 
@@ -1237,8 +1874,9 @@ export const fetchMyCoursesAPI = async ({
   semester, 
   session,
   page = 1,
-  limit = 10
-}: FetchStudentCoursesParams = {}) => {
+  limit = 10,
+  signal,
+}: FetchMyCoursesParams = {}) => {
   try {
     let url = `${baseUrl}users/student/class/courses/fetch-my-courses`;
     const queryParams = new URLSearchParams();
@@ -1255,6 +1893,7 @@ export const fetchMyCoursesAPI = async ({
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
     const data = await response.json();
 
@@ -1270,7 +1909,9 @@ export const fetchMyCoursesAPI = async ({
       message: 'Courses synced successfully.',
     };
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
+
     console.error("fetchMyCoursesAPI Error:", error);
     return {
       success: false,
@@ -1282,8 +1923,9 @@ export const fetchLecturerCoursesAPI = async ({
   semester, 
   session,
   page = 1,
-  limit = 10 
-}: FetchStudentCoursesParams = {}) => {
+  limit = 10,
+  signal,
+}: FetchLecturerCoursesParams = {}) => {
   try {
     let url = `${baseUrl}users/lecturers/class/courses/fetch-my-courses`;
     const queryParams = new URLSearchParams();
@@ -1301,6 +1943,7 @@ export const fetchLecturerCoursesAPI = async ({
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
 
     const data = await response.json();
@@ -1317,7 +1960,9 @@ export const fetchLecturerCoursesAPI = async ({
       message: 'Lecturer modules synchronized successfully.',
     };
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
+
     console.error("fetchLecturerCoursesAPI Error:", error);
     return {
       success: false,
@@ -1387,11 +2032,12 @@ export const getAllAdmins = async (): Promise<any[]> => {
     return [];
   }
 };
-export const getNotifications = async (
-  tabName: TabName, 
-  page: number = 1, 
-  limit: number = 20
-): Promise<any[]> => {
+export const getNotifications = async ({
+  tabName,
+  page = 1,
+  limit = 20,
+  signal,
+}: GetNotificationsParams): Promise<any[]> => {
   try {
     const category = TAB_TO_CATEGORY[tabName];
     const headers = await getAuthHeaders();
@@ -1399,6 +2045,7 @@ export const getNotifications = async (
     const response = await fetch(`${baseUrl}admins/get-notifications?category=${category}&page=${page}&limit=${limit}`, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const result = await response.json();
@@ -1416,6 +2063,8 @@ export const getNotifications = async (
     return Array.isArray(list) ? list : [];
     
   } catch (error: any) {
+    if (error.name === 'AbortError') return [];
+
     console.error('NotificationService Error:', error);
     Toast.show({
       type: 'error',
@@ -1425,13 +2074,18 @@ export const getNotifications = async (
     return [];
   }
 };
-export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => {
+export const fetchPostsAPI = async ({
+  limit = 10,
+  cursor = '',
+  signal,
+}: FetchPostsParams = {}) => {
   try {
     const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
     const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
     const data = await response.json();
     if (!response.ok) {
@@ -1445,7 +2099,9 @@ export const fetchPostsAPI = async (limit: number = 10, cursor: string = '') => 
       posts: data.posts || [],
       nextCursor: data.nextCursor || null,
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, posts: [], message: 'Request cancelled.' };
+
     console.error("fetchPostsAPI Error:", error);
     return { success: false, posts: [], message: 'Failed to connect to server' };
   }
@@ -1474,30 +2130,55 @@ export const searchPosts = async (query: string): Promise<any[]> => {
   }
 };
 export const fetchPostByIdAPI = async (postId: string) => {
+  const TIMEOUT_MS = 8000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}posts/${postId}`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const url = `${cleanBaseUrl}/posts/${postId}`;
+
+    const response = await fetch(url, {
       method: 'GET',
-      headers,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
     const data = await response.json();
+
     if (!response.ok) {
       return {
         success: false,
+        data: null,
         message: data?.message || 'Failed to fetch post',
       };
     }
+
     return {
-      success: response.ok,
+      success: true,
       data,
-      message: response.ok ? 'Success' : (data.error || 'Post not found on server'),
+      message: 'Success',
     };
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
     console.error("fetchPostByIdAPI Error:", error);
-    return { success: false, data: null, message: 'Connection to server failed' };
+    return { 
+      success: false, 
+      data: null, 
+      message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' 
+    };
   }
 };
-export const fetchTicketsAPI = async (limit: number = 10, cursor: string = '') => {
+export const fetchTicketsAPI = async ({
+  limit = 10,
+  cursor = '',
+  signal,
+}: FetchTicketsParams = {}) => {
   try {
     const url = `${baseUrl}support/tickets/fetch-all?limit=${limit}&cursor=${cursor}`;
     const headers = await getAuthHeaders();
@@ -1505,6 +2186,7 @@ export const fetchTicketsAPI = async (limit: number = 10, cursor: string = '') =
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const data = await response.json();
@@ -1521,7 +2203,9 @@ export const fetchTicketsAPI = async (limit: number = 10, cursor: string = '') =
       tickets: data.tickets || data.data || [], 
       nextCursor: data.nextCursor || null,
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, tickets: [], message: 'Request cancelled.' };
+
     console.error("fetchTicketsAPI Error:", error);
     return { 
       success: false, 
@@ -1530,13 +2214,17 @@ export const fetchTicketsAPI = async (limit: number = 10, cursor: string = '') =
     };
   }
 };
-export const adminFetchUserDetails = async (userId: string) => {
+export const adminFetchUserDetails = async ({
+  userId,
+  signal,
+}: AdminFetchUserDetailsParams) => {
   try {
     const url = `${baseUrl}admins/fetch-user/${userId}`; 
     const headers = await getAuthHeaders();
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const data = await response.json();
@@ -1549,17 +2237,23 @@ export const adminFetchUserDetails = async (userId: string) => {
       return [];
     }
     return data.user || data; 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return [];
+
     console.error("adminFetchUserDetails Error:", error);
     Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: 'Check your connection and retry.'
-      });
+      type: 'error',
+      text1: 'Network Error',
+      text2: 'Check your connection and retry.'
+    });
     throw error;
   }
 };
-export const adminFetchUserNotifications = async (userId: string, limit: number = 10) => {
+export const adminFetchUserNotifications = async ({
+  userId,
+  limit = 10,
+  signal,
+}: AdminFetchUserNotificationsParams) => {
   try {
     const url = `${baseUrl}admins/fetch-notifications/${userId}?limit=${limit}`;
     const headers = await getAuthHeaders();
@@ -1567,20 +2261,23 @@ export const adminFetchUserNotifications = async (userId: string, limit: number 
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const data = await response.json();
     
     if (!response.ok) {
       Toast.show({
-      type: 'error',
-      text1: 'Fetch Error',
-      text2: data?.message || 'Failed to fetch user notifications'
-    });
-    return []; 
+        type: 'error',
+        text1: 'Fetch Error',
+        text2: data?.message || 'Failed to fetch user notifications'
+      });
+      return []; 
     }
     return data.notifications || data || []; 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return [];
+
     console.error("adminFetchUserNotifications Error:", error);
     Toast.show({
       type: 'error',
@@ -1686,44 +2383,52 @@ export const getDropOffStationsAPI = async (page: number, limit: number = 20) =>
     return [];
   }
 };
-export const getSchoolStatsApi = async (schoolId: string) => {
+export const getSchoolStatsApi = async (schoolId: string, signal?: AbortSignal) => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}admins/institutions/${schoolId}/get-details`, {
       method: 'GET',
       headers: { ...headers, 'Content-Type': 'application/json' },
+      signal,
     });
 
     const data = await response.json();
     return response.ok 
       ? { success: true, data } 
       : { success: false, error: data.message || 'Failed to fetch statistics.' };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
     console.error("Fetch Stats API Error:", error);
     return { success: false, error: 'Network error.' };
   }
 };
-export const getStationDetailsApi = async (stationId: string) => {
+export const getStationDetailsApi = async (stationId: string, signal?: AbortSignal) => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}admins/stations/${stationId}/details`, {
       method: 'GET',
       headers: { ...headers },
+      signal,
     });
     const data = await response.json();
     return response.ok ? { success: true, data } : { success: false, error: data.message };
-  } catch {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
     return { success: false, error: 'Network error.' };
   }
 };
-export const fetchCourseGradebook = async (courseId: string) => {
+export const fetchCourseGradebook = async (
+  courseId: string,
+  signal?: AbortSignal
+) => {
   try {
     const url = `${baseUrl}users/lecturers/class/${courseId}/get-performance-analysis`; 
     const headers = await getAuthHeaders();
     
     const response = await fetch(url, {
       method: 'GET',
-      headers,
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      signal,
     });
     
     const result = await response.json();
@@ -1741,6 +2446,7 @@ export const fetchCourseGradebook = async (courseId: string) => {
       message: result?.message || 'Failed to fetch gradebook',
     };
   } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
     console.error("Gradebook API Error:", error);
     return {
       success: false,
@@ -1748,39 +2454,41 @@ export const fetchCourseGradebook = async (courseId: string) => {
     };
   }
 };
-export const fetchTaxReport = async (month: string, year: string) => {
-    try {
-      const url = `${baseUrl}admins/tax-entries/download?month=${month}&year=${year}`; 
-      const headers = await getAuthHeaders();
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers,
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
-        return {
-          success: true,
-          data: result.data, 
-          message: 'Tax report downloaded successfully',
-        };
-      }
-
+export const fetchTaxReport = async (month: string, year: string, signal?: AbortSignal) => {
+  try {
+    const url = `${baseUrl}admins/tax-entries/download?month=${month}&year=${year}`; 
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal,
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
       return {
-        success: false,
-        message: result?.message || 'Failed to download tax report',
-      };
-    } catch (error: any) {
-      console.error("Tax Download API Error:", error);
-      return {
-        success: false,
-        message: 'Network error while downloading tax report',
+        success: true,
+        data: result.data, 
+        message: 'Tax report downloaded successfully',
       };
     }
-  };
-export const fetchTaxEntries = async (page: number = 1, limit: number = 10) => {
+
+    return {
+      success: false,
+      message: result?.message || 'Failed to download tax report',
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
+    console.error("Tax Download API Error:", error);
+    return {
+      success: false,
+      message: 'Network error while downloading tax report',
+    };
+  }
+};
+export const fetchTaxEntries = async (page: number = 1, limit: number = 10, signal?: AbortSignal) => {
   try {
     const url = `${baseUrl}admins/tax-entries/fetch?page=${page}&limit=${limit}`; 
     const headers = await getAuthHeaders();
@@ -1788,6 +2496,7 @@ export const fetchTaxEntries = async (page: number = 1, limit: number = 10) => {
     const response = await fetch(url, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const result = await response.json();
@@ -1807,6 +2516,7 @@ export const fetchTaxEntries = async (page: number = 1, limit: number = 10) => {
       message: result?.message || 'Failed to fetch tax entries',
     };
   } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, data: [], message: 'Request cancelled.' };
     console.error("Tax Entries API Error:", error);
     return {
       success: false,
@@ -1815,11 +2525,14 @@ export const fetchTaxEntries = async (page: number = 1, limit: number = 10) => {
     };
   }
 };
-export const getAds = async (): Promise<{ success: boolean; data: AdItem[] }> => {
+export const getAds = async (
+  options?: ApiRequestOptions
+): Promise<{ success: boolean; data: AdItem[] }> => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}users/ads/fetch-active`, {
       headers,
+      signal: options?.signal,
     });
     const result = await response.json();
     
@@ -1837,16 +2550,22 @@ export const getAds = async (): Promise<{ success: boolean; data: AdItem[] }> =>
       data: result.data || [], 
     };
   } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, data: [] };
+
     console.error("Fetch Ads Error:", error);
     return { success: false, data: [] };
   }
 };
-export const fetchSupportTicketByRefIdAPI = async (ticketRefId: string) => {
+export const fetchSupportTicketByRefIdAPI = async ({
+  ticketRefId,
+  signal,
+}: FetchSupportTicketParams) => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${baseUrl}admins/support-tickets/${ticketRefId}/fetch`, {
       method: 'GET',
       headers,
+      signal,
     });
     
     const data = await response.json();
@@ -1863,7 +2582,9 @@ export const fetchSupportTicketByRefIdAPI = async (ticketRefId: string) => {
       ticket: data.ticket || data.data || data,
       message: 'Success',
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') return { success: false, ticket: null, message: 'Request cancelled.' };
+
     console.error("fetchSupportTicketByRefIdAPI Error:", error);
     return { 
       success: false, 

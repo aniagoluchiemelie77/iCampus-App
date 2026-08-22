@@ -6,6 +6,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { Course } from '../types/firebase';
 import { useAppSelector } from '../hooks/hooks';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   RenderViewLectureSchedule,
   AddExceptionModal,
@@ -47,6 +48,7 @@ import { RootStackParamList } from '../../App';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CourseSubPage'>;
+
 export const CourseSubPage = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
@@ -81,7 +83,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseAssessments(course.courseId);
+      const result = await getCourseAssessments({courseId: course.courseId});
       if (result.success && result.data) {
         const sortedTests = result.data.sort(
           (a: any, b: any) =>
@@ -110,7 +112,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseExceptions(course.courseId);
+      const result = await getCourseExceptions({courseId: course.courseId});
       if (result.success && result.data) {
         setLocalExceptions(result.data);
       } else {
@@ -173,7 +175,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseDetails(course?.courseId);
+      const result = await getCourseDetails({courseId: course?.courseId});
       if (result.success && result.course) {
         setCurrentCourse(result.course);
       } else {
@@ -196,7 +198,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
 
   const handleFetchCourseLectures = useCallback(async () => {
     if (!course?.courseId) return;
-    const result = await fetchAllLecturesByCourseId(course?.courseId);
+    const result = await fetchAllLecturesByCourseId({courseId: course?.courseId});
     if (result.success) {
       setAllLectures(result.data);
     } else {
@@ -613,7 +615,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
                 ]}
               >
                 <MaterialIcons
-                  name="check-circle-outlined"
+                  name="check-circle"
                   size={80}
                   color={colors.primary}
                 />
@@ -634,22 +636,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
                   You have already submitted this assessment. Multiple attempts
                   are not allowed.
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    CourseActionStyles.doneButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                <CustomButton
+                  title="Back to Course"
+                  style={[CourseActionStyles.doneButton]}
                   onPress={goBack}
-                >
-                  <Text
-                    style={[
-                      CourseActionStyles.doneButtonText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Back to Course
-                  </Text>
-                </TouchableOpacity>
+                />
               </View>
             </View>
           ) : activeTest ? (
@@ -688,7 +679,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
                       ]}
                     >
                       <MaterialIcons
-                        name="timer-outlined"
+                        name="timer"
                         size={80}
                         color={colors.primary}
                       />
@@ -714,22 +705,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
                         </Text>
                         .
                       </Text>
-                      <TouchableOpacity
-                        style={[
-                          CourseActionStyles.doneButton,
-                          { backgroundColor: colors.btnColor },
-                        ]}
+                      <CustomButton
+                        title="Refresh Status"
+                        style={[CourseActionStyles.doneButton]}
                         onPress={fetchTests}
-                      >
-                        <Text
-                          style={[
-                            CourseActionStyles.doneButtonText,
-                            { color: colors.btnTextColor },
-                          ]}
-                        >
-                          Refresh Status
-                        </Text>
-                      </TouchableOpacity>
+                      />
                     </View>
                   </View>
                 );
@@ -772,7 +752,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             ]}
           >
             <MaterialIcons
-              name="check-circle-outlined"
+              name="check-circle"
               size={70}
               color={colors.primary}
             />
@@ -817,23 +797,23 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
                     }}
                   >
                     <MaterialIcons
-                      name="content-copy-outlined"
+                      name="content-copy"
                       size={20}
                       color={colors.primary}
+                      style={{ padding: 10 }}
                     />
                   </TouchableOpacity>
                 </View>
               </>
             )}
-            <TouchableOpacity
+            <CustomButton
+              title='Done'
               style={CourseActionStyles.doneButton}
               onPress={() => {
                 setShowSuccessModal(false);
                 navigation.navigate('Home', { activeTab: 'classroom' });
               }}
-            >
-              <Text style={CourseActionStyles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </Modal>

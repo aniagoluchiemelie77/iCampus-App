@@ -19,6 +19,7 @@ import {UserAvatar} from './UserAvatar';
 import {RTCView } from 'react-native-webrtc';
 import { useTheme } from '../context/ThemeContext';
 import { Avatar } from 'react-native-paper';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface LecturerControlsProps {
   localStream: any;
@@ -216,7 +217,7 @@ const AttendeeRow = React.memo(({ student, isWaving, colors }: any) => (
     </View>
     {isWaving && (
       <MaterialIcons
-        name="waving-hand-outlined"
+        name="waving-hand"
         size={22}
         color={colors.primary}
         style={styles.waveIcon}
@@ -258,7 +259,7 @@ export const LecturerStreamControls = ({
       ) : (
         <View style={styles.previewVideo}>
           <MaterialIcons
-            name="videocam-off-outlined"
+            name="videocam-off"
             size={40}
             color={themeColors.primary}
           />
@@ -276,7 +277,7 @@ export const LecturerStreamControls = ({
           onPress={() => onGrantMic(wavers[0].uid)}
         >
           <MaterialIcons
-            name={'waving-hand-outlined'}
+            name={'waving-hand'}
             size={18}
             color={themeColors.btnTextColor}
           />
@@ -295,7 +296,7 @@ export const LecturerStreamControls = ({
         onPress={toggleCamera}
       >
         <MaterialIcons
-          name={isCameraOff ? 'videocam-off-outlined' : 'videocam-outlined'}
+          name={isCameraOff ? 'videocam-off' : 'videocam'}
           size={18}
           color={themeColors.btnTextColor}
         />
@@ -312,7 +313,7 @@ export const LecturerStreamControls = ({
           onPress={onMuteAll}
         >
           <MaterialIcons
-            name="mic-off-outlined"
+            name="mic-off"
             color={themeColors.btnTextColor}
             size={18}
           />
@@ -436,7 +437,7 @@ export const ConfirmationModal = ({
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        <MaterialIcons name="info-outlined" size={50} color={colors.primary} />
+        <MaterialIcons name="info-circke" size={50} color={colors.primary} />
 
         <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
           {title}
@@ -458,22 +459,14 @@ export const ConfirmationModal = ({
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <CustomButton
+            title={islecturer ? 'End Now' : 'Leave'}
             onPress={onConfirm}
             style={[
-              styles.modalButtonRowBtn,
+              styles.modalButtonRowBtn2,
               { backgroundColor: colors.btnColor },
             ]}
-          >
-            <Text
-              style={[
-                styles.modalButtonRowBtnText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              {islecturer ? 'End Now' : 'Leave'}
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
       </View>
     </Modal>
@@ -520,7 +513,7 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
           {lecturer?.displayName || 'Lecturer'}
         </Text>
         <MaterialIcons
-          name={lecturer?.isMuted ? 'mic-off-outlined' : 'mic-none-outlined'}
+          name={lecturer?.isMuted ? 'mic-off' : 'mic-none'}
           size={16}
           color={themeColors.text}
         />
@@ -624,7 +617,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     padding: 20,
     borderRadius: 12,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     width: '90%',
   },
   modalTitle: {
@@ -647,8 +641,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
+  },
+  modalButtonRowBtn2: {
+    paddingHorizontal: 15,
   },
   modalButtonRowBtnText: {
     fontSize: 14,
@@ -657,7 +655,8 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   controlWrapper: {
     flexDirection: 'row',
@@ -673,8 +672,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignContent: 'center',
   },
   previewVideoText: {
     fontSize: 12,
@@ -747,7 +746,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
     zIndex: 100,
   },

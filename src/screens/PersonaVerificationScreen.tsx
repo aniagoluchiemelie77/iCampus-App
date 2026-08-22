@@ -14,6 +14,7 @@ import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const PersonaVerificationScreen = () => {
   const { colors } = useTheme();
@@ -81,50 +82,47 @@ export const PersonaVerificationScreen = () => {
         ]}
       >
         <MaterialIcons
-          name={isEnterprise ? 'business-outlined' : 'verified-user-outlined'}
+          name={isEnterprise ? 'business' : 'verified-user'}
           size={60}
           color={colors.primary}
         />
-        <Text style={[styles.title, {color: colors.textDarker}]}>
+        <Text style={[styles.title, { color: colors.textDarker }]}>
           {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
         </Text>
-        <Text style={[styles.description, {color: colors.text}]}>
+        <Text style={[styles.description, { color: colors.text }]}>
           {isEnterprise
             ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
             : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
         </Text>
 
         <View style={styles.featureList}>
-          <View style={[styles.featureItem, {borderColor: colors.primary}]}>
+          <View style={[styles.featureItem, { borderColor: colors.primary }]}>
             <MaterialIcons
-              name="check-circle-outlined"
+              name="check-circle"
               size={30}
               color={colors.primary}
             />
-            <Text style={[styles.featureText, {color: colors.primary}]}>
+            <Text style={[styles.featureText, { color: colors.primary }]}>
               {isEnterprise ? 'Official Business Review' : 'Secure & Encrypted'}
             </Text>
           </View>
-          <View style={[styles.featureItem, {borderColor: colors.primary}]}>
+          <View style={[styles.featureItem, { borderColor: colors.primary }]}>
             <MaterialIcons
-              name="check-circle-outlined"
+              name="check-circle"
               size={30}
               color={colors.primary}
             />
-            <Text style={[styles.featureText, {color: colors.primary}]}>Takes less than 2 minutes</Text>
+            <Text style={[styles.featureText, { color: colors.primary }]}>
+              Takes less than 2 minutes
+            </Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={[styles.button, {backgroundColor: colors.btnColor}]}
+        <CustomButton
+          title="Start Verification"
+          style={[styles.button, { backgroundColor: colors.btnColor }]}
           onPress={handleStartVerification}
           disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.btnTextColor} size={'small'} />
-          ) : (
-            <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Start Verification</Text>
-          )}
-        </TouchableOpacity>
+        />
       </View>
     </ScrollView>
   );
@@ -134,10 +132,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subContainer: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
     borderRadius: 15,
   },
@@ -148,22 +148,24 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    marginBottom: 15
+    marginBottom: 15,
   },
   featureList: {
     marginBottom: 15,
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 15
+    gap: 15,
   },
-  featureItem: { alignItems: 'center', padding: 10, borderWidth: 1, borderRadius: 15 },
-  featureText: { marginTop: 6, fontSize: 14, },
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+  featureItem: {
     alignItems: 'center',
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 15,
+  },
+  featureText: { marginTop: 6, fontSize: 14 },
+  button: {
+    paddingHorizontal: 15,
   },
   buttonText: { fontSize: 14, fontWeight: '600' },
 });

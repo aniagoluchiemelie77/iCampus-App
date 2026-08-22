@@ -8,7 +8,6 @@ import {
   ScrollView,
   Image,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImagePicker from 'react-native-image-crop-picker';
@@ -18,6 +17,7 @@ import { submitReviewApi } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface ReviewAttributes {
   deliverySpeed?: number;
@@ -75,11 +75,11 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
     },
   };
   const TARGET_ICON_MAP: Record<string, string> = {
-    product: 'shopping-bag-outlined',
-    course: 'school-outlined',
-    seller: 'store-front-outlined',
-    agent: 'local-shipping-outlined',
-    lecturer: 'record-voice-over-outlined',
+    product: 'shopping-bag',
+    course: 'school',
+    seller: 'store-front',
+    agent: 'local-shipping',
+    lecturer: 'record-voice-over',
   };
   const config =
     TARGET_TYPE_CONFIGS[targetType] || TARGET_TYPE_CONFIGS.physical;
@@ -185,7 +185,7 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
               activeOpacity={0.7}
             >
               <MaterialIcons
-                name={starIndex <= currentVal ? 'star' : 'star-border-outlined'}
+                name={starIndex <= currentVal ? 'star' : 'star-border'}
                 size={32}
                 color={colors.primary}
                 style={styles.starSpacing}
@@ -316,11 +316,7 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
                 ]}
                 onPress={() => removeSelectedImage(index)}
               >
-                <MaterialIcons
-                  name="cancel-outlined"
-                  size={18}
-                  color={colors.primary}
-                />
+                <MaterialIcons name="cancel" size={18} color={colors.primary} />
               </TouchableOpacity>
             </View>
           ))}
@@ -330,7 +326,7 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
               onPress={handlePickImages}
             >
               <MaterialIcons
-                name="add-a-photo-outlined"
+                name="add-a-photo"
                 size={24}
                 color={colors.primary}
               />
@@ -340,25 +336,12 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            isSubmitting && styles.disabledButton,
-            { backgroundColor: colors.btnColor },
-          ]}
+        <CustomButton
+          title={isSubmitting ? 'Publishing...' : 'Publish Review'}
+          style={[styles.submitButton, isSubmitting && styles.disabledButton]}
           onPress={handleSubmitReview}
           disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color={colors.btnTextColor} size="small" />
-          ) : (
-            <Text
-              style={[styles.submitButtonText, { color: colors.btnTextColor }]}
-            >
-              Publish Review
-            </Text>
-          )}
-        </TouchableOpacity>
+        />
       </View>
     </ScrollView>
   );
@@ -419,7 +402,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
     borderRadius: 12,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addPhotosText: {
     fontSize: 12,
@@ -427,17 +411,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   submitButton: {
-    width: '80%',
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignContent: 'center',
+    paddingHorizontal: 15,
     marginTop: 15,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-    alignSelf: 'center'
   },
   disabledButton: { opacity: 0.6 },
   submitButtonText: { fontSize: 14, fontWeight: '600' },

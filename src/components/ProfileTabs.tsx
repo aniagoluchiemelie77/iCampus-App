@@ -31,7 +31,12 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   const tabs = getTabs();
 
   return (
-    <View style={[styles.tabWrapper, {backgroundColor: colors.backgroundSecondary}]}>
+    <View
+      style={[
+        styles.tabWrapper,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -46,7 +51,9 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
             <Text
               style={[
                 styles.tabText,
-                activeTab === tab ? {color: colors.primary} : {color: colors.text}
+                activeTab === tab
+                  ? { color: colors.primary }
+                  : { color: colors.text },
               ]}
             >
               {tab}
@@ -68,7 +75,8 @@ const styles = StyleSheet.create({
   tabItem: {
     marginRight: 7,
     padding: 10,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },

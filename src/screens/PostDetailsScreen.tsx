@@ -147,9 +147,10 @@ export const PostDetailScreen = ({ route }: any) => {
             </Text>
             <TouchableOpacity onPress={() => setReplyingTo(null)}>
               <MaterialIcons
-                name="cancel-outlined"
+                name="cancel"
                 size={22}
                 color={colors.text}
+                style={{ padding: 10 }}
               />
             </TouchableOpacity>
           </View>

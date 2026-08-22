@@ -69,7 +69,7 @@ export const ICashDashboard = () => {
       const result = await refreshUserProfileAPI();
       if (result?.success) {
         dispatch(setUser(result.user));
-        if (result.accessToken) {
+        if (result.accessToken && result.refreshToken) {
           await Promise.all([
             AsyncStorage.setItem('accessToken', result.accessToken),
             AsyncStorage.setItem('refreshToken', result.refreshToken),
@@ -161,7 +161,7 @@ export const ICashDashboard = () => {
         <View style={iCashScreenStyles.balance}>
           <View style={iCashScreenStyles.balanceContainer}>
             <MaterialIcons
-              name="diamond-outlined"
+              name="diamond"
               size={32}
               color={colors.tint}
             />
@@ -193,7 +193,7 @@ export const ICashDashboard = () => {
           <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
             <MaterialIcons
               name={
-                showBalance ? 'visibility-outlined' : 'visibility-off-outlined'
+                showBalance ? 'visibility' : 'visibility-off'
               }
               size={24}
               color={colors.tint}
@@ -208,19 +208,19 @@ export const ICashDashboard = () => {
           ]}
         >
           <ActionButton
-            icon="local-mall-outlined"
+            icon="local-mall"
             label="Buy iCash"
             onPress={handleBuy}
             colors={colors}
           />
           <ActionButton
-            icon="account-balance-outlined"
+            icon="account-balance"
             label="Withdraw iCash"
             onPress={handleWithdraw}
             colors={colors}
           />
           <ActionButton
-            icon="send-outlined"
+            icon="send"
             label="Transfer"
             onPress={handleP2P}
             colors={colors}

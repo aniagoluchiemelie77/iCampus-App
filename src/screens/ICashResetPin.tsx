@@ -91,7 +91,7 @@ export const ICashResetPin = ({ navigation }: Props) => {
         ]}
       >
         <MaterialIcons
-          name="lock-reset-outlined"
+          name="lock-reset"
           size={60}
           color={colors.primary}
         />
@@ -134,9 +134,15 @@ export const ICashResetPin = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignContent: 'center', padding: 15 },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+  },
   subContainer: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 15,
     borderRadius: 15,
   },

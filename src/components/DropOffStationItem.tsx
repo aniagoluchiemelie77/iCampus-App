@@ -13,6 +13,7 @@ import { DropOffStation } from '../types/firebase';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { useAppSelector } from '../hooks/hooks';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -64,6 +65,8 @@ export const DropOffStationItem = ({
   onEdit: (item: DropOffStation) => void;
 }) => {
   const { colors } = useTheme();
+  const admin = useAppSelector(state => state.admin);
+  const isSuperAdmin = admin.adminType === 'super_admin';
   return (
     <View
       style={[styles.itemCard, { backgroundColor: colors.backgroundSecondary }]}
@@ -90,31 +93,32 @@ export const DropOffStationItem = ({
           </View>
         </View>
       </View>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
-          <MaterialIcons name="edit" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert(
-              'Delete Drop Off Station?',
-              'Are you sure? This action cannot be undone.',
-              [
-                { text: 'Cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => onDelete(item.id!),
-                },
-              ],
-            )
-          }
-          style={styles.iconBtn}
-        >
-          <MaterialIcons name="delete" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      {isSuperAdmin && (
+        <View style={styles.actionRow}>
+          <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
+            <MaterialIcons name="edit" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                'Delete Drop Off Station?',
+                'Are you sure? This action cannot be undone.',
+                [
+                  { text: 'Cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => onDelete(item.id!),
+                  },
+                ],
+              )
+            }
+            style={styles.iconBtn}
+          >
+            <MaterialIcons name="delete" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };

@@ -1,11 +1,18 @@
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+} from 'react-native';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
-import { SignupScreenStyles } from '../assets/styles/colors';
 import StudentSignup from '../components/StudentSignup';
 import InstructorSignup from '../components/InstructorSignup';
 import OtherUserSignup from '../components/OtherUserSignup';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 type SignupPageParams = {
   role: 'student' | 'teacher' | 'other';
 };
@@ -29,14 +36,42 @@ const SignupPage = () => {
   const { component } = roleConfig[role];
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={SignupScreenStyles.bkg}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <IconBackground />
-      {component}
-    </KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        style={styles.bkg}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {component}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
+const styles = StyleSheet.create({
+  bkg: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f0eb',
+    position: 'relative',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+});
 
 export default SignupPage;

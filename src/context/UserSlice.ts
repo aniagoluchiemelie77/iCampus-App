@@ -23,7 +23,8 @@ const initialState: User = {
   userToken: '',
   tokenCreatedAt: '',
   profilePic: [],
-  isSuspended: false
+  isSuspended: false,
+  isInstitutionAdmin: false
 };
 const userSlice = createSlice({
   name: 'user',

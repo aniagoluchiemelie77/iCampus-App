@@ -17,20 +17,25 @@ export const AdItemComponent: React.FC<AdItemComponentProps> = ({ item, onRefres
     const { colors } = useTheme();
   const [isDeleting, setIsDeleting] = useState(false);
   const currentUser = useAppSelector(state => state.admin);
-  const canAct = currentUser.adminType === 'super_admin'
+
+  const currentUserId = currentUser.uid;
+  const isOwner = item.addedBy === currentUserId;
+  const isSuperAdmin = currentUser.adminType === 'super_admin';
+  const isCreatedBySchoolAdmin = item.creatorType === 'school_administrator';
+  const canEditOrDelete = isSuperAdmin ? !isCreatedBySchoolAdmin : isOwner;
 
   const handleDeletePress = () => {
     Alert.alert(
-      "Delete Advertisement",
+      'Delete Advertisement',
       `Are you sure you want to delete the ad from "${item.advertiserName}"? This action cannot be undone.`,
       [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: confirmDelete 
-        }
-      ]
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ],
     );
   };
 
@@ -60,11 +65,19 @@ export const AdItemComponent: React.FC<AdItemComponentProps> = ({ item, onRefres
   };
 
   return (
-    <View style={[styles.card, {backgroundColor: colors.backgroundSecondary}]}>
-      <View style={[styles.mediaContainer, {backgroundColor: colors.primary}]}>
+    <View
+      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+    >
+      <View
+        style={[styles.mediaContainer, { backgroundColor: colors.primary }]}
+      >
         {item.type === 'video' ? (
           <View style={styles.videoPlaceholder}>
-            <MaterialIcons name="videocam-outlined" size={24} color={colors.btnTextColor} />
+            <MaterialIcons
+              name="videocam"
+              size={24}
+              color={colors.btnTextColor}
+            />
           </View>
         ) : (
           <Image source={{ uri: item.mediaUrl }} style={styles.thumbnail} />
@@ -73,34 +86,38 @@ export const AdItemComponent: React.FC<AdItemComponentProps> = ({ item, onRefres
       <View style={styles.detailsContainer}>
         <View style={styles.advertiserRow}>
           <Image source={{ uri: item.advertiserLogo }} style={styles.logo} />
-          <Text style={[styles.advertiserName, {color: colors.text}]} numberOfLines={1} ellipsizeMode='tail'>
+          <Text
+            style={[styles.advertiserName, { color: colors.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {item.advertiserName}
           </Text>
         </View>
-        <Text style={[styles.tagline, {color: colors.text}]}>
-          {item.tagline || item.targetUrl || "No tagline provided"}
+        <Text style={[styles.tagline, { color: colors.text }]}>
+          {item.tagline || item.targetUrl || 'No tagline provided'}
         </Text>
-        {canAct && (
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity 
-          style={styles.actionBtn} 
-          onPress={handleEditPress}
-        >
-          <MaterialIcons name="edit" size={20} color={colors.primary} />
-        </TouchableOpacity>
+        {canEditOrDelete && (
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={handleEditPress}
+            >
+              <MaterialIcons name="edit" size={20} color={colors.primary} />
+            </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.actionBtn} 
-          onPress={handleDeletePress}
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <MaterialIcons name="delete" size={20} color={colors.primary} />
-          )}
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={handleDeletePress}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <MaterialIcons name="delete" size={20} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -133,7 +150,8 @@ const styles = StyleSheet.create({
   },
   videoPlaceholder: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   detailsContainer: {
     flex: 1,
@@ -165,7 +183,8 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     padding: 10,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 6,
   },
 });

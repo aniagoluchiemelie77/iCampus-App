@@ -1,11 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  BackHandler,
-} from 'react-native';
+import { View, Text, StyleSheet, BackHandler } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -13,6 +7,7 @@ import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { CommonActions } from '@react-navigation/native';
 import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PayoutSuccess'>;
 
@@ -44,14 +39,10 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
       <View
         style={[
           styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
+          { backgroundColor: colors.backgroundSecondary, zIndex: 10 },
         ]}
       >
-        <MaterialIcons
-          name="check-circle-outlined"
-          size={64}
-          color={colors.success}
-        />
+        <MaterialIcons name="check-circle" size={100} color={colors.success} />
 
         <Text style={[styles.congrats, { color: colors.textDarker }]}>
           Payout Requested!
@@ -70,15 +61,11 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
           Your payout has been successfully processed. It will reflect in your
           iCash balance shortly.
         </Text>
-
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
+        <CustomButton
+          title="Go to Wallet"
+          style={styles.button}
           onPress={navigateToWallet}
-        >
-          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-            Go to Wallet
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
     </View>
   );
@@ -87,12 +74,15 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 15,
+    position: 'relative',
   },
   subContainer: {
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   congrats: {
@@ -113,10 +103,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   button: {
-    width: '80%',
-    borderRadius: 15,
-    alignItems: 'center',
-    paddingVertical: 10,
+    paddingHorizontal: 15,
     marginBottom: 15,
   },
   buttonText: {

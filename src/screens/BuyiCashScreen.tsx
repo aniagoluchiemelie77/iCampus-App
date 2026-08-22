@@ -10,6 +10,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { initializeBuyTransaction } from '../api/localPostApis';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
@@ -304,35 +305,21 @@ export const ICashBuyPage = ({ navigation }: any) => {
             />
           )}
         />
-
-        <TouchableOpacity
+        <CustomButton
+          title={!hasPaymentMethod
+            ? 'Add Payment Method'
+              : !selectedMethod
+            ? 'Select a Method'
+              : 'Complete Purchase'}
           style={[
             iCashActionsStyles.buyBtn,
-            { backgroundColor: colors.btnColor },
             (!amount || parseFloat(amount) <= 0 || isSubmitting) && {
-              opacity: 0.5,
+              opacity: 0.7,
             },
           ]}
           onPress={handleProceed}
           disabled={!amount || parseFloat(amount) <= 0 || isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color={colors.btnTextColor} />
-          ) : (
-            <Text
-              style={[
-                iCashActionsStyles.buyBtnText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              {!hasPaymentMethod
-                ? 'Add Payment Method'
-                : !selectedMethod
-                ? 'Select a Method'
-                : 'Complete Purchase'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        />
       </View>
 
       <AddPaymentModal
@@ -404,16 +391,8 @@ export const iCashActionsStyles = StyleSheet.create({
     marginLeft: 10,
   },
   buyBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    alignItems: 'center',
+    paddingHorizontal: 15,
     marginTop: 20,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   buyBtnText: {
     fontSize: 14,

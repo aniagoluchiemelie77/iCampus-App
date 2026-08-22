@@ -84,7 +84,7 @@ export const PendingOrdersScreen = () => {
         }
         ListEmptyComponent={
           <EmptyState
-            iconName="shopping-bag-outlined"
+            iconName="shopping-bag"
             title="No Pending Deliveries"
             subtitle="Your active physical orders will appear here for verification."
             buttonText="Go to Marketplace"
@@ -106,7 +106,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 14,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 15,
     marginTop: -5,
   },

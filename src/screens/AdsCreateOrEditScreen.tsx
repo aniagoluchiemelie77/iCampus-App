@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { AccessDeniedScreen } from '../components/AccessDeniedScreen.tsx';
 import { PageHeader } from '../components/PageHeader.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { InputGroup } from '../components/InputGroup.tsx';
 import { updateAdApi } from '../api/localPatchApis.ts';
-import {createAdApi} from '../api/localPostApis.ts';
+import { createAdApi } from '../api/localPostApis.ts';
 import { useFormHydration } from '../hooks/useAdminInputFormHydration.ts';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
@@ -101,7 +102,10 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
   const isEditing = !!adToEdit;
   const currentUser = useAppSelector(state => state.admin);
 
-  if (currentUser.adminType !== 'super_admin') {
+  if (
+    currentUser.adminType !== 'super_admin' &&
+    currentUser.adminType !== 'school_administrator'
+  ) {
     return (
       <AccessDeniedScreen reason="Only Super Admins can manage advertisements." />
     );
@@ -208,22 +212,17 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
           value={formData.tagline}
           onChangeText={v => setFormData({ ...formData, tagline: v })}
         />
-
-        <TouchableOpacity
+        <CustomButton
+          title={isSaving ? 'Saving...' : 'Save Advertisement'}
           style={[
             styles.submitBtn,
             {
-              backgroundColor: themeColors.btnColor,
               opacity: isSaving ? 0.6 : 1,
             },
           ]}
           onPress={handleSave}
           disabled={isSaving}
-        >
-          <Text style={[styles.btnText, { color: themeColors.btnTextColor }]}>
-            {isSaving ? 'Saving...' : 'Save Advertisement'}
-          </Text>
-        </TouchableOpacity>
+        />
       </ScrollView>
     </View>
   );
@@ -263,10 +262,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: { flex: 1 },
   submitBtn: {
-    width: '80%',
-    paddingVertical: 14,
-    borderRadius: 15,
-    alignSelf: 'center',
+    paddingHorizontal: 15,
     marginTop: 20,
   },
   btnText: { fontSize: 14, fontWeight: 'bold' },

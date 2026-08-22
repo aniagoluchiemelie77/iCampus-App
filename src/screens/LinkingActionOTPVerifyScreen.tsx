@@ -58,7 +58,7 @@ export const VerifyOTP = ({ route, navigation }: Props) => {
         ]}
       >
         <MaterialIcons
-          name="security-outlined"
+          name="security"
           size={60}
           color={colors.primary}
         />
@@ -92,7 +92,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 15, alignContent: 'center' },
   subContainer: {
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 15,
   },
   title: {

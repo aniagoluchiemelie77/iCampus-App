@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface Props {
   reason?: string;
@@ -29,20 +30,18 @@ export const AccessDeniedScreen = ({
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        <MaterialIcons name="lock-outline" size={80} color={colors.primary} />
+        <MaterialIcons name="lock" size={80} color={colors.primary} />
         <Text style={[styles.title, { color: colors.primary }]}>
           Access Denied
         </Text>
         <Text style={[styles.reason, { color: colors.primaryTint }]}>
           {reason}
         </Text>
-
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
+        <CustomButton
+          title="Go Back"
           onPress={() => navigation.goBack()}
-        >
-          <Text style={[styles.buttonText, {color: colors.btnTextColor}]}>Go Back</Text>
-        </TouchableOpacity>
+          style={styles.button}
+        />
       </View>
     </View>
   );
@@ -51,11 +50,13 @@ export const AccessDeniedScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subContainer: {
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 25,
@@ -69,12 +70,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   button: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    paddingHorizontal: 15,
+    borderRadius: 10,
   },
 });

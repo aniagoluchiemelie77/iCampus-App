@@ -36,6 +36,7 @@ import { formatTime } from '../utils/durationFormatter';
 import { verifyFacialIdentity } from '../api/localPostApis';
 import Modal from 'react-native-modal';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const rnBiometrics = new ReactNativeBiometrics();
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -61,7 +62,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
 
   const [secondsLeft, setSecondsLeft] = useState(300);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef<any>(null);
   const detectedLectureIdRef = useRef<string | null>(null);
 
   const dispatchAttendancePayload = useCallback(() => {
@@ -220,9 +221,8 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       setIsScanning(false);
       if (timerRef.current) clearInterval(timerRef.current);
 
-      const biometricsEnabled = await AsyncStorage.getItem(
-        'biometrics_enabled',
-      );
+      const biometricsEnabled =
+        await AsyncStorage.getItem('biometrics_enabled');
       if (biometricsEnabled === 'true') {
         await executeBiometricVerification();
       } else {
@@ -298,25 +298,16 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         <LogoBigger />
         {idle && (
           <>
-            <MaterialIcons
-              name="info-outlined"
-              size={80}
-              color={colors.primary}
-            />
+            <MaterialIcons name="info" size={80} color={colors.primary} />
             <Text style={[styles.joinText, { color: colors.text }]}>
               Attendance for {lecture.topicName} is ongoing, click the button
               below to scan and join
             </Text>
-            <TouchableOpacity
-              style={[styles.joinBtn, { backgroundColor: colors.btnColor }]}
+            <CustomButton
+              title="Join Attendance"
+              style={styles.joinBtn}
               onPress={handleJoinAttendance}
-            >
-              <Text
-                style={[styles.joinBtnText, { color: colors.btnTextColor }]}
-              >
-                Join Attendance
-              </Text>
-            </TouchableOpacity>
+            />
           </>
         )}
         {isScanning && status === 'joining' && (
@@ -346,28 +337,17 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
                 style={GetAttendanceScreenStyles.absoluteLoader}
               />
             </View>
-            <TouchableOpacity
-              style={[
-                GetAttendanceScreenStyles.fetchBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title="Stop Scan"
+              style={styles.joinBtn}
               onPress={handleStopFetching}
-            >
-              <Text
-                style={[
-                  GetAttendanceScreenStyles.fetchBtnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Stop Scan
-              </Text>
-            </TouchableOpacity>
+            />
           </>
         )}
         {status === 'success' && !isScanning && (
           <View style={styles.feedbackContainer}>
             <MaterialIcons
-              name="check-circle-outlined"
+              name="check-circle"
               size={80}
               color={colors.success}
             />
@@ -382,7 +362,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         {status === 'error' && (
           <View style={styles.feedbackContainer}>
             <MaterialIcons
-              name="sync-problem-outlined"
+              name="sync-problem"
               size={100}
               color={colors.primary}
             />
@@ -392,16 +372,11 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
             <Text style={[styles.subText, { color: colors.text }]}>
               {errorMessage}
             </Text>
-            <TouchableOpacity
-              style={[styles.retryBtn, { backgroundColor: colors.btnColor }]}
+            <CustomButton
+              title="Retry"
+              style={styles.joinBtn}
               onPress={() => setStatus('idle')}
-            >
-              <Text
-                style={[styles.retryBtnText, { color: colors.btnTextColor }]}
-              >
-                Retry
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         )}
         {!isScanning && status === 'joining' && (
@@ -435,7 +410,6 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
               style={styles.previewStyle}
               device={device}
               isActive={showCamera}
-              photo={true}
             />
           ) : (
             <View
@@ -496,9 +470,8 @@ const styles = StyleSheet.create({
   container: { padding: 15, flex: 1, alignContent: 'center' },
   subContainer: { padding: 20, borderRadius: 15, alignContent: 'center' },
   joinBtn: {
-    paddingHorizontal: 16,
-    borderRadius: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginTop: 20,
   },
   joinBtnText: { fontSize: 14, fontWeight: 'bold' },
   joinText: {
@@ -536,7 +509,8 @@ const styles = StyleSheet.create({
   },
   modalOverride: {
     margin: 0,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cameraContainer: {
     flex: 1,
@@ -569,7 +543,7 @@ const styles = StyleSheet.create({
   cameraActionTray: {
     width: '100%',
     flexDirection: 'row',
-    alignContent: 'center',
+    alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
@@ -585,7 +559,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -603,7 +578,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelText: {
     color: PRIMARY_COLOR,
@@ -612,7 +588,8 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 32,
     zIndex: 10,
   },

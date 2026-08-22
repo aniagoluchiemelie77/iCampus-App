@@ -58,11 +58,7 @@ export const InputGroup = ({
         <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         {isLocked && (
           <View style={styles.lockBadge}>
-            <MaterialIcons
-              name="lock-outlined"
-              size={14}
-              color={colors.primary}
-            />
+            <MaterialIcons name="lock" size={14} color={colors.primary} />
           </View>
         )}
       </View>
@@ -210,7 +206,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: { fontSize: 14, fontWeight: '600' },
-  lockBadge: { alignContent: 'center' },
+  lockBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   inputWrapper: {
     borderRadius: 8,
     borderWidth: 0.8,

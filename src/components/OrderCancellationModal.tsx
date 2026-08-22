@@ -4,6 +4,7 @@ import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
 import { useAppDataContext } from '../context/EventContext';
 import Modal from 'react-native-modal';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const POPULAR_REASONS = [
   'Changed my mind',
@@ -103,24 +104,12 @@ export const CancellationModal = ({
                 Go Back
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                modalStyles.confirmButton,
-                !reason && { opacity: 0.5 },
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title={isCancelling ? 'Processing...' : 'Confirm Cancel'}
+              style={[modalStyles.confirmButton, !reason && { opacity: 0.5 }]}
               onPress={handleConfirmCancel}
               disabled={!reason || isCancelling}
-            >
-              <Text
-                style={[
-                  modalStyles.confirmButtonText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                {isCancelling ? 'Processing...' : 'Confirm Cancel'}
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </View>
@@ -183,9 +172,8 @@ const modalStyles = StyleSheet.create({
   },
   backButtonText: { fontSize: 14, fontWeight: '600' },
   confirmButton: {
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
+    width: 'auto',
+    paddingHorizontal: 15,
   },
   confirmButtonText: { fontSize: 14, fontWeight: 'bold' },
 });

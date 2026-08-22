@@ -169,9 +169,9 @@ export const Assistant = ({ route }: Props) => {
         }
       }
     } catch (err: any) {
-      if (
-        !(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)
-      ) {
+      if (!(
+        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+      )) {
         Toast.show({
           type: 'error',
           text1: 'Document Error',

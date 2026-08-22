@@ -5,7 +5,6 @@ import VIForegroundService from '@voximplant/react-native-foreground-service';
 import { LiveClassSessionStyles } from './StudentLiveClassSession';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ExpandableFAB from './ExpandableFAB';
-import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from '../hooks/hooks';
 import { mediaDevices, RTCPeerConnection } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
@@ -16,6 +15,7 @@ import LiveAudioStream from 'react-native-live-audio-stream';
 import { Buffer } from 'buffer';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from './PageHeader';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   ChatModal,
   AttendeeListModal,
@@ -257,6 +257,18 @@ export const LecturerLiveClassSession = ({
   );
   useEffect(() => {
     if (!socket || !lecture?.id) return;
+    socket.emit('join_lecture_session', {
+      lectureId: lecture.id,
+      hostId: lecture.hostId,
+      user: {
+        uid: user?.uid,
+        firstname: user?.firstname,
+        lastname: user?.lastname,
+        username: user?.username,
+        tier: user?.tier || 'free',
+        profilePic: user?.profilePic || '',
+      },
+    });
 
     const setupSession = async () => {
       try {
@@ -344,6 +356,27 @@ export const LecturerLiveClassSession = ({
         }
       },
     );
+    socket.on(
+      'user_joined_announcement',
+      (data: { uid: string; message: string; isHost: boolean }) => {
+        if (data.uid === user.uid) return;
+        Toast.show({
+          type: 'success',
+          text2: data.message,
+        });
+      },
+    );
+    socket.on(
+      'user_left_announcement',
+      (data: { uid: string; message: string; isHost: boolean }) => {
+        if (data.uid === user.uid) return;
+
+        Toast.show({
+          type: 'success',
+          text2: data.message,
+        });
+      },
+    );
 
     return () => {
       socket.off('student_waved_received');
@@ -352,6 +385,8 @@ export const LecturerLiveClassSession = ({
       socket.off('update_attendee_list');
       socket.off('transcription_update');
       socket.off('mic_permission_granted_received');
+      socket.off('user_joined_announcement');
+      socket.off('user_left_announcement');
     };
   }, [
     socket,
@@ -472,22 +507,14 @@ export const LecturerLiveClassSession = ({
         title="● LIVE"
         showBackButton={false}
         rightElement={
-          <TouchableOpacity
+          <CustomButton
+            title="End Live Session"
             onPress={() => setEndModalVisible(true)}
             style={[
               LiveClassSessionStyles.endButton,
               { backgroundColor: colors.btnColor },
             ]}
-          >
-            <Text
-              style={[
-                LiveClassSessionStyles.endButtonText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              End Live Session
-            </Text>
-          </TouchableOpacity>
+          />
         }
       />
       {/* Presentation / Screen Share Matrix */}
@@ -500,7 +527,7 @@ export const LecturerLiveClassSession = ({
       >
         {isAudioOnlyFallback ? (
           <View style={LiveClassSessionStyles.sharingOverlay}>
-            <MaterialIcons name="audiotrack" size={50} color={colors.primary} />
+            <MaterialIcons name="audio" size={50} color={colors.primary} />
             <Text
               style={[
                 LiveClassSessionStyles.statusText,
@@ -519,7 +546,7 @@ export const LecturerLiveClassSession = ({
         ) : isSharingScreen ? (
           <View style={LiveClassSessionStyles.sharingOverlay}>
             <MaterialIcons
-              name="screen-share-outlined"
+              name="screen-share"
               size={50}
               color={colors.primary}
             />
@@ -562,7 +589,7 @@ export const LecturerLiveClassSession = ({
             onPress={startScreenShare}
           >
             <MaterialIcons
-              name="present-to-all-outlined"
+              name="screen-share"
               size={25}
               color={colors.btnTextColor}
             />
@@ -690,11 +717,7 @@ export const LecturerLiveClassSession = ({
         ]}
       >
         <View style={LiveClassSessionStyles.aiHeader}>
-          <MaterialIcons
-            name="auto-awesome-outlined"
-            size={16}
-            color={colors.primary}
-          />
+          <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
           <Text
             style={[LiveClassSessionStyles.aiLabel, { color: colors.primary }]}
           >
@@ -735,7 +758,7 @@ export const LecturerLiveClassSession = ({
       )}
       {!fabVisible && (
         <TouchableOpacity
-          style={homeStyles.fabLower}
+          style={LiveClassSessionStyles.fab}
           onPress={() => {
             setFabVisible(true);
             setUnreadCount(0);

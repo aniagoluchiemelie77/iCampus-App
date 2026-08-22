@@ -20,6 +20,7 @@ import { verifyCurrentPassword } from '../api/localPostApis.ts';
 import { updatePassword } from '../api/localPutApis.ts';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const ResetPasswordScreen = ({ navigation }: any) => {
   const { colors } = useTheme();
@@ -85,11 +86,7 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
           exiting={FadeOutLeft}
         >
           <View style={styles.stepContainer}>
-            <MaterialIcons
-              name="verified-user-outlined"
-              size={40}
-              color={colors.text}
-            />
+            <MaterialIcons name="verified-user" size={40} color={colors.text} />
             <Text style={[styles.title, { color: colors.textDarker }]}>
               Security Check
             </Text>
@@ -107,35 +104,24 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
               />
               <TouchableOpacity onPress={() => setShowOld(!showOld)}>
                 <MaterialIcons
-                  name={
-                    showOld ? 'visibility-off-outlined' : 'visibility-outlined'
-                  }
+                  name={showOld ? 'visibility-off' : 'visibility'}
                   size={20}
                   color={colors.inputTextHolder}
                 />
               </TouchableOpacity>
             </View>
             {errorText && <Text style={styles.errorText}>{errorText}</Text>}
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title={isLoading ? 'Verifying...' : 'Verify Password'}
+              style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.7 }]}
               onPress={handleVerifyOld}
-            >
-              <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-                {isLoading ? 'Verifying...' : 'Verify Password'}
-              </Text>
-            </TouchableOpacity>
+              disabled={!canSubmit}
+            />
           </View>
         </Animated.View>
       ) : (
         <View style={styles.stepContainer}>
-          <MaterialIcons
-            name="verified-user-outlined"
-            size={40}
-            color={colors.text}
-          />
+          <MaterialIcons name="verified-user" size={40} color={colors.text} />
           <Text style={[styles.title, { color: colors.textDarker }]}>
             New Password
           </Text>
@@ -150,9 +136,7 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
             />
             <TouchableOpacity onPress={() => setShowNew(!showNew)}>
               <MaterialIcons
-                name={
-                  showNew ? 'visibility-off-outlined' : 'visibility-outlined'
-                }
+                name={showNew ? 'visibility-off' : 'visibility'}
                 size={20}
                 color={colors.inputTextHolder}
               />
@@ -188,11 +172,7 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
             />
             <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
               <MaterialIcons
-                name={
-                  showConfirm
-                    ? 'visibility-off-outlined'
-                    : 'visibility-outlined'
-                }
+                name={showConfirm ? 'visibility-off' : 'visibility'}
                 size={20}
                 color={colors.inputTextHolder}
               />
@@ -201,19 +181,12 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
           {passwordMatchError && (
             <Text style={styles.errorText}>{passwordMatchError}</Text>
           )}
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              { opacity: canSubmit ? 1 : 0.6 },
-              { backgroundColor: colors.btnColor },
-            ]}
+          <CustomButton
+            title={isLoading ? 'Changing...' : 'Change Password'}
+            style={[styles.primaryButton, { opacity: canSubmit ? 1 : 0.7 }]}
             onPress={handleUpdatePassword}
             disabled={!canSubmit}
-          >
-            <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-              {isLoading ? 'Changing...' : 'Change Password'}
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
       )}
     </KeyboardAvoidingView>
@@ -239,7 +212,8 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     marginTop: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 18,
@@ -272,13 +246,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   primaryButton: {
-    borderRadius: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignContent: 'center',
     marginTop: 30,
-    width: '80%',
-    alignSelf: 'center'
+    paddingHorizontal: 15,
   },
   buttonText: {
     fontWeight: 'bold',

@@ -17,7 +17,6 @@ import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks.ts';
-import { homeStyles } from '../assets/styles/colors.ts';
 import Toast from 'react-native-toast-message';
 import ExpandableFAB from '../components/ExpandableFAB';
 import { formatCount } from '../utils/followCountFormatter.ts';
@@ -43,6 +42,11 @@ import { useTheme } from '../context/ThemeContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useProfileData } from '../hooks/useProfileData.ts';
 import { useProfileEditing } from '../hooks/useProfileEditing.ts';
+import { switchToAdminApi } from '../api/localPostApis.ts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { setAdmin } from '../context/AdminSlice.ts';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -117,7 +121,7 @@ const CourseCard = ({ item }: { item: any }) => {
           // --- ACADEMIC STYLE LAYOUT ---
           <>
             <MaterialIcons
-              name="auto-stories-outlined"
+              name="auto-stories"
               size={24}
               color={colors.text}
               style={{ alignSelf: 'center' }}
@@ -280,6 +284,7 @@ export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const { identifier } = route.params;
   const currentUser = useAppSelector(state => state.user);
+  const dispatch = useDispatch();
   const {
     isFollowing,
     handleFollowToggle,
@@ -320,6 +325,7 @@ export const ProfileScreen = ({ route }: any) => {
   const [skillInput, setSkillInput] = useState('');
   const [apiSuggestions, setApiSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const onTextLayout = (e: any) => {
     if (!isExpanded) {
@@ -370,6 +376,47 @@ export const ProfileScreen = ({ route }: any) => {
     fetchProfile();
   }, [fetchProfile]);
 
+  const handleSwitchToInstitutionAdmin = async () => {
+    if (isSwitching) return;
+    setIsSwitching(true);
+    const userId = currentUser.uid;
+
+    const result = await switchToAdminApi(userId);
+    setIsSwitching(false);
+
+    if (result && result.success) {
+      const { accessToken, refreshToken, admin } = result.data;
+      try {
+        await AsyncStorage.setItem('accessToken', accessToken);
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+        await AsyncStorage.setItem('admin', JSON.stringify(admin));
+        dispatch(
+          setAdmin({ ...admin, accessToken, tokenCreatedAt: Date.now() }),
+        );
+
+        Toast.show({
+          type: 'success',
+          text1: 'Welcome',
+          text2: 'Successfully switched to Institution Admin dashboard.',
+        });
+        navigation.navigate('AdminDashboard');
+      } catch (storageError) {
+        console.error('Storage/Navigation Error during switch:', storageError);
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Failed to complete session transition.',
+        });
+      }
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Switch Failed',
+        text2: result?.error || 'Could not switch to administrator mode.',
+      });
+    }
+  };
+
   useEffect(() => {
     const fetchUniversalSkills = async () => {
       if (skillInput.length < 2) {
@@ -418,11 +465,7 @@ export const ProfileScreen = ({ route }: any) => {
         ]}
       >
         <MaterialIcons
-          name={
-            isExplicitlyBlockedByMe
-              ? 'person-off-outlined'
-              : 'no-accounts-outlined'
-          }
+          name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
           size={80}
           color={colors.primary}
         />
@@ -443,22 +486,23 @@ export const ProfileScreen = ({ route }: any) => {
               Go Back
             </Text>
           </TouchableOpacity>
+
           {isExplicitlyBlockedByMe && (
-            <TouchableOpacity
-              style={[styles.blockBtn, { backgroundColor: colors.btnColor }]}
+            <CustomButton
+              title="Unblock User"
+              style={styles.blockBtnMain}
               onPress={handleBlockToggle}
-            >
-              <Text
-                style={[styles.blockBtnText, { color: colors.btnTextColor }]}
-              >
-                Unblock User
-              </Text>
-            </TouchableOpacity>
+            />
           )}
         </View>
       </View>
     );
   }
+  const canSwitchToInstitutionAdmin =
+    currentUser.isInstitutionAdmin &&
+    isOwner &&
+    currentUser.isVerified &&
+    currentUser.usertype === 'enterprise';
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -552,14 +596,14 @@ export const ProfileScreen = ({ route }: any) => {
             {profileData.headline
               ? profileData.headline
               : profileData.usertype === 'student'
-              ? `Student at ${profileData.schoolName}`
-              : profileData.usertype === 'lecturer'
-              ? `${profileData.jobTitle || 'Lecturer'} • ${
-                  profileData.department
-                } at ${profileData.schoolName}`
-              : profileData.usertype === 'enterprise'
-              ? `${profileData.organizationName} Global Organization`
-              : 'iCampus User'}
+                ? `Student at ${profileData.schoolName}`
+                : profileData.usertype === 'lecturer'
+                  ? `${profileData.jobTitle || 'Lecturer'} • ${
+                      profileData.department
+                    } at ${profileData.schoolName}`
+                  : profileData.usertype === 'enterprise'
+                    ? `${profileData.organizationName} Global Organization`
+                    : 'iCampus User'}
           </Text>
           <View style={styles.statsRow}>
             <TouchableOpacity
@@ -610,29 +654,31 @@ export const ProfileScreen = ({ route }: any) => {
             </TouchableOpacity>
           </View>
           <View style={[styles.statsRow, { marginBottom: 0 }]}>
-            <TouchableOpacity
-              onPress={handleBlockToggle}
-              style={[styles.blockBtn, { borderColor: colors.primary }]}
-            >
-              <Text style={[styles.blockBtnText, { color: colors.primary }]}>
-                Block User
-              </Text>
-            </TouchableOpacity>
+            {!isOwner && !isBlocked && (
+              <CustomButton
+                title="Block User"
+                style={[styles.blockBtnMain]}
+                onPress={handleBlockToggle}
+              />
+            )}
             {!isOwner && !isFollowing && (
-              <TouchableOpacity
-                style={[styles.followBtn, { backgroundColor: colors.btnColor }]}
+              <CustomButton
+                title="Follow"
+                style={[styles.blockBtnMain]}
                 onPress={handleFollowToggle}
-              >
-                <Text
-                  style={[styles.followBtnText, { color: colors.btnTextColor }]}
-                >
-                  Follow
-                </Text>
-              </TouchableOpacity>
+              />
+            )}
+            {canSwitchToInstitutionAdmin && (
+              <CustomButton
+                title="Switch to Institution Admin"
+                style={[styles.blockBtnMain]}
+                onPress={handleSwitchToInstitutionAdmin}
+              />
             )}
           </View>
           <View style={styles.contactContainer}>
-            <TouchableOpacity
+            <CustomButton
+              title="Send mail"
               style={styles.contactRow}
               onPress={() => {
                 if (profileData.email) {
@@ -641,18 +687,12 @@ export const ProfileScreen = ({ route }: any) => {
                   );
                 }
               }}
-            >
-              <MaterialIcons
-                name="email-outlined"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={[styles.contactValue, { color: colors.primary }]}>
-                Send mail
-              </Text>
-            </TouchableOpacity>
+              iconName="email"
+              iconColor="#fff"
+            />
             {profileData.website && (
-              <TouchableOpacity
+              <CustomButton
+                title="View Portfolio"
                 style={styles.contactRow}
                 onPress={() => {
                   if (profileData.website) {
@@ -664,16 +704,9 @@ export const ProfileScreen = ({ route }: any) => {
                     );
                   }
                 }}
-              >
-                <MaterialIcons
-                  name="language"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[styles.contactValue, { color: colors.primary }]}>
-                  View Portfolio
-                </Text>
-              </TouchableOpacity>
+                iconName="language"
+                iconColor="#fff"
+              />
             )}
           </View>
         </View>
@@ -873,14 +906,10 @@ export const ProfileScreen = ({ route }: any) => {
       )}
       {!isFabMenuVisible && (
         <TouchableOpacity
-          style={homeStyles.fab}
+          style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons
-            name="widgets-outlined"
-            size={28}
-            color={colors.btnTextColor}
-          />
+          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <FollowersListModal
@@ -1041,17 +1070,12 @@ export const ProfileScreen = ({ route }: any) => {
               </View>
             </>
           )}
-          <TouchableOpacity
+          <CustomButton
+            title={isSaving ? 'Saving...' : 'Save Changes'}
             style={[styles.saveButton, { backgroundColor: colors.btnColor }]}
             onPress={handleSave}
             disabled={isSaving}
-          >
-            <Text
-              style={[styles.saveButtonText, { color: colors.btnTextColor }]}
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
       </Modal>
     </ScrollView>
@@ -1067,7 +1091,8 @@ const styles = StyleSheet.create({
   },
   blockedContainer: {
     position: 'relative',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
     borderRadius: 15,
   },
@@ -1086,6 +1111,7 @@ const styles = StyleSheet.create({
     gap: 20,
     marginBottom: 15,
     paddingHorizontal: 15,
+    alignItems: 'center',
   },
   statCount: { fontWeight: 'bold', fontSize: 12 },
   verifyBtn: {
@@ -1124,7 +1150,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 5,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   contactContainer: {
     padding: 15,
@@ -1133,6 +1160,8 @@ const styles = StyleSheet.create({
   },
   contactRow: {
     alignItems: 'center',
+    width: 'auto',
+    paddingHorizontal: 15,
   },
   contactValue: {
     fontSize: 14,
@@ -1303,17 +1332,24 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   followBtn: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 15,
   },
   blockBtn: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 15,
     borderWidth: 1,
+    width: 'auto',
+  },
+  blockBtnMain: {
+    paddingHorizontal: 15,
+    width: 'auto',
   },
   blockBtnText: {
     fontSize: 14,
@@ -1419,13 +1455,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   saveButton: {
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 'auto',
-    marginBottom: 20,
-    width: '80%',
-    alignSelf: 'center',
+    paddingHorizontal: 15,
+    marginVertical: 20,
   },
   saveButtonText: {
     fontWeight: 'bold',
@@ -1472,5 +1503,22 @@ const styles = StyleSheet.create({
   suggestionTitle: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 75,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });

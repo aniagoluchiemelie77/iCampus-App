@@ -64,7 +64,7 @@ export const UserProfileCard: React.FC<UserCardProps> = ({
             <View style={styles.detailsMeta}>
               {department && (
                 <View style={styles.metaItem}>
-                  <MaterialIcons name="school-outlined" size={12} color={colors.text + '99'} />
+                  <MaterialIcons name="school" size={12} color={colors.text + '99'} />
                   <Text style={[styles.metaText, { color: colors.text + '99' }]} numberOfLines={1}>
                     {department}
                   </Text>
@@ -73,7 +73,7 @@ export const UserProfileCard: React.FC<UserCardProps> = ({
 
               {identifierNumber && (
                 <View style={styles.metaItem}>
-                  <MaterialIcons name="badge-outlined" size={12} color={colors.text + '99'} />
+                  <MaterialIcons name="badge" size={12} color={colors.text + '99'} />
                   <Text style={[styles.metaText, { color: colors.text + '99' }]} numberOfLines={1}>
                     {identifierLabel}: {identifierNumber}
                   </Text>
@@ -127,7 +127,8 @@ const styles = StyleSheet.create({
   },
   avatar: {
     borderRadius: 24,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarSmall: {
     width: 36,

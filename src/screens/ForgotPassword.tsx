@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Platform,
-  TouchableOpacity,
   View,
   Text,
   TextInput,
   KeyboardAvoidingView,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
-import {
-  SignupScreenStyles,
-  StudentSignupStyles,
-} from '../assets/styles/colors';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { StackNavigationProp } from '@react-navigation/stack';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
@@ -25,32 +25,32 @@ import {
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { lightPalette } from '../context/ThemeContext';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
   'ForgotPasswordScreen'
 >;
 
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<NavigationProp>();
   const isMounted = useRef(true);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Form Field Processing States
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [emailVerified, setEmailVerified] = useState(false);
   const [isVerifying, setVerifying] = useState(false);
   const [timeLeft, setTimeLeft] = useState(900);
 
-  // Modal Control Context States
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
     'success',
   );
   const [alertMessage, setAlertMessage] = useState('');
 
-  // Safeguard component lifecycle context teardowns
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -65,19 +65,15 @@ export default function ForgotPasswordScreen() {
       setAlertVisible(true);
       return;
     }
-
-    // Block structurally invalid email paths before engaging the API network layer
     if (typeof isValidEmail === 'function' && !isValidEmail(email)) {
       setAlertType('warning');
       setAlertMessage('Please enter a valid email format');
       setAlertVisible(true);
       return;
     }
-
     setVerifying(true);
     try {
       const response = await handleForgotPassword(email.trim().toLowerCase());
-
       if (!isMounted.current) return;
 
       if (response.success) {
@@ -118,7 +114,6 @@ export default function ForgotPasswordScreen() {
     }
 
     setVerifying(true);
-    // Capture fixed immutable snapshot string parameters right before entering the async boundary
     const currentCodeSnapshot = code;
     const currentEmailSnapshot = email.trim().toLowerCase();
 
@@ -179,121 +174,230 @@ export default function ForgotPasswordScreen() {
   }, [emailVerified]);
 
   return (
-    <KeyboardAvoidingView
-      style={SignupScreenStyles.bkg}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <IconBackground />
-      <View style={StudentSignupStyles.container}>
-        <Text style={StudentSignupStyles.mainHeader}>Forgot Password</Text>
-
-        {!emailVerified ? (
-          <Animated.View
-            entering={FadeInRight.duration(400).springify()}
-            exiting={FadeOutLeft}
-            key="email-stage-view"
-          >
-            <Text style={StudentSignupStyles.inputHeaderLogin}>
-              Enter your Email:
-            </Text>
-            <TextInput
-              style={SignupScreenStyles.input}
-              placeholder="Email"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isVerifying}
+      <KeyboardAvoidingView
+        style={styles.bkg}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <View style={styles.container}>
+            <MaterialIcons
+              name="lock-outline"
+              size={60}
+              color={PRIMARY_COLOR}
             />
-            <Text style={SignupScreenStyles.validationText}>
-              {email.length > 0 &&
-              typeof isValidEmail === 'function' &&
-              !isValidEmail(email)
-                ? 'Invalid email format'
-                : ''}
-            </Text>
-            <TouchableOpacity
-              style={[
-                SignupScreenStyles.toggleBtns,
-                isVerifying && SignupScreenStyles.disabledBtn,
-              ]}
-              onPress={handleVerifyEmail}
-              disabled={isVerifying}
-            >
-              <Text style={SignupScreenStyles.selectorHeader}>
-                {isVerifying ? 'Sending...' : 'Verify Email'}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : (
-          <Animated.View
-            entering={FadeInRight.duration(400).springify()}
-            exiting={FadeOutLeft}
-            key="code-stage-view"
-          >
-            <Text style={StudentSignupStyles.inputHeaderLogin}>
-              Enter the 6-digit verification code sent to your email:
-            </Text>
-            <TextInput
-              style={SignupScreenStyles.input}
-              placeholder="Enter 6-digit code"
-              placeholderTextColor={PRIMARY_COLOR_TINT}
-              value={code}
-              onChangeText={setCode}
-              keyboardType="numeric"
-              maxLength={6}
-              editable={!isVerifying}
-            />
-            <Text
-              style={[
-                SignupScreenStyles.validationText,
-                {
-                  color:
-                    timeLeft === 0 ? lightPalette.primary : lightPalette.text,
-                },
-              ]}
-            >
-              {timeLeft > 0
-                ? `Expires in: ${formatTime(timeLeft)}`
-                : 'Code expired. Please request a new one.'}
-            </Text>
-            <TouchableOpacity
-              style={[
-                SignupScreenStyles.toggleBtns,
-                isVerifying && SignupScreenStyles.disabledBtn,
-              ]}
-              onPress={handleVerifyCode}
-              disabled={isVerifying}
-            >
-              <Text style={SignupScreenStyles.selectorHeader}>
-                {timeLeft === 0
-                  ? 'Expired'
-                  : isVerifying
-                  ? 'Verifying...'
-                  : 'Submit Code'}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-      </View>
+            <Text style={styles.mainHeader}>Forgot Password</Text>
 
-      <SweetAlertModal
-        visible={alertVisible}
-        onConfirm={() => setAlertVisible(false)}
-        title={
-          alertType === 'success'
-            ? 'Success!'
-            : alertType === 'error'
-            ? 'Oops!'
-            : alertType === 'warning'
-            ? 'Warning!'
-            : 'Notice'
-        }
-        message={alertMessage}
-        type={alertType}
-      />
-    </KeyboardAvoidingView>
+            {!emailVerified ? (
+              <Animated.View
+                entering={FadeInRight.duration(400).springify()}
+                exiting={FadeOutLeft}
+                key="email-stage-view"
+                style={{ width: '100%' }}
+              >
+                <Text style={styles.inputHeaderLogin}>Enter your Email:</Text>
+                <View style={styles.passwordInput}>
+                  <MaterialIcons
+                    name="email"
+                    size={20}
+                    color={PRIMARY_COLOR_TINT}
+                    style={{ marginRight: 7 }}
+                  />
+
+                  <TextInput
+                    placeholder="Enter your email..."
+                    placeholderTextColor={PRIMARY_COLOR_TINT}
+                    style={styles.input2}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                </View>
+                {email.length > 0 &&
+                  typeof isValidEmail === 'function' &&
+                  !isValidEmail(email) && (
+                    <Text style={styles.validationText}>
+                      Invalid email format
+                    </Text>
+                  )}
+                <CustomButton
+                  title={isVerifying ? 'Verifying...' : 'Verify Email'}
+                  style={[styles.toggleBtns, isVerifying && styles.disabledBtn]}
+                  onPress={handleVerifyEmail}
+                  disabled={isVerifying}
+                />
+              </Animated.View>
+            ) : (
+              <Animated.View
+                entering={FadeInRight.duration(400).springify()}
+                exiting={FadeOutLeft}
+                key="code-stage-view"
+                style={{ width: '100%' }}
+              >
+                <Text style={styles.inputHeaderLogin}>
+                  Enter the 6-digit verification code sent to your email:
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 6-digit code"
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="numeric"
+                  maxLength={6}
+                  editable={!isVerifying}
+                />
+                <Text
+                  style={[
+                    styles.validationText,
+                    {
+                      color:
+                        timeLeft === 0
+                          ? lightPalette.primary
+                          : lightPalette.text,
+                    },
+                  ]}
+                >
+                  {timeLeft > 0
+                    ? `Expires in: ${formatTime(timeLeft)}`
+                    : 'Code expired. Go back and request a new one.'}
+                </Text>
+                <CustomButton
+                  title={
+                    timeLeft === 0
+                      ? 'Expired'
+                      : isVerifying
+                        ? 'Verifying...'
+                        : 'Submit Code'
+                  }
+                  style={[styles.toggleBtns, isVerifying && styles.disabledBtn]}
+                  onPress={handleVerifyCode}
+                  disabled={isVerifying}
+                />
+              </Animated.View>
+            )}
+          </View>
+        </ScrollView>
+
+        <SweetAlertModal
+          visible={alertVisible}
+          onConfirm={() => setAlertVisible(false)}
+          title={
+            alertType === 'success'
+              ? 'Success!'
+              : alertType === 'error'
+                ? 'Oops!'
+                : alertType === 'warning'
+                  ? 'Warning!'
+                  : 'Notice'
+          }
+          message={alertMessage}
+          type={alertType}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: 400,
+    width: '100%',
+    padding: 25,
+    backgroundColor: '#fff',
+    zIndex: 10,
+    borderRadius: 15,
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mainHeader: {
+    fontSize: 25,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+    marginVertical: 25,
+    alignSelf: 'center',
+  },
+  inputHeaderLogin: {
+    fontSize: 14,
+    color: '#222',
+    fontWeight: 'bold',
+    width: '100%',
+    marginBottom: 20,
+  },
+  input: {
+    borderWidth: 0.8,
+    width: '100%',
+    borderColor: PRIMARY_COLOR_TINT,
+    color: '#222',
+    borderRadius: 5,
+    marginBottom: 15,
+    fontSize: 14,
+    height: 60,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+  },
+  validationText: {
+    fontSize: 12,
+    color: PRIMARY_COLOR,
+    fontWeight: 800,
+    marginBottom: 15,
+    width: '100%',
+  },
+  toggleBtns: {
+    paddingHorizontal: 15,
+    marginVertical: 20,
+  },
+  bkg: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  disabledBtn: {
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
+  toggleBtnsText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  passwordInput: {
+    width: '100%',
+    borderRadius: 5,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    height: 60,
+  },
+  input2: {
+    flex: 1,
+    fontSize: 14,
+    color: '#222',
+    backgroundColor: 'transparent',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f0eb',
+    position: 'relative',
+  },
+});

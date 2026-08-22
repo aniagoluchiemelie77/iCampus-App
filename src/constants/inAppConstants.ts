@@ -31,9 +31,9 @@ export const DELIVERY_FEES = {
   },
 } as const;
 export const EXCEPTION_ACCOUNT_LIMITS = {
-  free: 1,
-  pro: 2,
-  premium: 3,
+  free: 2,
+  pro: 3,
+  premium: 4,
 } as const;
 export const TIER_COLORS: Record<string, string> = {
   pro: PRO_BADGE_COLOR,     
@@ -41,8 +41,6 @@ export const TIER_COLORS: Record<string, string> = {
   enterprise: ENTERPRISE_BADGE_COLOR 
 } as const;
 export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
-  file: 100,
-  course: 500,
   physical: 1000,
 } as const;
 export const ICASH_PIN_MAX_ATTEMPTS = 5 as const ;
@@ -56,7 +54,7 @@ export const ITAG_PRESET_COLORS = [
 ] as const;
 
 export const CATEGORY_ACCESS: Record<string, readonly AdminRole[]> = {
-  'Overview': ['super_admin', 'finance', 'support', 'moderator', 'analyst'],
+  'Overview': ['super_admin', 'finance', 'support', 'moderator', 'analyst', "school_administrator"],
   'Tickets': ['super_admin', 'support'],
   'Security Alerts': ['super_admin'],
   'Financial': ['super_admin', 'finance'],
@@ -64,7 +62,7 @@ export const CATEGORY_ACCESS: Record<string, readonly AdminRole[]> = {
   'Admin Actions': ['super_admin'],
   'Subscriptions': ['super_admin'],
   'Store': ['super_admin', 'finance'],
-  'Access Control': ['super_admin', 'finance', 'support', 'moderator', 'analyst']
+  'Access Control': ['super_admin', 'finance', 'support', 'moderator', 'analyst', "school_administrator"]
 } as const;
 
 export const TAB_TO_CATEGORY = {

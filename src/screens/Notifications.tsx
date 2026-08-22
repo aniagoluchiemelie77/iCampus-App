@@ -25,6 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 import { NotificationItem } from '../components/NotificationItem';
 import { useSocketConnection } from '../hooks/useSocket';
 import { baseUrl } from '../components/HomeScreenComponents';
+import { CustomButton } from '../assets/components/AppUIComponents';
 dayjs.extend(relativeTime);
 
 const Notifications = () => {
@@ -238,27 +239,14 @@ const Notifications = () => {
       <PageHeader
         title="Notifications"
         rightElement={
-          <TouchableOpacity
+          <CustomButton
+            title="Mark All As Read"
             onPress={markAllAsRead}
             style={[
               styles.rightElementBtn,
               { backgroundColor: colors.btnColor },
             ]}
-          >
-            <Text
-              style={[
-                styles.rightElementBtnText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              Mark All As Read
-            </Text>
-            <MaterialIcons
-              name="done-all"
-              size={24}
-              color={colors.btnTextColor}
-            />
-          </TouchableOpacity>
+          />
         }
       />
       <View

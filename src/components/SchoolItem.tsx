@@ -10,6 +10,7 @@ import { iCampusOperationalInstitutionSchema } from '../types/firebase';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { useAppSelector } from '../hooks/hooks';
 
 export const SchoolItem = ({
   item,
@@ -21,6 +22,8 @@ export const SchoolItem = ({
   onEdit: (item: iCampusOperationalInstitutionSchema) => void;
 }) => {
   const { colors } = useTheme();
+  const admin = useAppSelector(state => state.admin);
+  const isSuperAdmin = admin.adminType === 'super_admin';
   return (
     <View
       style={[styles.itemCard, { backgroundColor: colors.backgroundSecondary }]}
@@ -44,31 +47,42 @@ export const SchoolItem = ({
           </View>
         </View>
       </View>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
-          <MaterialIcons name="edit" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert(
-              'Delete Institution',
-              'Are you sure? This action cannot be undone.',
-              [
-                { text: 'Cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => onDelete(item.id!),
-                },
-              ],
-            )
-          }
-          style={styles.iconBtn}
-        >
-          <MaterialIcons name="delete" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      {isSuperAdmin && (
+        <View style={styles.actionRow}>
+          <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
+            <MaterialIcons
+              name="edit"
+              size={24}
+              color={colors.primary}
+              style={{ padding: 10 }}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                'Delete Institution',
+                'Are you sure? This action cannot be undone.',
+                [
+                  { text: 'Cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => onDelete(item.id!),
+                  },
+                ],
+              )
+            }
+            style={styles.iconBtn}
+          >
+            <MaterialIcons
+              name="delete"
+              size={24}
+              color={colors.primary}
+              style={{ padding: 10 }}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };

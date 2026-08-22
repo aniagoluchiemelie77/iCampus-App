@@ -21,18 +21,19 @@ import { UserIdentity } from '../components/UserIdentity';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { EditUserModalContent } from '../components/editUser';
 import { SendNotificationModal } from '../components/sendNotificationComponent';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const TicketResolveScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { colors } = useTheme();
-  
-  const { ticket } = route.params; 
+
+  const { ticket } = route.params;
 
   const [affectedUser, setAffectedUser] = useState<any>(null);
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [isModalVisible, setModalVisible] = useState(false);
   const [isEditModalVisible, setEditModalVisible] = useState(false);
 
@@ -41,14 +42,14 @@ export const TicketResolveScreen = () => {
       try {
         const [userData, userNotifs] = await Promise.all([
           adminFetchUserDetails(ticket.userId),
-          adminFetchUserNotifications(ticket.userId, 10),
+          adminFetchUserNotifications({userId: ticket.userId, limit: 10}),
         ]);
         setAffectedUser(userData);
         setRecentNotifications(userNotifs);
       } catch (error) {
         Toast.show({
-            type: 'error',
-            text2: 'Failed to load user context'
+          type: 'error',
+          text2: 'Failed to load user context',
         });
       } finally {
         setIsLoading(false);
@@ -58,19 +59,22 @@ export const TicketResolveScreen = () => {
   }, [ticket.userId]);
 
   const handleSetResolved = async () => {
-    Alert.alert('Resolve Ticket', 'Are you sure this issue is completely resolved?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Resolve',
-        style: 'default',
-        onPress: async () => {
-          await updateTicketStatus(ticket.ticketRefId, 'resolved');
-          navigation.goBack();
+    Alert.alert(
+      'Resolve Ticket',
+      'Are you sure this issue is completely resolved?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Resolve',
+          style: 'default',
+          onPress: async () => {
+            await updateTicketStatus(ticket.ticketRefId, 'resolved');
+            navigation.goBack();
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
-
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -209,7 +213,9 @@ export const TicketResolveScreen = () => {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}>
+      <View
+        style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -217,169 +223,272 @@ export const TicketResolveScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <PageHeader
-            title="Support Ticket Details"
-        />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+      <PageHeader title="Support Ticket Details" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* TICKET DETAILS */}
-        <View style={[styles.section, { backgroundColor: colors.backgroundSecondary }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>Ticket Info</Text>
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+            Ticket Info
+          </Text>
           <View style={styles.rowBetweenDiv}>
-            <Text style={[styles.textLabel, { color: colors.text }]}>Ref: <Text style={{fontWeight: 'bold'}}>#{ticket.ticketRefId}</Text></Text>
-            <Text style={[styles.textLabel, { color: colors.text }]}>{ticket.category.charAt(0).toUpperCase() + ticket.category.slice(1)}</Text>
-            <Text style={[styles.textLabel, { color: getSeverityColor(ticket.severity) }]}> {ticket.severity.toUpperCase()}</Text>
+            <Text style={[styles.textLabel, { color: colors.text }]}>
+              Ref:{' '}
+              <Text style={{ fontWeight: 'bold' }}>#{ticket.ticketRefId}</Text>
+            </Text>
+            <Text style={[styles.textLabel, { color: colors.text }]}>
+              {ticket.category.charAt(0).toUpperCase() +
+                ticket.category.slice(1)}
+            </Text>
+            <Text
+              style={[
+                styles.textLabel,
+                { color: getSeverityColor(ticket.severity) },
+              ]}
+            >
+              {' '}
+              {ticket.severity.toUpperCase()}
+            </Text>
           </View>
           {ticket.summary && (
-            <Text style={[styles.summaryText, { color: colors.text}]}>{ticket.summary}</Text>
+            <Text style={[styles.summaryText, { color: colors.text }]}>
+              {ticket.summary}
+            </Text>
           )}
           {ticket.originalMessage && (
-          <View style={[styles.messageBox, {borderLeftColor: colors.primary}]}>
-            <Text style={[styles.messageText, { color: colors.text, fontStyle: 'italic'}]}>"{ticket.originalMessage}"</Text>
-          </View>
+            <View
+              style={[styles.messageBox, { borderLeftColor: colors.primary }]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  { color: colors.text, fontStyle: 'italic' },
+                ]}
+              >
+                "{ticket.originalMessage}"
+              </Text>
+            </View>
           )}
         </View>
 
         {/* AFFECTED USER DETAILS */}
         {affectedUser && (
-  <View style={[styles.section, { backgroundColor: colors.backgroundSecondary }]}>
-    <View style={styles.rowBetween}>
-      <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>User Context</Text>
-      <TouchableOpacity 
-        onPress={() => setEditModalVisible(true)}
-        style={{ padding: 4 }} 
-      >
-        <MaterialIcons name="edit" size={22} color={colors.primary} />
-      </TouchableOpacity>
-    </View>
-    <View style={styles.userDetailsIcon}>
-      <UserAvatar
-        profilePic={affectedUser.profilePic}
-        firstName={affectedUser.firstname}
-        lastName={affectedUser.lastname}
-        username={affectedUser.username}
-        style={styles.userAvatar}
-      />
-      <View style={styles.userDetails}>
-        <UserIdentity
-          firstname={affectedUser.firstname}
-          lastname={affectedUser.lastname}
-          username={affectedUser.username}
-          tier={affectedUser.tier}
-          isVerified={affectedUser.isVerified}
-          showVerifyIcon={true}
-          size="medium" 
-        />
-        <Text style={[styles.textLabel, { color: colors.text, marginVertical: 5 }]}>
-          {affectedUser.email}
-        </Text>
-        <Text style={[styles.textLabel, { color: colors.text}]}>
-          iScore: <Text style={{ fontWeight: 'bold' }}>{affectedUser.currentIScore || 0}</Text>
-        </Text>
-      </View>
-    </View>
-    {affectedUser.isSuspended && (
-      <View style={styles.suspensionDiv}>
-        <MaterialIcons name="info-outlined" size={16} color={colors.primary} /> 
-        <Text style={[styles.suspensionText, {color: colors.primary}]}>
-          ACCOUNT SUSPENDED
-        </Text>
-      </View>
-    )}
-
-  </View>
-)}
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <View style={styles.rowBetween}>
+              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+                User Context
+              </Text>
+              <TouchableOpacity
+                onPress={() => setEditModalVisible(true)}
+                style={{ padding: 4 }}
+              >
+                <MaterialIcons name="edit" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.userDetailsIcon}>
+              <UserAvatar
+                profilePic={affectedUser.profilePic}
+                firstName={affectedUser.firstname}
+                lastName={affectedUser.lastname}
+                username={affectedUser.username}
+                style={styles.userAvatar}
+              />
+              <View style={styles.userDetails}>
+                <UserIdentity
+                  firstname={affectedUser.firstname}
+                  lastname={affectedUser.lastname}
+                  username={affectedUser.username}
+                  tier={affectedUser.tier}
+                  isVerified={affectedUser.isVerified}
+                  showVerifyIcon={true}
+                  size="medium"
+                />
+                <Text
+                  style={[
+                    styles.textLabel,
+                    { color: colors.text, marginVertical: 5 },
+                  ]}
+                >
+                  {affectedUser.email}
+                </Text>
+                <Text style={[styles.textLabel, { color: colors.text }]}>
+                  iScore:{' '}
+                  <Text style={{ fontWeight: 'bold' }}>
+                    {affectedUser.currentIScore || 0}
+                  </Text>
+                </Text>
+              </View>
+            </View>
+            {affectedUser.isSuspended && (
+              <View style={styles.suspensionDiv}>
+                <MaterialIcons name="info" size={16} color={colors.primary} />
+                <Text
+                  style={[styles.suspensionText, { color: colors.primary }]}
+                >
+                  ACCOUNT SUSPENDED
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* RECENT ACTIVITY */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>User's Recent Activity</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+            User's Recent Activity
+          </Text>
           {recentNotifications.length === 0 ? (
-  <EmptyState
-    iconName="notifications-off-outlined" 
-    title="No Recent Notifications"
-    subtitle="This user hasn't received any system or ticket alerts yet."
-  />
-) : (
-  recentNotifications.map((notif) => (
-    <NotificationItem 
-      key={notif.notificationId} 
-      item={notif} 
-      handleNotificationPress={handleNotificationPress} 
-    />
-  ))
-)}
+            <EmptyState
+              iconName="notifications-off"
+              title="No Recent Notifications"
+              subtitle="This user hasn't received any system or ticket alerts yet."
+            />
+          ) : (
+            recentNotifications.map(notif => (
+              <NotificationItem
+                key={notif.notificationId}
+                item={notif}
+                handleNotificationPress={handleNotificationPress}
+              />
+            ))
+          )}
         </View>
-
       </ScrollView>
 
-      <View style={[styles.footerActions, { backgroundColor: colors.backgroundSecondary }]}>
-        <TouchableOpacity 
-          style={[styles.actionBtn, { backgroundColor: colors.btnColor }]} 
+      <View
+        style={[
+          styles.footerActions,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <CustomButton
+          title="Request Additional Info"
+          style={styles.actionBtn}
           onPress={() => setModalVisible(true)}
-        >
-          <MaterialIcons name="pending-actions-outlined" size={20} color={colors.btnTextColor} />
-          <Text style={[styles.btnText, {color: colors.btnTextColor}]}>Request Additional Info</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.actionBtn, { backgroundColor: colors.success }]} 
+          iconName="pending-actions"
+          iconColor="#fff"
+        />
+        <CustomButton
+          title="Mark As Resolved"
+          style={[styles.actionBtn, { backgroundColor: colors.success }]}
           onPress={handleSetResolved}
-        >
-          <MaterialIcons name="check-circle-outlined" size={20} color={colors.btnTextColor} />
-          <Text style={[styles.btnText, {color: colors.btnTextColor}]}>Mark As Resolved</Text>
-        </TouchableOpacity>
+          iconName="check-circle"
+          iconColor="#fff"
+        />
       </View>
 
       {/* SEND NOTIFICATION MODAL */}
-      <SendNotificationModal 
-  visible={isModalVisible}
-  onClose={() => setModalVisible(false)}
-  ticket={ticket}
-  navigation={navigation}
-/>
+      <SendNotificationModal
+        visible={isModalVisible}
+        onClose={() => setModalVisible(false)}
+        ticket={ticket}
+        navigation={navigation}
+      />
       <EditUserModalContent
         visible={isEditModalVisible}
-        user={affectedUser} 
+        user={affectedUser}
         onClose={() => {
-            setEditModalVisible(false);
+          setEditModalVisible(false);
         }}
-        onUserUpdated={(updatedUser) => {
-            setAffectedUser(updatedUser); 
-            setEditModalVisible(false);
-            setAffectedUser(null); 
+        onUserUpdated={updatedUser => {
+          setAffectedUser(updatedUser);
+          setEditModalVisible(false);
+          setAffectedUser(null);
         }}
-    />
-
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignContent: 'center', padding: 20 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
   container: { flex: 1, paddingHorizontal: 15 },
   scrollContent: { paddingBottom: 100 },
   section: { padding: 15, borderRadius: 15, marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   textLabel: { fontSize: 12 },
   messageBox: { padding: 10, borderRadius: 8, borderLeftWidth: 2 },
-  footerActions: { position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', flexDirection: 'row', padding: 15, justifyContent: 'space-between', alignItems: 'center'},
-  actionBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 15, borderRadius: 15, paddingVertical: 10 },
+  footerActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    flexDirection: 'row',
+    padding: 15,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionBtn: { paddingHorizontal: 15, width: 'auto' },
   btnText: { fontSize: 14, fontWeight: 'bold', marginLeft: 5 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
   modalContent: { padding: 20, borderRadius: 12 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 12, textAlignVertical: 'top', marginTop: 10 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20, alignItems: 'center' },
-  sendBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, marginLeft: 16 },
-  rowBetweenDiv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  summaryText: { marginBottom: 15, fontSize: 14, fontWeight: 'bold'},
-  messageText: { fontSize: 14, fontWeight: 'bold'},
-  userDetailsIcon: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 15 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    textAlignVertical: 'top',
+    marginTop: 10,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  sendBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginLeft: 16,
+  },
+  rowBetweenDiv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  summaryText: { marginBottom: 15, fontSize: 14, fontWeight: 'bold' },
+  messageText: { fontSize: 14, fontWeight: 'bold' },
+  userDetailsIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 15,
+  },
   userAvatar: { width: 50, height: 50, borderRadius: 25, marginRight: 14 },
   userDetails: { flex: 1 },
-  suspensionDiv: { 
-    alignItems: 'center' ,
-    flexDirection: 'row'
-    },
-    suspensionText: {marginLeft: 5, fontWeight: 'bold', fontSize: 14 },
+  suspensionDiv: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  suspensionText: { marginLeft: 5, fontWeight: 'bold', fontSize: 14 },
 });

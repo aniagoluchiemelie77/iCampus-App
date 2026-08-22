@@ -217,7 +217,8 @@ const styles = StyleSheet.create({
   },
   dotsContainer: {
     flexDirection: 'row',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 10,
   },
   dot: {

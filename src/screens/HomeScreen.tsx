@@ -9,7 +9,7 @@ import React, {
 import PagerView from 'react-native-pager-view';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../context/UserSlice';
-import { View, TouchableOpacity, Text } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { io, Socket } from 'socket.io-client';
 import { Home } from '../components/HomeScreenComponents';
@@ -18,11 +18,11 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from '../hooks/hooks';
-import { homeStyles } from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from '../types/firebase';
@@ -91,13 +91,13 @@ const TabBarItem = React.memo(
   }) => {
     const { colors } = useTheme();
     return (
-      <TouchableOpacity onPress={onPress} style={homeStyles.iconItem}>
+      <TouchableOpacity onPress={onPress} style={styles.iconItem}>
         <MaterialIcons
-          name={active ? icon : `${icon}-outlined`}
-          size={active ? 24 : 23}
+          name={active ? icon : `${icon}`}
+          size={active ? 24 : 22}
           color={active ? colors.primary : colors.textDarker}
         />
-        {active && <Text style={homeStyles.activeIconLabel}>{label}</Text>}
+        {active && <Text style={styles.activeIconLabel}>{label}</Text>}
       </TouchableOpacity>
     );
   },
@@ -120,6 +120,7 @@ const HomeScreen = () => {
     const index = e.nativeEvent.position;
     setActiveIcon(screens[index]);
   };
+  const messagingInstance = getMessaging();
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24;
@@ -145,10 +146,13 @@ const HomeScreen = () => {
     }
   }, [route.params?.activeTab]);
   useEffect(() => {
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      playNotificationSound();
-      console.log('A new FCM message arrived!', remoteMessage);
-    });
+    const unsubscribe = onMessage(
+      messagingInstance,
+      async (remoteMessage: any) => {
+        playNotificationSound();
+        console.log('A new FCM message arrived!', remoteMessage);
+      },
+    );
 
     return unsubscribe;
   }, []);
@@ -192,8 +196,10 @@ const HomeScreen = () => {
       try {
         if (userType === 'lecturer') {
           const [courseResult, exceptionsResult] = await Promise.all([
-            getCourseDetailsForOngoingLecture(ongoingLecture.courseId),
-            getAllExceptionsForOngoingLecture(ongoingLecture.id),
+            getCourseDetailsForOngoingLecture({
+              courseId: ongoingLecture.courseId,
+            }),
+            getAllExceptionsForOngoingLecture({ lectureId: ongoingLecture.id }),
           ]);
           if (courseResult.success && exceptionsResult.success) {
             navigation.navigate('PhysicalAttendanceManager', {
@@ -236,11 +242,9 @@ const HomeScreen = () => {
   };
   return (
     <AppDataProvider user={user}>
-      <View
-        style={[homeStyles.container, { backgroundColor: colors.background }]}
-      >
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <PagerView
-          style={homeStyles.centerContent}
+          style={styles.centerContent}
           initialPage={0}
           ref={pagerRef}
           onPageSelected={handlePageSelected}
@@ -250,7 +254,7 @@ const HomeScreen = () => {
           </View>
           <View key="1">
             <ClassroomScreenComponent
-              userRole={rawRole as 'student' | 'lecturer' | 'otherUser'}
+              userRole={rawRole as 'student' | 'lecturer'}
             />
           </View>
           <View key="2">
@@ -263,7 +267,7 @@ const HomeScreen = () => {
 
         <View
           style={[
-            homeStyles.iconBar,
+            styles.iconBar,
             {
               backgroundColor: colors.backgroundSecondary,
               borderColor: colors.border,
@@ -307,5 +311,123 @@ const HomeScreen = () => {
     </AppDataProvider>
   );
 };
-
+const styles = StyleSheet.create({
+  mainWrapper: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    marginHorizontal: -15,
+    marginBottom: 15,
+  },
+  postsDiv: {
+    position: 'relative',
+  },
+  headerContainerDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerProfilePic: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 75,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
+  },
+  fabLower: {
+    position: 'static',
+    bottom: 20,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
+  },
+  container: {
+    flex: 1,
+    position: 'relative',
+    paddingHorizontal: 15,
+  },
+  centerContent: {
+    flex: 1,
+    paddingBottom: 90,
+  },
+  iconBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    height: 40,
+    backgroundColor: 'rgba(250, 220, 204, 0.85)',
+    position: 'absolute',
+    bottom: 8,
+    left: 10,
+    right: 10,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    borderRadius: 25,
+    borderWidth: 1,
+    zIndex: 90,
+    width: '100%',
+  },
+  iconItem: {
+    alignItems: 'center',
+  },
+  activeIconLabel: {
+    fontWeight: 'bold',
+    fontSize: 11,
+    color: PRIMARY_COLOR,
+    marginTop: 4,
+  },
+  header: {
+    marginTop: 5,
+    fontSize: 35,
+    fontWeight: 700,
+    color: '#222',
+  },
+  newPostsBanner: {
+    position: 'absolute',
+    top: 10,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    zIndex: 100,
+    elevation: 5,
+  },
+  newPostsText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+});
 export default HomeScreen;

@@ -229,7 +229,8 @@ const styles = StyleSheet.create({
   },
   subContainer: {
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 15,
   },
   loadingText: {

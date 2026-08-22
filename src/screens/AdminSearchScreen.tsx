@@ -298,7 +298,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activeSearchHeader: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 15,
     padding: 15,
     borderRadius: 15,
@@ -347,7 +348,8 @@ const styles = StyleSheet.create({
   },
   searchEmptyState: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 60,
   },
   emptyStatePadding: {

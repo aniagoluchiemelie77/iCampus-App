@@ -1,14 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
-import { AbstractChartConfig } from 'react-native-chart-kit/dist/AbstractChart';
-import { TaxEntry, EntityItem } from '../types/firebase';
+import { TaxEntry, EntityItem, SchoolMetrics } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
 import { getAds } from '../api/localGetApis';
 import AdBanner from './AdsBanner';
 import { AdItem } from '../types/firebase';
+import { StatusCard } from './SellerManagementComps';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {
+  PRIMARY_COLOR_TINT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from '../assets/styles/colors';
+import { CustomButton } from '../assets/components/AppUIComponents';
+interface SchoolAdminDashboardViewProps {
+  metrics: SchoolMetrics;
+}
 
 interface SparklineProps {
   data: number[];
@@ -98,9 +113,11 @@ export const EntityPreviewSection = ({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           {title} ({total})
         </Text>
-        <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
-          <Text style={{ color: colors.btnTextColor }}>View All</Text>
-        </TouchableOpacity>
+        <CustomButton
+          title="View All"
+          onPress={onViewAll}
+          style={styles.viewAllBtn}
+        />
       </View>
 
       {items.map(item => (
@@ -336,9 +353,11 @@ export const TaxEntryPreviewSection = ({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           {title}
         </Text>
-        <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
-          <Text style={{ color: colors.btnTextColor }}>View All</Text>
-        </TouchableOpacity>
+        <CustomButton
+          title="View All"
+          onPress={onViewAll}
+          style={styles.viewAllBtn}
+        />
       </View>
 
       {items.map(item => {
@@ -402,7 +421,6 @@ export const AdsPreviewSection = ({
   onViewAll,
 }: AdsPreviewProps) => {
   const { colors } = useTheme();
-  const navigation = useNavigation<any>();
   const [ads, setAds] = useState<AdItem[]>([]);
   const [loadingAds, setLoadingAds] = useState(true);
   useEffect(() => {
@@ -426,13 +444,191 @@ export const AdsPreviewSection = ({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           {title}
         </Text>
-        <TouchableOpacity onPress={onViewAll} style={styles.viewAllBtn}>
-          <Text style={{ color: colors.btnTextColor }}>View All</Text>
-        </TouchableOpacity>
+        <CustomButton
+          title="View All"
+          onPress={onViewAll}
+          style={styles.viewAllBtn}
+        />
       </View>
 
       {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
     </View>
+  );
+};
+
+export const SchoolAdminDashboardView = ({
+  metrics,
+}: SchoolAdminDashboardViewProps) => {
+  const { colors } = useTheme();
+  const { users, courses, academics } = metrics;
+
+  const studentGrowthData = users.onboardingGrowth.map(item => item.students);
+  const lecturerGrowthData = users.onboardingGrowth.map(item => item.lecturers);
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={[styles.sectionHeader, { color: colors.textDarker }]}>
+        Institutional Overview
+      </Text>
+
+      <View style={styles.gridRow}>
+        <StatusCard
+          label="Verified Students"
+          count={users.verifiedStudents.toString()}
+          color={colors.success}
+          icon="school-outlined"
+        />
+        <StatusCard
+          label="Verified Lecturers"
+          count={users.verifiedLecturers.toString()}
+          color={colors.success}
+          icon="person-outlined"
+        />
+        <StatusCard
+          label="Active Courses"
+          count={courses.totalActiveCourses.toString()}
+          color={colors.success}
+          icon="menu-book-outlined"
+        />
+        <StatusCard
+          label="Student Enrollments"
+          count={courses.studentEnrollmentDensity.toString()}
+          color={colors.success}
+          icon="groups-outlined"
+        />
+      </View>
+
+      <Text style={[styles.sectionHeader, { color: colors.textDarker }]}>
+        Onboarding Trends
+      </Text>
+      <View
+        style={[
+          styles.cardContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <View style={styles.trendRow}>
+          <Sparkline
+            data={studentGrowthData.length > 0 ? studentGrowthData : [0]}
+            color={colors.success}
+          />
+          <View>
+            <Text style={[styles.trendLabel, { color: colors.text }]}>
+              Student Growth Trend
+            </Text>
+            <Text style={[styles.trendLabel, { color: colors.text }]}>
+              Last {studentGrowthData.length} months
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.trendRow}>
+          <Sparkline
+            data={lecturerGrowthData.length > 0 ? lecturerGrowthData : [0]}
+            color={colors.success}
+          />
+          <View>
+            <Text style={[styles.trendLabel, { color: colors.text }]}>
+              Lecturer Growth Trend
+            </Text>
+            <Text style={[styles.trendLabel, { color: colors.text }]}>
+              Last {lecturerGrowthData.length} months
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <Text style={[styles.sectionHeader, { color: colors.textDarker }]}>
+        Academic & Allocation Status
+      </Text>
+      <View style={styles.gridRow}>
+        <StatusCard
+          label="Assigned Courses"
+          count={courses.allocationStatus.assigned.toString()}
+          color={colors.success}
+          icon="check-circle"
+        />
+        <StatusCard
+          label="Unassigned / Pending"
+          count={courses.allocationStatus.unassigned.toString()}
+          color={colors.pendingDelivery}
+          icon="warning"
+        />
+      </View>
+
+      <View
+        style={[
+          styles.cardContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <View style={styles.statRowItem}>
+          <MaterialIcons name="assignment" size={20} color={colors.text} />
+          <Text style={[styles.statItemLabel, { color: colors.text }]}>
+            Total Assessments Created
+          </Text>
+          <Text style={[styles.statItemValue, { color: colors.textDarker }]}>
+            {academics.totalAssessmentsCreated}
+          </Text>
+        </View>
+        <View style={styles.statRowItem}>
+          <MaterialIcons name="check-circle" size={20} color={colors.success} />
+          <Text style={[styles.statItemLabel, { color: colors.text }]}>
+            Test Submissions Logged
+          </Text>
+          <Text style={[styles.statItemValue, { color: colors.textDarker }]}>
+            {academics.testSubmissionsCount}
+          </Text>
+        </View>
+        <View style={styles.statRowItem}>
+          <MaterialIcons name="verified-user" size={20} color={colors.text} />
+          <Text style={[styles.statItemLabel, { color: colors.text }]}>
+            Attendance Sync Volume
+          </Text>
+          <Text style={[styles.statItemValue, { color: colors.textDarker }]}>
+            {academics.attendanceSyncVolume}
+          </Text>
+        </View>
+      </View>
+
+      {/* Row 4: Department Breakdown */}
+      <Text style={[styles.sectionHeader, { color: colors.textDarker }]}>
+        Courses by Department
+      </Text>
+      <View
+        style={[
+          styles.cardContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        {Object.keys(courses.departmentBreakdown).length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.text }]}>
+            No department data available.
+          </Text>
+        ) : (
+          Object.entries(courses.departmentBreakdown).map(
+            ([dept, count], index) => (
+              <View key={dept}>
+                <View style={styles.deptRow}>
+                  <Text style={[styles.deptName, { color: colors.text }]}>
+                    {dept}
+                  </Text>
+                  <Text style={[styles.deptCount, { color: colors.text }]}>
+                    {count} courses
+                  </Text>
+                </View>
+                {index <
+                  Object.keys(courses.departmentBreakdown).length - 1 && (
+                  <View style={styles.divider} />
+                )}
+              </View>
+            ),
+          )
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
@@ -462,10 +658,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
   viewAllBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignContent: 'center',
+    paddingHorizontal: 15,
+    width: 'auto'
   },
   viewAllText: { fontSize: 14, fontWeight: 'bold' },
   row: { paddingVertical: 8, borderBottomWidth: 1 },
@@ -484,5 +678,80 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  cardContainer: {
+    marginBottom: 15,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  trendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  trendLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  trendSubtext: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
+    marginVertical: 8,
+  },
+  statRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 10,
+  },
+  statItemLabel: {
+    flex: 1,
+    fontSize: 14,
+    marginHorizontal: 8,
+  },
+  statItemValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  deptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 15,
+  },
+  deptName: {
+    fontSize: 14,
+  },
+  deptCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4F46E5',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 15,
+  },
+  container: {
+    paddingHorizontal: 15,
+    paddingBottom: 32,
+    marginTop: 5,
   },
 });

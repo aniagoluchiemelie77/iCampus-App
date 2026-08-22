@@ -1,12 +1,15 @@
 # .easignore
-# Negate google-services.json so EAS includes it in the cloud upload
-!google-services.json
 
 # OSX
 #
 .DS_Store
 local.properties
 .env.local
+
+
+
+
+
 # Xcode
 #
 build/
@@ -79,4 +82,3 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
-.env

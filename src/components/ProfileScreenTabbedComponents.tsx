@@ -44,7 +44,7 @@ export const MediaGridItem = ({ post }: { post: any }) => {
           ]}
         >
           <MaterialIcons
-            name="videocam-outlined"
+            name="videocam"
             size={16}
             color={colors.text}
           />

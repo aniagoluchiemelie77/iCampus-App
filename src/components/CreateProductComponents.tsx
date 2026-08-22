@@ -35,22 +35,12 @@ interface PriceSectionProps {
   formInputs: CompleteFormInputs;
   setFormInputs: React.Dispatch<React.SetStateAction<CompleteFormInputs>>;
 }
-export type UIContentItem = NonNullable<
-  Product['courseDetails']
->['content'][number] & {
-  isUploading?: boolean;
-  verificationStatus?:
-    | 'Approved'
-    | 'Pending Review'
-    | 'Flagged/Rejected'
-    | 'Failed';
-};
 export interface CompleteFormInputs {
   title: string;
   description: string;
   price: string;
   niche: string;
-  productType: 'physical' | 'file';
+  productType: 'physical';
   physicalDetails: {
     weightKg: string;
     inStock: string;
@@ -58,14 +48,6 @@ export interface CompleteFormInputs {
     dropOffAddress: DropOffStation[];
     colors: string[];
     sizes: string[];
-  };
-  fileDetails: {
-    fileName: string;
-    fileSizeInMB: number;
-    fileFormat: string;
-    fileUrl: string;
-    isUploading: boolean;
-    rawBlobOrFile?: any;
   };
   mediaUrls: string[];
 }
@@ -184,7 +166,7 @@ export const StepHeader = ({
       </View>
       <MaterialIcons
         name={
-          currentStep === number ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
+          currentStep === number ? 'chevron-up' : 'chevron-down'
         }
         size={24}
         color={colors.text}
@@ -204,7 +186,8 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: 'transparent',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 10,
   },
   stepNumber: { fontSize: 14, fontWeight: 'bold' },

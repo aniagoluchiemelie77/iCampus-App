@@ -11,6 +11,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const hapticOptions = {
   enableVibrateFallback: true,
@@ -33,14 +34,14 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
   const successTitle = isP2P
     ? 'Transfer Successful!'
     : isWithdraw
-    ? 'Withdrawal Initialized!'
-    : 'Purchase Successful!';
+      ? 'Withdrawal Initialized!'
+      : 'Purchase Successful!';
   const mainLabel = isWithdraw || isP2P ? 'iCash Debited' : 'iCash Credited';
   const subLabel = isP2P
     ? 'Sent To'
     : isWithdraw
-    ? 'Amount to Receive'
-    : 'Amount Paid';
+      ? 'Amount to Receive'
+      : 'Amount Paid';
 
   useEffect(() => {
     ReactNativeHapticFeedback.trigger('notificationSuccess', hapticOptions);
@@ -51,14 +52,10 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
       <View
         style={[
           styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
+          { backgroundColor: colors.backgroundSecondary, zIndex: 10 },
         ]}
       >
-        <MaterialIcons
-          name="check-circle-outlined"
-          size={60}
-          color={colors.success}
-        />
+        <MaterialIcons name="check-circle" size={100} color={colors.success} />
         <Text style={[styles.title, { color: colors.textDarker }]}>
           {successTitle}
         </Text>
@@ -98,16 +95,13 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
                 isWithdraw ? payout.toLocaleString() : amountPaid
               }`}
         </Text>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
+        <CustomButton
+          title="Back to Dashboard"
+          style={styles.button}
           onPress={() =>
             navigation.navigate('ICashDashboard', { refresh: true })
           }
-        >
-          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-            Back to Dashboard
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
     </View>
   );
@@ -116,13 +110,17 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
+    position: 'relative',
   },
   subContainer: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
     borderRadius: 15,
+    flex: 1,
   },
   title: {
     fontSize: 18,
@@ -139,10 +137,7 @@ const styles = StyleSheet.create({
   receiptLabel: { fontSize: 14, marginBottom: 15 },
   receiptValue: { fontWeight: 'bold', fontSize: 14, marginBottom: 15 },
   button: {
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 15,
-    alignContent: 'center',
   },
   buttonText: { fontSize: 14, fontWeight: '600' },
   miniLabel: {

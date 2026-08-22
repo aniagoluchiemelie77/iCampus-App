@@ -16,6 +16,7 @@ import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { Product } from '../types/firebase';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface CartItemEntry {
   productId: string;
@@ -95,17 +96,11 @@ export const CartScreen = () => {
         showBackButton={true}
         rightElement={
           itemCount > 0 ? (
-            <TouchableOpacity
+            <CustomButton
+              title="Clear Cart"
               onPress={handleClearCart}
-              style={[styles.headerBtn, { backgroundColor: colors.btnColor }]}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[styles.headerBtnText, { color: colors.btnTextColor }]}
-              >
-                Clear Cart
-              </Text>
-            </TouchableOpacity>
+              style={styles.headerBtn}
+            />
           ) : undefined
         }
       />
@@ -141,22 +136,19 @@ export const CartScreen = () => {
             </Text>
             <CurrencyDisplay value={totalPrice} size="large" />
           </View>
-
-          <TouchableOpacity
+          <CustomButton
+            title={
+              containsInvalidItems
+                ? 'Contains Unavailable Items'
+                : 'Proceed to Checkout'
+            }
             style={[
               styles.checkoutBtn,
-              { backgroundColor: colors.btnColor },
-              containsInvalidItems && { opacity: 0.5 },
+              containsInvalidItems && { opacity: 0.7 },
             ]}
             onPress={() => navigation.navigate('Checkout')}
             disabled={containsInvalidItems}
-          >
-            <Text style={[styles.checkoutText, { color: colors.btnTextColor }]}>
-              {containsInvalidItems
-                ? 'Contains Unavailable Items'
-                : 'Proceed to Checkout'}
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
       )}
     </SafeAreaView>
@@ -169,14 +161,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 14,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerBtnText: {
     fontSize: 14,
     fontWeight: 'bold',
   },
   listContent: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingBottom: 50,
     marginTop: 15,
     width: '100%',
@@ -199,12 +193,8 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontSize: 14, fontWeight: 'bold' },
   checkoutBtn: {
-    width: '80%',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignContent: 'center',
-    alignSelf: 'center',
+    paddingHorizontal: 15,
+    marginTop: 15,
   },
   checkoutText: { fontSize: 14, fontWeight: '700' },
 });

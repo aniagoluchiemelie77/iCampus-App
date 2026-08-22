@@ -1,27 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, Vibration } from 'react-native';
-import { Camera, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+} from 'react-native-vision-camera';
+// @ts-ignore
+import { useCodeScanner } from 'react-native-vision-camera';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
+
 interface QRScannerComponentProps {
   handleScanSuccess: (value: string) => void;
   scannerVisible?: boolean;
 }
-export const QRScannerComponent = ({ 
-  handleScanSuccess, 
-  scannerVisible = true 
+
+export const QRScannerComponent = ({
+  handleScanSuccess,
+  scannerVisible = true,
 }: QRScannerComponentProps) => {
   const device = useCameraDevice('back');
-  const [hasPermission, setHasPermission] = useState(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
 
   useEffect(() => {
     (async () => {
-      const status = await Camera.requestCameraPermission();
-      setHasPermission(status === 'granted');
+      if (!hasPermission) {
+        await requestPermission();
+      }
     })();
-  }, []);
+  }, [hasPermission, requestPermission]);
 
+  // @ts-ignore - Bypass strict IDE type check if definitions are out of sync
   const codeScanner = useCodeScanner({
     codeTypes: ['qr', 'code-128'],
-    onCodeScanned: (codes) => {
+    onCodeScanned: (codes: any[]) => {
       if (codes.length > 0) {
         const barcodeValue = codes[0].value;
         if (barcodeValue) {
@@ -29,7 +40,7 @@ export const QRScannerComponent = ({
           Vibration.vibrate(100);
         }
       }
-    }
+    },
   });
 
   if (!device || !hasPermission) {
@@ -44,16 +55,16 @@ export const QRScannerComponent = ({
 
   return (
     <>
-      <Camera
-        style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={scannerVisible}
-        codeScanner={codeScanner}
-      />
+      {(Camera as any)({
+        style: StyleSheet.absoluteFill,
+        device: device,
+        isActive: scannerVisible,
+        codeScanner: codeScanner,
+      })}
       <View style={styles.scanFrame} />
     </>
   );
-}
+};
 
 const styles = StyleSheet.create({
   centerContainer: {
@@ -69,7 +80,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderWidth: 2,
-    borderColor: '#00FF00',
+    borderColor: PRIMARY_COLOR,
     borderRadius: 12,
   },
 });

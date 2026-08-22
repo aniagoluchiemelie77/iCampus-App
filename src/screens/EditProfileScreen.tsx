@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import {
-  ScrollView,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { InputGroup } from '../components/InputGroup';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -17,6 +11,7 @@ import { useDispatch } from 'react-redux';
 import { setUser } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../types/firebase';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 countries.registerLocale(require('i18n-iso-countries/langs/en.json'));
 
@@ -133,25 +128,12 @@ export const EditProfileScreen = () => {
         title="Edit Profile"
         rightElement={
           isChanged && (
-            <TouchableOpacity
+            <CustomButton
+              title={isSaving ? 'Saving...' : 'Save'}
               onPress={handleSave}
               disabled={isSaving}
-              style={[
-                styles.saveBtn,
-                { backgroundColor: colors.btnColor },
-                isSaving && styles.disabledBtn,
-              ]}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color={colors.btnTextColor} />
-              ) : (
-                <Text
-                  style={[styles.saveBtnText, { color: colors.btnTextColor }]}
-                >
-                  Save
-                </Text>
-              )}
-            </TouchableOpacity>
+              style={[styles.saveBtn, isSaving && styles.disabledBtn]}
+            />
           )
         }
       />
@@ -251,9 +233,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 13,
-    alignContent: 'center',
+    width: 'auto',
   },
   saveBtnText: {
     fontSize: 14,

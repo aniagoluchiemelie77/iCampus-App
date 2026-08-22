@@ -1,18 +1,17 @@
 {
   "expo": {
     "name": "iCampus",
-    "slug": "icampus",
+    "slug": "campus-app",
     "version": "1.0.0",
     "displayName": "iCampus",
-    "owner": "chiboy_aniagolu",
+    "owner": "sample-organization",
     "extra": {
       "eas": {
-        "projectId": "58843852-bf76-4323-aa02-478901aa1335"
+        "projectId": "655a41bc-85cb-4418-8b4c-49e8107ad08a"
       }
     },
     "android": {
-      "package": "com.icampus",
-      "googleServicesFile": "./google-services.json"
+      "softwareKeyboardLayoutMode": "pan"
     }
   }
 }

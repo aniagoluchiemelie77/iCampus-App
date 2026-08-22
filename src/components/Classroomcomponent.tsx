@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { extractCourseFormAPI } from '../api/localPostApis.ts';
 import ExpandableFAB from './ExpandableFAB.tsx';
-import { homeStyles } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { AttachmentModal } from './ChatInput.tsx';
 import {
@@ -35,16 +34,17 @@ import {
   ManualCourseModal,
   SelectionModal,
 } from './ClassroomScreenComponents.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 import { generateSessions } from '../utils/courseHelper.ts';
 interface DashboardProps {
   user: User;
-  userRole: 'student' | 'lecturer' | 'otherUser';
+  userRole: 'student' | 'lecturer';
 }
 interface ClassroomProps {
-  userRole: 'student' | 'lecturer' | 'otherUser';
+  userRole: 'student' | 'lecturer';
 }
 
 const SESSIONS = generateSessions();
@@ -73,6 +73,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
+  const handlePickImage = async () => {
+    try {
+      const fileData = await pickImage();
+      if (fileData) {
+        await uploadAndExtractCourseFile({
+          uri: fileData.uri,
+          type: fileData.type === 'image' ? 'image/jpeg' : fileData.type,
+          name: fileData.name || `gallery_image_${Date.now()}.jpg`,
+        });
+      }
+    } catch (err) {
+      console.log('Image picker window dismissed');
+    }
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const fileData = await pickDocument();
+      if (fileData) {
+        await uploadAndExtractCourseFile({
+          uri: fileData.uri,
+          type: 'application/pdf', // or fallback depending on file type
+          name: fileData.name || `document_${Date.now()}.pdf`,
+        });
+      }
+    } catch (err) {
+      console.log('Document picker window dismissed');
+    }
+  };
 
   const fetchMyCourses = useCallback(
     async (semester?: string, session?: string) => {
@@ -289,7 +318,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   onPress={() => setIsAttachmentModalVisible(true)}
                 >
                   <MaterialIcons
-                    name="cloud-upload-outlined"
+                    name="cloud-upload"
                     size={32}
                     color={colors.primary}
                   />
@@ -302,7 +331,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   onPress={() => setIsManualModalVisible(true)}
                 >
                   <MaterialIcons
-                    name="keyboard-alt-outlined"
+                    name="keyboard"
                     size={32}
                     color={colors.primary}
                   />
@@ -337,22 +366,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                     <Text style={[styles.title, { color: colors.textDarker }]}>
                       Enrolled Courses
                     </Text>
-                    <TouchableOpacity
+                    <CustomButton
+                      title="View All"
                       onPress={() => navigation.navigate('ViewAllCourses')}
-                      style={[
-                        styles.ctaBtn,
-                        { backgroundColor: colors.btnColor },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.ctaBtnText,
-                          { color: colors.btnTextColor },
-                        ]}
-                      >
-                        View All
-                      </Text>
-                    </TouchableOpacity>
+                      disabled={isLoading}
+                      isLoading={isLoading}
+                      style={styles.ctaBtn}
+                    />
                   </View>
                   <View style={styles.filterContainer}>
                     <TouchableOpacity
@@ -380,7 +400,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         )}
                       </View>
                       <MaterialIcons
-                        name="arrow-drop-down"
+                        name="chevron-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -408,7 +428,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         </Text>
                       </View>
                       <MaterialIcons
-                        name="arrow-drop-down"
+                        name="chevron-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -441,15 +461,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
               <View style={styles.actionRow}>
                 <TouchableOpacity
                   style={[styles.btn, { borderColor: colors.primary }]}
-                  onPress={() => {}}
+                  onPress={() => setIsAttachmentModalVisible(true)}
                 >
                   <MaterialIcons
-                    name="cloud-upload-outlined"
+                    name="cloud-upload"
                     size={32}
                     color={colors.primary}
                   />
                   <Text style={[styles.btnText, { color: colors.primary }]}>
-                    Create New{'\n'}Course{'\n'}Syllabus
+                    Upload{'\n'}Course{'\n'}Allocation Form
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -457,7 +477,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   onPress={() => setIsManualModalVisible(true)}
                 >
                   <MaterialIcons
-                    name="keyboard-alt-outlined"
+                    name="keyboard"
                     size={32}
                     color={colors.primary}
                   />
@@ -475,7 +495,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                   }
                 >
                   <MaterialIcons
-                    name="people-outlined"
+                    name="people-line"
                     size={32}
                     color={colors.primary}
                   />
@@ -510,22 +530,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                     <Text style={[styles.title, { color: colors.textDarker }]}>
                       Manage Courses
                     </Text>
-                    <TouchableOpacity
+                    <CustomButton
+                      title="View All"
                       onPress={() => navigation.navigate('ViewAllCourses')}
-                      style={[
-                        styles.ctaBtn,
-                        { backgroundColor: colors.btnColor },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.ctaBtnText,
-                          { color: colors.btnTextColor },
-                        ]}
-                      >
-                        View All
-                      </Text>
-                    </TouchableOpacity>
+                      disabled={isLoading}
+                      isLoading={isLoading}
+                      style={styles.ctaBtn}
+                    />
                   </View>
                   <View style={styles.filterContainer}>
                     <TouchableOpacity
@@ -553,7 +564,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         )}
                       </View>
                       <MaterialIcons
-                        name="arrow-drop-down"
+                        name="chevron-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -581,7 +592,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         </Text>
                       </View>
                       <MaterialIcons
-                        name="arrow-drop-down"
+                        name="chevron-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -613,14 +624,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       )}
       {!isFabMenuVisible && (
         <TouchableOpacity
-          style={homeStyles.fab}
+          style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons
-            name="widgets-outlined"
-            size={28}
-            color={colors.btnTextColor}
-          />
+          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <ExpandableFAB
@@ -629,14 +636,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         actions={['iAssistant', 'View Lectures', 'Library']}
         userRole={user.usertype}
       />
-      <CourseModal
-        isVisible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        course={selectedCourse!}
-        id={user.uid}
-        currentUser={user}
-        userRole={userRole}
-      />
+      {selectedCourse && (
+        <CourseModal
+          isVisible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          course={selectedCourse}
+          id={user.uid}
+          currentUser={user}
+          userRole={userRole}
+        />
+      )}
       <UploadProgressModal
         visible={uploading}
         progress={progress}
@@ -645,8 +654,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       <AttachmentModal
         isVisible={isAttachmentModalVisible}
         onClose={() => setIsAttachmentModalVisible(false)}
-        onPickImage={pickImage}
-        onPickDocument={pickDocument}
+        onPickImage={handlePickImage}
+        onPickDocument={handlePickDocument}
         onTakePhoto={handleCaptureCamera}
         colors={colors}
       />
@@ -699,7 +708,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
   emptyState: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
     borderRadius: 15,
   },
@@ -786,14 +796,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   ctaBtn: {
-    paddingVertical: 12,
-    borderRadius: 15,
     paddingHorizontal: 15,
-    alignContent: 'center',
   },
   ctaBtnText: {
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 75,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });
 

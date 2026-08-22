@@ -72,12 +72,6 @@ const FAQ_DATA: FAQItemType[] = [
       'If you have exhausted your free monthly allowance, you can purchase additional exceptions at a cost of 0.5 iCash each. Please note that if a lecturer disapproves or cancels a purchased exception, no refunds are issued.',
   },
   {
-    id: 'iap-3',
-    question: 'What happens when I buy a digital file or a course?',
-    answer:
-      'For digital files, the download URL is sent to you immediately after payment, and funds are instantly dispatched to the seller. For courses, completing the purchase grants you immediate access to your courses within your downloads section.',
-  },
-  {
     id: 'icash-4',
     question: 'How does the platform prevent fraud and double-spending?',
     answer:

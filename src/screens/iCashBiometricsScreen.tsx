@@ -246,7 +246,7 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
         ]}
       >
         <MaterialIcons
-          name="security-outlined"
+          name="security"
           size={60}
           color={colors.primary}
           style={{ marginBottom: 15 }}
@@ -303,7 +303,7 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
             onPress={handleBiometricAuth}
           >
             <MaterialIcons
-              name="fingerprint-outlined"
+              name="fingerprint"
               size={32}
               color={colors.primary}
             />
@@ -319,12 +319,14 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 15,
   },
   subContainer: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 15,
     borderRadius: 15,
   },

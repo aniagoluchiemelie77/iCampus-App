@@ -7,6 +7,7 @@ import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { Vibration } from 'react-native';
 import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -33,11 +34,7 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
           { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
         ]}
       >
-        <MaterialIcons
-          name="check-circle-outlined"
-          size={50}
-          color={colors.primary}
-        />
+        <MaterialIcons name="check-circle" size={50} color={colors.primary} />
         <Text style={[styles.congrats, { color: colors.textDarker }]}>
           Transaction Finalized!
         </Text>
@@ -56,20 +53,15 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
           The funds have been added to your wallet balance and are ready for
           use.
         </Text>
-
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
+        <CustomButton
+          title="View Wallet"
+          style={styles.button}
           onPress={() =>
             navigation.navigate('ICashDashboard', {
               refresh: true,
             })
           }
-        >
-          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-            View Wallet
-          </Text>
-        </TouchableOpacity>
-
+        />
         <TouchableOpacity
           onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
         >
@@ -83,8 +75,18 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignContent: 'center', padding: 15 },
-  subContainer: { alignContent: 'center', padding: 20, borderRadius: 15 },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+  },
+  subContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    borderRadius: 15,
+  },
   animation: { width: 150, height: 150 },
   congrats: { fontSize: 18, fontWeight: 'bold', marginVertical: 20 },
   label: { fontSize: 14, letterSpacing: 1, marginBottom: 15 },
@@ -92,11 +94,7 @@ const styles = StyleSheet.create({
   subDetail: { fontSize: 12, marginBottom: 15 },
   infoText: { textAlign: 'center', fontSize: 14, marginBottom: 20 },
   button: {
-    width: '80%',
     paddingHorizontal: 15,
-    borderRadius: 15,
-    alignContent: 'center',
-    paddingVertical: 10,
     marginBottom: 15,
   },
   buttonText: { fontWeight: 'bold', fontSize: 14 },

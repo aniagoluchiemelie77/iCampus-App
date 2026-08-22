@@ -25,6 +25,7 @@ import { handleDeletePhone } from '../api/localDeleteApis.ts';
 import { updatePhoneNumbersData } from '../context/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const PhoneScreen = () => {
   const { colors } = useTheme();
@@ -143,17 +144,13 @@ export const PhoneScreen = () => {
         {user.phoneNumbers ? (
           user.phoneNumbers?.map(item => (
             <View key={item.number} style={styles.phoneRow}>
-              <MaterialIcons
-                name="smartphone-outlined"
-                size={20}
-                color={colors.text}
-              />
+              <MaterialIcons name="smartphone" size={20} color={colors.text} />
               <Text style={[styles.phoneNumberText, { color: colors.text }]}>
                 {item.number}
               </Text>
               {item.isVerified && (
                 <MaterialIcons
-                  name="verified-user-outlined"
+                  name="verified-user"
                   size={20}
                   color={colors.primary}
                 />
@@ -165,6 +162,7 @@ export const PhoneScreen = () => {
                   name="delete-outline"
                   size={20}
                   color={colors.primary}
+                  style={{ padding: 10 }}
                 />
               </TouchableOpacity>
             </View>
@@ -207,30 +205,12 @@ export const PhoneScreen = () => {
                 Invalid number for {countryCode}
               </Text>
             )}
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                !isValid && styles.disabledButton,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title='Verify via WhatsApp'
+              style={[styles.inlineButtonMain]}
               disabled={!isValid}
               onPress={sendWhatsappCode}
-            >
-              <MaterialCommunityIcons
-                name="whatsapp"
-                size={20}
-                color={colors.btnTextColor}
-              />
-              <Text
-                style={[
-                  styles.primaryButtonText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                {' '}
-                Verify via WhatsApp
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         )}
         {step === 'verifyCode' && (
@@ -254,17 +234,11 @@ export const PhoneScreen = () => {
             >
               Code expires in: {formatSignupTime(timer)}
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.inlineButton,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title={isSubmitting ? 'Verifying...' : 'Verify & Update'}
+              style={[styles.inlineButtonMain]}
               onPress={handleVerify}
-            >
-              <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-                {isSubmitting ? 'Verifying...' : 'Verify & Update'}
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         )}
       </View>
@@ -279,7 +253,8 @@ const styles = StyleSheet.create({
   section: {
     padding: 15,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     fontSize: 18,
@@ -313,7 +288,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 15,
   },
   disabledButton: {
@@ -328,7 +304,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+  },
+  inlineButtonMain: {
+    paddingHorizontal: 15,
     marginVertical: 20,
   },
   buttonText: {
@@ -368,7 +349,8 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     width: '80%',
     alignSelf: 'center',
     paddingHorizontal: 15,
@@ -376,7 +358,6 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   cancelButtonText: {
-
     fontSize: 14,
     fontWeight: '600',
   },

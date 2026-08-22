@@ -19,7 +19,7 @@ const HeaderCloseButton = ({
   color: string;
 }) => (
   <TouchableOpacity onPress={onPress} style={{ marginLeft: 15 }}>
-    <MaterialIcons name="close-outlined" size={28} color={color} />
+    <MaterialIcons name="close" size={28} color={color} />
   </TouchableOpacity>
 );
 
@@ -122,7 +122,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
   loader: {
     ...StyleSheet.absoluteFill,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
   },
 });

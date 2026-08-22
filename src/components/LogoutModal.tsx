@@ -9,6 +9,7 @@ import {handleLogout} from '../api/localPostApis';
 import Modal from 'react-native-modal';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface LogoutModalProps {
   visible: boolean;
@@ -60,16 +61,11 @@ export const LogoutModal = ({
                 Cancel
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
-              onPress={handleLogoutAction}
-            >
-              <Text
-                style={[styles.saveBtnText, { color: colors.btnTextColor }]}
-              >
-                Logout
-              </Text>
-            </TouchableOpacity>
+            <CustomButton
+              title="Logout"
+              onPress={() => navigation.goBack()}
+              style={styles.saveBtn}
+            />
           </View>
         </View>
       </View>
@@ -114,9 +110,7 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
   saveBtn: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    paddingHorizontal: 15,
   },
   saveBtnText: {
     fontWeight: '700',
@@ -144,10 +138,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
   fullWidthBtn: {
-    width: '100%',
-    paddingVertical: 15,
-    alignContent: 'center',
-    borderRadius: 15,
+    paddingHorizontal: 15,
     marginVertical: 20,
   },
   fullWidthText: { fontWeight: 'bold', fontSize: 14 },
@@ -159,11 +150,8 @@ export const styles = StyleSheet.create({
   },
   sendBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 15,
+    height: 60,
     borderWidth: 1,
-    alignContent: 'center',
   },
   sendBtnText: { fontSize: 14, fontWeight: 'bold' },
   input: {

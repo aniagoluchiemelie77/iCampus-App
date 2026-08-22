@@ -83,7 +83,7 @@ export const CommentItem = ({ comment, onLike, onReply }: any) => {
             name={
               comment.likes?.includes(currentUser.uid)
                 ? 'favorite'
-                : 'favorite-outlined'
+                : 'favorite-outline'
             }
             size={16}
             color={colors.primary}
@@ -93,11 +93,7 @@ export const CommentItem = ({ comment, onLike, onReply }: any) => {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => onReply(comment.commentId)}>
-          <MaterialIcons
-            name="comment-outlined"
-            size={16}
-            color={colors.primary}
-          />
+          <MaterialIcons name="comment" size={16} color={colors.primary} />
           <Text style={[styles.actionText, { color: colors.text }]}>Reply</Text>
         </TouchableOpacity>
       </View>

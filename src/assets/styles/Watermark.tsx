@@ -36,7 +36,7 @@ export const IcampusWatermark = () => {
 
 const styles = StyleSheet.create({
   absoluteContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
     zIndex: 0,
   },

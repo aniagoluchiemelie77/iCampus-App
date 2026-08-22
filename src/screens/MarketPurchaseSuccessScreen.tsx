@@ -12,6 +12,7 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const MarketplacePurchaseSuccessScreen = ({
   route,
@@ -31,11 +32,7 @@ export const MarketplacePurchaseSuccessScreen = ({
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        <MaterialIcons
-          name="check-circle-outlined"
-          size={60}
-          color={colors.primary}
-        />
+        <MaterialIcons name="check-circle" size={60} color={colors.primary} />
         <Text style={[styles.title, { color: colors.textDarker }]}>
           Payment Successful!
         </Text>
@@ -52,41 +49,18 @@ export const MarketplacePurchaseSuccessScreen = ({
           <OrderAccordion key={item.orderId} order={item} />
         ))}
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: colors.btnColor }]}
+          <CustomButton
+            title="Back to Home"
+            style={[styles.primaryButton]}
             onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
-          >
-            <Text
-              style={[styles.primaryButtonText, { color: colors.btnTextColor }]}
-            >
-              Back to Home
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              {
-                backgroundColor: colors.btnColor,
-                flexDirection: 'row',
-                alignItems: 'center',
-              },
-            ]}
+          />
+          <CustomButton
+            title="Track All Pending Orders"
+            style={[styles.primaryButton]}
             onPress={() => navigation.navigate('PendingOrdersScreen')}
-          >
-            <MaterialIcons
-              name="inventory-outlined"
-              size={20}
-              color={colors.btnTextColor}
-            />
-            <Text
-              style={[
-                styles.primaryButtonText,
-                { color: colors.btnTextColor, marginLeft: 4 },
-              ]}
-            >
-              Track All Pending Orders
-            </Text>
-          </TouchableOpacity>
+            iconName="inventory"
+            iconColor="#fff"
+          />
         </View>
 
         <Text style={[styles.supportText, { color: colors.text }]}>
@@ -109,7 +83,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subContainer: {
     borderRadius: 15,
@@ -137,9 +112,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignContent: 'center',
+    width: 'auto',
   },
   primaryButtonText: {
     fontSize: 14,

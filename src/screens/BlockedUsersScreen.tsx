@@ -19,6 +19,7 @@ import { UserIdentity } from '../components/UserIdentity';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { UserAvatar } from '../components/UserAvatar';
 import { useTheme } from '../context/ThemeContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const BlockedUsersScreen = () => {
   const { colors } = useTheme();
@@ -36,7 +37,7 @@ export const BlockedUsersScreen = () => {
   const fetchBlockedUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getBlockedUsers(currentUser.uid);
+      const data = await getBlockedUsers({ userId: currentUser.uid });
       setBlockedUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('[BLOCKED_USERS_FETCH_ERROR]', err);
@@ -70,8 +71,6 @@ export const BlockedUsersScreen = () => {
             action: result.action,
           }),
         );
-
-        // Optimistically remove user from local array state matrix
         setBlockedUsers(prev => prev.filter(user => user.uid !== targetId));
 
         Toast.show({
@@ -135,7 +134,7 @@ export const BlockedUsersScreen = () => {
             >
               <View style={styles.userInfo}>
                 <UserAvatar
-                  profilePic={item.profilePic} // Let component manage layout array metrics
+                  profilePic={item.profilePic}
                   firstName={item.firstname || 'User'}
                   lastName={item.lastname || ''}
                   organizationName={item.organizationName}
@@ -152,26 +151,12 @@ export const BlockedUsersScreen = () => {
                 />
               </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.unblockBtn,
-                  { backgroundColor: colors.btnColor },
-                  isUnblocking && { opacity: 0.5 }, // Visual indicator for processing state
-                ]}
+              <CustomButton
+                title={isUnblocking ? 'Unblocking...' : 'Unblock'}
+                style={[styles.unblockBtn, isUnblocking && { opacity: 0.7 }]}
                 onPress={() => handleUnblock(item.uid)}
-                activeOpacity={0.7}
-                disabled={isUnblocking} // Lock hardware layer interaction
-              >
-                {isUnblocking ? (
-                  <ActivityIndicator size="small" color={colors.btnTextColor} />
-                ) : (
-                  <Text
-                    style={[styles.unblockText, { color: colors.btnTextColor }]}
-                  >
-                    Unblock
-                  </Text>
-                )}
-              </TouchableOpacity>
+                disabled={isUnblocking}
+              />
             </View>
           );
         }}
@@ -200,16 +185,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  userHandle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
   unblockBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignSelf: 'flex-end',
+    paddingHorizontal: 15,
   },
   unblockText: {
     fontSize: 14,

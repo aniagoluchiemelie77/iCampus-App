@@ -51,8 +51,8 @@ export const getToastConfig = (colors: any) => ({
 const styles = StyleSheet.create({
   toastDiv: {
     position: 'static',
-    bottom: 70,
-    left: 7,
+    bottom: 50,
+    left: 10,
   },
   toastText: {
     fontSize: 14,

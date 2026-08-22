@@ -7,7 +7,6 @@ import {
   StyleSheet,
   LayoutAnimation,
   TouchableOpacity,
-  Linking,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -35,15 +34,6 @@ interface FAQItemProps {
   question: string;
   answer: string;
 }
-const handleDownload = (url: string) => {
-  if (!url) {
-    Alert.alert('Error', 'Download link not available.');
-    return;
-  }
-  Linking.openURL(url).catch(() =>
-    Alert.alert('Error', 'Could not open download link.'),
-  );
-};
 export const MyQRCodeSection = ({ itagusername }: { itagusername: string }) => {
   const { colors } = useTheme();
   return (
@@ -131,7 +121,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
           </View>
         </View>
         <MaterialIcons
-          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+          name={expanded ? 'chevron-up' : 'chevron-down'}
           size={24}
           color={colors.text}
         />
@@ -166,7 +156,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               {order.selectedStation && (
                 <View style={QRCodeStyles.stationBox}>
                   <MaterialIcons
-                    name="local-shipping-outlined"
+                    name="local-shipping"
                     size={16}
                     color={colors.text}
                   />
@@ -181,7 +171,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
           ) : (
             <View style={QRCodeStyles.digitalSection}>
               <MaterialIcons
-                name="check-circle-outlined"
+                name="check-circle"
                 size={60}
                 color={colors.success}
               />
@@ -193,29 +183,6 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               >
                 Transaction Completed
               </Text>
-              {order.productType === 'file' && order.fileUrl && (
-                <TouchableOpacity
-                  style={[
-                    QRCodeStyles.downloadButton,
-                    { backgroundColor: colors.btnColor },
-                  ]}
-                  onPress={() => handleDownload(order.fileUrl!)}
-                >
-                  <MaterialIcons
-                    name="file-download"
-                    size={20}
-                    color={colors.btnTextColor}
-                  />
-                  <Text
-                    style={[
-                      QRCodeStyles.downloadButtonText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Download File
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           )}
         </View>
@@ -337,7 +304,7 @@ export const SellerOrderAccordion = ({ order, onStatusUpdated }: any) => {
           </View>
         </View>
         <MaterialIcons
-          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+          name={expanded ? 'chevron-up' : 'chevron-down'}
           size={24}
           color={colors.text}
         />
@@ -412,7 +379,7 @@ export const SellerOrderAccordion = ({ order, onStatusUpdated }: any) => {
           {order.status === 'dropped_off' && (
             <View style={QRCodeStyles.actionBox}>
               <MaterialIcons
-                name="storefront-outlined"
+                name="storefront"
                 size={20}
                 color={currentStatus.color}
               />
@@ -426,7 +393,7 @@ export const SellerOrderAccordion = ({ order, onStatusUpdated }: any) => {
           {order.status === 'cancelled' && (
             <View style={QRCodeStyles.actionBox}>
               <MaterialIcons
-                name="cancel-outlined"
+                name="cancel"
                 size={20}
                 color={currentStatus.color}
               />
@@ -438,7 +405,7 @@ export const SellerOrderAccordion = ({ order, onStatusUpdated }: any) => {
           {order.status === 'completed' && (
             <View style={QRCodeStyles.actionBox}>
               <MaterialIcons
-                name="check-circle-outlined"
+                name="check-circle"
                 size={20}
                 color={currentStatus.color}
               />
@@ -505,7 +472,7 @@ export const FAQItem = ({ question, answer }: FAQItemProps) => {
           Q: {question}
         </Text>
         <MaterialIcons
-          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+          name={expanded ? 'chevron-up' : 'chevron-down'}
           size={24}
           color={colors.text}
         />
@@ -568,7 +535,7 @@ export const StudentGradeCard = ({
             {projectedScore}
           </Text>
           <MaterialIcons
-            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            name={expanded ? 'chevron-up' : 'chevron-down'}
             size={24}
             color={colors.text}
           />
@@ -801,7 +768,8 @@ const QRCodeStyles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   submitButtonText: {
     fontSize: 14,

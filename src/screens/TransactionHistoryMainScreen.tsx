@@ -7,7 +7,6 @@ import {
   Text,
   Modal,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
@@ -18,6 +17,7 @@ import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { CustomButton } from '../assets/components/AppUIComponents.tsx';
 
 export const AllTransactionsScreen = ({ route }: any) => {
   const { colors } = useTheme();
@@ -182,7 +182,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
                 Export to PDF
               </Text>
               <MaterialIcons
-                name="insert-drive-file-outlined"
+                name="insert-drive-file"
                 size={22}
                 color={colors.btnTextColor}
               />
@@ -223,7 +223,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
                 onPress={() => setPickerMode('start')}
               >
                 <MaterialIcons
-                  name="calendar-month-outlined"
+                  name="calendar-month"
                   size={24}
                   color={colors.text}
                 />
@@ -243,7 +243,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
                 onPress={() => setPickerMode('end')}
               >
                 <MaterialIcons
-                  name="calendar-month-outlined"
+                  name="calendar-month"
                   size={24}
                   color={colors.text}
                 />
@@ -277,26 +277,12 @@ export const AllTransactionsScreen = ({ route }: any) => {
                   Cancel
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  iCashScreenStyles.modalBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
+              <CustomButton
+                title={isExporting ? 'Exporting...' : 'Export'}
+                style={[iCashScreenStyles.modalBtnMain]}
                 onPress={handleExport}
-              >
-                {isExporting ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <Text
-                    style={[
-                      iCashScreenStyles.modalBtnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Export
-                  </Text>
-                )}
-              </TouchableOpacity>
+                disabled={isExporting}
+              />
             </View>
           </View>
         </View>
@@ -400,7 +386,12 @@ export const iCashScreenStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderWidth: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnMain: {
+    paddingHorizontal: 15,
+    width: 'auto',
   },
   rowDiv: {
     flexDirection: 'row',

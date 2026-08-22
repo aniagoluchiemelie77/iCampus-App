@@ -6,8 +6,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
 } from 'react-native';
+import { IconOutline } from '@ant-design/icons-react-native';
 import { loginUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../context/UserSlice';
@@ -15,19 +18,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import SweetAlertModal from '../components/alertscomponent';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Icon from 'react-native-vector-icons/Ionicons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import {
-  SignupScreenStyles,
-  StudentSignupStyles,
-} from '../assets/styles/colors';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import DeviceInfo from 'react-native-device-info';
 import { isValidEmail } from '../utils/SignupHelpers';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { authorize } from 'react-native-app-auth';
 import { githubConfig } from '../components/OtherUserSignup';
-import { MainSignupStyles } from '../assets/styles/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CustomButton } from '../assets/components/AppUIComponents';
+
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const Login = () => {
   const navigation = useNavigation<any>();
@@ -150,96 +151,118 @@ const Login = () => {
   }, [identifier, password, isSocialsLogin]);
 
   return (
-    <KeyboardAvoidingView
-      style={SignupScreenStyles.bkg}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <IconBackground />
-      <View style={StudentSignupStyles.container}>
-        <MaterialIcons
-          name="verified-user-outlined"
-          size={40}
-          color={PRIMARY_COLOR}
-        />
-        <Text style={StudentSignupStyles.mainHeader}>Login</Text>
-
-        <TextInput
-          placeholder="Enter your email..."
-          style={StudentSignupStyles.input}
-          value={identifier}
-          onChangeText={setIdentifier}
-        />
-        <Text style={SignupScreenStyles.validationText}>
-          {identifier.length > 0 && !isValidEmail(identifier)
-            ? 'Invalid email format'
-            : ''}
-        </Text>
-
-        <View style={StudentSignupStyles.passwordInput}>
-          <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
-            <MaterialIcons
-              name={
-                showPassword ? 'visibility-off-outlined' : 'visibility-outlined'
-              }
-              size={20}
-              color="#333"
-              style={{ marginHorizontal: 5 }}
-            />
-          </TouchableOpacity>
-
-          <TextInput
-            placeholder="Enter your password..."
-            placeholderTextColor={PRIMARY_COLOR_TINT}
-            style={StudentSignupStyles.input2}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={SignupScreenStyles.toggleBtns}
-          onPress={handlePasswordLogin}
-          disabled={isLoading || canSubmit}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" size={'small'} />
-          ) : (
-            <Text style={SignupScreenStyles.toggleBtnsText}>Login</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={StudentSignupStyles.socialContainer}>
-          <TouchableOpacity
-            style={StudentSignupStyles.socialButton}
-            onPress={() => handleSocialLogin('google')}
-            disabled={isLoading}
-          >
-            <Icon name="logo-google" size={20} color={PRIMARY_COLOR} />
-            <Text style={StudentSignupStyles.socialButtonText}>Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={StudentSignupStyles.socialButton}
-            onPress={() => handleSocialLogin('github')}
-            disabled={isLoading}
-          >
-            {/* Using the Icon component here fixes the 'never read' warning */}
-            <Icon name="logo-github" size={20} color={PRIMARY_COLOR} />
-            <Text style={StudentSignupStyles.socialButtonText}>GitHub</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View
-        style={[MainSignupStyles.footerDiv, MainSignupStyles.footerBottomDiv]}
+      <KeyboardAvoidingView
+        style={styles.bkg}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <Text style={[MainSignupStyles.footerDivText, { color: '#222' }]}>
-          Don't have an account?
-        </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-          <Text style={MainSignupStyles.footerDivText2}>Signup</Text>
-        </TouchableOpacity>
-      </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.container}>
+            <MaterialIcons
+              name="lock-outline"
+              size={60}
+              color={PRIMARY_COLOR}
+            />
+            <Text style={styles.mainHeader}>Login</Text>
+            <View style={styles.passwordInput}>
+              <MaterialIcons
+                name="email"
+                size={20}
+                color={PRIMARY_COLOR_TINT}
+                style={{ marginRight: 7 }}
+              />
+
+              <TextInput
+                placeholder="Enter your email..."
+                placeholderTextColor={PRIMARY_COLOR_TINT}
+                style={styles.input2}
+                value={identifier}
+                onChangeText={setIdentifier}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {identifier.length > 0 && !isValidEmail(identifier) && (
+              <Text style={styles.validationText}>Invalid email format</Text>
+            )}
+
+            <View style={styles.passwordInput}>
+              <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+                <MaterialIcons
+                  name={showPassword ? 'visibility-off' : 'visibility'}
+                  size={20}
+                  color={PRIMARY_COLOR_TINT}
+                  style={{ marginRight: 7 }}
+                />
+              </TouchableOpacity>
+
+              <TextInput
+                placeholder="Enter your password..."
+                placeholderTextColor={PRIMARY_COLOR_TINT}
+                style={styles.input2}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.forgotPasswordBtn}
+              onPress={() => navigation.navigate('ForgotPasswordScreen')}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+            <CustomButton
+              title="Login"
+              style={[
+                styles.toggleBtns,
+                {
+                  opacity: isLoading ? 0.7 : 1,
+                },
+              ]}
+              onPress={handlePasswordLogin}
+              disabled={isLoading || !canSubmit}
+            />
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <View style={styles.socialButtonRow}>
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleSocialLogin('google')}
+                disabled={isLoading}
+              >
+                <IconOutline name="google" size={24} color={PRIMARY_COLOR} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleSocialLogin('github')}
+                disabled={isLoading}
+              >
+                <IconOutline name="github" size={24} color={PRIMARY_COLOR} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.footerDiv}>
+              <Text style={[styles.footerDivText, { color: '#222' }]}>
+                Don't have an account?
+              </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                <Text style={styles.footerDivText2}>Signup</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <SweetAlertModal
         visible={alertVisible}
@@ -248,7 +271,143 @@ const Login = () => {
         message={alertMessage}
         type={alertType}
       />
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f0eb',
+    position: 'relative',
+  },
+  bkg: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  toggleBtns: {
+    height: 50,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    backgroundColor: PRIMARY_COLOR,
+    marginBottom: 20,
+  },
+  validationText: {
+    fontSize: 12,
+    color: PRIMARY_COLOR,
+    fontWeight: 800,
+    marginBottom: 15,
+    width: '100%',
+  },
+  toggleBtnsText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: 400,
+    width: '100%',
+    padding: 25,
+    backgroundColor: '#fff',
+    zIndex: 10,
+    borderRadius: 15,
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mainHeader: {
+    fontSize: 25,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+    marginVertical: 25,
+    alignSelf: 'center',
+  },
+  passwordInput: {
+    width: '100%',
+    borderRadius: 5,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    height: 60,
+  },
+  input2: {
+    flex: 1,
+    fontSize: 14,
+    color: '#222',
+    backgroundColor: 'transparent',
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 10,
+  },
+  socialButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 30,
+  },
+  forgotPasswordBtn: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+  },
+  footerDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  footerDivText: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  footerDivText2: {
+    fontSize: 14,
+    color: PRIMARY_COLOR,
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: PRIMARY_COLOR_TINT,
+    fontSize: 14,
+  },
+});
 export default Login;
+

@@ -24,22 +24,22 @@ const ACTION_CONFIG: Record<
 > = {
   // --- Social / General ---
   'Create Poll': {
-    icon: 'poll-outlined',
+    icon: 'poll',
     route: 'CreatePost',
     params: { type: 'poll' },
   },
   'Post Job': {
-    icon: 'business-center-outlined',
+    icon: 'business-center',
     route: 'CreatePost',
     params: { type: 'job' },
   },
   'Create Event': {
-    icon: 'event-outlined',
+    icon: 'event',
     route: 'CreatePost',
     params: { type: 'event' },
   },
   iAssistant: {
-    icon: 'auto-awesome-outlined',
+    icon: 'auto-awesome',
     route: 'Assistant',
     params: {
       contextType: 'general',
@@ -57,27 +57,27 @@ const ACTION_CONFIG: Record<
 
   // --- Financial / Wallet ---
   iCash: {
-    icon: 'account-balance-wallet-outlined',
+    icon: 'account-balance-wallet',
     route: 'ICashDashboard',
     params: {},
   },
 
   // --- Classroom Page ---
   'View Lectures': {
-    icon: 'menu-book-outlined',
+    icon: 'menu-book',
     route: 'CourseSubPage',
     params: { title: 'View Lecture Schedule' },
   },
   'Create Course': {
-    icon: 'library-books-outlined',
+    icon: 'library-books',
     route: 'CreateCourse',
     params: {},
     category: 'premium',
   },
-  'Live Chat': { icon: 'chat-bubble-outline-outlined', route: 'Modal' },
-  'Hand Wave': { icon: 'waving-hand-outlined', route: 'Socket' },
+  'Live Chat': { icon: 'chat', route: 'Modal' },
+  'Hand Wave': { icon: 'waving-hand', route: 'Socket' },
   Library: {
-    icon: 'align-vertical-bottom-outlined',
+    icon: 'library-books',
     route: 'LibraryScreen',
     params: {},
   },
@@ -89,12 +89,12 @@ const ACTION_CONFIG: Record<
     params: {},
   },
   'Sales Hub': {
-    icon: 'store-front-outlined',
+    icon: 'store-front',
     route: 'SalesHub',
     params: {},
   },
   'View Cart': {
-    icon: 'shopping-cart-outlined',
+    icon: 'shopping-cart',
     route: 'CartScreen',
     params: {},
   },
@@ -225,11 +225,7 @@ const ExpandableFAB = ({
           style={[styles.mainFabActive, { backgroundColor: colors.btnColor }]}
           onPress={onClose}
         >
-          <MaterialIcons
-            name="close-outlined"
-            size={30}
-            color={colors.btnTextColor}
-          />
+          <MaterialIcons name="close" size={30} color={colors.btnTextColor} />
         </TouchableOpacity>
       </View>
     </Modal>

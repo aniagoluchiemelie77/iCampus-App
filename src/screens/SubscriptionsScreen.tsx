@@ -15,6 +15,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User } from '../types/firebase';
 import Modal from 'react-native-modal';
 import Toast from 'react-native-toast-message';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import { verifySubscriptionOnBackend } from '../api/localPostApis';
 import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
 import {
@@ -29,16 +30,7 @@ const CARD_WIDTH = width * 0.8;
 type SubscriptionTier = User['tier'] | 'free';
 
 type FlutterwaveCurrency =
-  | 'NGN'
-  | 'USD'
-  | 'GHS'
-  | 'ZAR'
-  | 'KES'
-  | 'UGX'
-  | 'TZS'
-  | 'GBP'
-  | 'EUR'
-  | 'CAD';
+  'NGN' | 'USD' | 'GHS' | 'ZAR' | 'KES' | 'UGX' | 'TZS' | 'GBP' | 'EUR' | 'CAD';
 
 interface Props {
   route: { params: { targetScreen?: string } };
@@ -253,7 +245,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                   {plan.features.map((f, i) => (
                     <View key={i} style={styles.featureRow}>
                       <MaterialIcons
-                        name="check-circle-outlined"
+                        name="check-circle"
                         size={16}
                         color={colors.primary}
                       />
@@ -266,26 +258,15 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                   ))}
                 </View>
                 {!isFree && selectedTier !== tier && (
-                  <TouchableOpacity
+                  <CustomButton
+                    title="Select Plan"
                     onPress={() => {
                       setSelectedTier(plan.id);
                       setPayModalVisible(true);
                     }}
                     disabled={isCurrentPlan}
-                    style={[
-                      styles.payButton,
-                      { backgroundColor: colors.btnColor },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.payButtonText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Select Plan
-                    </Text>
-                  </TouchableOpacity>
+                    style={[styles.payButtonMain]}
+                  />
                 )}
               </View>
             );
@@ -369,11 +350,15 @@ const styles = StyleSheet.create({
   payButton: {
     paddingHorizontal: 16,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
     width: '80%',
     paddingVertical: 10,
     alignSelf: 'center',
+  },
+  payButtonMain: {
+    paddingHorizontal: 16,
   },
   payButtonText: { fontSize: 14, fontWeight: 'bold' },
   horizontalWrapper: {
@@ -466,7 +451,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 15,
     alignSelf: 'center',
-    alignContent: 'center',
+    justifyContent: 'center',
   },
   cancelButtonText: {
     fontSize: 14,

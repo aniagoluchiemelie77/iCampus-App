@@ -12,7 +12,7 @@ import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
-
+import { CustomButton } from '../assets/components/AppUIComponents';
 interface DeleteModalProps {
   visible: boolean;
   onClose: () => void;
@@ -26,7 +26,7 @@ export const DeleteAccountModal = ({
 }: DeleteModalProps) => {
   const user = useAppSelector(state => state.user);
   const { colors } = useTheme();
-  const [step, setStep] = useState(0); 
+  const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -73,26 +73,26 @@ export const DeleteAccountModal = ({
               To continue, please enter your email address:
             </Text>
             <View style={[styles.inputGroup, { borderColor: colors.border }]}>
-              <MaterialIcons
-                name="mail-outlined"
-                size={14}
-                color={colors.primary}
-              />
+              <MaterialIcons name="email" size={14} color={colors.primary} />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="email@campus.com"
                 placeholderTextColor={colors.inputTextHolder}
-                style={[styles.input, {color: colors.text }]}
+                style={[styles.input, { color: colors.text }]}
               />
             </View>
-            {emailError && <Text style={[styles.errorText, { color: colors.primary }]}>{emailError}</Text>}
-            <TouchableOpacity
+            {emailError && (
+              <Text style={[styles.errorText, { color: colors.primary }]}>
+                {emailError}
+              </Text>
+            )}
+
+            <CustomButton
+              title="Continue"
               onPress={validateEmailAndProceed}
-              style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}
-            >
-              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>Continue</Text>
-            </TouchableOpacity>
+              style={styles.continueBtn}
+            />
           </Animated.View>
         );
       case 2:
@@ -108,17 +108,22 @@ export const DeleteAccountModal = ({
               {popularReasons.map(item => (
                 <TouchableOpacity
                   key={item}
-                  style={[styles.chip, reason === item && {backgroundColor: colors.primary}]}
+                  style={[
+                    styles.chip,
+                    reason === item && { backgroundColor: colors.primary },
+                  ]}
                   onPress={() => setReason(item)}
                 >
                   <Text
                     style={[
                       styles.chipText,
-                      reason === item ? {
-                        color: '#fff'
-                      }:{
-                        color: colors.text
-                      }
+                      reason === item
+                        ? {
+                            color: '#fff',
+                          }
+                        : {
+                            color: colors.text,
+                          },
                     ]}
                   >
                     {item}
@@ -131,14 +136,16 @@ export const DeleteAccountModal = ({
                 value={reason}
                 onChangeText={setReason}
                 placeholderTextColor={colors.inputTextHolder}
-                style={[styles.input, {color: colors.text }]}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Tell us more..."
                 multiline
               />
             </View>
-            <TouchableOpacity onPress={nextStep} style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}>
-              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>Continue</Text>
-            </TouchableOpacity>
+            <CustomButton
+              title="Continue"
+              onPress={nextStep}
+              style={styles.continueBtn}
+            />
           </Animated.View>
         );
       case 3:
@@ -148,7 +155,7 @@ export const DeleteAccountModal = ({
             exiting={FadeOutLeft}
           >
             <MaterialIcons
-              name="error-outline-outlined"
+              name="error"
               size={40}
               color={colors.primary}
               style={styles.errorIcon}
@@ -157,16 +164,18 @@ export const DeleteAccountModal = ({
               Deleting your account is permanent. You will lose all your iCampus
               credits and history.
             </Text>
-            <TouchableOpacity onPress={nextStep} style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}>
-              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>I Understand</Text>
-            </TouchableOpacity>
+            <CustomButton
+              title="I Understand"
+              onPress={nextStep}
+              style={styles.continueBtn}
+            />
           </Animated.View>
         );
       case 4:
         return (
           <View>
             <MaterialIcons
-              name="sentiment-dissatisfied-outlined"
+              name="emoji-sad"
               size={40}
               color={colors.primary}
               style={styles.errorIcon}
@@ -174,14 +183,11 @@ export const DeleteAccountModal = ({
             <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               We're sad to see you go. iCampus won't be the same without you.
             </Text>
-            <TouchableOpacity
+            <CustomButton
+              title="Delete my account forever"
               onPress={() => handleFinalDelete({ navigation, reason })}
-              style={[styles.continueBtn, { backgroundColor: colors.btnColor }]}
-            >
-              <Text style={[styles.continueBtnText, { color: colors.btnTextColor }]}>
-                Delete my account forever
-              </Text>
-            </TouchableOpacity>
+              style={styles.continueBtn}
+            />
           </View>
         );
     }
@@ -195,8 +201,15 @@ export const DeleteAccountModal = ({
       onSwipeComplete={() => onClose()}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.backgroundSecondary }]}>
-          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>Delete Account</Text>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+            Delete Account
+          </Text>
           {renderStep()}
         </View>
       </View>
@@ -207,7 +220,8 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalContent: {
     borderRadius: 25,
@@ -269,10 +283,9 @@ const styles = StyleSheet.create({
   },
   continueBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
     marginVertical: 20,
   },
   continueBtnText: {
-    fontSize: 14
+    fontSize: 14,
   },
 });

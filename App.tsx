@@ -1,11 +1,6 @@
+import { NavigationContainer } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  View,
-  StyleSheet,
-  Platform,
-  UIManager,
-} from 'react-native';
+import { Platform, UIManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/context/store.ts';
 import { Provider } from 'react-redux';
@@ -22,6 +17,7 @@ import type {
   SupportTicket,
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AdminLogin } from './src/screens/AdminLogin.tsx';
 const linking = {
   prefixes: [
     'https://useicampus.io',
@@ -58,10 +54,9 @@ const linking = {
     },
   },
 };
-import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TransitionPresets } from '@react-navigation/stack';
-import { navigationRef } from './src/context/navigationContext.ts';
+import { navigationRef, navigate } from './src/context/navigationContext.ts';
 
 import SignUpScreen from './src/screens/Signup';
 import SignupPage from './src/screens/SignupPage';
@@ -118,7 +113,6 @@ import { CreateReviewScreen } from './src/screens/ReviewsScreen.tsx';
 import { FAQScreen } from './src/screens/FAQScreen.tsx';
 import { useTheme } from './src/context/ThemeContext.tsx';
 import { getToastConfig } from './src/components/ToastConfig.tsx';
-import { PRIMARY_COLOR } from './src/assets/styles/colors.ts';
 import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.tsx';
 import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 import { AdminDashboard } from './src/screens/SupportAdminDashboard.tsx';
@@ -138,7 +132,7 @@ import { ViewAllAdsScreen } from './src/screens/ViewAllAds.tsx';
 import { AdAorEScreen } from './src/screens/AdsCreateOrEditScreen.tsx';
 import { ViewAllSupportInquiriesScreen } from './src/screens/SupportInquiriesScreen.tsx';
 import { SupportChatScreen } from './src/screens/SupportEmailsChat.tsx';
-export const baseUrl = 'http://192.168.1.98:5000/';
+import { refreshAccessToken } from './src/api/localPostApis.ts';
 
 export type RootStackParamList = {
   SignUp: undefined;
@@ -148,6 +142,7 @@ export type RootStackParamList = {
   AdAorE: {
     item?: any;
   };
+  AdminLogin: undefined;
   ViewAllSupportInquiries: undefined;
   RegisterStation: undefined;
   ViewAllTaxEntries: undefined;
@@ -323,17 +318,396 @@ export type RootStackParamList = {
   IcashP2PScreen: undefined;
   Login: undefined;
 };
-
-type RouteName = 'SignUp' | 'Welcome' | 'Home' | 'Login';
 const Stack = createStackNavigator<RootStackParamList>();
 
-const App = () => {
+function MainApp() {
   const { colors } = useTheme();
   const toastConfig = getToastConfig(colors);
-  const [initialRoute, setInitialRoute] = useState<RouteName | null>(null);
   const [initialParams, _setInitialParams] = useState<
     RootStackParamList['Welcome'] | undefined
   >(undefined);
+
+  return (
+    <NavigationContainer linking={linking} ref={navigationRef}>
+      <Stack.Navigator initialRouteName={'Welcome'}>
+        <Stack.Screen
+          name="SignUp"
+          component={SignUpScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ViewAllSupportInquiries"
+          component={ViewAllSupportInquiriesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AdAorE"
+          component={AdAorEScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SupportChat"
+          component={SupportChatScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ViewAllSchools"
+          component={ViewAllSchoolsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ViewAllAds"
+          component={ViewAllAdsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AdminSearchScreen"
+          component={AdminSearchScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ViewAllTaxEntries"
+          component={AllTaxEntriesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PrivacyPolicy"
+          component={PrivacyScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AdminLogin"
+          component={AdminLogin}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="TermsOfService"
+          component={TermsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ViewAllCourses"
+          component={ViewAllCoursesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="RegisterStation"
+          component={RegisterStationScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ICashBuyPage"
+          component={ICashBuyPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ICashWithdrawPage"
+          component={ICashWithdrawPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="StationAorEScreen"
+          component={StationAorEScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AdminDashboard"
+          component={AdminDashboard}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ViewAllDropStations"
+          component={ViewAllDropStations}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SchoolAorE"
+          component={SchoolAorEScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreatePost"
+          component={CreatePost}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateReviewScreen"
+          component={CreateReviewScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="TransactionDetail"
+          component={TransactionDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LiveClassSessions"
+          component={LiveClassSessions}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SellerProducts"
+          component={SellerProductsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AdminFormPage"
+          component={AdminFormPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="TicketResolveScreen"
+          component={TicketResolveScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MSuccessScreen"
+          component={MarketplacePurchaseSuccessScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FAQScreen"
+          component={FAQScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PhysicalAttendanceManager"
+          component={PhysicalAttendanceManager}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PendingOrdersScreen"
+          component={PendingOrdersScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="VerifyOTP"
+          component={VerifyOTP}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="StudentAttendanceScanner"
+          component={StudentAttendanceScanner}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateProduct"
+          component={CreateProductScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="IcashP2PScreen"
+          component={IcashP2PScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Subscription"
+          component={SubscriptionScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Login"
+          component={Login}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ProductPublishSuccess"
+          component={ProductPublishSuccess}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={Notifications}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PayoutSuccess"
+          component={PayoutSuccess}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="OrderVerificationSuccess"
+          component={OrderVerificationSuccess}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AllTransactionsScreen"
+          component={AllTransactionsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CartScreen"
+          component={CartScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Assistant"
+          component={Assistant}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="Checkout"
+          component={CheckoutScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SuspendedScreen"
+          component={SuspendedScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="NotificationSettings"
+          component={NotificationSettings}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FlutterwaveWebview"
+          component={FlutterwaveWebview}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="iCashSecurity"
+          component={ICashSecurityGateway}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SalesHub"
+          component={MerchantDashboard}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LinkedDevicesScreen"
+          component={LinkedDevicesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BlockedUsers"
+          component={BlockedUsersScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EmailsScreen"
+          component={EmailsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PhoneScreen"
+          component={PhoneScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ResetPasswordScreen"
+          component={ResetPasswordScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PersonaVerify"
+          component={PersonaVerificationScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ICashResetPin"
+          component={ICashResetPin}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="iCashSuccessScreen"
+          component={ICashSuccessScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Welcome"
+          component={WelcomeScreen}
+          initialParams={initialParams}
+          options={{
+            headerShown: false,
+            ...TransitionPresets.FadeFromRightAndroid,
+          }}
+        />
+        <Stack.Screen
+          name="SignupPage"
+          component={SignupPage}
+          options={{
+            headerShown: false,
+            ...TransitionPresets.FadeFromRightAndroid,
+          }}
+        />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ICashDashboard"
+          component={ICashDashboard}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LibraryScreen"
+          component={LibraryScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ChangePasswordScreen"
+          component={ChangePasswordScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="NotificationDetails"
+          component={NotificationDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CourseSubPage"
+          component={CourseSubPage}
+          options={({ route }) => ({
+            title: route.params.title,
+            headerShown: false,
+          })}
+        />
+        <Stack.Screen
+          name="ForgotPasswordScreen"
+          component={ForgotPasswordScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={Settings}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FavoritesScreen"
+          component={FavoritesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ProductDetails"
+          component={ProductDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PostDetailScreen"
+          component={PostDetailScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Navigator>
+      <Toast config={toastConfig} />
+    </NavigationContainer>
+  );
+}
+
+const App = () => {
   if (Platform.OS === 'android') {
     if (UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -355,437 +729,52 @@ const App = () => {
 
         if (!hasLaunched) {
           await AsyncStorage.setItem('hasLaunched', 'true');
-          setInitialRoute('Welcome');
-          _setInitialParams({ route: 'SignUp' });
+          navigate('Welcome', { route: 'SignUp' });
           return;
         }
 
         if (accessToken) {
-          setInitialRoute('Home');
+          navigate('Welcome', { route: 'Home' });
           return;
         } else if (refreshToken) {
-          // Logic: Try to get a new Access Token using the Refresh Token
-          const response = await fetch(`${baseUrl}user/refresh-token`, {
-            method: 'POST',
-            body: JSON.stringify({ refreshToken }),
-          });
+          const result = await refreshAccessToken(refreshToken);
 
-          if (response.ok) {
-            const { accessToken: newAccess } = await response.json();
-            await AsyncStorage.setItem('accessToken', newAccess);
-            setInitialRoute('Home');
+          if (result.success) {
+            navigate('Welcome', { route: 'Home' });
           } else {
-            setInitialRoute('Welcome');
-            _setInitialParams({ route: 'Login' });
+            navigate('Welcome', { route: 'Login' });
           }
         } else {
-          setInitialRoute('Welcome');
-          _setInitialParams({ route: 'SignUp' });
+          navigate('Welcome', { route: 'SignUp' });
         }
       } catch (error) {
-        setInitialRoute('Welcome');
-        _setInitialParams({ route: 'SignUp' });
+        navigate('Welcome', { route: 'SignUp' });
       }
     };
     setTimeout(() => {
       initializeApp();
-    }, 100); // slight delay to avoid blocking UI thread
+    }, 100);
   }, []);
-
-  if (!initialRoute) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-      </View>
-    );
-  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
         <ThemeProvider>
-          <NavigationContainer linking={linking} ref={navigationRef}>
-            <Stack.Navigator initialRouteName={initialRoute || 'SignUp'}>
-              <Stack.Screen
-                name="SignUp"
-                component={SignUpScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ViewAllSupportInquiries"
-                component={ViewAllSupportInquiriesScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="AdAorE"
-                component={AdAorEScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="SupportChat"
-                component={SupportChatScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ViewAllSchools"
-                component={ViewAllSchoolsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ViewAllAds"
-                component={ViewAllAdsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="AdminSearchScreen"
-                component={AdminSearchScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ViewAllTaxEntries"
-                component={AllTaxEntriesScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PrivacyPolicy"
-                component={PrivacyScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="TermsOfService"
-                component={TermsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ViewAllCourses"
-                component={ViewAllCoursesScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="RegisterStation"
-                component={RegisterStationScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ICashBuyPage"
-                component={ICashBuyPage}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ICashWithdrawPage"
-                component={ICashWithdrawPage}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="StationAorEScreen"
-                component={StationAorEScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="AdminDashboard"
-                component={AdminDashboard}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ViewAllDropStations"
-                component={ViewAllDropStations}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="SchoolAorE"
-                component={SchoolAorEScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="CreatePost"
-                component={CreatePost}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="CreateReviewScreen"
-                component={CreateReviewScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="TransactionDetail"
-                component={TransactionDetailScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="LiveClassSessions"
-                component={LiveClassSessions}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="SellerProducts"
-                component={SellerProductsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="AdminFormPage"
-                component={AdminFormPage}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="TicketResolveScreen"
-                component={TicketResolveScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="MSuccessScreen"
-                component={MarketplacePurchaseSuccessScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="FAQScreen"
-                component={FAQScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PhysicalAttendanceManager"
-                component={PhysicalAttendanceManager}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PendingOrdersScreen"
-                component={PendingOrdersScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="VerifyOTP"
-                component={VerifyOTP}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="StudentAttendanceScanner"
-                component={StudentAttendanceScanner}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="CreateProduct"
-                component={CreateProductScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="IcashP2PScreen"
-                component={IcashP2PScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Subscription"
-                component={SubscriptionScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Login"
-                component={Login}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ProductPublishSuccess"
-                component={ProductPublishSuccess}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Notifications"
-                component={Notifications}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PayoutSuccess"
-                component={PayoutSuccess}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="OrderVerificationSuccess"
-                component={OrderVerificationSuccess}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="AllTransactionsScreen"
-                component={AllTransactionsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="CartScreen"
-                component={CartScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Assistant"
-                component={Assistant}
-                options={{ headerShown: false }}
-              />
-
-              <Stack.Screen
-                name="Checkout"
-                component={CheckoutScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="SuspendedScreen"
-                component={SuspendedScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="NotificationSettings"
-                component={NotificationSettings}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="FlutterwaveWebview"
-                component={FlutterwaveWebview}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="iCashSecurity"
-                component={ICashSecurityGateway}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="SalesHub"
-                component={MerchantDashboard}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="EditProfile"
-                component={EditProfileScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="LinkedDevicesScreen"
-                component={LinkedDevicesScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="BlockedUsers"
-                component={BlockedUsersScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="EmailsScreen"
-                component={EmailsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PhoneScreen"
-                component={PhoneScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ResetPasswordScreen"
-                component={ResetPasswordScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PersonaVerify"
-                component={PersonaVerificationScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ICashResetPin"
-                component={ICashResetPin}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="iCashSuccessScreen"
-                component={ICashSuccessScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Welcome"
-                component={WelcomeScreen}
-                initialParams={initialParams}
-                options={{
-                  headerShown: false,
-                  ...TransitionPresets.FadeFromRightAndroid,
-                }}
-              />
-              <Stack.Screen
-                name="SignupPage"
-                component={SignupPage}
-                options={{
-                  headerShown: false,
-                  ...TransitionPresets.FadeFromRightAndroid,
-                }}
-              />
-              <Stack.Screen
-                name="Home"
-                component={HomeScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ICashDashboard"
-                component={ICashDashboard}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="LibraryScreen"
-                component={LibraryScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ChangePasswordScreen"
-                component={ChangePasswordScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="NotificationDetails"
-                component={NotificationDetails}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="CourseSubPage"
-                component={CourseSubPage}
-                options={({ route }) => ({
-                  title: route.params.title,
-                  headerShown: false,
-                })}
-              />
-              <Stack.Screen
-                name="ForgotPasswordScreen"
-                component={ForgotPasswordScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Profile"
-                component={ProfileScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Settings"
-                component={Settings}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="FavoritesScreen"
-                component={FavoritesScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ProductDetails"
-                component={ProductDetailScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="PostDetailScreen"
-                component={PostDetailScreen}
-                options={{ headerShown: false }}
-              />
-            </Stack.Navigator>
-          </NavigationContainer>
-          <Toast config={toastConfig} />
+          <MainApp />
         </ThemeProvider>
       </Provider>
     </GestureHandlerRootView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignContent: 'center',
-  },
-});
-
 export default App;
+
+//Debug: adb logcat *:S ReactNative:V ReactNativeJS:V
+
+// Go back far enough to unroll the commits containing the .env file
+//(Replace HEAD~5 with however many commits back you need to go)
+//git reset --soft HEAD~5
+//git reset .env
+//git add .
+//git commit -m "Clean codebase and remove sensitive configuration files"
+//git push origin --force main

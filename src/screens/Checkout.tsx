@@ -26,8 +26,9 @@ import { useCheckout } from '../hooks/useCheckout.ts';
 import { DELIVERY_FEES } from '../constants/inAppConstants';
 import { useLocationServices } from '../hooks/useLocationService.ts';
 import { StationCarousel } from '../components/StationCarousel.tsx';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
-const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
+export const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
 interface CheckoutScreenParams {
   productId?: string;
@@ -482,21 +483,19 @@ export const CheckoutScreen = () => {
           />
         </View>
 
-        <TouchableOpacity
+        <CustomButton
+          title={
+            transactionalFinances.canAfford
+              ? 'Confirm & Pay'
+              : 'Insufficient Balance'
+          }
           style={[
             styles.buyBtn,
-            { backgroundColor: colors.btnColor },
-            !transactionalFinances.canAfford && { opacity: 0.5 },
+            !transactionalFinances.canAfford && { opacity: 0.7 },
           ]}
           onPress={handleProceedToVerify}
           disabled={!transactionalFinances.canAfford}
-        >
-          <Text style={{ color: colors.btnTextColor, fontWeight: '700' }}>
-            {transactionalFinances.canAfford
-              ? 'Confirm & Pay'
-              : 'Insufficient Balance'}
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
     );
   }, [
@@ -578,11 +577,7 @@ const styles = StyleSheet.create({
   },
   balanceText: { fontSize: 14, fontWeight: '600' },
   buyBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    width: '100%',
-    alignSelf: 'center',
+    paddingHorizontal: 15,
   },
   buyBtnText: { fontSize: 14, fontWeight: 'bold' },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
@@ -629,7 +624,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 13,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   proBannerText: {
     fontSize: 14,

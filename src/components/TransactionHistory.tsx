@@ -16,6 +16,7 @@ import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from './CurrencyFormatter';
 
+
 interface Props {
   refresh?: boolean;
   limit?: number;
@@ -189,7 +190,8 @@ export const styles = StyleSheet.create({
   btnStyles: {
     paddingHorizontal: 15,
     paddingVertical: 10,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnText: {
     fontSize: 14,

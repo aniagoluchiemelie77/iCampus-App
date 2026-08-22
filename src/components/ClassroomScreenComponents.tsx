@@ -179,6 +179,9 @@ export const CourseModal = ({
   currentUser,
   userRole,
 }: CourseModalProps) => {
+  if (!course) {
+    return null;
+  }
   const { colors: themeColors } = useTheme();
   const navigation = useNavigation<any>();
   const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
@@ -195,13 +198,13 @@ export const CourseModal = ({
 
   useEffect(() => {
     const fetchCourseData = async () => {
-      if (!course.courseId || !isVisible) return;
+      if (!course || !isVisible) return;
       setLoadingExceptions(true);
 
       try {
         const [exceptionsRes, lecturesRes] = await Promise.all([
-          getCourseExceptions(course.courseId),
-          fetchAllLecturesByCourseId(course.courseId),
+          getCourseExceptions({ courseId: course.courseId }),
+          fetchAllLecturesByCourseId({ courseId: course.courseId }),
         ]);
         if (exceptionsRes.success && exceptionsRes.data) {
           setAllExceptions(exceptionsRes.data);
@@ -622,7 +625,7 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({
                 </Text>
                 {isSelected && (
                   <MaterialIcons
-                    name="check-circle-outlined"
+                    name="check-circle"
                     size={22}
                     color={colors.primary}
                   />
@@ -695,11 +698,7 @@ export const ManualCourseModal = ({
               Add Course Manually
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialIcons
-                name="close-outlined"
-                size={24}
-                color={colors.primary}
-              />
+              <MaterialIcons name="close" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -710,7 +709,7 @@ export const ManualCourseModal = ({
               style={[styles.warningBox, { borderLeftColor: colors.primary }]}
             >
               <MaterialIcons
-                name="info-outlined"
+                name="info-circle"
                 size={24}
                 color={colors.primary}
                 style={{ marginRight: 10 }}
@@ -815,7 +814,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
   },
-  progressContainer: { alignContent: 'center', position: 'relative' },
+  progressContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
   progressText: {
     position: 'absolute',
     fontWeight: 'bold',
@@ -848,7 +851,8 @@ const styles = StyleSheet.create({
     left: 5,
     borderRadius: 4,
     padding: 7,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   notifText: { fontSize: 10, fontWeight: 'bold' },
   modalGrabber: {
@@ -899,7 +903,8 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   containerModal: {
     padding: 30,
@@ -950,7 +955,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: 10,
     paddingVertical: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 15,
   },
   submitBtnText: { fontSize: 14, fontWeight: '600' },

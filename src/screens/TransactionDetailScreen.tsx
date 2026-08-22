@@ -194,7 +194,7 @@ export const TransactionDetailScreen = () => {
             onPress={handleShareReceipt}
           >
             <MaterialIcons
-              name="photo-camera-outlined"
+              name="photo-camera"
               size={20}
               color={colors.btnTextColor}
               style={{ marginRight: 5 }}
@@ -264,7 +264,8 @@ const styles = StyleSheet.create({
   subContainer: {
     borderRadius: 15,
     padding: 20,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,

@@ -53,7 +53,8 @@ export const UserAvatar = ({
 const styles = StyleSheet.create({
   defaultContainer: {
     backgroundColor: PRIMARY_COLOR,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   initialsText: {
     color: '#fff',

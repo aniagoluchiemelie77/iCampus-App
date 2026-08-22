@@ -10,7 +10,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User, ChatMessage, Lecture } from '../types/firebase';
 import ExpandableFAB from './ExpandableFAB';
-import { homeStyles } from '../assets/styles/colors';
 import { useAppSelector } from '../hooks/hooks';
 import { UserAvatar } from './UserAvatar';
 import LiveAudioStream from 'react-native-live-audio-stream';
@@ -23,6 +22,7 @@ import {
   RTCView,
 } from 'react-native-webrtc';
 import Toast from 'react-native-toast-message';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   ChatModal,
   AttendeeListModal,
@@ -232,13 +232,14 @@ export const StudentLiveClassSession = ({
     if (!socket || !lecture?.id || !user?.uid) return;
     socket.emit('join_lecture_session', {
       lectureId: lecture.id,
+      hostId: lecture.hostId,
       user: {
-        uid: user.uid,
-        firstname: user.firstname,
-        lastname: user.lastname,
-        username: user.username,
-        tier: user.tier || 'free',
-        profilePic: user.profilePic || '',
+        uid: user?.uid,
+        firstname: user?.firstname,
+        lastname: user?.lastname,
+        username: user?.username,
+        tier: user?.tier || 'free',
+        profilePic: user?.profilePic || '',
       },
     });
     const handleAttendeeUpdate = (updatedList: User[]) => {
@@ -274,9 +275,32 @@ export const StudentLiveClassSession = ({
         console.error('Failed to process WebRTC signal:', err);
       }
     });
+    socket.on(
+      'user_joined_announcement',
+      (data: { uid: string; message: string; isHost: boolean }) => {
+        if (data.uid === user.uid) return;
+        Toast.show({
+          type: 'success',
+          text2: data.message,
+        });
+      },
+    );
+    socket.on(
+      'user_left_announcement',
+      (data: { uid: string; message: string; isHost: boolean }) => {
+        if (data.uid === user.uid) return;
+
+        Toast.show({
+          type: 'success',
+          text2: data.message,
+        });
+      },
+    );
     return () => {
       socket.off('update_attendee_list', handleAttendeeUpdate);
       socket.off('transcription_update', handleIncomingTranscript);
+      socket.off('user_joined_announcement');
+      socket.off('user_left_announcement');
     };
   }, [socket, lecture.id, user]);
   useEffect(() => {
@@ -349,7 +373,14 @@ export const StudentLiveClassSession = ({
   const handleLeaveLecture = () => {
     socket.emit('leave_lecture', {
       lectureId: lecture.id,
-      uid: user.uid,
+      user: {
+        uid: user?.uid,
+        firstname: user?.firstname,
+        lastname: user?.lastname,
+        username: user?.username,
+        tier: user?.tier || 'free',
+        profilePic: user?.profilePic || '',
+      },
     });
     setIsMicAllowed(false);
     setIsLocalMuted(true);
@@ -367,22 +398,14 @@ export const StudentLiveClassSession = ({
         title="● LIVE"
         showBackButton={false}
         rightElement={
-          <TouchableOpacity
+          <CustomButton
+            title="Leave Session"
             onPress={() => setEndModalVisible(true)}
             style={[
               LiveClassSessionStyles.endButton,
               { backgroundColor: colors.btnColor },
             ]}
-          >
-            <Text
-              style={[
-                LiveClassSessionStyles.endButtonText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              Leave Session
-            </Text>
-          </TouchableOpacity>
+          />
         }
       />
 
@@ -432,7 +455,7 @@ export const StudentLiveClassSession = ({
             onPress={handleWave}
           >
             <MaterialIcons
-              name={'waving-hand-outlined'}
+              name={'waving-hand'}
               size={18}
               color={colors.btnTextColor}
             />
@@ -516,11 +539,7 @@ export const StudentLiveClassSession = ({
         ]}
       >
         <View style={LiveClassSessionStyles.aiHeader}>
-          <MaterialIcons
-            name="auto-awesome-outlined"
-            size={16}
-            color={colors.primary}
-          />
+          <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
           <Text
             style={[LiveClassSessionStyles.aiLabel, { color: colors.primary }]}
           >
@@ -561,7 +580,7 @@ export const StudentLiveClassSession = ({
       )}
       {!fabVisible && (
         <TouchableOpacity
-          style={homeStyles.fab}
+          style={LiveClassSessionStyles.fab}
           onPress={() => {
             setFabVisible(true);
             setUnreadCount(0);
@@ -628,9 +647,7 @@ export const LiveClassSessionStyles = StyleSheet.create({
   liveText: { color: PRIMARY_COLOR, fontWeight: 'bold', fontSize: 12 },
   endButton: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignContent: 'center',
+    width: 'auto',
   },
   endButtonText: { fontWeight: 'bold', fontSize: 14 },
   sharedScreen: {
@@ -638,7 +655,8 @@ export const LiveClassSessionStyles = StyleSheet.create({
     height: 250,
     borderRadius: 15,
     overflow: 'hidden',
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
     elevation: 5,
     marginBottom: 15,
@@ -671,7 +689,8 @@ export const LiveClassSessionStyles = StyleSheet.create({
     fontWeight: 'bold',
     padding: 15,
     borderRadius: 12,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   attendeeCountText: { fontSize: 12, fontWeight: 'bold' },
   bottomSection: { padding: 15, borderRadius: 15 },
@@ -740,7 +759,8 @@ export const LiveClassSessionStyles = StyleSheet.create({
   },
   sharingOverlay: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusText: {
     fontSize: 16,
@@ -754,7 +774,8 @@ export const LiveClassSessionStyles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 20,
   },
   stopShareText: {
@@ -810,5 +831,22 @@ export const LiveClassSessionStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 15,
     marginRight: 6,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });

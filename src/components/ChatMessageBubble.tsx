@@ -100,7 +100,7 @@ export const MessageBubble = ({
                   }
                 >
                   <MaterialIcons
-                    name="file-download-outlined"
+                    name="cloud-download"
                     size={20}
                     color={isUser ? '#fff' : PRIMARY_COLOR}
                   />

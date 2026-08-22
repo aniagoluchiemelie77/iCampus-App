@@ -21,12 +21,11 @@ import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { PageHeader } from './PageHeader';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { OrderScannerModal } from './OrderQRScannerModal';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
 import ExpandableFAB from './ExpandableFAB.tsx';
-import { homeStyles } from '../assets/styles/colors';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -96,7 +95,7 @@ export const StoreScreen = () => {
         colors={colors}
       />
       <HeaderActionButton
-        icon="shopping-cart-outlined"
+        icon="shopping-cart"
         count={currentUser?.cart?.length || 0}
         onPress={() => navigation.navigate('CartScreen')}
         colors={colors}
@@ -309,10 +308,10 @@ export const StoreScreen = () => {
       />
       {!isFabMenuVisible && (
         <TouchableOpacity
-          style={homeStyles.fab}
+          style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets-outlined" size={28} color="#fff" />
+          <MaterialIcons name="widgets" size={28} color="#fff" />
         </TouchableOpacity>
       )}
       <ExpandableFAB
@@ -371,7 +370,8 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     width: 18,
     height: 18,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 10,
   },
   badgeText: {
@@ -381,5 +381,22 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: CARD_WIDTH,
     marginBottom: 15,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 75,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });

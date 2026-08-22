@@ -32,7 +32,7 @@ export const NotificationSettings = () => {
     const dbUpdate = {
       [`${section}.${key}`]: newValue,
     };
-    const result = await updatePreferences(user.uid, dbUpdate);
+    const result = await updatePreferences(dbUpdate);
     if (!result.success) {
       const rollback = {
         ...prefs,
@@ -52,7 +52,7 @@ export const NotificationSettings = () => {
       <SectionHeader title="Alert Categories" />
       <View style={styles.section}>
         <SettingItem
-          icon="school-outlined"
+          icon="school"
           title="Classroom"
           subtitle="Assignments, grades, and lectures"
           toggle
@@ -60,7 +60,7 @@ export const NotificationSettings = () => {
           onPress={() => handleToggle('notifications', 'classroom')}
         />
         <SettingItem
-          icon="account-balance-wallet-outlined"
+          icon="account-balance-wallet"
           title="Finance"
           subtitle="iCash transfers and withdrawals"
           toggle={true}
@@ -68,7 +68,7 @@ export const NotificationSettings = () => {
           onPress={() => handleToggle('notifications', 'finance')}
         />
         <SettingItem
-          icon="groups-outlined"
+          icon="groups"
           title="Social"
           subtitle="Likes, followers, and mentions"
           toggle={true}
@@ -80,7 +80,7 @@ export const NotificationSettings = () => {
       <SectionHeader title="Channels" />
       <View style={styles.section}>
         <SettingItem
-          icon="notifications-active-outlined"
+          icon="notifications-active"
           title="Push Notifications"
           toggle={true}
           value={prefs?.channels?.push}

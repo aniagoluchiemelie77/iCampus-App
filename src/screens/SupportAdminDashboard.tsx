@@ -15,10 +15,10 @@ import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator } from 'react-native-paper';
-import { homeStyles } from '../assets/styles/colors.ts';
 import { CATEGORY_ACCESS, CategoryKey } from '../constants/inAppConstants.ts';
 import { AdminExpandableFAB } from '../components/AdminExpandableFab.tsx';
 import { useAppDataContext } from '../context/EventContext';
+import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   AdminManagementSection,
   SupportTicketSection,
@@ -86,19 +86,13 @@ export const AdminDashboard = () => {
         subtitle="Manage system administrators and team access"
         rightElement={
           canViewFabWidgets ? (
-            <TouchableOpacity
+            <CustomButton
+              title="Add Admin"
               onPress={() => navigation.navigate('AdminFormPage')}
-              style={[styles.topBtn, { backgroundColor: colors.btnColor }]}
-            >
-              <Text style={[styles.topBtnText, { color: colors.btnTextColor }]}>
-                Add Admin
-              </Text>
-              <MaterialIcons
-                name="admin-panel-settings-outlined"
-                size={22}
-                color={colors.btnTextColor}
-              />
-            </TouchableOpacity>
+              style={styles.topBtn}
+              iconName="admin-panel-settings"
+              iconColor="#fff"
+            />
           ) : null
         }
       />
@@ -163,7 +157,7 @@ export const AdminDashboard = () => {
       </ScrollView>
       {!isFabMenuVisible && (
         <TouchableOpacity
-          style={homeStyles.fab}
+          style={styles.fab}
           onPress={() => {
             if (canViewFabWidgets) {
               setFabMenuVisible(true);
@@ -173,7 +167,7 @@ export const AdminDashboard = () => {
           }}
         >
           <MaterialIcons
-            name={canViewFabWidgets ? 'widgets-outlined' : 'search-outlined'}
+            name={canViewFabWidgets ? 'widgets' : 'search'}
             size={28}
             color={colors.btnTextColor}
           />
@@ -204,7 +198,8 @@ export const styles = StyleSheet.create({
   tab: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
     marginRight: 8,
@@ -238,22 +233,36 @@ export const styles = StyleSheet.create({
   },
   topBtn: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignContent: 'center',
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 'auto',
   },
   topBtnText: {
     marginRight: 4,
     fontSize: 14,
   },
   skeletonContainer: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   skeletonText: {
     fontSize: 14,
     marginVertical: 15,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 75,
+    right: 20,
+    backgroundColor: PRIMARY_COLOR,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
   },
 });

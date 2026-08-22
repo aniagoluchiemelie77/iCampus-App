@@ -173,7 +173,7 @@ const PollView = ({
                 </Text>
                 {isMyVote && (
                   <MaterialIcons
-                    name="check-circle-outlined"
+                    name="check-circle"
                     size={14}
                     color={colors.primary}
                     style={{ marginLeft: 5 }}
@@ -480,7 +480,7 @@ export const PostCard = React.memo(
             <View style={styles.eventHeaderRow}>
               <View style={styles.calendarMini}>
                 <MaterialIcons
-                  name="calendar-month-outlined"
+                  name="calendar-month"
                   size={16}
                   color={colors.text}
                   style={{ marginRight: 3 }}
@@ -544,7 +544,7 @@ export const PostCard = React.memo(
                 Apply Now
               </Text>
               <MaterialIcons
-                name="launch-outlined"
+                name="launch"
                 size={16}
                 color={colors.btnTextColor}
                 style={{ marginLeft: 3 }}
@@ -576,7 +576,7 @@ export const PostCard = React.memo(
             }
           >
             <MaterialIcons
-              name="chatbubble-outline"
+              name="chatbubble"
               size={18}
               color={colors.primaryTint}
             />
@@ -589,7 +589,7 @@ export const PostCard = React.memo(
             onPress={() => toggleLike(post.postId)}
           >
             <MaterialIcons
-              name={isLiked ? 'heart' : 'heart-outlined'}
+              name={isLiked ? 'favorite' : 'favorite-outline'}
               size={18}
               color={isLiked ? colors.primary : colors.primaryTint}
             />
@@ -615,7 +615,7 @@ export const PostCard = React.memo(
             onPress={() => toggleBookmark(post.postId)}
           >
             <MaterialIcons
-              name={isBookmarked ? 'bookmark' : 'bookmark-border-outlined'}
+              name={isBookmarked ? 'bookmark' : 'bookmark-border'}
               size={18}
               color={isBookmarked ? colors.primary : colors.primaryTint}
             />
@@ -695,7 +695,7 @@ export const PostCard = React.memo(
                     onPress={confirmDelete}
                   >
                     <MaterialIcons
-                      name="delete-outlined"
+                      name="delete"
                       size={22}
                       color={colors.text}
                     />

@@ -197,7 +197,7 @@ export const IcashPinOrFingerprintVerifyModal = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={requestPinReset}
+                onPress={e => requestPinReset()}
                 accessibilityRole="button"
               >
                 <Text style={{ color: colors.primary }}>Forgot PIN?</Text>

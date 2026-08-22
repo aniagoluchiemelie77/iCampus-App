@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { getUserAccountState } from '../api/localGetApis';
@@ -13,6 +7,7 @@ import { createSupportTicketApi } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 type Props = StackScreenProps<RootStackParamList, 'SuspendedScreen'>;
 
@@ -60,7 +55,7 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        <MaterialIcons name="info-outlined" size={60} color={colors.primary} />
+        <MaterialIcons name="info" size={60} color={colors.primary} />
         <Text style={[styles.title, { color: colors.textDarker }]}>
           Account Restricted
         </Text>
@@ -72,32 +67,20 @@ export const SuspendedScreen = ({ route, navigation }: Props) => {
           multiple failed iCash PIN attempts or suspicious activity. You cannot
           access services until this is resolved.
         </Text>
-
-        <TouchableOpacity
+        <CustomButton
+          title={
+            checking ? 'Refreshing Account Status...' : 'Refresh Account Status'
+          }
           style={[styles.primaryBtn, { backgroundColor: colors.btnColor }]}
           onPress={checkAccountStatus}
           disabled={checking}
-        >
-          {checking ? (
-            <ActivityIndicator color={colors.btnTextColor} size="small" />
-          ) : (
-            <Text
-              style={[styles.primaryBtnText, { color: colors.btnTextColor }]}
-            >
-              Refresh Account Status
-            </Text>
-          )}
-        </TouchableOpacity>
+        />
 
         <TouchableOpacity
           style={styles.supportLink}
           onPress={handleContactSupport}
         >
-          <MaterialIcons
-            name="email-outlined"
-            size={20}
-            color={colors.primary}
-          />
+          <MaterialIcons name="email" size={20} color={colors.primary} />
           <Text style={[styles.supportLinkText, { color: colors.primary }]}>
             Contact iCampus Security
           </Text>
@@ -114,11 +97,7 @@ const styles = StyleSheet.create({
   reasonText: { fontSize: 14, fontWeight: '600', marginBottom: 15 },
   infoText: { fontSize: 14, marginBottom: 20 },
   primaryBtn: {
-    width: '80%',
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignItems: 'center',
-    elevation: 2,
+    paddingHorizontal: 15,
   },
   primaryBtnText: { fontWeight: 'bold', fontSize: 14 },
   supportLink: {

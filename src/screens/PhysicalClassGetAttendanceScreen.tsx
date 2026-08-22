@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   SectionList,
-  TouchableOpacity,
   Alert,
   Linking,
   Platform,
@@ -27,6 +26,7 @@ import { useTheme } from '../context/ThemeContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSocketConnection } from '../hooks/useSocket.ts';
+import { CustomButton } from '../assets/components/AppUIComponents';
 
 type AttendanceStatus = 'idle' | 'fetching' | 'completed';
 type Props = StackScreenProps<RootStackParamList, 'PhysicalAttendanceManager'>;
@@ -321,25 +321,14 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
             >
               {new Date().toLocaleString()}
             </Text>
-            <TouchableOpacity
-              style={[
-                GetAttendanceScreenStyles.fetchBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title="Take Attendance"
+              style={GetAttendanceScreenStyles.fetchBtn}
               onPress={() => {
                 setIsFetching(true);
                 checkBluetoothAndStart();
               }}
-            >
-              <Text
-                style={[
-                  GetAttendanceScreenStyles.fetchBtnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Take Attendance
-              </Text>
-            </TouchableOpacity>
+            />
           </>
         )}
         {isFetching && fetching && (
@@ -377,22 +366,11 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
             >
               {presentStudents.length} Students Detected
             </Text>
-            <TouchableOpacity
-              style={[
-                GetAttendanceScreenStyles.fetchBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
+            <CustomButton
+              title="End & Show Final List"
+              style={GetAttendanceScreenStyles.fetchBtn}
               onPress={handleStopFetching}
-            >
-              <Text
-                style={[
-                  GetAttendanceScreenStyles.fetchBtnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                End & Show Final List
-              </Text>
-            </TouchableOpacity>
+            />
           </>
         )}
         {!isFetching && completed && (
@@ -443,7 +421,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
                     </Text>
                   ) : (
                     <MaterialIcons
-                      name="check-circle-outlined"
+                      name="check-circle"
                       size={24}
                       color={colors.primary}
                     />
@@ -452,75 +430,39 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
               )}
               ListEmptyComponent={
                 <EmptyState
-                  iconName="info-outlined"
+                  iconName="info"
                   title="No Student found"
                   subtitle=" No student within proximity, please retry."
                 />
               }
             />
             <View style={GetAttendanceScreenStyles.rowDiv}>
-              <TouchableOpacity
-                style={[
-                  GetAttendanceScreenStyles.fetchBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
+              <CustomButton
+                title="Download"
+                style={GetAttendanceScreenStyles.fetchBtn}
                 onPress={() => {
                   handleDownloadReport();
                 }}
-              >
-                <MaterialIcons
-                  name="download-outlined"
-                  size={20}
-                  color={colors.btnTextColor}
-                />
-                <Text
-                  style={[
-                    GetAttendanceScreenStyles.fetchBtnText,
-                    { color: colors.btnTextColor, marginLeft: 4 },
-                  ]}
-                >
-                  Download
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                iconName="file-download"
+                iconColor="#fff"
+              />
+              <CustomButton
+                title="Rescan / Retry"
                 style={GetAttendanceScreenStyles.fetchBtn}
                 onPress={handleRetryFetching}
-              >
-                <MaterialIcons
-                  name="replay-outlined"
-                  size={20}
-                  color={colors.btnTextColor}
-                />
-                <Text
-                  style={[
-                    GetAttendanceScreenStyles.fetchBtnText,
-                    { color: colors.btnTextColor, marginLeft: 4 },
-                  ]}
-                >
-                  Rescan / Retry
-                </Text>
-              </TouchableOpacity>
+                iconName="replay"
+                iconColor="#fff"
+              />
 
-              <TouchableOpacity
+              <CustomButton
+                title="Back to Home"
                 style={GetAttendanceScreenStyles.fetchBtn}
                 onPress={() => {
                   navigation.navigate('Home', { activeTab: 'home' });
                 }}
-              >
-                <MaterialIcons
-                  name="home-outlined"
-                  size={20}
-                  color={colors.btnTextColor}
-                />
-                <Text
-                  style={[
-                    GetAttendanceScreenStyles.fetchBtnText,
-                    { color: colors.btnTextColor, marginLeft: 4 },
-                  ]}
-                >
-                  Back to Home
-                </Text>
-              </TouchableOpacity>
+                iconName="home"
+                iconColor="#fff"
+              />
             </View>
           </>
         )}
@@ -531,16 +473,19 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
 export const GetAttendanceScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   subContainer: {
     borderRadius: 15,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   pulseWrapper: {
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     height: 250,
     marginVertical: 15,
   },
@@ -548,7 +493,8 @@ export const GetAttendanceScreenStyles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 2,
   },
   timerNumber: {
@@ -591,12 +537,9 @@ export const GetAttendanceScreenStyles = StyleSheet.create({
     marginBottom: 15,
   },
   fetchBtn: {
-    borderRadius: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginTop: 10,
-    alignContent: 'center',
-    flexDirection: 'row',
+    width: 'auto',
+    paddingHorizontal: 15,
+    marginTop: 15,
   },
   fetchBtnText: {
     fontSize: 14,

@@ -36,6 +36,7 @@ const { width } = Dimensions.get('window');
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Modal from 'react-native-modal';
+import { CustomButton } from '../assets/components/AppUIComponents';
 export const CARD_WIDTH = width * 0.75;
 
 interface AddPaymentModalProps {
@@ -152,11 +153,7 @@ const BankForm = ({
       </View>
       {bankData.accountName ? (
         <View style={AddPaymentMethodStyles.accountVerifiedBox}>
-          <MaterialIcons
-            name="check-circle-outlined"
-            size={16}
-            color={colors.primary}
-          />
+          <MaterialIcons name="check-circle" size={16} color={colors.primary} />
           <Text
             style={[
               AddPaymentMethodStyles.accountNameText,
@@ -584,10 +581,11 @@ export const AddPaymentModal = ({
           showBackButton={false}
           rightElement={
             <MaterialIcons
-              name="cancel-outlined"
+              name="cancel"
               size={28}
               onPress={onClose}
               color={PRIMARY_COLOR}
+              style={{ padding: 10 }}
             />
           }
         />
@@ -664,12 +662,12 @@ export const AddPaymentModal = ({
               colors={colors}
             />
           )}
-
-          <TouchableOpacity
-            style={[
-              AddPaymentMethodStyles.submitBtn,
-              { backgroundColor: colors.btnColor },
-            ]}
+          <CustomButton
+            title={
+              isLoading
+                ? 'Processing...'
+                : `Link ${activeTab === 'card' ? 'Card' : 'Account'}`
+            }
             onPress={() => {
               if (activeTab === 'card') {
                 handleLinkCard();
@@ -678,18 +676,9 @@ export const AddPaymentModal = ({
               }
             }}
             disabled={isLoading}
-          >
-            <Text
-              style={[
-                AddPaymentMethodStyles.submitBtnText,
-                { color: colors.btnTextColor },
-              ]}
-            >
-              {isLoading
-                ? 'Processing...'
-                : `Link ${activeTab === 'card' ? 'Card' : 'Account'}`}
-            </Text>
-          </TouchableOpacity>
+            isLoading={isLoading}
+            style={AddPaymentMethodStyles.submitBtn}
+          />
         </ScrollView>
       </View>
     </Modal>
@@ -756,11 +745,8 @@ export const AddPaymentMethodStyles = StyleSheet.create({
     fontWeight: '600',
   },
   submitBtn: {
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 40,
+    marginVertical: 20,
+    paddingHorizontal: 15,
   },
   submitBtnText: { fontSize: 14, fontWeight: '700' },
   dropdown: {

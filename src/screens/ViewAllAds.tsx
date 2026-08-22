@@ -1,17 +1,25 @@
 import { PageHeader } from '../components/PageHeader';
 import { useState, useEffect } from 'react';
-import { FlatList, StyleSheet, TouchableOpacity, View, Text } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { navigate } from '../context/navigationContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { getAds } from '../api/localGetApis'; 
+import { CustomButton } from '../assets/components/AppUIComponents';
+import { getAds } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
 import Toast from 'react-native-toast-message';
 import { AdItemComponent } from '../components/AdItemComponent';
+import { useAppSelector } from '../hooks/hooks';
 
 export const ViewAllAdsScreen = () => {
   const { colors } = useTheme();
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const currentUser = useAppSelector(state => state.admin);
+  const currentUserId = currentUser.uid;
+  const adminType = currentUser.adminType;
+  const hasSchoolAdminPostedAd = ads.some(ad => ad.addedBy === currentUserId);
+  const canCreateAd =
+    adminType === 'super_admin' ||
+    (adminType === 'school_administrator' && !hasSchoolAdminPostedAd);
 
   const fetchAds = async () => {
     if (loading) return;
@@ -41,29 +49,24 @@ export const ViewAllAdsScreen = () => {
         title="Manage Advertisements"
         subtitle="iCampus Sponsor Slots"
         rightElement={
-          <TouchableOpacity
-            onPress={() =>
-              navigate('AdAorE', {
-                item: null,
-              })
-            }
-            style={[styles.addBtn, { backgroundColor: colors.btnColor }]}
-          >
-            <Text style={[styles.addBtnText, { color: colors.btnTextColor }]}>
-              Create Ad Banner
-            </Text>
-            <MaterialIcons name="add" size={24} color={colors.btnTextColor} />
-          </TouchableOpacity>
+          canCreateAd ? (
+            <CustomButton
+              title="Create Advert Banner"
+              onPress={() =>
+                navigate('AdAorE', {
+                  item: null,
+                })
+              }
+              style={styles.addBtn}
+            />
+          ) : null
         }
       />
       <FlatList
         data={ads}
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => (
-          <AdItemComponent
-            item={item}
-            onRefresh={fetchAds}
-          />
+          <AdItemComponent item={item} onRefresh={fetchAds} />
         )}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
@@ -75,12 +78,9 @@ export const ViewAllAdsScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 15 },
   listContainer: { paddingBottom: 20 },
-  addBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 12, 
-    paddingVertical: 8, 
-    borderRadius: 12 
+  addBtn: {
+    width: 'auto',
+    paddingHorizontal: 12,
   },
   addBtnText: { fontSize: 13, fontWeight: 'bold', marginRight: 4 },
 });
