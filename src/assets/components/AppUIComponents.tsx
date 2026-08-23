@@ -71,7 +71,6 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
 
 const styles = StyleSheet.create({
   btn: {
-<<<<<<< HEAD
     height: 50,
     borderRadius: 10,
     alignItems: 'center',
@@ -79,15 +78,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     backgroundColor: PRIMARY_COLOR,
-=======
-    height: 60,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row', 
-    width: '100%',
-    backgroundColor: PRIMARY_COLOR, 
->>>>>>> 05c46f16a19c91cbd6a67cc0c486980b084593e3
   },
   toggleBtnsText: {
     fontSize: 14,
