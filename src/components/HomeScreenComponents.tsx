@@ -263,7 +263,10 @@ export function Home() {
       else setLoadingMore(true);
 
       try {
-        const response = await fetchPostsAPI(10, currentCursor);
+        const response = await fetchPostsAPI({
+          limit: 10,
+          cursor: currentCursor,
+        });
         if (response && response.success) {
           setPosts(prev =>
             isRefreshing ? response.posts : [...prev, ...response.posts],

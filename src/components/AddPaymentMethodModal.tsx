@@ -550,7 +550,7 @@ export const AddPaymentModal = ({
       if (!user?.country) return;
       const countryCode = COUNTRY_CODE_MAP[user.country] || 'NG';
       try {
-        const banks = await fetchSupportedBanks(countryCode);
+        const banks = await fetchSupportedBanks({ countryCode });
         if (banks.length > 0) {
           setBankItems(banks);
         }

@@ -200,7 +200,10 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
       if (loading || (!hasMore && !isNewTab)) return;
 
       setLoading(true);
-      const data = await getNotifications(activeTab as TabName, pageNum);
+      const data = await getNotifications({
+        tabName: activeTab as TabName,
+        page: pageNum,
+      });
 
       if (data.length < 20) setHasMore(false);
 
@@ -390,7 +393,7 @@ export const SupportTicketSection = () => {
 
   const fetchInitialTickets = async () => {
     try {
-      const response = await fetchTicketsAPI(20, '');
+      const response = await fetchTicketsAPI({ limit: 20, cursor: '' });
 
       if (response.success) {
         setTickets(response.tickets);
@@ -406,7 +409,7 @@ export const SupportTicketSection = () => {
     if (!nextCursor || isLoadingMore) return;
 
     setIsLoadingMore(true);
-    const response = await fetchTicketsAPI(20, nextCursor);
+    const response = await fetchTicketsAPI({ limit: 20, cursor: nextCursor });
 
     if (response.success) {
       setTickets(prev => [...prev, ...response.tickets]);

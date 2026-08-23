@@ -44,7 +44,7 @@ import {
   addCommentAPI,
   toggleLikeAPI,
   createRepostAPI,
-  bulkAddtoCartAPI,
+  bulkAddToCartApi,
   toggleCommentLikeAPI,
   cancelOrderAPI,
 } from '../api/localPostApis';
@@ -550,7 +550,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
     setCurrentUser({ ...currentUser, cart: updatedCart });
     try {
-      const result = await bulkAddtoCartAPI(itemsToAdd);
+      const result = await bulkAddToCartApi(itemsToAdd);
       if (!result.success) throw new Error();
 
       Toast.show({
@@ -724,7 +724,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       setIsEmailSupportLoading(true);
     }
 
-    const result = await fetchTicketsAPI(limit, cursor);
+    const result = await fetchTicketsAPI({ limit, cursor });
 
     if (result.success) {
       const externalInquiries = result.tickets.filter(
