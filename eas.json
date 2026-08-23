@@ -16,12 +16,8 @@
     },
     "production": {
       "autoIncrement": true,
-      "resourceClass": "large",
-      "env": {
-        "NODE_OPTIONS": "--max-old-space-size=8192"
-      },
       "android": {
-        "gradleCommand": "assembleRelease --stacktrace --info"
+        "gradleCommand": "assembleRelease --stacktrace --info -Dorg.gradle.workers.max=2"
       }
     }
   },
