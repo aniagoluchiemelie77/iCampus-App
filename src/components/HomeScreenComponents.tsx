@@ -38,7 +38,6 @@ import { AdItem } from '../types/firebase';
 import { BACKEND_URL } from '@env';
 export const baseUrl = BACKEND_URL;
 interface Props {
-  navigation: StackNavigationProp<any>;
   initialCount?: number;
   uid?: string;
   colors: any;
@@ -194,11 +193,11 @@ const ProfileModal = ({
   );
 };
 export const NotificationBell: React.FC<Props> = ({
-  navigation,
   initialCount = 0,
   colors,
   socket,
 }) => {
+  const navigation = useNavigation<StackNavigationProp<any>>();
   const [unreadCount, setUnreadCount] = useState(initialCount);
 
   useEffect(() => {
@@ -372,12 +371,7 @@ export function Home() {
         </TouchableOpacity>
         <Logo />
         <View style={styles.headerContainerDiv}>
-          <NotificationBell
-            navigation={navigation}
-            initialCount={0}
-            colors={colors}
-            socket={socket}
-          />
+          <NotificationBell initialCount={0} colors={colors} socket={socket} />
         </View>
       </View>
       <View style={styles.postsDiv}>

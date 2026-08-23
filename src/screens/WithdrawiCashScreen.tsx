@@ -8,7 +8,6 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 import { initializeWithdrawTransaction } from '../api/localPostApis';

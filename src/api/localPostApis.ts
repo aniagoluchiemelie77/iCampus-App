@@ -1170,7 +1170,7 @@ export const handleForgotPassword = async (email: string) => {
 export const loginUser = async (credentials: any, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 6000; 
+  const TIMEOUT_MS = 10000; 
 
   while (attempt < maxRetries) {
     attempt++;
