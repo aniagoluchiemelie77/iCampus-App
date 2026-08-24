@@ -27,7 +27,7 @@ import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
 export const TransactionDetailScreen = () => {
   const { colors } = useTheme();
   const route = useRoute<any>();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const { transactionId } = route.params;
   const [transaction, setTransaction] = useState<Transactions | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

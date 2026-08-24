@@ -69,7 +69,7 @@ export const AnimatedCardWrapper = ({
 };
 export const IcashP2PScreen = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
   const [step, setStep] = useState<'selection' | 'tagInput'>('selection');

@@ -29,7 +29,7 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const PhoneScreen = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const [phoneNumber, setPhoneNumber] = useState('');
   const [formattedValue, setFormattedValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -39,7 +39,7 @@ export const Assistant = ({ route }: Props) => {
     assistantTitle = 'AI Assistant',
     placeholder = 'Type a message...',
   } = route.params;
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const flatListRef = useRef<FlatList>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 

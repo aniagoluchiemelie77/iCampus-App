@@ -15,7 +15,7 @@ const WelcomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const routeParam = route.params?.route || 'Login';
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const checkAuthStatus = useCallback(async (): Promise<boolean> => {
     try {
       const token = await AsyncStorage.getItem('accessToken');

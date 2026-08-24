@@ -114,7 +114,7 @@ const ExpandableFAB = ({
 }: FABProps) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   if (!isVisible) return null;
   const handleAction = (label: string) => {
     const config = ACTION_CONFIG[label];

@@ -30,7 +30,7 @@ import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 export const ICashWithdrawPage = ({ navigation }: any) => {
   const { colors } = useTheme();
   const route = useRoute();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const [iCashAmount, setICashAmount] = useState('');
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const { exchangeData: currencyData } = useExchangeRate(

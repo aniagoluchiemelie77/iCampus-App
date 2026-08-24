@@ -12,7 +12,7 @@ import { formatCount } from '../utils/followCountFormatter';
 export const CommentItem = ({ comment, onLike, onReply }: any) => {
   const { colors } = useTheme();
   const [userDetails, setUserDetails] = useState<any>(null);
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
 
   useEffect(() => {
     const fetchUser = async () => {

@@ -236,7 +236,7 @@ export function Home() {
   const { posts, setPosts, incrementImpression } = useAppDataContext();
   const { colors } = useTheme();
   const flatListRef = useRef<FlatList<Posts>>(null);
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {} || {};
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
   const socket = useSocketConnection({
@@ -426,7 +426,10 @@ export function Home() {
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        userRole={currentUser.usertype as 'student' | 'lecturer' | 'otherUser'}
+        userRole={
+          (currentUser?.usertype || 'student') as
+            'student' | 'lecturer' | 'otherUser'
+        }
         actions={[
           'Create Post',
           'Create Poll',

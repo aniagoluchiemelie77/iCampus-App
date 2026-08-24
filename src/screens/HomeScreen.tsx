@@ -104,7 +104,7 @@ const TabBarItem = React.memo(
 );
 const HomeScreen = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const pagerRef = useRef<PagerView>(null);
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const [activeIcon, setActiveIcon] = useState<string>('home');

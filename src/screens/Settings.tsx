@@ -51,7 +51,7 @@ export const throttle = (func: Function, limit: number) => {
 
 export const Settings = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const dispatch = useDispatch();
   const deviceColorScheme = useColorScheme();
   const isCurrentlyDark =

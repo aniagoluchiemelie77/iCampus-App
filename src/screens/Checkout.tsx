@@ -40,7 +40,7 @@ export const CheckoutScreen = () => {
   const { colors } = useTheme();
   const route = useRoute();
   const navigation = useNavigation<any>();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const { allProducts } = useAppDataContext();
   const params = useMemo(() => {
     return (route.params || {}) as CheckoutScreenParams;

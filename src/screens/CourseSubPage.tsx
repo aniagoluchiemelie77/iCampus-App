@@ -51,7 +51,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CourseSubPage'>;
 
 export const CourseSubPage = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const dispatch = useDispatch();
 
   const {

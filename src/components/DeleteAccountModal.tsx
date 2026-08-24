@@ -24,7 +24,7 @@ export const DeleteAccountModal = ({
   onClose,
   navigation,
 }: DeleteModalProps) => {
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const { colors } = useTheme();
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');

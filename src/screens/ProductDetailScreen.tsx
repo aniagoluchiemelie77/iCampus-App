@@ -37,7 +37,7 @@ export const ProductDetailScreen = () => {
   const { productId } = route.params as { productId: string };
   const { allProducts, handleCartItemToggle, handleToggleFavorite } =
     useAppDataContext();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const product = allProducts.find(p => p.productId === productId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(

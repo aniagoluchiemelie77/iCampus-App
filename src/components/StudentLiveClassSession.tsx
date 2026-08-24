@@ -46,7 +46,7 @@ export const StudentLiveClassSession = ({
   lecturerLiveData,
 }: StudentLiveSessionProps) => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const pc = useRef<RTCPeerConnection | null>(null);
   const navigation = useNavigation<any>();
   const AVATAR_SIZE = 40;

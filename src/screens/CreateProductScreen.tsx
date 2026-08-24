@@ -64,7 +64,7 @@ if (
 }
 export const CreateProductScreen = ({ route }: any) => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const { product: existingProduct } = route.params;
   const productId = existingProduct?.productId || existingProduct?._id;
   const isEditing = !!productId;

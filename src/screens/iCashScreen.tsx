@@ -49,7 +49,7 @@ export const ICashDashboard = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
   const dispatch = useDispatch();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const [showBalance, setShowBalance] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [stats, setStats] = useState<StatsData | null>();

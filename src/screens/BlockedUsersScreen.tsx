@@ -24,7 +24,7 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 export const BlockedUsersScreen = () => {
   const { colors } = useTheme();
   const dispatch = useDispatch();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
 
   // State Management Matrix
   const [blockedUsers, setBlockedUsers] = useState<User[]>([]);

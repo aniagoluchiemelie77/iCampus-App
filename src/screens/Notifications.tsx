@@ -30,7 +30,7 @@ dayjs.extend(relativeTime);
 
 const Notifications = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
   const socketRef = useSocketConnection({
     baseUrl,

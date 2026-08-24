@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export const LinkedDevicesScreen = () => {
   const { colors } = useTheme();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const dispatch = useDispatch();
   const [currentDeviceId, setCurrentDeviceId] = useState<string>('');
   const [isRevoking, setIsRevoking] = useState<string | null>(null);

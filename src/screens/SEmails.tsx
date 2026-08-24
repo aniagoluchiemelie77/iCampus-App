@@ -28,7 +28,7 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const EmailsScreen = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const dispatch = useDispatch();
   const [step, setStep] = useState('idle');
   const [mode, setMode] = useState('');

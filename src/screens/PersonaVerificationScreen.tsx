@@ -20,7 +20,7 @@ export const PersonaVerificationScreen = () => {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<any>();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const usertype = user?.usertype || 'otherUser';
 
   const handleStartVerification = async () => {

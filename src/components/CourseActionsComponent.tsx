@@ -4072,7 +4072,7 @@ export const RenderViewLectureSchedule = ({
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const sectionListRef = useRef<SectionList>(null);
   const today = new Date().toISOString().split('T')[0];
 
@@ -4290,7 +4290,7 @@ export const LecturerLectureScheduleView = ({
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -4406,8 +4406,10 @@ export const LecturerLectureScheduleView = ({
     try {
       if (user.usertype === 'lecturer') {
         const [courseResult, exceptionsResult] = await Promise.all([
-          getCourseDetailsForOngoingLecture(ongoingLecture.courseId),
-          getAllExceptionsForOngoingLecture(ongoingLecture.id),
+          getCourseDetailsForOngoingLecture({
+            courseId: ongoingLecture.courseId,
+          }),
+          getAllExceptionsForOngoingLecture({ lectureId: ongoingLecture.id }),
         ]);
         if (courseResult.success && exceptionsResult.success) {
           navigation.navigate('PhysicalAttendanceManager', {
@@ -4482,7 +4484,7 @@ export const LecturerLectureScheduleView = ({
                 }}
                 iconName="edit"
                 iconColor="#fff"
-                style={CourseActionStyles.startBtn} 
+                style={CourseActionStyles.startBtn}
               />
               <CustomButton
                 title="Delete"
@@ -4492,7 +4494,7 @@ export const LecturerLectureScheduleView = ({
                 }}
                 iconName="delete"
                 iconColor="#fff"
-                style={[CourseActionStyles.startBtn, {marginLeft: 10}]} 
+                style={[CourseActionStyles.startBtn, { marginLeft: 10 }]}
               />
             </View>
           </View>

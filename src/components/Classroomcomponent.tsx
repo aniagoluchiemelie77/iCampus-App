@@ -688,7 +688,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 };
 const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
   const { colors: themeColors } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   if (!user) {
     return (
       <View
@@ -701,7 +701,7 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
       </View>
     );
   }
-  return <Dashboard user={user} userRole={userRole} />;
+  return <Dashboard user={user} userRole={userRole || 'student'} />;
 };
 
 const styles = StyleSheet.create({

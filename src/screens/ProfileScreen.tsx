@@ -283,7 +283,7 @@ export const CoursesView = ({
 export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const { identifier } = route.params;
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const dispatch = useDispatch();
   const {
     isFollowing,

@@ -31,7 +31,7 @@ const SESSIONS = generateSessions();
 
 export const ViewAllCoursesScreen = () => {
     const navigation = useNavigation<any>();
-    const currentUser = useAppSelector(state => state.user);
+    const currentUser = useAppSelector(state => state.user) || {};
     const { colors } = useTheme();
     const [hasMore, setHasMore] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);

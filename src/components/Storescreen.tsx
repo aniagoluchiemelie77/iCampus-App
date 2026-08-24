@@ -73,7 +73,7 @@ export const StoreScreen = () => {
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const { pendingOrders } = useAppDataContext();
   const navigation = useNavigation<any>();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const [searchQuery, setSearchQuery] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [loading, setLoading] = useState(false);

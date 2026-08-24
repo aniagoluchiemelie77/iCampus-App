@@ -43,7 +43,7 @@ export const SearchScreen = () => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { allProducts } = useAppDataContext();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);

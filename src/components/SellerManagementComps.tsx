@@ -259,7 +259,7 @@ export const OrdersList = () => {
 export const OverviewsScreenComponent = () => {
   const { colors: themeColors } = useTheme();
   const { allProducts, pendingOrders, sellerSales } = useAppDataContext();
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
 
   const sellerProducts = allProducts.filter(
@@ -314,9 +314,7 @@ export const OverviewsScreenComponent = () => {
           <CustomButton
             title="Upload First Product"
             onPress={() => navigation.navigate('CreateProduct')}
-            style={[
-              styles.addBtnSmall
-            ]}
+            style={[styles.addBtnSmall]}
           />
         </View>
       ) : (
@@ -710,7 +708,7 @@ export const ProductList = () => {
                 name="edit"
                 size={22}
                 color={themeColors.primary}
-                style={{padding: 10}}
+                style={{ padding: 10 }}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -720,7 +718,7 @@ export const ProductList = () => {
                 name="delete"
                 size={22}
                 color={themeColors.primary}
-                style={{padding: 10}}
+                style={{ padding: 10 }}
               />
             </TouchableOpacity>
           </View>
@@ -756,9 +754,7 @@ export const ProductList = () => {
           <CustomButton
             title="Upload First Listing"
             onPress={() => navigation.navigate('CreateProduct')}
-            style={[
-              styles.addBtnSmall
-            ]}
+            style={[styles.addBtnSmall]}
           />
         </View>
       ) : (
@@ -900,9 +896,7 @@ export const PayoutView = () => {
           </Text>
           <CustomButton
             title={!isVerified ? 'Verify Identity' : 'Create Icash PIN'}
-            style={[
-              styles.verifyBtn
-            ]}
+            style={[styles.verifyBtn]}
             onPress={() => {
               if (!isVerified) {
                 navigation.navigate('PersonaVerify');
@@ -1110,10 +1104,8 @@ export const SalesScreen = () => {
             You haven't uploaded any products yet.
           </Text>
           <CustomButton
-            title='Upload First Listing'
-            style={[
-              styles.verifyBtn
-            ]}
+            title="Upload First Listing"
+            style={[styles.verifyBtn]}
             onPress={() => navigation.navigate('CreateProduct')}
           />
         </View>
@@ -1264,7 +1256,7 @@ export const ReviewsSection = () => {
   const { colors } = useTheme();
   const { allReviews, refreshReviews } = useAppDataContext();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const sellerReviews = allReviews.filter(r => r.targetId === currentUser.uid);
   const totalReviews = sellerReviews.length;
   const avgRating =

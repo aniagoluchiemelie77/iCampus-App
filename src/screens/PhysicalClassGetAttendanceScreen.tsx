@@ -47,7 +47,7 @@ interface GroupedSection {
 export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { lecture, course, exceptions } = route.params;
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const socketRef = useSocketConnection({
     baseUrl,
     userId: user?.uid,

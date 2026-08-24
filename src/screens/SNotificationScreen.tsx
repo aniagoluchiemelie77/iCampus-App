@@ -13,7 +13,7 @@ export const NotificationSettings = () => {
   const { colors } = useTheme();
   const [_isLoading, setIsLoading] = useState(true);
   const [prefs, setPrefs] = useState<userPreferences | null>(null);
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user) || {};
   const handleToggle = async (
     section: 'notifications' | 'channels',
     key: string,

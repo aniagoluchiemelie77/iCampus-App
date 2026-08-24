@@ -100,7 +100,7 @@ const CreatePost = ({ route, navigation }: Props) => {
 
   const { value: jobType, selectType } = usePicker(jobMetadata.type);
 
-  const currentUser = useAppSelector(state => state.user);
+  const currentUser = useAppSelector(state => state.user) || {};
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [mentionSearchKeyword, setMentionSearchKeyword] = useState<
