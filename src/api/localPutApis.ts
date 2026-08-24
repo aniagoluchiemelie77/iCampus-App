@@ -4,6 +4,7 @@ import {ThemeType} from '../types/firebase';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
 interface UpdateITagResponse {
   success: boolean;
@@ -11,7 +12,7 @@ interface UpdateITagResponse {
   data?: any;
 }
 export const updatePassword = async (newPassword: string, signal?: AbortSignal) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -61,7 +62,7 @@ export const customizeItag = async (
   updatePayload: Record<string, any>,
   signal?: AbortSignal
 ): Promise<UpdateITagResponse> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -146,7 +147,7 @@ export const updateUserThemePreference = async (
   theme: ThemeType,
   signal?: AbortSignal
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {

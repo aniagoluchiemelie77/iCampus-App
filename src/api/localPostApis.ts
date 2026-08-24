@@ -5,10 +5,11 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
-import {CartItem, CourseException, Lecture, CreateLecturePayload, CreateTestPayload} from '../types/firebase';
+import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
 import {getAuthHeaders} from '../utils/userTokenAuth';
+import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
 interface ServiceResponse {
   success: boolean;
@@ -111,7 +112,7 @@ export const fetchInquiryFromBackend = async (
   userType: string,
   signal?: AbortSignal
 ): Promise<{ inquiryId: string }> => {
-  const TIMEOUT_MS = 12000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -175,7 +176,7 @@ export const revokeDeviceSession = async (
   deviceIdToRevoke: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -276,7 +277,7 @@ export const initiatePaymentCharge = async (
   }
 };
 export const initializeBuyTransaction = async (payload: any) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -378,7 +379,7 @@ export const toggleBlockUser = async (
   targetId: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; action?: 'blocked' | 'unblocked'; message?: string }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -443,7 +444,7 @@ export const verifyICashPin = async (
   pin: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string; isSuspended?: boolean; attemptsRemaining?: number }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -505,7 +506,7 @@ export const setupICashPin = async (
   pin: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message: string }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -566,7 +567,7 @@ export const setupICashPin = async (
 export const requestPinReset = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; message: string }> => {
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -616,7 +617,7 @@ export const resetICashPin = async (
   newPin: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message: string }> => {
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -677,7 +678,7 @@ export const askIAssistantAgent = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; reply?: string; ticketId?: string; error?: string }> => {
   const { message, history, contextType, contextData } = params;
-  const TIMEOUT_MS = 20000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -756,7 +757,7 @@ export const handleLogout = async (navigation: any) => {
   }
 };
 export const verifySignupEmail = async (email: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
@@ -802,7 +803,7 @@ export const verifySignupEmail = async (email: string) => {
   }
 };
 export const verifySignupEmailCode = async (email: string, code: string) => {
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
@@ -855,7 +856,7 @@ export const handleRegisterUser = async (registrationData: any, maxRetries = 3) 
   const idempotencyKey = uuidv4();
   
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -925,7 +926,7 @@ export const verifySignupStudent = async (
   matric: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   
   if (signal) {
@@ -977,7 +978,7 @@ export const verifySignupInstructor = async (
   staffId: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1025,7 +1026,7 @@ export const verifySignupInstructor = async (
   }
 };
 export const signupValidateInstitution = async (institution: string) => {
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
@@ -1078,7 +1079,7 @@ export const changePassword = async (
   password: string, 
   confirmPassword: string, 
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
@@ -1124,7 +1125,7 @@ export const changePassword = async (
   }
 };
 export const handleForgotPassword = async (email: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
@@ -1170,7 +1171,7 @@ export const handleForgotPassword = async (email: string) => {
 export const loginUser = async (credentials: any, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000; 
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -1239,7 +1240,7 @@ export const loginUser = async (credentials: any, maxRetries = 3) => {
 export const loginAdmin = async (credentials: any, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -1303,7 +1304,7 @@ export const loginAdmin = async (credentials: any, maxRetries = 3) => {
   };
 };
 export const refreshAccessToken = async (refreshToken: string) => {
-  const TIMEOUT_MS = 6000; 
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -1334,7 +1335,7 @@ export const verifyCurrentPassword = async (
   password: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1384,7 +1385,7 @@ export const handleSendWhatsAppCode = async (
   formattedNumber: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message: string; data?: any }> => {
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1445,7 +1446,7 @@ export const verifyPhoneOTPAPI = async (
   code: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1500,7 +1501,7 @@ export const addCommentAPI = async (
   text: string,
   parentId: string | null = null
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -1545,7 +1546,7 @@ export const addCommentAPI = async (
   }
 };
 export const toggleLikeAPI = async (postId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -1585,7 +1586,7 @@ export const toggleLikeAPI = async (postId: string) => {
   }
 };
 export const createRepostAPI = async (originalPostId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -1636,7 +1637,7 @@ export const toggleCommentLikeAPI = async (
   postId: string, 
   commentId: string
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -1684,7 +1685,7 @@ export const bulkAddToCartApi = async (
 ) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000; 
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -1755,7 +1756,7 @@ export const initializeCheckoutTransaction = async (
 ) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -1825,7 +1826,7 @@ export const initializeCheckoutTransaction = async (
 export const completeOrderDelivery = async (orderId: string, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -1909,7 +1910,7 @@ export const cancelOrderAPI = async (
 ) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -1986,7 +1987,7 @@ export const cancelOrderAPI = async (
 export const requestPayoutAPI = async (amount: number, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -2137,7 +2138,7 @@ export const submitReviewApi = async (
   authToken: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -2203,7 +2204,7 @@ export const submitOrUpdatePostService = async (
   isEditMode: boolean,
   postId?: string
 ): Promise<ServiceResponse> => { 
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const headers = await getAuthHeaders();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   
@@ -2324,7 +2325,7 @@ export const toggleFollowUser = async (
   targetFollowingId: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; action?: 'followed' | 'unfollowed'; message?: string }> => {
-  const TIMEOUT_MS = 7000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -2370,7 +2371,7 @@ export const toggleBlockUserFromProfile = async (
   targetUserId: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; action?: 'blocked' | 'unblocked' }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 const controller = new AbortController();
 
 if (signal) {
@@ -2989,7 +2990,7 @@ export const createSupportTicketApi = async (
 ) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -3112,7 +3113,7 @@ export const createPublicMeeting = async (
 ): Promise<{ success: boolean; meeting?: any; error?: string }> => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -3239,7 +3240,7 @@ export const requestDropStationApi = async (
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -3364,7 +3365,7 @@ export const sendSupportMessageApi = async (
   }
 };
 export const switchToAdminApi = async (userId: string, deviceId?: string, deviceName?: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();

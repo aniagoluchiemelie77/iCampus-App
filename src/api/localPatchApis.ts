@@ -4,6 +4,7 @@ import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 interface UpdateExceptionStatusPayload {
   status: 'approved' | 'rejected';
   lecturerComment?: string;
@@ -19,7 +20,7 @@ export const patchUserProfile = async (
   data: Partial<User>,
   signal?: AbortSignal
 ): Promise<any> => {
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -78,7 +79,7 @@ export const updatePreferences = async (
   update: Partial<userPreferences>,
   signal?: AbortSignal
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -137,7 +138,7 @@ export const updateEmailRecord = async (
   type: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -184,7 +185,7 @@ export const updateEmailRecord = async (
   }
 };
 export const recordPostImpressionAPI = async (postId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -227,7 +228,7 @@ export const recordPostImpressionAPI = async (postId: string) => {
   }
 };
 export const castPollVoteAPI = async (postId: string, optionId: string, userId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -275,7 +276,7 @@ export const castPollVoteAPI = async (postId: string, optionId: string, userId: 
   }
 };
 export const toggleBookmarkAPI = async (postId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -320,7 +321,7 @@ export const updateCartAPI = async (
   details?: { selectedSize?: string; selectedColor?: string; quantity?: number },
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -381,7 +382,7 @@ export const toggleFavoriteAPI = async (
   productId: string,
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -441,7 +442,7 @@ export const toggleFavoriteAPI = async (
 export const logProductImpressionAPI = async (productId: string, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -501,7 +502,7 @@ export const logProductImpressionAPI = async (productId: string, maxRetries = 3)
 export const markAllNotificationsAsRead = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -560,7 +561,7 @@ export const markSingleNotificationAsRead = async (
   notificationId: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string }> => {
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -652,7 +653,7 @@ export const markOrderAsDroppedOffAPI = async (
   orderId: string,
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -725,7 +726,7 @@ export const updateTicketStatus = async (
 ) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;

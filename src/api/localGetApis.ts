@@ -3,6 +3,7 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 import { TAB_TO_CATEGORY, TabName } from '../constants/inAppConstants.ts';
+import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
 interface ApiRequestOptions {
   signal?: AbortSignal;
@@ -220,7 +221,7 @@ export const fetchSupportedBanks = async ({
 export const getUserPaymentMethods = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
 
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -303,7 +304,7 @@ export const searchUsers = async ({
 }: SearchUserParams & { signal?: AbortSignal }): Promise<any> => {
   if (!uid && (!q || q.length < 2)) return null;
 
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -366,7 +367,7 @@ export const searchUsersByUid = async (
 ): Promise<any[]> => {
   if (!uid) return [];
 
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -414,7 +415,7 @@ export const searchUsersByUid = async (
   }
 };
 export const signupFetchInstitutions = async (country: string) => {
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -472,7 +473,7 @@ export const fetchProductsAPI = async (
   maxRetries = 3
 ) => {
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -565,7 +566,7 @@ export const fetchAllProductsAPI = async (forceRefresh = false) => {
 };
 export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -627,7 +628,7 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
 };
 export const fetchSellerSalesAPI = async (maxRetries = 3) => {
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -687,7 +688,7 @@ export const fetchSellerSalesAPI = async (maxRetries = 3) => {
   return { success: false, data: [], message: 'Max retry attempts reached.' };
 };
 export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -741,7 +742,7 @@ export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
 };
 export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -803,7 +804,7 @@ export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
 };
 export const fetchDropOffStationsAPI = async (lat?: number, lng?: number, maxRetries = 3) => {
   let attempt = 0;
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   while (attempt < maxRetries) {
@@ -1031,7 +1032,7 @@ export const checkITagAvailability = async (
   username: string,
   signal?: AbortSignal
 ): Promise<CheckITagResponse> => {
-  const TIMEOUT_MS = 5000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1150,7 +1151,7 @@ export const searchLibraryBooks = async (
   query: string,
   signal?: AbortSignal
 ): Promise<SearchBooksResponse> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1202,7 +1203,7 @@ export const searchLibraryBooks = async (
 export const getUserAccountState = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; user?: { uid: string; isSuspended: boolean }; error?: string }> => {
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1541,7 +1542,7 @@ export const searchCourses = async (
 ): Promise<SearchCoursesResponse[]> => {
   if (!query || query.trim().length < 2) return [];
 
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1591,7 +1592,7 @@ export const searchAcademicResources = async (
 ): Promise<any[]> => {
   if (!query || query.trim().length < 2) return [];
 
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -1815,7 +1816,7 @@ export const getTransactionByIdAPI = async ({
 export const refreshUserProfileAPI = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; user?: any; accessToken?: string; refreshToken?: string; message: string }> => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -2130,7 +2131,7 @@ export const searchPosts = async (query: string): Promise<any[]> => {
   }
 };
 export const fetchPostByIdAPI = async (postId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 

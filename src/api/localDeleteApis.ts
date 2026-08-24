@@ -5,6 +5,7 @@ import { CommonActions } from '@react-navigation/native';
 import {getAuthHeaders} from '../utils/userTokenAuth';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
 interface DeleteLectureResponse {
   success: boolean;
@@ -23,7 +24,7 @@ export const handleFinalDelete = async (
   { navigation, reason }: { navigation: any, reason?: string },
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 10000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -86,7 +87,7 @@ export const deleteRecoveryEmailAPI = async (
   emailToDelete: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -141,7 +142,7 @@ export const handleDeletePhone = async (
   phoneNumber: string,
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -236,7 +237,7 @@ export const clearCartAPI = async (showToast = true) => {
 export const clearFavoritesAPI = async (maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
@@ -303,7 +304,7 @@ export const deleteProductApi = async (
   productId: string, 
   signal?: AbortSignal
 ) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
   if (signal) {
@@ -363,7 +364,7 @@ export const deleteProductApi = async (
   }
 };
 export const deletePostApi = async (postId: string) => {
-  const TIMEOUT_MS = 8000;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
