@@ -34,6 +34,7 @@ import { useSocketConnection } from '../hooks/useSocket';
 import { getAds } from '../api/localGetApis';
 import AdBanner from './AdsBanner';
 import { AdItem } from '../types/firebase';
+import { initialState } from '../context/UserSlice.ts';
 
 import { BACKEND_URL } from '@env';
 export const baseUrl = BACKEND_URL;
@@ -231,17 +232,16 @@ export const NotificationBell: React.FC<Props> = ({
     </TouchableOpacity>
   );
 };
-
-export function Home() {
+export function FeedTab() {
   const { posts, setPosts, incrementImpression } = useAppDataContext();
   const { colors } = useTheme();
   const flatListRef = useRef<FlatList<Posts>>(null);
-  const currentUser = useAppSelector(state => state.user) || {} || {};
+  const currentUser = useAppSelector(state => state.user) || initialState;
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
   const socket = useSocketConnection({
     baseUrl,
-    userId: currentUser?.uid,
+    userId: currentUser?.uid || undefined,
   });
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);

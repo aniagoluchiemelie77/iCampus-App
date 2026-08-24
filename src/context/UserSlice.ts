@@ -1,14 +1,15 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '../types/firebase'; 
 export type ThemeType = 'light' | 'dark' | 'system';
-const initialState: User = {
+
+export const initialState: User = {
   uid: '',
   theme: 'system',
-  firstname: '',
-  lastname: '',
+  firstname: 'Masta',
+  lastname: 'Kraft',
   isFirstLogin: true,
   schoolName: '',
-  email: '',
+  email: 'chiboyaniagolu3@gmail.com',
   recoveryEmails: [],
   phoneNumbers: [],
   pointsBalance: 0,
@@ -24,7 +25,8 @@ const initialState: User = {
   tokenCreatedAt: '',
   profilePic: [],
   isSuspended: false,
-  isInstitutionAdmin: false
+  isInstitutionAdmin: false,
+  usertype: 'student'
 };
 const userSlice = createSlice({
   name: 'user',

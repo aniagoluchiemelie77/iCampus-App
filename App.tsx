@@ -6,6 +6,7 @@ import { store } from './src/context/store.ts';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from './src/context/ThemeContext';
 import Toast from 'react-native-toast-message';
+import axios from 'axios';
 import type {
   Posts,
   User,
@@ -133,7 +134,9 @@ import { AdAorEScreen } from './src/screens/AdsCreateOrEditScreen.tsx';
 import { ViewAllSupportInquiriesScreen } from './src/screens/SupportInquiriesScreen.tsx';
 import { SupportChatScreen } from './src/screens/SupportEmailsChat.tsx';
 import { refreshAccessToken } from './src/api/localPostApis.ts';
+import { BACKEND_URL } from '@env';
 
+const baseUrl = BACKEND_URL;
 export type RootStackParamList = {
   SignUp: undefined;
   SupportChat: {
@@ -717,6 +720,11 @@ const App = () => {
     BleManager.start({ showAlert: false })
       .then(() => console.log('BleManager Initialized'))
       .catch(error => console.error('BleManager init error', error));
+  }, []);
+  useEffect(() => {
+    axios.get(`${baseUrl}ping`).catch(() => {
+      // To kinda wake backend using a ping.
+    });
   }, []);
   useEffect(() => {
     const initializeApp = async () => {

@@ -1,18 +1,10 @@
-import React, {
-  useState,
-  useEffect,
-  createContext,
-  ReactNode,
-  useContext,
-  useRef,
-} from 'react';
+import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import PagerView from 'react-native-pager-view';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../context/UserSlice';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { io, Socket } from 'socket.io-client';
-import { Home } from '../components/HomeScreenComponents';
+import { FeedTab } from '../components/HomeScreenComponents';
 import { StoreScreen } from '../components/Storescreen';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
@@ -23,7 +15,12 @@ import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
-import { baseUrl } from '../components/HomeScreenComponents';
+import {
+  useSocketConnection,
+  SocketContext,
+  useSocket,
+} from '../hooks/useSocket.ts';
+import { initialState } from '../context/UserSlice.ts';
 import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from '../types/firebase';
 import { SearchScreen } from '../components/SearchScreen';
@@ -34,42 +31,52 @@ import {
   getAllExceptionsForOngoingLecture,
 } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
+import { baseUrl } from '../components/HomeScreenComponents.tsx';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
-export interface SocketContextType {
-  socket: Socket | null;
-  isConnected: boolean;
-}
 interface SocketProviderProps {
   children: ReactNode;
-  userUid: string;
+  baseUrl: string;
+  userUid?: string | null;
 }
-export const SocketContext = createContext<SocketContextType | null>(null);
-export const SocketProvider = ({ children, userUid }: SocketProviderProps) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
+
+export const SocketProvider = ({
+  children,
+  baseUrl,
+  userUid,
+}: SocketProviderProps) => {
   const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useSocketConnection({ baseUrl, userId: userUid });
+  const socket = socketRef.current;
 
   useEffect(() => {
-    const newSocket = io(`${baseUrl}`, {
-      transports: ['websocket'],
-      query: { userId: userUid },
-    });
-
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      newSocket.emit('join_room', userUid);
-      console.log('Socket connected for user:', userUid);
-    });
-
-    newSocket.on('disconnect', () => {
+    const currentSocket = socketRef.current;
+    if (!currentSocket) {
       setIsConnected(false);
-    });
+      return;
+    }
 
-    setSocket(newSocket);
-    return () => {
-      newSocket.disconnect();
+    const handleConnect = () => {
+      setIsConnected(true);
+      currentSocket.emit('join_room', String(userUid));
+      console.log('Socket connected for user:', userUid);
     };
-  }, [userUid]);
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    currentSocket.on('connect', handleConnect);
+    currentSocket.on('disconnect', handleDisconnect);
+    if (currentSocket.connected) {
+      setIsConnected(true);
+    }
+
+    return () => {
+      currentSocket.off('connect', handleConnect);
+      currentSocket.off('disconnect', handleDisconnect);
+    };
+  }, [socketRef, userUid]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>
@@ -104,14 +111,14 @@ const TabBarItem = React.memo(
 );
 const HomeScreen = () => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user) || {};
+  const user = useAppSelector(state => state.user) || initialState;
   const pagerRef = useRef<PagerView>(null);
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const [activeIcon, setActiveIcon] = useState<string>('home');
   const userType = user?.usertype;
   const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
-  const socketContext = useContext(SocketContext);
+  const socketContext = useSocket();
   const socket = socketContext?.socket;
   const rawRole = user?.usertype || 'student';
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
@@ -241,74 +248,78 @@ const HomeScreen = () => {
     }
   };
   return (
-    <AppDataProvider user={user}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <PagerView
-          style={styles.centerContent}
-          initialPage={0}
-          ref={pagerRef}
-          onPageSelected={handlePageSelected}
-        >
-          <View key="0">
-            <Home />
-          </View>
-          <View key="1">
-            <ClassroomScreenComponent
-              userRole={rawRole as 'student' | 'lecturer'}
-            />
-          </View>
-          <View key="2">
-            <SearchScreen />
-          </View>
-          <View key="3">
-            <StoreScreen />
-          </View>
-        </PagerView>
-
+    <SocketProvider baseUrl={baseUrl} userUid={user?.uid}>
+      <AppDataProvider user={user}>
         <View
-          style={[
-            styles.iconBar,
-            {
-              backgroundColor: colors.backgroundSecondary,
-              borderColor: colors.border,
-            },
-          ]}
+          style={[styles.container, { backgroundColor: colors.background }]}
         >
-          <TabBarItem
-            label="Home"
-            icon="home"
-            active={activeIcon === 'home'}
-            onPress={() => setActiveIcon('home')}
-          />
-          {isClassroomAllowed && (
+          <PagerView
+            style={styles.centerContent}
+            initialPage={0}
+            ref={pagerRef}
+            onPageSelected={handlePageSelected}
+          >
+            <View key="0">
+              <FeedTab />
+            </View>
+            <View key="1">
+              <ClassroomScreenComponent
+                userRole={rawRole as 'student' | 'lecturer'}
+              />
+            </View>
+            <View key="2">
+              <SearchScreen />
+            </View>
+            <View key="3">
+              <StoreScreen />
+            </View>
+          </PagerView>
+
+          <View
+            style={[
+              styles.iconBar,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <TabBarItem
-              label="Courses"
-              icon="groups"
-              active={activeIcon === 'classroom'}
-              onPress={() => setActiveIcon('classroom')}
+              label="Home"
+              icon="home"
+              active={activeIcon === 'home'}
+              onPress={() => setActiveIcon('home')}
             />
-          )}
-          <TabBarItem
-            label="Search"
-            icon="search"
-            active={activeIcon === 'search'}
-            onPress={() => setActiveIcon('search')}
-          />
-          <TabBarItem
-            label="Store"
-            icon="shopping-cart"
-            active={activeIcon === 'store'}
-            onPress={() => setActiveIcon('store')}
-          />
+            {isClassroomAllowed && (
+              <TabBarItem
+                label="Courses"
+                icon="groups"
+                active={activeIcon === 'classroom'}
+                onPress={() => setActiveIcon('classroom')}
+              />
+            )}
+            <TabBarItem
+              label="Search"
+              icon="search"
+              active={activeIcon === 'search'}
+              onPress={() => setActiveIcon('search')}
+            />
+            <TabBarItem
+              label="Store"
+              icon="shopping-cart"
+              active={activeIcon === 'store'}
+              onPress={() => setActiveIcon('store')}
+            />
+          </View>
         </View>
-      </View>
-      <OngoingLectureModal
-        visible={!!ongoingLecture}
-        lecture={ongoingLecture}
-        onJoin={handleJoinLecture}
-        onDismiss={() => setOngoingLecture(null)}
-      />
-    </AppDataProvider>
+        <OngoingLectureModal
+          visible={!!ongoingLecture}
+          lecture={ongoingLecture}
+          onJoin={handleJoinLecture}
+          onDismiss={() => setOngoingLecture(null)}
+        />
+      </AppDataProvider>
+    </SocketProvider>
   );
 };
 const styles = StyleSheet.create({

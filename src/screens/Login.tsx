@@ -58,13 +58,13 @@ const Login = () => {
           deviceId,
           deviceName: `${brand} ${deviceName}`,
         });
-
+        console.log('FRONTEND LOGIN RESPONSE:', response);
         if (response.success) {
           const { accessToken, refreshToken, user } = response;
           await AsyncStorage.setItem('accessToken', accessToken);
           await AsyncStorage.setItem('refreshToken', refreshToken);
           await AsyncStorage.setItem('user', JSON.stringify(user));
-
+          console.log('Pre dispatching');
           dispatch(
             setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }),
           );
@@ -76,6 +76,7 @@ const Login = () => {
           } else if (user.role === 'admin' || user.role === 'master_admin') {
             navigation.navigate('AdminDashboard');
           } else {
+            console.log('Navigating to home');
             navigation.navigate('Home', { activeTab: 'home' });
           }
         } else {

@@ -24,6 +24,7 @@ import {
   fetchLecturerCoursesAPI,
 } from '../api/localGetApis.ts';
 import { createManualCourseAPI } from '../api/localPostApis.ts';
+import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { CourseSearchCard } from './SearchScreenComponents.tsx';
@@ -688,7 +689,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 };
 const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
   const { colors: themeColors } = useTheme();
-  const user = useAppSelector(state => state.user) || {};
+  const user = useAppSelector(state => state.user) || initialState;
   if (!user) {
     return (
       <View

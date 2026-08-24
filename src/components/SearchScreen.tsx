@@ -23,6 +23,7 @@ import {
   searchAcademicResources,
 } from '../api/localGetApis';
 import { useAppDataContext } from '../context/EventContext';
+import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from '../components/ProductCard';
@@ -43,7 +44,7 @@ export const SearchScreen = () => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { allProducts } = useAppDataContext();
-  const currentUser = useAppSelector(state => state.user) || {};
+  const currentUser = useAppSelector(state => state.user) || initialState;
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
