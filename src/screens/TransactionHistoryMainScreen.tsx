@@ -12,8 +12,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import { exportTransactionsAPI } from '../api/localPostApis.ts';
 import { TransactionList } from '../components/TransactionHistory';
-import { TransactionStats } from '../components/TransactionStats';
-import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -21,8 +20,7 @@ import { CustomButton } from '../assets/components/AppUIComponents.tsx';
 
 export const AllTransactionsScreen = ({ route }: any) => {
   const { colors } = useTheme();
-  const { user, stats: initialStats } = route.params;
-  const [activeTab, setActiveTab] = useState<'history' | 'stats'>('history');
+  const { user } = route.params;
   const [searchQuery, setSearchQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [startDate, setStartDate] = useState(
@@ -88,7 +86,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
   }, [searchQuery]);
 
   return (
-    <ScrollView
+    <View
       style={[
         iCashScreenStyles.container,
         { backgroundColor: colors.background },
@@ -97,115 +95,71 @@ export const AllTransactionsScreen = ({ route }: any) => {
       <PageHeader title="Transaction History" />
       <View
         style={[
-          iCashScreenStyles.customTabBar,
-          { backgroundColor: colors.backgroundSecondary },
+          iCashScreenStyles.searchContainer,
+          { borderColor: colors.border },
         ]}
       >
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={colors.inputTextHolder}
+          style={{ marginRight: 7 }}
+        />
+        <TextInput
+          placeholder="Search history..."
+          style={[iCashScreenStyles.searchInput, { color: colors.text }]}
+          value={debouncedQuery}
+          placeholderTextColor={colors.inputTextHolder}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+      <View style={iCashScreenStyles.searchSection}>
         <TouchableOpacity
           style={[
-            iCashScreenStyles.tabItem,
-            activeTab === 'history' && iCashScreenStyles.activeTabItem,
+            iCashScreenStyles.filterBtn,
+            { backgroundColor: colors.btnColor },
           ]}
-          onPress={() => setActiveTab('history')}
+          onPress={() => setModalVisible(true)}
         >
           <Text
             style={[
-              iCashScreenStyles.tabText,
-              activeTab === 'history'
-                ? { color: colors.primary }
-                : { color: colors.text },
+              iCashScreenStyles.filterBtnText,
+              { color: colors.btnTextColor },
             ]}
           >
-            History
+            Export to PDF
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            iCashScreenStyles.tabItem,
-            activeTab === 'stats' && iCashScreenStyles.activeTabItem,
-          ]}
-          onPress={() => setActiveTab('stats')}
-        >
-          <Text
-            style={[
-              iCashScreenStyles.tabText,
-              activeTab === 'stats'
-                ? { color: colors.primary }
-                : { color: colors.text },
-            ]}
-          >
-            Statistics
-          </Text>
+          <MaterialIcons
+            name="insert-drive-file"
+            size={22}
+            color={colors.btnTextColor}
+          />
         </TouchableOpacity>
       </View>
-      {activeTab === 'history' ? (
-        <View
-          style={[
-            iCashScreenStyles.tabContainer,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <View style={iCashScreenStyles.searchSection}>
-            <View
-              style={[
-                iCashScreenStyles.searchContainer,
-                { borderColor: colors.border },
-              ]}
-            >
-              <MaterialIcons
-                name="search"
-                size={20}
-                color={colors.inputTextHolder}
-                style={{ marginHorizontal: 4 }}
-              />
-              <TextInput
-                placeholder="Search history..."
-                style={[iCashScreenStyles.searchInput, { color: colors.text }]}
-                value={debouncedQuery}
-                placeholderTextColor={colors.inputTextHolder}
-                onChangeText={setSearchQuery}
-              />
-            </View>
-            <TouchableOpacity
-              style={[
-                iCashScreenStyles.filterBtn,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={() => setModalVisible(true)}
-            >
-              <Text
-                style={[
-                  iCashScreenStyles.filterBtnText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Export to PDF
-              </Text>
-              <MaterialIcons
-                name="insert-drive-file"
-                size={22}
-                color={colors.btnTextColor}
-              />
-            </TouchableOpacity>
-          </View>
-          <TransactionList
-            variant="full"
-            limit={15}
-            searchQuery={searchQuery}
-          />
-        </View>
-      ) : (
-        <TransactionStats data={initialStats} />
-      )}
-
+      <View
+        style={{
+          marginHorizontal: 15,
+          backgroundColor: colors.backgroundSecondary,
+        }}
+      >
+        <TransactionList variant="full" limit={15} searchQuery={searchQuery} />
+      </View>
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={iCashScreenStyles.modalOverlay}>
+        <TouchableOpacity
+          style={iCashScreenStyles.modalOverlay}
+          onPress={() => setModalVisible(false)}
+        >
           <View
             style={[
               iCashScreenStyles.modalContent,
               { backgroundColor: colors.backgroundSecondary },
             ]}
           >
+            <MaterialIcons
+              name="access-time"
+              size={60}
+              color={colors.primary}
+            />
             <Text
               style={[
                 iCashScreenStyles.modalTitle,
@@ -225,7 +179,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
                 <MaterialIcons
                   name="calendar-month"
                   size={24}
-                  color={colors.text}
+                  color={colors.primary}
                 />
                 <Text
                   style={[iCashScreenStyles.dateLabel, { color: colors.text }]}
@@ -233,7 +187,10 @@ export const AllTransactionsScreen = ({ route }: any) => {
                   Start Date
                 </Text>
                 <Text
-                  style={[iCashScreenStyles.dateValue, { color: colors.text }]}
+                  style={[
+                    iCashScreenStyles.dateValue,
+                    { color: colors.primary },
+                  ]}
                 >
                   {startDate.toDateString()}
                 </Text>
@@ -245,7 +202,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
                 <MaterialIcons
                   name="calendar-month"
                   size={24}
-                  color={colors.text}
+                  color={colors.primary}
                 />
                 <Text
                   style={[iCashScreenStyles.dateLabel, { color: colors.text }]}
@@ -253,7 +210,10 @@ export const AllTransactionsScreen = ({ route }: any) => {
                   End Date
                 </Text>
                 <Text
-                  style={[iCashScreenStyles.dateValue, { color: colors.text }]}
+                  style={[
+                    iCashScreenStyles.dateValue,
+                    { color: colors.primary },
+                  ]}
                 >
                   {endDate.toDateString()}
                 </Text>
@@ -285,7 +245,7 @@ export const AllTransactionsScreen = ({ route }: any) => {
               />
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
       {pickerMode && (
         <DateTimePicker
@@ -297,61 +257,47 @@ export const AllTransactionsScreen = ({ route }: any) => {
           maximumDate={new Date()}
         />
       )}
-    </ScrollView>
+    </View>
   );
 };
 export const iCashScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
-  },
-  tabContainer: {
-    flex: 1,
   },
   searchSection: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingVertical: 10,
+    marginBottom: 20,
+    marginHorizontal: 15,
   },
   searchContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 15,
-    height: 60,
+    borderRadius: 10,
+    height: 50,
     borderWidth: 1,
+    marginHorizontal: 15,
+    paddingHorizontal: 15,
+    marginBottom: 20,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
+    backgroundColor: 'transparent',
   },
   filterBtn: {
-    marginLeft: 15,
-    paddingHorizontal: 16,
-    borderRadius: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
+    width: 'auto',
   },
   filterBtnText: {
     fontSize: 14,
     fontWeight: 'bold',
     marginRight: 3,
-  },
-  customTabBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tabItem: {
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTabItem: {
-    borderBottomColor: PRIMARY_COLOR,
   },
   tabText: {
     fontSize: 14,
@@ -365,29 +311,33 @@ export const iCashScreenStyles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 20,
+    padding: 25,
     paddingBottom: 40,
+    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 15,
+    marginVertical: 25,
   },
-  modalSub: { fontSize: 12, marginBottom: 15 },
+  modalSub: { fontSize: 14, marginBottom: 20, lineHeight: 20 },
   dateRow: {
     alignItems: 'center',
     padding: 15,
-    borderRadius: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
   },
-  dateLabel: { fontSize: 14 },
-  dateValue: { fontSize: 12, fontWeight: '600', marginTop: 4 },
+  dateLabel: { fontSize: 14, marginVertical: 4 },
+  dateValue: { fontSize: 12, fontWeight: '600' },
   modalBtn: {
-    borderRadius: 15,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    height: 50,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    width: 'auto',
   },
   modalBtnMain: {
     paddingHorizontal: 15,
@@ -396,8 +346,10 @@ export const iCashScreenStyles = StyleSheet.create({
   rowDiv: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 15,
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 20,
+    width: '80%',
   },
   modalBtnText: {
     fontSize: 14,

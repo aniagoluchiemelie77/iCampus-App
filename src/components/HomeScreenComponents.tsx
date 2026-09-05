@@ -16,14 +16,9 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from '../context/EventContext.tsx';
 import type { User, Posts } from '../types/firebase';
-import {
-  PRIMARY_COLOR,
-  PRIMARY_COLOR_TINT_MAIN,
-  PRIMARY_COLOR_TINT,
-} from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import Logo from '../assets/images/Logo.tsx';
 import ExpandableFAB from './ExpandableFAB.tsx';
 import { UserIdentity } from './UserIdentity.tsx';
 import { fetchPostsAPI } from '../api/localGetApis.ts';
@@ -37,6 +32,7 @@ import { AdItem } from '../types/firebase';
 import { initialState } from '../context/UserSlice.ts';
 
 import { BACKEND_URL } from '@env';
+import { PageHeader } from './PageHeader.tsx';
 export const baseUrl = BACKEND_URL;
 interface Props {
   initialCount?: number;
@@ -102,7 +98,7 @@ const ProfileModal = ({
           <TouchableOpacity
             style={styles.userInfo}
             onPress={() =>
-              navigation.navigate('ProfileScreen', {
+              navigation.navigate('Profile', {
                 identifier: currentUser?.uid,
               })
             }
@@ -123,6 +119,7 @@ const ProfileModal = ({
               size="medium"
               isOrganization={currentUser?.usertype === 'enterprise'}
               organizationName={currentUser?.organizationName}
+              containerStyle={{ flex: 1 }}
             />
             {currentUser.headline && (
               <Text style={[styles.userSubtext, { color: colors.textDarker }]}>
@@ -143,7 +140,7 @@ const ProfileModal = ({
             <MaterialIcons
               name="account-balance-wallet"
               size={24}
-              color={colors.text}
+              color={colors.primary}
             />
             <Text style={[styles.itemText, { color: colors.text }]}>iCash</Text>
           </TouchableOpacity>
@@ -154,7 +151,7 @@ const ProfileModal = ({
               navigation.navigate('SalesHub');
             }}
           >
-            <MaterialIcons name="storefront" size={24} color={colors.text} />
+            <MaterialIcons name="storefront" size={24} color={colors.primary} />
             <Text style={[styles.itemText, { color: colors.text }]}>
               Sales Hub
             </Text>
@@ -170,7 +167,7 @@ const ProfileModal = ({
               navigation.navigate('Subscription');
             }}
           >
-            <MaterialIcons name="verified" size={24} color={colors.text} />
+            <MaterialIcons name="verified" size={24} color={colors.primary} />
             <Text style={[styles.itemText, { color: colors.text }]}>
               Manage Subscription
             </Text>
@@ -182,7 +179,7 @@ const ProfileModal = ({
               navigation.navigate('Settings');
             }}
           >
-            <MaterialIcons name="settings" size={24} color={colors.text} />
+            <MaterialIcons name="settings" size={24} color={colors.primary} />
             <Text style={[styles.itemText, { color: colors.text }]}>
               Settings
             </Text>
@@ -252,8 +249,12 @@ export function FeedTab() {
   const [pendingPosts, setPendingPosts] = useState<Posts[]>([]);
   const navigation = useNavigation<any>();
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
+  const stateRef = useRef({ cursor, loadingMore, refreshing, posts });
+  stateRef.current = { cursor, loadingMore, refreshing, posts };
   const loadPosts = useCallback(
     async (isRefreshing = false) => {
+      const { cursor, loadingMore, refreshing, posts } = stateRef.current;
+
       if (loadingMore || (refreshing && !isRefreshing)) return;
       const currentCursor = isRefreshing ? '' : cursor || '';
       if (!isRefreshing && cursor === null && posts.length > 0) return;
@@ -267,6 +268,7 @@ export function FeedTab() {
           cursor: currentCursor,
         });
         if (response && response.success) {
+          console.log('Fetch successful...');
           setPosts(prev =>
             isRefreshing ? response.posts : [...prev, ...response.posts],
           );
@@ -285,11 +287,11 @@ export function FeedTab() {
         setRefreshing(false);
       }
     },
-    [cursor, loadingMore, refreshing, posts.length, setPosts],
+    [setPosts, setCursor, setRefreshing, setLoadingMore],
   );
   useEffect(() => {
     loadPosts(true);
-  }, [loadPosts]);
+  }, []);
   useEffect(() => {
     const currentSocket = socket?.current;
     if (!currentSocket) return;
@@ -352,28 +354,27 @@ export function FeedTab() {
   const isModalVisible = isLargeScreen ? true : isProfilePopupVisible;
   return (
     <View style={styles.mainWrapper}>
-      <View
-        style={[
-          styles.headerContainer,
-          {
-            backgroundColor: colors.backgroundSecondary,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
-          <UserAvatar
-            profilePic={currentUser?.profilePic}
-            firstName={currentUser?.firstname}
-            lastName={currentUser?.lastname}
-            organizationName={currentUser?.organizationName}
-            style={styles.headerProfilePic}
+      <PageHeader
+        title="iCampus"
+        rightElement={
+          <NotificationBell
+            initialCount={0}
+            colors={colors}
+            socket={socket?.current}
           />
-        </TouchableOpacity>
-        <Logo />
-        <View style={styles.headerContainerDiv}>
-          <NotificationBell initialCount={0} colors={colors} socket={socket} />
-        </View>
-      </View>
+        }
+        leftElement={
+          <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
+            <UserAvatar
+              profilePic={currentUser?.profilePic}
+              firstName={currentUser?.firstname}
+              lastName={currentUser?.lastname}
+              organizationName={currentUser?.organizationName}
+              style={styles.headerProfilePic}
+            />
+          </TouchableOpacity>
+        }
+      />
       <View style={styles.postsDiv}>
         {pendingPosts.length > 0 && (
           <TouchableOpacity
@@ -391,7 +392,7 @@ export function FeedTab() {
         <FlatList
           ref={flatListRef}
           data={posts}
-          keyExtractor={item => item.postId}
+          keyExtractor={item => item.postId || item.id}
           renderItem={({ item }) => (
             <PostCard post={item} isVisible={item.postId === activePostId} />
           )}
@@ -420,7 +421,7 @@ export function FeedTab() {
           style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
+          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <ExpandableFAB
@@ -453,7 +454,6 @@ export function FeedTab() {
 const styles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   headerContainerDiv: {
     flexDirection: 'row',
@@ -474,6 +474,7 @@ const styles = StyleSheet.create({
   },
   postsDiv: {
     position: 'relative',
+    marginHorizontal: 15,
   },
   topHeader: {
     paddingVertical: 10,
@@ -487,9 +488,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     alignSelf: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 15,
     zIndex: 100,
     elevation: 5,
   },
@@ -1327,12 +1328,12 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 80,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -1350,11 +1351,10 @@ const styles = StyleSheet.create({
     height: '100%',
     borderBottomRightRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 10,
-    paddingHorizontal: 13,
+    padding: 15,
   },
   mobileDrawer: {
-    width: '75%',
+    width: '80%',
   },
   desktopDrawer: {
     width: 320,
@@ -1363,24 +1363,24 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 15,
     borderBottomWidth: 0.8,
     borderBottomColor: PRIMARY_COLOR_TINT,
-    marginBottom: 10,
+    marginBottom: 20,
   },
   largeAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginBottom: 5,
+    width: 49,
+    height: 49,
+    borderRadius: 24.5,
+    marginBottom: 15,
   },
   userSubtext: {
     fontSize: 14,
-    marginTop: 3,
+    marginTop: 10,
   },
   separator: {
     height: 1,
-    backgroundColor: PRIMARY_COLOR_TINT_MAIN,
+    backgroundColor: PRIMARY_COLOR_TINT,
     marginVertical: 10,
     width: '100%',
   },

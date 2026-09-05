@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { InputGroup } from '../components/InputGroup';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -26,8 +26,6 @@ export const EditProfileScreen = () => {
   const isEnterprise = user.usertype === 'enterprise';
   const isTeacher = user.usertype === 'lecturer';
   const isVerified = user.isVerified;
-
-  // 2. Component Local States
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     headline: user.headline || '',
@@ -39,15 +37,11 @@ export const EditProfileScreen = () => {
     department: user.department || '',
     email: user.email || '',
   });
-
-  // Track component unmount lifecycle safely
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
   }, []);
-
-  // 3. Performance Memoization: Evaluates only when formData or baseline user mutations happen
   const isChanged = useMemo(() => {
     return (
       formData.headline !== (user.headline || '') ||
@@ -67,11 +61,8 @@ export const EditProfileScreen = () => {
       [field]: value,
     }));
   };
-
-  // 4. Thread-safe Save Action
   const handleSave = async () => {
-    if (isSaving) return; // Prevent concurrent multiple clicks
-
+    if (isSaving) return;
     setIsSaving(true);
     try {
       const changedData: Partial<typeof formData> = {};
@@ -83,17 +74,12 @@ export const EditProfileScreen = () => {
           changedData[key] = formData[key];
         }
       });
-
-      // Avoid firing redundant endpoint updates if evaluated empty
       if (Object.keys(changedData).length === 0) {
         setIsSaving(false);
         return;
       }
-
       const result = await patchUserProfile(changedData);
-
       if (!isMounted.current) return;
-
       if (result) {
         dispatch(setUser(result.data));
         Toast.show({
@@ -120,10 +106,7 @@ export const EditProfileScreen = () => {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      keyboardShouldPersistTaps="handled" // Improves mobile UX for interactive form submission
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Edit Profile"
         rightElement={
@@ -137,92 +120,95 @@ export const EditProfileScreen = () => {
           )
         }
       />
-
-      <InputGroup
-        label="Headline"
-        value={formData.headline} // Converted from defaultValue to controlled parameter
-        type="text"
-        placeholder="Enter your headline"
-        placeholderTextColor={colors.inputTextHolder}
-        onChangeText={text => handleInputChange('headline', text)}
-      />
-
-      {isEnterprise ? (
-        <>
-          <InputGroup
-            label="Company Name"
-            value={formData.organizationName}
-            isLocked={isVerified}
-            onChangeText={text => handleInputChange('organizationName', text)}
-            type="text"
-            placeholder="Your company name"
-            placeholderTextColor={colors.inputTextHolder}
-          />
-          <InputGroup
-            label="Website"
-            value={formData.website}
-            isLocked={isVerified}
-            onChangeText={text => handleInputChange('website', text)}
-            type="text"
-            placeholder="https://..."
-            placeholderTextColor={colors.inputTextHolder}
-          />
-        </>
-      ) : (
-        <>
-          <InputGroup
-            label="Username"
-            value={formData.username}
-            isLocked={isVerified}
-            onChangeText={text => handleInputChange('username', text)}
-            type="text"
-            placeholder="Enter your username"
-            placeholderTextColor={colors.inputTextHolder}
-          />
-          <InputGroup
-            label="First Name"
-            value={formData.firstname}
-            isLocked={isVerified}
-            onChangeText={text => handleInputChange('firstname', text)}
-            type="text"
-            placeholder="Enter your first name"
-            placeholderTextColor={colors.inputTextHolder}
-          />
-          <InputGroup
-            label="Last Name"
-            isLocked={isVerified}
-            value={formData.lastname}
-            type="text"
-            placeholder="Enter your last name"
-            placeholderTextColor={colors.inputTextHolder}
-            onChangeText={text => handleInputChange('lastname', text)}
-          />
-        </>
-      )}
-
-      {(isStudent || isTeacher) && (
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 40 }}
+      >
         <InputGroup
-          label="Department"
-          isLocked={isVerified}
-          value={formData.department}
+          label="Headline"
+          value={formData.headline}
           type="text"
-          placeholder="Enter your department"
+          placeholder="Enter your headline"
           placeholderTextColor={colors.inputTextHolder}
-          onChangeText={text => handleInputChange('department', text)}
+          onChangeText={text => handleInputChange('headline', text)}
         />
-      )}
 
-      <InputGroup
-        label="Email"
-        value={formData.email}
-        isLocked={isVerified}
-        type="text"
-        keyboardType="email-address"
-        placeholder="Enter your email..."
-        placeholderTextColor={colors.inputTextHolder}
-        onChangeText={text => handleInputChange('email', text)}
-      />
-    </ScrollView>
+        {isEnterprise ? (
+          <>
+            <InputGroup
+              label="Company Name"
+              value={formData.organizationName}
+              isLocked={isVerified}
+              onChangeText={text => handleInputChange('organizationName', text)}
+              type="text"
+              placeholder="Your company name"
+              placeholderTextColor={colors.inputTextHolder}
+            />
+            <InputGroup
+              label="Website"
+              value={formData.website}
+              isLocked={isVerified}
+              onChangeText={text => handleInputChange('website', text)}
+              type="text"
+              placeholder="https://..."
+              placeholderTextColor={colors.inputTextHolder}
+            />
+          </>
+        ) : (
+          <>
+            <InputGroup
+              label="Username"
+              value={formData.username}
+              isLocked={isVerified}
+              onChangeText={text => handleInputChange('username', text)}
+              type="text"
+              placeholder="Enter your username"
+              placeholderTextColor={colors.inputTextHolder}
+            />
+            <InputGroup
+              label="First Name"
+              value={formData.firstname}
+              isLocked={isVerified}
+              onChangeText={text => handleInputChange('firstname', text)}
+              type="text"
+              placeholder="Enter your first name"
+              placeholderTextColor={colors.inputTextHolder}
+            />
+            <InputGroup
+              label="Last Name"
+              isLocked={isVerified}
+              value={formData.lastname}
+              type="text"
+              placeholder="Enter your last name"
+              placeholderTextColor={colors.inputTextHolder}
+              onChangeText={text => handleInputChange('lastname', text)}
+            />
+          </>
+        )}
+
+        {(isStudent || isTeacher) && (
+          <InputGroup
+            label="Department"
+            isLocked={isVerified}
+            value={formData.department}
+            type="text"
+            placeholder="Enter your department"
+            placeholderTextColor={colors.inputTextHolder}
+            onChangeText={text => handleInputChange('department', text)}
+          />
+        )}
+
+        <InputGroup
+          label="Email"
+          value={formData.email}
+          isLocked={isVerified}
+          type="text"
+          keyboardType="email-address"
+          placeholder="Enter your email..."
+          placeholderTextColor={colors.inputTextHolder}
+          onChangeText={text => handleInputChange('email', text)}
+        />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -232,7 +218,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   saveBtn: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   saveBtnText: {

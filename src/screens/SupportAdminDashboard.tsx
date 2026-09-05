@@ -168,7 +168,7 @@ export const AdminDashboard = () => {
         >
           <MaterialIcons
             name={canViewFabWidgets ? 'widgets' : 'search'}
-            size={28}
+            size={34}
             color={colors.btnTextColor}
           />
         </TouchableOpacity>
@@ -186,14 +186,13 @@ export const AdminDashboard = () => {
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    marginVertical: 15,
-    width: '100%',
+    marginBottom: 20,
+    marginHorizontal: 15,
   },
   tab: {
     paddingVertical: 10,
@@ -215,10 +214,11 @@ export const styles = StyleSheet.create({
     marginBottom: 15,
   },
   content: {
-    flex: 1,
+    marginHorizontal: 15,
   },
   tabBarScrollContainer: {
-    paddingHorizontal: 10,
+    marginHorizontal: 15,
+    marginBottom: 20,
     alignItems: 'center',
   },
   merchantAvatar: {
@@ -232,7 +232,8 @@ export const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   topBtn: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   topBtnText: {
@@ -250,12 +251,12 @@ export const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 80,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,

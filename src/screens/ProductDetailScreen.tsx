@@ -107,42 +107,45 @@ export const ProductDetailScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Product Detail" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.productImageDiv}>
-          <FlatList
-            ref={flatListRef}
-            data={product.mediaUrls}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false },
-            )}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.productImage} />
-            )}
-            keyExtractor={(_, index) => index.toString()}
-          />
-          <View
-            style={[
-              styles.pagination,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            {product.mediaUrls.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  activeImageIndex === i
-                    ? { width: 18, backgroundColor: colors.primary }
-                    : { backgroundColor: colors.primaryTint },
-                ]}
-              />
-            ))}
-          </View>
+      <View style={styles.productImageDiv}>
+        <FlatList
+          ref={flatListRef}
+          data={product.mediaUrls}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            { useNativeDriver: false },
+          )}
+          renderItem={({ item }) => (
+            <Image source={{ uri: item }} style={styles.productImage} />
+          )}
+          keyExtractor={(_, index) => index.toString()}
+        />
+        <View
+          style={[
+            styles.pagination,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          {product.mediaUrls.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                activeImageIndex === i
+                  ? { width: 18, backgroundColor: colors.primary }
+                  : { backgroundColor: colors.primaryTint },
+              ]}
+            />
+          ))}
         </View>
+      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ marginHorizontal: 15 }}
+      >
         <View
           style={[
             styles.detailsContainer,
@@ -301,7 +304,7 @@ export const ProductDetailScreen = () => {
                 More by this seller
               </Text>
               <CustomButton
-                title='See All'
+                title="See All"
                 onPress={() =>
                   navigation.navigate('SellerProducts', {
                     sellerId: product.sellerId,
@@ -378,7 +381,6 @@ export const ProductDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
     position: 'relative',
   },
   heroImage: {
@@ -710,7 +712,7 @@ const styles = StyleSheet.create({
   },
   moreBtn: {
     paddingHorizontal: 15,
-    width: 'auto'
+    width: 'auto',
   },
   moreBtnText: {
     fontSize: 14,

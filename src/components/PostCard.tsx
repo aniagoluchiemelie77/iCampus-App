@@ -23,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { UserIdentity } from './UserIdentity';
 import { UserAvatar } from './UserAvatar';
+import { formatPostDate } from '../utils/dateFormatter';
 import { searchUsersByUid } from '../api/localGetApis';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User } from '../types/firebase';
@@ -52,7 +53,6 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
 
   return (
     <View style={styles.mediaContainer}>
-      {/* CASE 1: VIDEO (Only renders the first URL) */}
       {isVideo && mediaUrls[0] && (
         <Video
           source={{ uri: mediaUrls[0] }}
@@ -63,8 +63,6 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
           resizeMode="cover"
         />
       )}
-
-      {/* CASE 2: MULTIPLE IMAGES (Slider) */}
       {!isVideo && mediaUrls.length > 1 && (
         <View>
           <FlatList
@@ -98,8 +96,6 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
           </View>
         </View>
       )}
-
-      {/* CASE 3: SINGLE IMAGE */}
       {!isVideo && mediaUrls.length === 1 && (
         <Image
           source={{ uri: mediaUrls[0] }}
@@ -142,7 +138,7 @@ const PollView = ({
             key={option.optionId}
             style={[
               styles.optionButton,
-              isMyVote && styles.optionButtonSelected,
+              isMyVote && { backgroundColor: colors.btnColor },
               { borderColor: colors.primary },
             ]}
             disabled={hasVoted}
@@ -154,7 +150,7 @@ const PollView = ({
                   styles.progressBg,
                   {
                     width: `${percentage}%`,
-                    backgroundColor: colors.background,
+                    backgroundColor: colors.primaryTint,
                   },
                 ]}
               />
@@ -165,23 +161,17 @@ const PollView = ({
                   style={[
                     styles.optionText,
                     isMyVote
-                      ? { fontWeight: 'bold', color: colors.primary }
+                      ? { fontWeight: 'bold', color: colors.btnTextColor }
                       : { color: colors.text },
                   ]}
                 >
                   {option.text}
                 </Text>
-                {isMyVote && (
-                  <MaterialIcons
-                    name="check-circle"
-                    size={14}
-                    color={colors.primary}
-                    style={{ marginLeft: 5 }}
-                  />
-                )}
               </View>
               {hasVoted && (
-                <Text style={[styles.percentageText, { color: colors.text }]}>
+                <Text
+                  style={[styles.percentageText, { color: colors.primary }]}
+                >
                   {percentage}%
                 </Text>
               )}
@@ -194,8 +184,8 @@ const PollView = ({
         <Text style={[styles.voteCount, { color: colors.text }]}>
           {poll.totalVotes} votes
         </Text>
-        <Text style={[styles.pollStatus, { color: colors.text }]}>
-          {hasVoted ? 'Final results' : '1 day left'}
+        <Text style={[styles.pollStatus, { color: colors.primary }]}>
+          {hasVoted ? 'Final results' : 'Voting ongoing'}
         </Text>
       </View>
     </View>
@@ -306,7 +296,10 @@ export const PostCard = React.memo(
     const { formatDate, formatTime } = useDateTimePicker();
     const getRelativeTime = (dateString: string | null): string => {
       if (!dateString) return '';
-      return formatDistanceToNowStrict(new Date(dateString), {
+      const parsedDate = formatPostDate(dateString);
+      if (!parsedDate) return '';
+
+      return formatDistanceToNowStrict(new Date(parsedDate), {
         addSuffix: false,
       })
         .replace(' minutes', 'm')
@@ -316,6 +309,7 @@ export const PostCard = React.memo(
         .replace(' days', 'd')
         .replace(' day', 'd');
     };
+    const targetPostId = post.postId || post.id;
     const isOwner = currentUser?.uid === user;
     const isLiked = post.likes?.includes(currentUser?.uid);
     const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
@@ -323,7 +317,7 @@ export const PostCard = React.memo(
     const displayText = isExpanded
       ? post.content
       : post.content?.slice(0, TEXT_LIMIT);
-    const deepLinkUrl = `https://useicampus.io/posts/${post.postId}`;
+    const deepLinkUrl = `https://useicampus.io/posts/${targetPostId}`;
 
     const handleCopyLink = () => {
       Clipboard.setString(deepLinkUrl);
@@ -359,7 +353,7 @@ export const PostCard = React.memo(
             style: 'destructive',
             onPress: async () => {
               try {
-                await handleDeletePost(post.postId);
+                await handleDeletePost(targetPostId);
               } catch (err) {
                 console.error('Failed to delete post', err);
               }
@@ -418,7 +412,6 @@ export const PostCard = React.memo(
           styles.container,
           {
             backgroundColor: colors.backgroundSecondary,
-            borderBottomColor: colors.text,
           },
         ]}
       >
@@ -456,7 +449,7 @@ export const PostCard = React.memo(
               isVerified={userDetails?.isVerified}
               isOrganization={userDetails?.usertype === 'enterprise'}
               organizationName={userDetails?.organizationName}
-              size="medium"
+              size="small"
             />
             <Text style={styles.timestamp}>
               {getRelativeTime(post.createdAt)}
@@ -561,7 +554,7 @@ export const PostCard = React.memo(
           <PollView
             poll={post.poll}
             currentUserId={currentUser?.uid}
-            postId={post.postId}
+            postId={targetPostId}
             onVote={handleVote}
             colors={colors}
           />
@@ -575,23 +568,19 @@ export const PostCard = React.memo(
               navigation.navigate('PostDetailScreen', { post: post })
             }
           >
-            <MaterialIcons
-              name="chatbubble"
-              size={18}
-              color={colors.primaryTint}
-            />
+            <MaterialIcons name="chat" size={20} color={colors.primary} />
             <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.commentsCount ?? 0)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() => toggleLike(post.postId)}
+            onPress={() => toggleLike(targetPostId)}
           >
             <MaterialIcons
               name={isLiked ? 'favorite' : 'favorite-outline'}
-              size={18}
-              color={isLiked ? colors.primary : colors.primaryTint}
+              size={20}
+              color={colors.primary}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.likes?.length || 0)}
@@ -599,11 +588,11 @@ export const PostCard = React.memo(
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() => handleRepost(post.postId)}
+            onPress={() => handleRepost(targetPostId)}
           >
             <MaterialIcons
               name="repeat"
-              size={18}
+              size={20}
               color={post.isRepost ? colors.primary : colors.primaryTint}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
@@ -612,12 +601,12 @@ export const PostCard = React.memo(
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() => toggleBookmark(post.postId)}
+            onPress={() => toggleBookmark(targetPostId)}
           >
             <MaterialIcons
               name={isBookmarked ? 'bookmark' : 'bookmark-border'}
-              size={18}
-              color={isBookmarked ? colors.primary : colors.primaryTint}
+              size={20}
+              color={colors.primary}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.bookmarks?.length || 0)}
@@ -626,7 +615,7 @@ export const PostCard = React.memo(
           <View style={styles.statGroup}>
             <MaterialIcons
               name="bar-chart"
-              size={18}
+              size={20}
               color={colors.primaryTint}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
@@ -637,7 +626,7 @@ export const PostCard = React.memo(
             style={styles.statGroup}
             onPress={() => handleExternalShare(post)}
           >
-            <MaterialIcons name="share" size={18} color={colors.primaryTint} />
+            <MaterialIcons name="share" size={20} color={colors.primaryTint} />
           </TouchableOpacity>
         </View>
         <Modal
@@ -713,9 +702,12 @@ export const PostCard = React.memo(
   },
   (prevProps, nextProps) => {
     return (
-      prevProps.post.postId === nextProps.post.postId &&
+      (prevProps.post.postId || prevProps.post.id) ===
+        (nextProps.post.postId || nextProps.post.id) &&
       prevProps.post.likes?.length === nextProps.post.likes?.length &&
-      prevProps.post.bookmarks?.length === nextProps.post.bookmarks?.length
+      prevProps.post.bookmarks?.length === nextProps.post.bookmarks?.length &&
+      prevProps.post.commentsCount === nextProps.post.commentsCount &&
+      prevProps.post.poll === nextProps.post.poll
     );
   },
 );
@@ -724,7 +716,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 0.8,
     borderRadius: 15,
-    marginBottom: 5,
+    marginBottom: 8,
   },
   repostHeader: {
     flexDirection: 'row',
@@ -737,13 +729,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#eee',
   },
   headerText: {
@@ -789,16 +780,17 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    marginTop: 5,
+    marginTop: 7,
+    alignItems: 'center',
   },
   statGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 13,
   },
   statText: {
     marginLeft: 5,
-    fontSize: 12,
+    fontSize: 13,
   },
   pagination: {
     flexDirection: 'row',
@@ -831,13 +823,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   optionButton: {
-    height: 45,
+    height: 40,
     borderRadius: 8,
     borderWidth: 1,
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
     overflow: 'hidden',
     position: 'relative',
+    paddingHorizontal: 15,
   },
   optionButtonSelected: {
     borderWidth: 1.5,
@@ -873,7 +866,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   pollStatus: {
-    fontSize: 13,
+    fontSize: 12,
   },
   baseText: {
     fontSize: 14,

@@ -53,11 +53,11 @@ export const MerchantDashboard = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
-        title="Merchant Hub"
-        subtitle="Manage your products & earnings"
+        title="Sales Hub"
+        subtitle="Manage your listings"
         rightElement={
           <CustomButton
-            title="Add Product"
+            title="Add Listing"
             onPress={() => navigation.navigate('CreateProduct')}
             style={styles.topBtn}
             iconName="add-business"
@@ -65,51 +65,44 @@ export const MerchantDashboard = () => {
           />
         }
       />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View
-          style={[
-            styles.profileCard,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <UserAvatar
-            profilePic={currentUser?.profilePic}
-            firstName={currentUser?.firstname}
-            lastName={currentUser?.lastname}
-            username={currentUser?.username}
-            organizationName={currentUser?.organizationName}
-            style={styles.merchantAvatar}
+      <View
+        style={[
+          styles.profileCard,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <UserAvatar
+          profilePic={currentUser?.profilePic}
+          firstName={currentUser?.firstname}
+          lastName={currentUser?.lastname}
+          username={currentUser?.username}
+          organizationName={currentUser?.organizationName}
+          style={styles.merchantAvatar}
+        />
+        <View style={styles.userInfoWrapper}>
+          <UserIdentity
+            firstname={currentUser?.firstname!}
+            lastname={currentUser?.lastname}
+            tier={currentUser?.tier!}
+            isVerified={currentUser?.isVerified}
+            showVerifyIcon={true}
+            organizationName={currentUser.organizationName}
+            isOrganization={isOrganization}
+            size="medium"
           />
-          <View style={{ marginLeft: 10, flex: 1 }}>
-            <UserIdentity
-              firstname={currentUser?.firstname!}
-              lastname={currentUser?.lastname}
-              tier={currentUser?.tier!}
-              isVerified={currentUser?.isVerified}
-              showVerifyIcon={true}
-              organizationName={currentUser.organizationName}
-              isOrganization={isOrganization}
-              size="large"
-            />
-          </View>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabBarScrollContainer}
-          style={[
-            styles.tabBarWrapper,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          {[
-            'Overview',
-            'Orders',
-            'Sales',
-            'Inventory',
-            'Reviews',
-            'Payouts',
-          ].map(tab => (
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabBarScrollContainer}
+        style={[
+          styles.tabBarWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        {['Overview', 'Orders', 'Sales', 'Inventory', 'Reviews', 'Payouts'].map(
+          tab => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
@@ -126,18 +119,14 @@ export const MerchantDashboard = () => {
                 {tab}
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <View style={styles.content}>
-          <Suspense fallback={<DashboardSkeleton />}>
-            {ActiveComponent ? (
-              <ActiveComponent />
-            ) : (
-              <OverviewsScreenComponent />
-            )}
-          </Suspense>
-        </View>
+          ),
+        )}
       </ScrollView>
+      <View style={styles.content}>
+        <Suspense fallback={<DashboardSkeleton />}>
+          {ActiveComponent ? <ActiveComponent /> : <OverviewsScreenComponent />}
+        </Suspense>
+      </View>
     </View>
   );
 };
@@ -145,18 +134,30 @@ export const MerchantDashboard = () => {
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    marginVertical: 15,
-    width: '100%',
+    marginBottom: 15,
+    marginHorizontal: 15,
+  },
+  merchantAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 40,
+    elevation: 5,
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  userInfoWrapper: {
+    marginLeft: 10,
+    flex: 1,
   },
   tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    padding: 13,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 3,
@@ -171,27 +172,21 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tabBarWrapper: {
-    marginBottom: 15,
+    marginBottom: 20,
+    marginHorizontal: 15,
+    flexGrow: 0,
   },
   content: {
     flex: 1,
+    marginHorizontal: 15,
   },
   tabBarScrollContainer: {
     paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  merchantAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    alignItems: 'flex-start',
   },
   topBtn: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   topBtnText: {

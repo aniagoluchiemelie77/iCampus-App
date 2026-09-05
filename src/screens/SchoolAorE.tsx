@@ -105,9 +105,7 @@ export const SchoolAorEScreen = ({ route, navigation }: Props) => {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title={
           isEdit
@@ -115,157 +113,163 @@ export const SchoolAorEScreen = ({ route, navigation }: Props) => {
             : 'Create Authorrized Institution'
         }
       />
-      <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
-        General Information
-      </Text>
-      <InputGroup
-        label="School Name"
-        defaultValue={formData.name}
-        onChangeText={v => updateField('name', v)}
-      />
-      <InputGroup
-        label="Country Code"
-        defaultValue={formData.countryCode}
-        onChangeText={v => updateField('countryCode', v)}
-      />
-      <InputGroup
-        label="Contact Email"
-        defaultValue={formData.contactEmail}
-        onChangeText={v => updateField('contactEmail', v)}
-      />
-      <InputGroup
-        label="Logo"
-        defaultValue={formData.logo}
-        onChangeText={v => updateField('logo', v)}
-      />
-      <InputGroup
-        label="Domain Whitelist (comma separated)"
-        defaultValue={formData.domainWhitelist.join(', ')}
-        onChangeText={v =>
-          updateField(
-            'domainWhitelist',
-            v.split(',').map(s => s.trim()),
-          )
-        }
-      />
-      <View style={styles.switchRow}>
-        <Text style={[styles.label, { color: colors.text }]}>
-          Is Operational:{' '}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 30 }}
+      >
+        <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
+          General Information
         </Text>
-        <Switch
-          value={formData.isOperational}
-          onValueChange={v => updateField('isOperational', v)}
-          trackColor={{ false: colors.primaryTint, true: colors.primary }}
-          thumbColor={
-            formData.isOperational ? colors.primary : colors.primaryTint
-          }
-          ios_backgroundColor={colors.border}
+        <InputGroup
+          label="School Name"
+          defaultValue={formData.name}
+          onChangeText={v => updateField('name', v)}
         />
-      </View>
-
-      <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
-        Verification Settings
-      </Text>
-      <RNPickerSelect
-        value={formData.verificationMethod}
-        onValueChange={v => updateField('verificationMethod', v)}
-        items={[
-          { label: 'Email Only', value: 'EMAIL_ONLY' },
-          { label: 'SSO', value: 'SSO' },
-          { label: 'External API', value: 'EXTERNAL_API' },
-          { label: 'Seeded Database', value: 'SEEDED_DATABASE' },
-        ]}
-        style={{
-          inputIOS: { padding: 12, color: colors.text },
-          inputAndroid: { padding: 12, color: colors.text },
-          placeholder: { color: colors.inputTextHolder },
-        }}
-        useNativeAndroidPickerStyle={false}
-      />
-
-      {/* 3. Conditional Configs */}
-      {formData.verificationMethod === 'SSO' && (
-        <View style={{ marginTop: 10 }}>
-          <RNPickerSelect
-            value={formData.ssoConfig.provider}
-            onValueChange={v =>
-              setFormData(p => ({
-                ...p,
-                ssoConfig: { ...p.ssoConfig, provider: v },
-              }))
+        <InputGroup
+          label="Country Code"
+          defaultValue={formData.countryCode}
+          onChangeText={v => updateField('countryCode', v)}
+        />
+        <InputGroup
+          label="Contact Email"
+          defaultValue={formData.contactEmail}
+          onChangeText={v => updateField('contactEmail', v)}
+        />
+        <InputGroup
+          label="Logo"
+          defaultValue={formData.logo}
+          onChangeText={v => updateField('logo', v)}
+        />
+        <InputGroup
+          label="Domain Whitelist (comma separated)"
+          defaultValue={formData.domainWhitelist.join(', ')}
+          onChangeText={v =>
+            updateField(
+              'domainWhitelist',
+              v.split(',').map(s => s.trim()),
+            )
+          }
+        />
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: colors.text }]}>
+            Is Operational:{' '}
+          </Text>
+          <Switch
+            value={formData.isOperational}
+            onValueChange={v => updateField('isOperational', v)}
+            trackColor={{ false: colors.primaryTint, true: colors.primary }}
+            thumbColor={
+              formData.isOperational ? colors.primary : colors.primaryTint
             }
-            items={[
-              { label: 'OIDC', value: 'OIDC' },
-              { label: 'SAML', value: 'SAML' },
-            ]}
-            style={{
-              inputIOS: { padding: 12, color: colors.text },
-              inputAndroid: { padding: 12, color: colors.text },
-              placeholder: { color: colors.inputTextHolder },
-            }}
-            useNativeAndroidPickerStyle={false}
-          />
-          <InputGroup
-            label="Issuer URL"
-            defaultValue={formData.ssoConfig.issuerUrl}
-            onChangeText={v =>
-              setFormData(p => ({
-                ...p,
-                ssoConfig: { ...p.ssoConfig, issuerUrl: v },
-              }))
-            }
-          />
-          <InputGroup
-            label="Client ID"
-            defaultValue={formData.ssoConfig.clientId}
-            onChangeText={v =>
-              setFormData(p => ({
-                ...p,
-                ssoConfig: { ...p.ssoConfig, clientId: v },
-              }))
-            }
+            ios_backgroundColor={colors.border}
           />
         </View>
-      )}
 
-      {formData.verificationMethod === 'EXTERNAL_API' && (
-        <>
-          <InputGroup
-            label="API Endpoint"
-            defaultValue={formData.externalApiConfig.endpoint}
-            onChangeText={v =>
-              setFormData(p => ({
-                ...p,
-                externalApiConfig: { ...p.externalApiConfig, endpoint: v },
-              }))
-            }
-          />
-          <InputGroup
-            label="Shared Secret"
-            defaultValue={formData.externalApiConfig.sharedSecret}
-            onChangeText={v =>
-              setFormData(p => ({
-                ...p,
-                externalApiConfig: { ...p.externalApiConfig, sharedSecret: v },
-              }))
-            }
-          />
-        </>
-      )}
-      <CustomButton
-        title={loading ? 'Saving...' : 'Save Configuration'}
-        onPress={handleSave}
-        style={styles.saveBtn}
-        disabled={loading}
-      />
-    </ScrollView>
+        <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
+          Verification Settings
+        </Text>
+        <RNPickerSelect
+          value={formData.verificationMethod}
+          onValueChange={v => updateField('verificationMethod', v)}
+          items={[
+            { label: 'Email Only', value: 'EMAIL_ONLY' },
+            { label: 'SSO', value: 'SSO' },
+            { label: 'External API', value: 'EXTERNAL_API' },
+            { label: 'Seeded Database', value: 'SEEDED_DATABASE' },
+          ]}
+          style={{
+            inputIOS: { padding: 12, color: colors.text },
+            inputAndroid: { padding: 12, color: colors.text },
+            placeholder: { color: colors.inputTextHolder },
+          }}
+          useNativeAndroidPickerStyle={false}
+        />
+
+        {/* 3. Conditional Configs */}
+        {formData.verificationMethod === 'SSO' && (
+          <View style={{ marginTop: 10 }}>
+            <RNPickerSelect
+              value={formData.ssoConfig.provider}
+              onValueChange={v =>
+                setFormData(p => ({
+                  ...p,
+                  ssoConfig: { ...p.ssoConfig, provider: v },
+                }))
+              }
+              items={[
+                { label: 'OIDC', value: 'OIDC' },
+                { label: 'SAML', value: 'SAML' },
+              ]}
+              style={{
+                inputIOS: { padding: 12, color: colors.text },
+                inputAndroid: { padding: 12, color: colors.text },
+                placeholder: { color: colors.inputTextHolder },
+              }}
+              useNativeAndroidPickerStyle={false}
+            />
+            <InputGroup
+              label="Issuer URL"
+              defaultValue={formData.ssoConfig.issuerUrl}
+              onChangeText={v =>
+                setFormData(p => ({
+                  ...p,
+                  ssoConfig: { ...p.ssoConfig, issuerUrl: v },
+                }))
+              }
+            />
+            <InputGroup
+              label="Client ID"
+              defaultValue={formData.ssoConfig.clientId}
+              onChangeText={v =>
+                setFormData(p => ({
+                  ...p,
+                  ssoConfig: { ...p.ssoConfig, clientId: v },
+                }))
+              }
+            />
+          </View>
+        )}
+
+        {formData.verificationMethod === 'EXTERNAL_API' && (
+          <>
+            <InputGroup
+              label="API Endpoint"
+              defaultValue={formData.externalApiConfig.endpoint}
+              onChangeText={v =>
+                setFormData(p => ({
+                  ...p,
+                  externalApiConfig: { ...p.externalApiConfig, endpoint: v },
+                }))
+              }
+            />
+            <InputGroup
+              label="Shared Secret"
+              defaultValue={formData.externalApiConfig.sharedSecret}
+              onChangeText={v =>
+                setFormData(p => ({
+                  ...p,
+                  externalApiConfig: {
+                    ...p.externalApiConfig,
+                    sharedSecret: v,
+                  },
+                }))
+              }
+            />
+          </>
+        )}
+        <CustomButton
+          title={loading ? 'Saving...' : 'Save Configuration'}
+          onPress={handleSave}
+          style={styles.saveBtn}
+          disabled={loading}
+        />
+      </ScrollView>
+    </View>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
-    paddingBottom: 40,
   },
   groupTitle: { fontWeight: 'bold', fontSize: 18, marginVertical: 15 },
   switchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },

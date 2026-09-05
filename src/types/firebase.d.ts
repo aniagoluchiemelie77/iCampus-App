@@ -262,7 +262,8 @@ export interface User {
   skills?: string[]; 
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   isSuspended: boolean;
-  isInstitutionAdmin: boolean
+  isInstitutionAdmin: boolean;
+  hasIcashPin: boolean;
 };
 export interface Admin {
   uid: string;
@@ -378,6 +379,7 @@ export interface DropOffStation {
 }
 export interface Product {
   _id?: string;
+  id: string;
   productId: string; 
   sellerId: string; 
   impressions: number;
@@ -534,6 +536,7 @@ export interface PollOption {
 }
 export interface Posts {
   _id: string;
+  id: string;
   postId: string;
   content: string;
   media?: {
@@ -745,16 +748,6 @@ export interface TestSubmission {
   };
   startTime?: Date
 }
-export interface Book {
-  id: string;
-  title: string;
-  author: string;
-  thumbnail: string;
-  extension: string; 
-  size: string;
-  downloadUrl: string;
-  year?: string;
-}
 export interface ITag {
   userId: string;
   username: string;
@@ -771,12 +764,6 @@ export interface ITag {
   cardBrand: 'mastercard' | 'visa' | 'verve' | 'discover' | 'american express';
   isDefault: boolean;
   createdAt: Date;
-}
-export interface StatsData {
-  flow: Array<{ _id: 'in' | 'out'; total: number }>;
-  topRecipients: Array<{ _id: string; count: number; total: number, name: string }>;
-  monthly: Array<{ _id: number; total: number }>;
-  currency: string;
 }
 export interface Attachment {
   url: string;

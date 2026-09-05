@@ -5,14 +5,15 @@ import {
   Text,
   TextInput,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { handleFinalDelete } from '../api/localDeleteApis';
 import { useAppSelector } from '../hooks/hooks';
-import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 interface DeleteModalProps {
   visible: boolean;
   onClose: () => void;
@@ -26,7 +27,7 @@ export const DeleteAccountModal = ({
 }: DeleteModalProps) => {
   const user = useAppSelector(state => state.user) || {};
   const { colors } = useTheme();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -52,7 +53,7 @@ export const DeleteAccountModal = ({
     const isPrimaryMatch = inputEmail === user.email.toLowerCase();
     const alternates = user.recoveryEmails || [];
     const isAlternateMatch = alternates.some(
-      alt => alt.email.toLowerCase() === inputEmail.toLowerCase(),
+      alt => alt.email.toLowerCase() === inputEmail.toLowerCase().trim(),
     );
 
     if (isPrimaryMatch || isAlternateMatch) {
@@ -68,16 +69,22 @@ export const DeleteAccountModal = ({
           <Animated.View
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
+            style={{ width: '100%' }}
           >
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               To continue, please enter your email address:
             </Text>
             <View style={[styles.inputGroup, { borderColor: colors.border }]}>
-              <MaterialIcons name="email" size={14} color={colors.primary} />
+              <MaterialIcons
+                name="email"
+                size={20}
+                color={colors.primary}
+                style={{ marginRight: 7 }}
+              />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="email@campus.com"
+                placeholder="Enter your email..."
                 placeholderTextColor={colors.inputTextHolder}
                 style={[styles.input, { color: colors.text }]}
               />
@@ -100,6 +107,7 @@ export const DeleteAccountModal = ({
           <Animated.View
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
+            style={{ width: '100%' }}
           >
             <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               Why are you leaving us? Help us improve (Optional)
@@ -122,7 +130,7 @@ export const DeleteAccountModal = ({
                             color: '#fff',
                           }
                         : {
-                            color: colors.text,
+                            color: colors.primary,
                           },
                     ]}
                   >
@@ -131,7 +139,7 @@ export const DeleteAccountModal = ({
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { borderColor: colors.border }]}>
               <TextInput
                 value={reason}
                 onChangeText={setReason}
@@ -153,16 +161,11 @@ export const DeleteAccountModal = ({
           <Animated.View
             entering={FadeInRight.duration(400).springify()}
             exiting={FadeOutLeft}
+            style={{ width: '100%' }}
           >
-            <MaterialIcons
-              name="error"
-              size={40}
-              color={colors.primary}
-              style={styles.errorIcon}
-            />
             <Text style={[styles.modalSubtitle, { color: colors.text }]}>
               Deleting your account is permanent. You will lose all your iCampus
-              credits and history.
+              history.
             </Text>
             <CustomButton
               title="I Understand"
@@ -173,15 +176,10 @@ export const DeleteAccountModal = ({
         );
       case 4:
         return (
-          <View>
-            <MaterialIcons
-              name="emoji-sad"
-              size={40}
-              color={colors.primary}
-              style={styles.errorIcon}
-            />
+          <View style={{ width: '100%' }}>
             <Text style={[styles.modalSubtitle, { color: colors.text }]}>
-              We're sad to see you go. iCampus won't be the same without you.
+              We're really sad to see you go. iCampus won't be the same without
+              you.
             </Text>
             <CustomButton
               title="Delete my account forever"
@@ -195,24 +193,29 @@ export const DeleteAccountModal = ({
 
   return (
     <Modal
-      isVisible={visible}
-      onBackdropPress={() => onClose()}
-      swipeDirection="down"
-      onSwipeComplete={() => onClose()}
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
         <View
           style={[
             styles.modalContent,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
+          <MaterialIcons
+            name={'info-outline'}
+            color={colors.primary}
+            size={60}
+          />
           <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
             Delete Account
           </Text>
           {renderStep()}
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -225,20 +228,21 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     borderRadius: 25,
-    padding: 20,
+    padding: 25,
     width: '90%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
+    marginVertical: 25,
   },
   modalSubtitle: {
-    marginBottom: 15,
+    marginBottom: 20,
     fontSize: 14,
     width: '100%',
+    lineHeight: 20,
   },
   errorIcon: {
     marginVertical: 15,
@@ -247,13 +251,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    marginBottom: 15,
-    paddingHorizontal: 8,
   },
   chip: {
     padding: 10,
-    margin: 1,
+    margin: 3,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
   },
   chipText: {
     fontSize: 14,
@@ -265,17 +269,20 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
   },
   inputGroup: {
+    width: '100%',
+    borderRadius: 5,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    borderWidth: 0.8,
-    marginBottom: 15,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    height: 50,
   },
   input: {
-    padding: 10,
     flex: 1,
-    marginLeft: 5,
     fontSize: 14,
+    backgroundColor: 'transparent',
   },
   errorText: {
     fontSize: 11,
@@ -283,7 +290,9 @@ const styles = StyleSheet.create({
   },
   continueBtn: {
     paddingHorizontal: 15,
-    marginVertical: 20,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   continueBtnText: {
     fontSize: 14,

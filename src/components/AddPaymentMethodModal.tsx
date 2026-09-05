@@ -120,12 +120,30 @@ const BankForm = ({
           placeholder="Select your bank"
           style={[
             AddPaymentMethodStyles.dropdown,
-            { borderBottomColor: colors.border },
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border,
+              borderBottomColor: colors.border,
+            },
           ]}
           dropDownContainerStyle={[
             AddPaymentMethodStyles.dropdownContainer,
-            { backgroundColor: colors.backgroundSecondary },
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border,
+            },
           ]}
+          textStyle={{
+            color: colors.text,
+          }}
+          searchContainerStyle={{
+            borderBottomColor: colors.border,
+          }}
+          searchTextInputStyle={{
+            color: colors.text,
+            backgroundColor: colors.background,
+          }}
+          searchPlaceholderTextColor={colors.inputTextHolder || '#8c8c8c'}
           searchable={true}
           zIndex={3000}
         />
@@ -146,9 +164,13 @@ const BankForm = ({
           keyboardType="numeric"
           maxLength={10}
           value={bankData.accountNumber}
-          onChangeText={text =>
-            setBankData((prev: any) => ({ ...prev, accountNumber: text }))
-          }
+          onChangeText={text => {
+            const numericText = text.replace(/[^0-9]/g, '');
+            setBankData((prev: any) => ({
+              ...prev,
+              accountNumber: numericText,
+            }));
+          }}
         />
       </View>
       {bankData.accountName ? (
@@ -194,6 +216,7 @@ const CardForm = ({
           placeholderTextColor={colors.inputTextHolder}
           placeholder="0000 0000 0000 0000"
           keyboardType="numeric"
+          maxLength={19}
           value={cardData.number}
           onChangeText={handleCardChange}
         />
@@ -222,7 +245,21 @@ const CardForm = ({
             style={[AddPaymentMethodStyles.smallInput, { color: colors.text }]}
             placeholder="MM"
             keyboardType="numeric"
-            onChangeText={v => setCardData({ ...cardData, month: v })}
+            maxLength={2}
+            value={cardData.month}
+            onChangeText={v => {
+              const cleaned = v.replace(/\D/g, '');
+              if (
+                cleaned === '' ||
+                (parseInt(cleaned, 10) >= 1 &&
+                  parseInt(cleaned, 10) <= 12 &&
+                  cleaned.length <= 2)
+              ) {
+                setCardData({ ...cardData, month: cleaned });
+              } else if (cleaned.length === 1 && ['0', '1'].includes(cleaned)) {
+                setCardData({ ...cardData, month: cleaned });
+              }
+            }}
             placeholderTextColor={colors.inputTextHolder}
           />
           <Text
@@ -237,7 +274,14 @@ const CardForm = ({
             style={[AddPaymentMethodStyles.smallInput, { color: colors.text }]}
             placeholder="YY"
             keyboardType="numeric"
-            onChangeText={v => setCardData({ ...cardData, year: v })}
+            maxLength={2}
+            value={cardData.year}
+            onChangeText={v => {
+              const cleaned = v.replace(/\D/g, '');
+              if (cleaned.length <= 2) {
+                setCardData({ ...cardData, year: cleaned });
+              }
+            }}
             placeholderTextColor={colors.inputTextHolder}
           />
         </View>
@@ -257,7 +301,14 @@ const CardForm = ({
           placeholderTextColor={colors.inputTextHolder}
           secureTextEntry
           keyboardType="numeric"
-          onChangeText={v => setCardData({ ...cardData, cvv: v })}
+          maxLength={4}
+          value={cardData.cvv}
+          onChangeText={v => {
+            const cleaned = v.replace(/\D/g, '');
+            if (cleaned.length <= 4) {
+              setCardData({ ...cardData, cvv: cleaned });
+            }
+          }}
         />
       </View>
       {requiresPin && (
@@ -581,7 +632,7 @@ export const AddPaymentModal = ({
           showBackButton={false}
           rightElement={
             <MaterialIcons
-              name="cancel"
+              name="close"
               size={28}
               onPress={onClose}
               color={PRIMARY_COLOR}
@@ -643,7 +694,10 @@ export const AddPaymentModal = ({
             </View>
           </>
         )}
-        <ScrollView contentContainerStyle={AddPaymentMethodStyles.formContent}>
+        <ScrollView
+          contentContainerStyle={AddPaymentMethodStyles.formContent}
+          showsVerticalScrollIndicator={false}
+        >
           {activeTab === 'card' && mode === 'buy' ? (
             <CardForm
               cardData={cardData}
@@ -689,9 +743,9 @@ export const AddPaymentMethodStyles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    marginVertical: 10,
+    marginVertical: 20,
   },
   divider: {
     height: 1,
@@ -700,14 +754,15 @@ export const AddPaymentMethodStyles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
+    padding: 10,
+    borderRadius: 8,
   },
   tabText: { fontWeight: '700', fontSize: 14 },
   formContent: { paddingHorizontal: 15 },

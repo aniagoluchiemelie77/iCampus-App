@@ -1,11 +1,15 @@
-import { User, CreateTestPayload, DropOffStation, Notification, Book, Lecture, Course, CourseException, AdItem} from '../types/firebase';
+import { User, CreateTestPayload, DropOffStation, Notification, Lecture, Course, CourseException, AdItem} from '../types/firebase';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
-import {getAuthHeaders} from '../utils/userTokenAuth';
+import {fetchWithAuth} from '../utils/userTokenAuth';
 import { TAB_TO_CATEGORY, TabName } from '../constants/inAppConstants.ts';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface ApiRequestOptions {
+  signal?: AbortSignal;
+}
+interface FetchPreferencesParams {
   signal?: AbortSignal;
 }
 interface CheckITagResponse {
@@ -17,10 +21,6 @@ interface OngoingLectureResponse {
   success: boolean;
   ongoing: boolean;
   lecture: Lecture | null;
-}
-interface SearchBooksResponse {
-  success: boolean;
-  books: Book[]; 
 }
 interface GetCourseResponse {
   success: boolean;
@@ -106,10 +106,7 @@ interface SearchUserParams {
   viewerTier: string;
   viewerRole: string;
 }
-interface FetchMyCoursesParams extends FetchStudentCoursesParams, ApiRequestOptions {}
-interface FetchFeaturedBooksParams extends ApiRequestOptions {
-  department: string;
-}
+interface FetchMyCoursesParams extends FetchStudentCoursesParams, ApiRequestOptions {};
 interface FetchSupportTicketParams extends ApiRequestOptions {
   ticketRefId: string;
 }
@@ -157,12 +154,11 @@ export const searchUserProfile = async ({
       viewerFirstname: currentUser.firstname || '',
     });
     
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/profile/search/${identifier}?${params.toString()}`,
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/profile/search/${identifier}?${params.toString()}`,
       {
         method: 'GET',
-        headers,
         signal,
       }
     );
@@ -194,10 +190,9 @@ export const fetchSupportedBanks = async ({
   signal,
 }: FetchSupportedBanksParams): Promise<{ label: string; value: string }[]> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/payments/banks/${countryCode}`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/payments/banks/${countryCode}`, {
       method: 'GET',
-      headers,
       signal,
     });
 
@@ -226,14 +221,12 @@ export const getUserPaymentMethods = async (userId: string): Promise<any[]> => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/user/payment-methods/${userId}`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers: {
-        ...headers,
         'Content-Type': 'application/json',
       },
       signal: controller.signal,
@@ -265,10 +258,9 @@ export const getBlockedUsers = async ({
 }: GetBlockedUsersParams): Promise<any[]> => {
   if (!userId) return [];
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/blocked-list/${userId}`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/blocked-list/${userId}`, {
       method: 'GET',
-      headers,
       signal,
     });
     
@@ -321,15 +313,13 @@ export const searchUsers = async ({
     if (uid) queryParams.append('uid', uid);
     if (q) queryParams.append('q', q);
 
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${cleanBaseUrl}/users/search?${queryParams.toString()}`,
       {
         method: 'GET',
         headers: {
-          ...headers,
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
@@ -376,15 +366,13 @@ export const searchUsersByUid = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${cleanBaseUrl}/users/search?q=${encodeURIComponent(uid)}&viewerTier=${encodeURIComponent(viewerTier)}&viewerRole=${encodeURIComponent(viewerRole)}`,
       {
         method: 'GET',
         headers: {
-          ...headers,
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
@@ -420,8 +408,9 @@ export const signupFetchInstitutions = async (country: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const response = await fetch(
-      `${baseUrl}users/institutions?country=${encodeURIComponent(country)}`,
+      `${cleanBaseUrl}/users/institutions?country=${encodeURIComponent(country)}`,
       {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -487,9 +476,9 @@ export const fetchProductsAPI = async (
       const cursorParam = encodeURIComponent(cursor);
       
       const url = `${cleanBaseUrl}/store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursorParam}&limit=${limit}`;
-      const headers = await getAuthHeaders();
+      const headers = { 'Content-Type': 'application/json' };
       
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'GET',
         headers,
         signal: controller.signal,
@@ -537,31 +526,39 @@ export const fetchProductsAPI = async (
 };
 export const fetchAllProductsAPI = async (forceRefresh = false) => {
   const CACHE_KEY = "local_catalog_cache";
+  
   if (!forceRefresh) {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) return { success: true, data: JSON.parse(cached), source: "local" };
+    try {
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) return { success: true, data: JSON.parse(cached), source: "local" };
+    } catch (e) {
+    }
   }
 
   try {
-    const response = await fetch(`${baseUrl}store/fetch-all-products`, {
+    const response = await fetchWithAuth(`${baseUrl}store/fetch-all-products`, {
       method: 'GET',
-      headers: await getAuthHeaders(),
+      headers: { 'Content-Type': 'application/json' },
     });
 
     const result = await response.json();
     
     if (!response.ok) throw new Error(result.message || 'Sync failed');
-    localStorage.setItem(CACHE_KEY, JSON.stringify(result.products));
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(result.products));
 
     return { success: true, data: result.products };
   } catch (error) {
     console.error("fetchAllProductsAPI Error:", error);
-    const fallback = localStorage.getItem(CACHE_KEY);
-    return { 
-      success: false, 
-      data: fallback ? JSON.parse(fallback) : [], 
-      message: 'Network error. Using offline mode.' 
-    };
+    try {
+      const fallback = await AsyncStorage.getItem(CACHE_KEY);
+      return { 
+        success: false, 
+        data: fallback ? JSON.parse(fallback) : [], 
+        message: 'Network error. Using offline mode.' 
+      };
+    } catch (e) {
+      return { success: false, data: [], message: 'Network error.' };
+    }
   }
 };
 export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
@@ -576,8 +573,8 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
 
     try {
       const url = `${cleanBaseUrl}/store/orders/pending`;
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, {
+      const headers = { 'Content-Type': 'application/json' };
+      const response = await fetchWithAuth(url, {
         method: 'GET',
         headers,
         signal: controller.signal,
@@ -588,7 +585,6 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
 
       if (!response.ok || result.success === false) {
         if (response.status >= 400 && response.status < 500) {
-          // Client-side errors shouldn't necessarily trigger retries
           return {
             success: false,
             data: [],
@@ -626,6 +622,67 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
 
   return { success: false, data: [], message: 'Max retry attempts reached.' };
 };
+export const fetchLinkedDevicesAPI = async (maxRetries = 3) => {
+  let attempt = 0;
+  const TIMEOUT_MS = await getAdaptiveTimeout();
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const url = `${cleanBaseUrl}/users/fetch-sessions`;
+      const headers = { 'Content-Type': 'application/json' };
+      const response = await fetchWithAuth(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            data: [],
+            message: result.message || 'Failed to fetch linked devices',
+          };
+        }
+        throw new Error(result.message || `Server error: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        data: result.data || result.sessions || [],
+      };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      const isTimeout = error.name === 'AbortError';
+      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
+
+      if (attempt >= maxRetries) {
+        console.error("fetchLinkedDevicesAPI Error (Max retries reached):", errorMessage);
+        return { 
+          success: false, 
+          data: [], 
+          message: errorMessage 
+        };
+      }
+
+      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`Fetch linked devices attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
+  }
+
+  return { success: false, data: [], message: 'Max retry attempts reached.' };
+};
 export const fetchSellerSalesAPI = async (maxRetries = 3) => {
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();
@@ -638,8 +695,8 @@ export const fetchSellerSalesAPI = async (maxRetries = 3) => {
 
     try {
       const url = `${cleanBaseUrl}/store/sales/history`;
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, {
+      const headers = { 'Content-Type': 'application/json' };
+      const response = await fetchWithAuth(url, {
         method: 'GET',
         headers,
         signal: controller.signal,
@@ -699,9 +756,9 @@ export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/reviews/fetch-seller-reviews`; 
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal: controller.signal,
@@ -752,8 +809,8 @@ export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
 
     try {
       const url = `${cleanBaseUrl}/store/payouts/fetch-history`; 
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, {
+      const headers = { 'Content-Type': 'application/json' };
+      const response = await fetchWithAuth(url, {
         method: 'GET',
         headers,
         signal: controller.signal,
@@ -818,8 +875,8 @@ export const fetchDropOffStationsAPI = async (lat?: number, lng?: number, maxRet
         url += `?lat=${lat}&lng=${lng}`;
       }
 
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, {
+      const headers = { 'Content-Type': 'application/json' };
+      const response = await fetchWithAuth(url, {
         method: 'GET',
         headers,
         signal: controller.signal,
@@ -872,8 +929,8 @@ export const fetchUserConnections = async (
   options?: ApiRequestOptions
 ): Promise<{ success: boolean; message?: string; data: any }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/fetch-connections`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/fetch-connections`, {
       method: 'GET',
       headers,
       signal: options?.signal,
@@ -909,8 +966,8 @@ export const searchUsersByITag = async (
   options?: ApiRequestOptions
 ): Promise<any> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(
       `${baseUrl}user/iTag/search/${encodeURIComponent(tag)}`,
       {
         method: 'GET',
@@ -945,8 +1002,8 @@ export const fetchNotificationDetails = async (
   options?: ApiRequestOptions
 ): Promise<{ success: boolean; notification: Notification | null }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/notifications/${notificationId}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/notifications/${notificationId}`, {
       method: 'GET',
       headers,
       signal: options?.signal,
@@ -993,9 +1050,9 @@ export const fetchNotificationsByTab = async (
     const finalUrl = queryString
       ? `${baseUrl}users/get-notifications?${queryString}`
       : `${baseUrl}users/get-notifications`;
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
 
-    const response = await fetch(finalUrl, {
+    const response = await fetchWithAuth(finalUrl, {
       method: 'GET',
       headers,
       signal: options?.signal,
@@ -1041,15 +1098,12 @@ export const checkITagAvailability = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     
-    const response = await fetch(`${cleanBaseUrl}/users/check-itag/${encodeURIComponent(username.trim())}`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/check-itag/${encodeURIComponent(username.trim())}`, {
       method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -1080,8 +1134,8 @@ export const fetchOngoingLecture = async (
   options?: ApiRequestOptions
 ): Promise<OngoingLectureResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lectures/ongoing`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/lectures/ongoing`, {
       method: 'GET',
       headers,
       signal: options?.signal,
@@ -1103,103 +1157,6 @@ export const fetchOngoingLecture = async (
     return { success: false, ongoing: false, lecture: null };
   }
 };
-export const fetchFeaturedBooksByDepartment = async ({
-  department,
-  signal,
-}: FetchFeaturedBooksParams): Promise<{ success: boolean; books: Book[] }> => {
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/library/featured?department=${encodeURIComponent(department)}`,
-      {
-        method: 'GET',
-        headers,
-        signal,
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Library Error',
-        text2: data.message || 'Failed to load featured books',
-      });
-      return { success: false, books: [] };
-    }
-
-    const booksArray = Array.isArray(data) ? data : data.books || [];
-
-    return { 
-      success: true, 
-      books: booksArray 
-    };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, books: [] };
-
-    console.error("Fetch Featured Books Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not connect to the library catalog.',
-    });
-    return { success: false, books: [] };
-  }
-};
-export const searchLibraryBooks = async (
-  query: string,
-  signal?: AbortSignal
-): Promise<SearchBooksResponse> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const headers = await getAuthHeaders();
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-    const response = await fetch(
-      `${cleanBaseUrl}/users/library/search?q=${encodeURIComponent(query.trim())}`,
-      {
-        method: 'GET',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      return { success: false, books: [] };
-    }
-
-    const booksArray = Array.isArray(data) ? data : data.books || [];
-
-    return {
-      success: true,
-      books: booksArray,
-    };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      console.warn("Search Library Request Timed Out");
-      return { success: false, books: [] };
-    }
-
-    console.error("Search Library Utility Error:", error);
-    return { success: false, books: [] };
-  }
-};
 export const getUserAccountState = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; user?: { uid: string; isSuspended: boolean }; error?: string }> => {
@@ -1212,15 +1169,12 @@ export const getUserAccountState = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(`${cleanBaseUrl}/users/check-account-state`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/check-account-state`, {
       method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -1268,8 +1222,8 @@ export const getCourseDetailsForOngoingLecture = async ({
   signal,
 }: GetCourseDetailsOngoingParams): Promise<GetCourseResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/course/ongoing-lecture/${courseId}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/course/ongoing-lecture/${courseId}`, {
       method: 'GET',
       headers,
       signal,
@@ -1291,8 +1245,8 @@ export const getAllExceptionsForOngoingLecture = async ({
   signal,
 }: GetLectureExceptionsParams): Promise<GetExceptionsResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/exceptions/lectures/${lectureId}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/exceptions/lectures/${lectureId}`, {
       method: 'GET',
       headers,
       signal,
@@ -1316,8 +1270,8 @@ export const getCourseDetails = async ({
   signal,
 }: GetCourseDetailsParams): Promise<FetchCourseResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/courses/fetch-course-details/${courseId}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/courses/fetch-course-details/${courseId}`, {
       method: 'GET',
       headers,
       signal,
@@ -1351,8 +1305,8 @@ export const getStudentLecturesTimeline = async (
   options?: ApiRequestOptions
 ): Promise<GetTimelineResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/student/class/lectures/timeline`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/student/class/lectures/timeline`, {
       method: 'GET',
       headers,
       signal: options?.signal,
@@ -1383,8 +1337,8 @@ export const getLecturersLecturesTimeline = async (
   options?: ApiRequestOptions
 ): Promise<GetTimelineResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/lectures/timeline`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/lecturers/class/lectures/timeline`, {
       method: 'GET',
       headers,
       signal: options?.signal,
@@ -1417,12 +1371,12 @@ export const checkAssessmentStatus = async (
   signal?: AbortSignal
 ): Promise<CheckAssessmentStatusResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(
       `${baseUrl}users/student/class/courses/${courseId}/assessments/${assessmentId}/check-status`,
       {
         method: 'GET',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers,
         signal,
       }
     );
@@ -1453,8 +1407,8 @@ export const getCourseExceptions = async ({
   signal,
 }: GetCourseExceptionsParams): Promise<GetExceptionsResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(
       `${baseUrl}users/exceptions?courseId=${courseId}`,
       {
         method: 'GET',
@@ -1493,8 +1447,8 @@ export const getCourseAssessments = async ({
   signal,
 }: GetCourseAssessmentsParams): Promise<GetAssessmentsResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(
       `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
       {
         method: 'GET',
@@ -1551,17 +1505,14 @@ export const searchCourses = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${cleanBaseUrl}/users/courses/search?q=${encodeURIComponent(query)}`,
       {
         method: 'GET',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
+        headers,
         signal: controller.signal,
       }
     );
@@ -1602,17 +1553,14 @@ export const searchAcademicResources = async (
 
   try {
     const encodedQuery = encodeURIComponent(query.trim());
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${cleanBaseUrl}/users/courses/resources/search?q=${encodedQuery}`,
       {
         method: 'GET',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
+        headers,
         signal: controller.signal,
       }
     );
@@ -1638,8 +1586,8 @@ export const searchAcademicResources = async (
 };
 export const fetchAllAssignments = async (courseId: string): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/courses/${courseId}/assignments`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/courses/${courseId}/assignments`, {
       method: 'GET',
       headers,
     });
@@ -1658,8 +1606,8 @@ export const fetchAllLecturesByCourseId = async ({
   signal,
 }: FetchAllLecturesParams): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/courses/${courseId}/fetch-all-lectures`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/courses/${courseId}/fetch-all-lectures`, {
       method: 'GET',
       headers,
       signal,
@@ -1684,12 +1632,12 @@ export const getAssessmentAnalysisUrl = async (
   signal?: AbortSignal
 ): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(
       `${baseUrl}users/lecturers/class/tests/${testId}/analysis-data`, 
       {
         method: 'GET',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers,
         signal,
       }
     );
@@ -1706,44 +1654,6 @@ export const getAssessmentAnalysisUrl = async (
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
-export const getTransactionStats = async (
-  params?: TransactionStatsParams
-): Promise<ApiResponse> => {
-  try {
-    const queryParams = new URLSearchParams();
-    if (params?.month) queryParams.append('month', params.month.toString());
-    if (params?.year) queryParams.append('year', params.year.toString());
-
-    const queryString = queryParams.toString();
-    const url = `${baseUrl}user/transactions/stats${queryString ? `?${queryString}` : ''}`;
-    const headers = await getAuthHeaders();
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-      signal: params?.signal,
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: result.error || result.message || 'Failed to fetch statistics.',
-      };
-    }
-
-    return { success: true, data: result };
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      return { success: false, error: 'Request cancelled.' };
-    }
-    return {
-      success: false,
-      error: error.message || 'Network error occurred.',
-    };
-  }
-};
 export const getMyTransactions = async ({
   page,
   limit,
@@ -1755,8 +1665,8 @@ export const getMyTransactions = async ({
     if (searchQuery) {
       url += `&search=${encodeURIComponent(searchQuery)}`;
     }
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -1785,8 +1695,8 @@ export const getTransactionByIdAPI = async ({
   signal,
 }: GetTransactionByIdParams) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/transactions/fetch-transaction/${transactionId}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}user/transactions/fetch-transaction/${transactionId}`, {
       method: 'GET',
       headers,
       signal,
@@ -1825,15 +1735,12 @@ export const refreshUserProfileAPI = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(`${cleanBaseUrl}/users/refresh-user-details`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/refresh-user-details`, {
       method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -1890,8 +1797,8 @@ export const fetchMyCoursesAPI = async ({
       url += `?${queryString}`;
     }
     
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -1940,8 +1847,8 @@ export const fetchLecturerCoursesAPI = async ({
     if (queryString) {
       url += `?${queryString}`;
     }
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -1977,8 +1884,8 @@ export const getDeepgramTemporalToken = async (
   if (!lectureId) return null;
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}v1/auth/deepgram-token?lectureId=${lectureId}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}v1/auth/deepgram-token?lectureId=${lectureId}`, {
       method: 'GET',
       headers,
     });
@@ -2005,8 +1912,8 @@ export const getDeepgramTemporalToken = async (
 };
 export const getAllAdmins = async (): Promise<any[]> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/fetch-all`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}admins/fetch-all`, {
       method: 'GET',
       headers,
     });
@@ -2041,9 +1948,9 @@ export const getNotifications = async ({
 }: GetNotificationsParams): Promise<any[]> => {
   try {
     const category = TAB_TO_CATEGORY[tabName];
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(`${baseUrl}admins/get-notifications?category=${category}&page=${page}&limit=${limit}`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/get-notifications?category=${category}&page=${page}&limit=${limit}`, {
       method: 'GET',
       headers,
       signal,
@@ -2082,8 +1989,8 @@ export const fetchPostsAPI = async ({
 }: FetchPostsParams = {}) => {
   try {
     const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -2109,8 +2016,8 @@ export const fetchPostsAPI = async ({
 };
 export const searchPosts = async (query: string): Promise<any[]> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}posts/search?q=${encodeURIComponent(query)}`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}posts/search?q=${encodeURIComponent(query)}`, {
       method: 'GET',
       headers
     });
@@ -2136,16 +2043,13 @@ export const fetchPostByIdAPI = async (postId: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -2182,9 +2086,9 @@ export const fetchTicketsAPI = async ({
 }: FetchTicketsParams = {}) => {
   try {
     const url = `${baseUrl}support/tickets/fetch-all?limit=${limit}&cursor=${cursor}`;
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -2221,8 +2125,8 @@ export const adminFetchUserDetails = async ({
 }: AdminFetchUserDetailsParams) => {
   try {
     const url = `${baseUrl}admins/fetch-user/${userId}`; 
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -2257,9 +2161,9 @@ export const adminFetchUserNotifications = async ({
 }: AdminFetchUserNotificationsParams) => {
   try {
     const url = `${baseUrl}admins/fetch-notifications/${userId}?limit=${limit}`;
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -2291,9 +2195,9 @@ export const adminFetchUserNotifications = async ({
 export const getAdminMetricsAPI = async () => {
   try {
     const url = `${baseUrl}admins/get-overview`; 
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
     });
@@ -2323,9 +2227,9 @@ export const getAdminMetricsAPI = async () => {
 export const getInstitutionsAPI = async (page: number, limit: number = 20) => {
   try {
     const url = `${baseUrl}admins/get-institutions?page=${page}&limit=${limit}`;
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
     });
@@ -2355,9 +2259,9 @@ export const getInstitutionsAPI = async (page: number, limit: number = 20) => {
 export const getDropOffStationsAPI = async (page: number, limit: number = 20) => {
   try {
     const url = `${baseUrl}admins/get-drop-off-stations?page=${page}&limit=${limit}`;
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
     });
@@ -2386,10 +2290,10 @@ export const getDropOffStationsAPI = async (page: number, limit: number = 20) =>
 };
 export const getSchoolStatsApi = async (schoolId: string, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/institutions/${schoolId}/get-details`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}admins/institutions/${schoolId}/get-details`, {
       method: 'GET',
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers,
       signal,
     });
 
@@ -2405,10 +2309,10 @@ export const getSchoolStatsApi = async (schoolId: string, signal?: AbortSignal) 
 };
 export const getStationDetailsApi = async (stationId: string, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/stations/${stationId}/details`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}admins/stations/${stationId}/details`, {
       method: 'GET',
-      headers: { ...headers },
+      headers,
       signal,
     });
     const data = await response.json();
@@ -2424,11 +2328,11 @@ export const fetchCourseGradebook = async (
 ) => {
   try {
     const url = `${baseUrl}users/lecturers/class/${courseId}/get-performance-analysis`; 
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers,
       signal,
     });
     
@@ -2458,9 +2362,9 @@ export const fetchCourseGradebook = async (
 export const fetchTaxReport = async (month: string, year: string, signal?: AbortSignal) => {
   try {
     const url = `${baseUrl}admins/tax-entries/download?month=${month}&year=${year}`; 
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -2492,9 +2396,9 @@ export const fetchTaxReport = async (month: string, year: string, signal?: Abort
 export const fetchTaxEntries = async (page: number = 1, limit: number = 10, signal?: AbortSignal) => {
   try {
     const url = `${baseUrl}admins/tax-entries/fetch?page=${page}&limit=${limit}`; 
-    const headers = await getAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers,
       signal,
@@ -2530,8 +2434,9 @@ export const getAds = async (
   options?: ApiRequestOptions
 ): Promise<{ success: boolean; data: AdItem[] }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/ads/fetch-active`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}users/ads/fetch-active`, {
+      method: 'GET',
       headers,
       signal: options?.signal,
     });
@@ -2562,8 +2467,8 @@ export const fetchSupportTicketByRefIdAPI = async ({
   signal,
 }: FetchSupportTicketParams) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/support-tickets/${ticketRefId}/fetch`, {
+    const headers = { 'Content-Type': 'application/json' };
+    const response = await fetchWithAuth(`${baseUrl}admins/support-tickets/${ticketRefId}/fetch`, {
       method: 'GET',
       headers,
       signal,
@@ -2592,5 +2497,38 @@ export const fetchSupportTicketByRefIdAPI = async ({
       ticket: null, 
       message: 'Connection to server failed' 
     };
+  }
+};
+export const fetchPreferencesAPI = async ({ signal }: FetchPreferencesParams = {}) => {
+  try {
+    const url = `${baseUrl}users/preferences`;
+    const headers = { 'Content-Type': 'application/json' };
+    
+    const response = await fetchWithAuth(url, {
+      method: 'GET',
+      headers,
+      signal,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      return {
+        success: false,
+        message: data?.error || data?.message || 'Failed to fetch user preferences',
+      };
+    }
+    
+    return {
+      success: true,
+      preferences: data.preferences || data,
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { success: false, preferences: null, message: 'Request cancelled.' };
+    }
+
+    console.error("fetchPreferencesAPI Error:", error);
+    return { success: false, preferences: null, message: 'Failed to connect to server' };
   }
 };

@@ -40,7 +40,7 @@ export interface CompleteFormInputs {
   description: string;
   price: string;
   niche: string;
-  productType: 'physical';
+  type: 'physical';
   physicalDetails: {
     weightKg: string;
     inStock: string;
@@ -58,11 +58,11 @@ export function PriceSectionComponent({
   setFormInputs,
 }: PriceSectionProps) {
   const { colors } = useTheme();
-  const {exchangeData, loading} = useExchangeRate(userCountry);
+  const { exchangeData, loading } = useExchangeRate(userCountry);
 
   const localRatePerIcash = exchangeData.rate * USD_EQUIVALENCE_OF_1_ICASH;
   const icashEntered = parseFloat(formInputs.price) || 0;
-  const maxAllowedIcash = CATEGORY_MAX_PRICES[formInputs.productType];
+  const maxAllowedIcash = CATEGORY_MAX_PRICES[formInputs.type];
   const isOverpriced = icashEntered > maxAllowedIcash;
 
   const rawConvertedAmount = icashEntered * localRatePerIcash;
@@ -73,7 +73,7 @@ export function PriceSectionComponent({
   }).format(rawConvertedAmount);
 
   return (
-    <>
+    <View style={{ marginVertical: 20 }}>
       <Text style={[styles.label, { color: colors.text }]}>Price (iCash)</Text>
       <TextInput
         style={[
@@ -90,7 +90,7 @@ export function PriceSectionComponent({
       {isOverpriced && (
         <Text style={[styles.warningText, { color: colors.primary }]}>
           This exceeds the maximum limit of {maxAllowedIcash} iCash allowed for
-          a {formInputs.productType}.
+          a {formInputs.type}.
         </Text>
       )}
 
@@ -120,7 +120,7 @@ export function PriceSectionComponent({
         {(exchangeData.rate * USD_EQUIVALENCE_OF_1_ICASH).toFixed(2)}{' '}
         {exchangeData.code}
       </Text>
-    </>
+    </View>
   );
 }
 export const StepHeader = ({
@@ -166,7 +166,7 @@ export const StepHeader = ({
       </View>
       <MaterialIcons
         name={
-          currentStep === number ? 'chevron-up' : 'chevron-down'
+          currentStep === number ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
         }
         size={24}
         color={colors.text}
@@ -179,6 +179,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginHorizontal: 15,
   },
   headerLead: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   stepBadge: {
@@ -195,26 +196,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   input: {
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
     borderRadius: 8,
-    padding: 10,
+    paddingHorizontal: 15,
     fontSize: 14,
     width: '100%',
-    marginBottom: 15,
+    height: 50,
+    marginBottom: 20,
   },
   disabledInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 60,
+    height: 50,
     borderRadius: 8,
     width: '100%',
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    marginBottom: 15,
+    marginBottom: 20,
+    paddingHorizontal: 15,
   },
   disabledInput: {
     fontSize: 14,
@@ -222,13 +225,15 @@ const styles = StyleSheet.create({
   },
   currencyPrefix: {
     fontSize: 14,
+    marginRight: 7,
   },
   spinner: {
-    marginLeft: 4,
+    marginLeft: 7,
   },
   rateHint: {
     fontSize: 12,
     fontStyle: 'italic',
+    lineHeight: 20,
   },
   inputWarning: { borderColor: PRIMARY_COLOR },
   warningText: {

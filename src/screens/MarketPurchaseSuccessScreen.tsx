@@ -27,12 +27,12 @@ export const MarketplacePurchaseSuccessScreen = ({
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
       >
-        <MaterialIcons name="check-circle" size={60} color={colors.primary} />
+        <MaterialIcons
+          name="check-circle-ouline"
+          size={100}
+          color={colors.primary}
+        />
         <Text style={[styles.title, { color: colors.textDarker }]}>
           Payment Successful!
         </Text>
@@ -82,17 +82,13 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   scrollContent: {
-    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  subContainer: {
-    borderRadius: 15,
   },
   title: {
     fontSize: 18,
     fontWeight: '800',
-    marginVertical: 15,
+    marginVertical: 20,
   },
   subtitle: {
     fontSize: 14,
@@ -101,18 +97,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    marginBottom: 15,
+    marginVertical: 20,
   },
   footer: {
     marginTop: 20,
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 10,
   },
   primaryButton: {
     paddingHorizontal: 15,
     width: 'auto',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   primaryButtonText: {
     fontSize: 14,

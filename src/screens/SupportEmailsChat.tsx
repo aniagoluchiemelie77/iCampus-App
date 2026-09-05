@@ -204,6 +204,6 @@ useEffect(() => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
+  container: { flex: 1, position: 'relative' },
   centerLoader: { flex: 1, alignContent: 'center' },
 });

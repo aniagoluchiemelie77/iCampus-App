@@ -76,11 +76,6 @@ const ACTION_CONFIG: Record<
   },
   'Live Chat': { icon: 'chat', route: 'Modal' },
   'Hand Wave': { icon: 'waving-hand', route: 'Socket' },
-  Library: {
-    icon: 'library-books',
-    route: 'LibraryScreen',
-    params: {},
-  },
 
   // --- Store Page ---
   'View Favorites': {
@@ -89,7 +84,7 @@ const ACTION_CONFIG: Record<
     params: {},
   },
   'Sales Hub': {
-    icon: 'store-front',
+    icon: 'storefront',
     route: 'SalesHub',
     params: {},
   },
@@ -102,7 +97,7 @@ const ACTION_CONFIG: Record<
   // --- Additional ---
 };
 
-const ExpandableFAB = ({
+export const ExpandableFAB = ({
   isVisible,
   onClose,
   actions,
@@ -114,11 +109,14 @@ const ExpandableFAB = ({
 }: FABProps) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const user = useAppSelector(state => state.user) || {};
+  const user = useAppSelector((state: any) => state.user) || {};
+
   if (!isVisible) return null;
+
   const handleAction = (label: string) => {
     const config = ACTION_CONFIG[label];
     if (!config) return;
+
     if (label === 'Create Course' && !user?.hasSubscribed) {
       onClose();
       navigation.navigate('SubscriptionScreen');
@@ -134,7 +132,7 @@ const ExpandableFAB = ({
         contextType: lectures && lectures.length > 0 ? 'lecture' : 'general',
         contextData: {
           lectures: lectures,
-          course: config.params?.course, // Passed from parent if available
+          course: config.params?.course,
           topicName: lectures?.[0]?.topicName || 'General Support',
         },
         initialMessage:
@@ -149,6 +147,7 @@ const ExpandableFAB = ({
       });
       return;
     }
+
     onClose();
     if (config.route) {
       navigation.navigate(config.route, {
@@ -158,6 +157,7 @@ const ExpandableFAB = ({
       });
     }
   };
+
   return (
     <Modal
       transparent
@@ -179,60 +179,79 @@ const ExpandableFAB = ({
       <View style={styles.fabMenuContainer}>
         {actions.map((label: string, index: number) => {
           const config = ACTION_CONFIG[label];
+          if (!config) return null;
           const isRestricted =
             label === 'Create Course' && !user?.hasSubscribed;
 
           return (
-            <View
+            <TouchableOpacity
               key={index}
-              style={[
-                styles.menuItemWrapper,
-                { backgroundColor: colors.backgroundSecondary },
-              ]}
+              style={styles.menuItemWrapper}
+              onPress={() => {
+                if (isRestricted) {
+                  onClose();
+                  navigation.navigate('SubscriptionScreen');
+                } else {
+                  handleAction(label);
+                }
+              }}
             >
-              <Text style={[styles.menuLabel, { color: colors.primary }]}>
-                {label}
-              </Text>
-              <TouchableOpacity
-                style={[styles.miniFab, { backgroundColor: colors.btnColor }]}
-                onPress={() => {
-                  if (isRestricted) {
-                    onClose();
-                    navigation.navigate('SubscriptionScreen');
-                  } else {
-                    handleAction(label);
-                  }
-                }}
+              <View
+                style={[
+                  styles.menuLabelBubble,
+                  { backgroundColor: 'rgba(28, 28, 30, 0.85)' },
+                ]}
               >
+                <Text style={[styles.menuLabel, { color: '#FFFFFF' }]}>
+                  {label}
+                </Text>
+              </View>
+              <View style={styles.miniFab}>
                 <MaterialIcons
                   name={config.icon}
-                  size={24}
-                  color={colors.btnTextColor}
+                  size={22}
+                  color={colors.btnColor || PRIMARY_COLOR_TINT}
                 />
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
           );
         })}
+
         {unreadCount && unreadCount > 0 ? (
-          <View style={[styles.badge, { backgroundColor: colors.btnColor }]}>
-            <Text style={[styles.badgeText, { color: colors.btnTextColor }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: colors.btnColor || PRIMARY_COLOR_TINT },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: colors.btnTextColor || '#FFFFFF' },
+              ]}
+            >
               {unreadCount > 9 ? '9+' : unreadCount}
             </Text>
           </View>
         ) : null}
 
         <TouchableOpacity
-          style={[styles.mainFabActive, { backgroundColor: colors.btnColor }]}
+          style={[
+            styles.mainFabActive,
+            { backgroundColor: colors.btnColor || PRIMARY_COLOR_TINT },
+          ]}
           onPress={onClose}
         >
-          <MaterialIcons name="close" size={30} color={colors.btnTextColor} />
+          <MaterialIcons
+            name="close"
+            size={28}
+            color={colors.btnTextColor || '#FFFFFF'}
+          />
         </TouchableOpacity>
       </View>
     </Modal>
   );
 };
-
-export default ExpandableFAB;
 
 const styles = StyleSheet.create({
   mainFabActive: {
@@ -242,42 +261,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    marginTop: 10,
+    marginTop: 12,
   },
   overlay: {
     flex: 1,
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(19, 18, 18, 0.4)',
+    backgroundColor: 'rgba(10, 10, 10, 0.75)',
   },
   fabMenuContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 24,
     right: 20,
     alignItems: 'flex-end',
   },
   menuItemWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
+  },
+  menuLabelBubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
   menuLabel: {
-    fontWeight: '700',
-    marginRight: 15,
-    fontSize: 15,
-    overflow: 'hidden',
-    elevation: 3,
+    fontWeight: '600',
+    fontSize: 14,
+    letterSpacing: 0.2,
   },
   miniFab: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    borderWidth: 1.2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 6,
   },
   badge: {
     position: 'absolute',
@@ -288,7 +320,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderColor: '#1C1C1E',
     zIndex: 10,
   },
   badgeText: {
@@ -297,3 +330,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
 });
+export default ExpandableFAB;

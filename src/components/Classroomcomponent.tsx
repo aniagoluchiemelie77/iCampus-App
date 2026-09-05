@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -74,6 +74,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
+  const stateRef = useRef({ hasMore, isFetchingMore });
+  stateRef.current = { hasMore, isFetchingMore };
   const handlePickImage = async () => {
     try {
       const fileData = await pickImage();
@@ -106,20 +108,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 
   const fetchMyCourses = useCallback(
     async (semester?: string, session?: string) => {
+      const { hasMore, isFetchingMore } = stateRef.current;
       if (!hasMore || isFetchingMore) return;
 
-      const nextPage = 1;
       setLoading(true);
       setIsFetchingMore(true);
       try {
         const result = await fetchMyCoursesAPI({
           semester,
           session,
-          page: nextPage,
+          page: 1,
           limit: 10,
         });
 
         if (result.success) {
+          console.log('Fetch successful...');
           setCourses(result.courses);
           setHasMore(result.courses.length === 10);
         } else {
@@ -142,24 +145,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         setIsFetchingMore(false);
       }
     },
-    [hasMore, isFetchingMore],
+    [setCourses, setHasMore, setLoading, setIsFetchingMore],
   );
+
   const fetchLecturerCourses = useCallback(
     async (semester: string, session: string) => {
+      const { hasMore, isFetchingMore } = stateRef.current;
       if (!hasMore || isFetchingMore) return;
 
-      const nextPage = 1;
       setLoading(true);
       setIsFetchingMore(true);
       try {
         const result = await fetchLecturerCoursesAPI({
           semester,
           session,
-          page: nextPage,
+          page: 1,
           limit: 10,
         });
 
         if (result.success) {
+          console.log('Fetch successful...');
           setCourses(result.courses);
           setHasMore(result.courses.length === 10);
         } else {
@@ -181,7 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         setIsFetchingMore(false);
       }
     },
-    [hasMore, isFetchingMore],
+    [setCourses, setHasMore, setLoading, setIsFetchingMore],
   );
   const handleCaptureCamera = async () => {
     try {
@@ -280,14 +285,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   useEffect(() => {
     if (!user?.uid || !selectedSession || !selectedSemester) return;
 
-    const performFetch = async () => {
-      if (userRole === 'lecturer') {
-        await fetchLecturerCourses(selectedSemester, selectedSession);
-      } else {
-        await fetchMyCourses(selectedSemester, selectedSession);
-      }
-    };
-    performFetch();
+    if (userRole === 'lecturer') {
+      fetchLecturerCourses(selectedSemester, selectedSession);
+    } else {
+      fetchMyCourses(selectedSemester, selectedSession);
+    }
   }, [
     selectedSession,
     selectedSemester,
@@ -295,7 +297,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     user?.uid,
     fetchMyCourses,
     fetchLecturerCourses,
-    user?.coursesEnrolled,
   ]);
 
   return (
@@ -310,7 +311,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           style={{ flex: 1 }}
         />
       ) : (
-        <>
+        <View style={{ flex: 1, marginHorizontal: 15 }}>
           {isStudent && (
             <>
               <View style={styles.actionRow}>
@@ -350,7 +351,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 >
                   <Image
                     source={{
-                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1773253135/undraw_educator_6dgp_1_xzimrk.png',
+                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549467/The_Little_Things_-_Exam_Studying_wdspiv.png',
                     }}
                     style={styles.illustration}
                   />
@@ -514,7 +515,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                 >
                   <Image
                     source={{
-                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1773253135/undraw_educator_6dgp_1_xzimrk.png',
+                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549420/Fresh_Folk_-_Teaching_y1k0ov.png',
                     }}
                     style={styles.illustration}
                   />
@@ -621,20 +622,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
               )}
             </>
           )}
-        </>
+        </View>
       )}
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
+          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['iAssistant', 'View Lectures', 'Library']}
+        actions={['iAssistant', 'View Lectures']}
         userRole={user.usertype}
       />
       {selectedCourse && (
@@ -706,46 +707,41 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   emptyState: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     padding: 20,
     borderRadius: 15,
   },
   illustration: {
     width: 250,
-    height: 180,
-    marginBottom: 15,
+    height: 200,
+    marginBottom: 25,
     resizeMode: 'contain',
   },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
   subtitle: { fontSize: 14, marginBottom: 15 },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 15,
+    marginBottom: 20,
     width: '100%',
   },
   btn: {
-    padding: 10,
+    padding: 15,
     borderRadius: 15,
     width: '30%',
     alignItems: 'center',
     borderWidth: 1,
-    elevation: 4,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
   },
   btnText: {
     fontWeight: '700',
     fontSize: 12,
-    marginTop: 6,
-    lineHeight: 14,
+    marginTop: 10,
+    lineHeight: 20,
   },
   typeText: {
     fontSize: 11,
@@ -805,12 +801,12 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 80,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,

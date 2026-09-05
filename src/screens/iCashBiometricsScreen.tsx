@@ -13,14 +13,18 @@ import {
 } from '../api/localPostApis';
 import { ICASH_PIN_MAX_ATTEMPTS } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
+import { useAppSelector } from '../hooks/hooks';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../context/UserSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = StackScreenProps<RootStackParamList, 'iCashSecurity'>;
 const rnBiometrics = new ReactNativeBiometrics();
-const PinDot = React.memo(({ active }: { active: boolean }) => (
-  <View style={[styles.dot, active ? styles.dotActive : null]} />
-));
+
 export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
+  const dispatch = useDispatch();
+  const user = useAppSelector(state => state.user) || {};
   const [pin, setPin] = useState('');
   const inputRef = useRef<TextInput>(null);
   const [attempts, setAttempts] = useState(0);
@@ -28,7 +32,8 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   const [confirmPin, setConfirmPin] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
-  const isRegistration = route.params?.isRegistration;
+  const isRegistration =
+    user.hasIcashPin === false || route.params?.isRegistration;
   const [isProcessing, setIsProcessing] = useState(false);
   const appState = useRef(AppState.currentState);
   const triggerShake = useCallback(() => {
@@ -122,12 +127,16 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       }
     },
     [navigation, triggerShake, handleSuspension],
-  ); // Only include stable functions
+  );
   const registerNewPin = useCallback(
     async (finalPin: string) => {
       try {
         const response = await setupICashPin(finalPin);
         if (response.success) {
+          const updatedUser = { ...user, hasIcashPin: true };
+          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+          dispatch(setUser(updatedUser));
+
           navigation.replace('ICashDashboard', { refresh: true });
         } else {
           Toast.show({
@@ -146,8 +155,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
     },
     [navigation],
   );
-
-  // 2. Memoize handleRegistrationFlow
   const handleRegistrationFlow = useCallback(
     (finalPin: string) => {
       if (!isConfirming) {
@@ -172,7 +179,6 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
     },
     [isConfirming, confirmPin, triggerShake, registerNewPin],
   );
-
   const getHeaderTitle = () => {
     if (!isRegistration) return 'iCash Security PIN';
     return isConfirming
@@ -188,10 +194,9 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
       ? `${5 - attempts} attempts remaining`
       : 'Enter 6-Digit iCash Security PIN';
   };
-
   const handleTextChange = useCallback(
     async (text: string) => {
-      if (isProcessing) return; // Guard clause against rapid tapping
+      if (isProcessing) return;
 
       const cleaned = text.replace(/[^0-9]/g, '');
       setPin(cleaned);
@@ -229,7 +234,10 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
     return () => subscription.remove();
   }, []);
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 500);
+    const task = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(task);
   }, []);
   useEffect(() => {
     return () => {
@@ -239,80 +247,97 @@ export const ICashSecurityGateway = ({ route, navigation }: Props) => {
   }, []);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
+      <MaterialIcons
+        name="security"
+        size={60}
+        color={colors.primary}
+        style={{ marginBottom: 25 }}
+      />
+      <Text style={[styles.title, { color: colors.textDarker }]}>
+        {getHeaderTitle()}
+      </Text>
+      <Text
         style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
+          styles.subtitle,
+          attempts > 3 ? { color: colors.primary } : { color: colors.text },
         ]}
       >
-        <MaterialIcons
-          name="security"
-          size={60}
-          color={colors.primary}
-          style={{ marginBottom: 15 }}
-        />
-        <Text style={[styles.title, { color: colors.textDarker }]}>
-          {getHeaderTitle()}
-        </Text>
-        <Text
+        {getSubtitle()}
+      </Text>
+      <TextInput
+        ref={inputRef}
+        value={pin}
+        onChangeText={handleTextChange}
+        maxLength={6}
+        keyboardType="number-pad"
+        secureTextEntry
+        selectionColor={colors.primary}
+        style={[styles.hiddenInput, { color: colors.textDarker, fontSize: 15 }]}
+        autoFocus={true}
+      />
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
+        style={styles.pressableArea}
+      >
+        <Animated.View
           style={[
-            styles.subtitle,
-            attempts > 3 ? { color: colors.primary } : { color: colors.text },
+            styles.pinRow,
+            { transform: [{ translateX: shakeAnimation }] },
           ]}
         >
-          {getSubtitle()}
-        </Text>
-        <TextInput
-          ref={inputRef}
-          value={pin}
-          onChangeText={handleTextChange}
-          maxLength={6}
-          keyboardType="number-pad"
-          secureTextEntry
-          style={[styles.hiddenInput, { color: colors.primary, fontSize: 14 }]}
-          autoFocus={true}
-        />
-        <Pressable
-          onPress={() => inputRef.current?.focus()}
-          style={styles.pressableArea}
+          {[...Array(6)].map((_, i) => {
+            const digit = pin[i] || '';
+            const isActive = pin.length === i;
+            return (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  {
+                    borderColor: isActive ? colors.primary : colors.border,
+                    backgroundColor: colors.backgroundSecondary,
+                  },
+                  pin.length > i && {
+                    backgroundColor: colors.primary + '15',
+                    borderColor: colors.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {digit}
+                </Text>
+              </View>
+            );
+          })}
+        </Animated.View>
+      </Pressable>
+      {showResetPin && (
+        <TouchableOpacity
+          onPress={handleRequestReset}
+          style={{ alignSelf: 'flex-end' }}
         >
-          <Animated.View
-            style={[
-              styles.pinRow,
-              { transform: [{ translateX: shakeAnimation }] },
-            ]}
-          >
-            {[...Array(6)].map((_, i) => (
-              <PinDot key={i} active={pin.length === i} />
-            ))}
-          </Animated.View>
-        </Pressable>
-        {showResetPin && (
-          <TouchableOpacity
-            onPress={handleRequestReset}
-            style={{ alignSelf: 'flex-end' }}
-          >
-            <Text style={[styles.resetText, { color: colors.primary }]}>
-              Forgot PIN?
-            </Text>
-          </TouchableOpacity>
-        )}
-        {!isRegistration && (
-          <TouchableOpacity
-            style={styles.bioButton}
-            onPress={handleBiometricAuth}
-          >
-            <MaterialIcons
-              name="fingerprint"
-              size={32}
-              color={colors.primary}
-            />
-            <Text style={[styles.bioText, { color: colors.primary }]}>
-              Use Biometrics
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          <Text style={[styles.resetText, { color: colors.primary }]}>
+            Forgot PIN?
+          </Text>
+        </TouchableOpacity>
+      )}
+      {!isRegistration && (
+        <TouchableOpacity
+          style={styles.bioButton}
+          onPress={handleBiometricAuth}
+        >
+          <MaterialIcons name="fingerprint" size={32} color={colors.primary} />
+          <Text style={[styles.bioText, { color: colors.primary }]}>
+            Use Biometrics
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -323,22 +348,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 15,
   },
-  subContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    borderRadius: 15,
-  },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 25,
   },
   subtitle: {
     fontSize: 14,
     marginBottom: 20,
     fontWeight: 'bold',
+    lineHeight: 20,
   },
   pinContainer: {
     flexDirection: 'row',
@@ -360,11 +379,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   dot: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: PRIMARY_COLOR_TINT,
   },
   hiddenInput: {
     position: 'absolute',

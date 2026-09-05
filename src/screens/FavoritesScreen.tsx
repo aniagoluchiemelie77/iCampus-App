@@ -1,12 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { FlatList, StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../hooks/hooks';
@@ -82,11 +75,10 @@ export const FavoritesScreen = () => {
         keyExtractor={item => item.productId}
         renderItem={renderFavItem}
         numColumns={2}
-        // Changing the key forces a safe recreation when columns structure changes internally
         key="two-column-favorites-list"
         contentContainerStyle={[
           styles.listContent,
-          favoriteItems.length === 0 && { flex: 1 }, // Centering empty state cleanly
+          favoriteItems.length === 0 && { flex: 1 },
         ]}
         initialNumToRender={8}
         maxToRenderPerBatch={10}
@@ -119,14 +111,11 @@ export const FavoritesScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, position: 'relative', paddingHorizontal: 15 },
+  container: { flex: 1, position: 'relative' },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
+    paddingHorizontal: 15,
   },
   footer: {
     position: 'absolute',
@@ -134,14 +123,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingVertical: 15,
+    padding: 20,
   },
   checkoutBtn: {
-    paddingHorizontal: 15,
+    height: 50,
+    width: '100%',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkoutText: { fontSize: 14, fontWeight: '700' },
   headerBtn: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
   },
   headerBtnText: {
     fontSize: 14,

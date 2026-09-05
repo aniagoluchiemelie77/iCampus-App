@@ -37,7 +37,9 @@ export const FeatureCard = ({
         <MaterialIcons name={icon} size={30} color={colors.primary} />
       </View>
       <View style={styles.cardContent}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.cardTitle, { color: colors.textDarker }]}>
+          {title}
+        </Text>
         <Text style={[styles.cardSub, { color: colors.text }]}>{sub}</Text>
       </View>
       <MaterialIcons name="chevron-right" size={22} color={colors.text} />
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     marginBottom: 20,
-    padding: 16,
+    padding: 15,
     borderRadius: 20,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -64,14 +66,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardContent: {
-    marginVertical: 6,
+    marginVertical: 8,
     alignItems: 'center',
     width: '100%',
   },
   cardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    marginBottom: 2,
+    marginBottom: 3,
     textAlign: 'center',
   },
   cardSub: {

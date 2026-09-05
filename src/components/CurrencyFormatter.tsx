@@ -23,33 +23,32 @@ export const CurrencyDisplay = ({
     maximumFractionDigits: 1,
   });
   const [integer, decimal] = formattedString.split('.');
+
   const config = {
-    small: { icon: 16, integer: 16, decimal: 10, spacing: 4 },
-    medium: { icon: 24, integer: 26, decimal: 16, spacing: 6 },
-    large: { icon: 32, integer: 40, decimal: 20, spacing: 10 },
+    small: { icon: 12, integer: 16, decimal: 10, spacing: 4 },
+    medium: { icon: 16, integer: 24, decimal: 14, spacing: 6 },
+    large: { icon: 20, integer: 36, decimal: 18, spacing: 8 },
   };
+
   const { icon, integer: intSize, decimal: decSize, spacing } = config[size];
+  const activeColor = isSuccess ? colors.primary : colors.primary;
+
   return (
     <View style={[styles.balanceContainer, containerStyle]}>
       <MaterialIcons
         name="diamond"
         size={icon}
-        color={isSuccess ? colors.success : colors.primary}
-        style={styles.diamondShadow}
+        color={activeColor}
+        style={{ marginRight: spacing }}
       />
       <Text
-        style={[
-          styles.balanceValue,
-          { fontSize: intSize, marginLeft: spacing },
-          { color: isSuccess ? colors.success : colors.primary },
-        ]}
+        style={[styles.balanceValue, { fontSize: intSize, color: activeColor }]}
       >
         {integer}
         <Text
           style={[
             styles.decimalValue,
-            { fontSize: decSize },
-            { color: isSuccess ? colors.success : colors.primary },
+            { fontSize: decSize, color: activeColor },
           ]}
         >
           .{decimal}
@@ -65,15 +64,11 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   balanceValue: {
-    fontWeight: 'bold',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   decimalValue: {
     fontWeight: '600',
-  },
-  diamondShadow: {
-    textShadowColor: PRIMARY_COLOR_TINT,
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    opacity: 0.85,
   },
 });

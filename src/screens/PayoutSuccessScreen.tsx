@@ -6,7 +6,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { CommonActions } from '@react-navigation/native';
-import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PayoutSuccess'>;
@@ -35,38 +34,36 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <IcampusWatermark />
-      <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary, zIndex: 10 },
-        ]}
-      >
-        <MaterialIcons name="check-circle" size={100} color={colors.success} />
+      <MaterialIcons
+        name="check-circle-outline"
+        size={100}
+        color={colors.primary}
+      />
 
-        <Text style={[styles.congrats, { color: colors.textDarker }]}>
-          Payout Requested!
-        </Text>
+      <Text style={[styles.congrats, { color: colors.textDarker }]}>
+        Payout Completed!
+      </Text>
 
-        <Text style={[styles.label, { color: colors.text }]}>
-          Amount Disbursed
-        </Text>
-        <CurrencyDisplay value={amount} size="large" isSuccess={true} />
+      <Text style={[styles.label, { color: colors.text }]}>
+        Amount Disbursed
+      </Text>
+      <CurrencyDisplay value={amount} size="large" />
 
-        <Text style={[styles.details, { color: colors.text }]}>
-          Ref: #{transactionId}
-        </Text>
+      <Text style={[styles.details, { color: colors.primary }]}>
+        Ref: #{transactionId}
+      </Text>
 
-        <Text style={[styles.infoText, { color: colors.text }]}>
-          Your payout has been successfully processed. It will reflect in your
-          iCash balance shortly.
-        </Text>
-        <CustomButton
-          title="Go to Wallet"
-          style={styles.button}
-          onPress={navigateToWallet}
-        />
-      </View>
+      <Text style={[styles.infoText, { color: colors.text }]}>
+        Your payout has been successfully processed. It will reflect in your
+        iCash balance shortly.
+      </Text>
+      <CustomButton
+        title="Go to Wallet"
+        style={styles.button}
+        onPress={navigateToWallet}
+        iconName="account-balace"
+        iconColor={colors.btnTextColor}
+      />
     </View>
   );
 };
@@ -76,14 +73,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 15,
-    position: 'relative',
-  },
-  subContainer: {
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
   },
   congrats: {
     fontSize: 18,
@@ -96,15 +86,17 @@ const styles = StyleSheet.create({
   },
   details: {
     fontSize: 12,
-    marginBottom: 15,
+    marginVertical: 20,
   },
   infoText: {
     marginBottom: 30,
     fontSize: 14,
+    lineHeight: 20,
   },
   button: {
     paddingHorizontal: 15,
-    marginBottom: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
     fontWeight: 'bold',

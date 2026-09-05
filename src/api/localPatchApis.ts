@@ -1,7 +1,7 @@
 import { User, userPreferences } from '../types/firebase';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
-import {getAuthHeaders} from '../utils/userTokenAuth';
+import { fetchWithAuth} from '../utils/userTokenAuth';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
@@ -30,15 +30,11 @@ export const patchUserProfile = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    // Ensured correct URL concatenation by removing the duplicate leading slash if baseUrl ends with one
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     
-    const response = await fetch(`${cleanBaseUrl}/users/update-profile`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/update-profile`, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify(data),
@@ -89,12 +85,9 @@ export const updatePreferences = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/preferences`, {
+    const response = await fetchWithAuth(`${baseUrl}users/preferences`, {
       method: 'PATCH', 
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify(update),
@@ -148,12 +141,9 @@ export const updateEmailRecord = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/update-emails`, {
+    const response = await fetchWithAuth(`${baseUrl}users/update-emails`, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ email, type }),
@@ -190,15 +180,12 @@ export const recordPostImpressionAPI = async (postId: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/impression`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       signal: controller.signal,
@@ -233,15 +220,12 @@ export const castPollVoteAPI = async (postId: string, optionId: string, userId: 
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/vote`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({
@@ -281,15 +265,12 @@ export const toggleBookmarkAPI = async (postId: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/bookmark`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       signal: controller.signal,
@@ -331,15 +312,12 @@ export const updateCartAPI = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const endpoint = `${cleanBaseUrl}/store/cart/toggle`;
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithAuth(endpoint, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ productId, action, ...details }),
@@ -392,15 +370,12 @@ export const toggleFavoriteAPI = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const endpoint = `${cleanBaseUrl}/store/favorites/toggle`;
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithAuth(endpoint, {
       method: 'PATCH', 
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ productId }),
@@ -451,12 +426,9 @@ export const logProductImpressionAPI = async (productId: string, maxRetries = 3)
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${cleanBaseUrl}/store/product/toggle-impressions`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/store/product/toggle-impressions`, {
         method: 'PATCH',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({ productId }),
@@ -512,14 +484,11 @@ export const markAllNotificationsAsRead = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${baseUrl}users/notifications/mark-all-read`,
       {
         method: 'PATCH',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         signal: controller.signal,
@@ -571,12 +540,9 @@ export const markSingleNotificationAsRead = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/notifications/${notificationId}/read`, {
+    const response = await fetchWithAuth(`${baseUrl}users/notifications/${notificationId}/read`, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       signal: controller.signal,
@@ -613,14 +579,11 @@ export const updateExceptionStatus = async (
   signal?: AbortSignal
 ): Promise<UpdateExceptionStatusResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${baseUrl}users/lecturers/class/exceptions/${id}/status`,
       {
         method: 'PATCH',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         body: JSON.stringify(payload),
@@ -663,15 +626,12 @@ export const markOrderAsDroppedOffAPI = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const endpoint = `${cleanBaseUrl}/store/orders/mark-as-dropped-off`;
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithAuth(endpoint, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ orderId }),
@@ -736,13 +696,10 @@ export const updateTicketStatus = async (
     try {
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
       const url = `${cleanBaseUrl}/support/tickets/${ticketId}/status`;
-      const headers = await getAuthHeaders();
       
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'PATCH',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({ status }),
@@ -805,13 +762,10 @@ export const updateTicketStatus = async (
 export const updateAdminUser = async (uid: string, updateData: any) => {
   try {
     const url = `${baseUrl}admins/edit-users/${uid}`;
-    const headers = await getAuthHeaders();
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(updateData),
@@ -847,12 +801,9 @@ export const updateAdminUser = async (uid: string, updateData: any) => {
 };
 export const updateInstitutionApi = async (id: string, updateData: any, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/institutions/${id}/update`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/institutions/${id}/update`, {
       method: 'PATCH',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(updateData),
@@ -868,12 +819,9 @@ export const updateInstitutionApi = async (id: string, updateData: any, signal?:
 };
 export const updateStationApi = async (stationId: string, updateData: any, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/stations/${stationId}/update`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/stations/${stationId}/update`, {
       method: 'PATCH',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(updateData),
@@ -896,12 +844,9 @@ export const updateAdApi = async (
   signal?: AbortSignal
 ) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/ads/${adId}/update`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/ads/${adId}/update`, {
       method: 'PATCH',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(updateData),

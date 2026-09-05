@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { SocketContext, SocketContextType } from '../screens/HomeScreen';
+import { SocketContext, SocketContextType } from '../hooks/useSocket';
 
 export const useSocket = (): SocketContextType => {
   const context = useContext(SocketContext);

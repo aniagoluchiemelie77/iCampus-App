@@ -1,32 +1,13 @@
 
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { ScrollView, StyleSheet, Image } from 'react-native';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
 import { getAds } from '../api/localGetApis';
 import AdBanner from './AdsBanner';
 import { AdItem } from '../types/firebase';
-interface TabItem {
-  id: string;
-  label: string;
-}
-interface PreSearchComponentProps {
-  tabs?: TabItem[];
-  setActiveTab?: Dispatch<SetStateAction<any>> | ((id: string) => void);
-  setSearchQuery?: Dispatch<SetStateAction<string>> | ((query: string) => void);
-}
-export const PreSearchComponent = ({
-  tabs = [] as TabItem[],
-  setActiveTab = () => {},
-  setSearchQuery = () => {},
-}: PreSearchComponentProps) => {
+
+export const PreSearchComponent = () => {
   const { colors } = useTheme();
   const [ads, setAds] = useState<AdItem[]>([]);
   const [loadingAds, setLoadingAds] = useState(true);
@@ -59,37 +40,10 @@ export const PreSearchComponent = ({
         resizeMode="contain"
       />
       <EmptyState
-        iconName="explore-outlined"
+        iconName="search"
         title="Discover iCampus"
         subtitle="Type a keyword above to search through courses, assignments, lecturers, and resources instantly."
-        style={styles.emptyStateMargin}
       />
-
-      {tabs && tabs.length > 0 && (
-        <>
-          <Text style={[styles.preSearchSectionTitle, { color: colors.text }]}>
-            Suggested Categories
-          </Text>
-          <View style={styles.suggestionChipsRow}>
-            {tabs.map(tab => (
-              <TouchableOpacity
-                key={tab.id}
-                style={[styles.suggestionChip, { borderColor: colors.border }]}
-                onPress={() => {
-                  setActiveTab(tab.id);
-                  setSearchQuery(tab.label);
-                }}
-              >
-                <Text
-                  style={[styles.suggestionChipText, { color: colors.primary }]}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
     </ScrollView>
   );
 };
@@ -97,16 +51,13 @@ const styles = StyleSheet.create({
   preSearchContainer: {
     padding: 20,
     alignItems: 'center',
-    paddingBottom: 30,
-    flex: 1
+    paddingBottom: 20,
+    flex: 1,
   },
   illustrationImage: {
     width: 240,
-    height: 180,
-    marginBottom: 15,
-  },
-  emptyStateMargin: {
-    marginBottom: 15
+    height: 200,
+    marginBottom: 10,
   },
   preSearchSectionTitle: {
     fontSize: 14,

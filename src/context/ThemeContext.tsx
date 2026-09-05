@@ -14,7 +14,7 @@ import {
 
 export const lightPalette = {
   background: '#FFFFFF',
-  backgroundSecondary: '#fadccc',
+  backgroundSecondary: '#faf9f5',
   text: '#333333',
   textDarker: '#222222',
   tint: 'rgba(248, 246, 246, 0.81)',
@@ -24,6 +24,7 @@ export const lightPalette = {
   lowSeverity: LOW_SEVERITY,
   mediumSeverity: MEDIUM_SEVERITY,
   success: '#4CAF50',
+  textMuted: '#888',
   pendingDelivery: '#FF9800',
   btnColor: PRIMARY_COLOR,
   btnTextColor: '#fff',
@@ -44,6 +45,7 @@ export const darkPalette = {
   tint: PRIMARY_COLOR_TINT_MAIN,
   inputTextHolder: PRIMARY_COLOR_TINT_MAIN,
   success: '#4CAF50',
+  textMuted: '#888',
   pendingDelivery: '#FF9800',
   border: PRIMARY_COLOR_TINT_MAIN,
   btnTextColor: '#fff',

@@ -121,7 +121,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
           </View>
         </View>
         <MaterialIcons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
+          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
           size={24}
           color={colors.text}
         />
@@ -304,7 +304,7 @@ export const SellerOrderAccordion = ({ order, onStatusUpdated }: any) => {
           </View>
         </View>
         <MaterialIcons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
+          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
           size={24}
           color={colors.text}
         />
@@ -472,7 +472,7 @@ export const FAQItem = ({ question, answer }: FAQItemProps) => {
           Q: {question}
         </Text>
         <MaterialIcons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
+          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
           size={24}
           color={colors.text}
         />
@@ -535,7 +535,7 @@ export const StudentGradeCard = ({
             {projectedScore}
           </Text>
           <MaterialIcons
-            name={expanded ? 'chevron-up' : 'chevron-down'}
+            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
             size={24}
             color={colors.text}
           />
@@ -612,6 +612,8 @@ const QRCodeStyles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderRadius: 15,
+    flex: 1,
+    marginTop: 20,
   },
   qrSection2: {
     alignItems: 'center',
@@ -620,6 +622,7 @@ const QRCodeStyles = StyleSheet.create({
   sectionLabel: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 20,
   },
   qrWrapper: {
     padding: 20,
@@ -636,7 +639,7 @@ const QRCodeStyles = StyleSheet.create({
     marginBottom: 15,
   },
   iTagText: {
-    marginTop: 15,
+    marginTop: 25,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -687,7 +690,7 @@ const QRCodeStyles = StyleSheet.create({
     marginTop: 3,
   },
   expandedContent: {
-    marginTop: 15,
+    marginTop: 25,
   },
   instructionText: {
     fontSize: 14,
@@ -779,7 +782,7 @@ const QRCodeStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     flex: 1,
-    paddingRight: 8,
+    marginRight: 8,
   },
   answerText: {
     fontSize: 14,

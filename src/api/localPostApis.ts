@@ -8,7 +8,7 @@ import DeviceInfo from 'react-native-device-info';
 import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
-import {getAuthHeaders} from '../utils/userTokenAuth';
+import { fetchWithAuth} from '../utils/userTokenAuth';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
 interface ServiceResponse {
@@ -28,6 +28,14 @@ interface SubmitExceptionResponse {
   message?: string;
   newIcashBalance?: string
 }
+interface ApiOptions {
+  endpoint: string;
+  body?: any;
+  signal?: AbortSignal;
+  idempotencyKey?: string;
+  successToast?: { type: 'success' | 'info'; title: string; message: string };
+  errorTitle?: string;
+};
 interface ScheduleLectureResponse {
   success: boolean;
   message?: string;
@@ -121,15 +129,10 @@ export const fetchInquiryFromBackend = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(`${cleanBaseUrl}/verifyUser/persona/create-inquiry`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/verifyUser/persona/create-inquiry`, {
       method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         userType: userType,
       }),
@@ -186,12 +189,9 @@ export const revokeDeviceSession = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/revoke-session`, {
+    const response = await fetchWithAuth(`${baseUrl}users/revoke-session`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ deviceIdToRevoke }),
@@ -241,12 +241,9 @@ export const initiatePaymentCharge = async (
   payload: any,
 ): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/payments/initiate-charge`, {
+    const response = await fetchWithAuth(`${baseUrl}users/payments/initiate-charge`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({
@@ -280,18 +277,16 @@ export const initializeBuyTransaction = async (payload: any) => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/user/transactions/initialize-buy`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': uuidv4(), 
+        'Idempotency-Key': idempotencyKey, 
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -316,12 +311,9 @@ export const initializeBuyTransaction = async (payload: any) => {
 };
 export const initializeWithdrawTransaction = async (payload: any): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/transactions/initialize-withdraw`, {
+    const response = await fetchWithAuth(`${baseUrl}user/transactions/initialize-withdraw`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(), 
       },
       body: JSON.stringify(payload),
@@ -346,12 +338,9 @@ export const verifySubscriptionOnBackend = async (
   currentExchangeRate: number
 ): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/subscriptionPayments/verify`, {
+    const response = await fetchWithAuth(`${baseUrl}user/subscriptionPayments/verify`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({ transactionId, tier, currentExchangeRate }),
@@ -389,12 +378,9 @@ export const toggleBlockUser = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/block/toggle`, {
+    const response = await fetchWithAuth(`${baseUrl}users/block/toggle`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ targetUserId: targetId }),
@@ -454,12 +440,9 @@ export const verifyICashPin = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/verify-icash-pin`, {
+    const response = await fetchWithAuth(`${baseUrl}user/verify-icash-pin`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ pin }),
@@ -516,12 +499,9 @@ export const setupICashPin = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/setup-icash-pin`, {
+    const response = await fetchWithAuth(`${baseUrl}user/setup-icash-pin`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ pin }),
@@ -577,12 +557,9 @@ export const requestPinReset = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/request-pin-reset`, {
+    const response = await fetchWithAuth(`${baseUrl}user/request-pin-reset`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       signal: controller.signal,
@@ -627,12 +604,9 @@ export const resetICashPin = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/reset-icash-pin`, {
+    const response = await fetchWithAuth(`${baseUrl}user/reset-icash-pin`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ otp, newPin }),
@@ -687,15 +661,10 @@ export const askIAssistantAgent = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(`${cleanBaseUrl}/users/ai/chat`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/ai/chat`, {
       method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         message,
         history: Array.isArray(history) ? history.map(msg => ({
@@ -736,10 +705,8 @@ export const askIAssistantAgent = async (
 export const handleLogout = async (navigation: any) => {
   try {
     const currentDeviceId = await DeviceInfo.getUniqueId();
-    const headers = await getAuthHeaders();
-    await fetch(`${baseUrl}users/revoke-session`, {
+    await fetchWithAuth(`${baseUrl}users/revoke-session`, {
       method: 'POST',
-      headers,
       body: JSON.stringify({  
         deviceIdToRevoke: currentDeviceId 
       }),
@@ -751,7 +718,7 @@ export const handleLogout = async (navigation: any) => {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'SignUp' }], 
+        routes: [{ name: 'Login' }], 
       })
     );
   }
@@ -1321,7 +1288,12 @@ export const refreshAccessToken = async (refreshToken: string) => {
     if (response.ok) {
       const data = await response.json();
       await AsyncStorage.setItem('accessToken', data.accessToken);
-      return { success: true, accessToken: data.accessToken };
+      return { 
+        success: true, 
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user 
+      };
     } else {
       return { success: false, status: response.status };
     }
@@ -1345,12 +1317,9 @@ export const verifyCurrentPassword = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/password/verify`, {
+    const response = await fetchWithAuth(`${baseUrl}users/password/verify`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ password }),
@@ -1395,12 +1364,9 @@ export const handleSendWhatsAppCode = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/send-phone-otp`, {
+    const response = await fetchWithAuth(`${baseUrl}users/send-phone-otp`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ 
@@ -1456,12 +1422,9 @@ export const verifyPhoneOTPAPI = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/verify-phone-otp`, {
+    const response = await fetchWithAuth(`${baseUrl}users/verify-phone-otp`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ 
@@ -1506,15 +1469,12 @@ export const addCommentAPI = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/comment`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({ 
@@ -1551,15 +1511,12 @@ export const toggleLikeAPI = async (postId: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/like`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       signal: controller.signal,
@@ -1591,15 +1548,12 @@ export const createRepostAPI = async (originalPostId: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/repost`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({
@@ -1642,15 +1596,12 @@ export const toggleCommentLikeAPI = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/comments/${commentId}/like`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'PATCH',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': uuidv4(),
       },
       signal: controller.signal,
@@ -1693,14 +1644,11 @@ export const bulkAddToCartApi = async (
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-      const response = await fetch(`${cleanBaseUrl}/store/favorites-to-cart/bulk-add`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/store/favorites-to-cart/bulk-add`, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({ items }),
@@ -1764,14 +1712,11 @@ export const initializeCheckoutTransaction = async (
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-      const response = await fetch(`${cleanBaseUrl}/store/initialize-checkout`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/store/initialize-checkout`, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify(payload),
@@ -1835,12 +1780,9 @@ export const completeOrderDelivery = async (orderId: string, maxRetries = 3) => 
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${cleanBaseUrl}/store/orders/complete-delivery`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/store/orders/complete-delivery`, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({ orderId }),
@@ -1920,12 +1862,9 @@ export const cancelOrderAPI = async (
 
     try {
       const url = `${cleanBaseUrl}/store/orders/cancel`;
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({ orderId, reason }),
@@ -1997,12 +1936,9 @@ export const requestPayoutAPI = async (amount: number, maxRetries = 3) => {
 
     try {
       const url = `${cleanBaseUrl}/store/payouts/request-payout`;
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({ amount }),
@@ -2146,14 +2082,13 @@ export const submitReviewApi = async (
   }
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   try {
-    const response = await fetch(`${baseUrl}users/reviews/create`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/reviews/create`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({
@@ -2205,74 +2140,54 @@ export const submitOrUpdatePostService = async (
   postId?: string
 ): Promise<ServiceResponse> => { 
   const TIMEOUT_MS = await getAdaptiveTimeout();
-  const headers = await getAuthHeaders();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  
-  const config = {
-    headers: {
-      ...headers,
-      'Idempotency-Key': uuidv4(),
-    },
-    timeout: TIMEOUT_MS,
-  };
+  const endpoint = isEditMode 
+    ? `${cleanBaseUrl}/posts/${postId}/update` 
+    : `${cleanBaseUrl}/posts/create`;
+  const method = isEditMode ? 'PUT' : 'POST';
 
   try {
-    if (isEditMode) {
-      if (!postId) {
-        Toast.show({ type: 'error', text2: 'Missing crucial parameter for update operation' });
-        return {
-          success: false,
-          message: 'Missing crucial parameter for update operation',
-        };
-      }
-      
-      const response = await axios.put(`${cleanBaseUrl}/posts/${postId}/update`, postData, config);
-      const result = response.data;
-
-      if (!result.success) {
-        Toast.show({
-          type: 'error',
-          text2: result.message || 'Failed to edit post'
-        });
-        return {
-          success: false,
-          message: result.message || 'Failed to edit post'
-        };
-      }
-      
-      Toast.show({ type: 'success', text2: result.message || 'Post edit successful' });
+    if (isEditMode && !postId) {
+      Toast.show({ type: 'error', text2: 'Missing crucial parameter for update operation' });
       return {
-        success: true,
-        message: result.message || 'Post edit successful',
-        data: result.data
-      };
-
-    } else {
-      const response = await axios.post(`${cleanBaseUrl}/posts/create`, postData, config);
-      const result = response.data;
-      
-      if (!result.success) {
-        Toast.show({
-          type: 'error',
-          text2: result.message || 'Failed to create post.'
-        });
-        return {
-          success: false,
-          message: result.message || 'Failed to create post'
-        };
-      }
-      
-      Toast.show({ type: 'success', text2: result.message || 'Post creation successful' });
-      return {
-        success: true,
-        message: result.message || 'Post creation successful',
-        data: result.data
+        success: false,
+        message: 'Missing crucial parameter for update operation',
       };
     }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    const response = await fetchWithAuth(endpoint, {
+      method,
+      headers: {
+        'Idempotency-Key': uuidv4(),
+      },
+      body: JSON.stringify(postData),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      const errMsg = result.message || (isEditMode ? 'Failed to edit post' : 'Failed to create post');
+      Toast.show({ type: 'error', text2: errMsg });
+      return { success: false, message: errMsg };
+    }
+
+    const successMsg = result.message || (isEditMode ? 'Post edit successful' : 'Post creation successful');
+    Toast.show({ type: 'success', text2: successMsg });
+    return {
+      success: true,
+      message: successMsg,
+      data: result.data
+    };
+
   } catch (error: any) {
-    const serverMessage = error.code === 'ECONNABORTED' 
+    const serverMessage = error.name === 'AbortError' 
       ? 'Request timed out. Please try again.' 
-      : error.response?.data?.message || 'Network transaction failed';
+      : error.message || 'Network transaction failed';
       
     Toast.show({
       type: 'error',
@@ -2288,12 +2203,10 @@ export const executeP2PTransfer = async (
   payload: P2PTransferPayload
 ): Promise<{ success: boolean; message?: string; transactionRef?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/transactions/p2p-transfer`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/user/transactions/p2p-transfer`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(payload),
@@ -2316,7 +2229,7 @@ export const executeP2PTransfer = async (
     Toast.show({
       type: 'error',
       text1: 'Connection Error',
-      text2: 'An unexpected error occurred during transfer.',
+      text2: error.message || 'An unexpected error occurred during transfer.',
     });
     return { success: false, message: error.message };
   }
@@ -2333,14 +2246,12 @@ export const toggleFollowUser = async (
   }
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const idempotencyKey = uuidv4();
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/follow/toggle`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/follow/toggle`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ followingId: targetFollowingId }),
@@ -2372,20 +2283,19 @@ export const toggleBlockUserFromProfile = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; action?: 'blocked' | 'unblocked' }> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
-const controller = new AbortController();
+  const controller = new AbortController();
 
-if (signal) {
-  signal.addEventListener('abort', () => controller.abort());
-}
-const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-const idempotencyKey = uuidv4();
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const idempotencyKey = uuidv4();
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/block/toggle`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/block/toggle`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ targetUserId }),
@@ -2399,7 +2309,7 @@ const idempotencyKey = uuidv4();
 
     if (error.name === 'AbortError') {
       Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'Block request timed out.' });
-      return { success: false, };
+      return { success: false };
     }
     console.error('Toggle Block Utility Error:', error);
     return { success: false };
@@ -2410,12 +2320,10 @@ export const submitLectureException = async (
   signal?: AbortSignal
 ): Promise<SubmitExceptionResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/student/class/exceptions/submit`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/student/class/exceptions/submit`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(newException),
@@ -2455,14 +2363,12 @@ export const createLectureSchedule = async (
       courseId: courseId,
       location: lectureData.lectureType === 'Online' ? '' : lectureData.location,
     };
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/createSchedule`,
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/lecturers/class/courses/${courseId}/lectures/createSchedule`,
       {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         body: JSON.stringify(finalPayload),
@@ -2506,14 +2412,12 @@ export const saveCourseAssessment = async (
         ...q
       })),
     };
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/lecturers/class/courses/${courseId}/assessments`,
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/lecturers/class/courses/${courseId}/assessments`,
       {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         body: JSON.stringify(finalPayload),
@@ -2548,12 +2452,10 @@ export const downloadAttendanceReport = async (
   signal?: AbortSignal
 ): Promise<DownloadReportResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/lectures/${lectureId}/report`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/lecturers/class/lectures/${lectureId}/report`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({ exceptions }),
@@ -2577,6 +2479,9 @@ export const downloadAttendanceReport = async (
     const cleanCourseCode = (courseTitle || 'Course').replace(/\s+/g, '_');
     const filename = `Attendance_${cleanCourseCode}_${dateStr}.pdf`;
     const localDestPath = `${fs.dirs.DownloadDir}/${filename}`;
+    
+    // Note: PDF downloading token authorization is handled securely via download config or fetchWithAuth if needed.
+    const token = await AsyncStorage.getItem('accessToken');
     await ReactNativeBlobUtil.config({
       path: localDestPath,
       addAndroidDownloads: {
@@ -2587,7 +2492,9 @@ export const downloadAttendanceReport = async (
         mediaScannable: true,
         notification: true,
       },
-    }).fetch('GET', result.pdfUrl);
+    }).fetch('GET', result.pdfUrl, {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
 
     return {
       success: true,
@@ -2609,12 +2516,10 @@ export const verifyFacialIdentity = async (
   signal?: AbortSignal
 ): Promise<VerifyFaceResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/student/class/attendance/verify-student`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/student/class/attendance/verify-student`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({
@@ -2648,14 +2553,12 @@ export const saveCourseMaterial = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${baseUrl}users/lecturers/class/courses/uploadMaterial/${courseId}`,
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/lecturers/class/courses/uploadMaterial/${courseId}`,
       {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         body: JSON.stringify(payload),
@@ -2690,12 +2593,10 @@ export const createCourseContent = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/courses/addCourseContent/${courseId}`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/lecturers/class/courses/addCourseContent/${courseId}`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({ topic }),
@@ -2711,11 +2612,12 @@ export const createCourseContent = async (
 };
 export const createAssignment = async (courseId: string, formData: FormData): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/courses/${courseId}/assignments`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const accessToken = await AsyncStorage.getItem('accessToken');
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/lecturers/class/courses/${courseId}/assignments`, {
       method: 'POST',
       headers: {
-        ...headers,
+        'Content-Type': undefined as any,
       },
       body: formData,
     });
@@ -2734,12 +2636,10 @@ export const submitStudentTest = async (
   signal?: AbortSignal
 ): Promise<SubmitTestResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/student/class/test/submit`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/student/class/test/submit`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(payload),
@@ -2778,12 +2678,10 @@ export const submitStudentTest = async (
 };
 export const verifyPaymentOtpAPI = async (payload: VerifyOtpPayload): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/payments/verify-otp`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/user/payments/verify-otp`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(payload),
@@ -2813,12 +2711,10 @@ export const submitOnlineClassAttendanceAPI = async (
   signal?: AbortSignal
 ) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/student/class/submit-attendance`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/student/class/submit-attendance`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({
@@ -2852,12 +2748,10 @@ export const submitOnlineClassAttendanceAPI = async (
 };
 export const exportTransactionsAPI = async (payload: ExportTransactionsPayload): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}user/transactions/export`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/user/transactions/export`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({
@@ -2894,20 +2788,21 @@ export const extractCourseFormAPI = async (
   onProgress: (percent: number) => void,
   signal?: AbortSignal
 ) => {
-  const headers = await getAuthHeaders();
+  const token = await AsyncStorage.getItem('accessToken');
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  
   const formData = new FormData();
   formData.append('file', {
     uri: fileParam.uri,
     type: fileParam.type,
     name: fileParam.name,
   } as any);
-
   return await axios.post(
-    `${baseUrl}users/course/extract-course-details-from-uploads`,
+    `${cleanBaseUrl}/users/course/extract-course-details-from-uploads`,
     formData,
     {
       headers: {
-        ...headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'X-Idempotency-Key': uuidv4(),
       },
       signal, 
@@ -2923,12 +2818,10 @@ export const createManualCourseAPI = async (
   signal?: AbortSignal
 ): Promise<ManualCourseResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/courses/manual-create`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/courses/manual-create`, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(courseData),
@@ -2958,12 +2851,10 @@ export const createManualCourseAPI = async (
 };
 export const createAdminApi = async (adminData: any) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/create`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/create`, {
       method: 'POST',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(adminData),
@@ -2998,14 +2889,11 @@ export const createSupportTicketApi = async (
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-      const response = await fetch(`${cleanBaseUrl}/support/tickets/create-ticket`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/support/tickets/create-ticket`, {
         method: 'POST',
         headers: { 
-          ...headers, 
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify(ticketData),
@@ -3066,14 +2954,12 @@ export const createSupportTicketApi = async (
 };
 export const sendSystemNotification = async (notificationData: SystemNotificationPayload) => {
   try {
-    const url = `${baseUrl}admins/support/send-notification`;
-    const headers = await getAuthHeaders();
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const url = `${cleanBaseUrl}/admins/support/send-notification`;
     
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'POST',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(notificationData),
@@ -3121,14 +3007,11 @@ export const createPublicMeeting = async (
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-      const response = await fetch(`${cleanBaseUrl}/users/online-classes/create`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/users/online-classes/create`, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({
@@ -3185,12 +3068,10 @@ export const createPublicMeeting = async (
 };
 export const createInstitutionApi = async (institutionData: any, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/institutions/create`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/institutions/create`, {
       method: 'POST',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(institutionData),
@@ -3206,12 +3087,10 @@ export const createInstitutionApi = async (institutionData: any, signal?: AbortS
 };
 export const createStationApi = async (stationData: any, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/stations/create`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/stations/create`, {
       method: 'POST',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(stationData),
@@ -3248,14 +3127,11 @@ export const requestDropStationApi = async (
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-      const response = await fetch(`${cleanBaseUrl}/users/stations/register`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/users/stations/register`, {
         method: 'POST',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify(stationData),
@@ -3309,12 +3185,10 @@ export const createAdApi = async (
   signal?: AbortSignal
 ) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/ads/create`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/ads/create`, {
       method: 'POST',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(adData),
@@ -3340,12 +3214,10 @@ export const sendSupportMessageApi = async (
   signal?: AbortSignal
 ) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/support-tickets/${ticketRefId}/reply`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/support-tickets/${ticketRefId}/reply`, {
       method: 'POST',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(messageData),
@@ -3371,12 +3243,10 @@ export const switchToAdminApi = async (userId: string, deviceId?: string, device
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/switch-to-admin`, {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/switch-to-admin`, {
       method: 'POST',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ uid: userId, deviceId, deviceName }),

@@ -77,7 +77,7 @@ const GridItem = ({ label, iconName, count, onPress }: GridItemProps) => {
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <MaterialIcons name={iconName} size={26} color={themeColors.primary} />
+      <MaterialIcons name={iconName} size={28} color={themeColors.primary} />
       <Text style={[styles.gridLabel, { color: themeColors.text }]}>
         {label}
       </Text>
@@ -179,7 +179,7 @@ export const CourseModal = ({
   currentUser,
   userRole,
 }: CourseModalProps) => {
-  if (!course) {
+  if (!course || !currentUser) {
     return null;
   }
   const { colors: themeColors } = useTheme();
@@ -364,7 +364,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Course Materials"
-                    iconName="folder-outlined"
+                    iconName="folder-copy"
                     count={totalMaterials}
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
@@ -378,7 +378,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="View Lectures"
-                    iconName="access-time-outlined"
+                    iconName="access-time"
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'View Lecture Schedule',
@@ -391,7 +391,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Assignments"
-                    iconName="pending-actions-outlined"
+                    iconName="pending-actions"
                     count={assignmentCount}
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
@@ -405,7 +405,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Exceptions"
-                    iconName="verified-user-outlined"
+                    iconName="verified-user"
                     count={remaining}
                     onPress={() => {
                       navigation.navigate('CourseSubPage', {
@@ -419,7 +419,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Instructors"
-                    iconName="person-pin-outlined"
+                    iconName="person-pin"
                     count={instructorCount > 1 ? instructorCount : undefined}
                     onPress={() => {
                       if (
@@ -480,7 +480,7 @@ export const CourseModal = ({
                 <View style={styles.iconGrid}>
                   <GridItem
                     label="Upload Course Materials"
-                    iconName="cloud-upload-outlined"
+                    iconName="cloud-upload"
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Course Materials',
@@ -493,13 +493,13 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Manage Lecture Exceptions"
-                    iconName="verified-user-outlined"
+                    iconName="verified-user"
                     count={
                       loadingExceptions
                         ? undefined
                         : userRole === 'lecturer'
-                        ? pendingExceptionsCount
-                        : remaining
+                          ? pendingExceptionsCount
+                          : remaining
                     }
                     onPress={() => {
                       if (loadingExceptions) return;
@@ -514,7 +514,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Add Assignments"
-                    iconName="note-alt-outlined"
+                    iconName="assignment-add"
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Assignments',
@@ -527,7 +527,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Manage Lectures Schedule"
-                    iconName="access-time-outlined"
+                    iconName="access-time"
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'View Lecture Schedule',
@@ -540,7 +540,7 @@ export const CourseModal = ({
                   />
                   <GridItem
                     label="Create A Test"
-                    iconName="edit-calendar-outlined"
+                    iconName="quiz"
                     onPress={() =>
                       navigation.navigate('CourseSubPage', {
                         title: 'Assessments',
@@ -662,7 +662,7 @@ export const ManualCourseModal = ({
       await onSubmit({
         courseTitle: courseTitle.trim(),
         courseCode: courseCode.trim().toUpperCase(),
-        credits: parseInt(credits, 10) || 0,
+        credits: parseInt(credits, 10) || 1,
       });
       setCourseTitle('');
       setCourseCode('');
@@ -688,12 +688,7 @@ export const ManualCourseModal = ({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View
-            style={[
-              styles.header,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
+          <View style={[styles.header]}>
             <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
               Add Course Manually
             </Text>
@@ -710,12 +705,14 @@ export const ManualCourseModal = ({
             >
               <MaterialIcons
                 name="info-circle"
-                size={24}
+                size={30}
                 color={colors.primary}
-                style={{ marginRight: 10 }}
+                style={{ marginRight: 15 }}
               />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.warningTitle, { color: colors.text }]}>
+                <Text
+                  style={[styles.warningTitle, { color: colors.textDarker }]}
+                >
                   Double Check Fields
                 </Text>
                 <Text style={[styles.warningText, { color: colors.text }]}>
@@ -931,33 +928,34 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 15,
     borderLeftWidth: 1,
-    marginBottom: 15,
+    marginBottom: 23,
   },
-  warningTitle: { fontWeight: '700', fontSize: 14, marginBottom: 3 },
-  warningText: { fontSize: 12, lineHeight: 17, fontWeight: '500' },
-  formGroup: { marginBottom: 15 },
+  warningTitle: { fontWeight: '700', fontSize: 14, marginBottom: 10 },
+  warningText: { fontSize: 12, lineHeight: 20, fontWeight: '500' },
+  formGroup: { marginBottom: 20 },
   label: {
     fontSize: 12,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 15,
     letterSpacing: 0.5,
   },
   input: {
-    height: 60,
-    borderRadius: 8,
+    height: 50,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
     fontSize: 14,
     width: '100%',
+    backgroundColor: 'transparent',
   },
   submitBtn: {
-    width: '80%',
-    alignSelf: 'center',
+    width: '100%',
     borderRadius: 10,
-    paddingVertical: 15,
+    height: 50,
+    paddingHorizontal: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 15,
+    marginTop: 10,
   },
   submitBtnText: { fontSize: 14, fontWeight: '600' },
 });

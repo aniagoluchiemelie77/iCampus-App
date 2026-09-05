@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Dimensions,
   View,
@@ -6,12 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Text,
-  TextInput,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { debounce } from 'lodash';
 import { ProductCard } from './ProductCard';
 import { fetchProductsAPI } from '../api/localGetApis';
 import { completeOrderDelivery } from '../api/localPostApis';
@@ -41,10 +39,12 @@ interface IconButtonProps {
 
 const CATEGORIES = [
   'Electronics',
-  'Courses',
-  'Documents',
   'Fashion',
   'Stationery',
+  'Snacks and Deserts',
+  'Food',
+  'FootWears',
+  'Health and Beauty',
 ];
 const STORE_TABS = ['All', 'Popular', ...CATEGORIES];
 
@@ -56,7 +56,7 @@ const HeaderActionButton = ({
   colors,
 }: IconButtonProps) => (
   <TouchableOpacity onPress={onPress} style={[styles.actionButtonContainer]}>
-    <MaterialIcons name={icon} size={28} color={PRIMARY_COLOR} />
+    <MaterialIcons name={icon} size={24} color={PRIMARY_COLOR} />
     {count! > 0 && (
       <View style={[styles.badge, { backgroundColor: badgeColor }]}>
         <Text style={[styles.badgeText, { color: colors.btnTextColor }]}>
@@ -76,7 +76,6 @@ export const StoreScreen = () => {
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user) || initialState;
   const [searchQuery, setSearchQuery] = useState('');
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedTab, setSelectedTab] = useState('All');
@@ -95,49 +94,8 @@ export const StoreScreen = () => {
         onPress={() => navigation.navigate('PendingOrdersScreen')}
         colors={colors}
       />
-      <HeaderActionButton
-        icon="shopping-cart"
-        count={currentUser?.cart?.length || 0}
-        onPress={() => navigation.navigate('CartScreen')}
-        colors={colors}
-      />
-      <HeaderActionButton
-        icon="favorite"
-        colors={colors}
-        count={currentUser?.favorites?.length || 0}
-        onPress={() => navigation.navigate('FavoritesScreen')}
-      />
     </View>
   );
-
-  const debouncedSearch = useMemo(
-    () =>
-      debounce(async (query: string, category: string) => {
-        setLoading(true);
-        const result = await fetchProductsAPI({
-          q: query,
-          category: category.toLowerCase(),
-          limit: 10,
-        });
-        if (result.success) {
-          setProducts(result.data);
-          setCursor(result.nextCursor);
-        }
-        setLoading(false);
-      }, 500),
-    [],
-  );
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPlaceholderIndex(prev => (prev + 1) % CATEGORIES.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-  useEffect(() => {
-    setCursor(null);
-    debouncedSearch(searchQuery, selectedTab);
-    return () => debouncedSearch.cancel();
-  }, [searchQuery, selectedTab, debouncedSearch]);
   const loadMore = async () => {
     if (isFetchingMore || !cursor) return;
     setIsFetchingMore(true);
@@ -200,62 +158,37 @@ export const StoreScreen = () => {
     <View style={styles.container}>
       <PageHeader
         title="iCampus Store"
-        subtitle="Marketplace"
         showBackButton={false}
         rightElement={headerRightElement}
       />
-      <View
-        style={[
-          styles.searchBarContainer,
-          {
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <MaterialIcons
-          name="search"
-          size={20}
-          color={colors.inputTextHolder}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder={`Search for ${CATEGORIES[placeholderIndex]}...`}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-          onSubmitEditing={() => debouncedSearch(searchQuery, selectedTab)}
-          placeholderTextColor={colors.inputTextHolder}
-        />
-      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ backgroundColor: colors.backgroundSecondary }}
-        contentContainerStyle={styles.tabsContainer}
+        contentContainerStyle={styles.tabBarScrollContainer}
+        style={[
+          styles.tabBarWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
       >
-        {STORE_TABS.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setSelectedTab(tab)}
-            style={[
-              styles.tabItem,
-              selectedTab === tab && styles.activeTabItem,
-            ]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === tab
-                  ? { color: colors.primary }
-                  : { color: colors.text },
-              ]}
+        {STORE_TABS.map(tab => {
+          const isActive = selectedTab === tab;
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setSelectedTab(tab)}
+              style={[styles.tab, isActive && styles.activeTab]}
             >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.tabText,
+                  isActive ? { color: colors.primary } : { color: colors.text },
+                ]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
       {loading && !isFetchingMore ? (
         <ActivityIndicator size="large" color={colors.primary} />
@@ -312,7 +245,7 @@ export const StoreScreen = () => {
           style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets" size={28} color="#fff" />
+          <MaterialIcons name="widgets" size={34} color="#fff" />
         </TouchableOpacity>
       )}
       <ExpandableFAB
@@ -325,39 +258,11 @@ export const StoreScreen = () => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  searchBarContainer: {
-    marginBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 0.8,
-    borderRadius: 15,
-    marginHorizontal: 10,
-    padding: 10,
-  },
-  searchIcon: {
-    marginRight: 3,
-  },
+  container: { flex: 1, paddingHorizontal: 15 },
   searchInput: {
     fontSize: 14,
     padding: 10,
     flex: 1,
-  },
-  tabsContainer: {
-    paddingHorizontal: 10,
-  },
-  tabItem: {
-    padding: 8,
-    marginRight: 10,
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 2,
-  },
-  activeTabItem: {
-    borderBottomColor: PRIMARY_COLOR,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   actionButtonContainer: {
     position: 'relative',
@@ -385,12 +290,12 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 80,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -399,5 +304,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 100,
+  },
+  tabBarScrollContainer: {
+    paddingHorizontal: 10,
+    alignItems: 'flex-start',
+  },
+  tabBarWrapper: {
+    marginBottom: 20,
+    flexGrow: 0,
+  },
+  tab: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+    marginRight: 8,
+  },
+  activeTab: {
+    borderBottomColor: PRIMARY_COLOR,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

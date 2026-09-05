@@ -26,8 +26,9 @@ export const CourseSearchCard = ({
   onPress,
 }: CourseSearchCardProps) => {
   const getCourseInitials = (title: string) => {
-    return title
+    return (title || 'Course Title')
       .split(' ')
+      .filter(Boolean)
       .map(word => word[0])
       .join('')
       .slice(0, 3)

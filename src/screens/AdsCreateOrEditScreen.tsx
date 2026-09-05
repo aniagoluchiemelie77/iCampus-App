@@ -180,8 +180,8 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
       />
 
       <ScrollView
-        style={styles.scrollContainer}
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
         <AdTypePicker
           value={formData.type}
@@ -230,7 +230,7 @@ export const AdAorEScreen = ({ route }: { route: any }) => {
 
 const styles = StyleSheet.create({
   container: { marginBottom: 15 },
-  mainContainer: { flex: 1, paddingHorizontal: 15 },
+  mainContainer: { flex: 1 },
   label: { fontSize: 14, marginBottom: 10, fontWeight: '600' },
   inputWrapper: {
     flexDirection: 'row',
@@ -266,5 +266,5 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   btnText: { fontSize: 14, fontWeight: 'bold' },
-  content: { paddingBottom: 20 },
+  content: { paddingBottom: 20, marginHorizontal: 15 },
 });

@@ -112,102 +112,105 @@ export const TransactionDetailScreen = () => {
   const isIncome = transaction.payType === 'in';
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Transaction Detail" />
-      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
-        <IcampusWatermark />
-        <View
-          style={[
-            styles.subContainer,
-            { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
-          ]}
-        >
-          <MaterialIcons
-            name={isIncome ? 'call-received' : 'call-made'}
-            size={40}
-            color={isIncome ? colors.success : colors.primary}
-          />
-          <Text style={[styles.title, { color: colors.textDarker }]}>
-            {transaction.title || 'Transaction'}
-          </Text>
-          <View style={styles.amountContainer}>
-            <Text
-              style={[
-                styles.sign,
-                { color: isIncome ? colors.success : colors.text },
-              ]}
-            >
-              {isIncome ? '+' : '-'}
-            </Text>
-            <CurrencyDisplay
-              value={transaction.amountICash || 0}
-              size="large"
-              isSuccess={isIncome}
-            />
-          </View>
-          <Text style={[styles.dateText, { color: colors.text }]}>
-            {moment(transaction.createdAt).format('MMMM DD, YYYY - hh:mm A')}
-          </Text>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Transaction Details
-          </Text>
-
-          <View style={styles.detailsCard}>
-            <DetailRow
-              label="Reference ID"
-              value={transaction.reference || 'N/A'}
-              copyable
-            />
-
-            {renderLocalCurrencyRow()}
-
-            {transaction.type === 'p2p_sent' &&
-              transaction.metadata?.recipientItag && (
-                <DetailRow
-                  label="Recipients iTag username"
-                  value={`@${transaction.metadata.recipientItag}`}
-                  copyable
-                />
-              )}
-
-            {transaction.type === 'p2p_received' &&
-              transaction.metadata?.senderItag && (
-                <DetailRow
-                  label="Sender iTag username"
-                  value={`@${transaction.metadata.senderItag}`}
-                  copyable
-                />
-              )}
-
-            {transaction.metadata?.note ? (
-              <DetailRow
-                label="Note / Description"
-                value={transaction.metadata.note}
-              />
-            ) : null}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.shareButton, { backgroundColor: colors.btnColor }]}
-            onPress={handleShareReceipt}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 30 }}
+      >
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
+          <IcampusWatermark />
+          <View
+            style={[
+              styles.subContainer,
+              { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
+            ]}
           >
             <MaterialIcons
-              name="photo-camera"
-              size={20}
-              color={colors.btnTextColor}
-              style={{ marginRight: 5 }}
+              name={isIncome ? 'call-received' : 'call-made'}
+              size={40}
+              color={isIncome ? colors.success : colors.primary}
             />
-            <Text
-              style={[styles.shareButtonText, { color: colors.btnTextColor }]}
-            >
-              Share Receipt Image
+            <Text style={[styles.title, { color: colors.textDarker }]}>
+              {transaction.title || 'Transaction'}
             </Text>
-          </TouchableOpacity>
-        </View>
-      </ViewShot>
-    </ScrollView>
+            <View style={styles.amountContainer}>
+              <Text
+                style={[
+                  styles.sign,
+                  { color: isIncome ? colors.success : colors.text },
+                ]}
+              >
+                {isIncome ? '+' : '-'}
+              </Text>
+              <CurrencyDisplay
+                value={transaction.amountICash || 0}
+                size="large"
+                isSuccess={isIncome}
+              />
+            </View>
+            <Text style={[styles.dateText, { color: colors.text }]}>
+              {moment(transaction.createdAt).format('MMMM DD, YYYY - hh:mm A')}
+            </Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Transaction Details
+            </Text>
+
+            <View style={styles.detailsCard}>
+              <DetailRow
+                label="Reference ID"
+                value={transaction.reference || 'N/A'}
+                copyable
+              />
+
+              {renderLocalCurrencyRow()}
+
+              {transaction.type === 'p2p_sent' &&
+                transaction.metadata?.recipientItag && (
+                  <DetailRow
+                    label="Recipients iTag username"
+                    value={`@${transaction.metadata.recipientItag}`}
+                    copyable
+                  />
+                )}
+
+              {transaction.type === 'p2p_received' &&
+                transaction.metadata?.senderItag && (
+                  <DetailRow
+                    label="Sender iTag username"
+                    value={`@${transaction.metadata.senderItag}`}
+                    copyable
+                  />
+                )}
+
+              {transaction.metadata?.note ? (
+                <DetailRow
+                  label="Note / Description"
+                  value={transaction.metadata.note}
+                />
+              ) : null}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.shareButton, { backgroundColor: colors.btnColor }]}
+              onPress={handleShareReceipt}
+            >
+              <MaterialIcons
+                name="photo-camera"
+                size={20}
+                color={colors.btnTextColor}
+                style={{ marginRight: 5 }}
+              />
+              <Text
+                style={[styles.shareButtonText, { color: colors.btnTextColor }]}
+              >
+                Share Receipt Image
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ViewShot>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -241,8 +244,8 @@ const DetailRow = ({
           {value}
         </Text>
         {copyable && (
-          <TouchableOpacity 
-            style={{ marginLeft: 6 }} 
+          <TouchableOpacity
+            style={{ marginLeft: 6 }}
             onPress={handleCopy}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
@@ -259,7 +262,7 @@ const DetailRow = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15, alignContent: 'center' },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   subContainer: {
     borderRadius: 15,

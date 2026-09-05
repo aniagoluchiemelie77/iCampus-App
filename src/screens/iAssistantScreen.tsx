@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -26,10 +26,12 @@ import Toast from 'react-native-toast-message';
 import { AssistantMessage } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const uniqueMessageId = uuidv4();
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
+const MAX_MESSAGES = 20;
 export const Assistant = ({ route }: Props) => {
   const { colors } = useTheme();
   const {
@@ -39,6 +41,7 @@ export const Assistant = ({ route }: Props) => {
     assistantTitle = 'AI Assistant',
     placeholder = 'Type a message...',
   } = route.params;
+  const STORAGE_KEY = `chat_messages_${contextType}_${contextData?.id || 'general'}`;
   const user = useAppSelector(state => state.user) || {};
   const flatListRef = useRef<FlatList>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -52,9 +55,6 @@ export const Assistant = ({ route }: Props) => {
     },
   ]);
   const [input, setInput] = useState('');
-  const addMessage = useCallback((msg: AssistantMessage) => {
-    setMessages(prev => [...prev, { ...msg, id: uniqueMessageId }]);
-  }, []);
   const { pickImage, pickDocument } = useMediaPicker();
 
   const handleSendMessage = async () => {
@@ -182,13 +182,38 @@ export const Assistant = ({ route }: Props) => {
   };
   const onContentSizeChange = () =>
     flatListRef.current?.scrollToEnd({ animated: true });
+  const loadStoredMessages = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setMessages(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to load chat history', e);
+    }
+  };
+  const saveMessages = async (newMessages: AssistantMessage[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newMessages));
+    } catch (e) {
+      console.error('Failed to save chat history', e);
+    }
+  };
+  const addMessage = useCallback((msg: AssistantMessage) => {
+    setMessages(prev => {
+      const updated = [{ ...msg, id: uniqueMessageId }, ...prev];
+      const limitedMessages = updated.slice(0, MAX_MESSAGES);
+      saveMessages(limitedMessages);
+      return limitedMessages;
+    });
+  }, []);
+  useEffect(() => {
+    loadStoredMessages();
+  }, []);
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[
-        styles.container,
-        { backgroundColor: colors.backgroundSecondary },
-      ]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       keyboardVerticalOffset={90}
     >
       <PageHeader
@@ -234,6 +259,5 @@ export const Assistant = ({ route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
 });

@@ -12,34 +12,36 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
-import { PRIMARY_COLOR, DEFAULT_GRADIENT } from '../assets/styles/colors';
+import {
+  PRIMARY_COLOR,
+  DEFAULT_GRADIENT,
+  PRIMARY_COLOR_TINT_MAIN,
+} from '../assets/styles/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { useRoute } from '@react-navigation/native';
 import { setUser } from '../context/UserSlice';
 import { TransactionList } from '../components/TransactionHistory';
-import { StatsData } from '../types/firebase';
-import {
-  refreshUserProfileAPI,
-  getTransactionStats,
-} from '../api/localGetApis';
-import Toast from 'react-native-toast-message';
+import { refreshUserProfileAPI } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
 
 const ActionButton = ({
   icon,
   label,
   onPress,
-  colors,
 }: {
   icon: string;
   label: string;
   onPress: () => void;
-  colors: any;
 }) => (
   <TouchableOpacity style={iCashScreenStyles.actionButton} onPress={onPress}>
-    <MaterialIcons name={icon} size={26} color={colors.primary} />
-    <Text style={[iCashScreenStyles.actionLabel, { color: colors.primary }]}>
+    <MaterialIcons name={icon} size={24} color={PRIMARY_COLOR_TINT_MAIN} />
+    <Text
+      style={[
+        iCashScreenStyles.actionLabel,
+        { color: PRIMARY_COLOR_TINT_MAIN },
+      ]}
+    >
       {label}
     </Text>
   </TouchableOpacity>
@@ -50,9 +52,8 @@ export const ICashDashboard = () => {
   const route = useRoute();
   const dispatch = useDispatch();
   const user = useAppSelector(state => state.user) || {};
-  const [showBalance, setShowBalance] = useState(true);
+  const [showBalance, setShowBalance] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [stats, setStats] = useState<StatsData | null>();
   const { integer, decimal } = useMemo(() => {
     const [i, d] = (user.pointsBalance || 0).toFixed(2).split('.');
     return { integer: i, decimal: d };
@@ -83,31 +84,6 @@ export const ICashDashboard = () => {
       navigation.setParams({ refresh: undefined });
     }
   }, [dispatch, navigation]);
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await getTransactionStats();
-      if (response.success) {
-        setStats(response.data);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: response.error,
-        });
-      }
-    } catch (e: any) {
-      console.log('Failed to fetch stats', e);
-      Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: e || 'Check your network and try again',
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
   useEffect(() => {
     if (needsRefresh) {
       const timer = setTimeout(() => {
@@ -118,9 +94,21 @@ export const ICashDashboard = () => {
     }
   }, [needsRefresh, refreshUserData, navigation]);
   useEffect(() => {
-    if (user && !user.twoFactorEnabled) {
-      navigation.replace('iCashSecurity');
-    }
+    const checkSecuritySetup = async () => {
+      if (!user) return;
+      try {
+        const biometricsStored =
+          await AsyncStorage.getItem('biometrics_enabled');
+        const isBiometricsActive = biometricsStored === 'true';
+        const hasPin = user.hasIcashPin || false;
+        if (!hasPin && !isBiometricsActive) {
+          navigation.replace('iCashSecurity');
+        }
+      } catch (error) {
+        console.error('Failed to check security settings', error);
+      }
+    };
+    checkSecuritySetup();
   }, [user, navigation]);
 
   return (
@@ -152,19 +140,11 @@ export const ICashDashboard = () => {
               @{user.itagusername}
             </Text>
           </View>
-          <MaterialIcons
-            name="account-balance-wallet-oulined"
-            size={38}
-            color={colors.tint}
-          />
+          <MaterialIcons name="account-balance" size={38} color={colors.tint} />
         </View>
         <View style={iCashScreenStyles.balance}>
           <View style={iCashScreenStyles.balanceContainer}>
-            <MaterialIcons
-              name="diamond"
-              size={32}
-              color={colors.tint}
-            />
+            <MaterialIcons name="diamond" size={28} color={colors.tint} />
             {showBalance ? (
               <Text
                 style={[iCashScreenStyles.balanceValue, { color: colors.tint }]}
@@ -192,48 +172,33 @@ export const ICashDashboard = () => {
           </View>
           <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
             <MaterialIcons
-              name={
-                showBalance ? 'visibility' : 'visibility-off'
-              }
+              name={showBalance ? 'visibility' : 'visibility-off'}
               size={24}
               color={colors.tint}
               style={iCashScreenStyles.balanceHideBtn}
             />
           </TouchableOpacity>
         </View>
-        <View
-          style={[
-            iCashScreenStyles.actionRow,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
+        <View style={iCashScreenStyles.actionRow}>
           <ActionButton
             icon="local-mall"
             label="Buy iCash"
             onPress={handleBuy}
-            colors={colors}
           />
           <ActionButton
             icon="account-balance"
             label="Withdraw iCash"
             onPress={handleWithdraw}
-            colors={colors}
           />
-          <ActionButton
-            icon="send"
-            label="Transfer"
-            onPress={handleP2P}
-            colors={colors}
-          />
+          <ActionButton icon="send" label="Transfer" onPress={handleP2P} />
         </View>
       </LinearGradient>
       <TransactionList
         variant="compact"
         limit={7}
         onViewAll={() =>
-          navigation.navigate('AllTransactions', {
+          navigation.navigate('AllTransactionsScreen', {
             user,
-            stats,
           })
         }
       />
@@ -256,7 +221,7 @@ export const iCashScreenStyles = StyleSheet.create({
     shadowRadius: 15,
     marginHorizontal: -15,
     position: 'relative',
-    marginBottom: 15,
+    marginBottom: 25,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -277,18 +242,18 @@ export const iCashScreenStyles = StyleSheet.create({
     alignItems: 'baseline',
   },
   balance: {
-    marginTop: 20,
+    marginTop: 25,
     flexDirection: 'row',
     alignItems: 'center',
   },
   balanceValue: {
     fontSize: 40,
     fontWeight: 'bold',
-    marginLeft: 7,
+    marginLeft: 9,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   balanceHideBtn: {
-    marginLeft: 7,
+    marginLeft: 12,
   },
   decimalValue: {
     fontSize: 22,
@@ -299,20 +264,18 @@ export const iCashScreenStyles = StyleSheet.create({
     alignItems: 'center',
   },
   actionRow: {
-    position: 'absolute',
-    bottom: -20,
-    right: 20,
-    left: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    padding: 20,
-    borderRadius: 15,
+    alignItems: 'center',
+    marginTop: 30,
+    width: '90%',
+    alignSelf: 'center',
   },
   actionButton: {
     alignItems: 'center',
   },
   actionLabel: {
-    fontSize: 14,
+    fontSize: 12,
     marginTop: 5,
     fontWeight: '600',
   },

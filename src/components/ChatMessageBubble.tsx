@@ -41,8 +41,10 @@ export const MessageBubble = ({
   return (
     <TouchableOpacity
       style={[
-        isUser ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' },
-        { maxWidth: '85%', marginVertical: 5 },
+        isUser
+          ? { alignSelf: 'flex-end', marginRight: 10 }
+          : { alignSelf: 'flex-start', marginLeft: 10 },
+        { maxWidth: '82%', marginVertical: 7 },
       ]}
       onLongPress={() => {
         if (isUser && type === 'p2p' && !isDeleted) {
@@ -58,18 +60,19 @@ export const MessageBubble = ({
         }
       }}
       disabled={!isUser || type !== 'p2p'}
+      activeOpacity={0.9}
     >
       <View
         style={[
           styles.bubble,
           isUser
             ? {
-                backgroundColor: colors.primary,
-                borderBottomRightRadius: 2,
+                backgroundColor: colors.btnColor,
+                borderBottomRightRadius: 4,
               }
             : {
                 backgroundColor: colors.backgroundSecondary,
-                borderBottomLeftRadius: 2,
+                borderBottomLeftRadius: 4,
               },
         ]}
       >
@@ -85,7 +88,6 @@ export const MessageBubble = ({
                   activeOpacity={0.8}
                 >
                   <Image
-                    key={index}
                     source={{ uri: file.url }}
                     style={styles.attachedImage}
                     resizeMode="cover"
@@ -94,13 +96,20 @@ export const MessageBubble = ({
               ) : (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.fileRow]}
+                  style={[
+                    styles.fileRow,
+                    {
+                      backgroundColor: isUser
+                        ? 'rgba(0,0,0,0.1)'
+                        : colors.background,
+                    },
+                  ]}
                   onPress={() =>
                     downloadFile(file.url, file.fileName || 'file')
                   }
                 >
                   <MaterialIcons
-                    name="cloud-download"
+                    name="insert-drive-file"
                     size={20}
                     color={isUser ? '#fff' : PRIMARY_COLOR}
                   />
@@ -108,7 +117,7 @@ export const MessageBubble = ({
                     numberOfLines={1}
                     style={[
                       styles.fileName,
-                      { color: isUser ? '#fff' : PRIMARY_COLOR },
+                      { color: isUser ? '#fff' : colors.text },
                     ]}
                   >
                     {file.fileName}
@@ -119,16 +128,42 @@ export const MessageBubble = ({
           </View>
         )}
 
-        <Text style={[styles.text, { color: '#fff' }]}>
+        <Text
+          style={[
+            styles.text,
+            { color: isUser ? colors.btnTextColor : colors.text },
+            isDeleted && styles.deletedText,
+          ]}
+        >
           {isDeleted ? 'This message was deleted' : content}
         </Text>
+
         {(timestamp || status) && !isDeleted && (
           <View style={styles.footer}>
+            {isEdited && (
+              <Text
+                style={[
+                  styles.timeText,
+                  {
+                    color: isUser
+                      ? 'rgba(255, 255, 255, 0.7)'
+                      : colors.textMuted,
+                    marginRight: 4,
+                  },
+                ]}
+              >
+                edited
+              </Text>
+            )}
             {timestamp && (
               <Text
                 style={[
                   styles.timeText,
-                  { color: isUser ? 'rgba(255, 255, 255, 0.7)' : '#fff' },
+                  {
+                    color: isUser
+                      ? 'rgba(255, 255, 255, 0.7)'
+                      : colors.textMuted,
+                  },
                 ]}
               >
                 {formatTime(timestamp)}
@@ -138,89 +173,68 @@ export const MessageBubble = ({
               <MaterialIcons
                 name={status === 'seen' ? 'done-all' : 'done'}
                 size={14}
-                style={[styles.statusIcon]}
-                color={'#fff'}
+                style={styles.statusIcon}
+                color={
+                  status === 'seen' ? '#4cd964' : 'rgba(255, 255, 255, 0.7)'
+                }
               />
-            )}
-            {isEdited && (
-              <Text
-                style={[
-                  styles.timeText,
-                  { color: isUser ? 'rgba(255, 255, 255, 0.7)' : '#fff' },
-                ]}
-              >
-                Edited
-              </Text>
             )}
           </View>
         )}
-
-        {/* The Tail */}
-        <View
-          style={[
-            styles.tail,
-            isUser ? styles.userTail : styles.otherTail,
-            { backgroundColor: colors.primary },
-          ]}
-        />
       </View>
     </TouchableOpacity>
   );
 };
 const styles = StyleSheet.create({
   bubble: {
-    padding: 10,
-    borderRadius: 15,
-    position: 'relative',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderRadius: 18,
+    overflow: 'hidden',
   },
-  text: { fontSize: 14 },
+  text: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  deletedText: {
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
     marginTop: 4,
   },
-  timeText: { fontSize: 10 },
-  statusIcon: { marginLeft: 3 },
-
-  // Tail Styling
-  tail: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    bottom: 0,
-    transform: [{ rotate: '45deg' }],
-    zIndex: -1,
+  timeText: {
+    fontSize: 10,
   },
-  userTail: {
-    right: -4,
-    bottom: 5,
-  },
-  otherTail: {
-    left: -4,
-    bottom: 5,
+  statusIcon: {
+    marginLeft: 4,
   },
   attachmentContainer: {
-    marginBottom: 8,
-    borderRadius: 10,
+    marginBottom: 6,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   attachedImage: {
-    width: 200,
-    height: 150,
-    borderRadius: 8,
+    width: 220,
+    height: 160,
+    borderRadius: 12,
     marginBottom: 4,
   },
   fileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 10,
     marginBottom: 4,
   },
   fileName: {
     fontSize: 13,
     marginLeft: 8,
-    flexShrink: 1, // Prevents long names from breaking the layout
+    flexShrink: 1,
+    fontWeight: '500',
   },
 });

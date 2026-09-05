@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { InputGroup } from '../components/InputGroup'; 
 import {updateStationApi} from '../api/localPatchApis';
 import{createStationApi} from '../api/localPostApis';
@@ -82,9 +82,7 @@ export const StationAorEScreen = ({ route, navigation }: Props) => {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title={
           isEdit
@@ -92,67 +90,70 @@ export const StationAorEScreen = ({ route, navigation }: Props) => {
             : 'Create Authorrized Drop Off Station'
         }
       />
-      <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
-        General Information
-      </Text>
-      <InputGroup
-        label="Station Name"
-        defaultValue={formData.name}
-        onChangeText={v => updateField('name', v)}
-      />
-      <InputGroup
-        label="Address"
-        defaultValue={formData.address}
-        onChangeText={v => updateField('address', v)}
-      />
-      <InputGroup
-        label="Contact Phone Number"
-        defaultValue={formData.contactPerson}
-        onChangeText={v => updateField('contactPerson', v)}
-      />
-      <InputGroup
-        label="Station Imaes (comma separated)"
-        defaultValue={formData.images.join(', ')}
-        onChangeText={v =>
-          updateField(
-            'images',
-            v.split(',').map(s => s.trim()),
-          )
-        }
-      />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 30 }}
+      >
+        <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
+          General Information
+        </Text>
+        <InputGroup
+          label="Station Name"
+          defaultValue={formData.name}
+          onChangeText={v => updateField('name', v)}
+        />
+        <InputGroup
+          label="Address"
+          defaultValue={formData.address}
+          onChangeText={v => updateField('address', v)}
+        />
+        <InputGroup
+          label="Contact Phone Number"
+          defaultValue={formData.contactPerson}
+          onChangeText={v => updateField('contactPerson', v)}
+        />
+        <InputGroup
+          label="Station Imaes (comma separated)"
+          defaultValue={formData.images.join(', ')}
+          onChangeText={v =>
+            updateField(
+              'images',
+              v.split(',').map(s => s.trim()),
+            )
+          }
+        />
 
-      <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
-        Verification Settings
-      </Text>
-      <InputGroup
-        label="Latitude"
-        defaultValue={formData.latitude}
-        onChangeText={v => updateField('latitude', v)}
-      />
-      <InputGroup
-        label="Longitude"
-        defaultValue={formData.longitude}
-        onChangeText={v => updateField('longitude', v)}
-      />
-      <InputGroup
-        label="Agent's iCampus ID"
-        defaultValue={formData.agentId}
-        onChangeText={v => updateField('agentId', v)}
-      />
-      <CustomButton
-        title={loading ? 'Saving...' : 'Save Configuration'}
-        onPress={handleSave}
-        style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
-        disabled={loading}
-      />
-    </ScrollView>
+        <Text style={[styles.groupTitle, { color: colors.textDarker }]}>
+          Verification Settings
+        </Text>
+        <InputGroup
+          label="Latitude"
+          defaultValue={formData.latitude}
+          onChangeText={v => updateField('latitude', v)}
+        />
+        <InputGroup
+          label="Longitude"
+          defaultValue={formData.longitude}
+          onChangeText={v => updateField('longitude', v)}
+        />
+        <InputGroup
+          label="Agent's iCampus ID"
+          defaultValue={formData.agentId}
+          onChangeText={v => updateField('agentId', v)}
+        />
+        <CustomButton
+          title={loading ? 'Saving...' : 'Save Configuration'}
+          onPress={handleSave}
+          style={[styles.saveBtn, { backgroundColor: colors.btnColor }]}
+          disabled={loading}
+        />
+      </ScrollView>
+    </View>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
-    paddingBottom: 40,
   },
   groupTitle: { fontWeight: 'bold', fontSize: 18, marginVertical: 15 },
   label: {

@@ -19,6 +19,7 @@ import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
 import { PRIMARY_COLOR_TINT, PRIMARY_COLOR } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
 
 export const PostDetailScreen = ({ route }: any) => {
   const { colors } = useTheme();
@@ -95,17 +96,31 @@ export const PostDetailScreen = ({ route }: any) => {
   };
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <PageHeader title={'Post Details'} />
         <ActivityIndicator size="large" color={PRIMARY_COLOR} />
       </View>
     );
   }
   if (!post) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.centeredText}>
-          Post not found or has been deleted.
-        </Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <PageHeader title={'Post Details'} />
+        <View
+          style={{
+            justifyContent: 'center',
+            alignItems: 'center',
+            flex: 1,
+            padding: 20,
+            backgroundColor: colors.backgroundSecondary,
+          }}
+        >
+          <EmptyState
+            title={'Content Missing'}
+            subtitle="Post not found or has been deleted."
+            iconName="do-not-disturb-alt"
+          />
+        </View>
       </View>
     );
   }
@@ -131,7 +146,7 @@ export const PostDetailScreen = ({ route }: any) => {
             }}
           />
         )}
-        contentContainerStyle={{ paddingBottom: 50 }}
+        contentContainerStyle={{ paddingBottom: 50, marginHorizontal: 15 }}
       />
 
       <View
@@ -189,7 +204,6 @@ export const PostDetailScreen = ({ route }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
     position: 'relative',
   },
   inputWrapper: {
@@ -234,9 +248,6 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
   },
   centeredText: {
     fontSize: 16,

@@ -72,12 +72,13 @@ export const ViewAllDropStations = () => {
         )}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
+        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 30 }}
       />
     </View>
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
-  addBtn: { paddingHorizontal: 15, width: 'auto' },
+  container: { flex: 1 },
+  addBtn: { paddingHorizontal: 8, height: 40, width: 'auto' },
   addBtnText: { fontSize: 14, fontWeight: 'bold' },
 });

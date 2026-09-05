@@ -24,8 +24,6 @@ export const ICashResetPin = ({ navigation }: Props) => {
   const [step, setStep] = useState<'otp' | 'pin'>('otp');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
-
-  // Focus management is clean; keep it stable with dependency tracking
   useEffect(() => {
     inputRef.current?.focus();
   }, [step]);
@@ -43,7 +41,6 @@ export const ICashResetPin = ({ navigation }: Props) => {
             text1: 'Failed',
             text2: response.message,
           });
-          // Reset flow on failure
           setOtp('');
           setNewPin('');
           setStep('otp');
@@ -60,10 +57,9 @@ export const ICashResetPin = ({ navigation }: Props) => {
     },
     [otp, navigation],
   );
-
   const handleTextChange = useCallback(
     (text: string) => {
-      if (loading) return; // Prevent input during network transit
+      if (loading) return;
 
       const cleaned = text.replace(/[^0-9]/g, '');
 
@@ -81,53 +77,75 @@ export const ICashResetPin = ({ navigation }: Props) => {
     },
     [step, loading, submitReset],
   );
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
+      <MaterialIcons
+        name="security"
+        size={60}
+        color={colors.primary}
+        style={{ marginBottom: 25 }}
+      />
+      <Text style={[styles.title, { color: colors.textDarker }]}>
+        {step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}
+      </Text>
+
+      <TextInput
+        ref={inputRef}
+        value={step === 'otp' ? otp : newPin}
+        onChangeText={handleTextChange}
+        maxLength={6}
+        keyboardType="number-pad"
+        editable={!loading}
+        secureTextEntry
+        selectionColor={colors.primary}
+        style={[styles.hiddenInput, { color: colors.textDarker, fontSize: 15 }]}
+        autoFocus={true}
+      />
+
+      <Pressable
+        style={styles.pinRow}
+        onPress={() => !loading && inputRef.current?.focus()}
       >
-        <MaterialIcons
-          name="lock-reset"
-          size={60}
-          color={colors.primary}
-        />
-        <Text style={[styles.title, { color: colors.textDarker }]}>
-          {step === 'otp' ? 'Verify OTP' : 'iCash Security PIN'}
-        </Text>
+        {[...Array(6)].map((_, i) => {
+          const activeValue = step === 'otp' ? otp : newPin;
+          const digit = activeValue[i] || '';
+          const isActive = activeValue.length === i;
 
-        <TextInput
-          ref={inputRef}
-          value={step === 'otp' ? otp : newPin}
-          onChangeText={handleTextChange}
-          maxLength={6}
-          keyboardType="number-pad"
-          editable={!loading} // Disable during processing
-          style={styles.hiddenInput}
-        />
-
-        <Pressable
-          style={styles.pinRow}
-          onPress={() => !loading && inputRef.current?.focus()}
-        >
-          {[...Array(6)].map((_, i) => (
+          return (
             <View
               key={i}
               style={[
                 styles.dot,
-                (step === 'otp' ? otp.length : newPin.length) > i &&
-                  styles.dotFilled,
+                {
+                  borderColor: isActive ? colors.primary : colors.border,
+                  backgroundColor: colors.backgroundSecondary,
+                },
+                activeValue.length > i && {
+                  backgroundColor: colors.primary + '15',
+                  borderColor: colors.primary,
+                },
               ]}
-            />
-          ))}
-        </Pressable>
-      </View>
+            >
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                }}
+              >
+                {digit}
+              </Text>
+            </View>
+          );
+        })}
+      </Pressable>
 
       {loading && (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+        <ActivityIndicator
+          color={colors.primary}
+          style={{ marginTop: 20 }}
+          size="small"
+        />
       )}
     </View>
   );
@@ -140,27 +158,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 15,
   },
-  subContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    borderRadius: 15,
-  },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginVertical: 20,
+    marginBottom: 20,
   },
   subtitle: {
     fontSize: 14,
     marginBottom: 15,
   },
   hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-  pinRow: { flexDirection: 'row', marginVertical: 30, gap: 10 },
+  pinRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 15,
+    marginBottom: 30,
+  },
   dot: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: PRIMARY_COLOR_TINT,
   },

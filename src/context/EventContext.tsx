@@ -48,7 +48,8 @@ import {
   toggleCommentLikeAPI,
   cancelOrderAPI,
 } from '../api/localPostApis';
-import { hasSuffix } from 'react-native-reanimated/lib/typescript/common';
+import { setUser } from './UserSlice';
+import { useDispatch } from 'react-redux';
 interface AppDataContextType {
   posts: Posts[];
   pendingOrders: MarketplaceOrder[];
@@ -106,7 +107,7 @@ interface AppDataProviderProps {
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
-const CATALOG_CACHE_KEY = '@icampus_catalog_cache';
+const CATALOG_CACHE_KEY = 'local_catalog_cache';
 
 export const useAppDataContext = () => {
   const context = useContext(AppDataContext);
@@ -118,6 +119,7 @@ export const useAppDataContext = () => {
 
 export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [posts, setPosts] = useState<Posts[]>([]);
+  const dispatch = useDispatch();
   const [currentUser, setCurrentUser] = useState(user);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
@@ -461,11 +463,12 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     const isAlreadyInCart = !!existingItem;
     const action = isAlreadyInCart ? 'remove' : 'add';
     let newCart;
+
     if (action === 'add') {
       const newItem: CartItem = {
         productId: product.productId,
         quantity: 1,
-        selectedSize: selectedSize || product.physicalDetails?.sizes?.[0], // default to first available
+        selectedSize: selectedSize || product.physicalDetails?.sizes?.[0],
         selectedColor: selectedColor || product.physicalDetails?.colors?.[0],
       };
       newCart = [...previousCart, newItem];
@@ -475,7 +478,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       );
     }
 
-    setCurrentUser({ ...currentUser, cart: newCart });
+    const updatedUser = { ...currentUser, cart: newCart };
+    setCurrentUser(updatedUser);
+    dispatch(setUser(updatedUser));
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
 
     const result = await updateCartAPI(product.productId, action, {
       selectedSize: selectedSize,
@@ -484,7 +490,11 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     });
 
     if (!result.success) {
-      setCurrentUser({ ...currentUser, cart: previousCart });
+      const rollbackUser = { ...currentUser, cart: previousCart };
+      setCurrentUser(rollbackUser);
+      dispatch(setUser(rollbackUser));
+      await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
+
       Toast.show({
         type: 'error',
         text2: 'Could not update cart, please retry.',
@@ -493,10 +503,25 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   };
   const handleClearCart = async () => {
     const previousCart = currentUser?.cart ?? [];
-    setCurrentUser({ ...currentUser, cart: [] });
+    const updatedUser = { ...currentUser, cart: [] };
+
+    setCurrentUser(updatedUser);
+
+    dispatch(setUser(updatedUser));
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+
     const result = await clearCartAPI();
     if (!result.success) {
-      setCurrentUser({ ...currentUser, cart: previousCart });
+      const rollbackUser = { ...currentUser, cart: previousCart };
+      setCurrentUser(rollbackUser);
+      dispatch(setUser(rollbackUser));
+      await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
+
+      Toast.show({
+        type: 'error',
+        text1: 'Failed',
+        text2: result.message || 'Could not clear cart.',
+      });
     } else {
       Toast.show({
         type: 'success',
@@ -514,10 +539,21 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       ? previousFavorites.filter(id => id !== productId)
       : [...previousFavorites, productId];
 
-    setCurrentUser({ ...currentUser, favorites: newFavorites });
+    const updatedUser = { ...currentUser, favorites: newFavorites };
+
+    // 1. Optimistic update across local state, Redux, and AsyncStorage
+    setCurrentUser(updatedUser);
+    dispatch(setUser(updatedUser));
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+
     const result = await toggleFavoriteAPI(productId);
     if (!result.success) {
-      setCurrentUser({ ...currentUser, favorites: previousFavorites });
+      // 2. Rollback across all states if API fails
+      const rollbackUser = { ...currentUser, favorites: previousFavorites };
+      setCurrentUser(rollbackUser);
+      dispatch(setUser(rollbackUser));
+      await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
+
       Toast.show({
         type: 'error',
         text2: 'Could not update favorites, please retry.',
@@ -527,6 +563,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const handleAddAllFavoritesToCart = async () => {
     const favoriteIds = currentUser?.favorites ?? [];
     if (favoriteIds.length === 0) return;
+
     const itemsToAdd: CartItem[] = favoriteIds.map(id => {
       const product = allProducts.find(p => p.productId === id);
       return {
@@ -536,6 +573,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         selectedSize: product?.physicalDetails?.sizes?.[0],
       };
     });
+
     const existingCart = currentUser?.cart ?? [];
     const updatedCart = [...existingCart];
 
@@ -548,7 +586,11 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       }
     });
 
-    setCurrentUser({ ...currentUser, cart: updatedCart });
+    const updatedUser = { ...currentUser, cart: updatedCart };
+    setCurrentUser(updatedUser);
+    dispatch(setUser(updatedUser));
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+
     try {
       const result = await bulkAddToCartApi(itemsToAdd);
       if (!result.success) throw new Error();
@@ -559,7 +601,16 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         text2: 'All favorites moved to cart!',
       });
     } catch (error) {
-      setCurrentUser({ ...currentUser, cart: existingCart }); // Rollback
+      const rollbackUser = { ...currentUser, cart: existingCart };
+      setCurrentUser(rollbackUser);
+      dispatch(setUser(rollbackUser));
+      await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
+
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not move favorites to cart.',
+      });
     }
   };
   const fetchPendingOrders = async () => {
@@ -585,12 +636,30 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   };
   const handleDeleteAllFavorites = async () => {
     const previousFavorites = currentUser?.favorites ?? [];
-    setCurrentUser({ ...currentUser, favorites: [] });
+    const updatedUser = { ...currentUser, favorites: [] };
+    setCurrentUser(updatedUser);
+    dispatch(setUser(updatedUser));
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
 
     const result = await clearFavoritesAPI();
 
     if (!result.success) {
-      setCurrentUser({ ...currentUser, favorites: previousFavorites });
+      const rollbackUser = { ...currentUser, favorites: previousFavorites };
+      setCurrentUser(rollbackUser);
+      dispatch(setUser(rollbackUser));
+      await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
+
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not clear favorites, please retry.',
+      });
+    } else {
+      Toast.show({
+        type: 'success',
+        text1: 'Favorites Cleared',
+        text2: 'All items have been removed.',
+      });
     }
   };
   const handleCancelOrder = async (orderId: string, reason: string) => {

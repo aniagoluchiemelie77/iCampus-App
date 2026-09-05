@@ -4,6 +4,11 @@ import { PageHeader } from '../components/PageHeader';
 import { FAQItem } from '../components/MyQRCodeSection';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import {
+  USD_EQUIVALENCE_OF_1_ICASH,
+  EXCEPTION_ACCOUNT_LIMITS,
+  EXCEPTION_COST_IN_ICASH,
+} from '../constants/inAppConstants';
 
 interface FAQItemType {
   id: string | number;
@@ -15,7 +20,7 @@ const FAQ_DATA: FAQItemType[] = [
     id: 'icash-1',
     question: 'What is iCash?',
     answer:
-      'iCash is the unified digital medium of exchange used across the iCampus platform and future subsidiaries of Aniagolu Global Tech Services Ltd. It ensures a stable internal economy by keeping transactions independent of volatile local currencies.',
+      'iCash is the unified digital medium of exchange used across the iCampus platform and future subsidiaries of Agolu Global Tech Services Ltd. It ensures a stable internal economy by keeping transactions independent of volatile local currencies.',
   },
   {
     id: 'acad-1',
@@ -38,14 +43,12 @@ const FAQ_DATA: FAQItemType[] = [
   {
     id: 'icash-2',
     question: 'What is the exchange rate for iCash?',
-    answer:
-      'iCash operates on a fixed exchange rate where 1 iCash equals exactly 0.74 USD (or its equivalent value in your local currency). Local currency inputs are automatically converted at the prevailing market rate into USD before iCash is issued.',
+    answer: `iCash operates on a fixed exchange rate where 1 iCash equals exactly ${USD_EQUIVALENCE_OF_1_ICASH} USD (or its equivalent value in your local currency). Local currency inputs are automatically converted at the prevailing market rate into USD before iCash is issued.`,
   },
   {
     id: 'acad-2',
     question: 'How many free Lecture Exceptions do I get each month?',
-    answer:
-      'Your monthly allotment depends on your subscription tier:\n• Free Tier: 1 free exception per month.\n• Pro Tier: 2 free exceptions per month.\n• Premium Tier: 3 free exceptions per month.',
+    answer: `Your monthly free lecture exception allotment depends on your subscription tier: \n Free Tier: ${EXCEPTION_ACCOUNT_LIMITS['free']} free exception per month.\n• Pro Tier: ${EXCEPTION_ACCOUNT_LIMITS['pro']} free exceptions per month.\n• Premium Tier: ${EXCEPTION_ACCOUNT_LIMITS['premium']} free exceptions per month.`,
   },
   {
     id: 'test-2',
@@ -68,8 +71,7 @@ const FAQ_DATA: FAQItemType[] = [
   {
     id: 'acad-3',
     question: 'What happens if I exhaust my free monthly lecture exceptions?',
-    answer:
-      'If you have exhausted your free monthly allowance, you can purchase additional exceptions at a cost of 0.5 iCash each. Please note that if a lecturer disapproves or cancels a purchased exception, no refunds are issued.',
+    answer: `If you have exhausted your free monthly allowance, you can purchase additional exceptions at a cost of ${EXCEPTION_COST_IN_ICASH} iCash each. Please note that if a lecturer disapproves or cancels a purchased exception, no refunds are issued.`,
   },
   {
     id: 'icash-4',
@@ -150,11 +152,11 @@ export const FAQScreen = () => {
         data={FAQ_DATA}
         keyExtractor={keyExtractor}
         renderItem={renderFAQItem}
-        contentContainerStyle={styles.listContent}
         initialNumToRender={8}
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={true}
+        contentContainerStyle={{ marginHorizontal: 15 }}
       />
     </SafeAreaView>
   );
@@ -163,9 +165,5 @@ export const FAQScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
-  },
-  listContent: {
-    padding: 16,
   },
 });

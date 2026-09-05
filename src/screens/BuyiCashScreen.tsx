@@ -8,7 +8,6 @@ import {
   ScrollView,
   Dimensions,
   FlatList,
-  ActivityIndicator,
 } from 'react-native';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { useAppSelector } from '../hooks/hooks.ts';
@@ -134,14 +133,14 @@ export const ICashBuyPage = ({ navigation }: any) => {
       return () => clearTimeout(timer);
     }
   }, [needsRefresh, navigation, fetchPaymentMethods]);
-
-  // Secure API Submission Gateway pipeline
   const handleProceed = async () => {
     const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0 || isSubmitting) return;
-
-    if (!hasPaymentMethod) {
-      setShowAddCardModal(true);
+    if (isNaN(numericAmount) || numericAmount <= 0 || isSubmitting) {
+      Toast.show({
+        type: 'info',
+        text1: 'Amount missing',
+        text2: 'Please a valid purchase amount.',
+      });
       return;
     }
 
@@ -237,9 +236,16 @@ export const ICashBuyPage = ({ navigation }: any) => {
           <TextInput
             style={[iCashActionsStyles.inputBorderless, { color: colors.text }]}
             placeholder="0.00"
-            keyboardType="decimal-pad" // Better keyboard profile layout context for iOS/Android
+            keyboardType="decimal-pad"
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={v => {
+              const cleaned = v.replace(/[^0-9.]/g, '');
+              const parts = cleaned.split('.');
+              if (parts.length > 2) return;
+              if (parts[0].length > 6) return;
+              if (parts[1] && parts[1].length > 2) return;
+              setAmount(cleaned);
+            }}
             placeholderTextColor={colors.inputTextHolder || '#A0A0A0'}
             editable={!isSubmitting}
           />
@@ -265,12 +271,7 @@ export const ICashBuyPage = ({ navigation }: any) => {
         <Text style={[iCashActionsStyles.resultLabel, { color: colors.text }]}>
           You will receive:
         </Text>
-        <CurrencyDisplay
-          value={parseFloat(iCashEquivalent)}
-          size="medium"
-          isSuccess={true}
-        />
-
+        <CurrencyDisplay value={parseFloat(iCashEquivalent)} size="medium" />
         {!hasPaymentMethod && (
           <View
             style={[
@@ -278,7 +279,11 @@ export const ICashBuyPage = ({ navigation }: any) => {
               { borderColor: colors.primary },
             ]}
           >
-            <MaterialIcons name="info" size={18} color={colors.primary} />
+            <MaterialIcons
+              name="info-outline"
+              size={24}
+              color={colors.primary}
+            />
             <Text
               style={[
                 iCashActionsStyles.warningText,
@@ -306,19 +311,27 @@ export const ICashBuyPage = ({ navigation }: any) => {
           )}
         />
         <CustomButton
-          title={!hasPaymentMethod
-            ? 'Add Payment Method'
+          title={
+            !hasPaymentMethod
+              ? 'Add Payment Method'
               : !selectedMethod
-            ? 'Select a Method'
-              : 'Complete Purchase'}
+                ? 'Select a Method'
+                : 'Complete Purchase'
+          }
           style={[
             iCashActionsStyles.buyBtn,
             (!amount || parseFloat(amount) <= 0 || isSubmitting) && {
               opacity: 0.7,
             },
           ]}
-          onPress={handleProceed}
-          disabled={!amount || parseFloat(amount) <= 0 || isSubmitting}
+          onPress={() => {
+            if (!hasPaymentMethod) {
+              setShowAddCardModal(true);
+            } else {
+              handleProceed();
+            }
+          }}
+          disabled={isSubmitting}
         />
       </View>
 
@@ -334,27 +347,26 @@ export const ICashBuyPage = ({ navigation }: any) => {
 export const iCashActionsStyles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 5,
-    height: 60,
+    borderRadius: 10,
+    height: 50,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    marginBottom: 15,
+    marginBottom: 20,
+    paddingHorizontal: 15,
   },
   currencyPrefix: {
     fontSize: 23,
     fontWeight: 'bold',
-    marginRight: 10,
+    marginRight: 7,
   },
   resultValue: {
     fontSize: 30,
@@ -364,7 +376,7 @@ export const iCashActionsStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   exchangeText: {
     fontSize: 14,
@@ -372,10 +384,11 @@ export const iCashActionsStyles = StyleSheet.create({
   exchangeValue: {
     fontSize: 14,
     fontWeight: 'bold',
+    fontStyle: 'italic',
   },
   resultLabel: {
     fontSize: 14,
-    marginBottom: 15,
+    marginBottom: 20,
   },
   warningBox: {
     flexDirection: 'row',
@@ -384,11 +397,12 @@ export const iCashActionsStyles = StyleSheet.create({
     marginTop: 25,
     borderLeftWidth: 1,
     borderLeftColor: PRIMARY_COLOR,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   warningText: {
     fontSize: 14,
     marginLeft: 10,
+    lineHeight: 20,
   },
   buyBtn: {
     paddingHorizontal: 15,
@@ -402,13 +416,15 @@ export const iCashActionsStyles = StyleSheet.create({
   inputBorderless: {
     flex: 1,
     fontSize: 14,
+    backgroundColor: 'transparent',
   },
   row: { flexDirection: 'row' },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   bodyContainer: {
     padding: 15,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 15,
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 15,
   },
   card: {
     width: CARD_WIDTH,
@@ -443,7 +459,7 @@ export const iCashActionsStyles = StyleSheet.create({
   bottomSheet: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 20,
+    padding: 25,
     paddingBottom: 40,
     alignItems: 'center',
   },
@@ -457,14 +473,13 @@ export const iCashActionsStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginVertical: 25,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-    borderBottomWidth: 0.5,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    marginBottom: 20,
     width: '100%',
   },
   detailRowText: {
@@ -477,9 +492,7 @@ export const iCashActionsStyles = StyleSheet.create({
   },
   totalText: { fontWeight: 'bold', fontSize: 15 },
   payBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
+    paddingHorizontal: 15,
     alignItems: 'center',
     marginTop: 10,
   },

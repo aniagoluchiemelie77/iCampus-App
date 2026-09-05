@@ -669,6 +669,9 @@ export const AddExceptionModal = ({
   isSaving,
   lectures,
 }: AddExceptionProps) => {
+  if (!course || !user) {
+    return null;
+  }
   const { colors } = useTheme();
   const [category, setCategory] =
     useState<CourseException['reasonCategory']>('Personal');
@@ -4073,7 +4076,7 @@ export const RenderViewLectureSchedule = ({
   const navigation = useNavigation<any>();
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const user = useAppSelector(state => state.user) || {};
-  const sectionListRef = useRef<SectionList>(null);
+  const flatListRef = useRef<FlatList>(null);
   const today = new Date().toISOString().split('T')[0];
 
   const sections = useMemo(() => {
@@ -4101,16 +4104,33 @@ export const RenderViewLectureSchedule = ({
       }));
   }, [lectures]);
 
+  type FlatListItem =
+    | { type: 'HEADER'; title: string; id: string }
+    | (Lecture & { type: 'ITEM' });
+
+  const flatListData: FlatListItem[] = useMemo(() => {
+    return sections.flatMap(section => [
+      {
+        type: 'HEADER' as const,
+        title: section.title,
+        id: `header-${section.title}`,
+      },
+      ...section.data.map(item => ({ ...item, type: 'ITEM' as const })),
+    ]);
+  }, [sections]);
+
   const jumpToToday = () => {
-    const todayIndex = sections.findIndex(s => s.title === today);
+    const todayIndex = flatListData.findIndex(
+      item => item.type === 'HEADER' && item.title === today,
+    );
     if (todayIndex !== -1) {
-      sectionListRef.current?.scrollToLocation({
-        sectionIndex: todayIndex,
-        itemIndex: 0,
+      flatListRef.current?.scrollToIndex({
+        index: todayIndex,
         animated: true,
       });
     }
   };
+
   const handleJoinLecture = async () => {
     if (!ongoingLecture) return;
     if (ongoingLecture.lectureType !== 'Physical') {
@@ -4151,6 +4171,7 @@ export const RenderViewLectureSchedule = ({
       });
     }
   };
+
   const renderLectureItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
     const isClickable = item.lectureType === 'Online';
@@ -4225,46 +4246,53 @@ export const RenderViewLectureSchedule = ({
     );
   };
 
-  return (
-    <View style={{ flex: 1 }}>
-      <SectionList
-        ref={sectionListRef}
-        sections={sections}
-        keyExtractor={item => item.id}
-        renderItem={renderLectureItem}
-        renderSectionHeader={({ section: { title } }) => (
-          <View
+  const renderFlatListItem = ({ item }: { item: FlatListItem }) => {
+    if (item.type === 'HEADER') {
+      return (
+        <View
+          style={[
+            CourseActionStyles.sectionHeader,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text
             style={[
-              CourseActionStyles.sectionHeader,
-              { backgroundColor: colors.backgroundSecondary },
+              CourseActionStyles.sectionHeaderText,
+              { color: colors.textDarker },
             ]}
           >
-            <Text
-              style={[
-                CourseActionStyles.sectionHeaderText,
-                { color: colors.textDarker },
-              ]}
-            >
-              {title === today ? "Today's Lectures" : title}
-            </Text>
-          </View>
-        )}
-        stickySectionHeadersEnabled
+            {item.title === today ? "Today's Lectures" : item.title}
+          </Text>
+        </View>
+      );
+    }
+    return renderLectureItem({ item });
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <FlatList
+        ref={flatListRef}
+        data={flatListData}
+        keyExtractor={item => item.id}
+        renderItem={renderFlatListItem}
         inverted
         ListHeaderComponent={<PageHeader title="My Lectures Schedule" />}
+        ListEmptyComponent={
+          <EmptyState
+            title="No lectures scheduled yet"
+            subtitle="All your scheduled lectures will appear here"
+            iconName="access-time"
+          />
+        }
       />
 
       <TouchableOpacity
         style={[CourseActionStyles.fab, { backgroundColor: colors.btnColor }]}
         onPress={jumpToToday}
       >
-        <Text
-          style={[CourseActionStyles.fabText, { color: colors.btnTextColor }]}
-        >
-          Back to Today
-        </Text>
         <MaterialIcons
-          name="calendar-today"
+          name="calendar-month"
           size={24}
           color={colors.btnTextColor}
         />
@@ -4300,7 +4328,7 @@ export const LecturerLectureScheduleView = ({
   >('Physical');
   const [editLocation, setEditLocation] = useState('');
   const [editDate, setEditDate] = useState(new Date());
-  const sectionListRef = useRef<SectionList>(null);
+  const flatListRef = useRef<FlatList>(null);
   const today = new Date().toISOString().split('T')[0];
 
   const sections = useMemo(() => {
@@ -4327,16 +4355,26 @@ export const LecturerLectureScheduleView = ({
         data: groups[dateKey],
       }));
   }, [lectures]);
+
+  const flatListData = useMemo(() => {
+    return sections.flatMap(section => [
+      { type: 'HEADER', title: section.title, id: `header-${section.title}` },
+      ...section.data.map(item => ({ ...item, type: 'ITEM' })),
+    ]);
+  }, [sections]);
+
   const jumpToToday = () => {
-    const todayIndex = sections.findIndex(s => s.title === today);
+    const todayIndex = flatListData.findIndex(
+      item => item.type === 'HEADER' && (item as any).title === today,
+    );
     if (todayIndex !== -1) {
-      sectionListRef.current?.scrollToLocation({
-        sectionIndex: todayIndex,
-        itemIndex: 0,
+      flatListRef.current?.scrollToIndex({
+        index: todayIndex,
         animated: true,
       });
     }
   };
+
   const handleEditSave = async () => {
     if (!selectedLecture) return;
     const formattedDate = editDate.toISOString().split('T')[0];
@@ -4381,6 +4419,7 @@ export const LecturerLectureScheduleView = ({
       });
     }
   };
+
   const handleOpenEditModal = (lecture: Lecture) => {
     setSelectedLecture(lecture);
     setEditTopicName(lecture.topicName);
@@ -4393,6 +4432,7 @@ export const LecturerLectureScheduleView = ({
     }
     setShowPostponeModal(true);
   };
+
   const handleJoinLecture = async () => {
     if (!ongoingLecture) return;
     if (ongoingLecture.lectureType !== 'Physical') {
@@ -4447,6 +4487,7 @@ export const LecturerLectureScheduleView = ({
       });
     }
   };
+
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
     const isClickable = item.lectureType === 'Online';
@@ -4530,45 +4571,53 @@ export const LecturerLectureScheduleView = ({
       </TouchableOpacity>
     );
   };
-  return (
-    <View style={{ flex: 1 }}>
-      <SectionList
-        ref={sectionListRef}
-        sections={sections}
-        keyExtractor={item => item.id}
-        renderItem={renderLecturerItem}
-        renderSectionHeader={({ section: { title } }) => (
-          <View
+
+  const renderFlatListItem = ({ item }: { item: any }) => {
+    if (item.type === 'HEADER') {
+      return (
+        <View
+          style={[
+            CourseActionStyles.sectionHeader,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <Text
             style={[
-              CourseActionStyles.sectionHeader,
-              { backgroundColor: colors.backgroundSecondary },
+              CourseActionStyles.sectionHeaderText,
+              { color: colors.textDarker },
             ]}
           >
-            <Text
-              style={[
-                CourseActionStyles.sectionHeaderText,
-                { color: colors.textDarker },
-              ]}
-            >
-              {title === today ? 'Teaching Today' : title}
-            </Text>
-          </View>
-        )}
+            {item.title === today ? 'Teaching Today' : item.title}
+          </Text>
+        </View>
+      );
+    }
+    return renderLecturerItem({ item });
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <FlatList
+        ref={flatListRef}
+        data={flatListData}
+        keyExtractor={item => item.id}
+        renderItem={renderFlatListItem}
         inverted
         ListHeaderComponent={<PageHeader title="Manage Lectures Schedule" />}
-        stickySectionHeadersEnabled
+        ListEmptyComponent={
+          <EmptyState
+            title={'No Lectures scheduled yet'}
+            subtitle="All your scheduled lectures will appear here"
+            iconName="access-time"
+          />
+        }
       />
       <TouchableOpacity
         style={[CourseActionStyles.fab, { backgroundColor: colors.btnColor }]}
         onPress={jumpToToday}
       >
-        <Text
-          style={[CourseActionStyles.fabText, { color: colors.btnTextColor }]}
-        >
-          Back to Today
-        </Text>
         <MaterialIcons
-          name="calendar-today"
+          name="calendar-month"
           size={24}
           color={colors.btnTextColor}
         />
@@ -4840,7 +4889,7 @@ export const AssessmentReportScreen = ({ route }: any) => {
             onPress={handleDownloadPDF}
             iconName="file-download"
             iconColor="#fff"
-            style={CourseActionStyles.downloadBtn} 
+            style={CourseActionStyles.downloadBtn}
           />
         }
       />
@@ -5090,7 +5139,7 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
             disabled={downloading}
             iconName="file-download"
             iconColor="#fff"
-            style={CourseActionStyles.addBtn} 
+            style={CourseActionStyles.addBtn}
           />
         ))}
       {loading ? (
@@ -5207,7 +5256,8 @@ export const CourseActionStyles = StyleSheet.create({
     borderRadius: 12,
   },
   addButton: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   addBtnText: { fontSize: 14, fontWeight: 'bold' },
@@ -5221,7 +5271,8 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 14,
   },
   addContentBtn: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   addContentText: {
@@ -5867,7 +5918,8 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: '700',
   },
   createCard: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   createCardText: {
@@ -6246,7 +6298,7 @@ export const CourseActionStyles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 40,
     right: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -6297,7 +6349,8 @@ export const CourseActionStyles = StyleSheet.create({
     marginRight: 10,
   },
   downloadBtn: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    height: 40,
   },
   downloadText: {
     marginLeft: 5,

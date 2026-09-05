@@ -5,13 +5,11 @@ import { useTheme } from '../context/ThemeContext';
 import {PageHeader} from '../components/PageHeader';
 import { InputGroup } from '../components/InputGroup'; 
 import { useLocationServices } from '../hooks/useLocationService.ts'; 
-import {useMediaPicker} from '../hooks/useMediaPicker.ts';
-import {ImagePickerModal} from '../components/ImagePickerModal.tsx';
+import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
-import {
-  uploadToFirebase
-} from '../utils/CloudinaryPresetHelper.ts';
-import {requestDropStationApi} from '../api/localPostApis.ts';
+import { AttachmentModal } from '../components/ChatInput.tsx';
+import { uploadToFirebase } from '../utils/CloudinaryPresetHelper.ts';
+import { requestDropStationApi } from '../api/localPostApis.ts';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 
@@ -50,10 +48,12 @@ export const RegisterStationScreen = () => {
       formData.images.length === 0 ||
       !userCoords
     ) {
-      return Alert.alert(
-        'Missing Info',
-        'Please fill all fields, add at least one image, and ensure location is active.',
-      );
+      return Toast.show({
+        type: 'error',
+        text1: 'Incomplete Info',
+        text2:
+          'Please fill all fields, add at least one image, and ensure location is active.',
+      });
     }
 
     try {
@@ -101,26 +101,23 @@ export const RegisterStationScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader
-        title="Request Drop-Off Station Registeration"
-        showBackButton={true}
-      />
+      <PageHeader title="Request Drop-Off Station" showBackButton={true} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <MaterialIcons
           name="storefront"
           size={60}
-          color={colors.textDarker}
+          color={colors.primary}
           style={styles.mainIcon}
         />
-        <Text style={[styles.title, { color: colors.text }]}>
+        <Text style={[styles.title, { color: colors.textDarker }]}>
           Join as a Drop-Off Hub
         </Text>
         <Text style={[styles.subtext, { color: colors.text }]}>
           Provide your business details below. Your location will be
           automatically captured to help iCampus users find your station. Please
           stand at your business location (kiosk, shop, or office) before
-          submitting. Do not register from residential/private bedrooms.
+          submitting. Do not register from residential addresses.
         </Text>
         <InputGroup
           label="Station Name"
@@ -132,24 +129,7 @@ export const RegisterStationScreen = () => {
           placeholder="Enter detailed street address"
           onChangeText={val => setFormData({ ...formData, address: val })}
         />
-        <View
-          style={[
-            styles.locationBadge,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <MaterialIcons
-            name={isLocationReady ? 'location-on' : 'location-off'}
-            size={20}
-            color={isLocationReady ? colors.primary : colors.text}
-          />
-          <Text style={[styles.text, { color: colors.text }]}>
-            {isLocationReady
-              ? `Captured: ${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)}`
-              : 'Locating your station...'}
-          </Text>
-        </View>
-        <Text style={[styles.text, { color: colors.text, marginBottom: 15 }]}>
+        <Text style={[styles.text, { color: colors.text, marginBottom: 20 }]}>
           Station Photos (Required)
         </Text>
         <View style={styles.imageRow}>
@@ -157,12 +137,12 @@ export const RegisterStationScreen = () => {
             <Image key={idx} source={{ uri }} style={styles.thumb} />
           ))}
           <TouchableOpacity
-            style={[styles.addBtn, { borderColor: colors.border }]}
+            style={[styles.addBtn, { borderColor: colors.primary }]}
             onPress={() => setModalVisible(true)}
           >
             <MaterialIcons
               name="add-a-photo"
-              size={24}
+              size={28}
               color={colors.primary}
             />
           </TouchableOpacity>
@@ -181,25 +161,32 @@ export const RegisterStationScreen = () => {
           onPress={submitRegistration}
         />
       </ScrollView>
-      <ImagePickerModal
-        visible={modalVisible}
+      <AttachmentModal
+        isVisible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onSelect={handleSelectOption}
+        onPickImage={() => handleSelectOption('library')}
+        onTakePhoto={() => handleSelectOption('camera')}
+        colors={colors}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
-  content: { paddingHorizontal: 20 },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 15 },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 20,
     alignSelf: 'center',
   },
-  subtext: { textAlign: 'center', fontSize: 14 },
+  subtext: {
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
   text: { fontSize: 14 },
   locationBadge: {
     flexDirection: 'row',
@@ -227,14 +214,21 @@ const styles = StyleSheet.create({
     marginVertical: 15,
   },
   warningText: { flex: 1, marginLeft: 10, fontSize: 13, lineHeight: 18 },
-  imageRow: { flexDirection: 'row', marginVertical: 10 },
+  imageRow: { flexDirection: 'row', marginBottom: 20 },
   addBtn: {
-    width: 80,
-    height: 80,
+    width: 70,
+    height: 70,
     borderRadius: 10,
     borderWidth: 2,
     borderStyle: 'dashed',
-    alignContent: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  thumb: { width: 80, height: 80, borderRadius: 10, marginRight: 10 },
+  thumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    marginRight: 10,
+    marginBottom: 7,
+  },
 });

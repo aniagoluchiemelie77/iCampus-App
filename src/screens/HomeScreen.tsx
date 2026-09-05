@@ -2,7 +2,13 @@ import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import PagerView from 'react-native-pager-view';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../context/UserSlice';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  PermissionsAndroid,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { FeedTab } from '../components/HomeScreenComponents';
 import { StoreScreen } from '../components/Storescreen';
@@ -14,7 +20,11 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
-import { getMessaging, onMessage } from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  onMessage,
+  requestPermission,
+} from '@react-native-firebase/messaging';
 import {
   useSocketConnection,
   SocketContext,
@@ -31,7 +41,6 @@ import {
   getAllExceptionsForOngoingLecture,
 } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
-import { baseUrl } from '../components/HomeScreenComponents.tsx';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 interface SocketProviderProps {
@@ -86,25 +95,28 @@ export const SocketProvider = ({
 };
 const TabBarItem = React.memo(
   ({
-    label,
     icon,
     active,
     onPress,
   }: {
-    label: string;
     icon: string;
     active: boolean;
     onPress: () => void;
   }) => {
     const { colors } = useTheme();
     return (
-      <TouchableOpacity onPress={onPress} style={styles.iconItem}>
+      <TouchableOpacity
+        onPress={onPress}
+        style={[
+          styles.iconItem,
+          active && { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
         <MaterialIcons
-          name={active ? icon : `${icon}`}
-          size={active ? 24 : 22}
+          name={icon}
+          size={29}
           color={active ? colors.primary : colors.textDarker}
         />
-        {active && <Text style={styles.activeIconLabel}>{label}</Text>}
       </TouchableOpacity>
     );
   },
@@ -122,20 +134,26 @@ const HomeScreen = () => {
   const socket = socketContext?.socket;
   const rawRole = user?.usertype || 'student';
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
-  const screens = ['home', 'classroom', 'search', 'store', 'ranking'];
+  const isClassroomAllowed = userType === 'student' || userType === 'lecturer';
+  const screens = isClassroomAllowed
+    ? ['home', 'classroom', 'search', 'store']
+    : ['home', 'search', 'store'];
   const handlePageSelected = (e: any) => {
     const index = e.nativeEvent.position;
     setActiveIcon(screens[index]);
+  };
+  const handleTabPress = (screenName: string) => {
+    setActiveIcon(screenName);
+    const index = screens.indexOf(screenName);
+    if (index !== -1) {
+      pagerRef.current?.setPage(index);
+    }
   };
   const messagingInstance = getMessaging();
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24;
   };
-  const isClassroomAllowed =
-    userType === 'student' ||
-    userType === 'lecturer' ||
-    userType === 'otherUser';
 
   useEffect(() => {
     if (user?.tokenCreatedAt) {
@@ -162,6 +180,26 @@ const HomeScreen = () => {
     );
 
     return unsubscribe;
+  }, []);
+  useEffect(() => {
+    const requestUserPermission = async () => {
+      if (Platform.OS === 'android') {
+        if (Platform.Version >= 33) {
+          await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          );
+        }
+      } else if (Platform.OS === 'ios') {
+        const messagingInstance = getMessaging();
+        const authStatus = await requestPermission(messagingInstance);
+        const enabled = authStatus === 1 || authStatus === 2;
+        if (enabled) {
+          console.log('iOS Authorization status granted:', authStatus);
+        }
+      }
+    };
+
+    requestUserPermission();
   }, []);
   useEffect(() => {
     if (!socket || !user?.uid) return;
@@ -248,78 +286,70 @@ const HomeScreen = () => {
     }
   };
   return (
-    <SocketProvider baseUrl={baseUrl} userUid={user?.uid}>
-      <AppDataProvider user={user}>
-        <View
-          style={[styles.container, { backgroundColor: colors.background }]}
+    <AppDataProvider user={user}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <PagerView
+          style={styles.centerContent}
+          initialPage={0}
+          ref={pagerRef}
+          onPageSelected={handlePageSelected}
         >
-          <PagerView
-            style={styles.centerContent}
-            initialPage={0}
-            ref={pagerRef}
-            onPageSelected={handlePageSelected}
-          >
-            <View key="0">
-              <FeedTab />
-            </View>
-            <View key="1">
-              <ClassroomScreenComponent
-                userRole={rawRole as 'student' | 'lecturer'}
-              />
-            </View>
-            <View key="2">
-              <SearchScreen />
-            </View>
-            <View key="3">
-              <StoreScreen />
-            </View>
-          </PagerView>
-
-          <View
-            style={[
-              styles.iconBar,
-              {
-                backgroundColor: colors.backgroundSecondary,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <TabBarItem
-              label="Home"
-              icon="home"
-              active={activeIcon === 'home'}
-              onPress={() => setActiveIcon('home')}
-            />
-            {isClassroomAllowed && (
-              <TabBarItem
-                label="Courses"
-                icon="groups"
-                active={activeIcon === 'classroom'}
-                onPress={() => setActiveIcon('classroom')}
-              />
-            )}
-            <TabBarItem
-              label="Search"
-              icon="search"
-              active={activeIcon === 'search'}
-              onPress={() => setActiveIcon('search')}
-            />
-            <TabBarItem
-              label="Store"
-              icon="shopping-cart"
-              active={activeIcon === 'store'}
-              onPress={() => setActiveIcon('store')}
+          <View key="0">
+            <FeedTab />
+          </View>
+          <View key="1">
+            <ClassroomScreenComponent
+              userRole={rawRole as 'student' | 'lecturer'}
             />
           </View>
+          <View key="2">
+            <SearchScreen />
+          </View>
+          <View key="3">
+            <StoreScreen />
+          </View>
+        </PagerView>
+
+        <View
+          style={[
+            styles.iconBar,
+            {
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <TabBarItem
+            icon="home"
+            active={activeIcon === 'home'}
+            onPress={() => handleTabPress('home')}
+          />
+          {isClassroomAllowed && (
+            <TabBarItem
+              icon="groups"
+              active={activeIcon === 'classroom'}
+              onPress={() => handleTabPress('classroom')}
+            />
+          )}
+          <TabBarItem
+            icon="search"
+            active={activeIcon === 'search'}
+            onPress={() => handleTabPress('search')}
+          />
+          <TabBarItem
+            icon="shopping-cart"
+            active={activeIcon === 'store'}
+            onPress={() => handleTabPress('store')}
+          />
         </View>
-        <OngoingLectureModal
-          visible={!!ongoingLecture}
-          lecture={ongoingLecture}
-          onJoin={handleJoinLecture}
-          onDismiss={() => setOngoingLecture(null)}
-        />
-      </AppDataProvider>
-    </SocketProvider>
+      </View>
+      <OngoingLectureModal
+        visible={!!ongoingLecture}
+        lecture={ongoingLecture}
+        onJoin={handleJoinLecture}
+        onDismiss={() => setOngoingLecture(null)}
+      />
+    </AppDataProvider>
   );
 };
 const styles = StyleSheet.create({
@@ -384,7 +414,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
-    paddingHorizontal: 15,
+    width: '100%',
   },
   centerContent: {
     flex: 1,
@@ -392,14 +422,12 @@ const styles = StyleSheet.create({
   },
   iconBar: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
     alignItems: 'center',
-    height: 40,
-    backgroundColor: 'rgba(250, 220, 204, 0.85)',
+    height: 50,
     position: 'absolute',
     bottom: 8,
-    left: 10,
-    right: 10,
+    left: 18,
+    right: 18,
     overflow: 'hidden',
     elevation: 8,
     shadowColor: PRIMARY_COLOR_TINT,
@@ -409,10 +437,12 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1,
     zIndex: 90,
-    width: '100%',
+    padding: 2,
   },
   iconItem: {
     alignItems: 'center',
+    flex: 1,
+    borderRadius: 25,
   },
   activeIconLabel: {
     fontWeight: 'bold',

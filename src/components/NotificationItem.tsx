@@ -1,52 +1,42 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import { useTheme } from '../context/ThemeContext';
-import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 
-
-export const NotificationItem = (
-    { 
-        item, 
-        handleNotificationPress
-    }: 
-    { 
-        item: any; 
-        handleNotificationPress: (item: any) => void;
+export const NotificationItem = ({
+  item,
+  handleNotificationPress,
+}: {
+  item: any;
+  handleNotificationPress: (item: any) => void;
+}) => {
+  const { colors } = useTheme();
+  const getIcon = () => {
+    switch (item.category) {
+      case 'finance':
+        return { name: 'account-balance' };
+      case 'auth':
+        return { name: 'security' };
+      case 'store':
+        return { name: 'shopping-cart' };
+      case 'profile':
+        return { name: 'account-circle' };
+      case 'security':
+        return { name: 'security' };
+      case 'reminder':
+      case 'classroom':
+        return { name: 'school' };
+      case 'social':
+        return { name: 'people' };
+      case 'subscription':
+        return { name: 'verified' };
+      default:
+        return { name: 'notifications-on' };
     }
-) => {
-    const { colors } = useTheme();
-    const getIcon = () => {
-      switch (item.category) {
-        case 'finance':
-          return { name: 'account-balance-wallet-outlined' };
-        case 'auth':
-          return { name: 'security-outlined' };
-        case 'store':
-          return { name: 'shopping-cart-outlined' };
-        case 'profile':
-          return { name: 'account-circle-outlined' };
-        case 'security':
-          return { name: 'security-outlined' };
-        case 'reminder':
-        case 'classroom':
-          return { name: 'school-outlined' };
-        case 'social':
-          return { name: 'people-outlined' };
-        case 'subscription':
-          return { name: 'verified-outlined' };
-        default:
-          return { name: 'notifications' };
-      }
-    };
-    const iconConfig = getIcon();
-    const formatNotificationMessage = (i: any) => {
+  };
+  const iconConfig = getIcon();
+  const formatNotificationMessage = (i: any) => {
     const { actionType, payload } = i;
 
     switch (actionType) {
@@ -87,56 +77,59 @@ export const NotificationItem = (
     }
   };
 
-    return (
-      <TouchableOpacity
-        onPress={() => handleNotificationPress(item)}
-        style={[
-          styles.card,
-          !item.isRead
-            ? { backgroundColor: colors.backgroundSecondary }
-            : { backgroundColor: colors.background },
-        ]}
-      >
-        <View style={styles.iconContainer}>
-          <MaterialIcons name={iconConfig.name} size={22} color={colors.text} />
-        </View>
+  return (
+    <TouchableOpacity
+      onPress={handleNotificationPress}
+      style={[
+        styles.card,
+        !item.isRead
+          ? { backgroundColor: colors.backgroundSecondary }
+          : { backgroundColor: colors.background },
+      ]}
+    >
+      <View style={styles.iconContainer}>
+        <MaterialIcons
+          name={iconConfig.name}
+          size={24}
+          color={colors.primary}
+        />
+      </View>
 
-        <View style={styles.content}>
-          <Text
-            style={[styles.title, { color: colors.text }]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {item.title}
-          </Text>
-          <Text
-            style={[styles.message, { color: colors.text }]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {formatNotificationMessage(item)}
-          </Text>
-          <Text style={[styles.time, { color: colors.text }]}>
-            {dayjs(item.createdAt).fromNow()}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+      <View style={styles.content}>
+        <Text
+          style={[styles.title, { color: colors.text }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {item.title}
+        </Text>
+        <Text
+          style={[styles.message, { color: colors.text }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {formatNotificationMessage(item)}
+        </Text>
+        <Text style={[styles.time, { color: colors.text }]}>
+          {dayjs(item.createdAt).fromNow()}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
-    card: {
+  card: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: 20,
     elevation: 1,
     padding: 15,
-    borderBottomWidth: 0.5,
-    borderBottomColor: PRIMARY_COLOR_TINT,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    borderRadius: 10,
   },
-  iconContainer: { marginRight: 15, justifyContent: 'center' },
+  iconContainer: { marginRight: 12, justifyContent: 'center' },
   content: { flex: 1 },
   title: { fontWeight: 'bold', fontSize: 14, marginBottom: 4 },
   time: { fontSize: 11 },
   message: { fontSize: 12, marginBottom: 8 },
-})
+});

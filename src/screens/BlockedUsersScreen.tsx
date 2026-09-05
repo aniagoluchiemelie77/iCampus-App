@@ -1,12 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  FlatList,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
+import { View, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { PageHeader } from '../components/PageHeader';
 import { getBlockedUsers } from '../api/localGetApis';
 import { useAppSelector } from '../hooks/hooks';
@@ -25,15 +18,9 @@ export const BlockedUsersScreen = () => {
   const { colors } = useTheme();
   const dispatch = useDispatch();
   const currentUser = useAppSelector(state => state.user) || {};
-
-  // State Management Matrix
   const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Track individual user IDs currently undergoing unblock requests to prevent button mashing
   const [processingIds, setProcessingIds] = useState<string[]>([]);
-
-  // Memoized Data Sync Engine
   const fetchBlockedUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -54,12 +41,8 @@ export const BlockedUsersScreen = () => {
   useEffect(() => {
     fetchBlockedUsers();
   }, [fetchBlockedUsers]);
-
-  // Command Pipe: Safe Unblock Execution
   const handleUnblock = async (targetId: string) => {
-    // Race-Condition Guard: Block duplicate clicks while this request is active
     if (processingIds.includes(targetId)) return;
-
     setProcessingIds(prev => [...prev, targetId]);
     try {
       const result = await toggleBlockUser(targetId);
@@ -97,10 +80,7 @@ export const BlockedUsersScreen = () => {
   if (loading) {
     return (
       <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
+        style={[styles.subContainer, { backgroundColor: colors.background }]}
       >
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
@@ -109,12 +89,12 @@ export const BlockedUsersScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <PageHeader title="Blocked Users" />
       <FlatList
         data={blockedUsers}
         keyExtractor={item => item.uid}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<PageHeader title="Blocked Users" />}
         ListEmptyComponent={
           <EmptyState
             iconName="no-accounts"
@@ -167,14 +147,16 @@ export const BlockedUsersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   subContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
-    borderRadius: 15,
   },
   listContent: {
     paddingBottom: 20,
+    paddingHorizontal: 15,
   },
   userRow: {
     padding: 15,

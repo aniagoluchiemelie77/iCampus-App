@@ -5,10 +5,10 @@ import {
   TouchableOpacity,
   Text,
   TextInput,
-  Image,
   Platform,
   FlatList,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -23,7 +23,6 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 import { UserAvatar } from '../components/UserAvatar';
 import { UserIdentity } from '../components/UserIdentity';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import Video from 'react-native-video';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
 import { submitOrUpdatePostService } from '../api/localPostApis';
@@ -34,6 +33,7 @@ import { RootStackParamList } from '../../App';
 import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import { usePicker } from '../hooks/useDropDownPicker';
 import { JobTypePicker } from '../components/InputGroup';
+import { HorizontalScrollableMediaPreviewList } from '../components/MediaPreview';
 interface MediaItem {
   uri: string[];
   type: 'image' | 'video';
@@ -41,7 +41,7 @@ interface MediaItem {
 }
 type Props = NativeStackScreenProps<RootStackParamList, 'CreatePost'>;
 
-const CreatePost = ({ route, navigation }: Props) => {
+export const CreatePost = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const editPostData = route.params?.post;
   const isEditMode = !!editPostData;
@@ -77,6 +77,7 @@ const CreatePost = ({ route, navigation }: Props) => {
       editPostData?.eventMetadata?.date ??
       new Date().toISOString().split('T')[0],
   });
+
   const [mediaList, setMediaList] = useState<MediaItem[]>(
     editPostData?.media?.url
       ? [
@@ -118,6 +119,7 @@ const CreatePost = ({ route, navigation }: Props) => {
     };
     loadTaggingContext();
   }, []);
+
   useEffect(() => {
     setJobMetadata(prev => ({
       ...prev,
@@ -125,6 +127,7 @@ const CreatePost = ({ route, navigation }: Props) => {
         'Full-time' | 'Part-time' | 'Internship' | 'Contract' | 'Freelance',
     }));
   }, [jobType]);
+
   const handleConfirm = (event: any, selectedDate?: Date) => {
     hidePicker();
     if (!selectedDate) return;
@@ -182,7 +185,6 @@ const CreatePost = ({ route, navigation }: Props) => {
       ? `${baseContent} @${username} `
       : `@${username} `;
     setContent(newContent);
-
     setMentionSearchKeyword(null);
     setFilteredUsers([]);
   };
@@ -210,9 +212,44 @@ const CreatePost = ({ route, navigation }: Props) => {
     }
   };
 
+  const hasValidTextOrMedia = content.trim().length > 0 || mediaList.length > 0;
+  const hasValidPoll =
+    postType === 'poll' &&
+    pollOptions.filter(opt => opt.trim().length > 0).length >= 2;
+  const hasValidJob =
+    postType === 'job' &&
+    jobMetadata.title.trim().length > 0 &&
+    jobMetadata.company.trim().length > 0 &&
+    jobMetadata.location.trim().length > 0;
+  const hasValidEvent =
+    postType === 'event' &&
+    (eventMetadata.title ?? '').trim().length > 0 &&
+    (eventMetadata.location ?? '').trim().length > 0;
+
+  const canPost = () => {
+    switch (postType) {
+      case 'poll':
+        return hasValidPoll;
+      case 'job':
+        return hasValidJob;
+      case 'event':
+        return hasValidEvent;
+      case 'media':
+      case 'post':
+      default:
+        return hasValidTextOrMedia;
+    }
+  };
+
   const handleCreateOrUpdatePost = async () => {
-    if (!content.trim() && mediaList.length === 0 && postType !== 'poll')
+    if (!canPost()) {
+      Toast.show({
+        type: 'info',
+        text1: 'Missing Info',
+        text2: 'Please ensure you fill in all required post information',
+      });
       return;
+    }
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -242,7 +279,6 @@ const CreatePost = ({ route, navigation }: Props) => {
             targetUri,
             `posts/${currentUser.uid}`,
           );
-
           finalMediaUrls.push(downloadUrl);
           lastMediaType = item.type;
         }
@@ -319,271 +355,386 @@ const CreatePost = ({ route, navigation }: Props) => {
       setIsUploading(false);
     }
   };
-  const hasValidTextOrMedia = content.trim().length > 0 || mediaList.length > 0;
-
-  const hasValidPoll =
-    postType === 'poll' &&
-    pollOptions.filter(opt => opt.trim().length > 0).length >= 2;
-
-  const hasValidJob =
-    postType === 'job' &&
-    jobMetadata.title.trim().length > 0 &&
-    jobMetadata.company.trim().length > 0 &&
-    jobMetadata.location.trim().length > 0;
-
-  const hasValidEvent =
-    postType === 'event' &&
-    (eventMetadata.title ?? '').trim().length > 0 &&
-    (eventMetadata.location ?? '').trim().length > 0 &&
-    eventMetadata.date instanceof Date &&
-    !isNaN(eventMetadata.date.getTime()) &&
-    eventMetadata.startTime instanceof Date &&
-    !isNaN(eventMetadata.startTime.getTime());
-  const canPost = () => {
-    switch (postType) {
-      case 'poll':
-        return hasValidPoll;
-      case 'job':
-        return hasValidJob;
-      case 'event':
-        return hasValidEvent;
-      case 'media':
-      case 'post':
-      default:
-        return hasValidTextOrMedia;
-    }
-  };
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
+      <PageHeader
+        title={
+          isEditMode
+            ? 'Edit Post'
+            : postType === 'poll'
+              ? 'Create Poll'
+              : postType === 'job'
+                ? 'Create Job'
+                : postType === 'event'
+                  ? 'Create Event'
+                  : 'Create Post'
+        }
+        rightElement={
+          <CustomButton
+            title={isEditMode ? 'Save' : 'Post'}
+            style={[styles.postBtn, !canPost() && styles.disabledBtn]}
+            disabled={!canPost()}
+            onPress={handleCreateOrUpdatePost}
+          />
+        }
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <PageHeader
-          title={
-            isEditMode
-              ? 'Edit Post'
-              : postType === 'poll'
-                ? 'Create Poll'
-                : postType === 'job'
-                  ? 'Create Job'
-                  : postType === 'event'
-                    ? 'Create Event'
-                    : 'Create Post'
-          }
-          rightElement={
-            <CustomButton
-              title={isEditMode ? 'Save' : 'Post'}
-              style={[styles.postBtn, !canPost && styles.disabledBtn]}
-              disabled={!canPost}
-              onPress={handleCreateOrUpdatePost}
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Main Thought Input Card */}
+          <View
+            style={[
+              styles.cardContainer,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <TextInput
+              placeholder="What's on your mind? Mention people with @..."
+              placeholderTextColor={colors.inputTextHolder || '#9ca3af'}
+              multiline
+              autoFocus
+              style={[styles.input, { color: colors.text }]}
+              value={content}
+              onChangeText={handleContentChange}
             />
-          }
-        />
 
-        <TextInput
-          placeholder={
-            postType === 'poll' ? 'Ask a question...' : "What's happening?"
-          }
-          multiline
-          autoFocus
-          style={[styles.input, { color: colors.text, marginTop: 15 }]}
-          value={content}
-          onChangeText={handleContentChange}
-          placeholderTextColor={colors.inputTextHolder}
-        />
-
-        {postType === 'poll' && (
-          <View style={styles.pollWrapper}>
-            <Text style={[styles.pollLabel, { color: colors.text }]}>
-              Poll Options
-            </Text>
-            {pollOptions.map((opt, index) => (
-              <View key={index} style={styles.pollInputContainer}>
-                <TextInput
-                  style={[styles.pollInput, { color: colors.text }]}
-                  placeholder={`Option ${index + 1}`}
-                  value={opt}
-                  placeholderTextColor={colors.inputTextHolder}
-                  onChangeText={val => {
-                    const newOpts = [...pollOptions];
-                    newOpts[index] = val;
-                    setPollOptions(newOpts);
-                  }}
-                />
-                {pollOptions.length > 2 && (
-                  <TouchableOpacity onPress={() => removeOption(index)}>
-                    <MaterialIcons
-                      name="cancel"
-                      size={20}
-                      color={colors.primary}
-                      style={{padding: 10}}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-            {pollOptions.length < 4 && (
-              <TouchableOpacity
-                style={[styles.addOptionBtn, { borderColor: colors.primary }]}
-                onPress={() => setPollOptions([...pollOptions, ''])}
-              >
-                <Text style={[styles.addOptionText, { color: colors.primary }]}>
-                  Add another option
-                </Text>
-              </TouchableOpacity>
+            {mediaList.length > 0 && (
+              <HorizontalScrollableMediaPreviewList
+                mediaList={mediaList}
+                colors={colors}
+                disabled={postType === 'poll' || mediaList.length >= 4}
+                onPickMedia={pickMedia}
+                onRemove={index =>
+                  setMediaList(prev => prev.filter((_, i) => i !== index))
+                }
+              />
             )}
           </View>
-        )}
-        {postType === 'job' && (
-          <View style={styles.pollWrapper}>
-            <TextInput
-              placeholder="Job Title"
-              value={jobMetadata.title}
-              onChangeText={t => setJobMetadata({ ...jobMetadata, title: t })}
-              style={[styles.input2, { color: colors.text }]}
-              placeholderTextColor={colors.inputTextHolder}
-            />
-            <TextInput
-              placeholder="Company"
-              value={jobMetadata.company}
-              onChangeText={t => setJobMetadata({ ...jobMetadata, company: t })}
-              style={[styles.input2, { color: colors.text }]}
-              placeholderTextColor={colors.inputTextHolder}
-            />
-            <TextInput
-              placeholder="Location"
-              value={jobMetadata.location}
-              onChangeText={t =>
-                setJobMetadata({ ...jobMetadata, location: t })
-              }
-              placeholderTextColor={colors.inputTextHolder}
-              style={[styles.input2, { color: colors.text }]}
-            />
-            <JobTypePicker value={jobMetadata.type} onSelect={selectType} />
-          </View>
-        )}
-        {postType === 'event' && (
-          <View style={styles.pollWrapper}>
-            <TextInput
-              placeholder="Event Title"
-              value={eventMetadata.title}
-              onChangeText={t =>
-                setEventMetadata({ ...eventMetadata, title: t })
-              }
-              placeholderTextColor={colors.inputTextHolder}
-              style={[styles.input2, { color: colors.text }]}
-            />
-            <TextInput
-              placeholder="Location"
-              value={eventMetadata.location}
-              onChangeText={t =>
-                setEventMetadata({ ...eventMetadata, location: t })
-              }
-              placeholderTextColor={colors.inputTextHolder}
-              style={[styles.input2, { color: colors.text }]}
-            />
-            <View style={styles.dateTimeRow}>
-              <TouchableOpacity
-                style={[styles.dateTimeBox, { borderColor: colors.border }]}
-                onPress={() => showPicker('date')}
-              >
-                <MaterialIcons
-                  name="calendar-month"
-                  size={24}
-                  color={colors.text}
-                />
-                <Text style={[styles.microLabel, { color: colors.text }]}>
-                  Date
-                </Text>
-                <Text style={[styles.dateTimeText, { color: colors.text }]}>
-                  {eventMetadata.date instanceof Date
-                    ? formatDate(eventMetadata.date)
-                    : eventMetadata.date || '00:00'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.dateTimeBox, { borderColor: colors.border }]}
-                onPress={() => showPicker('startTime')}
-              >
-                <MaterialIcons name="schedule" size={24} color={colors.text} />
-                <Text style={[styles.microLabel, { color: colors.text }]}>
-                  Start Time
-                </Text>
-                <Text style={[styles.dateTimeText, { color: colors.text }]}>
-                  {eventMetadata.startTime instanceof Date
-                    ? formatTime(eventMetadata.startTime)
-                    : eventMetadata.startTime || '00:00'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.dateTimeBox, { borderColor: colors.border }]}
-                onPress={() => showPicker('endTime')}
-              >
-                <MaterialIcons name="schedule" size={24} color={colors.text} />
-                <Text style={[styles.microLabel, { color: colors.text }]}>
-                  Ends
-                </Text>
-                <Text style={[styles.dateTimeText, { color: colors.text }]}>
-                  {eventMetadata.endTime instanceof Date
-                    ? formatTime(eventMetadata.endTime)
-                    : eventMetadata.endTime || '00:00'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
-        {mediaList.length > 0 && (
-          <View style={styles.mediaContainer}>
-            {mediaList.map((item, index) => (
-              <View key={index} style={styles.mediaPreviewWrapper}>
-                {item.type === 'image' ? (
-                  <Image
-                    source={{ uri: item.uri[0] }}
-                    style={styles.mediaPreview}
+          {/* Dynamic Post Types */}
+          {postType === 'poll' && (
+            <View
+              style={[
+                styles.cardContainer,
+                {
+                  backgroundColor: colors.backgroundSecondary,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Poll Options
+              </Text>
+              {pollOptions.map((opt, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.pollInputContainer,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={[styles.pollInput, { color: colors.text }]}
+                    placeholder={`Option ${index + 1}`}
+                    value={opt}
+                    placeholderTextColor={colors.inputTextHolder}
+                    onChangeText={val => {
+                      const newOpts = [...pollOptions];
+                      newOpts[index] = val;
+                      setPollOptions(newOpts);
+                    }}
                   />
-                ) : (
-                  <Video
-                    source={{ uri: item.uri[0] }}
-                    style={styles.mediaPreview}
-                    muted
-                    repeat
-                    resizeMode="cover"
-                    paused={false}
-                    controls={false}
-                    shutterColor="transparent"
-                  />
-                )}
+                  {pollOptions.length > 1 && (
+                    <TouchableOpacity onPress={() => removeOption(index)}>
+                      <MaterialIcons
+                        name="cancel"
+                        size={20}
+                        color={colors.primary}
+                        style={{ marginLeft: 10 }}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+              {pollOptions.length < 4 && (
                 <TouchableOpacity
                   style={[
-                    styles.removeButton,
-                    { backgroundColor: colors.tint },
+                    styles.addOptionBtn,
+                    {
+                      borderColor: colors.primary,
+                      backgroundColor: colors.primary + '10',
+                    },
                   ]}
-                  onPress={() =>
-                    setMediaList(prev => prev.filter((_, i) => i !== index))
-                  }
+                  onPress={() => setPollOptions([...pollOptions, ''])}
                 >
                   <MaterialIcons
-                    name="cancel"
-                    size={22}
+                    name="add"
+                    size={18}
                     color={colors.primary}
-                    style={{ padding: 10 }}
+                    style={{ marginRight: 6 }}
                   />
+                  <Text
+                    style={[styles.addOptionText, { color: colors.primary }]}
+                  >
+                    Add Option
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {postType === 'job' && (
+            <View
+              style={[
+                styles.cardContainer,
+                {
+                  backgroundColor: colors.backgroundSecondary,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Job Details
+              </Text>
+              <TextInput
+                placeholder="Job Title (e.g. Senior React Native Dev)"
+                value={jobMetadata.title}
+                onChangeText={t => setJobMetadata({ ...jobMetadata, title: t })}
+                style={[
+                  styles.modernInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+                placeholderTextColor={colors.inputTextHolder}
+              />
+              <TextInput
+                placeholder="Company Name"
+                value={jobMetadata.company}
+                onChangeText={t =>
+                  setJobMetadata({ ...jobMetadata, company: t })
+                }
+                style={[
+                  styles.modernInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+                placeholderTextColor={colors.inputTextHolder}
+              />
+              <TextInput
+                placeholder="Location (e.g. Remote, Lagos)"
+                value={jobMetadata.location}
+                onChangeText={t =>
+                  setJobMetadata({ ...jobMetadata, location: t })
+                }
+                placeholderTextColor={colors.inputTextHolder}
+                style={[
+                  styles.modernInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              />
+              <JobTypePicker value={jobMetadata.type} onSelect={selectType} />
+            </View>
+          )}
+
+          {postType === 'event' && (
+            <View
+              style={[
+                styles.cardContainer,
+                {
+                  backgroundColor: colors.backgroundSecondary,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Event Details
+              </Text>
+              <TextInput
+                placeholder="Event Title"
+                value={eventMetadata.title}
+                onChangeText={t =>
+                  setEventMetadata({ ...eventMetadata, title: t })
+                }
+                placeholderTextColor={colors.inputTextHolder}
+                style={[
+                  styles.modernInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              />
+              <TextInput
+                placeholder="Location or Virtual Link"
+                value={eventMetadata.location}
+                onChangeText={t =>
+                  setEventMetadata({ ...eventMetadata, location: t })
+                }
+                placeholderTextColor={colors.inputTextHolder}
+                style={[
+                  styles.modernInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              />
+              <View style={styles.dateTimeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.dateTimeBox,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
+                  onPress={() => showPicker('date')}
+                >
+                  <MaterialIcons
+                    name="calendar-month"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.microLabel, { color: colors.text }]}>
+                    Date
+                  </Text>
+                  <Text
+                    style={[styles.dateTimeText, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {typeof eventMetadata.date === 'string'
+                      ? eventMetadata.date
+                      : eventMetadata.date.toLocaleTimeString()}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.dateTimeBox,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
+                  onPress={() => showPicker('startTime')}
+                >
+                  <MaterialIcons
+                    name="schedule"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.microLabel, { color: colors.text }]}>
+                    Start
+                  </Text>
+                  <Text
+                    style={[styles.dateTimeText, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {typeof eventMetadata.startTime === 'string'
+                      ? eventMetadata.startTime
+                      : eventMetadata.startTime.toLocaleTimeString()}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.dateTimeBox,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
+                  onPress={() => showPicker('endTime')}
+                >
+                  <MaterialIcons
+                    name="schedule"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.microLabel, { color: colors.text }]}>
+                    Ends
+                  </Text>
+                  <Text
+                    style={[styles.dateTimeText, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {typeof eventMetadata.endTime === 'string'
+                      ? eventMetadata.endTime
+                      : eventMetadata.endTime.toLocaleTimeString()}
+                  </Text>
                 </TouchableOpacity>
               </View>
-            ))}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Bottom Modern Action Toolbar (Includes Media Trigger) */}
+        {postType !== 'poll' && (
+          <View
+            style={[
+              styles.actionToolbar,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.toolbarActionBtn}
+              onPress={pickMedia}
+            >
+              <View
+                style={[
+                  styles.toolbarIconCircle,
+                  { backgroundColor: colors.primary + '15' },
+                ]}
+              >
+                <MaterialIcons
+                  name="photo-library"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={[styles.toolbarActionText, { color: colors.text }]}>
+                Photo/Video
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
+        {/* Tagging / Mentions Overlay */}
         {mentionSearchKeyword !== null && filteredUsers.length > 0 && (
           <View
             style={[
               styles.mentionOverlayContainer,
-              { backgroundColor: colors.backgroundSecondary },
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+              },
             ]}
           >
             <FlatList
@@ -619,22 +770,14 @@ const CreatePost = ({ route, navigation }: Props) => {
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={pickMedia}
-          style={[
-            styles.toolbarBtn,
-            (postType === 'poll' || mediaList.length >= 4) && { opacity: 0.5 },
-          ]}
-          disabled={postType === 'poll' || mediaList.length >= 4}
-        >
-          <MaterialIcons name="image" size={26} color={colors.primary} />
-          <Text style={[styles.toolbarText, { color: colors.primary }]}>
-            Photo/Video
-          </Text>
-        </TouchableOpacity>
-
+        {/* Upload Status Overlay */}
         {isUploading && (
-          <View style={styles.bottomToastContainer}>
+          <View
+            style={[
+              styles.bottomToastContainer,
+              { backgroundColor: colors.background },
+            ]}
+          >
             <View style={styles.toastHeader}>
               <Text
                 style={[
@@ -644,7 +787,9 @@ const CreatePost = ({ route, navigation }: Props) => {
                     : { color: colors.text },
                 ]}
               >
-                {isSuccess ? 'Post Action Completed!' : 'Processing...'}
+                {isSuccess
+                  ? 'Successfully Published!'
+                  : `Uploading... ${uploadProgress}%`}
               </Text>
               {isSuccess && (
                 <MaterialIcons
@@ -658,7 +803,7 @@ const CreatePost = ({ route, navigation }: Props) => {
               <View
                 style={[
                   styles.progressBarBackground,
-                  { backgroundColor: colors.primaryTint },
+                  { backgroundColor: colors.border },
                 ]}
               >
                 <View
@@ -674,6 +819,7 @@ const CreatePost = ({ route, navigation }: Props) => {
             )}
           </View>
         )}
+
         {pickerMode && (
           <DateTimePicker
             value={new Date()}
@@ -689,155 +835,173 @@ const CreatePost = ({ route, navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
+  container: { flex: 1 },
+  scrollContainer: { padding: 16, paddingBottom: 100 },
+  cardContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   postBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
+    height: 36,
+    borderRadius: 18,
+    width: 'auto',
   },
   disabledBtn: { opacity: 0.5 },
-  postBtnText: { fontSize: 14, fontWeight: 'bold' },
   input: {
-    fontSize: 14,
+    fontSize: 16,
     textAlignVertical: 'top',
-    minHeight: 100,
-    marginBottom: 15,
-    width: '100%',
+    minHeight: 120,
+    lineHeight: 22,
   },
-  input2: {
+  modernInput: {
     fontSize: 14,
-    padding: 15,
     width: '100%',
-    marginBottom: 15,
+    marginBottom: 12,
+    height: 48,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderRadius: 12,
   },
-  pollWrapper: { marginBottom: 15 },
-  pollLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   pollInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
-    width: '100%',
-    height: 60,
-    borderWidth: 0.8,
-    borderRadius: 10,
-    paddingHorizontal: 7,
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
   },
   pollInput: {
     flex: 1,
-    marginRight: 8,
     fontSize: 14,
   },
   addOptionBtn: {
-    padding: 10,
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 15,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    marginTop: 4,
   },
-  addOptionText: { fontSize: 14, fontWeight: 'bold' },
-  mediaContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginVertical: 15,
-  },
-  mediaPreviewWrapper: {
-    position: 'relative',
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  mediaPreview: { width: 80, height: 80, borderRadius: 8 },
-  videoPlaceholder: {
-    backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  addOptionText: { fontSize: 14, fontWeight: '600' },
   dateTimeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    gap: 8,
   },
-  removeButton: {
-    top: -5,
-    right: -5,
-    padding: 7,
-    borderRadius: 4,
-  },
-  toolbarBtn: {
+  dateTimeBox: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    padding: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 9,
   },
-  toolbarText: {
-    marginTop: 5,
-    fontWeight: 'bold',
+  microLabel: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  dateTimeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  actionToolbar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    alignItems: 'center',
+  },
+  toolbarActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toolbarIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  toolbarActionText: {
     fontSize: 14,
+    fontWeight: '600',
   },
   bottomToastContainer: {
     position: 'absolute',
-    bottom: 30,
-    left: 10,
-    right: 10,
-    padding: 15,
-    borderRadius: 10,
+    bottom: 70,
+    left: 16,
+    right: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   toastHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 15,
   },
-  toastTitle: { fontSize: 14, fontWeight: 'bold' },
+  toastTitle: { fontSize: 14, fontWeight: '600' },
   progressBarBackground: {
-    height: 4,
-    borderRadius: 2,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 12,
+    overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 3,
   },
   mentionOverlayContainer: {
     position: 'absolute',
-    bottom: 30,
-    left: 0,
-    right: 0,
-    maxHeight: 200,
+    bottom: 70,
+    left: 16,
+    right: 16,
+    maxHeight: 180,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 8,
     zIndex: 100,
   },
   mentionUserItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
   },
-  mentionAvatar: {
+  miniAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: 12,
-  },
-  miniAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     marginRight: 10,
-  },
-  dateTimeBox: {
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  microLabel: {
-    fontSize: 12,
-    marginVertical: 6,
-  },
-  dateTimeText: {
-    fontSize: 12,
   },
 });
 

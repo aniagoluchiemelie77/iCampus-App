@@ -6,6 +6,7 @@ import {
   Dimensions,
   TouchableOpacity,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { useAppSelector } from '../hooks/hooks';
 import { PayWithFlutterwave } from 'flutterwave-react-native';
@@ -13,7 +14,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { PageHeader } from '../components/PageHeader';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User } from '../types/firebase';
-import Modal from 'react-native-modal';
 import Toast from 'react-native-toast-message';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { verifySubscriptionOnBackend } from '../api/localPostApis';
@@ -21,6 +21,7 @@ import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
 import {
   USD_SUBSCRIPTION_PRICES,
   DELIVERY_FEES,
+  EXCEPTION_ACCOUNT_LIMITS,
 } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
 import { useExchangeRate } from '../hooks/useExchangeRate.ts';
@@ -41,14 +42,6 @@ interface FlutterwaveButtonProps {
   label: string;
 }
 
-export const FlutterwaveButton = ({
-  onPress,
-  label,
-}: FlutterwaveButtonProps) => (
-  <TouchableOpacity style={styles.payButton} onPress={onPress}>
-    <Text style={styles.payButtonText}>{label}</Text>
-  </TouchableOpacity>
-);
 const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
   {
@@ -57,7 +50,7 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
     features: [
       'Basic Profile',
       '1x Post Impression Boost',
-      '1 Free Lecture Exceptions Per Month',
+      `${EXCEPTION_ACCOUNT_LIMITS.free} free lecture exceptions per month`,
       `Standard shipping fees (${toPercentLabel(
         DELIVERY_FEES.free.home_delivery,
       )} Home Deivery / ${toPercentLabel(
@@ -72,17 +65,15 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
     features: [
       'Subscribed Badge',
       '2x Post Impression Boost',
-      '2 Free Lectures Exceptions Per Month',
+      `${EXCEPTION_ACCOUNT_LIMITS.pro} Free Lectures Exceptions Per Month`,
       `Discounted shipping (${toPercentLabel(
         DELIVERY_FEES.pro.home_delivery,
       )} Home Delivery / ${toPercentLabel(
         DELIVERY_FEES.pro.drop_off,
       )} Drop-off)`,
       'Standard Search + AI Suggestions',
-      'Create Paid Courses',
       'iTag username personalization',
       'Verified Merchant Profile',
-      'iScore visibility of Searched Users',
     ],
   },
   {
@@ -91,17 +82,15 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
     features: [
       'Premium Badge',
       '5x Post Impression Boost',
-      '3 Free Lectures Exceptions Per Month',
+      `${EXCEPTION_ACCOUNT_LIMITS.premium} free lecture exceptions per month`,
       `Lowest shipping fees (${toPercentLabel(
         DELIVERY_FEES.premium.home_delivery,
       )} Home Delivery / ${toPercentLabel(
         DELIVERY_FEES.premium.drop_off,
       )} Drop-off)`,
       'Optimized Search + AI Suggestions + Ghost Mode',
-      'Create Paid Courses',
       'iTag custom personalization',
       'Verified Merchant Profile',
-      'iScore visibility of Searched Users',
     ],
   },
 ];
@@ -114,6 +103,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const [isPayModalVisible, setPayModalVisible] = useState(false);
   const { targetScreen } = route.params || {};
   const { exchangeData } = useExchangeRate(country || 'Nigeria');
+
   const getLocalPriceValue = React.useCallback(
     (id: string) => {
       const tierMap: Record<string, keyof typeof USD_SUBSCRIPTION_PRICES> = {
@@ -126,6 +116,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
     },
     [exchangeData.rate],
   );
+
   const formatLocalPrice = React.useCallback(
     (id: string) => {
       const value = getLocalPriceValue(id);
@@ -136,6 +127,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
     },
     [exchangeData.symbol, getLocalPriceValue],
   );
+
   const handlePaymentSuccess = async (data: any) => {
     try {
       const transactionId = data.transaction_id || data.flw_ref;
@@ -167,6 +159,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
       });
     }
   };
+
   const renderCustomButton = React.useCallback(
     (props: any) => (
       <FlutterwaveButton
@@ -178,10 +171,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   );
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingBottom: 40 }}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Subscription Plans" />
       <View style={styles.horizontalWrapper}>
         <ScrollView
@@ -227,45 +217,45 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                     </Text>
                   </View>
                 )}
+
                 <View style={styles.cardHeader}>
                   <Text style={[styles.planName, { color: colors.text }]}>
                     {plan.name}
                   </Text>
-                  {isCurrentPlan ? (
-                    <Text style={[styles.badgeText, { color: colors.primary }]}>
-                      Active
-                    </Text>
-                  ) : (
-                    <Text style={[styles.badgeText, { color: colors.primary }]}>
-                      {formatLocalPrice(plan.id!)}
-                    </Text>
-                  )}
+                  <Text style={[styles.badgeText, { color: colors.primary }]}>
+                    {isCurrentPlan ? 'Active' : formatLocalPrice(plan.id!)}
+                  </Text>
                 </View>
-                <View style={styles.featureList}>
-                  {plan.features.map((f, i) => (
-                    <View key={i} style={styles.featureRow}>
-                      <MaterialIcons
-                        name="check-circle"
-                        size={16}
-                        color={colors.primary}
-                      />
-                      <Text
-                        style={[styles.featureText, { color: colors.text }]}
-                      >
-                        {f}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                {!isFree && selectedTier !== tier && (
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.cardScrollContent}
+                >
+                  <View style={styles.featureList}>
+                    {plan.features.map((f, i) => (
+                      <View key={i} style={styles.featureRow}>
+                        <MaterialIcons
+                          name="check-circle"
+                          size={18}
+                          color={colors.primary}
+                        />
+                        <Text
+                          style={[styles.featureText, { color: colors.text }]}
+                        >
+                          {f}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {!isFree && !isCurrentPlan && (
                   <CustomButton
-                    title="Select Plan"
+                    title={isSelected ? 'Selected' : 'Select Plan'}
                     onPress={() => {
                       setSelectedTier(plan.id);
                       setPayModalVisible(true);
                     }}
-                    disabled={isCurrentPlan}
-                    style={[styles.payButtonMain]}
+                    style={styles.payButtonMain}
                   />
                 )}
               </View>
@@ -273,16 +263,17 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
           })}
         </ScrollView>
       </View>
+
       <Modal
-        isVisible={isPayModalVisible}
-        animationIn="slideInUp"
-        animationOut="slideOutDown"
-        onBackButtonPress={() => setPayModalVisible(false)}
-        onBackdropPress={() => setPayModalVisible(false)}
-        swipeDirection="down"
-        onSwipeComplete={() => setPayModalVisible(false)}
+        visible={isPayModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setPayModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={() => setPayModalVisible(false)}
+        >
           <View
             style={[
               styles.modalContent,
@@ -290,11 +281,12 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
             ]}
           >
             <View style={styles.modalHandle} />
+
             <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
               Confirm Subscription
             </Text>
             <Text style={[styles.modalSubTitle, { color: colors.text }]}>
-              You are upgrading to the {selectedTier?.toUpperCase()} plan.
+              You are upgrading to {selectedTier?.toUpperCase()} plan.
             </Text>
             <View style={styles.priceBreakdown}>
               <Text style={[styles.priceLabel, { color: colors.text }]}>
@@ -330,131 +322,173 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  planName: { fontSize: 14, fontWeight: 'bold' },
-  featureRow: { flexDirection: 'row', alignItems: 'center' },
-  featureText: { marginLeft: 8, fontSize: 14 },
-  badgeText: { fontSize: 12, fontWeight: 'bold' },
-  payButton: {
-    paddingHorizontal: 16,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    width: '80%',
-    paddingVertical: 10,
-    alignSelf: 'center',
-  },
-  payButtonMain: {
-    paddingHorizontal: 16,
-  },
-  payButtonText: { fontSize: 14, fontWeight: 'bold' },
+  container: { flex: 1 },
   horizontalWrapper: {
-    marginVertical: 20,
+    marginHorizontal: 15,
   },
   horizontalScrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
+    paddingTop: 15,
   },
   card: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
     marginRight: 20,
-    height: 400,
-    elevation: 4,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    minHeight: 550,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     borderWidth: 2,
     borderColor: 'transparent',
+    justifyContent: 'space-between',
+    position: 'relative',
   },
   currentPlanBorder: {
     borderColor: PRIMARY_COLOR_TINT,
   },
   selectedCard: {
     borderColor: PRIMARY_COLOR,
+    transform: [{ scale: 1.02 }],
   },
   currentPlanLabel: {
     position: 'absolute',
-    top: -12,
-    left: 20,
+    top: -14,
+    left: 24,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: 8,
     zIndex: 10,
   },
   currentPlanLabelText: {
     fontSize: 10,
     fontWeight: 'bold',
-    textTransform: 'capitalize',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  planName: { fontSize: 18, fontWeight: '700', lineHeight: 20 },
+  badgeText: { fontSize: 16, fontWeight: '700', lineHeight: 20 },
+  cardScrollContent: {
+    flexGrow: 1,
   },
   featureList: {
     marginVertical: 15,
   },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  featureText: {
+    marginLeft: 12,
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
+  },
+  payButton: {
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+    width: '100%',
+    paddingVertical: 14,
+    alignSelf: 'center',
+    backgroundColor: PRIMARY_COLOR,
+  },
+  payButtonMain: {
+    marginTop: 'auto',
+  },
+  payButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFF',
+    lineHeight: 20,
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
     paddingBottom: 40,
+    maxHeight: '70%',
   },
   modalHandle: {
-    width: 40,
+    width: 48,
     height: 5,
     backgroundColor: PRIMARY_COLOR_TINT,
     borderRadius: 10,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 20,
   },
   modalSubTitle: {
-    fontSize: 12,
+    fontSize: 14,
     textAlign: 'center',
-    marginVertical: 15,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   priceBreakdown: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 15,
+    alignItems: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
   },
   priceLabel: {
     fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
   },
   priceValue: {
     fontSize: 18,
     fontWeight: 'bold',
+    lineHeight: 20,
+    marginBottom: 20,
   },
   cancelButton: {
-    marginTop: 15,
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 15,
-    alignSelf: 'center',
+    marginTop: 20,
     justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
   cancelButtonText: {
     fontSize: 14,
     fontWeight: '600',
   },
 });
+
+export const FlutterwaveButton = ({
+  onPress,
+  label,
+}: FlutterwaveButtonProps) => (
+  <TouchableOpacity style={styles.payButton} onPress={onPress}>
+    <Text style={styles.payButtonText}>{label}</Text>
+  </TouchableOpacity>
+);

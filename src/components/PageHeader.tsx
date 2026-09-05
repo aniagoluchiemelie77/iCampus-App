@@ -9,6 +9,7 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   showBackButton?: boolean;
+  leftElement?: React.ReactNode;
   rightElement?: React.ReactNode;
 }
 
@@ -16,6 +17,7 @@ export const PageHeader = ({
   title,
   subtitle,
   showBackButton = true,
+  leftElement,
   rightElement,
 }: PageHeaderProps) => {
   const navigation = useNavigation();
@@ -26,34 +28,44 @@ export const PageHeader = ({
       style={[styles.header, { backgroundColor: colors.backgroundSecondary }]}
     >
       <View style={styles.sideContainer}>
-        {showBackButton && (
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+        {leftElement ? (
+          leftElement
+        ) : showBackButton ? (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButtonTouchable}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <MaterialIcons
               name="chevron-left"
-              size={32}
+              size={28}
               color={colors.primary}
-              style={{padding: 10}}
             />
           </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.centerContainer}>
+        <Text
+          style={[styles.headerTitle, { color: colors.primary }]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {subtitle && (
+          <Text
+            style={[styles.headerSubtitle, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
         )}
       </View>
-      <View style={styles.centerContainer}>
-        <View style={styles.headerTitleDiv}>
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>
-            {title}
-          </Text>
-          {subtitle && (
-            <Text
-              style={[styles.headerSubtitle, { color: colors.primaryTint }]}
-              numberOfLines={1}
-            >
-              {subtitle}
-            </Text>
-          )}
-        </View>
-        <Logo />
+
+      <View style={[styles.sideContainer, styles.rightSideContainer]}>
+        {rightElement ? rightElement : <Logo />}
       </View>
-      {rightElement && <View style={styles.sideContainer}>{rightElement}</View>}
     </View>
   );
 };
@@ -64,32 +76,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginHorizontal: -15,
+    marginBottom: 20,
   },
   sideContainer: {
-    width: 49,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    flexDirection: 'row',
+    width: 'auto',
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 3,
-    textAlign: 'center',
+  rightSideContainer: {
+    alignItems: 'flex-end',
+  },
+  backButtonTouchable: {
+    padding: 4,
+    marginLeft: -4,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
   },
   headerTitleDiv: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   headerSubtitle: {
     fontSize: 11,
     textAlign: 'center',
+    marginTop: 2,
   },
 });

@@ -445,11 +445,14 @@ export const ProfileScreen = ({ route }: any) => {
   }, [skillInput]);
   if (!profileData)
     return (
-      <ActivityIndicator
-        size="large"
-        color={PRIMARY_COLOR}
-        style={{ flex: 1 }}
-      />
+      <View
+        style={[
+          styles.blockedContainer,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+      </View>
     );
   const isIscoreViewEligible = currentUser.tier !== 'free';
   const isVerified = profileData.isVerified === true;
@@ -504,10 +507,7 @@ export const ProfileScreen = ({ route }: any) => {
     currentUser.isVerified &&
     currentUser.usertype === 'enterprise';
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {!isSearchFocused && (
         <PageHeader
           title="Profile"
@@ -534,294 +534,301 @@ export const ProfileScreen = ({ route }: any) => {
           }
         />
       )}
-      <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
+      <ProfileImageCarousel
+        images={profileData.profilePic}
+        isOwner={isOwner}
+        organizationName={profileData.organizationName}
+        firstName={profileData.firstname}
+        lastName={profileData.lastname}
+        username={profileData.username}
+      />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ marginHorizontal: 15 }}
       >
-        <ProfileImageCarousel
-          images={profileData.profilePic}
-          isOwner={isOwner}
-          organizationName={profileData.organizationName}
-          firstName={profileData.firstname}
-          lastName={profileData.lastname}
-          username={profileData.username}
-        />
-        <View style={styles.profileInfoSection}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('EditProfile')}
-            style={styles.editButtonCircle}
-          >
-            <MaterialIcons name="edit" size={23} color={colors.primary} />
-          </TouchableOpacity>
-          <UserIdentity
-            firstname={profileData.firstname}
-            lastname={profileData.lastname}
-            username={profileData.username}
-            tier={profileData.tier}
-            isVerified={profileData.isVerified}
-            showVerifyIcon={true}
-            size="large"
-            isOrganization={profileData.usertype === 'enterprise'}
-            organizationName={profileData.organizationName}
-            containerStyle={{ padding: 15 }}
-          />
-          <View style={styles.rowDiv}>
-            {isOwner ||
-              (isIscoreViewEligible && (
-                <View style={styles.iScoreChip}>
+        <View
+          style={[
+            styles.subContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View style={styles.profileInfoSection}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditProfile')}
+              style={styles.editButtonCircle}
+            >
+              <MaterialIcons name="edit" size={23} color={colors.primary} />
+            </TouchableOpacity>
+            <UserIdentity
+              firstname={profileData.firstname}
+              lastname={profileData.lastname}
+              username={profileData.username}
+              tier={profileData.tier}
+              isVerified={profileData.isVerified}
+              showVerifyIcon={true}
+              size="large"
+              isOrganization={profileData.usertype === 'enterprise'}
+              organizationName={profileData.organizationName}
+              containerStyle={{ padding: 15 }}
+            />
+            <View style={styles.rowDiv}>
+              {isOwner ||
+                (isIscoreViewEligible && (
+                  <View style={styles.iScoreChip}>
+                    <Text
+                      style={[styles.iScoreValue, { color: colors.textDarker }]}
+                    >
+                      {profileData.currentIScore}
+                    </Text>
+                    <Text style={[styles.iScoreLabel, { color: colors.text }]}>
+                      iScore
+                    </Text>
+                  </View>
+                ))}
+              {isOwner && !isVerified && (
+                <TouchableOpacity
+                  style={styles.verifyBtn}
+                  onPress={() => navigation.navigate('PersonaVerify')}
+                >
                   <Text
-                    style={[styles.iScoreValue, { color: colors.textDarker }]}
+                    style={[styles.verifyBtnText, { color: colors.primary }]}
                   >
-                    {profileData.currentIScore}
+                    Get Verified
                   </Text>
-                  <Text style={[styles.iScoreLabel, { color: colors.text }]}>
-                    iScore
-                  </Text>
-                </View>
-              ))}
-            {isOwner && !isVerified && (
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[styles.bioText, { color: colors.text }]}>
+              {profileData.headline
+                ? profileData.headline
+                : profileData.usertype === 'student'
+                  ? `Student at ${profileData.schoolName}`
+                  : profileData.usertype === 'lecturer'
+                    ? `${profileData.jobTitle || 'Lecturer'} • ${
+                        profileData.department
+                      } at ${profileData.schoolName}`
+                    : profileData.usertype === 'enterprise'
+                      ? `${profileData.organizationName} Global Organization`
+                      : 'iCampus User'}
+            </Text>
+            <View style={styles.statsRow}>
               <TouchableOpacity
-                style={styles.verifyBtn}
-                onPress={() => navigation.navigate('PersonaVerify')}
+                style={styles.statCountDiv}
+                onPress={() =>
+                  setFollowModal({
+                    visible: true,
+                    title: 'Followers',
+                    data: profileData.followersList,
+                  })
+                }
               >
-                <Text style={[styles.verifyBtnText, { color: colors.primary }]}>
-                  Get Verified
+                <Text
+                  style={[
+                    styles.statCount,
+                    { color: colors.primary },
+                    { marginRight: 4 },
+                  ]}
+                >
+                  {formatCount(profileData.followersCount)}
+                </Text>
+                <Text style={[styles.statCount, { color: colors.primary }]}>
+                  Followers
                 </Text>
               </TouchableOpacity>
-            )}
-          </View>
-          <Text style={[styles.bioText, { color: colors.text }]}>
-            {profileData.headline
-              ? profileData.headline
-              : profileData.usertype === 'student'
-                ? `Student at ${profileData.schoolName}`
-                : profileData.usertype === 'lecturer'
-                  ? `${profileData.jobTitle || 'Lecturer'} • ${
-                      profileData.department
-                    } at ${profileData.schoolName}`
-                  : profileData.usertype === 'enterprise'
-                    ? `${profileData.organizationName} Global Organization`
-                    : 'iCampus User'}
-          </Text>
-          <View style={styles.statsRow}>
-            <TouchableOpacity
-              style={styles.statCountDiv}
-              onPress={() =>
-                setFollowModal({
-                  visible: true,
-                  title: 'Followers',
-                  data: profileData.followersList,
-                })
-              }
-            >
-              <Text
-                style={[
-                  styles.statCount,
-                  { color: colors.primary },
-                  { marginRight: 4 },
-                ]}
-              >
-                {formatCount(profileData.followersCount)}
-              </Text>
-              <Text style={[styles.statCount, { color: colors.primary }]}>
-                Followers
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.statCountDiv}
-              onPress={() =>
-                setFollowingModal({
-                  visible: true,
-                  title: 'Following',
-                  data: profileData.followingList,
-                })
-              }
-            >
-              <Text
-                style={[
-                  styles.statCount,
-                  { color: colors.primary },
-                  { marginRight: 4 },
-                ]}
-              >
-                {formatCount(profileData.followingCount)}
-              </Text>
-              <Text style={[styles.statCount, { color: colors.primary }]}>
-                Following
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.statsRow, { marginBottom: 0 }]}>
-            {!isOwner && !isBlocked && (
-              <CustomButton
-                title="Block User"
-                style={[styles.blockBtnMain]}
-                onPress={handleBlockToggle}
-              />
-            )}
-            {!isOwner && !isFollowing && (
-              <CustomButton
-                title="Follow"
-                style={[styles.blockBtnMain]}
-                onPress={handleFollowToggle}
-              />
-            )}
-            {canSwitchToInstitutionAdmin && (
-              <CustomButton
-                title="Switch to Institution Admin"
-                style={[styles.blockBtnMain]}
-                onPress={handleSwitchToInstitutionAdmin}
-              />
-            )}
-          </View>
-          <View style={styles.contactContainer}>
-            <CustomButton
-              title="Send mail"
-              style={styles.contactRow}
-              onPress={() => {
-                if (profileData.email) {
-                  Linking.openURL(`mailto:${profileData.email}`).catch(() =>
-                    Alert.alert('Error', 'No email app found on this device'),
-                  );
+              <TouchableOpacity
+                style={styles.statCountDiv}
+                onPress={() =>
+                  setFollowingModal({
+                    visible: true,
+                    title: 'Following',
+                    data: profileData.followingList,
+                  })
                 }
-              }}
-              iconName="email"
-              iconColor="#fff"
-            />
-            {profileData.website && (
+              >
+                <Text
+                  style={[
+                    styles.statCount,
+                    { color: colors.primary },
+                    { marginRight: 4 },
+                  ]}
+                >
+                  {formatCount(profileData.followingCount)}
+                </Text>
+                <Text style={[styles.statCount, { color: colors.primary }]}>
+                  Following
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.statsRow, { marginBottom: 0 }]}>
+              {!isOwner && !isBlocked && (
+                <CustomButton
+                  title="Block User"
+                  style={[styles.blockBtnMain]}
+                  onPress={handleBlockToggle}
+                />
+              )}
+              {!isOwner && !isFollowing && (
+                <CustomButton
+                  title="Follow"
+                  style={[styles.blockBtnMain]}
+                  onPress={handleFollowToggle}
+                />
+              )}
+              {canSwitchToInstitutionAdmin && (
+                <CustomButton
+                  title="Switch to Institution Admin"
+                  style={[styles.blockBtnMain]}
+                  onPress={handleSwitchToInstitutionAdmin}
+                />
+              )}
+            </View>
+            <View style={styles.contactContainer}>
               <CustomButton
-                title="View Portfolio"
+                title="Send mail"
                 style={styles.contactRow}
                 onPress={() => {
-                  if (profileData.website) {
-                    const url = profileData.website.startsWith('http')
-                      ? profileData.website
-                      : `https://${profileData.website}`;
-                    Linking.openURL(url).catch(() =>
-                      Alert.alert('Error', "Couldn't open this website"),
+                  if (profileData.email) {
+                    Linking.openURL(`mailto:${profileData.email}`).catch(() =>
+                      Alert.alert('Error', 'No email app found on this device'),
                     );
                   }
                 }}
-                iconName="language"
+                iconName="email"
                 iconColor="#fff"
               />
-            )}
+              {profileData.website && (
+                <CustomButton
+                  title="View Portfolio"
+                  style={styles.contactRow}
+                  onPress={() => {
+                    if (profileData.website) {
+                      const url = profileData.website.startsWith('http')
+                        ? profileData.website
+                        : `https://${profileData.website}`;
+                      Linking.openURL(url).catch(() =>
+                        Alert.alert('Error', "Couldn't open this website"),
+                      );
+                    }
+                  }}
+                  iconName="language"
+                  iconColor="#fff"
+                />
+              )}
+            </View>
           </View>
         </View>
-      </View>
-      {profileData.bio && (
+        {profileData.bio && (
+          <View
+            style={[
+              styles.sectionContainer,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <View style={styles.sectionTitleDiv}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                About
+              </Text>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalType('about');
+                    setEditModalVisible(true);
+                  }}
+                >
+                  <MaterialIcons name="edit" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.aboutContent}>
+              <Text
+                style={[styles.aboutText, { color: colors.text }]}
+                numberOfLines={isExpanded ? undefined : 4}
+                onTextLayout={onTextLayout}
+              >
+                {profileData.bio}
+              </Text>
+              {numLines && numLines > 4 && (
+                <TouchableOpacity
+                  onPress={() => setIsExpanded(!isExpanded)}
+                  style={styles.seeMoreButton}
+                >
+                  <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+                    {isExpanded ? 'Show Less' : 'See More'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+        {profileData.skills && profileData.skills.length > 0 && (
+          <View
+            style={[
+              styles.sectionContainer,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <View style={styles.sectionTitleDiv}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Skills
+              </Text>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalType('skills');
+                    setEditModalVisible(true);
+                  }}
+                >
+                  <MaterialIcons name="edit" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.skillsWrapper}>
+              {profileData.skills.map((skill: string, index: number) => (
+                <View key={index} style={styles.skillChip}>
+                  <Text style={[styles.skillText, { color: colors.text }]}>
+                    {skill}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
         <View
           style={[
-            styles.sectionContainer,
+            styles.iTagDiv,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <View style={styles.sectionTitleDiv}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              About
-            </Text>
-            {isOwner && (
-              <TouchableOpacity
-                onPress={() => {
-                  setModalType('about');
-                  setEditModalVisible(true);
-                }}
-              >
-                <MaterialIcons name="edit" size={20} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <View style={styles.aboutContent}>
-            <Text
-              style={[styles.aboutText, { color: colors.text }]}
-              numberOfLines={isExpanded ? undefined : 4}
-              onTextLayout={onTextLayout}
+          <ITagCard
+            iTagData={profileData.iTagData}
+            isPremium={profileData.tier === 'premium'}
+            isOwner={isOwner}
+          />
+          {isOwner && isIscoreViewEligible && (
+            <TouchableOpacity
+              style={styles.editButtonCircle}
+              onPress={() => setIsEditItagModalVisible(true)}
             >
-              {profileData.bio}
-            </Text>
-            {numLines && numLines > 4 && (
-              <TouchableOpacity
-                onPress={() => setIsExpanded(!isExpanded)}
-                style={styles.seeMoreButton}
-              >
-                <Text style={[styles.seeMoreText, { color: colors.primary }]}>
-                  {isExpanded ? 'Show Less' : 'See More'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              <MaterialIcons name="edit" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          {!isOwner && (
+            <TouchableOpacity
+              style={styles.editButtonCircle}
+              onPress={handleCopyITag}
+            >
+              <MaterialIcons
+                name="content-copy"
+                size={20}
+                color={PRIMARY_COLOR}
+              />
+            </TouchableOpacity>
+          )}
         </View>
-      )}
-      {profileData.skills && profileData.skills.length > 0 && (
-        <View
-          style={[
-            styles.sectionContainer,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <View style={styles.sectionTitleDiv}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Skills
-            </Text>
-            {isOwner && (
-              <TouchableOpacity
-                onPress={() => {
-                  setModalType('skills');
-                  setEditModalVisible(true);
-                }}
-              >
-                <MaterialIcons name="edit" size={20} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <View style={styles.skillsWrapper}>
-            {profileData.skills.map((skill: string, index: number) => (
-              <View key={index} style={styles.skillChip}>
-                <Text style={[styles.skillText, { color: colors.text }]}>
-                  {skill}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-      <View
-        style={[
-          styles.iTagDiv,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <ITagCard
-          iTagData={profileData.iTagData}
-          isPremium={profileData.tier === 'premium'}
-          isOwner={isOwner}
-        />
-        {isOwner && isIscoreViewEligible && (
-          <TouchableOpacity
-            style={styles.editButtonCircle}
-            onPress={() => setIsEditItagModalVisible(true)}
-          >
-            <MaterialIcons name="edit" size={20} color={colors.primary} />
-          </TouchableOpacity>
+        {profileData.courses && profileData.courses.length > 0 && (
+          <CoursesView courses={profileData.courses} colors={colors} />
         )}
-        {!isOwner && (
-          <TouchableOpacity
-            style={styles.editButtonCircle}
-            onPress={handleCopyITag}
-          >
-            <MaterialIcons
-              name="content-copy"
-              size={20}
-              color={PRIMARY_COLOR}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-      {profileData.courses && profileData.courses.length > 0 && (
-        <CoursesView courses={profileData.courses} colors={colors} />
-      )}
+      </ScrollView>
       <ProfileTabs
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -909,7 +916,7 @@ export const ProfileScreen = ({ route }: any) => {
           style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
+          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <FollowersListModal
@@ -1078,11 +1085,11 @@ export const ProfileScreen = ({ route }: any) => {
           />
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15, position: 'relative' },
+  container: { flex: 1, position: 'relative' },
   subContainer: {
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
@@ -1094,7 +1101,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    borderRadius: 15,
+    flex: 1,
   },
   headerRightDiv: {
     flexDirection: 'row',
@@ -1376,6 +1383,7 @@ const styles = StyleSheet.create({
   tabContent: {
     marginVertical: 10,
     flex: 1,
+    marginHorizontal: 15,
   },
   emptyText: {
     marginVertical: 15,
@@ -1506,12 +1514,12 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 80,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,

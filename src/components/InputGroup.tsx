@@ -48,17 +48,16 @@ export const InputGroup = ({
 }: InputGroupProps) => {
   const { colors } = useTheme();
   return (
-    <View
-      style={[
-        styles.groupContainer,
-        { backgroundColor: colors.backgroundSecondary },
-      ]}
-    >
+    <View style={styles.groupContainer}>
       <View style={styles.labelRow}>
         <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         {isLocked && (
           <View style={styles.lockBadge}>
-            <MaterialIcons name="lock" size={14} color={colors.primary} />
+            <MaterialIcons
+              name="lock-outline"
+              size={20}
+              color={colors.primary}
+            />
           </View>
         )}
       </View>
@@ -81,11 +80,7 @@ export const InputGroup = ({
           keyboardType={
             type === 'phone' ? 'phone-pad' : textInputProps.keyboardType
           }
-          style={[
-            styles.input,
-            { color: colors.text },
-            type === 'phone' && { flex: 1 },
-          ]}
+          style={[styles.input, { color: colors.text }]}
           onChangeText={onChangeText}
           placeholderTextColor={colors.inputTextHolder}
         />
@@ -154,7 +149,7 @@ export const JobTypePicker = ({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: colors.text, marginBottom: 15 }]}>
+      <Text style={[styles.label, { color: colors.text, marginBottom: 20 }]}>
         Job Type
       </Text>
 
@@ -163,6 +158,9 @@ export const JobTypePicker = ({
         onPress={() => setVisible(true)}
       >
         <Text style={[styles.label, { color: colors.text }]}>{value}</Text>
+        {value && (
+          <MaterialIcons name="check-circle" size={20} color={colors.primary} />
+        )}
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="fade">
@@ -173,14 +171,17 @@ export const JobTypePicker = ({
           <ScrollView
             style={[
               styles.modalContent,
-              { backgroundColor: colors.backgroundSecondary },
+              { backgroundColor: colors.background },
             ]}
             showsVerticalScrollIndicator={false}
           >
             {JOB_TYPES.map(type => (
               <TouchableOpacity
                 key={type}
-                style={[styles.option, { borderBottomColor: colors.border }]}
+                style={[
+                  styles.option,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
                 onPress={() => {
                   onSelect(type);
                   setVisible(false);
@@ -198,11 +199,11 @@ export const JobTypePicker = ({
   );
 };
 const styles = StyleSheet.create({
-  groupContainer: { marginBottom: 15, padding: 10, borderRadius: 10 },
+  groupContainer: { marginBottom: 20 },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
     justifyContent: 'space-between',
   },
   label: { fontSize: 14, fontWeight: '600' },
@@ -215,11 +216,14 @@ const styles = StyleSheet.create({
     borderWidth: 0.8,
     flexDirection: 'row',
     alignItems: 'center',
+    height: 50,
+    width: '100%',
+    paddingHorizontal: 15,
   },
   countrySelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    marginRight: 8,
   },
   countryText: {
     fontSize: 14,
@@ -227,10 +231,10 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: 1,
-    height: 20,
+    height: '100%',
     marginLeft: 6,
   },
-  input: { padding: 12, fontSize: 14, minHeight: 48, flex: 1 },
+  input: { fontSize: 14, flex: 1 },
   helperText: { fontSize: 11, marginTop: 4, fontWeight: '700' },
   cardContainer: {
     marginBottom: 15,
@@ -256,11 +260,15 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
   },
-  container: { marginBottom: 15 },
+  container: { marginBottom: 20 },
   dropdown: {
-    padding: 15,
-    borderWidth: 1,
-    borderRadius: 15,
+    height: 50,
+    borderWidth: 0.8,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
   },
   overlay: {
@@ -272,10 +280,11 @@ const styles = StyleSheet.create({
     margin: 0,
     borderRadius: 25,
     padding: 20,
-    height: '70%',
+    maxHeight: '50%',
   },
   option: {
-    marginBottom: 15,
-    borderBottomWidth: 1,
+    marginBottom: 20,
+    padding: 15,
+    borderRadius: 8,
   },
 });

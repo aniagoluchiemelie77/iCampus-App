@@ -1,7 +1,7 @@
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {ThemeType} from '../types/firebase';
-import {getAuthHeaders} from '../utils/userTokenAuth';
+import { fetchWithAuth} from '../utils/userTokenAuth';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
@@ -22,12 +22,9 @@ export const updatePassword = async (newPassword: string, signal?: AbortSignal) 
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/password/update`, {
+    const response = await fetchWithAuth(`${baseUrl}users/password/update`, {
       method: 'PUT',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ newPassword }),
@@ -72,12 +69,9 @@ export const customizeItag = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/update-itag`, {
+    const response = await fetchWithAuth(`${baseUrl}users/update-itag`, {
       method: 'PUT',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({
@@ -124,12 +118,9 @@ export const updateCourseContent = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/courses/editCourseContent/${courseId}`, {
+    const response = await fetchWithAuth(`${baseUrl}users/lecturers/class/courses/editCourseContent/${courseId}`, {
       method: 'PUT', 
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({ index, updatedTopic }),
@@ -156,15 +147,10 @@ export const updateUserThemePreference = async (
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-    const response = await fetch(`${cleanBaseUrl}/users/preferences/toggleTheme`, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/preferences/toggleTheme`, {
       method: 'PUT',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ theme }),
       signal: controller.signal,
     });
@@ -202,14 +188,11 @@ export const updateLectureDetails = async (
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const { courseId, lectureId } = payload;
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${baseUrl}users/lecturers/class/courses/${courseId}/lectures/${lectureId}/edit`,
       {
         method: 'PUT',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         body: JSON.stringify({
@@ -236,12 +219,9 @@ export const updateLectureDetails = async (
 };
 export const updateAdminApi = async (uid: string, updateData: any) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/${uid}/update`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/${uid}/update`, {
       method: 'PUT',
       headers: { 
-        ...headers, 
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify(updateData),

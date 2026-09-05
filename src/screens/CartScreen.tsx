@@ -1,11 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import {
-  FlatList,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { CartItem } from '../components/CartItem';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -29,7 +23,6 @@ export const CartScreen = () => {
   const { handleCartItemToggle, allProducts, handleClearCart } =
     useAppDataContext();
 
-  // Safely cast cart array baseline layers
   const cartData = useMemo<CartItemEntry[]>(() => {
     return currentUser?.cart ?? [];
   }, [currentUser?.cart]);
@@ -92,7 +85,7 @@ export const CartScreen = () => {
         title="My Cart"
         subtitle={`${itemCount} ${
           itemCount === 1 ? 'item' : 'items'
-        } in your basket`}
+        } in your cart`}
         showBackButton={true}
         rightElement={
           itemCount > 0 ? (
@@ -118,7 +111,7 @@ export const CartScreen = () => {
           <EmptyState
             iconName="remove-shopping-cart"
             title="Your cart is empty"
-            subtitle="Looks like you haven't added any campus deals yet."
+            subtitle="Looks like you haven't added any listings yet."
           />
         }
       />
@@ -156,11 +149,11 @@ export const CartScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   headerBtn: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 8,
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -172,8 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 50,
-    marginTop: 15,
-    width: '100%',
+    paddingHorizontal: 15,
   },
   footer: {
     position: 'absolute',
@@ -181,20 +173,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingVertical: 15,
-    marginHorizontal: -15,
+    padding: 15,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 15,
+    alignItems: 'center',
+    marginBottom: 25,
     width: '100%',
-    padding: 10,
   },
-  totalLabel: { fontSize: 14, fontWeight: 'bold' },
+  totalLabel: { fontSize: 16, fontWeight: 'bold', flex: 1 },
   checkoutBtn: {
     paddingHorizontal: 15,
-    marginTop: 15,
+    marginTop: 10,
+    height: 50,
+    width: '100%',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  checkoutText: { fontSize: 14, fontWeight: '700' },
 });

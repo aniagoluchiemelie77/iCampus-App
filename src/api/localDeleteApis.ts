@@ -2,10 +2,11 @@ import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
-import {getAuthHeaders} from '../utils/userTokenAuth';
+import {fetchWithAuth} from '../utils/userTokenAuth';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
+
 
 interface DeleteLectureResponse {
   success: boolean;
@@ -34,12 +35,9 @@ export const handleFinalDelete = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/account/delete`, {
+    const response = await fetchWithAuth(`${baseUrl}users/account/delete`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({
@@ -97,12 +95,9 @@ export const deleteRecoveryEmailAPI = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/recovery-email`, {
+    const response = await fetchWithAuth(`${baseUrl}users/recovery-email`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ emailToDelete }),
@@ -152,12 +147,9 @@ export const handleDeletePhone = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/phone-number`, {
+    const response = await fetchWithAuth(`${baseUrl}users/phone-number`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({ phoneNumber }),
@@ -199,11 +191,9 @@ export const clearCartAPI = async (showToast = true) => {
     : `idemp-${Date.now()}-${Math.random()}`;
 
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}store/cart/delete-all`, { 
+    const response = await fetchWithAuth(`${baseUrl}store/cart/delete-all`, { 
       method: 'DELETE',
       headers: {
-        ...headers,
         'Idempotency-Key': idempotencyKey
       },
     });
@@ -245,14 +235,11 @@ export const clearFavoritesAPI = async (maxRetries = 3) => {
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const headers = await getAuthHeaders();
       const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-      const response = await fetch(`${cleanBaseUrl}/store/favorites/delete-all`, {
+      const response = await fetchWithAuth(`${cleanBaseUrl}/store/favorites/delete-all`, {
         method: 'DELETE',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
         },
         signal: controller.signal,
@@ -314,15 +301,12 @@ export const deleteProductApi = async (
   const idempotencyKey = uuidv4();
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const endpoint = `${cleanBaseUrl}/store/products/delete/${productId}`;
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithAuth(endpoint, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
       signal: controller.signal,
@@ -369,14 +353,12 @@ export const deletePostApi = async (postId: string) => {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const headers = await getAuthHeaders();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = `${cleanBaseUrl}/posts/${postId}/delete`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'DELETE',
       headers: {
-        ...headers,
         'Idempotency-Key': uuidv4(),
       },
       signal: controller.signal,
@@ -396,14 +378,11 @@ export const deleteLectureSchedule = async (
   signal?: AbortSignal
 ): Promise<DeleteLectureResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${baseUrl}users/lecturers/class/lectures/${lectureId}`,
       {
         method: 'DELETE',
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         signal,
@@ -435,14 +414,11 @@ export const deleteCourseMaterial = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${baseUrl}users/lecturers/class/courses/deleteMaterial/${courseId}`,
       {
         method: 'DELETE', 
         headers: {
-          ...headers,
-          'Content-Type': 'application/json',
           'X-Idempotency-Key': uuidv4(),
         },
         body: JSON.stringify(payload),
@@ -476,12 +452,9 @@ export const deleteCourseContent = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/courses/deleteCourseContent/${courseId}`, {
+    const response = await fetchWithAuth(`${baseUrl}users/lecturers/class/courses/deleteCourseContent/${courseId}`, {
       method: 'DELETE', 
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       body: JSON.stringify({ index }),
@@ -497,12 +470,8 @@ export const deleteCourseContent = async (
 };
 export const deleteAssignment = async (courseId: string, assignmentId: string): Promise<ApiResponse> => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}users/lecturers/class/courses/${courseId}/assignments/${assignmentId}`, {
+    const response = await fetchWithAuth(`${baseUrl}users/lecturers/class/courses/${courseId}/assignments/${assignmentId}`, {
       method: 'DELETE',
-      headers: {
-        ...headers,
-      }
     });
 
     const result = await response.json();
@@ -516,12 +485,9 @@ export const deleteAssignment = async (courseId: string, assignmentId: string): 
 };
 export const deleteAdminApi = async (uid: string) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/${uid}/delete`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/${uid}/delete`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
     });
@@ -538,12 +504,9 @@ export const deleteAdminApi = async (uid: string) => {
 };
 export const deleteInstitutionApi = async (id: string) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/institutions/${id}/delete`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/institutions/${id}/delete`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
     });
@@ -560,12 +523,9 @@ export const deleteInstitutionApi = async (id: string) => {
 };
 export const deleteDropOffStationApi = async (id: string) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/stations/${id}/delete`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/stations/${id}/delete`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
     });
@@ -582,12 +542,9 @@ export const deleteDropOffStationApi = async (id: string) => {
 };
 export const deleteAdApi = async (adId: string | number, signal?: AbortSignal) => {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${baseUrl}admins/ads/${adId}/delete`, {
+    const response = await fetchWithAuth(`${baseUrl}admins/ads/${adId}/delete`, {
       method: 'DELETE',
       headers: {
-        ...headers,
-        'Content-Type': 'application/json',
         'X-Idempotency-Key': uuidv4(),
       },
       signal,

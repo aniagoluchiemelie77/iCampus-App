@@ -33,15 +33,19 @@ import {
   CourseSearchCard,
   ResourceSearchCard,
 } from '../components/SearchScreenComponents';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
+const CATEGORIES = ['people', 'posts', 'courses', 'resources', 'store'];
 
 export const SearchScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const { allProducts } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user) || initialState;
@@ -98,6 +102,12 @@ export const SearchScreen = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, activeTab, currentUser, allProducts]);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex(prev => (prev + 1) % CATEGORIES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
   const renderItemCard = ({ item }: { item: any }) => {
     switch (activeTab) {
       case 'posts':
@@ -167,70 +177,67 @@ export const SearchScreen = () => {
   };
 
   return (
-    <View style={[StyleSheet.absoluteFill]}>
+    <View style={[styles.container]}>
       <PageHeader title="iCampus Search" showBackButton={false} />
       <View
         style={[
           styles.activeSearchHeader,
           {
-            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
           },
         ]}
       >
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={colors.inputTextHolder}
+          style={{ marginRight: 7 }}
+        />
+
         <TextInput
-          autoFocus
-          placeholder={`Search ${activeTab}...`}
-          style={[
-            styles.headerSearchInput,
-            { color: colors.text, borderColor: colors.border },
-          ]}
           placeholderTextColor={colors.inputTextHolder}
+          autoFocus
+          placeholder={`Search for ${CATEGORIES[placeholderIndex]}...`}
+          style={[styles.headerSearchInput, { color: colors.text }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          autoCorrect={false}
         />
       </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabBarScrollContainer}
+        style={[
+          styles.tabBarWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              onPress={() => {
+                setActiveTab(tab.id);
+                setSearchResults([]);
+              }}
+              style={[styles.tab, isActive && styles.activeTab]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  isActive ? { color: colors.primary } : { color: colors.text },
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
       {searchQuery.trim().length > 0 && (
         <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabBarScrollContainer}
-            style={[
-              styles.tabBarContainer,
-              {
-                borderBottomColor: colors.border,
-                backgroundColor: colors.backgroundSecondary,
-              },
-            ]}
-          >
-            {tabs.map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[
-                    styles.tabItem,
-                    isActive && { borderBottomColor: colors.primary },
-                  ]}
-                  onPress={() => {
-                    setActiveTab(tab.id);
-                    setSearchResults([]);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      {
-                        color: isActive ? colors.primary : colors.text,
-                      },
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
           <View style={[styles.searchOverlayScreen]}>
             {isSearching ? (
               <View style={styles.searchEmptyState}>
@@ -243,7 +250,10 @@ export const SearchScreen = () => {
                   item.postId || item.uid || item.id || item._id
                 }
                 renderItem={renderItemCard}
-                contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{
+                  paddingBottom: 40,
+                  marginHorizontal: 15,
+                }}
               />
             ) : (
               <EmptyState
@@ -264,13 +274,7 @@ export const SearchScreen = () => {
           </View>
         </>
       )}
-      {searchQuery.trim().length === 0 && (
-        <PreSearchComponent
-          tabs={tabs}
-          setActiveTab={setActiveTab}
-          setSearchQuery={setSearchQuery}
-        />
-      )}
+      {searchQuery.trim().length === 0 && <PreSearchComponent />}
     </View>
   );
 };
@@ -280,33 +284,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activeSearchHeader: {
+    borderRadius: 8,
+    borderWidth: 0.8,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 15,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    height: 50,
+    marginHorizontal: 15,
   },
   headerSearchInput: {
     flex: 1,
     fontSize: 14,
-    paddingVertical: 10,
-    borderWidth: 0.8,
-    borderRadius: 12,
-  },
-  tabBarContainer: {
-    borderBottomWidth: 0.5,
-    marginBottom: 15,
-  },
-  tabItem: {
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-    alignItems: 'center',
-    padding: 8,
-    marginRight: 10,
-  },
-  tabLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    backgroundColor: 'transparent',
   },
   searchOverlayScreen: {
     flex: 1,
@@ -339,13 +329,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     alignItems: 'center',
   },
-  tabBarScrollContainer: {
-    padding: 15,
-    alignItems: 'center',
-    borderRadius: 15,
-  },
   productWrapper: {
     width: CARD_WIDTH,
     marginBottom: 15,
+  },
+  tabBarScrollContainer: {
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  tabBarWrapper: {
+    marginBottom: 20,
+    flexGrow: 0,
+    alignSelf: 'stretch',
+    marginHorizontal: 15,
+  },
+  tab: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+    marginRight: 8,
+  },
+  activeTab: {
+    borderBottomColor: PRIMARY_COLOR,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

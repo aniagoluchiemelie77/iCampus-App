@@ -71,18 +71,18 @@ export const PrivacyScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15
   },
   contentContainer: {
     padding: 20,
     paddingBottom: 40,
+    marginHorizontal: 15,
   },
   lastUpdated: {
     fontSize: 12,
     marginBottom: 15,
-    alignSelf: 'flex-end'
+    alignSelf: 'flex-end',
   },
-   sectionTitle: {
+  sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 12,
@@ -107,11 +107,11 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row'
+    flexDirection: 'row',
   },
-  contactButtonText:{
+  contactButtonText: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginRight: 4
-  }
+    marginRight: 4,
+  },
 });

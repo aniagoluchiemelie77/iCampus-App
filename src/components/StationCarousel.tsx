@@ -7,7 +7,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 interface StationCarouselProps {
   stations: DropOffStation[];
-  selectedStation?: DropOffStation | null;
+  selectedStations?: DropOffStation[] | null;
   onSelect?: (station: DropOffStation) => void;
   userCoords: { lat: number; lng: number } | null;
 }
@@ -32,7 +32,7 @@ const StationCard = ({
     if (images.length <= 1) return;
     const interval = setInterval(() => {
       setIndex(prev => (prev + 1) % images.length);
-    }, 3000);
+    }, 13000);
     return () => clearInterval(interval);
   }, [images]);
 
@@ -54,7 +54,7 @@ const StationCard = ({
         {
           backgroundColor: colors.backgroundSecondary,
           borderColor: isSelected ? colors.primary : 'transparent',
-          borderWidth: isSelected ? 2 : 0, // Ensure border highlights properly
+          borderWidth: isSelected ? 2 : 0,
           width: width * 0.8,
         },
       ]}
@@ -88,8 +88,8 @@ const StationCard = ({
           {parseFloat(distance) < 1
             ? 'Less than 1 mile away'
             : parseFloat(distance) === 1
-            ? '1 mile away'
-            : `${distance} miles away`}
+              ? '1 mile away'
+              : `${distance} miles away`}
         </Text>
       </View>
     </TouchableOpacity>
@@ -97,26 +97,35 @@ const StationCard = ({
 };
 export const StationCarousel = ({
   stations,
-  selectedStation,
+  selectedStations = [],
   onSelect,
   userCoords,
-}: StationCarouselProps) => (
-  <FlatList
-    horizontal
-    data={stations}
-    renderItem={({ item }) => (
-      <StationCard
-        item={item}
-        isSelected={selectedStation?.id === item.id}
-        onSelect={onSelect}
-        userCoords={userCoords}
-      />
-    )}
-    keyExtractor={item => item.id}
-    showsHorizontalScrollIndicator={false}
-    contentContainerStyle={styles.listContent}
-  />
-);
+}: StationCarouselProps) => {
+  const safeSelectedStations = selectedStations || [];
+  return (
+    <FlatList
+      horizontal
+      data={stations}
+      renderItem={({ item }) => {
+        const isSelected = safeSelectedStations.some(
+          s => s?.code === item?.code || s?.id === item?.id,
+        );
+
+        return (
+          <StationCard
+            item={item}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            userCoords={userCoords}
+          />
+        );
+      }}
+      keyExtractor={item => item.id}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+    />
+  );
+};
 
 const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 15 },

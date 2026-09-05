@@ -262,11 +262,11 @@ export const OverviewsScreenComponent = () => {
   const currentUser = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
 
-  const sellerProducts = allProducts.filter(
-    p => p.sellerId === currentUser.uid,
+  const sellerProducts = (allProducts || []).filter(
+    p => p?.sellerId === currentUser?.uid,
   );
-  const sellerOrders = pendingOrders.filter(
-    o => o.sellerId === currentUser.uid,
+  const sellerOrders = (pendingOrders || []).filter(
+    o => o?.sellerId === currentUser?.uid,
   );
   const hasProducts = sellerProducts.length > 0;
   const totalImpressions = sellerProducts.reduce(
@@ -312,7 +312,7 @@ export const OverviewsScreenComponent = () => {
             You haven't uploaded any products yet.
           </Text>
           <CustomButton
-            title="Upload First Product"
+            title="Upload your first listing"
             onPress={() => navigation.navigate('CreateProduct')}
             style={[styles.addBtnSmall]}
           />
@@ -752,7 +752,7 @@ export const ProductList = () => {
             You haven't uploaded any products yet.
           </Text>
           <CustomButton
-            title="Upload First Listing"
+            title="Upload your first listing"
             onPress={() => navigation.navigate('CreateProduct')}
             style={[styles.addBtnSmall]}
           />
@@ -819,7 +819,7 @@ export const PayoutView = () => {
       Alert.alert('Low Balance', 'Minimum payout amount is 5.00 iCash');
       return;
     }
-    if (!currentUser.twoFactorEnabled) {
+    if (!currentUser.hasIcashPin) {
       navigation.navigate('iCashSecurity');
     }
     setIsPinVisible(true);
@@ -876,19 +876,24 @@ export const PayoutView = () => {
       </View>
       <View style={styles.historyRight}>
         <CurrencyDisplay value={item.amount} size="small" isSuccess={true} />
-        <Text style={[styles.statusBadge, { color: themeColors.success }]}>
+        <Text style={[styles.statusBadge, { color: themeColors.text }]}>
           {item.status}
         </Text>
       </View>
     </View>
   );
   const renderHeader = () => (
-    <View style={styles.balanceCard}>
+    <View
+      style={[
+        styles.balanceCard,
+        { backgroundColor: themeColors.backgroundSecondary },
+      ]}
+    >
       <Text style={[styles.balanceLabel, { color: themeColors.textDarker }]}>
         Available for Payout
       </Text>
       <CurrencyDisplay value={currentBalance} size="large" isSuccess={true} />
-      {!isVerified || !currentUser.twoFactorEnabled ? (
+      {!isVerified || !currentUser.hasIcashPin ? (
         <>
           <Text style={[styles.warningText, { color: themeColors.primary }]}>
             {!isVerified ? 'Account verification' : 'Icash PIN'} is required for
@@ -1104,7 +1109,7 @@ export const SalesScreen = () => {
             You haven't uploaded any products yet.
           </Text>
           <CustomButton
-            title="Upload First Listing"
+            title="Upload your first listing"
             style={[styles.verifyBtn]}
             onPress={() => navigation.navigate('CreateProduct')}
           />
@@ -1284,28 +1289,30 @@ export const ReviewsSection = () => {
         style={[styles.header, { backgroundColor: colors.backgroundSecondary }]}
       >
         <View style={styles.subheader}>
-          <Text style={[styles.title, { color: colors.textDarker }]}>
+          <Text style={[styles.titleSecondary, { color: colors.textDarker }]}>
             Customer Feedback
           </Text>
           <Text style={[styles.count, { color: colors.text }]}>
             {totalReviews} Total Reviews
           </Text>
         </View>
-        <View style={styles.avgContainer}>
-          <View style={styles.ratingRow}>
-            <Text style={[styles.avgText, { color: ratingColor }]}>
-              {avgRating}
+        {avgRating && parseFloat(avgRating) > 0 && (
+          <View style={styles.avgContainer}>
+            <View style={styles.ratingRow}>
+              <Text style={[styles.avgText, { color: ratingColor }]}>
+                {avgRating}
+              </Text>
+              <MaterialIcons name="star" size={31} color={ratingColor} />
+            </View>
+            <Text style={[styles.performanceLabel, { color: ratingColor }]}>
+              {numericAvg < 2
+                ? 'Poor Performance'
+                : numericAvg < 3.5
+                  ? 'Average'
+                  : 'Excellent'}
             </Text>
-            <MaterialIcons name="star" size={28} color={ratingColor} />
           </View>
-          <Text style={[styles.performanceLabel, { color: ratingColor }]}>
-            {numericAvg < 2
-              ? 'Poor Performance'
-              : numericAvg < 3.5
-                ? 'Average'
-                : 'Excellent'}
-          </Text>
-        </View>
+        )}
       </View>
       <FlatList
         data={sellerReviews}
@@ -1390,7 +1397,7 @@ const styles = StyleSheet.create({
   },
   addBtnSmall: {
     paddingHorizontal: 15,
-    marginTop: 10
+    marginTop: 10,
   },
   addBtnText: { fontWeight: '600', fontSize: 14 },
   newsCard: { padding: 15, borderRadius: 15, alignItems: 'center' },
@@ -1510,35 +1517,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 15,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
   },
+  titleSecondary: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   count: {
-    fontSize: 12,
+    fontSize: 14,
   },
   avgContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
     flexDirection: 'row',
+    marginTop: 20,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 10,
   },
   avgText: {
-    fontSize: 22,
+    fontSize: 25,
     fontWeight: '800',
-    marginRight: 5,
+    marginRight: 6,
   },
   performanceLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
     textTransform: 'capitalize',
-    marginLeft: 6,
   },
   chartTitle: { fontSize: 18, fontWeight: 'bold' },
   buyerCard: {
@@ -1655,16 +1666,12 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 15,
     elevation: 8,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
     alignItems: 'center',
   },
   balanceLabel: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   withdrawBtn: {
     flexDirection: 'row',
@@ -1682,7 +1689,7 @@ const styles = StyleSheet.create({
   },
   verifyBtn: {
     paddingHorizontal: 16,
-    marginTop: 20
+    marginTop: 20,
   },
   verifyBtnText: {
     fontWeight: '700',
@@ -1693,7 +1700,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: 14,
-    marginBottom: 15,
+    marginVertical: 20,
   },
   historyCard: {
     padding: 15,
@@ -1710,8 +1717,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   refText: {
-    fontSize: 14,
-    marginBottom: 5,
+    fontSize: 12,
+    marginBottom: 6,
   },
   historyRight: {
     marginRight: 8,

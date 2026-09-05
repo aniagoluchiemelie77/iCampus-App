@@ -100,17 +100,17 @@ return (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15
   },
   scrollContainer: {
     paddingBottom: 24,
+    marginHorizontal: 15,
   },
   sellerCard: {
     padding: 15,
     marginBottom: 15,
     borderRadius: 15,
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   sellerAvatar: {
     marginRight: 12,

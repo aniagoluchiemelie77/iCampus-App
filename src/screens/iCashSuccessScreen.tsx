@@ -50,7 +50,11 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
           { backgroundColor: colors.backgroundSecondary, zIndex: 10 },
         ]}
       >
-        <MaterialIcons name="check-circle" size={100} color={colors.success} />
+        <MaterialIcons
+          name="check-circle-outline"
+          size={100}
+          color={colors.primary}
+        />
         <Text style={[styles.title, { color: colors.textDarker }]}>
           {successTitle}
         </Text>
@@ -59,14 +63,7 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
             {mainLabel}
           </Text>
           <View style={styles.diamondRow}>
-            <Text
-              style={[
-                styles.amountValue,
-                isWithdraw || isP2P
-                  ? { color: colors.primary }
-                  : { color: colors.success },
-              ]}
-            >
+            <Text style={[styles.amountValue, { color: colors.primary }]}>
               {isWithdraw || isP2P ? '-' : '+'}
             </Text>
             <CurrencyDisplay
@@ -76,14 +73,13 @@ export const ICashSuccessScreen = ({ route, navigation }: any) => {
                   : amountPurchased?.toLocaleString()
               }
               size="large"
-              isSuccess={isWithdraw || isP2P ? false : true}
             />
           </View>
         </View>
         <Text style={[styles.receiptLabel, { color: colors.text }]}>
           {subLabel}
         </Text>
-        <Text style={[styles.receiptValue, { color: colors.textDarker }]}>
+        <Text style={[styles.receiptValue, { color: colors.primary }]}>
           {isP2P
             ? `@${recipientUsername}`
             : `${currency} ${
@@ -116,11 +112,12 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 15,
     flex: 1,
+    zIndex: 10,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginVertical: 15,
+    marginVertical: 20,
   },
   amountContainer: {
     width: '100%',
@@ -128,18 +125,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   diamondRow: { flexDirection: 'row', alignItems: 'center' },
-  amountValue: { fontSize: 36, fontWeight: '800', marginRight: 5 },
-  receiptLabel: { fontSize: 14, marginBottom: 15 },
-  receiptValue: { fontWeight: 'bold', fontSize: 14, marginBottom: 15 },
+  amountValue: { fontSize: 36, fontWeight: '800', marginRight: 10 },
+  receiptLabel: { fontSize: 12, marginBottom: 20 },
+  receiptValue: { fontWeight: 'bold', fontSize: 14, marginBottom: 20 },
   button: {
     paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: { fontSize: 14, fontWeight: '600' },
   miniLabel: {
     fontSize: 12,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    color: PRIMARY_COLOR,
-    marginBottom: 5,
+    marginBottom: 20,
   },
 });

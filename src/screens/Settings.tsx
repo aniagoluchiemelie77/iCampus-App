@@ -6,13 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   useColorScheme,
+  Linking,
 } from 'react-native';
 import { SettingItem } from '../components/SettingsItem';
 import Toast from 'react-native-toast-message';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
@@ -28,7 +27,7 @@ import { useAppSelector } from '../hooks/hooks.ts';
 import { useDispatch } from 'react-redux';
 import { updateUserThemePreference } from '../api/localPutApis.ts';
 import { useTheme } from '../context/ThemeContext';
-
+import { IconOutline } from '@ant-design/icons-react-native';
 const rnBiometrics = new ReactNativeBiometrics();
 
 export const SectionHeader = ({ title }: { title: string }) => {
@@ -67,7 +66,7 @@ export const Settings = () => {
   const buildNumber = DeviceInfo.getBuildNumber();
   const options = {
     AppleAppID: ICAMPUS_APPLE_ID,
-    GooglePackageName: 'com.useicampus.app',
+    GooglePackageName: 'com.icampus',
     preferredAndroidMarket: AndroidMarket.Google,
     preferInApp: true,
     openAppStoreIfInAppFails: true,
@@ -118,18 +117,28 @@ export const Settings = () => {
     const newTheme = isCurrentlyDark ? 'light' : 'dark';
     dispatch(updateThemeState(newTheme));
     try {
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        parsedUser.theme = newTheme;
+        await AsyncStorage.setItem('user', JSON.stringify(parsedUser));
+      }
       const result = await updateUserThemePreference(newTheme);
       if (!result.success) {
-        dispatch(updateThemeState(isCurrentlyDark ? 'dark' : 'light'));
-        Toast.show({
-          type: 'error',
-          text1: 'Sync Connection Loss',
-          text2: result.error,
-        });
+        throw new Error(result.error || 'Failed to sync');
       }
     } catch (error) {
-      console.error('Theme cloud sync error fallback executed:', error);
-      dispatch(updateThemeState(isCurrentlyDark ? 'dark' : 'light'));
+      console.error('Theme sync error, rolling back:', error);
+      const previousTheme = user.theme;
+      dispatch(updateThemeState(previousTheme));
+
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        parsedUser.theme = previousTheme;
+        await AsyncStorage.setItem('user', JSON.stringify(parsedUser));
+      }
+
       Toast.show({
         type: 'error',
         text1: 'Sync Connection Loss',
@@ -162,22 +171,12 @@ export const Settings = () => {
   }, []);
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <PageHeader
-          title="Settings"
-          rightElement={
-            <TouchableOpacity>
-              <MaterialIcons
-                name="help-outline"
-                size={24}
-                color={colors.primaryTint}
-              />
-            </TouchableOpacity>
-          }
-        />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <PageHeader title="Settings" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 40 }}
+      >
         <SectionHeader title="Account & Security" />
         <View style={styles.group}>
           <SettingItem
@@ -199,11 +198,12 @@ export const Settings = () => {
           />
           <SettingItem
             icon="fingerprint"
-            title="Biometric Login"
-            subtitle={`Use ${biometryType} to secure your account`}
+            title="Secure iCash Transactions"
+            subtitle={`Use ${biometryType} for iCash operations`}
             toggle
             value={biometricsEnabled}
             onPress={toggleBiometrics}
+            onValueChange={toggleBiometrics}
           />
           <SettingItem
             icon="lock-reset"
@@ -247,6 +247,7 @@ export const Settings = () => {
             toggle
             value={isCurrentlyDark}
             onPress={handleThemeToggle}
+            onValueChange={handleThemeToggle}
           />
           <SettingItem
             icon="auto-awesome"
@@ -284,9 +285,56 @@ export const Settings = () => {
             }}
           />
           <SettingItem
-            icon="alternate-email"
+            icon="support-agent"
             title="Contact Us"
-            onPress={() => {}}
+            subtitle="Get in touch with our support team"
+            expandable={true}
+            expandedContent={
+              <>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL('mailto:support@example.com')}
+                  style={styles.socialButton}
+                >
+                  <IconOutline name="mail" size={22} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    Linking.openURL('https://twitter.com/yourhandle')
+                  }
+                  style={styles.socialButton}
+                >
+                  <IconOutline
+                    name="twitter"
+                    size={22}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    Linking.openURL('https://linkedin.com/company/yourcompany')
+                  }
+                  style={styles.socialButton}
+                >
+                  <IconOutline
+                    name="linkedin"
+                    size={22}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    Linking.openURL('https://instagram.com/yourhandle')
+                  }
+                  style={styles.socialButton}
+                >
+                  <IconOutline
+                    name="instagram"
+                    size={22}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </>
+            }
           />
           <SettingItem
             icon="help-center"
@@ -322,7 +370,15 @@ export const Settings = () => {
           />
         </View>
         <TouchableOpacity
-          style={styles.logoutButton}
+          style={[
+            styles.logoutButton,
+            {
+              marginTop: 20,
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+            },
+          ]}
           onPress={() => setLogoutModalVisible(true)}
         >
           <Text style={[styles.logoutText, { color: colors.primary }]}>
@@ -339,26 +395,26 @@ export const Settings = () => {
         />
 
         <Text style={[styles.versionText, { color: colors.text }]}>
-          App Version: {version} ({buildNumber})
+          App Version: {version}
+          {buildNumber}
         </Text>
-        <LogoutModal
-          visible={isLogoutModalVisible}
-          onClose={() => setLogoutModalVisible(false)}
-          navigation={navigation}
-        />
-        <DeleteAccountModal
-          visible={isDeleteModalVisible}
-          onClose={() => setDeleteModalVisible(false)}
-          navigation={navigation}
-        />
       </ScrollView>
-    </SafeAreaView>
+      <LogoutModal
+        visible={isLogoutModalVisible}
+        onClose={() => setLogoutModalVisible(false)}
+        navigation={navigation}
+      />
+      <DeleteAccountModal
+        visible={isDeleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        navigation={navigation}
+      />
+    </View>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   sectionHeader: {
     fontSize: 14,
@@ -372,6 +428,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     paddingHorizontal: 15,
+    marginBottom: 20,
   },
   logoutText: {
     fontSize: 14,
@@ -383,6 +440,16 @@ const styles = StyleSheet.create({
   },
   versionText: {
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 12,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    borderWidth: 0.8,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 10,
+    marginRight: 15,
   },
 });

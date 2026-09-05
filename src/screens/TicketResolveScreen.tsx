@@ -42,7 +42,7 @@ export const TicketResolveScreen = () => {
       try {
         const [userData, userNotifs] = await Promise.all([
           adminFetchUserDetails(ticket.userId),
-          adminFetchUserNotifications({userId: ticket.userId, limit: 10}),
+          adminFetchUserNotifications({ userId: ticket.userId, limit: 10 }),
         ]);
         setAffectedUser(userData);
         setRecentNotifications(userNotifs);
@@ -366,7 +366,6 @@ export const TicketResolveScreen = () => {
           )}
         </View>
       </ScrollView>
-
       <View
         style={[
           styles.footerActions,
@@ -419,8 +418,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
-  container: { flex: 1, paddingHorizontal: 15 },
-  scrollContent: { paddingBottom: 100 },
+  container: { flex: 1, position: 'relative' },
+  scrollContent: { paddingBottom: 40, marginHorizontal: 15 },
   section: { padding: 15, borderRadius: 15, marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   rowBetween: {

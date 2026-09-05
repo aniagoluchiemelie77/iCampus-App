@@ -40,3 +40,9 @@ export const formatDate = (dateString: string) => {
       year: 'numeric',
     });
   };
+export const formatPostDate = (timestamp: any): string => {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date.getTime())) return ''; 
+  return date.toISOString(); 
+};

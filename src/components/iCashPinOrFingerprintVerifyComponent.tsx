@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  InteractionManager,
   View,
   Text,
   TextInput,
@@ -65,12 +64,10 @@ export const IcashPinOrFingerprintVerifyModal = ({
       if (!available) return;
 
       const { success } = await rnBiometrics.simplePrompt({
-        promptMessage: 'Confirm identity',
+        promptMessage: 'Confirm identity to continue',
       });
       if (success) onSuccess();
-    } catch (error) {
-      // Biometric prompt cancelled or failed
-    }
+    } catch (error) {}
   }, [onSuccess]);
 
   const verifyPin = useCallback(
@@ -111,9 +108,10 @@ export const IcashPinOrFingerprintVerifyModal = ({
   useEffect(() => {
     if (isVisible) {
       setPin('');
-      InteractionManager.runAfterInteractions(() => {
+      const handle = requestAnimationFrame(() => {
         handleBiometricAuth();
       });
+      return () => cancelAnimationFrame(handle);
     }
   }, [isVisible, handleBiometricAuth]);
 
@@ -124,95 +122,111 @@ export const IcashPinOrFingerprintVerifyModal = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
         <View
           style={[
             styles.bottomSheet,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
-              {title}
-            </Text>
-            <TouchableOpacity
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+          <MaterialIcons name="lock-outline" size={60} color={colors.primary} />
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+            {title}
+          </Text>
+          <TextInput
+            ref={inputRef}
+            value={pin}
+            onChangeText={handleTextChange}
+            maxLength={6}
+            keyboardType="number-pad"
+            secureTextEntry
+            style={styles.hiddenInput}
+            autoFocus
+          />
 
-          <View style={styles.pinContainer}>
-            <TextInput
-              ref={inputRef}
-              value={pin}
-              onChangeText={handleTextChange}
-              maxLength={6}
-              keyboardType="number-pad"
-              secureTextEntry
-              style={styles.hiddenInput}
-              autoFocus
-            />
-
-            <Pressable
-              onPress={() => inputRef.current?.focus()}
-              style={styles.pressableArea}
+          <Pressable
+            onPress={() => inputRef.current?.focus()}
+            style={styles.pressableArea}
+          >
+            <Animated.View
+              style={[
+                styles.pinRow,
+                { transform: [{ translateX: shakeAnimation }] },
+              ]}
             >
-              <Animated.View
-                style={[
-                  styles.pinRow,
-                  { transform: [{ translateX: shakeAnimation }] },
-                ]}
-              >
-                {[...Array(6)].map((_, i) => (
+              {[...Array(6)].map((_, i) => {
+                const digit = pin[i] || '';
+                const isActive = pin.length === i;
+                return (
                   <View
                     key={i}
                     style={[
                       styles.dot,
-                      { borderColor: colors.border },
+                      {
+                        borderColor: isActive ? colors.primary : colors.border,
+                        backgroundColor: colors.backgroundSecondary,
+                      },
                       pin.length > i && {
-                        backgroundColor: colors.primary,
+                        backgroundColor: colors.primary + '15',
                         borderColor: colors.primary,
                       },
                     ]}
-                  />
-                ))}
-              </Animated.View>
-            </Pressable>
+                  >
+                    <Text
+                      style={{
+                        color: colors.text,
+                        fontSize: 18,
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {digit}
+                    </Text>
+                  </View>
+                );
+              })}
+            </Animated.View>
+          </Pressable>
 
-            <View style={styles.pinActionRow}>
-              <TouchableOpacity
-                onPress={handleBiometricAuth}
-                style={styles.iconBtn}
-                accessibilityRole="button"
-              >
-                <MaterialIcons
-                  name="fingerprint"
-                  size={28}
-                  color={colors.primary}
-                />
-                <Text style={{ color: colors.primary }}>Use Fingerprint</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={e => requestPinReset()}
-                accessibilityRole="button"
-              >
-                <Text style={{ color: colors.primary }}>Forgot PIN?</Text>
-              </TouchableOpacity>
-            </View>
-
-            {isProcessing && (
-              <ActivityIndicator
-                style={{ marginTop: 20 }}
+          <View style={styles.pinActionRow}>
+            <TouchableOpacity
+              onPress={handleBiometricAuth}
+              style={styles.iconBtn}
+              accessibilityRole="button"
+            >
+              <MaterialIcons
+                name="fingerprint"
+                size={28}
                 color={colors.primary}
               />
-            )}
+              <Text style={{ color: colors.primary, fontSize: 14 }}>
+                Use Fingerprint
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={e => requestPinReset()}
+              accessibilityRole="button"
+            >
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: 14,
+                  textDecorationLine: 'underline',
+                }}
+              >
+                Forgot PIN?
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {isProcessing && (
+            <ActivityIndicator
+              style={{ marginTop: 20 }}
+              color={colors.primary}
+            />
+          )}
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -237,14 +251,15 @@ export const styles = StyleSheet.create({
   pinRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 15,
+    gap: 12,
   },
   dot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     borderWidth: 2,
-    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pinActionRow: {
     flexDirection: 'row',
@@ -265,10 +280,6 @@ export const styles = StyleSheet.create({
   forgotText: {
     fontSize: 14,
   },
-  pinContainer: {
-    alignItems: 'center',
-    paddingBottom: 20,
-  },
   pinSubtitle: {
     fontSize: 14,
     marginBottom: 10,
@@ -282,8 +293,9 @@ export const styles = StyleSheet.create({
   bottomSheet: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
+    padding: 25,
     paddingBottom: 40,
+    alignItems: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -294,5 +306,6 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginVertical: 25,
   },
 });

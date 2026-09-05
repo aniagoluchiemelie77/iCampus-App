@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Inquiry } from 'react-native-persona';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { fetchInquiryFromBackend } from '../api/localPostApis';
@@ -75,17 +68,12 @@ export const PersonaVerificationScreen = () => {
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <MaterialIcons
-          name={isEnterprise ? 'business' : 'verified-user'}
-          size={60}
-          color={colors.primary}
-        />
+      <MaterialIcons
+        name={isEnterprise ? 'business' : 'verified-user'}
+        size={60}
+        color={colors.primary}
+      />
+      <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 15 }}>
         <Text style={[styles.title, { color: colors.textDarker }]}>
           {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
         </Text>
@@ -131,27 +119,22 @@ export const PersonaVerificationScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    borderRadius: 15,
+    paddingHorizontal: 15,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginVertical: 15,
+    marginVertical: 25,
   },
   description: {
     fontSize: 14,
-    marginBottom: 15,
+    marginBottom: 20,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   featureList: {
-    marginBottom: 15,
+    marginBottom: 25,
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,7 +146,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 15,
   },
-  featureText: { marginTop: 6, fontSize: 14 },
+  featureText: { marginTop: 10, fontSize: 12 },
   button: {
     paddingHorizontal: 15,
   },

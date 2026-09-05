@@ -10,7 +10,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { fetchNotificationsByTab } from '../api/localGetApis';
@@ -104,7 +103,6 @@ const Notifications = () => {
     const { actionType, payload } = item;
 
     switch (actionType) {
-      // --- POST GROUP (PostDetails) ---
       case 'POST_UPDATED':
       case 'NEW_POST':
       case 'POST_MENTION':
@@ -112,7 +110,7 @@ const Notifications = () => {
       case 'POST_COMMENTED':
       case 'POLL_MILESTONE':
       case 'POST_REPOSTED':
-        navigation.navigate('PostDetail', { postId: payload.postId });
+        navigation.navigate('PostDetailScreen', { postId: payload.postId });
         break;
 
       case 'PRODUCT_DELETION':
@@ -121,7 +119,6 @@ const Notifications = () => {
         navigation.navigate('SalesHub');
         break;
 
-      // --- ACADEMIC/COURSE UPDATES (NotificationDetails) ---
       case 'LECTURE_CANCELLED':
       case 'LECTURE_POSTPONED':
       case 'LECTURE_VENUE_CHANGE':
@@ -174,8 +171,6 @@ const Notifications = () => {
           course: payload.course,
         });
         break;
-
-      // --- OTHER SPECIALIZED PAGES ---
       case 'PROFILE_VIEW':
       case 'PROFILE_UPDATED':
         navigation.navigate('Profile', { identifier: user.uid });
@@ -220,7 +215,6 @@ const Notifications = () => {
         break;
     }
   };
-
   const markAsReadOnServer = async (id: string) => {
     try {
       const result = await markSingleNotificationAsRead(id);
@@ -233,20 +227,23 @@ const Notifications = () => {
       console.error('Read error:', err);
     }
   };
+  const hasUnread = notifications.some(n => !n.isRead);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Notifications"
         rightElement={
-          <CustomButton
-            title="Mark All As Read"
-            onPress={markAllAsRead}
-            style={[
-              styles.rightElementBtn,
-              { backgroundColor: colors.btnColor },
-            ]}
-          />
+          hasUnread && (
+            <CustomButton
+              title="Mark All As Read"
+              onPress={markAllAsRead}
+              style={[
+                styles.rightElementBtn,
+                { backgroundColor: colors.btnColor },
+              ]}
+            />
+          )
         }
       />
       <View
@@ -285,7 +282,7 @@ const Notifications = () => {
           renderItem={({ item }) => (
             <NotificationItem
               item={item}
-              handleNotificationPress={handleNotificationPress}
+              handleNotificationPress={() => handleNotificationPress(item)}
             />
           )}
           refreshing={loading}
@@ -305,11 +302,12 @@ const Notifications = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 15,
+    marginVertical: 20,
+    marginHorizontal: 15,
   },
   tab: {
     borderBottomWidth: 2,
@@ -318,7 +316,7 @@ const styles = StyleSheet.create({
   },
   activeTab: { borderBottomColor: PRIMARY_COLOR },
   tabText: { fontSize: 14, fontWeight: '600' },
-  listContent: { padding: 12 },
+  listContent: { marginHorizontal: 15, paddingBottom: 30 },
   unreadDot: {
     position: 'absolute',
     top: 2,
@@ -329,11 +327,9 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
   },
   rightElementBtn: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 8,
+    height: 40,
+    width: 'auto',
   },
   rightElementBtnText: {
     fontSize: 14,

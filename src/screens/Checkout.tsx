@@ -525,7 +525,7 @@ export const CheckoutScreen = () => {
         keyExtractor={(item, index) => item.productId + index}
         renderItem={renderItem}
         ListFooterComponent={renderFooter}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40, marginHorizontal: 15 }}
       />
 
       <IcashPinOrFingerprintVerifyModal
@@ -539,7 +539,7 @@ export const CheckoutScreen = () => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   itemWrapper: {
     paddingHorizontal: 15,
     marginTop: 10,

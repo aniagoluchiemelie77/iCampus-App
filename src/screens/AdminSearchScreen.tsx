@@ -265,13 +265,7 @@ export const AdminSearchScreen = () => {
           </View>
         </>
       )}
-      {searchQuery.trim().length === 0 && (
-        <PreSearchComponent
-          tabs={tabs}
-          setActiveTab={setActiveTab}
-          setSearchQuery={setSearchQuery}
-        />
-      )}
+      {searchQuery.trim().length === 0 && <PreSearchComponent />}
       <EditUserModalContent
         visible={isEditModalVisible}
         user={affectedUser}

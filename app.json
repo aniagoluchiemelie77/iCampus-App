@@ -4,10 +4,10 @@
     "slug": "campus-app",
     "version": "1.0.0",
     "displayName": "iCampus",
-    "owner": "sample-organization",
+    "owner": "agolu-tech-services",
     "extra": {
       "eas": {
-        "projectId": "655a41bc-85cb-4418-8b4c-49e8107ad08a"
+        "projectId": "f07adfc6-795f-4a7e-bcfd-9dfc6e9f9f21"
       }
     },
     "android": {

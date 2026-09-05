@@ -4,20 +4,14 @@ import {
   View,
   Text,
   TextInput,
-  Modal,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert,
-  Linking,
-  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
-import { useCameraPermission } from 'react-native-vision-camera';
 import { CustomButton } from '../assets/components/AppUIComponents';
-import { useCameraDevice } from 'react-native-vision-camera';
 import { useAppSelector } from '../hooks/hooks';
 import Animated, { ZoomIn, FadeOutDown } from 'react-native-reanimated';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
@@ -30,7 +24,7 @@ import { searchUsersByITag } from '../api/localGetApis';
 import { executeP2PTransfer } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { QRScannerComponent } from '../hooks/useCodeScanner';
+import { OrderScannerModal } from '../components/OrderQRScannerModal';
 
 interface ITagSearchResult {
   userId: string;
@@ -75,7 +69,6 @@ export const IcashP2PScreen = () => {
   const [step, setStep] = useState<'selection' | 'tagInput'>('selection');
   const [scannerVisible, setScannerVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { hasPermission, requestPermission } = useCameraPermission();
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<ITagSearchResult | null>(
@@ -115,16 +108,19 @@ export const IcashP2PScreen = () => {
       setIsSearching(false);
     }
   };
-  const handleScanSuccess = async (data: string) => {
+  const handleScanSuccess = async (scannedValue: string) => {
     setScannerVisible(false);
-    const tag = data.includes(':') ? data.split(':').pop() : data;
+    const tag = scannedValue.includes(':')
+      ? scannedValue.split(':').pop()
+      : scannedValue;
     if (tag) {
-      setRecipientTag(tag);
+      const cleanTag = tag.replace('@', '').trim();
+      setRecipientTag(cleanTag);
       setActiveTab('send');
-      await handleSearch(tag);
+      setStep('tagInput');
+      await handleSearch(cleanTag);
     }
   };
-  const device = useCameraDevice('back');
   const processFinalTransaction = async () => {
     setIsLoading(true);
     try {
@@ -180,33 +176,6 @@ export const IcashP2PScreen = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [recipientTag]);
-  useEffect(() => {
-    (async () => {
-      if (!hasPermission) {
-        const granted = await requestPermission();
-
-        if (!granted) {
-          Alert.alert(
-            'Camera Permission Required',
-            'To scan QR codes, we need access to your camera. Please enable it in your device settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Open Settings',
-                onPress: () => {
-                  if (Platform.OS === 'ios') {
-                    Linking.openURL('app-settings:');
-                  } else {
-                    Linking.openSettings();
-                  }
-                },
-              },
-            ],
-          );
-        }
-      }
-    })();
-  }, [hasPermission, requestPermission]);
 
   return (
     <ScrollView
@@ -265,14 +234,14 @@ export const IcashP2PScreen = () => {
               />
               <FeatureCard
                 title="Send via iTag"
-                sub="Search @username"
+                sub="Search @itagusername"
                 icon="alternate-email"
                 onPress={() => setStep('tagInput')}
               />
             </View>
           )}
           {step === 'tagInput' && (
-            <>
+            <View style={{ marginHorizontal: 15, marginVertical: 20, flex: 1 }}>
               <Text style={[styles.sectionLabel, { color: colors.text }]}>
                 Recipient iTag
               </Text>
@@ -323,7 +292,7 @@ export const IcashP2PScreen = () => {
                       name="diamond"
                       size={24}
                       color={colors.primary}
-                      style={{ marginHorizontal: 5 }}
+                      style={{ marginHorizontal: 7 }}
                     />
                     <TextInput
                       style={[styles.textInput, { color: colors.text }]}
@@ -346,7 +315,7 @@ export const IcashP2PScreen = () => {
                   />
                 </>
               )}
-            </>
+            </View>
           )}
         </>
       ) : (
@@ -354,42 +323,12 @@ export const IcashP2PScreen = () => {
           <MyQRCodeSection itagusername={user.itagusername ?? ''} />
         </>
       )}
-      <Modal visible={scannerVisible} animationType="slide">
-        <View style={styles.fullScreenModal}>
-          <View style={styles.cameraPlaceholder}>
-            {device != null && hasPermission ? (
-              <>
-                <QRScannerComponent
-                  handleScanSuccess={handleScanSuccess}
-                  scannerVisible={scannerVisible}
-                />
-                <View style={styles.scanFrame} />
-              </>
-            ) : (
-              <Text style={{ color: 'white' }}>
-                {hasPermission ? 'Initializing Camera...' : 'No Camera Access'}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity
-            style={[
-              styles.closeScanner,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-            onPress={() => setScannerVisible(false)}
-          >
-            <MaterialIcons
-              name="cancel"
-              size={30}
-              color={colors.text}
-              style={{ padding: 10 }}
-            />
-          </TouchableOpacity>
-          <Text style={[styles.qrText, { color: colors.btnTextColor }]}>
-            Align QR code within the frame
-          </Text>
-        </View>
-      </Modal>
+      <OrderScannerModal
+        isVisible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onSuccess={handleScanSuccess}
+        instructionText="Align recipient's iCash QR code within the frame"
+      />
       <IcashPinOrFingerprintVerifyModal
         isVisible={isPinModalVisible}
         onClose={() => setIsPinModalVisible(false)}
@@ -403,15 +342,12 @@ export const IcashP2PScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 30,
   },
   tabWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    marginHorizontal: 15,
+    gap: 10,
   },
   tab: {
     alignItems: 'center',
@@ -420,6 +356,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    flex: 1,
   },
   activeTab: {
     borderBottomColor: PRIMARY_COLOR,
@@ -433,15 +370,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-evenly',
     marginVertical: 20,
+    marginHorizontal: 15,
+    gap: 10,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    height: 60,
+    borderRadius: 10,
+    height: 50,
     width: '100%',
     borderWidth: 0.8,
     marginBottom: 20,
+    paddingHorizontal: 15,
   },
   resultContainer: {
     marginVertical: 20,
@@ -462,7 +402,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 5,
+    marginBottom: 20,
   },
   fullScreenModal: {
     flex: 1,
@@ -490,7 +430,7 @@ const styles = StyleSheet.create({
   atSymbol: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginHorizontal: 5,
+    marginHorizontal: 7,
   },
   textInput: {
     flex: 1,

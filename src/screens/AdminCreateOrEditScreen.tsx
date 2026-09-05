@@ -124,7 +124,7 @@ export const AdminFormPage = ({ route }: { route: any }) => {
         }
       />
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <InputGroup
           label="First Name"
           value={formData.firstname}
@@ -189,5 +189,5 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   btnText: { fontSize: 14, fontWeight: 'bold' },
-  content: { paddingBottom: 20 },
+  content: { paddingBottom: 20, paddingHorizontal: 15 },
 });

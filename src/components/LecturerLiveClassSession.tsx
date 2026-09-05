@@ -517,7 +517,6 @@ export const LecturerLiveClassSession = ({
           />
         }
       />
-      {/* Presentation / Screen Share Matrix */}
       <View
         style={[
           LiveClassSessionStyles.sharedScreen,
@@ -604,135 +603,149 @@ export const LecturerLiveClassSession = ({
           </TouchableOpacity>
         )}
       </View>
-      <View
-        style={[
-          LiveClassSessionStyles.monitoringSection,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
+      <ScrollView
+        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 30 }}
       >
-        {activeSpeaker || permittedSpeaker ? (
-          <Text
-            style={[LiveClassSessionStyles.speakerNote, { color: colors.text }]}
-          >
-            Speaker:{' '}
-            {currentAttendees.find(a => a.uid === activeSpeaker)?.firstname ||
-              permittedSpeaker?.firstname ||
-              'Someone'}
-          </Text>
-        ) : null}
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={
-            LiveClassSessionStyles.horizontalMonitorContainer
-          }
+        <View
+          style={[
+            LiveClassSessionStyles.monitoringSection,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
         >
-          <LecturerStreamControls
-            localStream={localStream}
-            isLive={lecture.isLive ?? false}
-            socket={socket}
-            lectureId={lecture.id}
-            wavers={wavers}
-            onMuteAll={muteAll}
-            onGrantMic={grantMic}
-          />
-          <View style={LiveClassSessionStyles.monitorCard}>
-            <MaterialIcons name="speed" size={24} color={colors.text} />
+          {activeSpeaker || permittedSpeaker ? (
             <Text
               style={[
-                LiveClassSessionStyles.monitorValue,
-                { color: streamStats.color },
+                LiveClassSessionStyles.speakerNote,
+                { color: colors.text },
               ]}
             >
-              {streamStats.label}
+              Speaker:{' '}
+              {currentAttendees.find(a => a.uid === activeSpeaker)?.firstname ||
+                permittedSpeaker?.firstname ||
+                'Someone'}
+            </Text>
+          ) : null}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={
+              LiveClassSessionStyles.horizontalMonitorContainer
+            }
+          >
+            <LecturerStreamControls
+              localStream={localStream}
+              isLive={lecture.isLive ?? false}
+              socket={socket}
+              lectureId={lecture.id}
+              wavers={wavers}
+              onMuteAll={muteAll}
+              onGrantMic={grantMic}
+            />
+            <View style={LiveClassSessionStyles.monitorCard}>
+              <MaterialIcons name="speed" size={24} color={colors.text} />
+              <Text
+                style={[
+                  LiveClassSessionStyles.monitorValue,
+                  { color: streamStats.color },
+                ]}
+              >
+                {streamStats.label}
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+        <View
+          style={[
+            LiveClassSessionStyles.infoSection,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View style={LiveClassSessionStyles.row}>
+            <Text
+              style={[
+                LiveClassSessionStyles.courseTitle,
+                { color: colors.textDarker },
+              ]}
+            >
+              {lecture.topicName || 'Untitled Session'}
+            </Text>
+            <Text
+              style={[
+                LiveClassSessionStyles.durationText,
+                { color: colors.text },
+              ]}
+            >
+              Duration: {elapsedTime}
             </Text>
           </View>
-        </ScrollView>
-      </View>
-      <View
-        style={[
-          LiveClassSessionStyles.infoSection,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <View style={LiveClassSessionStyles.row}>
-          <Text
-            style={[
-              LiveClassSessionStyles.courseTitle,
-              { color: colors.textDarker },
-            ]}
+          <View
+            style={LiveClassSessionStyles.attendeeContainer}
+            onLayout={handleContainerLayout}
           >
-            {lecture.topicName || 'Untitled Session'}
-          </Text>
+            {currentAttendees
+              .slice(0, maxVisibleAvatars)
+              .map((student: User, i: number) => (
+                <UserAvatar
+                  key={student.uid || i}
+                  profilePic={student.profilePic}
+                  firstName={student.firstname}
+                  lastName={student.lastname}
+                  username={student.username}
+                  style={LiveClassSessionStyles.attendeeCircle}
+                />
+              ))}
+            {currentAttendees.length > maxVisibleAvatars && (
+              <TouchableOpacity
+                style={[
+                  LiveClassSessionStyles.attendeeCount,
+                  { backgroundColor: colors.btnColor },
+                ]}
+                onPress={() => setAttendeeModalVisible(true)}
+              >
+                <Text
+                  style={[
+                    LiveClassSessionStyles.attendeeCountText,
+                    { color: colors.btnTextColor },
+                  ]}
+                >
+                  +{currentAttendees.length}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+        <View
+          style={[
+            LiveClassSessionStyles.bottomSection,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View style={LiveClassSessionStyles.aiHeader}>
+            <MaterialIcons
+              name="auto-awesome"
+              size={16}
+              color={colors.primary}
+            />
+            <Text
+              style={[
+                LiveClassSessionStyles.aiLabel,
+                { color: colors.primary },
+              ]}
+            >
+              Live Transcription
+            </Text>
+          </View>
           <Text
             style={[
-              LiveClassSessionStyles.durationText,
+              LiveClassSessionStyles.transcriptionText,
               { color: colors.text },
             ]}
           >
-            Duration: {elapsedTime}
+            {transcription || 'Listening to classroom room audio tracks...'}
           </Text>
         </View>
-        <View
-          style={LiveClassSessionStyles.attendeeContainer}
-          onLayout={handleContainerLayout}
-        >
-          {currentAttendees
-            .slice(0, maxVisibleAvatars)
-            .map((student: User, i: number) => (
-              <UserAvatar
-                key={student.uid || i}
-                profilePic={student.profilePic}
-                firstName={student.firstname}
-                lastName={student.lastname}
-                username={student.username}
-                style={LiveClassSessionStyles.attendeeCircle}
-              />
-            ))}
-          {currentAttendees.length > maxVisibleAvatars && (
-            <TouchableOpacity
-              style={[
-                LiveClassSessionStyles.attendeeCount,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={() => setAttendeeModalVisible(true)}
-            >
-              <Text
-                style={[
-                  LiveClassSessionStyles.attendeeCountText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                +{currentAttendees.length}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-      <View
-        style={[
-          LiveClassSessionStyles.bottomSection,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <View style={LiveClassSessionStyles.aiHeader}>
-          <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
-          <Text
-            style={[LiveClassSessionStyles.aiLabel, { color: colors.primary }]}
-          >
-            Live Transcription
-          </Text>
-        </View>
-        <Text
-          style={[
-            LiveClassSessionStyles.transcriptionText,
-            { color: colors.text },
-          ]}
-        >
-          {transcription || 'Listening to classroom room audio tracks...'}
-        </Text>
-      </View>
+      </ScrollView>
       {isMicAllowed && (
         <TouchableOpacity
           style={[
@@ -764,7 +777,7 @@ export const LecturerLiveClassSession = ({
             setUnreadCount(0);
           }}
         >
-          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
+          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
 

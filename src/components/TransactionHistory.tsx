@@ -15,7 +15,7 @@ import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from './CurrencyFormatter';
-
+import { EmptyState } from './EmptyFlatlistComponent';
 
 interface Props {
   refresh?: boolean;
@@ -114,7 +114,7 @@ export const TransactionList = ({
         <MaterialIcons
           name={item.payType === 'in' ? 'call-received' : 'call-made'}
           size={22}
-          color={item.payType === 'in' ? colors.success : colors.primary}
+          color={colors.primary}
         />
         <View style={styles.transactionTitleDiv}>
           <Text
@@ -178,6 +178,13 @@ export const TransactionList = ({
         onEndReachedThreshold={0.3}
         scrollEnabled={variant === 'full'}
         ListFooterComponent={renderFooter}
+        ListEmptyComponent={
+          <EmptyState
+            iconName="receipt-long"
+            title="No Transactions Yet"
+            subtitle="Your recent iCash activities, purchases, and transfers will appear here."
+          />
+        }
       />
     </View>
   );
@@ -192,6 +199,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 10,
   },
   btnText: {
     fontSize: 14,
@@ -204,14 +212,16 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
     padding: 15,
-    borderRadius: 15,
+    borderRadius: 10,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
   },
   transactionTitle: {
     fontSize: 14,

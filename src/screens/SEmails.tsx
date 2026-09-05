@@ -6,7 +6,8 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Alert
+  Alert,
+  Platform,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -24,14 +25,17 @@ import { useDispatch } from 'react-redux';
 import { isValidEmail } from '../utils/SignupHelpers.ts';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';
 import { useTheme } from '../context/ThemeContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const EmailsScreen = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
   const dispatch = useDispatch();
-  const [step, setStep] = useState('idle');
-  const [mode, setMode] = useState('');
+  const [step, setStep] = useState<
+    'idle' | 'primaryInput' | 'recoveryInput' | 'verifyCode'
+  >('idle');
+  const [mode, setMode] = useState<'primary' | 'recovery' | ''>('');
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
   const [codeInput, setCodeInput] = useState('');
@@ -47,25 +51,26 @@ export const EmailsScreen = () => {
     if (res.success) {
       Toast.show({
         type: 'success',
-        text2: `Email verification code sent to ${emailInput}`,
+        text2: `Verification code sent to ${emailInput}`,
       });
       setStep('verifyCode');
     } else {
       Toast.show({
         type: 'error',
         text1: 'Verification Error',
-        text2: `Verification error, please retry.`,
+        text2: 'Could not send verification code, please retry.',
       });
     }
   };
+
   const handleVerify = async () => {
     setEmailError('');
     const res = await verifySignupEmailCode(emailInput, codeInput);
     if (res.verified) {
-      Toast.show({ type: 'success', text2: `Email verified.` });
+      Toast.show({ type: 'success', text2: 'Email verified.' });
       const result = await updateEmailRecord(emailInput, mode);
       if (result.success) {
-        Toast.show({ type: 'success', text2: ` ${mode} email updated` });
+        Toast.show({ type: 'success', text2: `${mode} email updated` });
         if (mode === 'primary') {
           dispatch(updateEmailData({ email: emailInput }));
         } else {
@@ -84,7 +89,7 @@ export const EmailsScreen = () => {
       } else {
         Toast.show({
           type: 'error',
-          text1: `Update Error`,
+          text1: 'Update Error',
           text2: `${mode} email not updated, please retry.`,
         });
         setStep('idle');
@@ -94,12 +99,12 @@ export const EmailsScreen = () => {
     } else {
       Toast.show({
         type: 'error',
-        text1: `Verification Error`,
-        text2: `Email not verified, please retry.`,
+        text1: 'Verification Error',
+        text2: 'Invalid code, please retry.',
       });
-      setStep('idle');
     }
   };
+
   const handleDeleteRecovery = async (emailToDelete: string) => {
     Alert.alert(
       'Remove Email',
@@ -129,218 +134,473 @@ export const EmailsScreen = () => {
       ],
     );
   };
+
   useEffect(() => {
     let interval: any = null;
     if (step === 'verifyCode' && timer > 0) {
       interval = setInterval(() => {
         setTimer(prev => prev - 1);
       }, 1000);
-    } else if (timer === 0) {
-      if (interval) clearInterval(interval);
+    } else if (timer === 0 && interval) {
+      clearInterval(interval);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [step, timer]);
-  if (!isValidEmail(emailInput)) {
-    setEmailError('Invalid Email.');
-  }
+
+  const handleResendCode = async () => {
+    setTimer(120);
+    const res = await verifySignupEmail(emailInput);
+    if (res.success) {
+      Toast.show({
+        type: 'success',
+        text2: `New code sent to ${emailInput}`,
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Resend Error',
+        text2: 'Could not resend code, please retry.',
+      });
+    }
+  };
+
   return (
-    <ScrollView
+    <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <PageHeader title="Emails" />
-      <View
-        style={[
-          styles.section,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
+      <PageHeader title="Email Settings" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <Text style={[styles.header, { color: colors.text }]}>
+        {/* Primary Email Card */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Primary Email
         </Text>
-        <TextInput
-          value={user.email}
-          editable={false}
-          style={[styles.disabledInput, { color: colors.text }]}
-        />
-        <TouchableOpacity
-          style={[styles.inlineButton, { backgroundColor: colors.btnColor }]}
-          onPress={() => {
-            setStep('primaryInput');
-            setMode('primary');
-          }}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.border || '#e0e0e0',
+            },
+          ]}
         >
-          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
-            Change
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.header, { color: colors.text }]}>
+          <View style={styles.cardRow}>
+            <MaterialIcons
+              name="email"
+              size={22}
+              color={colors.primary}
+              style={styles.cardIcon}
+            />
+            <View style={styles.cardTextContainer}>
+              <Text style={[styles.cardValue, { color: colors.text }]}>
+                {user.email || 'No primary email'}
+              </Text>
+              <Text
+                style={[
+                  styles.cardSubtitle,
+                  { color: colors.textMuted || '#888' },
+                ]}
+              >
+                Used for critical notifications & login
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              { backgroundColor: colors.primary + '15' },
+            ]}
+            onPress={() => {
+              setStep('primaryInput');
+              setMode('primary');
+              setEmailInput('');
+            }}
+          >
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+              Change
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Recovery Emails Section */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Recovery Emails
         </Text>
-        {user.recoveryEmails ? (
-          (user.recoveryEmails || []).map(item => (
-            <>
-              <View style={styles.emailContainer}>
-                <TextInput
-                  key={item.email}
-                  value={item.email}
-                  editable={false}
-                  style={[styles.disabledInput, { color: colors.text }]}
+        {user.recoveryEmails && user.recoveryEmails.length > 0 ? (
+          user.recoveryEmails.map((item: any) => (
+            <View
+              key={item.email}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.backgroundSecondary,
+                  borderColor: colors.border || '#e0e0e0',
+                },
+              ]}
+            >
+              <View style={styles.cardRow}>
+                <MaterialIcons
+                  name="verified-user"
+                  size={22}
+                  color={colors.primary}
+                  style={styles.cardIcon}
                 />
-                <TouchableOpacity
-                  onPress={() => handleDeleteRecovery(item.email)}
-                >
-                  <MaterialIcons
-                    name="delete-outline"
-                    size={16}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
+                <View style={styles.cardTextContainer}>
+                  <Text style={[styles.cardValue, { color: colors.text }]}>
+                    {item.email}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.cardSubtitle,
+                      { color: colors.textMuted || '#888' },
+                    ]}
+                  >
+                    Added {new Date(item.addedAt).toLocaleDateString()}
+                  </Text>
+                </View>
               </View>
-            </>
+              <TouchableOpacity
+                onPress={() => handleDeleteRecovery(item.email)}
+              >
+                <MaterialIcons
+                  name="delete-outline"
+                  size={22}
+                  color={colors.primary || '#ff5252'}
+                />
+              </TouchableOpacity>
+            </View>
           ))
         ) : (
-          <Text style={[styles.emptyEmailText, { color: colors.text }]}>
-            No Recovery emails added
+          <Text
+            style={[styles.emptyText, { color: colors.textMuted || '#888' }]}
+          >
+            No recovery emails added yet.
           </Text>
         )}
+
         <TouchableOpacity
-          style={[styles.inlineButton, { backgroundColor: colors.btnColor }]}
+          style={[styles.secondaryButton, { borderColor: colors.primary }]}
           onPress={() => {
             setStep('recoveryInput');
             setMode('recovery');
+            setEmailInput('');
           }}
         >
-          <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
+          <MaterialIcons
+            name="add"
+            size={18}
+            color={colors.primary}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
             Add Recovery Email
           </Text>
         </TouchableOpacity>
+
+        {/* Dynamic Action Card for Input / Verification Steps */}
         {step !== 'idle' && (
-          <>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {step === 'verifyCode' ? 'Verify Code' : `Update ${mode} Email`}
-            </Text>
+          <View
+            style={[
+              styles.interactiveCard,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.primary,
+              },
+            ]}
+          >
+            <View style={styles.interactiveHeader}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                {step === 'verifyCode' ? 'Verify Code' : `Update ${mode} Email`}
+              </Text>
+              <TouchableOpacity onPress={() => setStep('idle')}>
+                <MaterialIcons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
             {(step === 'primaryInput' || step === 'recoveryInput') && (
               <>
-                <TextInput
-                  style={[styles.disabledInput, { color: colors.text }]}
-                  placeholder="Enter your email address"
-                  placeholderTextColor={colors.inputTextHolder}
-                  onChangeText={setEmailInput}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                {emailError && (
-                  <Text style={styles.emailErrorText}>{emailError}</Text>
-                )}
-                <CustomButton
-                  title="Send Verification Code"
-                  style={[styles.inlineButtonMain]}
-                  onPress={handleSendCode}
-                />
-              </>
-            )}
-            {step === 'verifyCode' && (
-              <>
-                <Text style={[styles.instructionText, { color: colors.text }]}>
-                  Enter the 6-digit code sent to {emailInput}
-                </Text>
-                <TextInput
-                  style={[styles.disabledInput, { color: colors.text }]}
-                  placeholder="000000"
-                  placeholderTextColor={colors.inputTextHolder}
-                  onChangeText={setCodeInput}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                />
                 <Text
                   style={[
-                    styles.timerText,
-                    timer < 60
-                      ? { color: colors.primary }
-                      : { color: colors.text },
+                    styles.instruction,
+                    { color: colors.textMuted || '#666' },
                   ]}
                 >
-                  Code expires in: {formatSignupTime(timer)}
+                  Enter the new email address you want to link to your account.
                 </Text>
-                <CustomButton
-                  title="Verify & Update"
-                  style={[styles.inlineButtonMain]}
-                  onPress={handleVerify}
-                />
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border || '#ccc',
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="mail-outline"
+                    size={20}
+                    color={colors.primary}
+                    style={{ marginRight: 10 }}
+                  />
+                  <TextInput
+                    style={[styles.textInput, { color: colors.text }]}
+                    placeholder={`Enter ${mode} email`}
+                    placeholderTextColor={colors.inputTextHolder || '#999'}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={emailInput}
+                    onChangeText={setEmailInput}
+                  />
+                </View>
+                {emailError ? (
+                  <Text style={styles.errorText}>{emailError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={handleSendCode}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    Send Verification Code
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
-          </>
+
+            {step === 'verifyCode' && (
+              <>
+                <Text style={[styles.instruction, { color: colors.text }]}>
+                  Enter the 6-digit code sent to{' '}
+                  <Text style={{ fontWeight: '700' }}>{emailInput}</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border || '#ccc',
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="lock-outline"
+                    size={20}
+                    color={colors.primary}
+                    style={{ marginRight: 10 }}
+                  />
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      {
+                        color: colors.text,
+                        letterSpacing: 4,
+                        fontWeight: '600',
+                      },
+                    ]}
+                    placeholder="123456"
+                    placeholderTextColor={colors.inputTextHolder || '#999'}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={codeInput}
+                    onChangeText={setCodeInput}
+                  />
+                </View>
+                <View style={styles.timerRow}>
+                  <Text
+                    style={[
+                      styles.timerText,
+                      timer < 60
+                        ? { color: colors.primary || '#ff5252' }
+                        : { color: colors.textMuted },
+                    ]}
+                  >
+                    {timer > 0
+                      ? `Expires in ${formatSignupTime(timer)}`
+                      : 'Code expired'}
+                  </Text>
+                  {timer === 0 && (
+                    <TouchableOpacity onPress={handleResendCode}>
+                      <Text
+                        style={[styles.resendText, { color: colors.primary }]}
+                      >
+                        Resend Code
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    {
+                      backgroundColor: colors.primary,
+                      opacity: codeInput.length < 6 ? 0.6 : 1,
+                    },
+                  ]}
+                  disabled={codeInput.length < 6}
+                  onPress={handleVerify}
+                >
+                  <Text style={styles.primaryButtonText}>Verify & Save</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
-  section: {
-    padding: 15,
-    borderRadius: 15,
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
-  header: {
-    fontSize: 18,
+  sectionTitle: {
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 15,
+    marginBottom: 10,
+    marginTop: 15,
+    letterSpacing: 0.2,
   },
-  inlineButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-  },
-  inlineButtonMain: {
-    paddingHorizontal: 15,
-    marginTop: 20,
-  },
-  buttonText: {
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 15,
-  },
-  disabledInput: {
-    borderRadius: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    fontSize: 14,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    width: '100%',
-    marginBottom: 15,
-  },
-  instructionText: {
-    fontSize: 14,
-    marginBottom: 14,
-  },
-  emailContainer: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: { light: 0.04, dark: 0.2 }[
+      Platform.OS === 'ios' ? 'light' : 'dark'
+    ],
+    shadowRadius: 8,
+    elevation: 2,
   },
-  emptyEmailText: {
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  cardIcon: {
+    marginRight: 14,
+  },
+  cardTextContainer: {
+    flex: 1,
+  },
+  cardValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  actionButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 5,
+    marginBottom: 20,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  interactiveCard: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  interactiveHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  instruction: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 50,
+    marginBottom: 12,
+  },
+  textInput: {
+    flex: 1,
     fontSize: 14,
   },
-  emailErrorText: {
-    color: PRIMARY_COLOR,
-    fontWeight: 'bold',
-    fontSize: 11,
+  errorText: {
+    color: '#ff5252',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  primaryButton: {
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  timerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   timerText: {
-    fontWeight: 'bold',
     fontSize: 12,
+    fontWeight: '500',
+  },
+  resendText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

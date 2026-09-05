@@ -162,11 +162,11 @@ export default function NotificationDetails() {
   );
 }
 const NotificationDetailsStyles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   content: {
     padding: 15,
     borderRadius: 15,
-    marginVertical: 15,
+    marginHorizontal: 15,
   },
   title: { fontSize: 20, fontWeight: 'bold' },
   message: { marginBottom: 15, fontSize: 14 },

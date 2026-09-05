@@ -9,7 +9,6 @@ import {
     ActivityIndicator, 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader'; 
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
@@ -169,7 +168,7 @@ export const AllTaxEntriesScreen = () => {
           <CustomButton
             title="Download"
             onPress={handleDownloadSubmit}
-            style={[styles.downloadButton]}
+            style={styles.downloadButton}
             iconName="file-download"
             iconColor="#fff"
           />
@@ -283,10 +282,10 @@ export const AllTaxEntriesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
   },
   listContainer: {
-    padding: 16,
+    marginHorizontal: 15,
+    paddingBottom: 30,
   },
   row: {
     padding: 15,
@@ -307,7 +306,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   downloadButton: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
+    height: 40,
     width: 'auto',
   },
   downloadButtonText: {

@@ -75,6 +75,7 @@ export const PendingOrdersScreen = () => {
         data={pendingOrders}
         keyExtractor={item => item.orderId}
         renderItem={renderItem}
+        contentContainerStyle={{ marginHorizontal: 15 }}
         refreshControl={
           <RefreshControl
             refreshing={isOrdersLoading}
@@ -101,7 +102,7 @@ export const PendingOrdersScreen = () => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   cancelButton: {
     paddingHorizontal: 15,
     paddingVertical: 10,

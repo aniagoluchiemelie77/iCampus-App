@@ -76,11 +76,11 @@ export const ViewAllAdsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
-  listContainer: { paddingBottom: 20 },
+  container: { flex: 1 },
+  listContainer: { paddingBottom: 30, marginHorizontal: 15 },
   addBtn: {
     width: 'auto',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
+    height: 40,
   },
-  addBtnText: { fontSize: 13, fontWeight: 'bold', marginRight: 4 },
 });

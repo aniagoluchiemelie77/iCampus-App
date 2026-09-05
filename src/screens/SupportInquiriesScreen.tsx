@@ -201,7 +201,7 @@ export const ViewAllSupportInquiriesScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabText: { fontSize: 14, fontWeight: '600' },
-  listContent: { paddingBottom: 20 },
+  listContent: { paddingBottom: 30, marginHorizontal: 15 },
   ticketCard: {
     padding: 15,
     borderRadius: 15,
@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   tabContainer: {
-    marginVertical: 15,
+    marginBottom: 20,
+    marginHorizontal: 15,
   },
 });

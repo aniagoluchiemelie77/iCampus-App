@@ -123,16 +123,15 @@ export const TermsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15
   },
   contentContainer: {
-    marginVertical: 20,
+    marginHorizontal: 20,
     paddingBottom: 40,
   },
   lastUpdated: {
     fontSize: 12,
     marginBottom: 15,
-    alignSelf: 'flex-end'
+    alignSelf: 'flex-end',
   },
   sectionTitle: {
     fontSize: 15,
@@ -159,11 +158,11 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row'
+    flexDirection: 'row',
   },
-  contactButtonText:{
+  contactButtonText: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginRight: 4
-  }
+    marginRight: 4,
+  },
 });

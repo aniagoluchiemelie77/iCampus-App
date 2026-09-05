@@ -29,11 +29,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         { backgroundColor: colors.backgroundSecondary },
       ]}
     >
-      <MaterialIcons name={iconName} size={80} color={colors.primary} />
-      <Text style={[styles.title, { color: colors.primary }]}>{title}</Text>
-      <Text style={[styles.subtitle, { color: colors.primaryTint }]}>
-        {subtitle}
-      </Text>
+      <MaterialIcons name={iconName} size={60} color={colors.primary} />
+      <Text style={[styles.title, { color: colors.textDarker }]}>{title}</Text>
+      <Text style={[styles.subtitle, { color: colors.text }]}>{subtitle}</Text>
 
       {buttonText && onPress && (
         <TouchableOpacity
@@ -60,20 +58,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    marginTop: 15,
+    marginTop: 20,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 15,
     lineHeight: 20,
   },
   button: {
     marginTop: 20,
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    borderRadius: 8,
+    width: 'auto',
+    height: 50,
+    paddingHorizontal: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
   },
   buttonText: {
     fontSize: 14,

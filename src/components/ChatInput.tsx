@@ -24,7 +24,7 @@ interface AttachmentModalProps {
   isVisible: boolean;
   onClose: () => void;
   onPickImage: () => void;
-  onPickDocument: () => void;
+  onPickDocument?: () => void;
   onTakePhoto?: () => void;
   colors: any;
 }
@@ -40,59 +40,57 @@ export const AttachmentModal = ({
     <Modal
       transparent
       visible={isVisible}
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View
+        <Pressable
           style={[
             styles.modalContent,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
+          <View
+            style={[
+              styles.grabber,
+              { backgroundColor: colors.border || '#ccc' },
+            ]}
+          />
           <Text style={[styles.title, { color: colors.textDarker }]}>
-            Send Attachment
+            Share Content
           </Text>
 
           <View style={styles.optionsGrid}>
-            {/* Image Option */}
             <TouchableOpacity
-              style={[styles.option, { borderColor: colors.border }]}
+              style={styles.optionItem}
               onPress={() => {
                 onPickImage();
                 onClose();
               }}
             >
               <View
-                style={[styles.iconCircle, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.iconCircle,
+                  {
+                    backgroundColor:
+                      colors.primaryTint || colors.primary + '20',
+                  },
+                ]}
               >
-                <MaterialIcons name="file-image" size={28} color="#fff" />
+                <MaterialIcons
+                  name="add-photo-alternate"
+                  size={30}
+                  color={colors.primary}
+                />
               </View>
               <Text style={[styles.optionText, { color: colors.text }]}>
                 Gallery
               </Text>
             </TouchableOpacity>
 
-            {/* Document Option */}
-            <TouchableOpacity
-              style={[styles.option, { borderColor: colors.border }]}
-              onPress={() => {
-                onPickDocument();
-                onClose();
-              }}
-            >
-              <View
-                style={[styles.iconCircle, { backgroundColor: colors.primary }]}
-              >
-                <MaterialIcons name="file" size={28} color="#fff" />
-              </View>
-              <Text style={[styles.optionText, { color: colors.text }]}>
-                Document
-              </Text>
-            </TouchableOpacity>
             {onTakePhoto && (
               <TouchableOpacity
-                style={[styles.option, { borderColor: colors.border }]}
+                style={styles.optionItem}
                 onPress={() => {
                   onTakePhoto();
                   onClose();
@@ -101,18 +99,52 @@ export const AttachmentModal = ({
                 <View
                   style={[
                     styles.iconCircle,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor:
+                        colors.primaryTint || colors.primary + '20',
+                    },
                   ]}
                 >
-                  <MaterialIcons name="camera-alt" size={28} color="#fff" />
+                  <MaterialIcons
+                    name="add-a-photo"
+                    size={30}
+                    color={colors.primary}
+                  />
                 </View>
                 <Text style={[styles.optionText, { color: colors.text }]}>
                   Camera
                 </Text>
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                onPickDocument?.();
+                onClose?.();
+              }}
+            >
+              <View
+                style={[
+                  styles.iconCircle,
+                  {
+                    backgroundColor:
+                      colors.primaryTint || colors.primary + '20',
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="insert-drive-file"
+                  size={30}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={[styles.optionText, { color: colors.text }]}>
+                Document
+              </Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -142,31 +174,45 @@ export const ChatInput = ({
         },
       ]}
     >
-      <TextInput
+      <View
         style={[
-          styles.input,
-          { backgroundColor: colors.backgroundSecondary, color: colors.text },
+          styles.inputContainer,
+          { backgroundColor: colors.backgroundSecondary },
         ]}
-        placeholder={placeholder}
-        value={value}
-        onChangeText={onChangeText}
-        multiline
-        placeholderTextColor={colors.inputTextHolder}
-      />
-      <TouchableOpacity
-        style={styles.iconButton}
-        onPress={handleAttachmentPress}
       >
-        <MaterialIcons name="attachment" size={26} color={colors.primary} />
-      </TouchableOpacity>
-      {value.trim().length > 0 && (
         <TouchableOpacity
-          style={[styles.sendBtn, { backgroundColor: colors.primary }]}
-          onPress={onSend}
+          style={styles.iconButton}
+          onPress={handleAttachmentPress}
+          activeOpacity={0.7}
         >
-          <MaterialIcons name="send" size={20} color="#fff" />
+          <MaterialIcons name="add" size={24} color={colors.primary} />
         </TouchableOpacity>
-      )}
+
+        <TextInput
+          style={[styles.input, { color: colors.text }]}
+          placeholder={placeholder}
+          value={value}
+          onChangeText={onChangeText}
+          multiline
+          placeholderTextColor={colors.inputTextHolder}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[
+          styles.sendBtn,
+          {
+            backgroundColor: colors.btnColor,
+            opacity: value.trim().length > 0 ? 1 : 0.4,
+          },
+        ]}
+        onPress={onSend}
+        disabled={value.trim().length === 0}
+        activeOpacity={0.8}
+      >
+        <MaterialIcons name="send" size={20} color={colors.btnTextColor} />
+      </TouchableOpacity>
+
       <AttachmentModal
         isVisible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -182,34 +228,49 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     width: '100%',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
     alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderTopWidth: 0.5,
   },
-  iconButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+  inputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    minHeight: 55,
+    maxHeight: 120,
   },
   input: {
     flex: 1,
-    borderRadius: 22,
-    paddingHorizontal: 13,
+    fontSize: 15,
     paddingTop: 8,
     paddingBottom: 8,
-    marginHorizontal: 4,
-    maxHeight: 120,
-    fontSize: 15,
+    paddingHorizontal: 8,
+    maxHeight: 108,
     textAlignVertical: 'center',
   },
-  sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  iconButton: {
+    height: 36,
+    width: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 4,
+    marginBottom: 2,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    marginBottom: 2, // Matches bottom alignment
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   overlay: {
     flex: 1,
@@ -217,41 +278,51 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 20,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 24,
+    paddingTop: 12,
     paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  grabber: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 16,
+    opacity: 0.4,
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontWeight: '700',
+    marginBottom: 24,
+    textAlign: 'left',
+    letterSpacing: 0.3,
   },
   optionsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
+    width: '100%',
   },
-  option: {
+  optionItem: {
     alignItems: 'center',
-    width: 80,
-    borderWidth: 0.8,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    elevation: 4,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
   },
   optionText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
