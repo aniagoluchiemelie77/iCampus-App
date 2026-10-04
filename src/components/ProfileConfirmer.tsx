@@ -11,9 +11,9 @@ interface UserCardProps {
   lastName?: string;
   isVerified?: boolean;
   department?: string;
-  identifierNumber?: string; // Matric Number or Staff ID
-  identifierLabel?: string;  // e.g. "Matric No." or "Staff ID"
-  currentLevel?: string | number; // e.g. "400 Level" or "Professor"
+  identifierNumber?: string;
+  identifierLabel?: string;
+  currentLevel?: string | number;
   size?: 'small' | 'medium' | 'large';
   containerStyle?: ViewStyle;
 }

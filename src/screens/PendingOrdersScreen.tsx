@@ -5,6 +5,7 @@ import {
   Text,
   RefreshControl,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppDataContext } from '../context/EventContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -43,8 +44,12 @@ const OrderListItem = React.memo(
 export const PendingOrdersScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const { pendingOrders, fetchPendingOrders, isOrdersLoading } =
-    useAppDataContext();
+  const {
+    pendingOrders,
+    fetchPendingOrders,
+    isOrdersLoading,
+    isFetchingMoreOrders,
+  } = useAppDataContext();
   const [isModalVisible, setModalVisible] = useState(false);
   const [orderId, setOrderId] = useState('');
   useEffect(() => {
@@ -76,12 +81,23 @@ export const PendingOrdersScreen = () => {
         keyExtractor={item => item.orderId}
         renderItem={renderItem}
         contentContainerStyle={{ marginHorizontal: 15 }}
+        onEndReached={() => fetchPendingOrders(true)}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={isOrdersLoading}
-            onRefresh={() => fetchPendingOrders()}
+            onRefresh={() => fetchPendingOrders(false)}
             colors={[PRIMARY_COLOR]}
           />
+        }
+        ListFooterComponent={
+          isFetchingMoreOrders ? (
+            <ActivityIndicator
+              color={PRIMARY_COLOR}
+              size="small"
+              style={{ marginVertical: 15 }}
+            />
+          ) : null
         }
         ListEmptyComponent={
           <EmptyState

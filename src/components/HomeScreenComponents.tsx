@@ -127,23 +127,6 @@ const ProfileModal = ({
               </Text>
             )}
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => {
-              onClose();
-              navigation.navigate('ICashDashboard', {
-                refresh: true,
-              });
-            }}
-          >
-            <MaterialIcons
-              name="account-balance-wallet"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={[styles.itemText, { color: colors.text }]}>iCash</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.item}
             onPress={() => {
@@ -436,7 +419,6 @@ export function FeedTab() {
           'Create Poll',
           'Post Job',
           'Create Event',
-          'iCash',
           'iAssistant',
         ]}
       />

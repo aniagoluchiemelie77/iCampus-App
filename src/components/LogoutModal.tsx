@@ -1,15 +1,32 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Modal } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Modal,
+  ActivityIndicator,
+} from 'react-native';
 import { handleLogout } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useResponsiveModalWidth } from '../hooks/useResponsiveModalWidth';
 
 interface LogoutModalProps {
   visible: boolean;
   onClose: () => void;
   navigation: any;
+}
+interface ActionModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onContinue: () => void;
+  title: string;
+  subtitle: string;
+  continueText?: string;
+  loading?: boolean;
 }
 export const LogoutModal = ({
   visible,
@@ -33,7 +50,8 @@ export const LogoutModal = ({
       onRequestClose={onClose}
     >
       <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
-        <View
+        <TouchableOpacity
+          activeOpacity={1}
           style={[
             styles.modalContent,
             { backgroundColor: colors.backgroundSecondary },
@@ -62,7 +80,73 @@ export const LogoutModal = ({
               style={styles.saveBtn}
             />
           </View>
-        </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+export const ActionModal = ({
+  visible,
+  onClose,
+  onContinue,
+  title,
+  subtitle,
+  continueText = 'Continue',
+  loading = false,
+}: ActionModalProps) => {
+  const { colors } = useTheme();
+  const { modalWidthStyle } = useResponsiveModalWidth();
+
+  const primaryColor = colors.primary;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[
+            styles.modalContent,
+            { backgroundColor: colors.backgroundSecondary },
+            modalWidthStyle,
+          ]}
+        >
+          <MaterialIcons name="info-outline" size={60} color={colors.primary} />
+
+          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+            {title}
+          </Text>
+
+          <Text style={[styles.modalSubtitle, { color: colors.text }]}>
+            {subtitle}
+          </Text>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: primaryColor }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.cancelBtnText, { color: primaryColor }]}>
+                cancel
+              </Text>
+            </TouchableOpacity>
+            <CustomButton
+              title={continueText}
+              onPress={onContinue}
+              disabled={loading}
+              style={styles.saveBtn}
+            />
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );

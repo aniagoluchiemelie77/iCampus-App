@@ -45,7 +45,7 @@ export const CartScreen = () => {
     cartData.forEach(item => {
       const product = productDictionary.get(item.productId);
       if (product) {
-        total += product.priceInPoints * item.quantity;
+        total += product.price * item.quantity;
       } else {
         missingItemsFlag = true;
       }

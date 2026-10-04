@@ -77,18 +77,14 @@ export const CartItem: React.FC<CartItemProps> = ({
         </View>
         <View style={styles.bottomRow}>
           <CurrencyDisplay
-            value={product.priceInPoints * cartEntry.quantity}
+            value={product.price * cartEntry.quantity}
             size="medium"
           />
           <TouchableOpacity
             onPress={() => onRemove && onRemove(product)}
             style={styles.removeButton}
           >
-            <MaterialIcons
-              name="delete"
-              size={18}
-              color={colors.primary}
-            />
+            <MaterialIcons name="delete" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>

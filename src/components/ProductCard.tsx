@@ -13,13 +13,15 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
+import { useConvertedPrice } from '../hooks/useCurrencyConverter';
 
-const AnimatedThumbnail = ({ urls }: { urls: string[] }) => {
+const AnimatedThumbnail = ({ urls }: { urls?: string[] }) => {
+  const safeUrls = urls || [];
   const [index, setIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (urls.length <= 1) return;
+    if (safeUrls.length <= 1) return;
 
     const interval = setInterval(() => {
       Animated.timing(fadeAnim, {
@@ -27,7 +29,7 @@ const AnimatedThumbnail = ({ urls }: { urls: string[] }) => {
         duration: 800,
         useNativeDriver: true,
       }).start(() => {
-        setIndex(prevIndex => (prevIndex + 1) % urls.length);
+        setIndex(prevIndex => (prevIndex + 1) % safeUrls.length);
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 800,
@@ -37,15 +39,16 @@ const AnimatedThumbnail = ({ urls }: { urls: string[] }) => {
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [urls, fadeAnim]);
+  }, [safeUrls, fadeAnim]);
 
   return (
     <Animated.Image
-      source={{ uri: urls[index] }}
+      source={{ uri: safeUrls[index] }}
       style={[styles.thumbnail, { opacity: fadeAnim }]}
     />
   );
 };
+
 export const ProductCard = ({
   product,
   onPress,
@@ -56,19 +59,31 @@ export const ProductCard = ({
   const { colors } = useTheme();
   const { handleToggleFavorite, handleCartItemToggle, currentUser } =
     useAppDataContext();
+
+  if (!product) return null;
+
   const isFavorited =
     currentUser?.favorites?.includes(product.productId) ?? false;
+  const buyerNationality = currentUser?.country || 'Nigeria';
+  const { convertedValue } = useConvertedPrice(
+    product.price,
+    product.nationalityOfSeller,
+    buyerNationality,
+  );
   const cartItem = currentUser?.cart?.find(
     item => item.productId === product.productId,
   );
   const isInCart = !!cartItem;
+
+  const ratings = product.ratings || [];
   const avgRating =
-    product.ratings.length > 0
+    ratings.length > 0
       ? (
-          product.ratings.reduce((acc, curr) => acc + curr.score, 0) /
-          product.ratings.length
+          ratings.reduce((acc, curr) => acc + (curr?.score || 0), 0) /
+          ratings.length
         ).toFixed(1)
       : 'New';
+
   return (
     <TouchableOpacity
       style={[
@@ -91,7 +106,7 @@ export const ProductCard = ({
           ]}
         >
           <Text style={[styles.typeText, { color: colors.primary }]}>
-            {product.niche?.toUpperCase()}
+            {product.niche?.toUpperCase() || 'ITEM'}
           </Text>
         </View>
         {!product.isAvailable && (
@@ -112,7 +127,7 @@ export const ProductCard = ({
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <CurrencyDisplay value={product.priceInPoints} size="small" />
+          <CurrencyDisplay value={convertedValue} size="small" />
         </View>
       </View>
       <View style={styles.info}>
@@ -120,7 +135,7 @@ export const ProductCard = ({
           style={[styles.title, { color: colors.textDarker }]}
           numberOfLines={2}
         >
-          {product.title}
+          {product.title || 'Untitled Product'}
         </Text>
         <View style={styles.statsRow}>
           <View style={styles.inlineStat}>
@@ -129,7 +144,7 @@ export const ProductCard = ({
           </View>
           <View style={styles.inlineStat}>
             <Text style={styles.statText}>
-              {formatStatNumber(product.favCount)}
+              {formatStatNumber(product.favCount || 0)}
             </Text>
             <MaterialIcons name="favorite" size={14} color={PRIMARY_COLOR} />
           </View>
@@ -170,8 +185,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 16,
-    width: '47%',
-    margin: '1.5%',
+    width: '100%',
     overflow: 'hidden',
     elevation: 3,
     shadowOffset: { width: 0, height: 2 },

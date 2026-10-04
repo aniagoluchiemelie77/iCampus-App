@@ -175,7 +175,6 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
         <CurrencyDisplay
           value={stats.platformLiquidity}
           size="large"
-          isSuccess={true}
         />
         <View style={styles.sparklineWrapper}>
           <Sparkline
@@ -237,7 +236,7 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
           ]}
         >
           <Text style={[styles.label, { color: colors.text }]}>Total Ins</Text>
-          <CurrencyDisplay value={totalIn} size="large" isSuccess={true} />
+          <CurrencyDisplay value={totalIn} size="large" />
         </View>
         <View
           style={[
@@ -249,7 +248,7 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
           ]}
         >
           <Text style={[styles.label, { color: colors.text }]}>Total Outs</Text>
-          <CurrencyDisplay value={totalOut} size="large" isSuccess={false} />
+          <CurrencyDisplay value={totalOut} size="large" />
         </View>
       </View>
       <LineChart
@@ -400,7 +399,6 @@ export const TaxEntryPreviewSection = ({
               <CurrencyDisplay
                 value={item.amount}
                 size="small"
-                isSuccess={true}
               />
             </View>
 

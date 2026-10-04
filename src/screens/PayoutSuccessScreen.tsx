@@ -23,11 +23,11 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
     return () => subscription.remove();
   }, []);
 
-  const navigateToWallet = () => {
+  const navigateToHome = () => {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'ICashDashboard', params: { refresh: true } }],
+        routes: [{ name: 'Home', params: { activeTab: 'home' } }],
       }),
     );
   };
@@ -54,15 +54,12 @@ export const PayoutSuccess = ({ route, navigation }: Props) => {
       </Text>
 
       <Text style={[styles.infoText, { color: colors.text }]}>
-        Your payout has been successfully processed. It will reflect in your
-        iCash balance shortly.
+        Your payout has been successfully processed.
       </Text>
       <CustomButton
-        title="Go to Wallet"
+        title="Back to Home"
         style={styles.button}
-        onPress={navigateToWallet}
-        iconName="account-balace"
-        iconColor={colors.btnTextColor}
+        onPress={navigateToHome}
       />
     </View>
   );

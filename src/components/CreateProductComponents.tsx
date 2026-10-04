@@ -4,22 +4,15 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import {
-  CATEGORY_MAX_PRICES,
-  USD_EQUIVALENCE_OF_1_ICASH,
-} from '../constants/inAppConstants';
+import { CATEGORY_MAX_PRICES } from '../constants/inAppConstants';
 import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 import { useTheme } from '../context/ThemeContext';
-import {
-  DropOffStation,
-  Product
-} from '../types/firebase';
-
+import { DropOffStation } from '../types/firebase';
+import { formatInputWithCommas } from '../utils/financeFormatter.ts';
 interface VideoDurationExtractorProps {
   uri: string;
   onDurationExtracted: (duration: number) => void;
@@ -41,6 +34,7 @@ export interface CompleteFormInputs {
   price: string;
   niche: string;
   type: 'physical';
+  amountInStock: string;
   physicalDetails: {
     weightKg: string;
     inStock: string;
@@ -58,68 +52,41 @@ export function PriceSectionComponent({
   setFormInputs,
 }: PriceSectionProps) {
   const { colors } = useTheme();
-  const { exchangeData, loading } = useExchangeRate(userCountry);
-
-  const localRatePerIcash = exchangeData.rate * USD_EQUIVALENCE_OF_1_ICASH;
+  const { exchangeData } = useExchangeRate(userCountry);
   const icashEntered = parseFloat(formInputs.price) || 0;
   const maxAllowedIcash = CATEGORY_MAX_PRICES[formInputs.type];
   const isOverpriced = icashEntered > maxAllowedIcash;
 
-  const rawConvertedAmount = icashEntered * localRatePerIcash;
-
-  const formattedLocalCurrency = new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(rawConvertedAmount);
-
   return (
     <View style={{ marginVertical: 20 }}>
-      <Text style={[styles.label, { color: colors.text }]}>Price (iCash)</Text>
-      <TextInput
+      <Text style={[styles.label, { color: colors.text }]}>Price </Text>
+      <View
         style={[
-          styles.input,
+          styles.disabledInputWrapper,
           isOverpriced && styles.inputWarning,
-          { color: colors.text },
         ]}
-        placeholder="0.00"
-        keyboardType="numeric"
-        value={formInputs.price}
-        onChangeText={text => setFormInputs(prev => ({ ...prev, price: text }))}
-        placeholderTextColor={colors.inputTextHolder}
-      />
-      {isOverpriced && (
-        <Text style={[styles.warningText, { color: colors.primary }]}>
-          This exceeds the maximum limit of {maxAllowedIcash} iCash allowed for
-          a {formInputs.type}.
-        </Text>
-      )}
-
-      <Text style={[styles.label, { color: colors.text }]}>
-        Estimated Local Value ({exchangeData.code})
-      </Text>
-      <View style={styles.disabledInputWrapper}>
+      >
         <Text style={[styles.currencyPrefix, { color: colors.text }]}>
           {exchangeData.symbol}
         </Text>
         <TextInput
           style={[styles.disabledInput, { color: colors.text }]}
-          value={formInputs.price ? formattedLocalCurrency : '0.00'}
-          editable={false}
-          selectTextOnFocus={false}
+          value={formatInputWithCommas(formInputs.price)}
+          onChangeText={text => {
+            const rawValue = text.replace(/,/g, '');
+            setFormInputs(prev => ({ ...prev, price: rawValue }));
+          }}
+          placeholderTextColor={colors.inputTextHolder}
+          placeholder="0.00"
+          keyboardType="numeric"
         />
-        {loading && (
-          <ActivityIndicator
-            size="small"
-            color={colors.primary}
-            style={styles.spinner}
-          />
-        )}
       </View>
-      <Text style={[styles.rateHint, { color: colors.primaryTint }]}>
-        Rate anchored at 1 iCash = {exchangeData.symbol}
-        {(exchangeData.rate * USD_EQUIVALENCE_OF_1_ICASH).toFixed(2)}{' '}
-        {exchangeData.code}
-      </Text>
+      {isOverpriced && (
+        <Text style={[styles.warningText, { color: colors.primary }]}>
+          This exceeds the maximum limit of {maxAllowedIcash} price allowed for
+          a {formInputs.type}.
+        </Text>
+      )}
     </View>
   );
 }

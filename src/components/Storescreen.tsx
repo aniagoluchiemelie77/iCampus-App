@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dimensions,
   View,
@@ -69,7 +69,6 @@ const HeaderActionButton = ({
 
 export const StoreScreen = () => {
   const { colors } = useTheme();
-  const [products, setProducts] = useState<Product[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const { pendingOrders } = useAppDataContext();
@@ -79,7 +78,73 @@ export const StoreScreen = () => {
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedTab, setSelectedTab] = useState('All');
-  const [cursor, setCursor] = useState<string | null>(null);
+
+  const [tabData, setTabData] = useState<
+    Record<
+      string,
+      { products: Product[]; cursor: string | null; hasMore: boolean }
+    >
+  >({
+    All: { products: [], cursor: null, hasMore: true },
+    Popular: { products: [], cursor: null, hasMore: true },
+    Electronics: { products: [], cursor: null, hasMore: true },
+    Fashion: { products: [], cursor: null, hasMore: true },
+    Stationery: { products: [], cursor: null, hasMore: true },
+    'Snacks and Deserts': { products: [], cursor: null, hasMore: true },
+    Food: { products: [], cursor: null, hasMore: true },
+    FootWears: { products: [], cursor: null, hasMore: true },
+    'Health and Beauty': { products: [], cursor: null, hasMore: true },
+  });
+  const currentTabData = tabData[selectedTab] || {
+    products: [],
+    cursor: null,
+    hasMore: true,
+  };
+
+  const fetchProducts = async (
+    tab: string,
+    query: string,
+    isRefresh = false,
+  ) => {
+    if (!isRefresh && query === '' && tabData[tab]?.products.length > 0) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const currentCursor = isRefresh
+        ? undefined
+        : (tabData[tab]?.cursor ?? undefined);
+      const result = await fetchProductsAPI({
+        q: query,
+        category: tab === 'All' ? '' : tab.toLowerCase(),
+        cursor: currentCursor,
+        limit: 10,
+      });
+
+      if (result.success) {
+        setTabData(prev => ({
+          ...prev,
+          [tab]: {
+            products: isRefresh
+              ? result.data
+              : [...(prev[tab]?.products || []), ...result.data],
+            cursor: result.nextCursor,
+            hasMore: !!result.nextCursor,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(selectedTab, searchQuery, searchQuery !== '');
+  }, [selectedTab, searchQuery]);
+
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const headerRightElement = (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -96,21 +161,37 @@ export const StoreScreen = () => {
       />
     </View>
   );
+
   const loadMore = async () => {
-    if (isFetchingMore || !cursor) return;
+    if (isFetchingMore || !currentTabData.hasMore || !currentTabData.cursor)
+      return;
+
     setIsFetchingMore(true);
-    const result = await fetchProductsAPI({
-      q: searchQuery,
-      category: selectedTab.toLowerCase(),
-      cursor: cursor,
-      limit: 10,
-    });
-    if (result.success) {
-      setProducts((prev: Product[]) => [...prev, ...result.data]);
-      setCursor(result.nextCursor);
+    try {
+      const result = await fetchProductsAPI({
+        q: searchQuery,
+        category: selectedTab === 'All' ? '' : selectedTab.toLowerCase(),
+        cursor: currentTabData.cursor,
+        limit: 10,
+      });
+
+      if (result.success) {
+        setTabData(prev => ({
+          ...prev,
+          [selectedTab]: {
+            products: [...prev[selectedTab].products, ...result.data],
+            cursor: result.nextCursor,
+            hasMore: !!result.nextCursor,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load more products:', error);
+    } finally {
+      setIsFetchingMore(false);
     }
-    setIsFetchingMore(false);
   };
+
   const handleCompleteOrder = async (orderId: string) => {
     setIsScannerOpen(false);
     setLoading(true);
@@ -154,6 +235,7 @@ export const StoreScreen = () => {
       setLoading(false);
     }
   };
+
   return (
     <View style={styles.container}>
       <PageHeader
@@ -194,8 +276,8 @@ export const StoreScreen = () => {
         <ActivityIndicator size="large" color={colors.primary} />
       ) : (
         <FlatList
-          data={products}
-          keyExtractor={item => item.productId}
+          data={currentTabData.products}
+          keyExtractor={(item, index) => `${item.productId}-${index}`}
           numColumns={2}
           renderItem={({ item }) => (
             <View style={styles.cardWrapper}>
@@ -209,7 +291,7 @@ export const StoreScreen = () => {
               />
             </View>
           )}
-          onEndReached={() => loadMore()}
+          onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             isFetchingMore ? (
@@ -252,7 +334,7 @@ export const StoreScreen = () => {
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
         userRole={currentUser.usertype}
-        actions={['iCash', 'Sales Hub', 'View Cart', 'View Favorites']}
+        actions={['Sales Hub', 'View Cart', 'View Favorites']}
       />
     </View>
   );
@@ -286,7 +368,9 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     width: CARD_WIDTH,
+    maxWidth: 220,
     marginBottom: 15,
+    marginHorizontal: '1.5%',
   },
   fab: {
     position: 'absolute',
@@ -307,10 +391,11 @@ const styles = StyleSheet.create({
   },
   tabBarScrollContainer: {
     paddingHorizontal: 10,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    paddingVertical: 4,
   },
   tabBarWrapper: {
-    marginBottom: 20,
+    marginVertical: 10,
     flexGrow: 0,
   },
   tab: {

@@ -735,7 +735,7 @@ export const AddExceptionModal = ({
             <Text
               style={[CourseActionStyles.modalSubtitle, { color: colors.text }]}
             >
-              {course.courseTitle}
+              Course Title: {course.courseTitle}
             </Text>
             <Text style={[CourseActionStyles.label, { color: colors.text }]}>
               Which lecture will you be missing?
@@ -804,7 +804,7 @@ export const AddExceptionModal = ({
             </View>
 
             <TextInput
-              style={[CourseActionStyles.textArea, { color: colors.text }]}
+              style={[CourseActionStyles.textArea, { color: colors.border }]}
               placeholder="Explain your reason in detail..."
               multiline
               numberOfLines={5}
@@ -819,7 +819,11 @@ export const AddExceptionModal = ({
                 { borderLeftColor: colors.primary },
               ]}
             >
-              <MaterialIcons name="info" size={16} color={colors.primary} />
+              <MaterialIcons
+                name="info-outline"
+                size={19}
+                color={colors.primary}
+              />
               <Text
                 style={[CourseActionStyles.costText, { color: colors.primary }]}
               >
@@ -831,14 +835,14 @@ export const AddExceptionModal = ({
               <TouchableOpacity
                 style={[
                   CourseActionStyles.cancelBtn,
-                  { borderColor: colors.btnColor },
+                  { borderColor: colors.primary },
                 ]}
                 onPress={onClose}
               >
                 <Text
                   style={[
                     CourseActionStyles.cancelBtnText,
-                    { color: colors.btnTextColor },
+                    { color: colors.primary },
                   ]}
                 >
                   Cancel
@@ -925,37 +929,37 @@ export const RenderContents = ({
   userRole,
   onRefresh,
 }: {
-  course: Course;
+  course: Course | null;
   userRole: string;
   onRefresh: () => void;
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [contents, setContents] = useState<string[]>(
-    course.courseContents || [],
+    course?.courseContents || [],
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const shouldShowSearch = !(userRole === 'student' || false);
-
+  if (!course) {
+    return null;
+  }
   const filteredData = contents.filter(
     (item: any) =>
-      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.url
+      item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item?.url
         ?.split('/')
         .pop()
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()),
   );
-
   const openModal = (index: number | null = null) => {
     setEditingIndex(index);
     setCurrentText(index !== null ? contents[index] : '');
     setModalVisible(true);
   };
-
   const handleSave = async () => {
     if (!currentText.trim()) {
       Toast.show({
@@ -1003,7 +1007,6 @@ export const RenderContents = ({
       });
     }
   };
-
   const confirmDelete = (index: number) => {
     Alert.alert(
       'Delete Topic?',
@@ -1039,7 +1042,35 @@ export const RenderContents = ({
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <PageHeader
+        title={
+          userRole === 'lecturer'
+            ? 'Curriculum Management'
+            : 'Syllabus Overview'
+        }
+        rightElement={
+          userRole === 'lecturer' && (
+            <CustomButton
+              title="Add New Topic"
+              onPress={() => openModal()}
+              iconName="add"
+              iconColor="#fff"
+              style={CourseActionStyles.addContentBtn}
+            />
+          )
+        }
+      />
+      {shouldShowSearch && (
+        <CourseSearchBar
+          shouldShowSearch={shouldShowSearch}
+          textInput={searchQuery}
+          setTextInput={setSearchQuery}
+          placeholder="Search topics, or notes..."
+          colors={colors}
+          styles={CourseActionStyles}
+        />
+      )}
       <FlatList
         data={filteredData}
         keyExtractor={(_, i) => i.toString()}
@@ -1047,38 +1078,6 @@ export const RenderContents = ({
           CourseActionStyles.listPadding,
           { paddingBottom: insets.bottom + 20 },
         ]}
-        ListHeaderComponent={
-          <>
-            <PageHeader
-              title={
-                userRole === 'lecturer'
-                  ? 'Curriculum Management'
-                  : 'Syllabus Overview'
-              }
-              rightElement={
-                userRole === 'lecturer' && (
-                  <CustomButton
-                    title="Add New Topic"
-                    onPress={() => openModal()}
-                    iconName="add"
-                    iconColor="#fff"
-                    style={CourseActionStyles.addContentBtn}
-                  />
-                )
-              }
-            />
-            {shouldShowSearch && (
-              <CourseSearchBar
-                shouldShowSearch={shouldShowSearch}
-                textInput={searchQuery}
-                setTextInput={setSearchQuery}
-                placeholder="Search topics, or notes..."
-                colors={colors}
-                styles={CourseActionStyles}
-              />
-            )}
-          </>
-        }
         renderItem={({ item, index }) => (
           <View
             style={[
@@ -1121,7 +1120,6 @@ export const RenderContents = ({
             )}
           </View>
         )}
-        inverted
         ListEmptyComponent={
           <EmptyState
             iconName="search-off"
@@ -1136,7 +1134,6 @@ export const RenderContents = ({
           />
         }
       />
-
       <Modal visible={isModalVisible} transparent animationType="fade">
         <Pressable
           style={CourseActionStyles.modalOverlay}
@@ -1208,7 +1205,7 @@ export const RenderMaterials = ({
   userRole,
   onRefresh,
 }: {
-  course: Course;
+  course: Course | null;
   lectures: Lecture[];
   userRole: string;
   onRefresh: () => void;
@@ -1220,20 +1217,27 @@ export const RenderMaterials = ({
   const { pickDocument } = useMediaPicker();
   const [searchQuery, setSearchQuery] = useState('');
   const shouldShowSearch = !(userRole === 'student' || false);
+
+  if (!course) {
+    return null;
+  }
+
+  const safeLectures = lectures || [];
   const combinedResources = [
-    ...(course.resources || []).map(res => ({
+    ...(course?.resources || []).map(res => ({
       title: 'General Reference',
       url: res,
       type: 'Course',
     })),
-    ...lectures.flatMap(l =>
-      (l.resources || []).map(res => ({
-        title: l.topicName,
+    ...safeLectures.flatMap(l =>
+      (l?.resources || []).map(res => ({
+        title: l?.topicName || 'Untitled Lecture',
         url: res,
         type: 'Lecture',
       })),
     ),
   ];
+
   const handleDownload = async (url: string, fileName: string) => {
     try {
       if (Platform.OS === 'ios') {
@@ -1264,6 +1268,7 @@ export const RenderMaterials = ({
       Toast.show({ type: 'error', text1: 'Download Failed' });
     }
   };
+
   const handleAddMaterial = async () => {
     try {
       const fileData = await pickDocument();
@@ -1314,6 +1319,7 @@ export const RenderMaterials = ({
       setIsUploading(false);
     }
   };
+
   const processDeletion = async (url: string) => {
     try {
       setIsUploading(true);
@@ -1337,8 +1343,9 @@ export const RenderMaterials = ({
       setIsUploading(false);
     }
   };
+
   const handleDelete = (url: string) => {
-    const fileName = url.split('/').pop() || 'this document';
+    const fileName = url?.split('/').pop() || 'this document';
 
     Alert.alert(
       'Delete Material',
@@ -1357,129 +1364,129 @@ export const RenderMaterials = ({
       { cancelable: true },
     );
   };
+
   const filteredData = combinedResources.filter(
     item =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.url
-        .split('/')
+      item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item?.url
+        ?.split('/')
         .pop()
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()),
   );
 
   return (
-    <FlatList
-      data={filteredData}
-      keyExtractor={(_, i) => i.toString()}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      contentContainerStyle={[
-        CourseActionStyles.listPadding,
-        { paddingBottom: insets.bottom + 20 },
-      ]}
-      ListHeaderComponent={
-        <>
-          <PageHeader
-            title="Course Materials"
-            rightElement={
-              userRole === 'lecturer' && (
-                <CustomButton
-                  title="Save Changes"
-                  onPress={handleAddMaterial}
-                  disabled={isUploading}
-                  iconName="add"
-                  iconColor="#fff"
-                  style={CourseActionStyles.addButton}
-                />
-              )
-            }
-          />
-          {shouldShowSearch && (
-            <CourseSearchBar
-              shouldShowSearch={shouldShowSearch}
-              textInput={searchQuery}
-              setTextInput={setSearchQuery}
-              placeholder="Search materials..."
-              colors={colors}
-              styles={CourseActionStyles}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <PageHeader
+        title="Course Materials"
+        rightElement={
+          userRole === 'lecturer' && (
+            <CustomButton
+              title="Save Changes"
+              onPress={handleAddMaterial}
+              disabled={isUploading}
+              iconName="add"
+              iconColor="#fff"
+              style={CourseActionStyles.addButton}
             />
-          )}
-        </>
-      }
-      renderItem={({ item }) => {
-        const fileName = item.url.split('/').pop() || 'document.pdf';
-        return (
-          <View
-            style={[
-              CourseActionStyles.materialCard,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <MaterialIcons
-              name="picture-as-pdf"
-              size={32}
-              color={colors.primary}
-            />
-            <View style={{ flex: 1, marginLeft: 12, paddingHorizontal: 4 }}>
-              <Text
-                style={[
-                  CourseActionStyles.materialTitle,
-                  { color: colors.textDarker },
-                ]}
-                numberOfLines={2}
-              >
-                {item.title}
-              </Text>
-              <View style={CourseActionStyles.rowButtons}>
-                <TouchableOpacity
-                  style={CourseActionStyles.downloadCircle}
-                  onPress={() => handleDownload(item.url, fileName)}
+          )
+        }
+      />
+      {shouldShowSearch && (
+        <CourseSearchBar
+          shouldShowSearch={shouldShowSearch}
+          textInput={searchQuery}
+          setTextInput={setSearchQuery}
+          placeholder="Search materials..."
+          colors={colors}
+          styles={CourseActionStyles}
+        />
+      )}
+      <FlatList
+        data={filteredData}
+        keyExtractor={(_, i) => i.toString()}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        contentContainerStyle={[
+          CourseActionStyles.listPadding,
+          { paddingBottom: insets.bottom + 20 },
+        ]}
+        renderItem={({ item }) => {
+          const fileName = item?.url?.split('/').pop() || 'document.pdf';
+          return (
+            <View
+              style={[
+                CourseActionStyles.materialCard,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
+              <MaterialIcons
+                name="picture-as-pdf"
+                size={32}
+                color={colors.primary}
+              />
+              <View style={{ flex: 1, marginLeft: 12, paddingHorizontal: 4 }}>
+                <Text
+                  style={[
+                    CourseActionStyles.materialTitle,
+                    { color: colors.textDarker },
+                  ]}
+                  numberOfLines={2}
                 >
-                  <MaterialIcons
-                    name="file-download"
-                    size={20}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-                {userRole === 'lecturer' && (
+                  {item.title}
+                </Text>
+                <View style={CourseActionStyles.rowButtons}>
                   <TouchableOpacity
                     style={CourseActionStyles.downloadCircle}
-                    onPress={() => handleDelete(item.url)}
+                    onPress={() => handleDownload(item.url, fileName)}
                   >
                     <MaterialIcons
-                      name="delete"
+                      name="file-download"
                       size={20}
                       color={colors.primary}
                     />
                   </TouchableOpacity>
-                )}
+                  {userRole === 'lecturer' && (
+                    <TouchableOpacity
+                      style={CourseActionStyles.downloadCircle}
+                      onPress={() => handleDelete(item.url)}
+                    >
+                      <MaterialIcons
+                        name="delete"
+                        size={20}
+                        color={colors.primary}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
-          </View>
-        );
-      }}
-      inverted
-      ListEmptyComponent={
-        <EmptyState
-          iconName="search-off"
-          title="No Materials Found"
-          subtitle={
-            userRole === 'lecturer'
-              ? "You haven't uploaded any resources yet."
-              : "Your Instructor hasn't uploaded any materials for this course yet."
-          }
-          buttonText={userRole === 'lecturer' ? 'Upload PDF' : undefined}
-          onPress={handleAddMaterial}
-        />
-      }
-    />
+          );
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            iconName="search-off"
+            title="No Materials Found"
+            subtitle={
+              userRole === 'lecturer'
+                ? "You haven't uploaded any resources yet."
+                : "Your Instructor hasn't uploaded any materials for this course yet."
+            }
+            buttonText={
+              userRole === 'lecturer' ? 'Upload Course Material' : undefined
+            }
+            onPress={handleAddMaterial}
+          />
+        }
+      />
+    </View>
   );
 };
 export const RenderAssignments = ({
   course,
   userRole,
 }: {
-  course: Course;
+  course: Course | null;
   userRole: string;
 }) => {
   const { colors } = useTheme();
@@ -1487,16 +1494,20 @@ export const RenderAssignments = ({
   const [isModalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [localAssignments, setLocalAssignments] = useState<Assignment[]>(
-    course.assignments || [],
+    course?.assignments || [],
   );
   const [searchQuery, setSearchQuery] = useState('');
   const shouldShowSearch = !(userRole === 'student' || false);
 
+  if (!course) {
+    return null;
+  }
+
   const filteredData = localAssignments.filter(
     (item: any) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.url
-        .split('/')
+      item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item?.url
+        ?.split('/')
         .pop()
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()),
@@ -1576,45 +1587,40 @@ export const RenderAssignments = ({
   };
 
   return (
-    <>
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <PageHeader
+        title="Assignments"
+        rightElement={
+          userRole === 'lecturer' && (
+            <CustomButton
+              title="Create"
+              onPress={() => setModalVisible(true)}
+              iconName="add"
+              iconColor="#fff"
+              style={CourseActionStyles.addButton}
+            />
+          )
+        }
+      />
+      {shouldShowSearch && (
+        <CourseSearchBar
+          shouldShowSearch={shouldShowSearch}
+          textInput={searchQuery}
+          setTextInput={setSearchQuery}
+          placeholder="Search assignments..."
+          colors={colors}
+          styles={CourseActionStyles}
+        />
+      )}
       <FlatList
         data={filteredData || []}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        keyExtractor={(item, i) => item.id || i.toString()}
+        keyExtractor={(item, i) => item?.id || i.toString()}
         contentContainerStyle={[
           CourseActionStyles.listPadding,
           { paddingBottom: insets.bottom + 20 },
         ]}
-        inverted
-        ListHeaderComponent={
-          <>
-            <PageHeader
-              title="Assignments & Tasks"
-              rightElement={
-                userRole === 'lecturer' && (
-                  <CustomButton
-                    title="Create"
-                    onPress={() => setModalVisible(true)}
-                    iconName="add"
-                    iconColor="#fff"
-                    style={CourseActionStyles.addButton}
-                  />
-                )
-              }
-            />
-            {shouldShowSearch && (
-              <CourseSearchBar
-                shouldShowSearch={shouldShowSearch}
-                textInput={searchQuery}
-                setTextInput={setSearchQuery}
-                placeholder="Search assignments..."
-                colors={colors}
-                styles={CourseActionStyles}
-              />
-            )}
-          </>
-        }
         renderItem={({ item }) => {
           const overdue = isPastDue(item.dueDate);
 
@@ -1690,7 +1696,7 @@ export const RenderAssignments = ({
         onRefresh={onRefresh}
         colors={colors}
       />
-    </>
+    </View>
   );
 };
 export const RenderStudentExceptions = ({
@@ -1726,10 +1732,7 @@ export const RenderStudentExceptions = ({
   }).length;
 
   const isOverTierLimit = usedThisMonth >= planLimit;
-  const hasInsufficientPoints =
-    (user.pointsBalance || 0) < EXCEPTION_COST_IN_ICASH;
-
-  const isDisabled = isOverTierLimit && hasInsufficientPoints;
+  const isDisabled = isOverTierLimit;
 
   return (
     <FlatList
@@ -1737,7 +1740,7 @@ export const RenderStudentExceptions = ({
       refreshing={refreshing}
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
-      inverted
+
       ListHeaderComponent={
         <>
           <PageHeader
@@ -1941,7 +1944,7 @@ export const RenderLecturerExceptionsManage = ({
           style={{ marginTop: 80 }}
         />
       }
-      inverted
+
       ListHeaderComponent={
         <>
           <PageHeader title="Manage Lecture Exceptions" />
@@ -2916,7 +2919,7 @@ export const RenderLecturerTestManage = ({
             </View>
           );
         }}
-        inverted
+
         ListHeaderComponent={
           <>
             <PageHeader
@@ -3909,20 +3912,20 @@ export const RenderStudentTest = ({
               onPress={() =>
                 currentIndex > 0 && setCurrentIndex(currentIndex - 1)
               }
-              style={CourseActionStyles.submitBtn} 
+              style={CourseActionStyles.submitBtn}
             />
 
             {currentIndex === activeQuestions.length - 1 ? (
               <CustomButton
                 title="Submit Test"
                 onPress={handleFinalSubmit}
-                style={CourseActionStyles.submitBtn} 
+                style={CourseActionStyles.submitBtn}
               />
             ) : (
               <CustomButton
                 title="Next"
                 onPress={() => setCurrentIndex(currentIndex + 1)}
-                style={CourseActionStyles.submitBtn} 
+                style={CourseActionStyles.submitBtn}
               />
             )}
           </View>
@@ -3960,7 +3963,7 @@ export const RenderStudentTest = ({
                 <CustomButton
                   title="Redo Test"
                   onPress={startTestWithSecurity}
-                  style={CourseActionStyles.startBtn} 
+                  style={CourseActionStyles.startBtn}
                 />
               </>
             ) : (
@@ -4010,7 +4013,7 @@ export const RenderStudentTest = ({
                 <View style={CourseActionStyles.sideBySideCenteredRowSB}>
                   <CustomButton
                     title="Back to Home"
-                  onPress={() => {
+                    onPress={() => {
                       navigation.reset({
                         index: 0,
                         routes: [
@@ -4023,14 +4026,14 @@ export const RenderStudentTest = ({
                         ],
                       });
                     }}
-                    style={CourseActionStyles.startBtn} 
+                    style={CourseActionStyles.startBtn}
                   />
                   <CustomButton
                     title="Download Test Review"
                     onPress={downloadStudentResultSheet}
                     iconName="download"
                     iconColor="#fff"
-                    style={CourseActionStyles.startBtn} 
+                    style={CourseActionStyles.startBtn}
                   />
                 </View>
               </>
@@ -4270,13 +4273,19 @@ export const RenderViewLectureSchedule = ({
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.background,
+        paddingHorizontal: 15,
+      }}
+    >
       <FlatList
         ref={flatListRef}
         data={flatListData}
         keyExtractor={item => item.id}
         renderItem={renderFlatListItem}
-        inverted
+
         ListHeaderComponent={<PageHeader title="My Lectures Schedule" />}
         ListEmptyComponent={
           <EmptyState
@@ -4596,13 +4605,18 @@ export const LecturerLectureScheduleView = ({
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.background,
+        paddingHorizontal: 15,
+      }}
+    >
       <FlatList
         ref={flatListRef}
         data={flatListData}
         keyExtractor={item => item.id}
         renderItem={renderFlatListItem}
-        inverted
         ListHeaderComponent={<PageHeader title="Manage Lectures Schedule" />}
         ListEmptyComponent={
           <EmptyState
@@ -5311,9 +5325,9 @@ export const CourseActionStyles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
   },
   input: {
@@ -5326,13 +5340,14 @@ export const CourseActionStyles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     width: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 20,
   },
   cancelBtn: {
-    paddingVertical: 10,
+    height: 50,
     paddingHorizontal: 15,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -5442,7 +5457,7 @@ export const CourseActionStyles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 20,
   },
   methodBtnText: {
     fontSize: 12,
@@ -5460,7 +5475,7 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 13,
-    paddingHorizontal: 4,
+    paddingHorizontal: 10,
     height: 50,
     borderWidth: 0.8,
   },
@@ -5610,6 +5625,7 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 20,
     textAlign: 'center',
+    lineHeight: 20,
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -5649,20 +5665,22 @@ export const CourseActionStyles = StyleSheet.create({
   },
   costText: {
     fontSize: 12,
-    marginLeft: 6,
+    marginLeft: 8,
     fontWeight: '600',
+    lineHeight: 18,
   },
   pickerContainer: {
-    marginBottom: 15,
+    marginBottom: 20,
     overflow: 'hidden',
     justifyContent: 'center',
-    padding: 6,
+    padding: 3,
     borderWidth: 0.8,
+    borderRadius: 10,
   },
   pickerContainer2: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 25,
+    padding: 15,
     maxHeight: '70%',
   },
   dateTimeRow: {
@@ -6247,7 +6265,7 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 12,
     padding: 15,
-    marginBottom: 15,
+    marginBottom: 20,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -6258,7 +6276,7 @@ export const CourseActionStyles = StyleSheet.create({
   lectureCard2: {
     borderRadius: 12,
     padding: 15,
-    marginBottom: 15,
+    marginBottom: 20,
     shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,

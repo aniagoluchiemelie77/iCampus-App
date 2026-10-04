@@ -28,7 +28,8 @@ export const OngoingLectureModal = ({
       onRequestClose={onDismiss}
     >
       <TouchableOpacity style={styles.modalOverlay} onPress={onDismiss}>
-        <View
+        <TouchableOpacity
+          activeOpacity={1}
           style={[
             styles.modalContainer,
             { backgroundColor: colors.backgroundSecondary },
@@ -58,7 +59,7 @@ export const OngoingLectureModal = ({
               style={styles.reviewModalBtn2}
             />
           </View>
-        </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -80,7 +81,7 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 8,
-    maxWidth: 350,
+    maxWidth: 400,
   },
   modalTitle: {
     fontSize: 18,

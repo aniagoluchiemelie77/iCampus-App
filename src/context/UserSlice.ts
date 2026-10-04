@@ -12,7 +12,6 @@ export const initialState: User = {
   email: 'chiboyaniagolu3@gmail.com',
   recoveryEmails: [],
   phoneNumbers: [],
-  pointsBalance: 0,
   accessToken: '',
   sessions: [],
   blockedUsers: [],
@@ -26,7 +25,8 @@ export const initialState: User = {
   profilePic: [],
   isSuspended: false,
   isInstitutionAdmin: false,
-  usertype: 'student'
+  usertype: 'student',
+  subaccountId: ''
 };
 const userSlice = createSlice({
   name: 'user',

@@ -65,54 +65,56 @@ export const PersonaVerificationScreen = () => {
   const isEnterprise = user?.usertype === 'enterprise';
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <MaterialIcons
-        name={isEnterprise ? 'business' : 'verified-user'}
-        size={60}
-        color={colors.primary}
-      />
-      <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 15 }}>
-        <Text style={[styles.title, { color: colors.textDarker }]}>
-          {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
-        </Text>
-        <Text style={[styles.description, { color: colors.text }]}>
-          {isEnterprise
-            ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
-            : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
-        </Text>
-
-        <View style={styles.featureList}>
-          <View style={[styles.featureItem, { borderColor: colors.primary }]}>
-            <MaterialIcons
-              name="check-circle"
-              size={30}
-              color={colors.primary}
-            />
-            <Text style={[styles.featureText, { color: colors.primary }]}>
-              {isEnterprise ? 'Official Business Review' : 'Secure & Encrypted'}
-            </Text>
-          </View>
-          <View style={[styles.featureItem, { borderColor: colors.primary }]}>
-            <MaterialIcons
-              name="check-circle"
-              size={30}
-              color={colors.primary}
-            />
-            <Text style={[styles.featureText, { color: colors.primary }]}>
-              Takes less than 2 minutes
-            </Text>
-          </View>
-        </View>
-        <CustomButton
-          title="Start Verification"
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
-          onPress={handleStartVerification}
-          disabled={loading}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView>
+        <MaterialIcons
+          name={isEnterprise ? 'business' : 'verified-user'}
+          size={60}
+          color={colors.primary}
         />
-      </View>
-    </ScrollView>
+        <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 15 }}>
+          <Text style={[styles.title, { color: colors.textDarker }]}>
+            {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
+          </Text>
+          <Text style={[styles.description, { color: colors.text }]}>
+            {isEnterprise
+              ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
+              : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
+          </Text>
+
+          <View style={styles.featureList}>
+            <View style={[styles.featureItem, { borderColor: colors.primary }]}>
+              <MaterialIcons
+                name="check-circle"
+                size={30}
+                color={colors.primary}
+              />
+              <Text style={[styles.featureText, { color: colors.primary }]}>
+                {isEnterprise
+                  ? 'Official Business Review'
+                  : 'Secure & Encrypted'}
+              </Text>
+            </View>
+            <View style={[styles.featureItem, { borderColor: colors.primary }]}>
+              <MaterialIcons
+                name="check-circle"
+                size={30}
+                color={colors.primary}
+              />
+              <Text style={[styles.featureText, { color: colors.primary }]}>
+                Takes less than 2 minutes
+              </Text>
+            </View>
+          </View>
+          <CustomButton
+            title="Start Verification"
+            style={[styles.button, { backgroundColor: colors.btnColor }]}
+            onPress={handleStartVerification}
+            disabled={loading}
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -120,6 +122,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 15,
   },
   title: {

@@ -1,16 +1,12 @@
-import {
-  Alert,
-  Image,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { iCampusOperationalInstitutionSchema } from '../types/firebase';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from '../hooks/hooks';
+import { ActionModal } from './LogoutModal.tsx';
+import { useState } from 'react';
+import Toast from 'react-native-toast-message';
 
 export const SchoolItem = ({
   item,
@@ -24,6 +20,43 @@ export const SchoolItem = ({
   const { colors } = useTheme();
   const admin = useAppSelector(state => state.admin);
   const isSuperAdmin = admin.adminType === 'super_admin';
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedInstitution, setSelectedInstitution] = useState<{
+    id: string;
+    schoolName: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const handleDeletePress = () => {
+    if (!item?.id) return;
+
+    setSelectedInstitution({
+      id: item.id,
+      schoolName: item.schoolName ?? '',
+    });
+    setDeleteModalVisible(true);
+  };
+  const confirmDelete = async () => {
+    if (!selectedInstitution?.id) return;
+
+    try {
+      setIsDeleting(true);
+      onDelete(selectedInstitution.id);
+      setIsDeleting(false);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Institution deleted successfully.',
+      });
+    } catch (error: any) {
+      setIsDeleting(false);
+      Toast.show({
+        type: 'error',
+        text1: 'Deletion Failed',
+        text2: error?.message || 'Failed to delete institution.',
+      });
+    }
+  };
   return (
     <View
       style={[styles.itemCard, { backgroundColor: colors.backgroundSecondary }]}
@@ -57,23 +90,7 @@ export const SchoolItem = ({
               style={{ padding: 10 }}
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() =>
-              Alert.alert(
-                'Delete Institution',
-                'Are you sure? This action cannot be undone.',
-                [
-                  { text: 'Cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => onDelete(item.id!),
-                  },
-                ],
-              )
-            }
-            style={styles.iconBtn}
-          >
+          <TouchableOpacity onPress={handleDeletePress} style={styles.iconBtn}>
             <MaterialIcons
               name="delete"
               size={24}
@@ -83,6 +100,20 @@ export const SchoolItem = ({
           </TouchableOpacity>
         </View>
       )}
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedInstitution(null);
+          }
+        }}
+        onContinue={confirmDelete}
+        title="Delete Institution?"
+        subtitle={`Are you sure you want to delete the institution from "${selectedInstitution?.schoolName}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </View>
   );
 };

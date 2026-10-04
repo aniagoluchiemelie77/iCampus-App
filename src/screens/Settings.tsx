@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { requestPinReset } from '../api/localPostApis.ts';
 import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '@env';
 import { CustomButton } from '../assets/components/AppUIComponents';
@@ -57,7 +56,6 @@ export const Settings = () => {
     user.theme === 'dark' ||
     (user.theme === 'system' && deviceColorScheme === 'dark');
   const navigation = useNavigation<any>();
-  const [isResetting, setIsResetting] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -98,20 +96,6 @@ export const Settings = () => {
       Toast.show({ type: 'info', text2: 'Biometrics Disabled' });
     }
   };
-  const handlePinReset = useCallback(async () => {
-    if (isResetting) return;
-    setIsResetting(true);
-    try {
-      const response = await requestPinReset();
-      if (response.success) {
-        navigation.navigate('ICashResetPin');
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsResetting(false);
-    }
-  }, [isResetting, navigation]);
 
   const handleThemeToggle = async () => {
     const newTheme = isCurrentlyDark ? 'light' : 'dark';
@@ -146,10 +130,6 @@ export const Settings = () => {
       });
     }
   };
-  const throttledReset = useMemo(
-    () => throttle(handlePinReset, 2000),
-    [handlePinReset],
-  );
   useEffect(() => {
     const checkStatus = async () => {
       const val = await AsyncStorage.getItem('biometrics_enabled');
@@ -204,14 +184,6 @@ export const Settings = () => {
             value={biometricsEnabled}
             onPress={toggleBiometrics}
             onValueChange={toggleBiometrics}
-          />
-          <SettingItem
-            icon="lock-reset"
-            title="Reset iCashPin"
-            subtitle={
-              isResetting ? 'Requesting...' : 'Security for your campus wallet'
-            }
-            onPress={throttledReset}
           />
           <SettingItem
             icon="lock-reset"

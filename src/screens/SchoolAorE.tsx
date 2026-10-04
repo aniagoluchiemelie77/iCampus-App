@@ -19,6 +19,7 @@ interface InstitutionFormData {
   countryCode: string;
   domainWhitelist: string[];
   isOperational: boolean;
+  tier: 'free' | 'pro' | 'premium';
   verificationMethod: 'SSO' | 'EXTERNAL_API' | 'SEEDED_DATABASE' | 'EMAIL_ONLY';
   logo: string;
   ssoConfig: {
@@ -34,13 +35,14 @@ interface InstitutionFormData {
   };
 }
 const initialData: InstitutionFormData = {
-    id: '',
+  id: '',
   name: '',
   contactEmail: '',
   countryCode: 'NG',
   domainWhitelist: [],
   isOperational: false,
   verificationMethod: 'EMAIL_ONLY',
+  tier: 'free',
   logo: '',
   ssoConfig: {
     provider: 'OIDC',
@@ -54,7 +56,6 @@ const initialData: InstitutionFormData = {
     timeoutMs: 5000,
   },
 };
-
 
 export const SchoolAorEScreen = ({ route, navigation }: Props) => {
   const isEdit = !!route.params?.item;
@@ -149,6 +150,21 @@ export const SchoolAorEScreen = ({ route, navigation }: Props) => {
               v.split(',').map(s => s.trim()),
             )
           }
+        />
+        <RNPickerSelect
+          value={formData.tier}
+          onValueChange={v => updateField('tier', v)}
+          items={[
+            { label: 'Free', value: 'free' },
+            { label: 'Pro', value: 'pro' },
+            { label: 'Premium', value: 'premium' },
+          ]}
+          style={{
+            inputIOS: { padding: 12, color: colors.text },
+            inputAndroid: { padding: 12, color: colors.text },
+            placeholder: { color: colors.inputTextHolder },
+          }}
+          useNativeAndroidPickerStyle={false}
         />
         <View style={styles.switchRow}>
           <Text style={[styles.label, { color: colors.text }]}>
@@ -271,8 +287,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  groupTitle: { fontWeight: 'bold', fontSize: 18, marginVertical: 15 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  groupTitle: { fontWeight: 'bold', fontSize: 18, marginVertical: 20 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   label: {
     fontSize: 14,
   },

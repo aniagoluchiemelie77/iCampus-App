@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -30,6 +29,7 @@ import { NotificationItem } from '../components/NotificationItem';
 import { navigate } from '../context/navigationContext.ts';
 import { SchoolDetailModal } from './schoolDetailsModal.tsx';
 import { DropOffStationDetailModal } from './dropOffStationModal.tsx';
+import { ActionModal } from './LogoutModal.tsx';
 import {
   DashboardSummary,
   EntityPreviewSection,
@@ -76,6 +76,11 @@ export const AdminManagementSection = () => {
   const currentUser = useAppSelector(state => state.admin);
   const [admins, setAdmins] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState<{
+    uid: string;
+  } | null>(null);
+  const [isDeleting, _setIsDeleting] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -86,26 +91,19 @@ export const AdminManagementSection = () => {
       setIsRefreshing(false);
     }
   };
+  const handleConfirmDelete = async () => {
+    if (!selectedAdmin?.uid) return;
+
+    try {
+      await deleteAdminApi(selectedAdmin.uid);
+      handleRefresh();
+    } catch (error) {
+      console.error('Failed to delete admin:', error);
+    }
+  };
   const handleRemoveAdmin = async (uid: string) => {
-    Alert.alert(
-      'Remove Admin',
-      'Are you sure you want to remove this user from administrative access? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAdminApi(uid);
-              handleRefresh();
-            } catch (error) {
-              Alert.alert('Error', 'Could not remove admin.');
-            }
-          },
-        },
-      ],
-    );
+    setSelectedAdmin({ uid });
+    setDeleteModalVisible(true);
   };
 
   const isSuperAdmin = currentUser.adminType === 'super_admin';
@@ -181,6 +179,20 @@ export const AdminManagementSection = () => {
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
+      />
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedAdmin(null);
+          }
+        }}
+        onContinue={handleConfirmDelete}
+        title="Delete Administrator?"
+        subtitle={`Are you sure you want to delete the administrator with UID "${selectedAdmin?.uid}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
       />
     </View>
   );

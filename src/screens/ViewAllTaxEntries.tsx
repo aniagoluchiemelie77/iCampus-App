@@ -149,7 +149,7 @@ export const AllTaxEntriesScreen = () => {
               </Text>
             </TouchableOpacity>
           )}
-          <CurrencyDisplay value={item.amount} size="small" isSuccess={true} />
+          <CurrencyDisplay value={item.amount} size="small" />
         </View>
         <Text style={[styles.dateText, { color: colors.text }]}>
           {item.date ? new Date(item.date).toLocaleDateString() : ''}

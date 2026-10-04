@@ -38,8 +38,6 @@ import {
   saveCourseAssessment,
   submitStudentTest,
 } from '../api/localPostApis';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../context/UserSlice';
 import { updateExceptionStatus } from '../api/localPatchApis';
 import { deleteLectureSchedule } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
@@ -52,7 +50,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CourseSubPage'>;
 export const CourseSubPage = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
-  const dispatch = useDispatch();
 
   const {
     title,
@@ -76,14 +73,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   const [lecturersLectureTimeline, setLecturersLectureTimeline] = useState<
     any[]
   >([]);
-
-  // --- API CONSUMER SYNC LIFECYCLES (Memoized) ---
-
   const fetchTests = useCallback(async () => {
     if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseAssessments({courseId: course.courseId});
+      const result = await getCourseAssessments({ courseId: course.courseId });
       if (result.success && result.data) {
         const sortedTests = result.data.sort(
           (a: any, b: any) =>
@@ -112,7 +106,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseExceptions({courseId: course.courseId});
+      const result = await getCourseExceptions({ courseId: course.courseId });
       if (result.success && result.data) {
         setLocalExceptions(result.data);
       } else {
@@ -175,7 +169,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (!course?.courseId) return;
     setLoading(true);
     try {
-      const result = await getCourseDetails({courseId: course?.courseId});
+      const result = await getCourseDetails({ courseId: course?.courseId });
       if (result.success && result.course) {
         setCurrentCourse(result.course);
       } else {
@@ -198,7 +192,9 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
 
   const handleFetchCourseLectures = useCallback(async () => {
     if (!course?.courseId) return;
-    const result = await fetchAllLecturesByCourseId({courseId: course?.courseId});
+    const result = await fetchAllLecturesByCourseId({
+      courseId: course?.courseId,
+    });
     if (result.success) {
       setAllLectures(result.data);
     } else {
@@ -242,9 +238,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     },
     [course?.courseId],
   );
-
-  // --- IMPERATIVE EVENT MUTATORS (Memoized) ---
-
   const handleSaveException = useCallback(
     async (newException: Partial<any>) => {
       setLoading(true);
@@ -257,16 +250,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             position: 'bottom',
           });
           setLocalExceptions(prev => [result.exception, ...prev]);
-          dispatch(
-            setUser({
-              ...user,
-              pointsBalance:
-                result.newIcashBalance !== null &&
-                result.newIcashBalance !== undefined
-                  ? Number(result.newIcashBalance)
-                  : user.pointsBalance,
-            }),
-          );
           setModalVisible(false);
         } else {
           Toast.show({
@@ -287,7 +270,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         setLoading(false);
       }
     },
-    [dispatch, user],
+    [user],
   );
 
   const handleTestSubmission = useCallback(
@@ -331,16 +314,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           setLocalExceptions(prev =>
             prev.map(ex => (ex.id === id ? { ...ex, status } : ex)),
           );
-          dispatch(
-            setUser({
-              ...user,
-              pointsBalance:
-                result.newIcashBalance !== null &&
-                result.newIcashBalance !== undefined
-                  ? Number(result.newIcashBalance)
-                  : user.pointsBalance,
-            }),
-          );
           Toast.show({
             type: 'success',
             text1: 'Status Updated',
@@ -359,7 +332,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         setLoading(false);
       }
     },
-    [dispatch, user],
+    [user],
   );
 
   const handleCreateLecture = useCallback(
@@ -476,8 +449,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   const displayLectures = useMemo(() => {
     return lectures && lectures.length > 0 ? lectures : allLectures;
   }, [lectures, allLectures]);
-
-  // --- EFFECT LIFECYCLES ENGINE ---
 
   useEffect(() => {
     if (title === 'Exceptions') fetchExceptions();
@@ -807,7 +778,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
               </>
             )}
             <CustomButton
-              title='Done'
+              title="Done"
               style={CourseActionStyles.doneButton}
               onPress={() => {
                 setShowSuccessModal(false);

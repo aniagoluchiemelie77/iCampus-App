@@ -47,7 +47,9 @@ interface AddPaymentModalProps {
     code: string;
   };
   user: User;
-  mode?: 'buy' | 'withdraw';
+  mode?: 'buy' | 'withdraw' | 'checkout';
+  amount?: number;
+  onPaymentSuccess?: (response: any) => void;
 }
 interface CardFormProps {
   cardData: {
@@ -409,6 +411,8 @@ export const AddPaymentModal = ({
   currencyData,
   user,
   mode = 'buy',
+  amount,
+  onPaymentSuccess,
 }: AddPaymentModalProps) => {
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'card' | 'bank'>(
@@ -444,6 +448,9 @@ export const AddPaymentModal = ({
     const monthErr = validateExpiryMonth(month);
     const yearErr = validateExpiryYear(year);
     const cvvErr = validateCVV(cvv);
+    const chargeAmount =
+      mode === 'checkout' && amount ? amount.toString() : '50';
+    const txPrefix = mode === 'checkout' ? 'checkout' : 'link-card';
 
     if (monthErr || yearErr || cvvErr) {
       Toast.show({
@@ -473,6 +480,12 @@ export const AddPaymentModal = ({
         },
         isInternational,
         currencyCode: currencyData.code || 'NGN',
+        amount: chargeAmount,
+        tx_ref: `${txPrefix}-${Date.now()}`,
+        meta: {
+          userId: user.uid,
+          purpose: mode === 'checkout' ? 'checkout_payment' : 'linking_card',
+        },
       });
       const result = response.data;
 
@@ -480,18 +493,29 @@ export const AddPaymentModal = ({
         if (result.meta?.authorization?.mode === 'otp') {
           navigation.navigate('VerifyOTP', {
             flw_ref: result.data.flw_ref,
-            type: 'card_linking',
+            type: mode === 'checkout' ? 'checkout_payment' : 'card_linking',
           });
         } else if (result.meta?.authorization?.mode === 'redirect') {
           navigation.navigate('FlutterwaveWebview', {
             url: result.meta.authorization.redirect,
           });
+        } else {
+          Toast.show({
+            type: 'success',
+            text1: 'Payment Successful',
+            text2: 'Your transaction was completed successfully.',
+          });
+          if (onPaymentSuccess) {
+            onPaymentSuccess(result);
+          } else {
+            onClose();
+          }
         }
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Linking Failed',
-          text2: result?.message || 'Transaction could not be verified.',
+          text1: 'Payment Failed',
+          text2: result?.message || 'Transaction could not be completed.',
         });
       }
     } catch (error: any) {
@@ -525,20 +549,18 @@ export const AddPaymentModal = ({
       });
       return;
     }
+    const txPrefix = mode === 'checkout' ? 'checkout' : 'link-bank';
     setIsLoading(true);
     try {
       const payload = {
         account_bank: bankCode,
         account_number: accountNumber,
-        amount: 50,
+        amount: mode === 'checkout' && amount ? amount : 50,
         currency: currencyData.code || 'NGN',
-        email: user?.email,
-        fullname: `${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim(),
-        tx_ref: `iCampus-BANK-LINK-${Date.now()}`,
-        type: 'account',
+        tx_ref: `${txPrefix}-${Date.now()}`,
         meta: {
           userId: user.uid,
-          purpose: 'linking_bank',
+          purpose: mode === 'checkout' ? 'checkout_payment' : 'linking_bank',
         },
       };
       const response = await initiatePaymentCharge('account', payload);
@@ -628,7 +650,11 @@ export const AddPaymentModal = ({
         ]}
       >
         <PageHeader
-          title="Add Payment Method"
+          title={
+            mode === 'checkout'
+              ? `Pay ${currencyData.code} ${amount ?? ''}`
+              : 'Add Payment Method'
+          }
           showBackButton={false}
           rightElement={
             <MaterialIcons
@@ -640,7 +666,7 @@ export const AddPaymentModal = ({
             />
           }
         />
-        {mode === 'buy' && (
+        {(mode === 'buy' || mode === 'checkout') && (
           <>
             <View style={AddPaymentMethodStyles.tabContainer}>
               <TouchableOpacity
@@ -698,7 +724,7 @@ export const AddPaymentModal = ({
           contentContainerStyle={AddPaymentMethodStyles.formContent}
           showsVerticalScrollIndicator={false}
         >
-          {activeTab === 'card' && mode === 'buy' ? (
+          {activeTab === 'card' && (mode === 'buy' || mode === 'checkout') ? (
             <CardForm
               cardData={cardData}
               setCardData={setCardData}
@@ -720,7 +746,9 @@ export const AddPaymentModal = ({
             title={
               isLoading
                 ? 'Processing...'
-                : `Link ${activeTab === 'card' ? 'Card' : 'Account'}`
+                : mode === 'checkout'
+                  ? `Pay ${currencyData.code} ${amount ?? ''}`
+                  : `Link ${activeTab === 'card' ? 'Card' : 'Account'}`
             }
             onPress={() => {
               if (activeTab === 'card') {

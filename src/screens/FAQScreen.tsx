@@ -5,7 +5,6 @@ import { FAQItem } from '../components/MyQRCodeSection';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import {
-  USD_EQUIVALENCE_OF_1_ICASH,
   EXCEPTION_ACCOUNT_LIMITS,
   EXCEPTION_COST_IN_ICASH,
 } from '../constants/inAppConstants';
@@ -16,12 +15,6 @@ interface FAQItemType {
   answer: string;
 }
 const FAQ_DATA: FAQItemType[] = [
-  {
-    id: 'icash-1',
-    question: 'What is iCash?',
-    answer:
-      'iCash is the unified digital medium of exchange used across the iCampus platform and future subsidiaries of Agolu Global Tech Services Ltd. It ensures a stable internal economy by keeping transactions independent of volatile local currencies.',
-  },
   {
     id: 'acad-1',
     question: 'What are Lecture Exceptions and how do they work?',
@@ -41,11 +34,6 @@ const FAQ_DATA: FAQItemType[] = [
       'When purchasing a physical item for home delivery, you provide your delivery address and phone number during checkout. Once your package arrives, the seller will scan a unique QR code generated on your phone. This scan verifies that you received the item, minimizes fraud, and releases the payment to the seller.',
   },
   {
-    id: 'icash-2',
-    question: 'What is the exchange rate for iCash?',
-    answer: `iCash operates on a fixed exchange rate where 1 iCash equals exactly ${USD_EQUIVALENCE_OF_1_ICASH} USD (or its equivalent value in your local currency). Local currency inputs are automatically converted at the prevailing market rate into USD before iCash is issued.`,
-  },
-  {
     id: 'acad-2',
     question: 'How many free Lecture Exceptions do I get each month?',
     answer: `Your monthly free lecture exception allotment depends on your subscription tier: \n Free Tier: ${EXCEPTION_ACCOUNT_LIMITS['free']} free exception per month.\n• Pro Tier: ${EXCEPTION_ACCOUNT_LIMITS['pro']} free exceptions per month.\n• Premium Tier: ${EXCEPTION_ACCOUNT_LIMITS['premium']} free exceptions per month.`,
@@ -63,41 +51,23 @@ const FAQ_DATA: FAQItemType[] = [
       'If you choose to receive your purchased product at a selected drop-off location during checkout, the seller will be notified immediately to drop the product at your selected locatio. Once it arrives, you will be notified, then head to the station, and the agent scans the generated order QR code from your device to confirm pickup. This instantly dispatches payment to both the seller and the agent (their cut).',
   },
   {
-    id: 'icash-3',
-    question: 'How secure are my iCash transactions?',
-    answer:
-      'Security is handled at an architectural level using a Zero-Trust protocol. All debits require Multi-Factor Authorization (MFA) via Biometric Fingerprint/Face Detection or a high-entropy 6-digit Transaction PIN. Data is also fully protected using end-to-end AES-256 encryption.',
-  },
-  {
     id: 'acad-3',
     question: 'What happens if I exhaust my free monthly lecture exceptions?',
     answer: `If you have exhausted your free monthly allowance, you can purchase additional exceptions at a cost of ${EXCEPTION_COST_IN_ICASH} iCash each. Please note that if a lecturer disapproves or cancels a purchased exception, no refunds are issued.`,
-  },
-  {
-    id: 'icash-4',
-    question: 'How does the platform prevent fraud and double-spending?',
-    answer:
-      'iCampus runs a centralized ledger utilizing atomic transactions, meaning a wallet cannot start a second transaction until the first is fully processed or rolled back. Additionally, "Velocity Triggers" automatically freeze and flag your account for review if an unusual number of high-value transfers occur within 60 seconds.',
   },
   {
     id: 'acad-4',
     question:
       'What are the different lecture formats supported for attendance?',
     answer:
-      'iCampus supports three distinct types of lecture formats:\n1. Online sessions\n2. Pre-recorded video sessions\n3. Physical classroom sessions',
+      'iCampus supports three distinct types of lecture formats:\n1. Online sessions\n2. Physical classroom sessions',
   },
   {
     id: 'iap-4',
     question:
       'Why can’t I see my sales earnings in my primary wallet immediately?',
     answer:
-      'All earnings from sales or agent commissions are securely held in your Sales Hub payout balance. To access and withdraw these funds, you must meet two security criteria: your identity must be verified, and Two-Factor Authentication (2FA) must be enabled.',
-  },
-  {
-    id: 'icash-5',
-    question: 'Are there any fees associated with using iCash?',
-    answer:
-      'Yes, the ecosystem applies standard transaction fees: an App Tax of 15% on peer-to-peer services/in-app purchases, and a 1% processing withdrawal fee when you convert your iCash back into local fiat currency.',
+      'All earnings from sales or agent commissions are securely held in your Sales Hub payout balance. To access and withdraw these funds, you must meet one security criteria: your identity must be verified.',
   },
   {
     id: 'acad-5',
@@ -111,18 +81,6 @@ const FAQ_DATA: FAQItemType[] = [
     question: 'Who needs to undergo identity verification for payouts?',
     answer:
       'Students and lecturers are automatically verified by the platform system. However, if your account is registered as an "Enterprise" or "Other" user tier, you must complete a persona verification check before you can access your Sales Hub payouts.',
-  },
-  {
-    id: 'icash-6',
-    question: 'Can I track my transaction history?',
-    answer:
-      'Absolutely. Every single movement of iCash generates a unique, unchangeable Transaction Hash on an immutable ledger. You will also receive real-time push notifications the exact millisecond any transaction is initiated.',
-  },
-  {
-    id: 'iap-6',
-    question: 'What security is required to withdraw or transfer iCash?',
-    answer:
-      'To protect your earnings and funds from unauthorized access, any iCash withdrawal or peer-to-peer (P2P) transfer strictly requires you to input your secure 6-digit Transaction PIN.',
   },
   {
     id: 'iap-7',

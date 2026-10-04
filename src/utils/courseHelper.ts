@@ -7,8 +7,8 @@ export const generateSessions = () => {
 
   return [
     'All',
-    `${academicYear}/${academicYear + 1}`, // Default/Current
-    `${academicYear - 1}/${academicYear}`, // Preceding
+    `${academicYear}/${academicYear + 1}`, 
+    `${academicYear - 1}/${academicYear}`, 
     `${academicYear - 2}/${academicYear - 1}`,
   ];
 };

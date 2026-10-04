@@ -21,15 +21,18 @@ import { Course, User, Lecture, CourseException } from '../types/firebase';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as Progress from 'react-native-progress';
+import { generateSessions } from '../utils/courseHelper.ts';
 import {
   getCourseExceptions,
   fetchAllLecturesByCourseId,
 } from '../api/localGetApis.ts';
 import { useTheme } from '../context/ThemeContext';
-import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants.ts';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
+import DropDownPicker from 'react-native-dropdown-picker';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SESSIONS = generateSessions();
 
 interface SelectionModalProps {
   visible: boolean;
@@ -65,7 +68,9 @@ interface ManualCourseModalProps {
   onSubmit: (courseData: {
     courseTitle: string;
     courseCode: string;
+    semester: string;
     credits: number;
+    session: string;
   }) => Promise<void>;
   colors: any;
 }
@@ -260,14 +265,6 @@ export const CourseModal = ({
     );
   const assignmentCount = course.assignments?.length || 0;
   const userPlan = currentUser.tier || 'free';
-  const limit = EXCEPTION_ACCOUNT_LIMITS[userPlan];
-  const usedThisMonth = allExceptions.filter(
-    ex =>
-      ex.studentId === currentUser.uid &&
-      new Date(ex.date).getMonth() === new Date().getMonth() &&
-      ex.status !== 'rejected',
-  ).length;
-  const remaining = Math.max(0, limit - usedThisMonth);
   const instructorCount = course.lecturerIds?.length || 0;
   const lastInstructor =
     course.lecturerIds && course.lecturerIds.length > 0
@@ -298,7 +295,7 @@ export const CourseModal = ({
             style={[
               styles.modalContent,
               {
-                height: modalHeight,
+                maxHeight: modalHeight,
                 backgroundColor: themeColors.backgroundSecondary,
               },
             ]}
@@ -309,264 +306,303 @@ export const CourseModal = ({
                 { backgroundColor: themeColors.primaryTint },
               ]}
             />
-            {isStudent && (
-              <>
-                <View style={styles.dashboardRow}>
-                  <View style={styles.statCard}>
-                    <ProgressRing percentage={syllabusPercentage} />
-                    <View style={styles.statTextContainer}>
-                      <Text
-                        style={[styles.statLabel, { color: themeColors.text }]}
-                      >
-                        Syllables
-                      </Text>
-                      <Text
-                        style={[styles.statSub, { color: themeColors.primary }]}
-                      >
-                        {taughtTopics}/{totalTopics} Covered
-                      </Text>
+            <View style={styles.modalHeaderInfo}>
+              <Text
+                style={[styles.modalCourseCode, { color: themeColors.primary }]}
+              >
+                {course.courseCode || 'COURSE'}
+              </Text>
+              <Text
+                style={[styles.modalCourseTitle, { color: themeColors.text }]}
+                numberOfLines={1}
+              >
+                {course.courseTitle}
+              </Text>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollableModalBody}
+            >
+              {isStudent && (
+                <>
+                  <View style={styles.dashboardRow}>
+                    <View style={styles.statCard}>
+                      <ProgressRing percentage={syllabusPercentage} />
+                      <View style={styles.statTextContainer}>
+                        <Text
+                          style={[
+                            styles.statLabel,
+                            { color: themeColors.text },
+                          ]}
+                        >
+                          Syllabus
+                        </Text>
+                        <Text
+                          style={[
+                            styles.statSub,
+                            { color: themeColors.primary },
+                          ]}
+                        >
+                          {taughtTopics}/{totalTopics} Covered
+                        </Text>
+                      </View>
+                    </View>
+                    <View
+                      style={[
+                        styles.verticalDivider,
+                        { backgroundColor: themeColors.primaryTint + '40' },
+                      ]}
+                    />
+                    <View style={styles.statCard}>
+                      <ProgressRing percentage={attendancePercentage} />
+                      <View style={styles.statTextContainer}>
+                        <Text
+                          style={[
+                            styles.statLabel,
+                            { color: themeColors.text },
+                          ]}
+                        >
+                          Attendance
+                        </Text>
+                        <Text
+                          style={[
+                            styles.statSub,
+                            { color: themeColors.primary },
+                          ]}
+                        >
+                          {lecturesAttended}/{lecturesHeld} attended
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  <View
-                    style={[
-                      styles.verticalDivider,
-                      { backgroundColor: themeColors.primaryTint },
-                    ]}
-                  />
-                  <View style={styles.statCard}>
-                    <ProgressRing percentage={attendancePercentage} />
-                    <View style={styles.statTextContainer}>
-                      <Text
-                        style={[styles.statLabel, { color: themeColors.text }]}
-                      >
-                        Attendance
-                      </Text>
-                      <Text
-                        style={[styles.statSub, { color: themeColors.primary }]}
-                      >
-                        {lecturesAttended}/{lecturesHeld} attended
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.iconGrid}>
-                  <GridItem
-                    label="Course Contents"
-                    iconName="format-list-bulleted"
-                    count={course.courseContents?.length}
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Contents',
-                        course: course,
-                        userRole: currentUser.usertype,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Course Materials"
-                    iconName="folder-copy"
-                    count={totalMaterials}
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Materials',
-                        course,
-                        lectures: lectures,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="View Lectures"
-                    iconName="access-time"
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'View Lecture Schedule',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Assignments"
-                    iconName="pending-actions"
-                    count={assignmentCount}
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Assignments',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Exceptions"
-                    iconName="verified-user"
-                    count={remaining}
-                    onPress={() => {
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Exceptions',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: allExceptions,
-                        lectures: null,
-                      });
-                    }}
-                  />
-                  <GridItem
-                    label="Instructors"
-                    iconName="person-pin"
-                    count={instructorCount > 1 ? instructorCount : undefined}
-                    onPress={() => {
-                      if (
-                        !lastInstructor ||
-                        lastInstructor === 'No Instructor Assigned' ||
-                        lastInstructor === 'Unknown Instructor'
-                      ) {
-                        return;
+                  <View style={styles.iconGrid}>
+                    <GridItem
+                      label="Course Contents"
+                      iconName="format-list-bulleted"
+                      count={course.courseContents?.length}
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Course Contents',
+                          course: course,
+                          userRole: currentUser.usertype,
+                        })
                       }
-                      navigation.navigate('Profile', {
-                        identifier: lastInstructor,
-                      });
-                    }}
-                  />
-                </View>
-              </>
-            )}
-            {isLecturer && (
-              <>
-                <View style={styles.dashboardRow}>
-                  <View style={styles.statCard}>
-                    <ProgressRing percentage={syllabusPercentage} />
-                    <View style={styles.statTextContainer}>
-                      <Text
-                        style={[styles.statLabel, { color: themeColors.text }]}
-                      >
-                        Syllables
-                      </Text>
-                      <Text
-                        style={[styles.statSub, { color: themeColors.primary }]}
-                      >
-                        {taughtTopics}/{totalTopics} Covered
-                      </Text>
+                    />
+                    <GridItem
+                      label="Course Materials"
+                      iconName="folder-copy"
+                      count={totalMaterials}
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Course Materials',
+                          course,
+                          lectures: lectures,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                        })
+                      }
+                    />
+                    <GridItem
+                      label="View Lectures"
+                      iconName="access-time"
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'View Lecture Schedule',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                          lectures: null,
+                        })
+                      }
+                    />
+                    <GridItem
+                      label="Assignments"
+                      iconName="pending-actions"
+                      count={assignmentCount}
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Assignments',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                          lectures: null,
+                        })
+                      }
+                    />
+                    <GridItem
+                      label="Exceptions"
+                      iconName="verified-user"
+                      onPress={() => {
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Exceptions',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: allExceptions,
+                          lectures: null,
+                        });
+                      }}
+                    />
+                    <GridItem
+                      label="Instructors"
+                      iconName="person-pin"
+                      count={instructorCount > 1 ? instructorCount : undefined}
+                      onPress={() => {
+                        if (
+                          !lastInstructor ||
+                          lastInstructor === 'No Instructor Assigned' ||
+                          lastInstructor === 'Unknown Instructor'
+                        ) {
+                          return;
+                        }
+                        navigation.navigate('Profile', {
+                          identifier: lastInstructor,
+                        });
+                      }}
+                    />
+                  </View>
+                </>
+              )}
+              {isLecturer && (
+                <>
+                  <View style={styles.dashboardRow}>
+                    <View style={styles.statCard}>
+                      <ProgressRing percentage={syllabusPercentage} />
+                      <View style={styles.statTextContainer}>
+                        <Text
+                          style={[
+                            styles.statLabel,
+                            { color: themeColors.text },
+                          ]}
+                        >
+                          Syllabus
+                        </Text>
+                        <Text
+                          style={[
+                            styles.statSub,
+                            { color: themeColors.primary },
+                          ]}
+                        >
+                          {taughtTopics}/{totalTopics} Covered
+                        </Text>
+                      </View>
+                    </View>
+                    <View
+                      style={[
+                        styles.verticalDivider,
+                        { backgroundColor: themeColors.primaryTint + '40' },
+                      ]}
+                    />
+                    <View style={styles.statCard}>
+                      <ProgressRing percentage={participationPercentage} />
+                      <View style={styles.statTextContainer}>
+                        <Text
+                          style={[
+                            styles.statLabel,
+                            { color: themeColors.text },
+                          ]}
+                        >
+                          Participation
+                        </Text>
+                        <Text
+                          style={[
+                            styles.statSub,
+                            { color: themeColors.primary },
+                          ]}
+                        >
+                          {lecturesDelivered}/{totalExpectedLectures} Delivered
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  <View
-                    style={[
-                      styles.verticalDivider,
-                      { backgroundColor: themeColors.primaryTint },
-                    ]}
-                  />
-                  <View style={styles.statCard}>
-                    <ProgressRing percentage={participationPercentage} />
-                    <View style={styles.statTextContainer}>
-                      <Text
-                        style={[styles.statLabel, { color: themeColors.text }]}
-                      >
-                        Participation
-                      </Text>
-                      <Text
-                        style={[styles.statSub, { color: themeColors.primary }]}
-                      >
-                        {lecturesDelivered}/{totalExpectedLectures} Delivered
-                      </Text>
-                    </View>
+                  <View style={styles.iconGrid}>
+                    <GridItem
+                      label="Upload Materials"
+                      iconName="cloud-upload"
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Course Materials',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                          lectures: null,
+                        })
+                      }
+                    />
+                    <GridItem
+                      label="Manage Exceptions"
+                      iconName="verified-user"
+                      onPress={() => {
+                        if (loadingExceptions) return;
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Exceptions',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                          lectures: null,
+                        });
+                      }}
+                    />
+                    <GridItem
+                      label="Add Assignments"
+                      iconName="assignment-add"
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Assignments',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                          lectures: null,
+                        })
+                      }
+                    />
+                    <GridItem
+                      label="Lecture Schedule"
+                      iconName="access-time"
+                      onPress={() =>
+                        navigation.navigate('CourseSubPage', {
+                          title: 'View Lecture Schedule',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: null,
+                          lectures: null,
+                        })
+                      }
+                    />
+                    {currentUser.institutionTier !== 'free' && (
+                      <>
+                        <GridItem
+                          label="Create A Test"
+                          iconName="quiz"
+                          onPress={() =>
+                            navigation.navigate('CourseSubPage', {
+                              title: 'Assessments',
+                              course,
+                              userRole: currentUser.usertype,
+                              exceptions: null,
+                              lectures: null,
+                            })
+                          }
+                        />
+                        <GridItem
+                          label="Performance"
+                          iconName="insights"
+                          onPress={() =>
+                            navigation.navigate('CourseSubPage', {
+                              title: 'Grade Accelerator',
+                              course,
+                              userRole: currentUser.usertype,
+                              exceptions: null,
+                              lectures: null,
+                            })
+                          }
+                        />
+                      </>
+                    )}
                   </View>
-                </View>
-                <View style={styles.iconGrid}>
-                  <GridItem
-                    label="Upload Course Materials"
-                    iconName="cloud-upload"
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Materials',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Manage Lecture Exceptions"
-                    iconName="verified-user"
-                    count={
-                      loadingExceptions
-                        ? undefined
-                        : userRole === 'lecturer'
-                          ? pendingExceptionsCount
-                          : remaining
-                    }
-                    onPress={() => {
-                      if (loadingExceptions) return;
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Exceptions',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
-                  />
-                  <GridItem
-                    label="Add Assignments"
-                    iconName="assignment-add"
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Assignments',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Manage Lectures Schedule"
-                    iconName="access-time"
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'View Lecture Schedule',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Create A Test"
-                    iconName="quiz"
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Assessments',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                  <GridItem
-                    label="Performance Insights"
-                    iconName="insights"
-                    onPress={() =>
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Grade Accelerator',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      })
-                    }
-                  />
-                </View>
-              </>
-            )}
+                </>
+              )}
+            </ScrollView>
           </Animated.View>
         </TouchableWithoutFeedback>
       </Pressable>
@@ -581,63 +617,75 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({
   onClose,
   title,
   colors,
-}) => (
-  <Modal
-    visible={visible}
-    transparent={true}
-    animationType="slide"
-    onRequestClose={onClose}
-  >
-    <Pressable style={styles.modalOverlay} onPress={onClose}>
-      <TouchableWithoutFeedback>
-        <View
-          style={[
-            styles.bottomSheet,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <Text style={[styles.sheetTitle, { color: colors.textDarker }]}>
-            {title}
-          </Text>
+}) => {
+  const insets = useSafeAreaInsets();
 
-          {options.map(item => {
-            const isSelected = item === selectedValue;
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <TouchableWithoutFeedback>
+          <View
+            style={[
+              styles.bottomSheet,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                paddingBottom: Math.max(insets.bottom, 20),
+              },
+            ]}
+          >
+            <View style={styles.sheetIndicator} />
+            <Text style={[styles.sheetTitle, { color: colors.textDarker }]}>
+              {title}
+            </Text>
 
-            return (
-              <TouchableOpacity
-                key={item}
-                style={[
-                  styles.sheetOption,
-                  { borderBottomColor: colors.border },
-                ]}
-                onPress={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-              >
-                <Text
+            {options.map(item => {
+              const isSelected = item === selectedValue;
+
+              return (
+                <TouchableOpacity
+                  key={item}
                   style={[
-                    styles.optionText,
-                    { color: isSelected ? colors.primary : colors.text },
+                    styles.sheetOption,
+                    { borderBottomColor: colors.border + '33' },
                   ]}
+                  onPress={() => {
+                    onSelect(item);
+                    onClose();
+                  }}
+                  activeOpacity={0.7}
                 >
-                  {item}
-                </Text>
-                {isSelected && (
-                  <MaterialIcons
-                    name="check-circle"
-                    size={22}
-                    color={colors.primary}
-                  />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </TouchableWithoutFeedback>
-    </Pressable>
-  </Modal>
-);
+                  <Text
+                    style={[
+                      styles.optionText,
+                      {
+                        color: isSelected ? colors.primary : colors.text,
+                        fontWeight: isSelected ? '600' : '400',
+                      },
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {isSelected && (
+                    <MaterialIcons
+                      name="check-circle"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableWithoutFeedback>
+      </Pressable>
+    </Modal>
+  );
+};
 export const ManualCourseModal = ({
   isVisible,
   onClose,
@@ -647,6 +695,18 @@ export const ManualCourseModal = ({
   const [courseTitle, setCourseTitle] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const [credits, setCredits] = useState('');
+  const [openSemester, setOpenSemester] = useState(false);
+  const [semester, setSemester] = useState('First');
+  const [semesterItems] = useState([
+    { label: 'First Semester', value: 'First' },
+    { label: 'Second Semester', value: 'Second' },
+  ]);
+  const [openSession, setOpenSession] = useState(false);
+  const [session, setSession] = useState(`${generateSessions()[0]}`);
+  const [sessionItems] = useState(
+    generateSessions().map(sess => ({ label: sess, value: sess })),
+  );
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = async () => {
@@ -663,10 +723,13 @@ export const ManualCourseModal = ({
         courseTitle: courseTitle.trim(),
         courseCode: courseCode.trim().toUpperCase(),
         credits: parseInt(credits, 10) || 1,
+        semester: semester,
+        session: session,
       });
       setCourseTitle('');
       setCourseCode('');
       setCredits('');
+      setSession(`${generateSessions()[0]}`);
       onClose();
     } catch (error) {
       console.error(error);
@@ -704,7 +767,7 @@ export const ManualCourseModal = ({
               style={[styles.warningBox, { borderLeftColor: colors.primary }]}
             >
               <MaterialIcons
-                name="info-circle"
+                name="info-outline"
                 size={30}
                 color={colors.primary}
                 style={{ marginRight: 15 }}
@@ -772,6 +835,102 @@ export const ManualCourseModal = ({
                 maxLength={2}
               />
             </View>
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Semester
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { color: colors.text, borderColor: colors.border },
+                ]}
+                placeholder="e.g., First or Second"
+                placeholderTextColor={colors.inputTextHolder || '#888'}
+                value={semester}
+                onChangeText={text => {
+                  const lettersOnly = text.replace(/[^a-zA-Z]/g, '');
+                  setSemester(lettersOnly);
+                }}
+                autoCorrect={false}
+              />
+            </View>
+            <View style={[styles.formGroup, { zIndex: 3000 }]}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Academic Session
+              </Text>
+              <DropDownPicker
+                open={openSession}
+                value={session}
+                items={sessionItems}
+                setOpen={setOpenSession}
+                setValue={callback => {
+                  const val =
+                    typeof callback === 'function'
+                      ? callback(session)
+                      : callback;
+                  setSession(val);
+                }}
+                placeholder="Select session"
+                style={[
+                  styles.dropdown,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                dropDownContainerStyle={[
+                  styles.dropdownContainer,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                textStyle={{ color: colors.text }}
+                zIndex={3000}
+                zIndexInverse={1000}
+              />
+            </View>
+            <View
+              style={[
+                styles.formGroup,
+                { zIndex: 2000, marginTop: openSession ? 140 : 0 },
+              ]}
+            >
+              <Text style={[styles.label, { color: colors.text }]}>
+                Semester
+              </Text>
+              <DropDownPicker
+                open={openSemester}
+                value={semester}
+                items={semesterItems}
+                setOpen={setOpenSemester}
+                setValue={callback => {
+                  const val =
+                    typeof callback === 'function'
+                      ? callback(semester)
+                      : callback;
+                  setSemester(val);
+                }}
+                placeholder="Select semester"
+                style={[
+                  styles.dropdown,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                dropDownContainerStyle={[
+                  styles.dropdownContainer,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                textStyle={{ color: colors.text }}
+                zIndex={2000}
+                zIndexInverse={2000}
+              />
+            </View>
             <TouchableOpacity
               style={[
                 styles.submitBtn,
@@ -798,19 +957,6 @@ export const ManualCourseModal = ({
 const styles = StyleSheet.create({
   modalContainer: { flex: 1, padding: 15 },
   title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 25,
-    overflow: 'hidden',
-    position: 'absolute',
-    bottom: 0,
-  },
   progressContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -821,81 +967,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
-  statLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  statSub: { fontSize: 12, fontWeight: 'bold' },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 15,
-  },
-  gridBtn: {
-    position: 'relative',
-    width: '30%',
-    alignItems: 'center',
-    marginBottom: 15,
-    marginRight: 10,
-    borderWidth: 1,
-    borderRadius: 10,
-  },
-  gridLabel: { fontSize: 12, marginTop: 6, fontWeight: 'bold' },
-  notifBadge: {
-    position: 'absolute',
-    top: -5,
-    left: 5,
-    borderRadius: 4,
-    padding: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notifText: { fontSize: 10, fontWeight: 'bold' },
-  modalGrabber: {
-    width: 40,
-    height: 5,
-    borderRadius: 10,
-    alignSelf: 'center',
-  },
-  dashboardRow: {
-    flexDirection: 'row',
-    marginVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    flexDirection: 'column',
-  },
-  statTextContainer: {
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  verticalDivider: {
-    width: 1,
-    height: '90%',
-  },
   bottomSheet: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 20,
     maxHeight: '40%',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  sheetOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  optionText: {
-    fontSize: 14,
   },
   overlay: {
     flex: 1,
@@ -922,7 +998,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   headerTitle: { fontSize: 18, fontWeight: '600' },
-  scrollContent: { padding: 20 },
+  scrollContent: { padding: 20, paddingBottom: 80 },
   warningBox: {
     flexDirection: 'row',
     padding: 15,
@@ -958,4 +1034,143 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   submitBtnText: { fontSize: 14, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 30,
+  },
+  modalGrabber: {
+    width: 40,
+    height: 5,
+    borderRadius: 10,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  modalHeaderInfo: {
+    marginBottom: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalCourseCode: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  modalCourseTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  scrollableModalBody: {
+    paddingBottom: 20,
+  },
+  dashboardRow: {
+    flexDirection: 'row',
+    marginVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    flexDirection: 'column',
+  },
+  statTextContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  statSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 50,
+    marginHorizontal: 10,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 15,
+  },
+  gridBtn: {
+    position: 'relative',
+    width: '31%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 8,
+  },
+  gridLabel: {
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  notifText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  sheetIndicator: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: PRIMARY_COLOR_TINT,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'left',
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  optionText: {
+    fontSize: 16,
+  },
+  dropdown: {
+    padding: 9,
+    borderRadius: 12,
+    borderBottomWidth: 0.8,
+  },
+  dropdownContainer: {
+    borderColor: PRIMARY_COLOR_TINT,
+  },
 });

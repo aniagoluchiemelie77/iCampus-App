@@ -32,7 +32,6 @@ export const EditUserModalContent = ({
       username: user.username || '',
       email: user.email || '',
       bio: user.bio || '',
-      pointsBalance: user.pointsBalance || 0,
       pendingSalesBalance: user.pendingSalesBalance || 0,
       tier: user.tier || 'free',
       website: user.website || '',
@@ -41,7 +40,6 @@ export const EditUserModalContent = ({
       organizationName: user.organizationName || '',
       staffId: user.staffId || '',
       matricNumber: user.matricNumber || '',
-      itagusername: user.itagusername || '',
       schoolName: user.schoolName || '',
       country: user.country || '',
       current_level: user.current_level || '',
@@ -214,22 +212,6 @@ export const EditUserModalContent = ({
               onChangeText={text =>
                 setFormData({ ...formData, current_level: text })
               }
-            />
-          )}
-          {formData.itagusername && (
-            <InputGroup
-              label="iTag Username"
-              defaultValue={`@${formData.itagusername}`}
-              onChangeText={text =>
-                setFormData({ ...formData, itagusername: text })
-              }
-            />
-          )}
-          {formData.pointsBalance && (
-            <InputGroup
-              label="iCash Balance"
-              defaultValue={formData.pointsBalance?.toString() || '0'}
-              isLocked={true}
             />
           )}
           {formData.pendingSalesBalance && (

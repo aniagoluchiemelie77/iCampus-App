@@ -41,7 +41,7 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
         </View>
 
         <View style={styles.bottomRow}>
-          <CurrencyDisplay value={product.priceInPoints} size="medium" />
+          <CurrencyDisplay value={product.price} size="medium" />
           <TouchableOpacity
             onPress={() => onRemove(product)}
             style={[styles.removeButton, { backgroundColor: colors.btnColor }]}

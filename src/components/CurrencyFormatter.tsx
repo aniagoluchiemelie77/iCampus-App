@@ -1,46 +1,53 @@
-import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import React from 'react';
-import { View, Text, StyleSheet, Platform, ViewStyle } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
+import { useAppSelector } from '../hooks/hooks.ts';
 interface CurrencyDisplayProps {
   value: number;
   size?: 'small' | 'medium' | 'large';
   containerStyle?: ViewStyle;
-  isSuccess?: boolean;
 }
 
 export const CurrencyDisplay = ({
   value,
   size = 'medium',
   containerStyle,
-  isSuccess,
 }: CurrencyDisplayProps) => {
   const { colors } = useTheme();
-  const formattedString = value.toLocaleString(undefined, {
+  const { country } = useAppSelector(state => state.user);
+  const { exchangeData } = useExchangeRate(country || 'Nigeria');
+  const formattedString = Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
+    useGrouping: true,
   });
   const [integer, decimal] = formattedString.split('.');
 
   const config = {
-    small: { icon: 12, integer: 16, decimal: 10, spacing: 4 },
-    medium: { icon: 16, integer: 24, decimal: 14, spacing: 6 },
-    large: { icon: 20, integer: 36, decimal: 18, spacing: 8 },
+    small: { currencySize: 12, integer: 16, decimal: 10, spacing: 4 },
+    medium: { currencySize: 16, integer: 24, decimal: 14, spacing: 6 },
+    large: { currencySize: 20, integer: 36, decimal: 18, spacing: 8 },
   };
 
-  const { icon, integer: intSize, decimal: decSize, spacing } = config[size];
-  const activeColor = isSuccess ? colors.primary : colors.primary;
-
+  const {
+    currencySize,
+    integer: intSize,
+    decimal: decSize,
+    spacing,
+  } = config[size];
+  const activeColor = colors.primary;
   return (
     <View style={[styles.balanceContainer, containerStyle]}>
-      <MaterialIcons
-        name="diamond"
-        size={icon}
-        color={activeColor}
-        style={{ marginRight: spacing }}
-      />
+      <Text
+        style={{
+          fontSize: currencySize,
+          fontWeight: 'bold',
+          marginRight: spacing,
+        }}
+      >
+        {exchangeData.symbol}
+      </Text>
       <Text
         style={[styles.balanceValue, { fontSize: intSize, color: activeColor }]}
       >

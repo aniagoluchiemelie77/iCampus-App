@@ -22,7 +22,6 @@ import {
   searchCourses,
   searchAcademicResources,
 } from '../api/localGetApis';
-import { useAppDataContext } from '../context/EventContext';
 import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
@@ -35,6 +34,8 @@ import {
 } from '../components/SearchScreenComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
+import { Course } from '../types/firebase';
+import { CourseModal } from './ClassroomScreenComponents.tsx';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -44,18 +45,19 @@ const CATEGORIES = ['people', 'posts', 'courses', 'resources', 'store'];
 
 export const SearchScreen = () => {
   const navigation = useNavigation<any>();
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const { colors } = useTheme();
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const { allProducts } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user) || initialState;
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const tabs: { id: SearchTab; label: string }[] = [
     { id: 'people', label: 'People' },
     { id: 'posts', label: 'Posts' },
-    { id: 'market', label: 'iCash Store' },
+    { id: 'market', label: 'Store' },
     { id: 'resources', label: 'Resources' },
     { id: 'courses', label: 'Courses' },
   ];
@@ -82,7 +84,7 @@ export const SearchScreen = () => {
             results = await searchPosts(searchQuery);
             break;
           case 'market':
-            results = searchICashMarketLocal(searchQuery, allProducts);
+            results = searchICashMarketLocal(searchQuery);
             break;
           case 'resources':
             results = await searchAcademicResources(searchQuery);
@@ -101,7 +103,7 @@ export const SearchScreen = () => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, activeTab, currentUser, allProducts]);
+  }, [searchQuery, activeTab, currentUser]);
   useEffect(() => {
     const interval = setInterval(() => {
       setPlaceholderIndex(prev => (prev + 1) % CATEGORIES.length);
@@ -116,7 +118,10 @@ export const SearchScreen = () => {
       case 'people':
         return (
           <TouchableOpacity
-            style={styles.searchResultRow}
+            style={[
+              styles.searchResultRow,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
             onPress={() => {
               navigation.navigate('Profile', { uid: item.uid });
             }}
@@ -163,6 +168,10 @@ export const SearchScreen = () => {
             item={item}
             navigation={navigation}
             colors={colors}
+            onPress={() => {
+              setSelectedCourse(item);
+              setModalVisible(true);
+            }}
           />
         );
       case 'resources':
@@ -197,7 +206,7 @@ export const SearchScreen = () => {
         <TextInput
           placeholderTextColor={colors.inputTextHolder}
           autoFocus
-          placeholder={`Search for ${CATEGORIES[placeholderIndex]}...`}
+          placeholder={`Search ${CATEGORIES[placeholderIndex]}...`}
           style={[styles.headerSearchInput, { color: colors.text }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -275,6 +284,18 @@ export const SearchScreen = () => {
         </>
       )}
       {searchQuery.trim().length === 0 && <PreSearchComponent />}
+      {selectedCourse &&
+        (currentUser.usertype === 'student' ||
+          currentUser.usertype === 'lecturer') && (
+          <CourseModal
+            isVisible={modalVisible}
+            onClose={() => setModalVisible(false)}
+            course={selectedCourse}
+            id={currentUser.uid}
+            currentUser={currentUser}
+            userRole={currentUser.usertype as 'student' | 'lecturer'}
+          />
+        )}
     </View>
   );
 };
@@ -305,8 +326,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     alignItems: 'center',
-    borderRadius: 15,
-    marginBottom: 15,
+    borderRadius: 10,
+    marginBottom: 20,
   },
   miniAvatar: {
     width: 40,

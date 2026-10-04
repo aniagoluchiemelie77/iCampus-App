@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useRef,
   useEffect,
+  useCallback,
 } from 'react';
 import type {
   User,
@@ -31,6 +32,8 @@ import {
   clearFavoritesAPI,
   deletePostApi,
 } from '../api/localDeleteApis';
+import { db, deleteProductFromLocalDb } from '../hooks/useSQLiteDb';
+import { Transaction } from 'react-native-quick-sqlite';
 import {
   fetchPostByIdAPI,
   fetchAllProductsAPI,
@@ -39,6 +42,7 @@ import {
   fetchUserReviewsAPI,
   fetchTicketsAPI,
 } from '../api/localGetApis';
+import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   addCommentAPI,
@@ -56,12 +60,11 @@ interface AppDataContextType {
   isOrdersLoading: boolean;
   setPosts: React.Dispatch<React.SetStateAction<Posts[]>>;
   toggleLike: (postId: string) => Promise<void>;
-  allProducts: Product[];
   currentUser: User;
   sellerSales: ProductSale[];
   fetchSellerSales: () => Promise<void>;
   allReviews: any[];
-  syncCatalog: () => Promise<void>;
+  syncCatalogToDatabase: () => Promise<void>;
   deleteProductLocal: (productId: string) => Promise<void>;
   emailSupportTickets: SupportTicket[];
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
@@ -85,6 +88,7 @@ interface AppDataContextType {
     selectedColor?: string,
   ) => Promise<void>;
   handleToggleFavorite: (productId: string) => Promise<void>;
+  isFetchingMoreOrders: boolean;
   incrementImpression: (postId: string) => Promise<void>;
   toggleBookmark: (postId: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
@@ -92,7 +96,7 @@ interface AppDataContextType {
   handleClearCart: () => Promise<void>;
   handleDeleteAllFavorites: () => Promise<void>;
   handleAddAllFavoritesToCart: () => Promise<void>;
-  fetchPendingOrders: () => Promise<void>;
+  fetchPendingOrders: (loadMore?: boolean) => Promise<void>;
   handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
   unreadEmailSupportCount: number;
   isEmailSupportLoading: boolean;
@@ -120,8 +124,12 @@ export const useAppDataContext = () => {
 export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [posts, setPosts] = useState<Posts[]>([]);
   const dispatch = useDispatch();
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [isFetchingMoreOrders, setIsFetchingMoreOrders] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const { sellerProducts, refreshProducts } = useSellerProducts(
+    currentUser?.uid,
+  );
   const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
   const [sellerSales, setSellerSales] = useState<ProductSale[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
@@ -170,7 +178,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     setPosts(currentPosts =>
       currentPosts.map(post => {
         if (post.postId === postId) {
-          // Guard against undefined with ?? []
           const currentBookmarks = post.bookmarks ?? [];
           const isBookmarked = currentBookmarks.includes(userId);
 
@@ -208,7 +215,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const incrementImpression = async (postId: string) => {
     if (viewedPosts.current.has(postId)) return;
     viewedPosts.current.add(postId);
-    // Local update
     setPosts(currentPosts =>
       currentPosts.map(post =>
         post.postId === postId
@@ -256,7 +262,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     }
   };
   const incrementShareCount = async (postId: string) => {
-    // 1. Optimistic Update
     setPosts(currentPosts =>
       currentPosts.map(post =>
         post.postId === postId
@@ -264,13 +269,10 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
           : post,
       ),
     );
-
-    // 2. Backend Sync
     try {
       await fetch(`${baseUrl}posts/${postId}/share`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        // We don't necessarily need the userId if we're just counting total shares
       });
     } catch (err) {
       console.error('Failed to sync share count:', err);
@@ -565,7 +567,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     if (favoriteIds.length === 0) return;
 
     const itemsToAdd: CartItem[] = favoriteIds.map(id => {
-      const product = allProducts.find(p => p.productId === id);
+      const product = sellerProducts.find(p => p.productId === id);
       return {
         productId: id,
         quantity: 1,
@@ -613,27 +615,41 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   };
-  const fetchPendingOrders = async () => {
-    try {
-      setIsOrdersLoading(true);
-      const result = await fetchPendingOrdersAPI();
-      if (result.success) {
-        setPendingOrders(result.data);
+  const fetchPendingOrders = useCallback(
+    async (loadMore = false) => {
+      if (loadMore && (!cursor || isFetchingMoreOrders)) return;
+
+      if (loadMore) {
+        setIsFetchingMoreOrders(true);
       } else {
-        console.warn(result.message);
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: result.message,
-        });
+        setIsOrdersLoading(true);
       }
-      setIsOrdersLoading(false);
-    } catch (error) {
-      console.error('Failed to fetch pending orders:', error);
-    } finally {
-      setIsOrdersLoading(false);
-    }
-  };
+
+      try {
+        const result = await fetchPendingOrdersAPI(
+          loadMore ? (cursor ?? undefined) : undefined,
+        );
+        if (result.success) {
+          setPendingOrders(prev =>
+            loadMore ? [...prev, ...result.data] : result.data,
+          );
+          setCursor(result.nextCursor);
+        } else if (!loadMore) {
+          Toast.show({
+            type: 'error',
+            text1: 'Fetch Error',
+            text2: result.message,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch pending orders:', error);
+      } finally {
+        setIsOrdersLoading(false);
+        setIsFetchingMoreOrders(false);
+      }
+    },
+    [cursor, isFetchingMoreOrders],
+  );
   const handleDeleteAllFavorites = async () => {
     const previousFavorites = currentUser?.favorites ?? [];
     const updatedUser = { ...currentUser, favorites: [] };
@@ -678,31 +694,40 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   };
-  const syncCatalog = async () => {
+  const syncCatalogToDatabase = async () => {
     try {
-      const localData = await AsyncStorage.getItem(CATALOG_CACHE_KEY);
-      const lastSync = await AsyncStorage.getItem(`${CATALOG_CACHE_KEY}_time`);
-      if (localData) {
-        setAllProducts(JSON.parse(localData));
-      }
       const now = Date.now();
+      const lastSync = await AsyncStorage.getItem('CATALOG_SYNC_TIME');
       const thirtyMinutes = 30 * 60 * 1000;
       if (!lastSync || now - parseInt(lastSync, 10) > thirtyMinutes) {
         const result = await fetchAllProductsAPI();
-        if (result.success) {
-          setAllProducts(result.data);
-          await AsyncStorage.setItem(
-            CATALOG_CACHE_KEY,
-            JSON.stringify(result.data),
-          );
-          await AsyncStorage.setItem(
-            `${CATALOG_CACHE_KEY}_time`,
-            now.toString(),
-          );
+
+        if (result.success && result.data) {
+          db.transaction((tx: Transaction) => {
+            for (const product of result.data) {
+              tx.execute(
+                `INSERT OR REPLACE INTO products (productId, title, description, priceInPoints, sellerId, type, amountInStock, mediaUrls, physicalDetails) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                [
+                  product.productId,
+                  product.title,
+                  product.description,
+                  product.priceInPoints,
+                  product.sellerId,
+                  product.type,
+                  product.amountInStock,
+                  JSON.stringify(product.mediaUrls),
+                  JSON.stringify(product.physicalDetails),
+                ],
+              );
+            }
+          });
+
+          await AsyncStorage.setItem('CATALOG_SYNC_TIME', now.toString());
         }
       }
     } catch (error) {
-      console.error('Hydration failed:', error);
+      console.error('Database sync failed:', error);
     }
   };
   const fetchSellerSales = async () => {
@@ -740,24 +765,12 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       }
     } catch (error: any) {
       console.error('Error fetching reviews:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: error.message || 'Check your connection',
-      });
     }
   };
   const deleteProductLocal = async (productId: string) => {
     try {
-      setAllProducts(prevProducts => {
-        const updated = prevProducts.filter(p => p.productId !== productId);
-        AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(updated)).catch(
-          err =>
-            console.error('Failed to update cache during local deletion:', err),
-        );
-
-        return updated;
-      });
+      deleteProductFromLocalDb(productId);
+      refreshProducts();
     } catch (error) {
       console.error('Failed local product deletion pipeline:', error);
     }
@@ -817,19 +830,18 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
   useEffect(() => {
     fetchReviews();
-    syncCatalog();
+    syncCatalogToDatabase();
   }, []);
   return (
     <AppDataContext.Provider
       value={{
         handleDeletePost,
         deleteProductLocal,
-        syncCatalog,
+        syncCatalogToDatabase,
         currentUser,
         allReviews,
         setAllReviews,
         refreshReviews: fetchReviews,
-        allProducts,
         sellerSales,
         fetchSellerSales,
         setCurrentUser,
@@ -859,6 +871,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         fetchEmailSupportTickets,
         nextCursor,
         isFetchingMore,
+        isFetchingMoreOrders,
       }}
     >
       {children}

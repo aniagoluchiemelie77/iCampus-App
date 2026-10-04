@@ -55,13 +55,6 @@ const ACTION_CONFIG: Record<
     params: { type: 'post' },
   },
 
-  // --- Financial / Wallet ---
-  iCash: {
-    icon: 'account-balance-wallet',
-    route: 'ICashDashboard',
-    params: {},
-  },
-
   // --- Classroom Page ---
   'View Lectures': {
     icon: 'menu-book',

@@ -11,11 +11,7 @@ export type ThemeType = 'light' | 'dark' | 'system';
 export type AdminRole = "super_admin" | "moderator" | "support" | "finance" | "analyst" | 'school_administrator';
 export type SuspiciousActivityType = 
   | "UNRECOGNIZED_LOCATION"
-  | "HEAVY_TRANSFER"
-  | "HEAVY_WITHDRAWAL_ATTEMPT"
-  | "SESSION_REVOKED"
-  | "PIN_RESET_WHILE_SUSPICIOUS"
-  | "FAILED_PIN_ATTEMPT";
+  | "SESSION_REVOKED";
 export interface SuspiciousActivity {
   type: SuspiciousActivityType;
   timestamp: string; 
@@ -178,6 +174,17 @@ export interface PostReposter {
   organizationName?: string;
   profilePic: [String],
   repostedAt: { type: Date },
+  isVerified?: boolean;
+};
+export interface PostAuthor {
+  uid: string;
+  firstname: string;
+  lastname?: string;
+  username?: string;
+  tier: UserTier,
+  organizationName?: string;
+  profilePic: [String],
+  isVerified?: boolean;
 };
 export interface UserSession {
   deviceId: string;
@@ -210,7 +217,9 @@ export interface User {
   bio?: string;
   providerId?: string;
   schoolAvatarUrl?: string;
+  institutionTier?: 'free' | 'pro' | 'premium';
   theme: ThemeType;
+  subaccountId?: string;
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;
@@ -224,13 +233,13 @@ export interface User {
   jobTitle?: string;
   verificationToken?: string;
   email: string;
-  pointsBalance?: number;
   pendingSalesBalance?: number;
   staffId?: string;
   likes?: string[]; 
   bookmarks?: string[];
   accessToken: string;
   password: string;
+  currencyCode?: string;
   tier?: UserTier;
   matricNumber?: string;
   department?: string;
@@ -258,12 +267,10 @@ export interface User {
   userAccountDetails?: UserBankOrCardDetails['userId'];
   secondSemesterUnits?: string,
   firstSemesterUnits?: string,
-  itagusername?: string,
   skills?: string[]; 
   recoveryEmails?: { email: string; isVerified: boolean; addedAt: string; }[];
   isSuspended: boolean;
   isInstitutionAdmin: boolean;
-  hasIcashPin: boolean;
 };
 export interface Admin {
   uid: string;
@@ -382,6 +389,8 @@ export interface Product {
   id: string;
   productId: string; 
   sellerId: string; 
+  currency: string;
+  nationalityOfSeller: string;
   impressions: number;
   sales: number;
   schoolName?: string;
@@ -389,7 +398,7 @@ export interface Product {
   category: string;
   title: string;
   description?: string;
-  priceInPoints: number; 
+  price: number; 
   mediaUrls: string[]; 
   amountInStock: number;
   physicalDetails?: {
@@ -431,6 +440,7 @@ export interface ProductSale {
 }
 export interface MarketplaceOrder {
   orderId: string;
+  amountPaidCurrencyCode: string;
   buyerId: string;
   sellerId: string;
   productId: string;
@@ -448,14 +458,6 @@ export interface MarketplaceOrder {
   verificationQrCode?: string;
   isVerifiedByScan?: boolean;
   completedAt?: string
-}
-export interface WithdrawalRequest {
-  id: string;
-  withdrawalRequestId: string;
-  userId: User.uid;
-  pointsRequested: number;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
 }
 export interface iCampusOperationalInstitutionSchema {
   id?: string;
@@ -561,6 +563,7 @@ export interface Posts {
   originalPostId?: string; 
   repostersDetails: PostReposter[],
   featuredReposter?: PostReposter;
+  postAuthorsDetails: PostAuthor;
   sharesCount?: number;
   createdAt: string;
   poll?: {
@@ -906,7 +909,7 @@ export interface EntityItem {
   createdAt?: string | Date;
 }
 export interface AdItem {
-  id: string | number;
+  id: string;
   type: 'image' | 'video';
   mediaUrl: string;
   targetUrl?: string;

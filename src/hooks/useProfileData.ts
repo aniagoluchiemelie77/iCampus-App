@@ -55,7 +55,7 @@ export const useProfileData = (identifier: string, currentUser: any) => {
   const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await searchUserProfile(identifier, currentUser);
+      const data = await searchUserProfile({identifier, currentUser});
       setProfileData(data);
       setIsBlocked(false);
     } catch (error: any) {

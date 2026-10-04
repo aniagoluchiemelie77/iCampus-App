@@ -54,7 +54,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
         numberOfLines={1}
         ellipsizeMode="tail"
       >
-        {displayName} {username ? `(@${username})` : ''}
+        {displayName} {username ? `@${username}` : ''}
       </Text>
       {tier !== 'free' && (
         <MaterialIcons
@@ -66,7 +66,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
       )}
       {isVerified && showVerifyIcon && (
         <MaterialIcons
-          name={isOrganization ? 'business' : 'outline-verified-user'}
+          name={isOrganization ? 'business' : 'verified-user'}
           size={isLarge ? 20 : isSmall ? 13 : 16}
           color={colors.primary}
           style={styles.iconMargin}

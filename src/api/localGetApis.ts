@@ -5,6 +5,7 @@ import {fetchWithAuth} from '../utils/userTokenAuth';
 import { TAB_TO_CATEGORY, TabName } from '../constants/inAppConstants.ts';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { db } from '../hooks/useSQLiteDb.ts';
 
 interface ApiRequestOptions {
   signal?: AbortSignal;
@@ -183,73 +184,6 @@ export const searchUserProfile = async ({
       text2: 'Could not connect to the server',
     });
     return null;
-  }
-};
-export const fetchSupportedBanks = async ({
-  countryCode,
-  signal,
-}: FetchSupportedBanksParams): Promise<{ label: string; value: string }[]> => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/users/payments/banks/${countryCode}`, {
-      method: 'GET',
-      signal,
-    });
-
-    const json = await response.json();
-
-    if (json.status === 'success' && Array.isArray(json.data)) {
-      return json.data.map((bank: any) => ({
-        label: bank.name,
-        value: bank.code,
-      }));
-    }
-
-    return [];
-  } catch (err: any) {
-    if (err.name === 'AbortError') return [];
-    
-    console.error('Bank fetch failed:', err);
-    return [];
-  }
-};
-export const getUserPaymentMethods = async (userId: string): Promise<any[]> => {
-  if (!userId) return [];
-
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/user/payment-methods/${userId}`;
-
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const result = await response.json();
-
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result.message || 'Failed to fetch payment methods',
-      });
-      return [];
-    }
-
-    const methods = Array.isArray(result) ? result : result.data;
-    return Array.isArray(methods) ? methods : [];
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    console.error('PaymentMethodService Error:', error);
-    return [];
   }
 };
 export const getBlockedUsers = async ({
@@ -561,7 +495,7 @@ export const fetchAllProductsAPI = async (forceRefresh = false) => {
     }
   }
 };
-export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
+export const fetchPendingOrdersAPI = async (cursor?: string, maxRetries = 3) => {
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -572,7 +506,10 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const url = `${cleanBaseUrl}/store/orders/pending`;
+      let url = `${cleanBaseUrl}/store/orders/pending`;
+      if (cursor) {
+        url += `?cursor=${encodeURIComponent(cursor)}`;
+      }
       const headers = { 'Content-Type': 'application/json' };
       const response = await fetchWithAuth(url, {
         method: 'GET',
@@ -588,6 +525,7 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
           return {
             success: false,
             data: [],
+            nextCursor: null,
             message: result.message || 'Failed to fetch pending orders',
           };
         }
@@ -597,30 +535,24 @@ export const fetchPendingOrdersAPI = async (maxRetries = 3) => {
       return {
         success: true,
         data: result.data || [],
+        nextCursor: result.nextCursor || null,
       };
 
     } catch (error: any) {
       clearTimeout(timeoutId);
-
       const isTimeout = error.name === 'AbortError';
       const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
 
       if (attempt >= maxRetries) {
-        console.error("fetchPendingOrdersAPI Error (Max retries reached):", errorMessage);
-        return { 
-          success: false, 
-          data: [], 
-          message: errorMessage 
-        };
+        return { success: false, data: [], nextCursor: null, message: errorMessage };
       }
 
       const backoffDelay = Math.pow(2, attempt - 1) * 1000;
-      console.warn(`Fetch pending orders attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, backoffDelay));
     }
   }
 
-  return { success: false, data: [], message: 'Max retry attempts reached.' };
+  return { success: false, data: [], nextCursor: null, message: 'Max retry attempts reached.' };
 };
 export const fetchLinkedDevicesAPI = async (maxRetries = 3) => {
   let attempt = 0;
@@ -789,11 +721,8 @@ export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
     clearTimeout(timeoutId);
 
     if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'Request timed out.' });
       return { success: false, data: [], message: 'Reviews fetch request timed out.' };
     }
-
-    Toast.show({ type: 'error', text1: 'Network Error', text2: 'Network error fetching reviews.' });
     return { success: false, data: [], message: 'Network error fetching reviews' };
   }
 };
@@ -961,40 +890,32 @@ export const fetchUserConnections = async (
     };
   }
 };
-export const searchUsersByITag = async (
-  tag: string,
-  options?: ApiRequestOptions
-): Promise<any> => {
+export const fetchSupportedBanks = async ({
+  countryCode,
+  signal,
+}: FetchSupportedBanksParams): Promise<{ label: string; value: string }[]> => {
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(
-      `${baseUrl}user/iTag/search/${encodeURIComponent(tag)}`,
-      {
-        method: 'GET',
-        headers,
-        signal: options?.signal,
-      }
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Search Error',
-        text2: result.message || 'Failed to locate tag matching criteria.',
-      });
-      return null;
-    }
-    return result;
-  } catch (error: any) {
-    if (error.name === 'AbortError') return null; 
-    
-    console.error('iTag Search API Error:', error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Anomaly',
-      text2: 'Could not connect to the iCampus routing nodes.',
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/users/payments/banks/${countryCode}`, {
+      method: 'GET',
+      signal,
     });
-    return null;
+
+    const json = await response.json();
+
+    if (json.status === 'success' && Array.isArray(json.data)) {
+      return json.data.map((bank: any) => ({
+        label: bank.name,
+        value: bank.code,
+      }));
+    }
+
+    return [];
+  } catch (err: any) {
+    if (err.name === 'AbortError') return [];
+    
+    console.error('Bank fetch failed:', err);
+    return [];
   }
 };
 export const fetchNotificationDetails = async (
@@ -1083,51 +1004,6 @@ export const fetchNotificationsByTab = async (
       text2: 'An unexpected error occurred while loading updates.',
     });
     return { success: false, notifications: [] };
-  }
-};
-export const checkITagAvailability = async (
-  username: string,
-  signal?: AbortSignal
-): Promise<CheckITagResponse> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    
-    const response = await fetchWithAuth(`${cleanBaseUrl}/users/check-itag/${encodeURIComponent(username.trim())}`, {
-      method: 'GET',
-      headers,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const result = await response.json();
-
-    if (!response.ok) {
-      return { success: false, available: false, message: result?.message || 'Failed to check availability' };
-    }
-
-    return { 
-      success: true, 
-      available: result.available ?? false,
-      message: result.message
-    };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      return { success: false, available: false, message: 'Request timed out.' };
-    }
-
-    console.error("Check iTag Utility Error:", error);
-    return { success: false, available: false, message: error?.message || 'Network error.' };
   }
 };
 export const fetchOngoingLecture = async (
@@ -1478,17 +1354,31 @@ export const getCourseAssessments = async ({
     };
   }
 };
-export const searchICashMarketLocal = (query: string, catalog: any[]): any[] => {
+export const searchICashMarketLocal = (query: string): any[] => {
   const formattedQuery = query.toLowerCase().trim();
   
   if (!formattedQuery) return [];
-  return catalog.filter(product => {
-    return (
-      product.title?.toLowerCase().includes(formattedQuery) ||
-      product.description?.toLowerCase().includes(formattedQuery) ||
-      product.category?.toLowerCase().includes(formattedQuery)
+
+  try {
+    const searchTerm = `%${formattedQuery}%`;
+    const result = db.execute(
+      `SELECT * FROM products 
+       WHERE LOWER(title) LIKE ? 
+          OR LOWER(description) LIKE ? 
+          OR LOWER(niche) LIKE ? 
+       ORDER BY title ASC;`,
+      [searchTerm, searchTerm, searchTerm]
     );
-  });
+    const rawProducts = (result.rows as any)?._array || (Array.isArray(result.rows) ? result.rows : []);
+    return rawProducts.map((p: any) => ({
+      ...p,
+      mediaUrls: p.mediaUrls ? JSON.parse(p.mediaUrls) : [],
+      physicalDetails: p.physicalDetails ? JSON.parse(p.physicalDetails) : null,
+    }));
+  } catch (error) {
+    console.error('Failed to search local SQLite market catalog:', error);
+    return [];
+  }
 };
 export const searchCourses = async (
   query: string,
@@ -1654,42 +1544,6 @@ export const getAssessmentAnalysisUrl = async (
     return { success: false, error: error.message || 'Network error occurred.' };
   }
 };
-export const getMyTransactions = async ({
-  page,
-  limit,
-  searchQuery,
-  signal,
-}: GetTransactionsParams): Promise<ApiResponse> => {
-  try {
-    let url = `${baseUrl}user/my-transactions?page=${page}&limit=${limit}`;
-    if (searchQuery) {
-      url += `&search=${encodeURIComponent(searchQuery)}`;
-    }
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-      return {
-        success: false,
-        error: result.error || result.message || 'Failed to fetch transaction history.',
-      };
-    }
-    return { success: true, data: result };
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      return { success: false, error: 'Request cancelled.' };
-    }
-    return {
-      success: false,
-      error: error.message || 'Network error occurred.',
-    };
-  }
-};
 export const getTransactionByIdAPI = async ({
   transactionId,
   signal,
@@ -1721,61 +1575,6 @@ export const getTransactionByIdAPI = async ({
 
     console.error("getTransactionByIdAPI Error:", error);
     return { success: false, data: null, message: 'Connection to server failed' };
-  }
-};
-export const refreshUserProfileAPI = async (
-  signal?: AbortSignal
-): Promise<{ success: boolean; user?: any; accessToken?: string; refreshToken?: string; message: string }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-    const response = await fetchWithAuth(`${cleanBaseUrl}/users/refresh-user-details`, {
-      method: 'GET',
-      headers,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to sync profile data',
-      };
-    }
-
-    return {
-      success: true,
-      user: data.user,        
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-      message: data.message || 'Profile updated successfully',
-    };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      return {
-        success: false,
-        message: 'Profile refresh request timed out.',
-      };
-    }
-
-    console.error("fetchUserProfileAPI Error:", error);
-    return { 
-      success: false, 
-      message: 'Unable to connect to the server. Please check your internet.' 
-    };
   }
 };
 export const fetchMyCoursesAPI = async ({ 

@@ -67,28 +67,24 @@ export const useCheckout = (params: CheckoutScreenParams, currentUser: any, allP
         return { homeItems: home, dropOffItems: dropOff };
       }, [checkoutItems, itemDeliveryMethods]);
 
-   // Inside useCheckout hook
 const transactionalFinances = useMemo(() => {
   const tier = (currentUser?.tier as 'free' | 'pro' | 'premium') || 'free';
   
   const subtotal = checkoutItems.reduce((acc, item) => {
-    return acc + (item.product?.priceInPoints || 0) * item.quantity;
+    return acc + (item.product?.price || 0) * item.quantity;
   }, 0);
 
   const totalDeliveryFee = checkoutItems.reduce((acc, item) => {
     if (item.product?.type !== 'physical') return acc;
-    
     const method = itemDeliveryMethods[item.productId] || 'drop_off';
     const rate = DELIVERY_FEES[tier][method as 'home_delivery' | 'drop_off'];
-    
-    return acc + (item.product.priceInPoints || 0) * item.quantity * rate;
+    return acc + (item.product.price || 0) * item.quantity * rate;
   }, 0);
 
-  const grandTotal = subtotal  + totalDeliveryFee;
-  const userBalance = currentUser?.pointsBalance || 0;
+  const grandTotal = subtotal + totalDeliveryFee;
 
-  return { subtotal, totalDeliveryFee, grandTotal, canAfford: userBalance >= grandTotal, userBalance };
-}, [checkoutItems, itemDeliveryMethods, currentUser?.pointsBalance, currentUser?.tier]);
+  return { subtotal, totalDeliveryFee, grandTotal };
+}, [checkoutItems, itemDeliveryMethods, currentUser?.tier]);
 
   const formValidation = useMemo(() => {
       const missingStation = dropOffItems.find(

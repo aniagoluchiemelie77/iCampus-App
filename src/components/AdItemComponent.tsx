@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { AdItem } from '../types/firebase'; 
 import { deleteAdApi } from '../api/localDeleteApis'; 
@@ -7,16 +7,25 @@ import { navigate } from '../context/navigationContext';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
 import { useAppSelector } from '../hooks/hooks.ts';
+import { ActionModal } from './LogoutModal.tsx';
 
 interface AdItemComponentProps {
   item: AdItem;
   onRefresh: () => void;
 }
 
-export const AdItemComponent: React.FC<AdItemComponentProps> = ({ item, onRefresh }) => {
-    const { colors } = useTheme();
-  const [isDeleting, setIsDeleting] = useState(false);
+export const AdItemComponent: React.FC<AdItemComponentProps> = ({
+  item,
+  onRefresh,
+}) => {
+  const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.admin);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedAd, setSelectedAd] = useState<{
+    id: string;
+    advertiserName: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const currentUserId = currentUser.uid;
   const isOwner = item.addedBy === currentUserId;
@@ -25,18 +34,8 @@ export const AdItemComponent: React.FC<AdItemComponentProps> = ({ item, onRefres
   const canEditOrDelete = isSuperAdmin ? !isCreatedBySchoolAdmin : isOwner;
 
   const handleDeletePress = () => {
-    Alert.alert(
-      'Delete Advertisement',
-      `Are you sure you want to delete the ad from "${item.advertiserName}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: confirmDelete,
-        },
-      ],
-    );
+    setSelectedAd({ id: item.id, advertiserName: item.advertiserName });
+    setDeleteModalVisible(true);
   };
 
   const confirmDelete = async () => {
@@ -120,6 +119,20 @@ export const AdItemComponent: React.FC<AdItemComponentProps> = ({ item, onRefres
           </View>
         )}
       </View>
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedAd(null);
+          }
+        }}
+        onContinue={confirmDelete}
+        title="Delete Advertisement?"
+        subtitle={`Are you sure you want to delete the ad from "${item.advertiserName}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </View>
   );
 };

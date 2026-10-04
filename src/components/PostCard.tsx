@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,17 +17,15 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useAppDataContext } from '../context/EventContext';
+import { ActionModal } from './LogoutModal.tsx';
 import Video from 'react-native-video';
 import { Posts } from '../types/firebase';
+import { formatCount } from '../utils/followCountFormatter.ts';
 import { useNavigation } from '@react-navigation/native';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { UserIdentity } from './UserIdentity';
 import { UserAvatar } from './UserAvatar';
 import { formatPostDate } from '../utils/dateFormatter';
-import { searchUsersByUid } from '../api/localGetApis';
-import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { User } from '../types/firebase';
-const { width } = Dimensions.get('window');
 import { formatStatNumber } from '../utils/followCountFormatter';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
@@ -42,6 +40,7 @@ interface LinkedTextProps {
   onMentionPress?: (mention: string) => void;
   colors: any;
 }
+const { width } = Dimensions.get('window');
 export const MediaSection = ({ post, isVisible }: PostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const mediaUrls = Array.isArray(post.media?.url)
@@ -71,8 +70,9 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={e => {
+              const contentWidth = width - 24; // Accounts for modern container side margins (12px * 2)
               const newIndex = Math.round(
-                e.nativeEvent.contentOffset.x / (width - 30),
+                e.nativeEvent.contentOffset.x / contentWidth,
               );
               setActiveIndex(newIndex);
             }}
@@ -182,7 +182,7 @@ const PollView = ({
 
       <View style={styles.pollFooter}>
         <Text style={[styles.voteCount, { color: colors.text }]}>
-          {poll.totalVotes} votes
+          {formatCount(poll.totalVotes)} votes
         </Text>
         <Text style={[styles.pollStatus, { color: colors.primary }]}>
           {hasVoted ? 'Final results' : 'Voting ongoing'}
@@ -280,9 +280,12 @@ export const PostCard = React.memo(
     const user = post.originalAuthor;
     const [isExpanded, setIsExpanded] = useState(false);
     const [isMenuVisible, setIsMenuVisible] = useState(false);
-    const [userDetails, setUserDetails] = useState<User | null>(null);
-    const [_, setLoading] = useState(true);
     const navigation = useNavigation<any>();
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<{
+      id: string;
+    } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const TEXT_LIMIT = 150;
     const {
       toggleLike,
@@ -341,27 +344,6 @@ export const PostCard = React.memo(
         console.error(error);
       }
     };
-    const confirmDelete = () => {
-      setIsMenuVisible(false);
-      Alert.alert(
-        'Delete Post',
-        'Are you sure you want to permanently delete this post? This action cannot be undone.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await handleDeletePost(targetPostId);
-              } catch (err) {
-                console.error('Failed to delete post', err);
-              }
-            },
-          },
-        ],
-      );
-    };
     const handleEditNavigate = () => {
       setIsMenuVisible(false);
       navigation.navigate('CreatePost', { post: post });
@@ -376,33 +358,15 @@ export const PostCard = React.memo(
         ],
       );
     };
-    useEffect(() => {
-      const fetchPosterDetails = async () => {
-        try {
-          const userArray = await searchUsersByUid(
-            user!,
-            currentUser?.tier || 'free',
-            currentUser?.usertype || 'student',
-          );
-          if (userArray && userArray.length > 0) {
-            setUserDetails(userArray[0]);
-          }
-        } catch (error) {
-          console.error('Error fetching poster details:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      if (user) {
-        fetchPosterDetails();
-      }
-    }, [user, currentUser?.tier, currentUser?.usertype]);
     const dateValue = post.eventMetadata?.date;
     const timeValue = post.eventMetadata?.startTime;
     const eventDate = dateValue ? formatDate(dateValue) : 'Not specified';
     const eventTime = timeValue ? formatTime(timeValue) : '00:00';
-    const displayUser = post.featuredReposter || userDetails;
+    const displayUser = post.featuredReposter;
+    const authorDetails = post.postAuthorsDetails;
+    const authorProfilePic = authorDetails?.profilePic?.length
+      ? String(authorDetails.profilePic[authorDetails.profilePic.length - 1])
+      : undefined;
 
     return (
       <Pressable
@@ -419,9 +383,9 @@ export const PostCard = React.memo(
           <View style={styles.repostHeader}>
             <MaterialIcons
               name="repeat"
-              size={14}
+              size={13}
               color={colors.text}
-              style={{ marginRight: 4 }}
+              style={{ marginRight: 6, opacity: 0.7 }}
             />
             <UserIdentity
               firstname={displayUser?.firstname ?? ''}
@@ -435,20 +399,20 @@ export const PostCard = React.memo(
         )}
         <View style={styles.header}>
           <UserAvatar
-            profilePic={userDetails?.profilePic}
-            firstName={userDetails?.firstname}
-            lastName={userDetails?.lastname}
-            organizationName={userDetails?.organizationName}
+            profilePic={authorProfilePic}
+            firstName={authorDetails?.firstname}
+            lastName={authorDetails?.lastname}
+            organizationName={authorDetails?.organizationName}
             style={styles.avatar}
           />
           <View style={styles.headerText}>
             <UserIdentity
-              firstname={userDetails?.firstname ?? ''}
-              lastname={userDetails?.lastname ?? ''}
-              tier={userDetails?.tier ? userDetails?.tier : 'free'}
-              isVerified={userDetails?.isVerified}
-              isOrganization={userDetails?.usertype === 'enterprise'}
-              organizationName={userDetails?.organizationName}
+              firstname={authorDetails?.firstname ?? ''}
+              lastname={authorDetails?.lastname ?? ''}
+              tier={authorDetails?.tier ? authorDetails?.tier : 'free'}
+              isVerified={authorDetails?.isVerified}
+              isOrganization={authorDetails?.organizationName ? true : false}
+              organizationName={authorDetails?.organizationName}
               size="small"
             />
             <Text style={styles.timestamp}>
@@ -458,7 +422,7 @@ export const PostCard = React.memo(
         </View>
         <View style={styles.contentContainer}>
           {post.postType === 'job' && (
-            <View style={{ marginBottom: 10 }}>
+            <View style={styles.jobCardBanner}>
               <Text
                 style={[styles.jobTitleLarge, { color: colors.textDarker }]}
               >
@@ -470,19 +434,21 @@ export const PostCard = React.memo(
             </View>
           )}
           {post.postType === 'event' && (
-            <View style={styles.eventHeaderRow}>
+            <View
+              style={[
+                styles.eventHeaderRow,
+                { backgroundColor: colors.background },
+              ]}
+            >
               <View style={styles.calendarMini}>
                 <MaterialIcons
                   name="calendar-month"
-                  size={16}
-                  color={colors.text}
-                  style={{ marginRight: 3 }}
+                  size={18}
+                  color={colors.primary}
+                  style={{ marginBottom: 2 }}
                 />
-                <Text style={[styles.calMonth, { color: colors.text }]}>
+                <Text style={[styles.calMonth, { color: colors.primary }]}>
                   {eventDate}
-                </Text>
-                <Text style={[styles.calDay, { color: colors.text }]}>
-                  {eventTime}
                 </Text>
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
@@ -540,7 +506,7 @@ export const PostCard = React.memo(
                 name="launch"
                 size={16}
                 color={colors.btnTextColor}
-                style={{ marginLeft: 3 }}
+                style={{ marginLeft: 6 }}
               />
             </TouchableOpacity>
           )}
@@ -568,7 +534,11 @@ export const PostCard = React.memo(
               navigation.navigate('PostDetailScreen', { post: post })
             }
           >
-            <MaterialIcons name="chat" size={20} color={colors.primary} />
+            <MaterialIcons
+              name="chat-bubble-outline"
+              size={18}
+              color={colors.primary}
+            />
             <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.commentsCount ?? 0)}
             </Text>
@@ -578,8 +548,8 @@ export const PostCard = React.memo(
             onPress={() => toggleLike(targetPostId)}
           >
             <MaterialIcons
-              name={isLiked ? 'favorite' : 'favorite-outline'}
-              size={20}
+              name={isLiked ? 'favorite' : 'favorite-border'}
+              size={18}
               color={colors.primary}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
@@ -592,8 +562,8 @@ export const PostCard = React.memo(
           >
             <MaterialIcons
               name="repeat"
-              size={20}
-              color={post.isRepost ? colors.primary : colors.primaryTint}
+              size={18}
+              color={post.isRepost ? colors.success : colors.primary}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.repostersDetails?.length || 0)}
@@ -605,7 +575,7 @@ export const PostCard = React.memo(
           >
             <MaterialIcons
               name={isBookmarked ? 'bookmark' : 'bookmark-border'}
-              size={20}
+              size={18}
               color={colors.primary}
             />
             <Text style={[styles.statText, { color: colors.primary }]}>
@@ -613,20 +583,16 @@ export const PostCard = React.memo(
             </Text>
           </TouchableOpacity>
           <View style={styles.statGroup}>
-            <MaterialIcons
-              name="bar-chart"
-              size={20}
-              color={colors.primaryTint}
-            />
+            <MaterialIcons name="bar-chart" size={18} color={colors.primary} />
             <Text style={[styles.statText, { color: colors.primary }]}>
               {formatStatNumber(post.impressions || 0)}
             </Text>
           </View>
           <TouchableOpacity
-            style={styles.statGroup}
+            style={styles.shareIconContainer}
             onPress={() => handleExternalShare(post)}
           >
-            <MaterialIcons name="share" size={20} color={colors.primaryTint} />
+            <MaterialIcons name="share" size={18} color={colors.primaryTint} />
           </TouchableOpacity>
         </View>
         <Modal
@@ -648,7 +614,7 @@ export const PostCard = React.memo(
               <View style={styles.dragIndicator} />
 
               <TouchableOpacity
-                style={[styles.menuItem, { borderBottomColor: colors.text }]}
+                style={styles.menuItem}
                 onPress={handleCopyLink}
               >
                 <MaterialIcons name="link" size={22} color={colors.text} />
@@ -657,7 +623,7 @@ export const PostCard = React.memo(
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.menuItem, { borderBottomColor: colors.text }]}
+                style={styles.menuItem}
                 onPress={() => handleExternalShare(post)}
               >
                 <MaterialIcons name="share" size={22} color={colors.text} />
@@ -668,10 +634,7 @@ export const PostCard = React.memo(
               {isOwner && (
                 <>
                   <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      { borderBottomColor: colors.text },
-                    ]}
+                    style={styles.menuItem}
                     onPress={handleEditNavigate}
                   >
                     <MaterialIcons name="edit" size={22} color={colors.text} />
@@ -680,15 +643,19 @@ export const PostCard = React.memo(
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.menuItem]}
-                    onPress={confirmDelete}
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setIsMenuVisible(false);
+                      setSelectedPost({ id: targetPostId });
+                      setDeleteModalVisible(true);
+                    }}
                   >
                     <MaterialIcons
-                      name="delete"
+                      name="delete-outline"
                       size={22}
-                      color={colors.text}
+                      color="#FF3B30"
                     />
-                    <Text style={[styles.menuText, { color: colors.text }]}>
+                    <Text style={[styles.menuText, { color: '#FF3B30' }]}>
                       Delete post
                     </Text>
                   </TouchableOpacity>
@@ -697,6 +664,20 @@ export const PostCard = React.memo(
             </View>
           </Pressable>
         </Modal>
+        <ActionModal
+          visible={deleteModalVisible}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeleteModalVisible(false);
+              setSelectedPost(null);
+            }
+          }}
+          onContinue={() => handleDeletePost(targetPostId)}
+          title="Delete Post?"
+          subtitle={`Are you sure you want to delete this post? This action cannot be undone.`}
+          continueText="Delete"
+          loading={isDeleting}
+        />
       </Pressable>
     );
   },
@@ -711,209 +692,115 @@ export const PostCard = React.memo(
     );
   },
 );
+
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
-    borderBottomWidth: 0.8,
-    borderRadius: 15,
-    marginBottom: 8,
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    // Modern subtle shadow layer
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   repostHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  repostText: {
-    fontSize: 12,
-    fontWeight: '600',
+    marginBottom: 8,
+    paddingLeft: 2,
   },
   header: {
     flexDirection: 'row',
-    marginBottom: 15,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#eee',
   },
   headerText: {
-    marginLeft: 10,
+    marginLeft: 12,
     flex: 1,
   },
-  userName: {
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
   timestamp: {
-    fontSize: 12,
-    color: '#999',
-  },
-  mediaContainer: {
-    width: '100%',
-    height: 300, // Fixed height for consistency in the feed
-    backgroundColor: '#000',
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginVertical: 10,
-  },
-  postMedia: {
-    width: '100%',
-    height: '100%',
+    fontSize: 11,
+    color: '#8E8E93',
+    marginTop: 2,
   },
   contentContainer: {
-    marginBottom: 10,
+    marginBottom: 8,
   },
   content: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   seeMoreText: {
-    fontSize: 12,
+    fontSize: 13,
     color: PRIMARY_COLOR,
     fontWeight: '600',
-    marginTop: 4,
-  },
-  postImage: {
-    width: '100%',
-    height: '100%',
+    marginTop: 6,
   },
   footer: {
     flexDirection: 'row',
-    marginTop: 7,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   statGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 13,
   },
   statText: {
-    marginLeft: 5,
-    fontSize: 13,
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  pagination: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: 12,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)', // Slight dark background for visibility
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#fadccc',
-    marginHorizontal: 3,
-  },
-  activeDot: {
-    backgroundColor: '#fff',
-    width: 7,
-    height: 7,
-  },
-  postMediaSlider: {
-    width: width - 20, // Subtracting horizontal margins of the post card
-    height: 300,
-  },
-  pollContainer: {
-    marginVertical: 10,
-    width: '100%',
-  },
-  optionButton: {
-    height: 40,
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: 'center',
-    marginBottom: 10,
-    overflow: 'hidden',
-    position: 'relative',
-    paddingHorizontal: 15,
+  shareIconContainer: {
+    padding: 4,
   },
   optionButtonSelected: {
     borderWidth: 1.5,
   },
-  progressBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-  },
-  optionContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    alignItems: 'center',
-    zIndex: 1, // Stay above progress bar
-  },
-  optionText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  percentageText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  pollFooter: {
-    flexDirection: 'row',
-    marginTop: 5,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  voteCount: {
-    fontSize: 13,
-  },
-  pollStatus: {
-    fontSize: 12,
-  },
-  baseText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  link: {
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  hashtag: {
-    color: PRIMARY_COLOR,
-    fontWeight: '600',
-  },
-  mention: {
-    color: PRIMARY_COLOR,
-    fontWeight: '700',
+  jobCardBanner: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    marginBottom: 10,
   },
   jobTitleLarge: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '700',
   },
   jobCompanySub: {
-    fontSize: 14,
+    fontSize: 13,
     marginTop: 4,
-  },
-  eventBody: {
-    padding: 15,
   },
   eventHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 15,
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   calendarMini: {
     padding: 8,
     alignItems: 'center',
-    width: 50,
-    flexDirection: 'row',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    minWidth: 55,
   },
   calMonth: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginRight: 3,
-  },
-  calDay: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '700',
   },
   eventTitleText: {
     fontSize: 14,
@@ -922,66 +809,169 @@ const styles = StyleSheet.create({
   eventLocationText: {
     fontSize: 12,
     marginTop: 2,
+    opacity: 0.7,
   },
   primaryActionButton: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 14,
     borderRadius: 12,
-    marginVertical: 15,
+    marginTop: 10,
   },
   primaryActionText: {
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 14,
   },
   rsvpButtonOutline: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: PRIMARY_COLOR,
-    borderRadius: 13,
+    borderRadius: 12,
     paddingVertical: 10,
-    paddingHorizontal: 16,
     alignItems: 'center',
-    marginVertical: 15,
+    marginTop: 10,
   },
   rsvpText: {
     color: PRIMARY_COLOR,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 14,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    position: 'static',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 12,
+    paddingBottom: 32,
     width: '100%',
-    bottom: 70,
   },
   dragIndicator: {
-    width: 40,
-    height: 5,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    borderRadius: 3,
+    width: 36,
+    height: 4,
+    backgroundColor: '#D1D1D6',
+    borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 0.8,
-    marginBottom: 15,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   menuText: {
-    fontSize: 14,
-    marginLeft: 10,
+    fontSize: 15,
+    marginLeft: 12,
     fontWeight: '500',
+  },
+  mediaContainer: {
+    width: '100%',
+    height: 280,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginVertical: 10,
+  },
+  postMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  postMediaSlider: {
+    width: width - 24, // Matches the new 12px card margins on both sides
+    height: 280,
+  },
+  pagination: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    marginHorizontal: 3,
+  },
+  activeDot: {
+    backgroundColor: '#fff',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pollContainer: {
+    marginVertical: 12,
+    width: '100%',
+  },
+  optionButton: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginBottom: 10,
+    overflow: 'hidden',
+    position: 'relative',
+    paddingHorizontal: 16,
+    backgroundColor: 'transparent',
+  },
+  progressBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    opacity: 0.15,
+  },
+  optionContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  optionText: {
+    fontSize: 14,
+    flex: 1,
+    fontWeight: '500',
+  },
+  percentageText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pollFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  voteCount: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  pollStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  baseText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  link: {
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  hashtag: {
+    fontWeight: '600',
+  },
+  mention: {
+    fontWeight: '600',
   },
 });

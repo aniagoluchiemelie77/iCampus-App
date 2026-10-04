@@ -55,62 +55,6 @@ export const updatePassword = async (newPassword: string, signal?: AbortSignal) 
     return { success: false, message: error?.message || 'Update failed. Try again.' };
   }
 };
-export const customizeItag = async (
-  updatePayload: Record<string, any>,
-  signal?: AbortSignal
-): Promise<UpdateITagResponse> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const response = await fetchWithAuth(`${baseUrl}users/update-itag`, {
-      method: 'PUT',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({
-        updates: updatePayload
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      const errorMessage = result?.message || 'Failed to update iTag configurations';
-      Toast.show({
-        type: 'error',
-        text1: 'Update Failed',
-        text2: errorMessage,
-      });
-      return { success: false, message: errorMessage };
-    }
-
-    return { success: true, data: result.data };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'iTag update request timed out.' });
-      return { success: false, message: 'Request timed out.' };
-    }
-
-    console.error("Update iTag Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: 'Could not connect to the system configurations server.',
-    });
-    return { success: false, message: error?.message || 'Network error' };
-  }
-};
 export const updateCourseContent = async (
   courseId: string,
   index: number,

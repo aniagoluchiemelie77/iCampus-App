@@ -16,7 +16,6 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppDataContext } from '../context/EventContext.tsx';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { CartItem } from '../components/CartItem';
-import { IcashPinOrFingerprintVerifyModal } from '../components/iCashPinOrFingerprintVerifyComponent';
 import Toast from 'react-native-toast-message';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { initializeCheckoutTransaction } from '../api/localPostApis';
@@ -27,6 +26,8 @@ import { DELIVERY_FEES } from '../constants/inAppConstants';
 import { useLocationServices } from '../hooks/useLocationService.ts';
 import { StationCarousel } from '../components/StationCarousel.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
+import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 
 export const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
@@ -41,11 +42,13 @@ export const CheckoutScreen = () => {
   const route = useRoute();
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user) || {};
+  const { exchangeData } = useExchangeRate(currentUser.country || 'Nigeria');
   const { allProducts } = useAppDataContext();
   const params = useMemo(() => {
     return (route.params || {}) as CheckoutScreenParams;
   }, [route.params]);
-  const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
+  const [isCheckoutPaymentVisible, setIsCheckoutPaymentVisible] =
+    useState(false);
 
   const {
     checkoutItems,
@@ -66,18 +69,7 @@ export const CheckoutScreen = () => {
   } = useCheckout(params, currentUser, allProducts);
   const { userCoords, locationPermission } = useLocationServices();
 
-  const handleProceedToVerify = useCallback(() => {
-    if (!transactionalFinances.canAfford) {
-      Toast.show({
-        type: 'error',
-        text1: 'Insufficient Balance',
-        text2: `Required: ${transactionalFinances.grandTotal.toFixed(
-          1,
-        )} iCash | Available: ${transactionalFinances.userBalance.toFixed(1)}`,
-      });
-      return;
-    }
-
+  const handleProceedToCheckoutPayment = useCallback(() => {
     if (!formValidation.valid) {
       Toast.show({
         type: 'error',
@@ -87,17 +79,15 @@ export const CheckoutScreen = () => {
       return;
     }
 
-    setIsVerifyModalVisible(true);
-  }, [
-    transactionalFinances.canAfford,
-    transactionalFinances.grandTotal,
-    transactionalFinances.userBalance,
-    formValidation.valid,
-    formValidation.reason,
-  ]);
+    setIsCheckoutPaymentVisible(true);
+  }, [formValidation.valid, formValidation.reason]);
 
-  const onVerificationSuccess = async () => {
-    setIsVerifyModalVisible(false);
+  const handlePaymentSuccess = async (flwResponse: any) => {
+    const transactionId =
+      flwResponse?.data?.flw_ref ||
+      flwResponse?.flw_ref ||
+      flwResponse?.data?.id ||
+      flwResponse?.id;
 
     const orderPayload = {
       items: checkoutItems.map(item => {
@@ -108,7 +98,7 @@ export const CheckoutScreen = () => {
           sellerId: item.product?.sellerId,
           quantity: item.quantity,
           deliveryMethod: method,
-          price: item.product?.priceInPoints,
+          price: item.product?.price,
           color: item.selectedColor,
           size: item.selectedSize,
           ...(isPhysical &&
@@ -121,12 +111,15 @@ export const CheckoutScreen = () => {
         subtotal: transactionalFinances.subtotal,
         delivery: transactionalFinances.totalDeliveryFee,
         grandTotal: transactionalFinances.grandTotal,
+        currency: exchangeData.code,
       },
       shippingContact: {
         phone: formattedValue,
         address: deliveryAddress.trim(),
       },
-      buyerId: currentUser?.uid,
+      transactionId: transactionId
+        ? transactionId.toString()
+        : `FLW-${Date.now()}`,
       timestamp: new Date().toISOString(),
     };
 
@@ -290,7 +283,7 @@ export const CheckoutScreen = () => {
                   </Text>
                   <StationCarousel
                     stations={stations}
-                    selectedStation={selectedStations[item.productId]}
+                    selectedStations={selectedStations[item.productId]}
                     onSelect={station =>
                       handleStationSelect(item.productId, station)
                     }
@@ -312,7 +305,7 @@ export const CheckoutScreen = () => {
                   </Text>
                   <StationCarousel
                     stations={stations}
-                    selectedStation={selectedStations[item.productId]}
+                    selectedStations={selectedStations[item.productId]}
                     onSelect={station =>
                       handleStationSelect(item.productId, station)
                     }
@@ -484,17 +477,9 @@ export const CheckoutScreen = () => {
         </View>
 
         <CustomButton
-          title={
-            transactionalFinances.canAfford
-              ? 'Confirm & Pay'
-              : 'Insufficient Balance'
-          }
-          style={[
-            styles.buyBtn,
-            !transactionalFinances.canAfford && { opacity: 0.7 },
-          ]}
-          onPress={handleProceedToVerify}
-          disabled={!transactionalFinances.canAfford}
+          title={`Pay ${exchangeData.symbol}${(transactionalFinances.grandTotal * exchangeData.rate).toFixed(2)}`}
+          style={[styles.buyBtn]}
+          onPress={handleProceedToCheckoutPayment}
         />
       </View>
     );
@@ -508,7 +493,6 @@ export const CheckoutScreen = () => {
     colors,
     handlePhoneChange,
     handleStationSelect,
-    handleProceedToVerify,
     locationPermission,
     userCoords,
     setDeliveryAddress,
@@ -527,13 +511,17 @@ export const CheckoutScreen = () => {
         ListFooterComponent={renderFooter}
         contentContainerStyle={{ paddingBottom: 40, marginHorizontal: 15 }}
       />
-
-      <IcashPinOrFingerprintVerifyModal
-        navigation={navigation}
-        isVisible={isVerifyModalVisible}
-        onClose={() => setIsVerifyModalVisible(false)}
-        onSuccess={onVerificationSuccess}
-        title="Confirm Purchase"
+      <AddPaymentModal
+        visible={isCheckoutPaymentVisible}
+        onClose={() => setIsCheckoutPaymentVisible(false)}
+        currencyData={exchangeData}
+        user={currentUser}
+        mode="checkout"
+        amount={transactionalFinances.grandTotal}
+        onPaymentSuccess={async paymentResponse => {
+          setIsCheckoutPaymentVisible(false);
+          await handlePaymentSuccess(paymentResponse);
+        }}
       />
     </SafeAreaView>
   );

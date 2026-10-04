@@ -71,8 +71,6 @@ import { CheckoutScreen } from './src/screens/Checkout.tsx';
 import Notifications from './src/screens/Notifications';
 import Login from './src/screens/Login';
 import NotificationDetails from './src/screens/NotificationDetails';
-import { ICashBuyPage } from './src/screens/BuyiCashScreen.tsx';
-import { ICashWithdrawPage } from './src/screens/WithdrawiCashScreen.tsx';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
 import { CourseSubPage } from './src/screens/CourseSubPage';
@@ -81,15 +79,7 @@ import BleManager from 'react-native-ble-manager';
 import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttendanceScreen.tsx';
 import { StudentAttendanceScanner } from './src/screens/StudentsAttendanceScanner.tsx';
 import { Assistant } from './src/screens/iAssistantScreen.tsx';
-import { ICashDashboard } from './src/screens/iCashScreen.tsx';
-import { ICashResetPin } from './src/screens/ICashResetPin.tsx';
-import { ICashSecurityGateway } from './src/screens/iCashBiometricsScreen.tsx';
 import { SuspendedScreen } from './src/screens/SuspendedScreen.tsx';
-import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
-import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
-import { ICashSuccessScreen } from './src/screens/iCashSuccessScreen.tsx';
-import { IcashP2PScreen } from './src/screens/P2PTransfersScreen.tsx';
-import { AllTransactionsScreen } from './src/screens/TransactionHistoryMainScreen.tsx';
 import { EditProfileScreen } from './src/screens/EditProfileScreen.tsx';
 import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScreen.tsx';
 import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
@@ -139,6 +129,8 @@ import { BACKEND_URL } from '@env';
 import { AppDataProvider } from './src/context/EventContext.tsx';
 import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
+import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
+import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 
 const baseUrl = BACKEND_URL;
 
@@ -168,6 +160,13 @@ export type RootStackParamList = {
   SchoolAorE: {
     item?: any;
   };
+  VerifyOTP: {
+    flw_ref: string;
+    type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
+  };
+  FlutterwaveWebview: {
+    url: string;
+  };
   FlutterwavePayment: {
     amount: number;
     iCashToCredit: number;
@@ -175,11 +174,7 @@ export type RootStackParamList = {
     email: string;
     firstname: string;
   };
-  AllTransactionsScreen: {
-    user: User;
-  };
   AdminFormPage: { admin?: any };
-  ICashBuyPage: { refresh?: boolean };
   CreatePost: {
     type?: 'post' | 'poll' | 'job' | 'event';
     post?: Posts;
@@ -194,7 +189,6 @@ export type RootStackParamList = {
     sellerId: string;
     seller: any;
   };
-  ICashWithdrawPage: undefined;
   FAQScreen: undefined;
   Notifications: undefined;
   NotificationSettings: undefined;
@@ -204,10 +198,6 @@ export type RootStackParamList = {
     isEditing: boolean;
   };
   SalesHub: undefined;
-  VerifyOTP: {
-    flw_ref: string;
-    type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
-  };
   CreateReviewScreen: {
     targetId: string;
     productType: 'product' | 'seller' | 'agent' | 'course' | 'lecturer';
@@ -242,18 +232,6 @@ export type RootStackParamList = {
     userRole: 'student' | 'lecturer' | 'otherUser';
     lectures?: Lecture[];
     exceptions?: CourseException[];
-  };
-  FlutterwaveWebview: {
-    url: string;
-  };
-  iCashSuccessScreen: {
-    amountPurchased: number;
-    amountPaid: number;
-    currency: string;
-    type: 'withdraw' | 'buy' | 'p2p';
-    amount: number;
-    payout: number;
-    recipientUsername: string;
   };
   Assistant: {
     contextType: 'course' | 'lecture' | 'general';
@@ -299,9 +277,6 @@ export type RootStackParamList = {
   Settings: undefined;
   Profile: { identifier: string };
   SuspendedScreen: { reason: string };
-  iCashSecurity: { isRegistration: boolean };
-  ICashDashboard: { refresh?: boolean };
-  ICashResetPin: undefined;
   ProductDetails: { productId: string };
   CartScreen: undefined;
   FavoritesScreen: undefined;
@@ -311,7 +286,6 @@ export type RootStackParamList = {
     selectedSize?: string;
     quantity?: number;
   };
-  IcashP2PScreen: undefined;
   Login: undefined;
 };
 const Stack = createStackNavigator<RootStackParamList>();
@@ -378,15 +352,24 @@ function MainApp() {
               await AsyncStorage.setItem('refreshToken', newRefreshToken);
 
             if (user) {
-              await AsyncStorage.setItem('user', JSON.stringify(user));
+              const existingUserString = await AsyncStorage.getItem('user');
+              const existingUser = existingUserString
+                ? JSON.parse(existingUserString)
+                : {};
+
+              const mergedUser = {
+                ...user,
+                theme: existingUser.theme || user.theme || 'system',
+              };
+
+              await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
               dispatch(
                 setUser({
-                  ...user,
+                  ...mergedUser,
                   accessToken: newAccessToken,
                   tokenCreatedAt: Date.now(),
                 }),
               );
-
               if (user.isSuspended) {
                 setInitialRoute('SuspendedScreen');
                 return;
@@ -451,6 +434,16 @@ function MainApp() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="FlutterwaveWebview"
+              component={FlutterwaveWebview}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="VerifyOTP"
+              component={VerifyOTP}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="ViewAllSchools"
               component={ViewAllSchoolsScreen}
               options={{ headerShown: false }}
@@ -493,16 +486,6 @@ function MainApp() {
             <Stack.Screen
               name="RegisterStation"
               component={RegisterStationScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ICashBuyPage"
-              component={ICashBuyPage}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ICashWithdrawPage"
-              component={ICashWithdrawPage}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -581,11 +564,6 @@ function MainApp() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="VerifyOTP"
-              component={VerifyOTP}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="StudentAttendanceScanner"
               component={StudentAttendanceScanner}
               options={{ headerShown: false }}
@@ -593,11 +571,6 @@ function MainApp() {
             <Stack.Screen
               name="CreateProduct"
               component={CreateProductScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="IcashP2PScreen"
-              component={IcashP2PScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -631,11 +604,6 @@ function MainApp() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="AllTransactionsScreen"
-              component={AllTransactionsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="CartScreen"
               component={CartScreen}
               options={{ headerShown: false }}
@@ -659,16 +627,6 @@ function MainApp() {
             <Stack.Screen
               name="NotificationSettings"
               component={NotificationSettings}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FlutterwaveWebview"
-              component={FlutterwaveWebview}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="iCashSecurity"
-              component={ICashSecurityGateway}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -712,16 +670,6 @@ function MainApp() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="ICashResetPin"
-              component={ICashResetPin}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="iCashSuccessScreen"
-              component={ICashSuccessScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="SignupPage"
               component={SignupPage}
               options={{
@@ -732,11 +680,6 @@ function MainApp() {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ICashDashboard"
-              component={ICashDashboard}
               options={{ headerShown: false }}
             />
             <Stack.Screen

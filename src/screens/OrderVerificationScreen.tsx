@@ -31,7 +31,7 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
       <View
         style={[
           styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary, zIndex: 1 },
+          { backgroundColor: colors.backgroundSecondary, zIndex: 10 },
         ]}
       >
         <MaterialIcons name="check-circle" size={50} color={colors.primary} />
@@ -41,7 +41,7 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
         <Text style={[styles.label, { color: colors.text }]}>
           {role === 'agent' ? 'Commission Earned' : 'Sale Proceeds'}
         </Text>
-        <CurrencyDisplay value={amount} size="large" isSuccess={true} />
+        <CurrencyDisplay value={amount} size="large" />
         <Text style={[styles.details, { color: colors.text }]}>
           Item: {productName}
         </Text>
@@ -50,23 +50,13 @@ export const OrderVerificationSuccess = ({ route, navigation }: Props) => {
         </Text>
 
         <Text style={[styles.infoText, { color: colors.text }]}>
-          The funds have been added to your wallet balance and are ready for
-          use.
+          The funds have been added to your payout balance awaiting withdrawal.
         </Text>
-        <CustomButton
-          title="View Wallet"
-          style={styles.button}
-          onPress={() =>
-            navigation.navigate('ICashDashboard', {
-              refresh: true,
-            })
-          }
-        />
         <TouchableOpacity
-          onPress={() => navigation.navigate('Home', { activeTab: 'store' })}
+          onPress={() => navigation.navigate('Home', { activeTab: 'home' })}
         >
           <Text style={[styles.backHome, { color: colors.primary }]}>
-            Back to Dashboard
+            Back to Home
           </Text>
         </TouchableOpacity>
       </View>
@@ -80,6 +70,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
+    position: 'relative',
   },
   subContainer: {
     alignItems: 'center',

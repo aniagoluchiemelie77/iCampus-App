@@ -12,10 +12,8 @@ export const USD_SUBSCRIPTION_PRICES = {
   Free: 0,
 } as const;
 export const EXCEPTION_COST_IN_ICASH = 0.5 as const;
-export const USD_EQUIVALENCE_OF_1_ICASH = 0.75 as const;
 export const TRANSACTION_TAX_RATE = 0.05 as const;
 export const WATERMARK_TEXT = 'iCampus' as const;
-export const WITHDRAWAL_FEE_PERCENT = 0.02 as const;
 export const DELIVERY_FEES = {
   free: {
     home_delivery: 0.08, 
@@ -41,17 +39,8 @@ export const TIER_COLORS: Record<string, string> = {
   enterprise: ENTERPRISE_BADGE_COLOR 
 } as const;
 export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
-  physical: 1000,
+  physical: 1000000,
 } as const;
-export const ICASH_PIN_MAX_ATTEMPTS = 5 as const ;
-export const ITAG_PRESET_COLORS = [
-  '#672a0e',
-  '#14335f',
-  '#80800d',
-  '#8a0c0c',
-  '#7b0859',
-  '#0b8049',
-] as const;
 
 export const CATEGORY_ACCESS: Record<string, readonly AdminRole[]> = {
   'Overview': ['super_admin', 'finance', 'support', 'moderator', 'analyst', "school_administrator"],

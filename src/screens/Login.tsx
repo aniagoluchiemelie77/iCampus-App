@@ -60,12 +60,19 @@ const Login = () => {
         });
         if (response.success) {
           const { accessToken, refreshToken, user } = response;
-          await AsyncStorage.setItem('accessToken', accessToken);
-          await AsyncStorage.setItem('refreshToken', refreshToken);
-          await AsyncStorage.setItem('user', JSON.stringify(user));
-          dispatch(
-            setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }),
-          );
+  
+  const existingUserString = await AsyncStorage.getItem('user');
+  const existingUser = existingUserString ? JSON.parse(existingUserString) : {};
+  const mergedUser = {
+    ...user,
+    theme: existingUser.theme || user.theme || 'system',
+  };
+
+  await AsyncStorage.setItem('accessToken', accessToken);
+  await AsyncStorage.setItem('refreshToken', refreshToken);
+  await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
+
+  dispatch(setUser({ ...mergedUser, accessToken, tokenCreatedAt: Date.now() }));
 
           if (user.isSuspended) {
             navigation.reset({

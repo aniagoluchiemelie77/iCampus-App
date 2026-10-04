@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Image,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -25,7 +24,7 @@ import { searchUsersByUid, fetchPayoutHistoryAPI } from '../api/localGetApis';
 import { requestPayoutAPI } from '../api/localPostApis';
 import { deleteProductApi } from '../api/localDeleteApis';
 import { UserAvatar } from './UserAvatar';
-import { IcashPinOrFingerprintVerifyModal } from './iCashPinOrFingerprintVerifyComponent';
+import { AddPaymentModal } from './AddPaymentMethodModal';
 import { UserIdentity } from './UserIdentity';
 import { useNavigation } from '@react-navigation/native';
 import RNPickerSelect from 'react-native-picker-select';
@@ -33,6 +32,7 @@ import moment from 'moment';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../context/UserSlice';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 import Svg, {
   Polyline,
   Defs,
@@ -42,6 +42,8 @@ import Svg, {
 } from 'react-native-svg';
 import { ReviewItem } from './ReviewItem';
 import { useTheme } from '../context/ThemeContext';
+import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
+import { ActionModal } from './LogoutModal.tsx';
 
 interface StatusCardProps {
   label: string;
@@ -86,13 +88,6 @@ const ProductListHeader = ({
       <Text style={[styles.countText, { color: themeColors.textDarker }]}>
         {count} {count === 1 ? 'Product' : 'Products'}
       </Text>
-      <CustomButton
-        title="Create New Listing"
-        style={[styles.addBtn, { backgroundColor: themeColors.btnColor }]}
-        onPress={onAdd}
-        iconName="add-business"
-        iconColor="#fff"
-      />
     </View>
   );
 };
@@ -172,7 +167,7 @@ export const StatusCardMini = ({
         <MaterialIcons name={icon} size={22} color={color} />
       </View>
       <View>
-        <CurrencyDisplay value={count} size="medium" isSuccess={isSuccess} />
+        <CurrencyDisplay value={count} size="medium" />
         <Text
           style={[styles.statusLabel, { marginTop: 4, color: themeColor.text }]}
         >
@@ -258,13 +253,11 @@ export const OrdersList = () => {
 };
 export const OverviewsScreenComponent = () => {
   const { colors: themeColors } = useTheme();
-  const { allProducts, pendingOrders, sellerSales } = useAppDataContext();
+  const { pendingOrders, sellerSales } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user) || {};
+  const { sellerProducts } = useSellerProducts(currentUser?.uid);
   const navigation = useNavigation<any>();
 
-  const sellerProducts = (allProducts || []).filter(
-    p => p?.sellerId === currentUser?.uid,
-  );
   const sellerOrders = (pendingOrders || []).filter(
     o => o?.sellerId === currentUser?.uid,
   );
@@ -290,7 +283,11 @@ export const OverviewsScreenComponent = () => {
     0,
   );
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+      contentContainerStyle={[styles.contentContainer]}
+    >
       {!hasProducts ? (
         <View
           style={[
@@ -319,15 +316,22 @@ export const OverviewsScreenComponent = () => {
         </View>
       ) : (
         <>
+          {/* Overview Header */}
           <View
             style={[
               styles.sectionHeader,
               { backgroundColor: themeColors.backgroundSecondary },
             ]}
           >
-            <Text style={styles.sectionTitle}>Overview</Text>
+            <Text
+              style={[styles.sectionTitle, { color: themeColors.textDarker }]}
+            >
+              Overview
+            </Text>
             <Text style={styles.timeRange}>Total Reach</Text>
           </View>
+
+          {/* Core Stats Row */}
           <View style={styles.statsOverviewRow}>
             <View
               style={[
@@ -335,14 +339,22 @@ export const OverviewsScreenComponent = () => {
                 { backgroundColor: themeColors.backgroundSecondary },
               ]}
             >
-              <Text
-                style={[styles.statValue, { color: themeColors.textDarker }]}
-              >
-                {formatStatNumber(totalImpressions)}
-              </Text>
-              <Text style={[styles.statLabel, { color: themeColors.text }]}>
-                Impressions
-              </Text>
+              <MaterialIcons
+                name="visibility"
+                size={20}
+                color={themeColors.primary}
+                style={styles.statIcon}
+              />
+              <View>
+                <Text
+                  style={[styles.statValue, { color: themeColors.textDarker }]}
+                >
+                  {formatStatNumber(totalImpressions)}
+                </Text>
+                <Text style={[styles.statLabel, { color: themeColors.text }]}>
+                  Impressions
+                </Text>
+              </View>
             </View>
             <View
               style={[
@@ -350,17 +362,28 @@ export const OverviewsScreenComponent = () => {
                 { backgroundColor: themeColors.backgroundSecondary },
               ]}
             >
-              <Text
-                style={[styles.statValue, { color: themeColors.textDarker }]}
-              >
-                {formatStatNumber(totalSalesCount)}
-              </Text>
-              <Text style={[styles.statLabel, { color: themeColors.text }]}>
-                Total Sales
-              </Text>
+              <MaterialIcons
+                name="shopping-bag"
+                size={20}
+                color={themeColors.primary}
+                style={styles.statIcon}
+              />
+              <View>
+                <Text
+                  style={[styles.statValue, { color: themeColors.textDarker }]}
+                >
+                  {formatStatNumber(totalSalesCount)}
+                </Text>
+                <Text style={[styles.statLabel, { color: themeColors.text }]}>
+                  Total Sales
+                </Text>
+              </View>
             </View>
           </View>
+
+          {/* Grid Container for Graphs and Financials */}
           <View style={styles.gridContainer}>
+            {/* Left Column: Sales Growth & Quick Rating */}
             <View style={styles.leftColumn}>
               <View
                 style={[
@@ -368,15 +391,13 @@ export const OverviewsScreenComponent = () => {
                   { backgroundColor: themeColors.backgroundSecondary },
                 ]}
               >
-                <View
-                  style={[styles.graphHeader, { padding: 0, borderRadius: 0 }]}
-                >
+                <View style={styles.graphHeader}>
                   <Text style={[styles.miniLabel, { color: themeColors.text }]}>
                     Sales Growth
                   </Text>
                   <MaterialIcons
                     name={totalSalesCount > 0 ? 'trending-up' : 'trending-flat'}
-                    size={16}
+                    size={18}
                     color={themeColors.primary}
                   />
                 </View>
@@ -385,25 +406,24 @@ export const OverviewsScreenComponent = () => {
                   themeBackgroundColor={themeColors.backgroundSecondary}
                 />
               </View>
+
               <View
                 style={[
                   styles.ratingMiniBox,
                   { backgroundColor: themeColors.backgroundSecondary },
                 ]}
               >
-                <View
-                  style={[styles.graphHeader, { padding: 0, borderRadius: 0 }]}
-                >
+                <View style={styles.graphHeader}>
                   <Text style={[styles.miniLabel, { color: themeColors.text }]}>
                     Rating
                   </Text>
                   <MaterialIcons
                     name="star"
-                    size={16}
+                    size={18}
                     color={themeColors.primary}
                   />
                 </View>
-                <View style={[styles.statBox, { padding: 0, borderRadius: 0 }]}>
+                <View style={styles.ratingContentRow}>
                   <Text
                     style={[
                       styles.statValue,
@@ -414,101 +434,93 @@ export const OverviewsScreenComponent = () => {
                   </Text>
                   <MaterialIcons
                     name="star"
-                    size={26}
+                    size={24}
                     color={themeColors.primary}
-                    style={{ marginLeft: 5 }}
+                    style={{ marginLeft: 6 }}
                   />
                 </View>
               </View>
             </View>
-            <View style={styles.rightColumn}>
-              <View
-                style={[
-                  styles.impressionsTallBox,
-                  { backgroundColor: themeColors.backgroundSecondary },
-                ]}
-              >
-                <View
-                  style={[styles.graphHeader, { padding: 0, borderRadius: 0 }]}
-                >
-                  <Text
-                    style={[
-                      styles.miniLabel,
-                      { color: themeColors.textDarker },
-                    ]}
-                  >
-                    Impressions
-                  </Text>
-                  <MaterialIcons
-                    name="bar-chart"
-                    size={16}
-                    color={themeColors.primary}
-                  />
-                </View>
-                <LineGraph
-                  trend={totalImpressions > 0 ? 'up' : 'down'}
-                  colorOverride="rgba(255,255,255,0.8)"
-                  themeBackgroundColor={themeColors.backgroundSecondary}
-                />
+
+            {/* Right Column: Impressions & Financials (Rendered conditionally if impressions exist, or layout shifts cleanly) */}
+            {totalImpressions > 0 && (
+              <View style={styles.rightColumn}>
                 <View
                   style={[
-                    styles.ratingMiniBox,
-                    { padding: 0, borderRadius: 0 },
+                    styles.impressionsTallBox,
+                    { backgroundColor: themeColors.backgroundSecondary },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.graphHeader,
-                      { marginBottom: 5, padding: 0, borderRadius: 0 },
-                    ]}
-                  >
+                  <View style={styles.graphHeader}>
                     <Text
-                      style={[styles.miniLabel, { color: themeColors.text }]}
+                      style={[
+                        styles.miniLabel,
+                        { color: themeColors.textDarker },
+                      ]}
                     >
-                      Total Generated Income
+                      Impressions Activity
                     </Text>
                     <MaterialIcons
-                      name="diamond"
-                      size={16}
+                      name="bar-chart"
+                      size={18}
                       color={themeColors.primary}
                     />
                   </View>
-                  <CurrencyDisplay
-                    value={totalIncome}
-                    size="medium"
-                    containerStyle={styles.incomeCurrency}
+                  <LineGraph
+                    trend={totalImpressions > 0 ? 'up' : 'down'}
+                    colorOverride="rgba(255,255,255,0.8)"
+                    themeBackgroundColor={themeColors.backgroundSecondary}
                   />
-                  <View
-                    style={[
-                      styles.graphHeader,
-                      { marginVertical: 5, padding: 0, borderRadius: 0 },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.miniLabel, { color: themeColors.text }]}
-                    >
-                      Available For Payout
-                    </Text>
-                    <MaterialIcons
-                      name="diamond"
-                      size={16}
-                      color={themeColors.success}
+
+                  <View style={styles.financialsDivider} />
+
+                  <View style={styles.financialSection}>
+                    <View style={styles.graphHeader}>
+                      <Text
+                        style={[styles.miniLabel, { color: themeColors.text }]}
+                      >
+                        Total Generated Income
+                      </Text>
+                      <MaterialIcons
+                        name="diamond"
+                        size={16}
+                        color={themeColors.primary}
+                      />
+                    </View>
+                    <CurrencyDisplay
+                      value={totalIncome}
+                      size="medium"
+                      containerStyle={styles.incomeCurrency}
+                    />
+
+                    <View style={[styles.graphHeader, { marginTop: 10 }]}>
+                      <Text
+                        style={[styles.miniLabel, { color: themeColors.text }]}
+                      >
+                        Available For Payout
+                      </Text>
+                      <MaterialIcons
+                        name="account-balance-wallet"
+                        size={16}
+                        color={themeColors.success}
+                      />
+                    </View>
+                    <CurrencyDisplay
+                      value={currentBalance}
+                      size="medium"
+                      containerStyle={styles.incomeCurrency}
                     />
                   </View>
-                  <CurrencyDisplay
-                    value={currentBalance}
-                    size="medium"
-                    containerStyle={styles.incomeCurrency}
-                    isSuccess={true}
-                  />
                 </View>
               </View>
-            </View>
+            )}
           </View>
+
+          {/* Orders Status Row */}
           {sellerOrders.length > 0 && (
             <View style={styles.statusRow}>
               <StatusCard
-                label="Pending Orders"
+                label="Pending"
                 count={formatStatNumber(
                   sellerOrders.filter(o => o.status === 'pending_delivery')
                     .length,
@@ -517,7 +529,7 @@ export const OverviewsScreenComponent = () => {
                 icon="delivery-dining"
               />
               <StatusCard
-                label="Completed Orders"
+                label="Completed"
                 count={formatStatNumber(
                   sellerOrders.filter(o => o.status === 'completed').length,
                 )}
@@ -525,7 +537,7 @@ export const OverviewsScreenComponent = () => {
                 icon="check-circle"
               />
               <StatusCard
-                label="Cancelled Orders"
+                label="Cancelled"
                 count={formatStatNumber(
                   sellerOrders.filter(o => o.status === 'cancelled').length,
                 )}
@@ -534,43 +546,61 @@ export const OverviewsScreenComponent = () => {
               />
             </View>
           )}
-          <View
-            style={[
-              styles.reviewHighlight,
-              { backgroundColor: themeColors.backgroundSecondary },
-            ]}
-          >
-            <View>
-              <Text style={[styles.ratingTitle, { color: themeColors.text }]}>
-                Customer Satisfaction
-              </Text>
-              <Text style={[styles.ratingSub, { color: themeColors.text }]}>
-                {allRatings.length}{' '}
-                {allRatings.length === 1 ? 'review' : 'reviews'}
-              </Text>
+
+          {/* Customer Satisfaction / Reviews Section (Conditionally Rendered) */}
+          {allRatings.length > 0 && (
+            <View
+              style={[
+                styles.reviewHighlight,
+                { backgroundColor: themeColors.backgroundSecondary },
+              ]}
+            >
+              <View>
+                <Text
+                  style={[
+                    styles.ratingTitle,
+                    { color: themeColors.textDarker },
+                  ]}
+                >
+                  Customer Satisfaction
+                </Text>
+                <Text style={[styles.ratingSub, { color: themeColors.text }]}>
+                  {allRatings.length}{' '}
+                  {allRatings.length === 1 ? 'review' : 'reviews'}
+                </Text>
+              </View>
+              <View style={styles.ratingValueBox}>
+                <Text
+                  style={[styles.ratingText, { color: themeColors.textDarker }]}
+                >
+                  {avgRating}
+                </Text>
+                <MaterialIcons
+                  name="star"
+                  size={20}
+                  color={themeColors.primary}
+                />
+              </View>
             </View>
-            <View style={styles.ratingValueBox}>
-              <Text
-                style={[styles.ratingText, { color: themeColors.textDarker }]}
-              >
-                {avgRating}
-              </Text>
-              <MaterialIcons
-                name="star"
-                size={20}
-                color={themeColors.primary}
-              />
-            </View>
-          </View>
+          )}
+
+          {/* Pro Tip Card */}
           <View
             style={[
               styles.newsCard,
               { backgroundColor: themeColors.backgroundSecondary },
             ]}
           >
-            <Text style={[styles.newsTag, { color: themeColors.text }]}>
-              PRO TIP
-            </Text>
+            <View style={styles.proTipHeader}>
+              <MaterialIcons
+                name="lightbulb"
+                size={16}
+                color={themeColors.primary}
+              />
+              <Text style={[styles.newsTag, { color: themeColors.primary }]}>
+                PRO TIP
+              </Text>
+            </View>
             <Text style={[styles.newsText, { color: themeColors.text }]}>
               {totalImpressions > 0 && totalSalesCount === 0
                 ? 'High impressions but no sales? Try lowering your price or adding clearer descriptions.'
@@ -584,52 +614,55 @@ export const OverviewsScreenComponent = () => {
 };
 export const ProductList = () => {
   const { colors: themeColors } = useTheme();
-  const { allProducts, currentUser, deleteProductLocal } = useAppDataContext();
+  const { currentUser, deleteProductLocal } = useAppDataContext();
   const navigation = useNavigation<any>();
-  const sellerProducts = allProducts.filter(
-    p => p.sellerId === currentUser.uid,
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { sellerProducts, refreshProducts } = useSellerProducts(
+    currentUser?.uid,
   );
+
   const hasProducts = sellerProducts.length > 0;
   const handleDeletePress = (productId: string, productTitle: string) => {
-    Alert.alert(
-      'Remove Listing?',
-      `Are you sure you want to permanently delete "${productTitle}"? This will clear all hosted media assets and cannot be undone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await deleteProductApi(productId);
-              if (result.success) {
-                await deleteProductLocal(productId);
-                Toast.show({
-                  type: 'success',
-                  text2: 'Product has been permanently removed.',
-                });
-              } else {
-                Toast.show({
-                  type: 'error',
-                  text1: 'Delete Error',
-                  text2: result.message || 'Could not complete request.',
-                });
-              }
-            } catch (error) {
-              Toast.show({
-                type: 'error',
-                text1: 'Network Error',
-                text2: 'Something went wrong while connecting to the server.',
-              });
-            }
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+    setSelectedProduct({ id: productId, title: productTitle });
+    setDeleteModalVisible(true);
+  };
+  const handleConfirmDelete = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      setIsDeleting(true);
+      const result = await deleteProductApi(selectedProduct.id);
+
+      if (result.success) {
+        await deleteProductLocal(selectedProduct.id);
+        Toast.show({
+          type: 'success',
+          text2: 'Product has been permanently removed.',
+        });
+        setDeleteModalVisible(false);
+        setSelectedProduct(null);
+        refreshProducts();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Error',
+          text2: result.message || 'Could not complete request.',
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: 'Something went wrong while connecting to the server.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
   const renderProductItem = ({ item }: { item: Product }) => {
     const isPhysical = item.type === 'physical';
@@ -645,7 +678,9 @@ export const ProductList = () => {
           styles.card,
           { backgroundColor: themeColors.backgroundSecondary },
         ]}
+        activeOpacity={0.8}
       >
+        {/* Thumbnail Container */}
         <View style={styles.imageContainer}>
           <Image
             source={{
@@ -653,26 +688,36 @@ export const ProductList = () => {
             }}
             style={styles.thumbnail}
           />
+        </View>
+
+        {/* Info Container */}
+        <View style={styles.infoContainer}>
+          {/* Niche / Category Pill */}
           <View
             style={[
               styles.typeBadge,
-              { backgroundColor: themeColors.backgroundSecondary },
+              { backgroundColor: themeColors.primary + '15' },
             ]}
           >
-            <Text style={[styles.typeText, { color: themeColors.text }]}>
-              {item.niche}
+            <Text style={[styles.typeText, { color: themeColors.primary }]}>
+              {item.niche?.toUpperCase()}
             </Text>
           </View>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={[styles.title, { color: themeColors.textDarker }]}>
+
+          {/* Title */}
+          <Text
+            style={[styles.title, { color: themeColors.textDarker }]}
+            numberOfLines={1}
+          >
             {item.title}
           </Text>
+
+          {/* Stock & Price Row */}
           <View style={styles.detailsRow}>
             <View style={styles.badge}>
               <MaterialIcons
                 name="inventory"
-                size={16}
+                size={14}
                 color={
                   isOutOfStock
                     ? themeColors.primary
@@ -685,41 +730,51 @@ export const ProductList = () => {
                 style={[
                   styles.detailText,
                   isOutOfStock
-                    ? { color: themeColors.primary }
+                    ? { color: themeColors.primary, fontWeight: '600' }
                     : { color: themeColors.text },
                 ]}
               >
                 {isOutOfStock
                   ? 'Out of Stock'
-                  : `${item.amountInStock} in Stock`}
+                  : `${item.amountInStock ?? 0} in stock`}
               </Text>
             </View>
-            <CurrencyDisplay value={item.priceInPoints} size="medium" />
+            <CurrencyDisplay value={item.price} size="medium" />
           </View>
-          <View style={styles.statsFooter}>
+
+          {/* Actions Footer */}
+          <View
+            style={[
+              styles.statsFooter,
+              { borderTopColor: themeColors.border || 'rgba(0,0,0,0.05)' },
+            ]}
+          >
             <TouchableOpacity
+              style={styles.actionIconButton}
               onPress={() =>
                 navigation.navigate('CreateProduct', {
                   product: item,
                 })
               }
             >
-              <MaterialIcons
-                name="edit"
-                size={22}
-                color={themeColors.primary}
-                style={{ padding: 10 }}
-              />
+              <MaterialIcons name="edit" size={18} color={themeColors.text} />
+              <Text style={[styles.actionText, { color: themeColors.text }]}>
+                Edit
+              </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
+              style={styles.actionIconButton}
               onPress={() => handleDeletePress(item.productId, item.title)}
             >
               <MaterialIcons
-                name="delete"
-                size={22}
+                name="delete-outline"
+                size={18}
                 color={themeColors.primary}
-                style={{ padding: 10 }}
               />
+              <Text style={[styles.actionText, { color: themeColors.primary }]}>
+                Delete
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -764,7 +819,7 @@ export const ProductList = () => {
               label="Total Products Count"
               count={formatStatNumber(sellerProducts.length)}
               color={themeColors.textDarker}
-              icon="store-front"
+              icon="storefront"
             />
           </View>
           <FlatList
@@ -780,6 +835,20 @@ export const ProductList = () => {
             }
             ListEmptyComponent={<ProductEmptyState onAdd={handleAddNew} />}
           />
+          <ActionModal
+            visible={deleteModalVisible}
+            onClose={() => {
+              if (!isDeleting) {
+                setDeleteModalVisible(false);
+                setSelectedProduct(null);
+              }
+            }}
+            onContinue={handleConfirmDelete}
+            title="Remove Listing?"
+            subtitle={`Are you sure you want to permanently delete "${selectedProduct?.title || ''}"? This will clear all hosted media assets and cannot be undone.`}
+            continueText="Delete"
+            loading={isDeleting}
+          />
         </>
       )}
     </ScrollView>
@@ -788,13 +857,13 @@ export const ProductList = () => {
 export const PayoutView = () => {
   const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
+  const { exchangeData } = useExchangeRate(currentUser.country || 'Nigeria');
   const [history, setHistory] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isPinVisible, setIsPinVisible] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
-
+  const [isAddBankVisible, setIsAddBankVisible] = useState(false);
   const currentBalance = currentUser?.pendingSalesBalance || 0;
   const isVerified = currentUser?.isVerified || false;
 
@@ -807,31 +876,11 @@ export const PayoutView = () => {
     if (res.success) setHistory(res.data);
     setLoading(false);
   };
-  const handleWithdraw = async () => {
-    if (!isVerified) {
-      Alert.alert(
-        'Verification Required',
-        'Your account must be verified and Icash PIN created...',
-      );
-      return;
-    }
-    if (currentBalance < 5) {
-      Alert.alert('Low Balance', 'Minimum payout amount is 5.00 iCash');
-      return;
-    }
-    if (!currentUser.hasIcashPin) {
-      navigation.navigate('iCashSecurity');
-    }
-    setIsPinVisible(true);
-  };
   const executePayout = async () => {
-    setIsPinVisible(false);
     setRequesting(true);
     const res = await requestPayoutAPI(currentBalance);
     if (res.success) {
-      dispatch(
-        setUser({ ...currentUser, pointsBalance: res.newPointsBalance }),
-      );
+      dispatch(setUser({ ...currentUser }));
       Toast.show({
         type: 'success',
         text1: 'Fetch Error',
@@ -875,78 +924,93 @@ export const PayoutView = () => {
         </Text>
       </View>
       <View style={styles.historyRight}>
-        <CurrencyDisplay value={item.amount} size="small" isSuccess={true} />
+        <CurrencyDisplay value={item.amount} size="small" />
         <Text style={[styles.statusBadge, { color: themeColors.text }]}>
           {item.status}
         </Text>
       </View>
     </View>
   );
-  const renderHeader = () => (
-    <View
-      style={[
-        styles.balanceCard,
-        { backgroundColor: themeColors.backgroundSecondary },
-      ]}
-    >
-      <Text style={[styles.balanceLabel, { color: themeColors.textDarker }]}>
-        Available for Payout
-      </Text>
-      <CurrencyDisplay value={currentBalance} size="large" isSuccess={true} />
-      {!isVerified || !currentUser.hasIcashPin ? (
-        <>
-          <Text style={[styles.warningText, { color: themeColors.primary }]}>
-            {!isVerified ? 'Account verification' : 'Icash PIN'} is required for
-            payout
-          </Text>
-          <CustomButton
-            title={!isVerified ? 'Verify Identity' : 'Create Icash PIN'}
-            style={[styles.verifyBtn]}
-            onPress={() => {
-              if (!isVerified) {
-                navigation.navigate('PersonaVerify');
-              } else {
-                navigation.navigate('iCashSecurity');
-              }
-            }}
-          />
-        </>
-      ) : (
-        <TouchableOpacity
-          style={[
-            styles.withdrawBtn,
-            (currentBalance <= 0 || requesting) && styles.disabledBtn,
-            { backgroundColor: themeColors.btnColor },
-          ]}
-          onPress={handleWithdraw}
-          disabled={currentBalance <= 0 || requesting}
-        >
-          {requesting ? (
-            <ActivityIndicator
-              color={themeColors.btnTextColor}
-              size={'small'}
+  const renderHeader = () => {
+    const hasPayoutAccount = !!currentUser?.subaccountId;
+
+    return (
+      <View
+        style={[
+          styles.balanceCard,
+          { backgroundColor: themeColors.backgroundSecondary },
+        ]}
+      >
+        <Text style={[styles.balanceLabel, { color: themeColors.textDarker }]}>
+          Available for Payout
+        </Text>
+        <CurrencyDisplay value={currentBalance} size="large" />
+        {!isVerified ? (
+          <>
+            <Text style={[styles.warningText, { color: themeColors.primary }]}>
+              Identity verification is required for payout
+            </Text>
+            <CustomButton
+              title="Verify Identity"
+              style={styles.verifyBtn}
+              onPress={() => navigation.navigate('PersonaVerify')}
             />
-          ) : (
-            <>
-              <MaterialIcons
-                name="account-balance-wallet"
-                size={20}
+          </>
+        ) : !hasPayoutAccount ? (
+          <>
+            <Text style={[styles.warningText, { color: themeColors.primary }]}>
+              Payout bank account is required to withdraw funds
+            </Text>
+            <CustomButton
+              title="Add Payout Bank"
+              style={styles.verifyBtn}
+              onPress={() => setIsAddBankVisible(true)}
+            />
+          </>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.withdrawBtn,
+              (currentBalance <= 0 || requesting) && styles.disabledBtn,
+              { backgroundColor: themeColors.btnColor },
+            ]}
+            onPress={executePayout}
+            disabled={currentBalance <= 0 || requesting}
+          >
+            {requesting ? (
+              <ActivityIndicator
                 color={themeColors.btnTextColor}
+                size={'small'}
               />
-              <Text
-                style={[
-                  styles.withdrawBtnText,
-                  { color: themeColors.btnTextColor },
-                ]}
-              >
-                Withdraw Funds
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+            ) : (
+              <>
+                <MaterialIcons
+                  name="account-balance-wallet"
+                  size={20}
+                  color={themeColors.btnTextColor}
+                />
+                <Text
+                  style={[
+                    styles.withdrawBtnText,
+                    { color: themeColors.btnTextColor },
+                  ]}
+                >
+                  Withdraw Funds
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+        <AddPaymentModal
+          visible={isAddBankVisible}
+          onClose={() => setIsAddBankVisible(false)}
+          currencyData={exchangeData}
+          user={currentUser}
+          mode="withdraw"
+        />
+      </View>
+    );
+  };
   return (
     <>
       <FlatList
@@ -971,13 +1035,6 @@ export const PayoutView = () => {
         }
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-      />
-      <IcashPinOrFingerprintVerifyModal
-        navigation={navigation}
-        isVisible={isPinVisible}
-        onClose={() => setIsPinVisible(false)}
-        onSuccess={executePayout}
-        title="Confirm Payout"
       />
     </>
   );
@@ -1066,8 +1123,6 @@ export const SalesScreen = () => {
       (sum, s) => sum + s.netEarnings,
       0,
     );
-
-    // Handle year roll-over for previous month comparison
     const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
     const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
 
@@ -1243,11 +1298,7 @@ export const SalesScreen = () => {
                       containerStyle={{ marginLeft: 8 }}
                     />
                   </View>
-                  <CurrencyDisplay
-                    value={buyer.totalSpent}
-                    size="medium"
-                    isSuccess={true}
-                  />
+                  <CurrencyDisplay value={buyer.totalSpent} size="medium" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1335,22 +1386,8 @@ export const ReviewsSection = () => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 15,
-  },
+  container: { flex: 1, paddingBottom: 40 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  timeRange: { fontSize: 12, color: PRIMARY_COLOR_TINT },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
   statusRowB: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1364,142 +1401,15 @@ const styles = StyleSheet.create({
   },
   statusCount: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
   statusLabel: { fontSize: 12 },
-  reviewHighlight: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 15,
-  },
-  ratingTitle: { fontWeight: '600', fontSize: 14 },
-  ratingSub: { fontSize: 12, marginTop: 4 },
-  ratingValueBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: { fontWeight: 'bold', fontSize: 16, marginRight: 5 },
-  emptyStateCard: {
-    padding: 15,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 15,
-  },
-  emptyStateSub: {
-    marginBottom: 20,
-    fontSize: 14,
-  },
-  addBtnSmall: {
-    paddingHorizontal: 15,
-    marginTop: 10,
-  },
-  addBtnText: { fontWeight: '600', fontSize: 14 },
-  newsCard: { padding: 15, borderRadius: 15, alignItems: 'center' },
-  newsTag: {
-    fontWeight: '900',
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  newsText: { fontSize: 14, width: '100%' },
-  statsOverviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  statBox: {
-    padding: 15,
-    borderRadius: 15,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    marginLeft: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    fontWeight: 'bold',
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    height: 220,
-    marginBottom: 20,
-  },
-  leftColumn: {
-    flex: 2,
-    marginRight: 10,
-    justifyContent: 'space-between',
-  },
-  rightColumn: {
-    flex: 1,
-  },
-  salesGraphBox: {
-    flex: 1.4,
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  ratingMiniBox: {
-    flex: 0.6,
-    padding: 15,
-    borderRadius: 15,
-    elevation: 2,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  impressionsTallBox: {
-    flex: 1,
-    borderRadius: 15,
-    padding: 15,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  graphHeader: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 15,
-    borderRadius: 15,
-  },
   row: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
   },
-  miniLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'Inter-Medium',
-  },
   statusIconContainer: {
     marginBottom: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  incomeCurrency: {
-    flex: 1,
   },
   emptyContainer: {
     flex: 1,
@@ -1600,64 +1510,6 @@ const styles = StyleSheet.create({
     width: 'auto',
     paddingHorizontal: 15,
   },
-  card: {
-    flexDirection: 'row',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    alignItems: 'center',
-  },
-  imageContainer: {
-    position: 'relative',
-  },
-  thumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-  },
-  typeBadge: {
-    position: 'absolute',
-    top: -5,
-    left: 5,
-    padding: 5,
-    borderRadius: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-
-  infoContainer: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  detailText: {
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  statsFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-  },
   listContainer: {
     paddingBottom: 40,
   },
@@ -1728,6 +1580,251 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 5,
+  },
+  card: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    alignItems: 'flex-start',
+  },
+  imageContainer: {
+    marginRight: 14,
+  },
+  thumbnail: {
+    width: 76,
+    height: 76,
+    borderRadius: 14,
+    backgroundColor: '#eee',
+  },
+  infoContainer: {
+    flex: 1,
+  },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  typeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailText: {
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  statsFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    borderTopWidth: 1,
+    paddingTop: 10,
+    gap: 16,
+  },
+  actionIconButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  timeRange: {
+    fontSize: 12,
+    color: PRIMARY_COLOR_TINT,
+    fontWeight: '600',
+  },
+  statsOverviewRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  statBox: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,0,0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statIcon: {
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,107,0,0.1)',
+  },
+  statLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+    marginBottom: 16,
+  },
+  leftColumn: {
+    flex: 1.2,
+    gap: 12,
+  },
+  rightColumn: {
+    flex: 1,
+  },
+  salesGraphBox: {
+    flex: 1.4,
+    padding: 14,
+    borderRadius: 14,
+    justifyContent: 'space-between',
+  },
+  ratingMiniBox: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 14,
+    justifyContent: 'space-between',
+  },
+  ratingContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  impressionsTallBox: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 14,
+    justifyContent: 'space-between',
+  },
+  graphHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  miniLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  financialsDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 10,
+  },
+  financialSection: {
+    width: '100%',
+  },
+  incomeCurrency: {
+    marginVertical: 2,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  reviewHighlight: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 16,
+  },
+  ratingTitle: {
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  ratingSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  ratingValueBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontWeight: '700',
+    fontSize: 18,
+    marginRight: 4,
+  },
+  emptyStateCard: {
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSub: {
+    textAlign: 'center',
+    marginBottom: 24,
+    fontSize: 14,
+  },
+  addBtnSmall: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  newsCard: {
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 20,
+  },
+  proTipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  newsTag: {
+    fontWeight: '800',
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
+  newsText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 

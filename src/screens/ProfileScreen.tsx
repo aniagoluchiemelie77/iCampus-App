@@ -25,10 +25,8 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
-import { ITagCard } from '../components/iTag';
 import { Course, User } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
-import { EditiTagModal } from '../components/EditItag.tsx';
 import {
   FollowersListModal,
   FollowingListModal,
@@ -314,7 +312,6 @@ export const ProfileScreen = ({ route }: any) => {
     title: 'Following',
     data: [],
   });
-  const [isEditItagModalVisible, setIsEditItagModalVisible] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
@@ -330,23 +327,6 @@ export const ProfileScreen = ({ route }: any) => {
   const onTextLayout = (e: any) => {
     if (!isExpanded) {
       setNumLines(e.nativeEvent.lines.length);
-    }
-  };
-  const handleSaveUpdate = (updatedITag: any) => {
-    updateLocalProfile(prev => ({
-      ...prev,
-      iTagData: updatedITag,
-    }));
-  };
-  const handleCopyITag = () => {
-    const iTagValue = profileData.iTagData?.username;
-    if (iTagValue) {
-      Clipboard.setString(iTagValue);
-      console.log('Copied to clipboard');
-      Toast.show({
-        type: 'success',
-        text2: 'Copied to clipboard',
-      });
     }
   };
   const handleSave = async () => {
@@ -445,28 +425,81 @@ export const ProfileScreen = ({ route }: any) => {
   }, [skillInput]);
   if (!profileData)
     return (
-      <View
-        style={[
-          styles.blockedContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <PageHeader
+          title="Profile"
+          rightElement={
+            <View style={styles.headerRightDiv}>
+              <TouchableOpacity
+                onPress={() => setIsSearchFocused(true)}
+                style={{ marginRight: 6 }}
+              >
+                <MaterialIcons name="search" size={23} color={colors.primary} />
+              </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Settings')}
+                >
+                  <MaterialIcons
+                    name="settings"
+                    size={23}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          }
+        />
+        <MaterialIcons name={'no-accounts'} size={80} color={colors.primary} />
+        <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
+          User Not Found
+        </Text>
+        <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
+          User acccount not found or has been deleted.
+        </Text>
+        <View style={styles.blockedBtnRow}>
+          <TouchableOpacity
+            style={[styles.blockBtn, { borderColor: colors.primary }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={[styles.blockBtnText, { color: colors.primary }]}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
-  const isIscoreViewEligible = currentUser.tier !== 'free';
   const isVerified = profileData.isVerified === true;
   const isExplicitlyBlockedByMe = currentUser.blockedUsers?.includes(
     profileData?.uid || identifier,
   );
   if (isBlocked) {
     return (
-      <View
-        style={[
-          styles.blockedContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <PageHeader
+          title="Profile"
+          rightElement={
+            <View style={styles.headerRightDiv}>
+              <TouchableOpacity
+                onPress={() => setIsSearchFocused(true)}
+                style={{ marginRight: 6 }}
+              >
+                <MaterialIcons name="search" size={23} color={colors.primary} />
+              </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Settings')}
+                >
+                  <MaterialIcons
+                    name="settings"
+                    size={23}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          }
+        />
         <MaterialIcons
           name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
           size={80}
@@ -572,19 +605,6 @@ export const ProfileScreen = ({ route }: any) => {
               containerStyle={{ padding: 15 }}
             />
             <View style={styles.rowDiv}>
-              {isOwner ||
-                (isIscoreViewEligible && (
-                  <View style={styles.iScoreChip}>
-                    <Text
-                      style={[styles.iScoreValue, { color: colors.textDarker }]}
-                    >
-                      {profileData.currentIScore}
-                    </Text>
-                    <Text style={[styles.iScoreLabel, { color: colors.text }]}>
-                      iScore
-                    </Text>
-                  </View>
-                ))}
               {isOwner && !isVerified && (
                 <TouchableOpacity
                   style={styles.verifyBtn}
@@ -793,38 +813,6 @@ export const ProfileScreen = ({ route }: any) => {
             </View>
           </View>
         )}
-        <View
-          style={[
-            styles.iTagDiv,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <ITagCard
-            iTagData={profileData.iTagData}
-            isPremium={profileData.tier === 'premium'}
-            isOwner={isOwner}
-          />
-          {isOwner && isIscoreViewEligible && (
-            <TouchableOpacity
-              style={styles.editButtonCircle}
-              onPress={() => setIsEditItagModalVisible(true)}
-            >
-              <MaterialIcons name="edit" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          )}
-          {!isOwner && (
-            <TouchableOpacity
-              style={styles.editButtonCircle}
-              onPress={handleCopyITag}
-            >
-              <MaterialIcons
-                name="content-copy"
-                size={20}
-                color={PRIMARY_COLOR}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
         {profileData.courses && profileData.courses.length > 0 && (
           <CoursesView courses={profileData.courses} colors={colors} />
         )}
@@ -933,16 +921,10 @@ export const ProfileScreen = ({ route }: any) => {
         navigation={navigation}
         onClose={() => setFollowingModal(prev => ({ ...prev, visible: false }))}
       />
-      <EditiTagModal
-        visible={isEditItagModalVisible}
-        onClose={() => setIsEditItagModalVisible(false)}
-        iTagData={profileData.iTagData}
-        onSave={handleSaveUpdate}
-      />
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
-        actions={['iCash', 'iAssistant']}
+        actions={['iAssistant']}
       />
       <Modal
         isVisible={isEditModalVisible}

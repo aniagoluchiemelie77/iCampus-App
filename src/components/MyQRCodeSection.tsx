@@ -34,40 +34,6 @@ interface FAQItemProps {
   question: string;
   answer: string;
 }
-export const MyQRCodeSection = ({ itagusername }: { itagusername: string }) => {
-  const { colors } = useTheme();
-  return (
-    <View
-      style={[
-        QRCodeStyles.qrSection,
-        { backgroundColor: colors.backgroundSecondary },
-      ]}
-    >
-      <Text style={[QRCodeStyles.sectionLabel, { color: colors.text }]}>
-        Your Receiving iTag
-      </Text>
-      <View
-        style={[
-          QRCodeStyles.qrWrapper,
-          {
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <QRCode
-          value={itagusername}
-          size={200}
-          color={colors.text}
-          backgroundColor={colors.backgroundSecondary}
-        />
-      </View>
-      <Text style={[QRCodeStyles.iTagText, { color: colors.text }]}>
-        @{itagusername}
-      </Text>
-    </View>
-  );
-};
 export const OrderAccordion = ({ order }: OrderProps) => {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);

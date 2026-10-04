@@ -119,6 +119,12 @@ const Notifications = () => {
         navigation.navigate('SalesHub');
         break;
 
+      case 'NEW_PRODUCT':
+        navigation.navigate('ProductDetails', {
+          productId: payload.productId,
+        });
+        break;
+
       case 'LECTURE_CANCELLED':
       case 'LECTURE_POSTPONED':
       case 'LECTURE_VENUE_CHANGE':
@@ -306,7 +312,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginBottom: 20,
     marginHorizontal: 15,
   },
   tab: {

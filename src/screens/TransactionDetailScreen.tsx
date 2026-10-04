@@ -146,7 +146,6 @@ export const TransactionDetailScreen = () => {
               <CurrencyDisplay
                 value={transaction.amountICash || 0}
                 size="large"
-                isSuccess={isIncome}
               />
             </View>
             <Text style={[styles.dateText, { color: colors.text }]}>

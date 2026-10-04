@@ -61,15 +61,6 @@ const StationCard = ({
     >
       <View style={styles.imageContainer}>
         <Image source={{ uri: images[index] }} style={styles.image} />
-        {isSelected && (
-          <View style={[styles.badge, { backgroundColor: colors.btnColor }]}>
-            <MaterialIcons
-              name="check-circle"
-              size={16}
-              color={colors.btnTextColor}
-            />
-          </View>
-        )}
       </View>
       <View style={styles.info}>
         <Text
@@ -137,11 +128,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     overflow: 'hidden',
     alignItems: 'center',
+    paddingHorizontal: 10,
   },
   image: {
     width: 100,
     height: 80,
     resizeMode: 'cover',
+    borderRadius: 15,
   },
   info: {
     flex: 1,

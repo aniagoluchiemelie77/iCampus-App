@@ -102,7 +102,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const [selectedTier, setSelectedTier] = useState(tier);
   const [isPayModalVisible, setPayModalVisible] = useState(false);
   const { targetScreen } = route.params || {};
-  const { exchangeData } = useExchangeRate(country || 'Nigeria');
+  const { exchangeData, loading } = useExchangeRate(country || 'Nigeria');
 
   const getLocalPriceValue = React.useCallback(
     (id: string) => {
@@ -162,12 +162,17 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
 
   const renderCustomButton = React.useCallback(
     (props: any) => (
-      <FlutterwaveButton
-        onPress={props.onPress}
-        label={`Pay ${formatLocalPrice(selectedTier!)}`}
-      />
+      <View
+        pointerEvents={loading ? 'none' : 'auto'}
+        style={{ opacity: loading ? 0.6 : 1 }}
+      >
+        <FlutterwaveButton
+          onPress={props.onPress}
+          label={`Pay ${formatLocalPrice(selectedTier!)}`}
+        />
+      </View>
     ),
-    [selectedTier, formatLocalPrice],
+    [selectedTier, formatLocalPrice, loading],
   );
 
   return (
@@ -335,13 +340,13 @@ const styles = StyleSheet.create({
   },
   horizontalScrollContent: {
     paddingHorizontal: 10,
-    paddingTop: 15,
+    paddingTop: 20,
   },
   card: {
     borderRadius: 24,
     padding: 24,
     marginRight: 20,
-    minHeight: 550,
+    minHeight: 600,
     elevation: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -414,7 +419,8 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
   },
   payButtonMain: {
-    marginTop: 'auto',
+    marginTop: 5,
+    height: 50,
   },
   payButtonText: {
     fontSize: 15,
@@ -458,7 +464,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 7,
     lineHeight: 20,
   },
   priceLabel: {
@@ -473,7 +479,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   cancelButton: {
-    marginTop: 20,
+    marginTop: 7,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',

@@ -88,6 +88,8 @@ interface ManualCoursePayload {
   courseTitle: string;
   courseCode: string;
   credits: number;
+  semester: string;
+  session: string;
 }
 interface UploadFilePayload {
   uri: string;
@@ -236,102 +238,6 @@ export const revokeDeviceSession = async (
     return { success: false, message: error?.message };
   }
 };
-export const initiatePaymentCharge = async (
-  type: 'card' | 'account',
-  payload: any,
-): Promise<{ success: boolean; data?: any; message?: string }> => {
-  try {
-    const response = await fetchWithAuth(`${baseUrl}users/payments/initiate-charge`, {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({
-        paymentType: type,
-        paymentData: payload,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Payment Failed',
-        text2: result.message || 'Error processing transaction',
-      });
-      return { success: false, message: result.message };
-    }
-
-    return { success: true, data: result.data };
-  } catch (error: any) {
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not reach the payment server',
-    });
-    return { success: false, message: error.message };
-  }
-};
-export const initializeBuyTransaction = async (payload: any) => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/user/transactions/initialize-buy`;
-
-    const response = await fetchWithAuth(url, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey, 
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to initialize buy');
-    }
-
-    return { success: true, data };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    const errorMessage = error.name === 'AbortError' ? 'Request timed out' : (error.message || 'Failed to initialize buy');
-    const customError = new Error(errorMessage);
-    
-    handleTransactionError(customError, 'Purchase Error');
-    return { success: false, message: errorMessage };
-  }
-};
-export const initializeWithdrawTransaction = async (payload: any): Promise<{ success: boolean; data?: any; message?: string }> => {
-  try {
-    const response = await fetchWithAuth(`${baseUrl}user/transactions/initialize-withdraw`, {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': uuidv4(), 
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to initialize withdrawal');
-    }
-    return { success: true, data };
-  } catch (error: any) {
-    if (typeof handleTransactionError === 'function') {
-      handleTransactionError(error, 'Withdrawal Error');
-    }
-    return { success: false, message: error.message || 'An unexpected error occurred' };
-  }
-};
 export const verifySubscriptionOnBackend = async (
   transactionId: string, 
   tier: string, 
@@ -424,221 +330,6 @@ export const toggleBlockUser = async (
       text2: error?.message || 'Check your internet connection',
     });
     return { success: false, message: error?.message };
-  }
-};
-export const verifyICashPin = async (
-  pin: string,
-  signal?: AbortSignal
-): Promise<{ success: boolean; message?: string; isSuspended?: boolean; attemptsRemaining?: number }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const response = await fetchWithAuth(`${baseUrl}user/verify-icash-pin`, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({ pin }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      const errorMessage = data?.message || 'Verification failed';
-      Toast.show({
-        type: 'error',
-        text1: 'PIN Error',
-        text2: errorMessage,
-      });
-      return { 
-        success: false, 
-        message: errorMessage, 
-        isSuspended: data?.isSuspended, 
-        attemptsRemaining: data?.attemptsRemaining 
-      };
-    }
-
-    return { success: true, message: data?.message };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'PIN verification timed out.' });
-      return { success: false, message: 'Request timed out.' };
-    }
-
-    console.error("PIN Verification Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: error?.message || 'Network error. Try again.',
-    });
-    return { success: false, message: error?.message || "Network error. Try again." };
-  }
-};
-export const setupICashPin = async (
-  pin: string,
-  signal?: AbortSignal
-): Promise<{ success: boolean; message: string }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const response = await fetchWithAuth(`${baseUrl}user/setup-icash-pin`, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({ pin }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      const errorMessage = data?.message || 'Could not set PIN';
-      Toast.show({
-        type: 'error',
-        text1: 'Setup Failed',
-        text2: errorMessage,
-      });
-      return { success: false, message: errorMessage };
-    }
-
-    Toast.show({ 
-      type: 'success', 
-      text1: 'Secure', 
-      text2: data?.message || 'iCash PIN created successfully!' 
-    });
-    return { success: true, message: data?.message || 'PIN created successfully' };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'PIN setup request timed out.' });
-      return { success: false, message: 'Request timed out.' };
-    }
-
-    console.error("PIN Setup Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: error?.message || 'Check your internet connection',
-    });
-    return { success: false, message: error?.message || 'Network error' };
-  }
-};
-export const requestPinReset = async (
-  signal?: AbortSignal
-): Promise<{ success: boolean; message: string }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const response = await fetchWithAuth(`${baseUrl}user/request-pin-reset`, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      const errorMessage = data?.message || 'Failed to request PIN reset';
-      Toast.show({ type: 'error', text1: 'Error', text2: errorMessage });
-      return { success: false, message: errorMessage };
-    }
-
-    Toast.show({ type: 'info', text1: 'OTP Sent', text2: data?.message || 'Check your registered email.' });
-    return { success: true, message: data?.message || 'OTP sent successfully' };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'PIN reset request timed out.' });
-      return { success: false, message: 'Request timed out.' };
-    }
-
-    console.error("PIN Reset Request Utility Error:", error);
-    Toast.show({ type: 'error', text1: 'Connection Error', text2: error?.message || 'Network error.' });
-    return { success: false, message: error?.message || "Network error. Try again." };
-  }
-};
-export const resetICashPin = async (
-  otp: string,
-  newPin: string,
-  signal?: AbortSignal
-): Promise<{ success: boolean; message: string }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const response = await fetchWithAuth(`${baseUrl}user/reset-icash-pin`, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({ otp, newPin }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      const errorMessage = data?.message || 'Reset failed';
-      Toast.show({ type: 'error', text1: 'Reset Failed', text2: errorMessage });
-      return { success: false, message: errorMessage };
-    }
-
-    Toast.show({ type: 'success', text1: 'Success', text2: data?.message || 'PIN updated successfully.' });
-    return { success: true, message: data?.message || 'PIN updated successfully.' };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'PIN reset request timed out.' });
-      return { success: false, message: 'Request timed out.' };
-    }
-
-    console.error("PIN Reset Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: error?.message || 'Network error. Try again.',
-    });
-    return { success: false, message: error?.message || "Network error. Try again." };
   }
 };
 export const askIAssistantAgent = async (
@@ -2199,41 +1890,6 @@ export const submitOrUpdatePostService = async (
     };
   }
 };
-export const executeP2PTransfer = async (
-  payload: P2PTransferPayload
-): Promise<{ success: boolean; message?: string; transactionRef?: string }> => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/user/transactions/p2p-transfer`, {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(payload),
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Transfer Error',
-        text2: result.message || 'Failed to complete P2P transfer',
-      });
-      return { success: false, message: result.message };
-    }
-    
-    return { success: true, transactionRef: result.transactionRef };
-  } catch (error: any) {
-    console.error("P2P Transfer Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: error.message || 'An unexpected error occurred during transfer.',
-    });
-    return { success: false, message: error.message };
-  }
-};
 export const toggleFollowUser = async (
   targetFollowingId: string,
   signal?: AbortSignal
@@ -2676,34 +2332,41 @@ export const submitStudentTest = async (
     };
   }
 };
-export const verifyPaymentOtpAPI = async (payload: VerifyOtpPayload): Promise<{ success: boolean; data?: any; message?: string }> => {
+export const initiatePaymentCharge = async (
+  type: 'card' | 'account',
+  payload: any,
+): Promise<{ success: boolean; data?: any; message?: string }> => {
   try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/user/payments/verify-otp`, {
+    const response = await fetchWithAuth(`${baseUrl}users/payments/initiate-charge`, {
       method: 'POST',
       headers: {
         'X-Idempotency-Key': uuidv4(),
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        paymentType: type,
+        paymentData: payload,
+      }),
     });
-    
+
     const result = await response.json();
-    
+
     if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'OTP verification failed',
-      };
+      Toast.show({
+        type: 'error',
+        text1: 'Payment Failed',
+        text2: result.message || 'Error processing transaction',
+      });
+      return { success: false, message: result.message };
     }
 
-    return {
-      success: true,
-      data: result.data,
-      message: result.message,
-    };
+    return { success: true, data: result.data };
   } catch (error: any) {
-    console.error("verifyPaymentOtpAPI Error:", error);
-    return { success: false, message: error.message || 'Server connection failed' };
+    Toast.show({
+      type: 'error',
+      text1: 'Connection Error',
+      text2: 'Could not reach the payment server',
+    });
+    return { success: false, message: error.message };
   }
 };
 export const submitOnlineClassAttendanceAPI = async (
@@ -2740,43 +2403,6 @@ export const submitOnlineClassAttendanceAPI = async (
   } catch (error: any) {
     if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
     console.error("submitAttendanceAPI Error:", error);
-    return {
-      success: false,
-      message: error.message || 'Server connection failed. Please try again.',
-    };
-  }
-};
-export const exportTransactionsAPI = async (payload: ExportTransactionsPayload): Promise<{ success: boolean; data?: any; message?: string }> => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/user/transactions/export`, {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({
-        userId: payload.userId,
-        startDate: payload.startDate.toISOString(),
-        endDate: payload.endDate.toISOString(),
-      }),
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      return {
-        success: false,
-        message: result.message || 'Failed to export transactions.',
-      };
-    }
-
-    return {
-      success: true,
-      data: result.data,
-      message: result.message || 'Statement sent to your email.',
-    };
-  } catch (error: any) {
-    console.error("exportTransactionsAPI Error:", error);
     return {
       success: false,
       message: error.message || 'Server connection failed. Please try again.',

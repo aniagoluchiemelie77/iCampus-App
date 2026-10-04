@@ -1,6 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
-  Alert,
   View,
   Text,
   TouchableOpacity,
@@ -14,6 +13,8 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from '../hooks/hooks';
+import Toast from 'react-native-toast-message';
+import { ActionModal } from './LogoutModal.tsx';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -67,6 +68,38 @@ export const DropOffStationItem = ({
   const { colors } = useTheme();
   const admin = useAppSelector(state => state.admin);
   const isSuperAdmin = admin.adminType === 'super_admin';
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedDropOffStation, setSelectedDropOffStation] = useState<{
+    id: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const handleDeletePress = () => {
+    setSelectedDropOffStation({ id: item.id });
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedDropOffStation?.id) return;
+
+    try {
+      setIsDeleting(true);
+      onDelete(selectedDropOffStation.id);
+      setIsDeleting(false);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Drop off station deleted successfully.',
+      });
+    } catch (error: any) {
+      setIsDeleting(false);
+      Toast.show({
+        type: 'error',
+        text1: 'Deletion Failed',
+        text2: error?.message || 'Failed to delete drop off station.',
+      });
+    }
+  };
   return (
     <View
       style={[styles.itemCard, { backgroundColor: colors.backgroundSecondary }]}
@@ -98,27 +131,25 @@ export const DropOffStationItem = ({
           <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
             <MaterialIcons name="edit" size={24} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() =>
-              Alert.alert(
-                'Delete Drop Off Station?',
-                'Are you sure? This action cannot be undone.',
-                [
-                  { text: 'Cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => onDelete(item.id!),
-                  },
-                ],
-              )
-            }
-            style={styles.iconBtn}
-          >
+          <TouchableOpacity onPress={handleDeletePress} style={styles.iconBtn}>
             <MaterialIcons name="delete" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
       )}
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedDropOffStation(null);
+          }
+        }}
+        onContinue={confirmDelete}
+        title="Delete Drop Off Station?"
+        subtitle={`Are you sure you want to delete the drop off station from "${item.name}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </View>
   );
 };

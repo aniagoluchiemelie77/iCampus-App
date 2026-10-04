@@ -64,7 +64,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [status, setStatus] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('First');
   const [isManualModalVisible, setIsManualModalVisible] = useState(false);
-  const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
+  const [selectedSession, setSelectedSession] = useState(SESSIONS[4]);
   const [isSessionModalVisible, setSessionModalVisible] = useState(false);
   const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
@@ -73,9 +73,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [page, setPage] = useState(1);
   const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
-  const stateRef = useRef({ hasMore, isFetchingMore });
-  stateRef.current = { hasMore, isFetchingMore };
+  const stateRef = useRef({ hasMore, isFetchingMore, page });
+  stateRef.current = { hasMore, isFetchingMore, page };
   const handlePickImage = async () => {
     try {
       const fileData = await pickImage();
@@ -97,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       if (fileData) {
         await uploadAndExtractCourseFile({
           uri: fileData.uri,
-          type: 'application/pdf', // or fallback depending on file type
+          type: 'application/pdf',
           name: fileData.name || `document_${Date.now()}.pdf`,
         });
       }
@@ -107,23 +108,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   };
 
   const fetchMyCourses = useCallback(
-    async (semester?: string, session?: string) => {
+    async (
+      semester: string = 'All',
+      session: string = 'All',
+      pageNumber: number = 1,
+    ) => {
       const { hasMore, isFetchingMore } = stateRef.current;
-      if (!hasMore || isFetchingMore) return;
+      if (pageNumber > 1 && (!hasMore || isFetchingMore)) return;
 
-      setLoading(true);
+      setLoading(pageNumber === 1);
       setIsFetchingMore(true);
       try {
         const result = await fetchMyCoursesAPI({
           semester,
           session,
-          page: 1,
+          page: pageNumber,
           limit: 10,
         });
 
         if (result.success) {
           console.log('Fetch successful...');
           setCourses(result.courses);
+          setPage(pageNumber);
           setHasMore(result.courses.length === 10);
         } else {
           Toast.show({
@@ -145,21 +151,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         setIsFetchingMore(false);
       }
     },
-    [setCourses, setHasMore, setLoading, setIsFetchingMore],
+    [setCourses, setHasMore, setLoading, setIsFetchingMore, setPage],
   );
 
   const fetchLecturerCourses = useCallback(
-    async (semester: string, session: string) => {
+    async (semester: string, session: string, pageNumber: number = 1) => {
       const { hasMore, isFetchingMore } = stateRef.current;
-      if (!hasMore || isFetchingMore) return;
+      if (pageNumber > 1 && (!hasMore || isFetchingMore)) return;
 
-      setLoading(true);
+      setLoading(pageNumber === 1);
       setIsFetchingMore(true);
       try {
         const result = await fetchLecturerCoursesAPI({
           semester,
           session,
-          page: 1,
+          page: pageNumber,
           limit: 10,
         });
 
@@ -167,6 +173,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           console.log('Fetch successful...');
           setCourses(result.courses);
           setHasMore(result.courses.length === 10);
+          setPage(pageNumber);
         } else {
           Toast.show({
             type: 'error',
@@ -186,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         setIsFetchingMore(false);
       }
     },
-    [setCourses, setHasMore, setLoading, setIsFetchingMore],
+    [setCourses, setHasMore, setLoading, setIsFetchingMore, setPage],
   );
   const handleCaptureCamera = async () => {
     try {
@@ -255,6 +262,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     courseTitle: string;
     courseCode: string;
     credits: number;
+    semester: string;
+    session: string;
   }) => {
     try {
       const response = await createManualCourseAPI(newCourseData);
@@ -264,8 +273,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           text1: 'Success',
           text2: response.message,
         });
-        if (typeof fetchMyCourses === 'function') {
-          fetchMyCourses();
+        if (user.usertype === 'student') {
+          if (typeof fetchMyCourses === 'function') {
+            fetchMyCourses();
+          }
+        } else {
+          /*
+          if (typeof fetchLecturerCourses === 'function') {
+            fetchLecturerCourses();
+          }
+          */
         }
       } else {
         Toast.show({
@@ -402,7 +419,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         )}
                       </View>
                       <MaterialIcons
-                        name="chevron-down"
+                        name="keyboard-arrow-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -430,7 +447,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         </Text>
                       </View>
                       <MaterialIcons
-                        name="chevron-down"
+                        name="keyboard-arrow-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -566,7 +583,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         )}
                       </View>
                       <MaterialIcons
-                        name="chevron-down"
+                        name="keyboard-arrow-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -594,7 +611,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
                         </Text>
                       </View>
                       <MaterialIcons
-                        name="chevron-down"
+                        name="keyboard-arrow-down"
                         size={24}
                         color={colors.textDarker}
                       />
@@ -672,7 +689,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         visible={isSessionModalVisible}
         options={SESSIONS}
         selectedValue={selectedSession}
-        onSelect={val => setSelectedSession(val)}
+        onSelect={val => {
+          setHasMore(true);
+          setPage(1);
+          setSelectedSession(val);
+        }}
         onClose={() => setSessionModalVisible(false)}
         colors={colors}
       />
@@ -681,7 +702,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         visible={isSemesterModalVisible}
         options={['All', 'First', 'Second']}
         selectedValue={selectedSemester}
-        onSelect={val => setSelectedSemester(val)}
+        onSelect={val => {
+          setHasMore(true);
+          setPage(1);
+          setSelectedSemester(val);
+        }}
         onClose={() => setSemesterModalVisible(false)}
         colors={colors}
       />
@@ -770,7 +795,7 @@ const styles = StyleSheet.create({
   },
   selectorButton: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 15,
@@ -778,6 +803,7 @@ const styles = StyleSheet.create({
   },
   selectorTextContainer: {
     alignItems: 'center',
+    marginRight: 5,
   },
   selectorLabel: {
     fontSize: 14,
@@ -794,6 +820,8 @@ const styles = StyleSheet.create({
   },
   ctaBtn: {
     paddingHorizontal: 15,
+    height: 50,
+    width: 'auto',
   },
   ctaBtnText: {
     fontSize: 14,

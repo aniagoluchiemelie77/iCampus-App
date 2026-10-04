@@ -73,6 +73,7 @@ export const CreateProductScreen = ({ route }: any) => {
       description: '',
       price: '',
       niche: '',
+      amountInStock: '',
       type: 'physical',
       physicalDetails: {
         weightKg: '',
@@ -560,6 +561,7 @@ export const CreateProductScreen = ({ route }: any) => {
                         const cleanInt = text.replace(/[^0-9]/g, '');
                         setFormInputs(prev => ({
                           ...prev,
+                          amountInStock: cleanInt,
                           physicalDetails: {
                             ...prev.physicalDetails,
                             inStock: cleanInt,
@@ -919,12 +921,12 @@ export const CreateProductScreen = ({ route }: any) => {
         animationType="slide"
         onRequestClose={() => setIsNicheModalOpen(false)}
       >
-        <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={() => setIsNicheModalOpen(false)}
+        >
           <View
-            style={[
-              styles.bottomSheet,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
+            style={[styles.bottomSheet, { backgroundColor: colors.background }]}
           >
             <Text
               style={[styles.modalTitleSecond, { color: colors.textDarker }]}
@@ -940,8 +942,9 @@ export const CreateProductScreen = ({ route }: any) => {
                   <Pressable
                     style={[
                       styles.nicheOption,
-                      isSelected && { backgroundColor: colors.btnColor + '15' },
-                      { borderBottomColor: colors.border || '#E2E8F0' },
+                      isSelected
+                        ? { backgroundColor: colors.btnColor }
+                        : { backgroundColor: colors.backgroundSecondary },
                     ]}
                     onPress={() => {
                       setFormInputs(prev => ({ ...prev, niche: item.value }));
@@ -983,7 +986,7 @@ export const CreateProductScreen = ({ route }: any) => {
               }}
             />
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -1282,11 +1285,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    maxHeight: '60%',
+    maxHeight: '70%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 25,
-    alignItems: 'center',
   },
   modalContent: {
     width: '100%',
@@ -1309,6 +1311,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 25,
+    alignSelf: 'center',
   },
   progressBarTrack: {
     height: 8,
@@ -1361,6 +1364,6 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 0.5,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 15,
   },
 });
