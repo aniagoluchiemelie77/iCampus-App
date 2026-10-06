@@ -3,7 +3,6 @@
 .DS_Store
 local.properties
 .env.local
-.env
 # Xcode
 #
 build/

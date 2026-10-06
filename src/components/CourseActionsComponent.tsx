@@ -10,6 +10,7 @@ import { IconOutline } from '@ant-design/icons-react-native';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import * as RNHTMLtoPDF from 'react-native-html-to-pdf';
 import ReactNativeBlobUtil from 'react-native-blob-util';
+import { ActionModal } from './LogoutModal.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import {
   View,
@@ -943,23 +944,63 @@ export const RenderContents = ({
   const [currentText, setCurrentText] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const shouldShowSearch = !(userRole === 'student' || false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedCourseContent, setSelectedCourseContent] = useState<{
+    index: number;
+    topicName: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   if (!course) {
     return null;
   }
-  const filteredData = contents.filter(
-    (item: any) =>
-      item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item?.url
-        ?.split('/')
-        .pop()
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()),
+  const filteredData = contents.filter((item: string) =>
+    item.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
   const openModal = (index: number | null = null) => {
     setEditingIndex(index);
     setCurrentText(index !== null ? contents[index] : '');
     setModalVisible(true);
   };
+  const handleDeletePress = (index: number) => {
+    setSelectedCourseContent({
+      index,
+      topicName: contents[index],
+    });
+    setDeleteModalVisible(true);
+  };
+  const confirmDelete = async () => {
+    if (selectedCourseContent === null) return;
+
+    const { index } = selectedCourseContent;
+    setIsDeleting(true);
+
+    const result = await deleteCourseContent(course.courseId, index);
+
+    setIsDeleting(false);
+
+    if (result.success) {
+      setContents(contents.filter((_, i) => i !== index));
+      setDeleteModalVisible(false);
+      setSelectedCourseContent(null);
+      Toast.show({
+        type: 'success',
+        text1: 'Topic Removed',
+        position: 'bottom',
+        bottomOffset: insets.bottom || 20,
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Failed',
+        text2: result.error,
+        position: 'bottom',
+        bottomOffset: insets.bottom || 20,
+      });
+    }
+  };
+
   const handleSave = async () => {
     if (!currentText.trim()) {
       Toast.show({
@@ -1007,39 +1048,6 @@ export const RenderContents = ({
       });
     }
   };
-  const confirmDelete = (index: number) => {
-    Alert.alert(
-      'Delete Topic?',
-      `Are you sure you want to remove "${contents[index]}" from ${course.courseTitle}? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await deleteCourseContent(course.courseId, index);
-            if (result.success) {
-              setContents(contents.filter((_, i) => i !== index));
-              Toast.show({
-                type: 'success',
-                text1: 'Topic Removed',
-                position: 'bottom',
-                bottomOffset: insets.bottom || 20,
-              });
-            } else {
-              Toast.show({
-                type: 'error',
-                text1: 'Delete Failed',
-                text2: result.error,
-                position: 'bottom',
-                bottomOffset: insets.bottom || 20,
-              });
-            }
-          },
-        },
-      ],
-    );
-  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -1076,7 +1084,7 @@ export const RenderContents = ({
         keyExtractor={(_, i) => i.toString()}
         contentContainerStyle={[
           CourseActionStyles.listPadding,
-          { paddingBottom: insets.bottom + 20 },
+          { paddingBottom: insets.bottom + 20, flexGrow: 1 },
         ]}
         renderItem={({ item, index }) => (
           <View
@@ -1107,7 +1115,7 @@ export const RenderContents = ({
                   <MaterialIcons name="edit" size={20} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => confirmDelete(index)}
+                  onPress={() => handleDeletePress(index)}
                   style={CourseActionStyles.iconBtn}
                 >
                   <MaterialIcons
@@ -1196,6 +1204,20 @@ export const RenderContents = ({
           </TouchableWithoutFeedback>
         </Pressable>
       </Modal>
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedCourseContent(null);
+          }
+        }}
+        onContinue={confirmDelete}
+        title="Delete Topic?"
+        subtitle={`Are you sure you want to delete "${selectedCourseContent?.topicName}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </View>
   );
 };
@@ -1216,6 +1238,12 @@ export const RenderMaterials = ({
   const [refreshing, _setRefreshing] = useState(false);
   const { pickDocument } = useMediaPicker();
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedMaterialUrl, setSelectedMaterialUrl] = useState<string | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const shouldShowSearch = !(userRole === 'student' || false);
 
   if (!course) {
@@ -1237,7 +1265,6 @@ export const RenderMaterials = ({
       })),
     ),
   ];
-
   const handleDownload = async (url: string, fileName: string) => {
     try {
       if (Platform.OS === 'ios') {
@@ -1268,7 +1295,6 @@ export const RenderMaterials = ({
       Toast.show({ type: 'error', text1: 'Download Failed' });
     }
   };
-
   const handleAddMaterial = async () => {
     try {
       const fileData = await pickDocument();
@@ -1319,15 +1345,22 @@ export const RenderMaterials = ({
       setIsUploading(false);
     }
   };
+  const handleDelete = (url: string) => {
+    setSelectedMaterialUrl(url);
+    setDeleteModalVisible(true);
+  };
 
-  const processDeletion = async (url: string) => {
+  const confirmDelete = async () => {
+    if (!selectedMaterialUrl) return;
     try {
-      setIsUploading(true);
+      setIsDeleting(true);
       const apiResult = await deleteCourseMaterial(course.courseId, {
-        materialUrl: url,
+        materialUrl: selectedMaterialUrl,
       });
       if (apiResult.success) {
         Toast.show({ type: 'success', text1: 'Material Deleted Successfully' });
+        setDeleteModalVisible(false);
+        setSelectedMaterialUrl(null);
         onRefresh();
       } else {
         throw new Error(apiResult.error || 'Backend failed to delete asset.');
@@ -1340,29 +1373,8 @@ export const RenderMaterials = ({
         text2: err instanceof Error ? err.message : 'Please try again',
       });
     } finally {
-      setIsUploading(false);
+      setIsDeleting(false);
     }
-  };
-
-  const handleDelete = (url: string) => {
-    const fileName = url?.split('/').pop() || 'this document';
-
-    Alert.alert(
-      'Delete Material',
-      `Are you sure you want to permanently delete "${fileName}"?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => processDeletion(url),
-        },
-      ],
-      { cancelable: true },
-    );
   };
 
   const filteredData = combinedResources.filter(
@@ -1374,6 +1386,9 @@ export const RenderMaterials = ({
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()),
   );
+
+  const selectedFileName =
+    selectedMaterialUrl?.split('/').pop() || 'this document';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -1409,7 +1424,7 @@ export const RenderMaterials = ({
         onRefresh={onRefresh}
         contentContainerStyle={[
           CourseActionStyles.listPadding,
-          { paddingBottom: insets.bottom + 20 },
+          { paddingBottom: insets.bottom + 20, flexGrow: 1 },
         ]}
         renderItem={({ item }) => {
           const fileName = item?.url?.split('/').pop() || 'document.pdf';
@@ -1479,6 +1494,20 @@ export const RenderMaterials = ({
           />
         }
       />
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedMaterialUrl(null);
+          }
+        }}
+        onContinue={confirmDelete}
+        title="Delete Material"
+        subtitle={`Are you sure you want to permanently delete "${selectedFileName}"?`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </View>
   );
 };
@@ -1497,24 +1526,32 @@ export const RenderAssignments = ({
     course?.assignments || [],
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const shouldShowSearch = !(userRole === 'student' || false);
 
   if (!course) {
     return null;
   }
-
   const filteredData = localAssignments.filter(
     (item: any) =>
       item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item?.url
+      item?.fileUrl
         ?.split('/')
         .pop()
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()),
   );
+
   const isPastDue = (dueDate: string) => {
     return new Date() > new Date(dueDate);
   };
+
   const fetchAssignments = async () => {
     try {
       const response = await fetchAllAssignments(course.courseId);
@@ -1525,65 +1562,60 @@ export const RenderAssignments = ({
       console.error('Refresh assignments failed:', error);
     }
   };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchAssignments();
     setRefreshing(false);
   };
-  const handleAssignmentDelete = (
+
+  const handleAssignmentDeletePress = (
     assignmentId: string,
     assignmentTitle: string,
   ) => {
-    Alert.alert(
-      'Delete Assignment?',
-      `Are you sure you want to permanently delete "${assignmentTitle}"? This will also remove all student submissions and cannot be undone.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await deleteAssignment(
-                course.courseId,
-                assignmentId,
-              );
-              if (result.success) {
-                Toast.show({
-                  type: 'success',
-                  text1: 'Assignment Removed',
-                  position: 'bottom',
-                  bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
-                });
-                if (onRefresh) onRefresh();
-              } else {
-                Toast.show({
-                  type: 'error',
-                  text1: 'Deletion Failed',
-                  text2:
-                    result.error ||
-                    'Could not remove assignment, please try again.',
-                  position: 'bottom',
-                  bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
-                });
-              }
-            } catch (error: any) {
-              Toast.show({
-                type: 'error',
-                text1: 'Network Error',
-                text2: error.message || 'Server connection timed out.',
-                position: 'bottom',
-                bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
-              });
-            }
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+    setSelectedAssignment({ id: assignmentId, title: assignmentTitle });
+    setDeleteModalVisible(true);
+  };
+
+  const confirmAssignmentDelete = async () => {
+    if (!selectedAssignment) return;
+    try {
+      setIsDeleting(true);
+      const result = await deleteAssignment(
+        course.courseId,
+        selectedAssignment.id,
+      );
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Assignment Removed',
+          position: 'bottom',
+          bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+        });
+        setDeleteModalVisible(false);
+        setSelectedAssignment(null);
+        if (onRefresh) onRefresh();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Deletion Failed',
+          text2:
+            result.error || 'Could not remove assignment, please try again.',
+          position: 'bottom',
+          bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: error.message || 'Server connection timed out.',
+        position: 'bottom',
+        bottomOffset: insets.bottom > 0 ? insets.bottom : 20,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -1619,7 +1651,7 @@ export const RenderAssignments = ({
         keyExtractor={(item, i) => item?.id || i.toString()}
         contentContainerStyle={[
           CourseActionStyles.listPadding,
-          { paddingBottom: insets.bottom + 20 },
+          { paddingBottom: insets.bottom + 20, flexGrow: 1 },
         ]}
         renderItem={({ item }) => {
           const overdue = isPastDue(item.dueDate);
@@ -1665,7 +1697,9 @@ export const RenderAssignments = ({
                     CourseActionStyles.statusTag,
                     { backgroundColor: colors.btnColor },
                   ]}
-                  onPress={() => handleAssignmentDelete(item.id, item.title)}
+                  onPress={() =>
+                    handleAssignmentDeletePress(item.id, item.title)
+                  }
                 >
                   <MaterialIcons
                     name="delete"
@@ -1695,6 +1729,20 @@ export const RenderAssignments = ({
         onClose={() => setModalVisible(false)}
         onRefresh={onRefresh}
         colors={colors}
+      />
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedAssignment(null);
+          }
+        }}
+        onContinue={confirmAssignmentDelete}
+        title="Delete Assignment?"
+        subtitle={`Are you sure you want to permanently delete "${selectedAssignment?.title}"? This will also remove all student submissions and cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
       />
     </View>
   );
@@ -1972,14 +2020,6 @@ export const RenderScheduleLecture = ({
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [repeatWeeks, setRepeatWeeks] = useState(1);
-  const [form, setForm] = useState({
-    topicName: '',
-    lectureType: 'Physical',
-    location: '',
-    startTime: new Date().toISOString(),
-    endTime: new Date().toISOString(),
-    date: new Date().toISOString().split('T')[0],
-  });
   const getPlaceholder = () => {
     switch (form.lectureType) {
       case 'Online':
@@ -1989,6 +2029,14 @@ export const RenderScheduleLecture = ({
         return 'e.g. Lecture Hall 1, Room 302';
     }
   };
+  const [form, setForm] = useState({
+    topicName: '',
+    lectureType: 'Physical',
+    location: '',
+    startTime: new Date().toISOString(),
+    endTime: new Date().toISOString(),
+    date: new Date().toISOString().split('T')[0],
+  });
   const validateAndSave = () => {
     const { topicName, location, date, startTime, endTime } = form;
     const venueValue = location;

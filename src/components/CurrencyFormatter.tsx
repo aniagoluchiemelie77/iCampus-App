@@ -44,6 +44,7 @@ export const CurrencyDisplay = ({
           fontSize: currencySize,
           fontWeight: 'bold',
           marginRight: spacing,
+          color: colors.primary,
         }}
       >
         {exchangeData.symbol}

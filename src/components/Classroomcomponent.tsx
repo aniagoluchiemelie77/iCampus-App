@@ -91,7 +91,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Image picker window dismissed');
     }
   };
-
   const handlePickDocument = async () => {
     try {
       const fileData = await pickDocument();
@@ -106,7 +105,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Document picker window dismissed');
     }
   };
-
+  const handleCaptureCamera = async () => {
+    try {
+      const fileData = await pickImageFromCamera();
+      if (fileData) {
+        await uploadAndExtractCourseFile({
+          uri: fileData.uri,
+          type: fileData.type || 'image/jpeg',
+          name: fileData.name || `camera_snap_${Date.now()}.jpg`,
+        });
+      }
+    } catch (err) {
+      console.log('Camera window dismissed');
+    }
+  };
   const fetchMyCourses = useCallback(
     async (
       semester: string = 'All',
@@ -153,7 +165,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     },
     [setCourses, setHasMore, setLoading, setIsFetchingMore, setPage],
   );
-
   const fetchLecturerCourses = useCallback(
     async (semester: string, session: string, pageNumber: number = 1) => {
       const { hasMore, isFetchingMore } = stateRef.current;
@@ -195,20 +206,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     },
     [setCourses, setHasMore, setLoading, setIsFetchingMore, setPage],
   );
-  const handleCaptureCamera = async () => {
-    try {
-      const fileData = await pickImageFromCamera();
-      if (fileData) {
-        await uploadAndExtractCourseFile({
-          uri: fileData.uri,
-          type: fileData.type || 'image/jpeg',
-          name: fileData.name || `camera_snap_${Date.now()}.jpg`,
-        });
-      }
-    } catch (err) {
-      console.log('Camera window dismissed');
-    }
-  };
   const uploadAndExtractCourseFile = async (fileData: {
     uri: string;
     type: string;

@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
     borderTopWidth: 1,
+    paddingTop: 8,
   },
   metricColGroup: {
     flex: 1,

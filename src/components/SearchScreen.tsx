@@ -256,7 +256,12 @@ export const SearchScreen = () => {
               <FlatList
                 data={searchResults}
                 keyExtractor={item =>
-                  item.postId || item.uid || item.id || item._id
+                  item.postId ||
+                  item.uid ||
+                  item.courseId ||
+                  item.productId ||
+                  item._id ||
+                  item.id
                 }
                 renderItem={renderItemCard}
                 contentContainerStyle={{

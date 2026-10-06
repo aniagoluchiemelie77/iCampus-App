@@ -6,6 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
+  View,
 } from 'react-native';
 import { useAppDataContext } from '../context/EventContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -17,6 +18,7 @@ import { OrderAccordion } from '../components/MyQRCodeSection';
 import { CancellationModal } from '../components/OrderCancellationModal';
 import { useTheme } from '../context/ThemeContext';
 import { MarketplaceOrder } from '../types/firebase';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const OrderListItem = React.memo(
   ({
@@ -27,19 +29,39 @@ const OrderListItem = React.memo(
     item: any;
     onCancel: (id: string) => void;
     colors: any;
-  }) => (
-    <>
-      <OrderAccordion order={item} />
-      <TouchableOpacity
-        style={[styles.cancelButton, { backgroundColor: colors.btnColor }]}
-        onPress={() => onCancel(item.orderId)}
-      >
-        <Text style={[styles.cancelButtonText, { color: colors.btnTextColor }]}>
-          Cancel Order
-        </Text>
-      </TouchableOpacity>
-    </>
-  ),
+  }) => {
+    const isCompleted =
+      item.status === 'completed' || item.status === 'delivered';
+
+    return (
+      <View style={styles.wrapperContainer}>
+        <OrderAccordion order={item} />
+        {!isCompleted && (
+          <TouchableOpacity
+            style={[
+              styles.modernCancelButton,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.primary + '40',
+              },
+            ]}
+            onPress={() => onCancel(item.orderId)}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name="cancel"
+              size={16}
+              color={colors.primary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.cancelButtonText, { color: colors.primary }]}>
+              Cancel Order
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  },
 );
 export const PendingOrdersScreen = () => {
   const { colors } = useTheme();
@@ -119,17 +141,29 @@ export const PendingOrdersScreen = () => {
 };
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  cancelButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 14,
+  wrapperContainer: {
+    marginBottom: 16,
+  },
+  modernCancelButton: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 15,
-    marginTop: -5,
+    marginTop: -8,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    width: 'auto',
   },
   cancelButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

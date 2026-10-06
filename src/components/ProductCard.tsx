@@ -90,7 +90,7 @@ export const ProductCard = ({
         styles.card,
         {
           backgroundColor: colors.backgroundSecondary,
-          borderColor: colors.text,
+          borderColor: colors.primaryTint,
           shadowColor: colors.text,
         },
       ]}
@@ -133,7 +133,8 @@ export const ProductCard = ({
       <View style={styles.info}>
         <Text
           style={[styles.title, { color: colors.textDarker }]}
-          numberOfLines={2}
+          numberOfLines={1}
+          ellipsizeMode="tail"
         >
           {product.title || 'Untitled Product'}
         </Text>

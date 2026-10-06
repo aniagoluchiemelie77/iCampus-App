@@ -97,11 +97,12 @@ const ProfileModal = ({
         >
           <TouchableOpacity
             style={styles.userInfo}
-            onPress={() =>
+            onPress={() => {
+              onClose();
               navigation.navigate('Profile', {
                 identifier: currentUser?.uid,
-              })
-            }
+              });
+            }}
           >
             <UserAvatar
               profilePic={currentUser?.profilePic}
@@ -127,47 +128,59 @@ const ProfileModal = ({
               </Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => {
-              onClose();
-              navigation.navigate('SalesHub');
-            }}
-          >
-            <MaterialIcons name="storefront" size={24} color={colors.primary} />
-            <Text style={[styles.itemText, { color: colors.text }]}>
-              Sales Hub
-            </Text>
-          </TouchableOpacity>
-
-          {/* 2. SETTINGS SECTION */}
-          <View style={styles.separator} />
-
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => {
-              onClose();
-              navigation.navigate('Subscription');
-            }}
-          >
-            <MaterialIcons name="verified" size={24} color={colors.primary} />
-            <Text style={[styles.itemText, { color: colors.text }]}>
-              Manage Subscription
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => {
-              onClose();
-              navigation.navigate('Settings');
-            }}
-          >
-            <MaterialIcons name="settings" size={24} color={colors.primary} />
-            <Text style={[styles.itemText, { color: colors.text }]}>
-              Settings
-            </Text>
-          </TouchableOpacity>
-          {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
+          <View style={styles.drawerContentDiv}>
+            <View style={{ width: '100%' }}>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('SalesHub');
+                }}
+              >
+                <MaterialIcons
+                  name="storefront"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  Sales Hub
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('Subscription');
+                }}
+              >
+                <MaterialIcons
+                  name="verified"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  Manage Subscription
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('Settings');
+                }}
+              >
+                <MaterialIcons
+                  name="settings"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  Settings
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
+          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -1378,6 +1391,11 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 14,
     fontWeight: '500',
+  },
+  drawerContentDiv: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingBottom: 30,
   },
 });
 

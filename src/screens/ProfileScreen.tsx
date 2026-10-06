@@ -25,14 +25,13 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader';
 import { ProfileImageCarousel } from '../components/ProfileImageCarousel';
 import { UserIdentity } from '../components/UserIdentity';
-import { Course, User } from '../types/firebase';
+import { Course } from '../types/firebase';
 import { formatTime } from '../utils/durationFormatter';
 import {
   FollowersListModal,
   FollowingListModal,
 } from '../components/Fmodals.tsx';
 import { PostCard } from '../components/PostCard.tsx';
-import Clipboard from '@react-native-clipboard/clipboard';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { patchUserProfile } from '../api/localPatchApis.ts';
 import { UserSearchOverlay } from '../components/SearchOverlay.tsx';
@@ -281,8 +280,9 @@ export const CoursesView = ({
 export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const { identifier } = route.params;
-  const currentUser = useAppSelector(state => state.user) || {};
+  const currentUser = useAppSelector((state: any) => state.user) || {};
   const dispatch = useDispatch();
+
   const {
     isFollowing,
     handleFollowToggle,
@@ -292,13 +292,16 @@ export const ProfileScreen = ({ route }: any) => {
     profileData,
     handleBlockToggle,
   } = useProfileData(identifier, currentUser);
+
   const { tempBio, setTempBio, tempSkills, setTempSkills } =
     useProfileEditing(profileData);
+
   const isOwner =
     currentUser.uid === identifier ||
     currentUser.firstname === identifier ||
     currentUser.lastname === identifier ||
     currentUser.username === identifier;
+
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState('Posts');
   const [isSaving, setIsSaving] = useState(false);
@@ -329,13 +332,16 @@ export const ProfileScreen = ({ route }: any) => {
       setNumLines(e.nativeEvent.lines.length);
     }
   };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const payload: Partial<User> =
+      const payload: any =
         modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
       await patchUserProfile(payload);
-      updateLocalProfile(prev => (prev ? { ...prev, ...payload } : null));
+      updateLocalProfile((prev: any) =>
+        prev ? { ...prev, ...payload } : null,
+      );
       setEditModalVisible(false);
       Toast.show({
         type: 'success',
@@ -352,6 +358,7 @@ export const ProfileScreen = ({ route }: any) => {
       setIsSaving(false);
     }
   };
+
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
@@ -382,11 +389,6 @@ export const ProfileScreen = ({ route }: any) => {
         navigation.navigate('AdminDashboard');
       } catch (storageError) {
         console.error('Storage/Navigation Error during switch:', storageError);
-        Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: 'Failed to complete session transition.',
-        });
       }
     } else {
       Toast.show({
@@ -423,6 +425,21 @@ export const ProfileScreen = ({ route }: any) => {
     const timer = setTimeout(fetchUniversalSkills, 400);
     return () => clearTimeout(timer);
   }, [skillInput]);
+
+  // If search is focused, render search overlay immediately without profile not-found flickering
+  if (isSearchFocused) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <UserSearchOverlay
+          currentUser={currentUser}
+          navigation={navigation}
+          onClose={() => setIsSearchFocused(false)}
+          colors={{ primary: colors.primary, tint: colors.backgroundSecondary }}
+        />
+      </View>
+    );
+  }
+
   if (!profileData)
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -450,14 +467,18 @@ export const ProfileScreen = ({ route }: any) => {
             </View>
           }
         />
-        <MaterialIcons name={'no-accounts'} size={80} color={colors.primary} />
-        <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
-          User Not Found
-        </Text>
-        <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
-          User acccount not found or has been deleted.
-        </Text>
-        <View style={styles.blockedBtnRow}>
+        <View style={styles.errorStateContainer}>
+          <MaterialIcons
+            name={'no-accounts'}
+            size={80}
+            color={colors.primary}
+          />
+          <Text style={[styles.blockedTitle, { color: colors.text }]}>
+            User Not Found
+          </Text>
+          <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
+            User account not found or has been deleted.
+          </Text>
           <TouchableOpacity
             style={[styles.blockBtn, { borderColor: colors.primary }]}
             onPress={() => navigation.goBack()}
@@ -469,10 +490,12 @@ export const ProfileScreen = ({ route }: any) => {
         </View>
       </View>
     );
+
   const isVerified = profileData.isVerified === true;
   const isExplicitlyBlockedByMe = currentUser.blockedUsers?.includes(
     profileData?.uid || identifier,
   );
+
   if (isBlocked) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -486,99 +509,104 @@ export const ProfileScreen = ({ route }: any) => {
               >
                 <MaterialIcons name="search" size={23} color={colors.primary} />
               </TouchableOpacity>
-              {isOwner && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Settings')}
-                >
-                  <MaterialIcons
-                    name="settings"
-                    size={23}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              )}
             </View>
           }
         />
-        <MaterialIcons
-          name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
-          size={80}
-          color={colors.primary}
-        />
-        <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
-          {isExplicitlyBlockedByMe ? 'User Blocked' : 'User Not Found'}
-        </Text>
-        <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
-          {isExplicitlyBlockedByMe
-            ? `You have blocked this user. Unblock them to view their profile and posts.`
-            : `This account is private or you have restricted access to this profile.`}
-        </Text>
-        <View style={styles.blockedBtnRow}>
-          <TouchableOpacity
-            style={[styles.blockBtn, { borderColor: colors.primary }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={[styles.blockBtnText, { color: colors.primary }]}>
-              Go Back
-            </Text>
-          </TouchableOpacity>
-
-          {isExplicitlyBlockedByMe && (
-            <CustomButton
-              title="Unblock User"
-              style={styles.blockBtnMain}
-              onPress={handleBlockToggle}
-            />
-          )}
+        <View style={styles.errorStateContainer}>
+          <MaterialIcons
+            name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
+            size={80}
+            color={colors.primary}
+          />
+          <Text style={[styles.blockedTitle, { color: colors.text }]}>
+            {isExplicitlyBlockedByMe ? 'User Blocked' : 'User Not Found'}
+          </Text>
+          <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
+            {isExplicitlyBlockedByMe
+              ? `You have blocked this user. Unblock them to view their profile and posts.`
+              : `This account is private or you have restricted access to this profile.`}
+          </Text>
+          <View style={styles.blockedBtnRow}>
+            <TouchableOpacity
+              style={[styles.blockBtn, { borderColor: colors.primary }]}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={[styles.blockBtnText, { color: colors.primary }]}>
+                Go Back
+              </Text>
+            </TouchableOpacity>
+            {isExplicitlyBlockedByMe && (
+              <CustomButton
+                title="Unblock User"
+                style={styles.blockBtnMain}
+                onPress={handleBlockToggle}
+              />
+            )}
+          </View>
         </View>
       </View>
     );
   }
+
   const canSwitchToInstitutionAdmin =
     currentUser.isInstitutionAdmin &&
     isOwner &&
     currentUser.isVerified &&
     currentUser.usertype === 'enterprise';
+
+  // Fallback auto-filled headline/bio content if profileData.bio is empty
+  const resolvedBio =
+    profileData.bio ||
+    profileData.headline ||
+    (profileData.usertype === 'student'
+      ? `Student at ${profileData.schoolName || 'Campus'}`
+      : profileData.usertype === 'lecturer'
+        ? `${profileData.jobTitle || 'Lecturer'} • ${profileData.department || ''} at ${profileData.schoolName || ''}`
+        : profileData.usertype === 'enterprise'
+          ? `${profileData.organizationName || 'Organization'} Global Enterprise`
+          : 'iCampus Community Member');
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {!isSearchFocused && (
-        <PageHeader
-          title="Profile"
-          rightElement={
-            <View style={styles.headerRightDiv}>
-              <TouchableOpacity
-                onPress={() => setIsSearchFocused(true)}
-                style={{ marginRight: 6 }}
-              >
-                <MaterialIcons name="search" size={23} color={colors.primary} />
+      <PageHeader
+        title="Profile"
+        rightElement={
+          <View style={styles.headerRightDiv}>
+            <TouchableOpacity
+              onPress={() => setIsSearchFocused(true)}
+              style={{ marginRight: 6 }}
+            >
+              <MaterialIcons name="search" size={23} color={colors.primary} />
+            </TouchableOpacity>
+            {isOwner && (
+              <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+                <MaterialIcons
+                  name="settings"
+                  size={23}
+                  color={colors.primary}
+                />
               </TouchableOpacity>
-              {isOwner && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Settings')}
-                >
-                  <MaterialIcons
-                    name="settings"
-                    size={23}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-      )}
-      <ProfileImageCarousel
-        images={profileData.profilePic}
-        isOwner={isOwner}
-        organizationName={profileData.organizationName}
-        firstName={profileData.firstname}
-        lastName={profileData.lastname}
-        username={profileData.username}
+            )}
+          </View>
+        }
       />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ marginHorizontal: 15 }}
+        contentContainerStyle={styles.scrollContent}
       >
+        {/* Profile Image & Header Banner */}
+        <ProfileImageCarousel
+          images={profileData.profilePic}
+          user={{
+            firstname: profileData.firstname,
+            lastname: profileData.lastname,
+            username: profileData.username,
+            organizationName: profileData.organizationName,
+          }}
+        />
+
+        {/* Reordered Layout: Identity Card First */}
         <View
           style={[
             styles.subContainer,
@@ -586,12 +614,18 @@ export const ProfileScreen = ({ route }: any) => {
           ]}
         >
           <View style={styles.profileInfoSection}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditProfile')}
-              style={styles.editButtonCircle}
-            >
-              <MaterialIcons name="edit" size={23} color={colors.primary} />
-            </TouchableOpacity>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EditProfile')}
+                style={[
+                  styles.editButtonCircle,
+                  { backgroundColor: colors.background },
+                ]}
+              >
+                <MaterialIcons name="edit" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
             <UserIdentity
               firstname={profileData.firstname}
               lastname={profileData.lastname}
@@ -602,12 +636,82 @@ export const ProfileScreen = ({ route }: any) => {
               size="large"
               isOrganization={profileData.usertype === 'enterprise'}
               organizationName={profileData.organizationName}
-              containerStyle={{ padding: 15 }}
+              containerStyle={{ paddingHorizontal: 15, paddingTop: 10 }}
             />
-            <View style={styles.rowDiv}>
+
+            {/* Headline Display */}
+            <Text style={[styles.headlineText, { color: colors.text }]}>
+              {profileData.headline || resolvedBio}
+            </Text>
+
+            {/* Follow Stats Row */}
+            <View style={styles.statsRow}>
+              <TouchableOpacity
+                style={styles.statCountDiv}
+                onPress={() =>
+                  setFollowModal({
+                    visible: true,
+                    title: 'Followers',
+                    data: profileData.followersList || [],
+                  })
+                }
+              >
+                <Text style={[styles.statNumber, { color: colors.primary }]}>
+                  {formatCount(profileData.followersCount)}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.text }]}>
+                  Followers
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.statCountDiv}
+                onPress={() =>
+                  setFollowingModal({
+                    visible: true,
+                    title: 'Following',
+                    data: profileData.followingList || [],
+                  })
+                }
+              >
+                <Text style={[styles.statNumber, { color: colors.primary }]}>
+                  {formatCount(profileData.followingCount)}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.text }]}>
+                  Following
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsContainer}>
+              {!isOwner && !isBlocked && (
+                <CustomButton
+                  title="Block User"
+                  style={styles.secondaryActionBtn}
+                  onPress={handleBlockToggle}
+                />
+              )}
+              {!isOwner && !isFollowing && (
+                <CustomButton
+                  title="Follow"
+                  style={[
+                    styles.primaryActionBtn,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={handleFollowToggle}
+                />
+              )}
+              {canSwitchToInstitutionAdmin && (
+                <CustomButton
+                  title="Switch to Admin"
+                  style={styles.primaryActionBtn}
+                  onPress={handleSwitchToInstitutionAdmin}
+                />
+              )}
               {isOwner && !isVerified && (
                 <TouchableOpacity
-                  style={styles.verifyBtn}
+                  style={[styles.verifyBtn, { borderColor: colors.primary }]}
                   onPress={() => navigation.navigate('PersonaVerify')}
                 >
                   <Text
@@ -618,117 +722,33 @@ export const ProfileScreen = ({ route }: any) => {
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={[styles.bioText, { color: colors.text }]}>
-              {profileData.headline
-                ? profileData.headline
-                : profileData.usertype === 'student'
-                  ? `Student at ${profileData.schoolName}`
-                  : profileData.usertype === 'lecturer'
-                    ? `${profileData.jobTitle || 'Lecturer'} • ${
-                        profileData.department
-                      } at ${profileData.schoolName}`
-                    : profileData.usertype === 'enterprise'
-                      ? `${profileData.organizationName} Global Organization`
-                      : 'iCampus User'}
-            </Text>
-            <View style={styles.statsRow}>
-              <TouchableOpacity
-                style={styles.statCountDiv}
-                onPress={() =>
-                  setFollowModal({
-                    visible: true,
-                    title: 'Followers',
-                    data: profileData.followersList,
-                  })
-                }
-              >
-                <Text
-                  style={[
-                    styles.statCount,
-                    { color: colors.primary },
-                    { marginRight: 4 },
-                  ]}
-                >
-                  {formatCount(profileData.followersCount)}
-                </Text>
-                <Text style={[styles.statCount, { color: colors.primary }]}>
-                  Followers
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statCountDiv}
-                onPress={() =>
-                  setFollowingModal({
-                    visible: true,
-                    title: 'Following',
-                    data: profileData.followingList,
-                  })
-                }
-              >
-                <Text
-                  style={[
-                    styles.statCount,
-                    { color: colors.primary },
-                    { marginRight: 4 },
-                  ]}
-                >
-                  {formatCount(profileData.followingCount)}
-                </Text>
-                <Text style={[styles.statCount, { color: colors.primary }]}>
-                  Following
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.statsRow, { marginBottom: 0 }]}>
-              {!isOwner && !isBlocked && (
-                <CustomButton
-                  title="Block User"
-                  style={[styles.blockBtnMain]}
-                  onPress={handleBlockToggle}
-                />
-              )}
-              {!isOwner && !isFollowing && (
-                <CustomButton
-                  title="Follow"
-                  style={[styles.blockBtnMain]}
-                  onPress={handleFollowToggle}
-                />
-              )}
-              {canSwitchToInstitutionAdmin && (
-                <CustomButton
-                  title="Switch to Institution Admin"
-                  style={[styles.blockBtnMain]}
-                  onPress={handleSwitchToInstitutionAdmin}
-                />
-              )}
-            </View>
+
+            {/* Contact / Portfolio Links */}
             <View style={styles.contactContainer}>
-              <CustomButton
-                title="Send mail"
-                style={styles.contactRow}
-                onPress={() => {
-                  if (profileData.email) {
+              {profileData.email && !isOwner && (
+                <CustomButton
+                  title="Send mail"
+                  style={styles.contactRowBtn}
+                  onPress={() => {
                     Linking.openURL(`mailto:${profileData.email}`).catch(() =>
                       Alert.alert('Error', 'No email app found on this device'),
                     );
-                  }
-                }}
-                iconName="email"
-                iconColor="#fff"
-              />
+                  }}
+                  iconName="email"
+                  iconColor="#fff"
+                />
+              )}
               {profileData.website && (
                 <CustomButton
                   title="View Portfolio"
-                  style={styles.contactRow}
+                  style={styles.contactRowBtn}
                   onPress={() => {
-                    if (profileData.website) {
-                      const url = profileData.website.startsWith('http')
-                        ? profileData.website
-                        : `https://${profileData.website}`;
-                      Linking.openURL(url).catch(() =>
-                        Alert.alert('Error', "Couldn't open this website"),
-                      );
-                    }
+                    const url = profileData.website.startsWith('http')
+                      ? profileData.website
+                      : `https://${profileData.website}`;
+                    Linking.openURL(url).catch(() =>
+                      Alert.alert('Error', "Couldn't open this website"),
+                    );
                   }}
                   iconName="language"
                   iconColor="#fff"
@@ -737,49 +757,51 @@ export const ProfileScreen = ({ route }: any) => {
             </View>
           </View>
         </View>
-        {profileData.bio && (
-          <View
-            style={[
-              styles.sectionContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <View style={styles.sectionTitleDiv}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                About
-              </Text>
-              {isOwner && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setModalType('about');
-                    setEditModalVisible(true);
-                  }}
-                >
-                  <MaterialIcons name="edit" size={20} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <View style={styles.aboutContent}>
-              <Text
-                style={[styles.aboutText, { color: colors.text }]}
-                numberOfLines={isExpanded ? undefined : 4}
-                onTextLayout={onTextLayout}
+
+        {/* About Section (Auto-Filled or Editable) */}
+        <View
+          style={[
+            styles.sectionContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View style={styles.sectionTitleDiv}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              About
+            </Text>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => {
+                  setModalType('about');
+                  setEditModalVisible(true);
+                }}
               >
-                {profileData.bio}
-              </Text>
-              {numLines && numLines > 4 && (
-                <TouchableOpacity
-                  onPress={() => setIsExpanded(!isExpanded)}
-                  style={styles.seeMoreButton}
-                >
-                  <Text style={[styles.seeMoreText, { color: colors.primary }]}>
-                    {isExpanded ? 'Show Less' : 'See More'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                <MaterialIcons name="edit" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
-        )}
+          <View style={styles.aboutContent}>
+            <Text
+              style={[styles.aboutText, { color: colors.text }]}
+              numberOfLines={isExpanded ? undefined : 4}
+              onTextLayout={onTextLayout}
+            >
+              {resolvedBio}
+            </Text>
+            {numLines && numLines > 4 && (
+              <TouchableOpacity
+                onPress={() => setIsExpanded(!isExpanded)}
+                style={styles.seeMoreButton}
+              >
+                <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+                  {isExpanded ? 'Show Less' : 'See More'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Skills Section */}
         {profileData.skills && profileData.skills.length > 0 && (
           <View
             style={[
@@ -798,13 +820,19 @@ export const ProfileScreen = ({ route }: any) => {
                     setEditModalVisible(true);
                   }}
                 >
-                  <MaterialIcons name="edit" size={20} color={colors.primary} />
+                  <MaterialIcons name="edit" size={18} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
             <View style={styles.skillsWrapper}>
               {profileData.skills.map((skill: string, index: number) => (
-                <View key={index} style={styles.skillChip}>
+                <View
+                  key={index}
+                  style={[
+                    styles.skillChip,
+                    { backgroundColor: colors.background },
+                  ]}
+                >
                   <Text style={[styles.skillText, { color: colors.text }]}>
                     {skill}
                   </Text>
@@ -813,100 +841,124 @@ export const ProfileScreen = ({ route }: any) => {
             </View>
           </View>
         )}
+
+        {/* Courses Section */}
         {profileData.courses && profileData.courses.length > 0 && (
           <CoursesView courses={profileData.courses} colors={colors} />
         )}
-      </ScrollView>
-      <ProfileTabs
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        userType={profileData.usertype}
-        isOwner={isOwner}
-      />
-      <View style={styles.tabContent}>
-        {activeTab === 'Posts' && (
-          <FlatList
-            data={profileData.posts.filter((p: any) => !p.isRepost)}
-            keyExtractor={item => item.postId}
-            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No posts yet.</Text>
-            }
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-        {activeTab === 'Reposts' && (
-          <FlatList
-            data={profileData.posts.filter((p: any) => p.isRepost)}
-            keyExtractor={item => item.postId}
-            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No reposts yet.</Text>
-            }
-          />
-        )}
-        {activeTab === 'Bookmarks' && (
-          <FlatList
-            data={profileData.bookmarkedPosts}
-            keyExtractor={item => item.postId}
-            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No bookmarks yet.</Text>
-            }
-          />
-        )}
-        {activeTab === 'Media' && (
-          <FlatList
-            data={profileData.posts.filter(
-              (p: any) => p.media?.url?.length > 0,
-            )}
-            keyExtractor={item => item.postId}
-            numColumns={3}
-            renderItem={({ item }) => <MediaGridItem post={item} />}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No media found.</Text>
-            }
-          />
-        )}
-        {activeTab === 'Jobs' && (
-          <FlatList
-            data={profileData.posts.filter((p: any) => p.postType === 'job')}
-            keyExtractor={item => item.postId}
-            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No job listings.</Text>
-            }
-          />
-        )}
-        {activeTab === 'Events' && (
-          <FlatList
-            data={profileData.posts.filter((p: any) => p.postType === 'event')}
-            keyExtractor={item => item.postId}
-            renderItem={({ item }) => <PostCard post={item} isVisible={true} />}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No upcoming events.</Text>
-            }
-          />
-        )}
-      </View>
-      {isSearchFocused && (
-        <UserSearchOverlay
-          currentUser={currentUser}
-          navigation={navigation}
-          onClose={() => setIsSearchFocused(false)}
-          colors={{ primary: PRIMARY_COLOR, tint: PRIMARY_COLOR_TINT }}
+
+        {/* Profile Tabs & Content Feed */}
+        <ProfileTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          userType={profileData.usertype}
+          isOwner={isOwner}
         />
-      )}
+        <View style={styles.tabContent}>
+          {activeTab === 'Posts' && (
+            <FlatList
+              data={profileData.posts?.filter((p: any) => !p.isRepost) || []}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No posts yet.</Text>
+              }
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+            />
+          )}
+          {activeTab === 'Reposts' && (
+            <FlatList
+              data={profileData.posts?.filter((p: any) => p.isRepost) || []}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No reposts yet.</Text>
+              }
+              scrollEnabled={false}
+            />
+          )}
+          {activeTab === 'Bookmarks' && (
+            <FlatList
+              data={profileData.bookmarkedPosts || []}
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No bookmarks yet.</Text>
+              }
+              scrollEnabled={false}
+            />
+          )}
+          {activeTab === 'Media' && (
+            <FlatList
+              data={
+                profileData.posts?.filter(
+                  (p: any) => p.media?.url?.length > 0,
+                ) || []
+              }
+              keyExtractor={item => item.postId}
+              numColumns={3}
+              renderItem={({ item }) => <MediaGridItem post={item} />}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No media found.</Text>
+              }
+              scrollEnabled={false}
+            />
+          )}
+          {activeTab === 'Jobs' && (
+            <FlatList
+              data={
+                profileData.posts?.filter((p: any) => p.postType === 'job') ||
+                []
+              }
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No job listings.</Text>
+              }
+              scrollEnabled={false}
+            />
+          )}
+          {activeTab === 'Events' && (
+            <FlatList
+              data={
+                profileData.posts?.filter((p: any) => p.postType === 'event') ||
+                []
+              }
+              keyExtractor={item => item.postId}
+              renderItem={({ item }) => (
+                <PostCard post={item} isVisible={true} />
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No upcoming events.</Text>
+              }
+              scrollEnabled={false}
+            />
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Floating Action Button */}
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => setFabMenuVisible(true)}
         >
-          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
+          <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
+
+      {/* Modals & Menus */}
       <FollowersListModal
         visible={followModal.visible}
         title={followModal.title}
@@ -926,6 +978,7 @@ export const ProfileScreen = ({ route }: any) => {
         onClose={toggleFab}
         actions={['iAssistant']}
       />
+
       <Modal
         isVisible={isEditModalVisible}
         onBackdropPress={() => setEditModalVisible(false)}
@@ -939,27 +992,35 @@ export const ProfileScreen = ({ route }: any) => {
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
             {modalType === 'about' ? 'Edit About' : 'Edit Skills'}
           </Text>
           {modalType === 'about' ? (
             <>
               <TextInput
-                style={styles.bioInput}
+                style={[
+                  styles.bioInput,
+                  { color: colors.text, borderColor: colors.border },
+                ]}
                 multiline
                 maxLength={MAX_BIO_CHAR}
                 value={tempBio}
                 onChangeText={setTempBio}
-                placeholder="Tell people about yourself..."
+                placeholder="Tell people about yourself or update your headline..."
                 placeholderTextColor={colors.inputTextHolder}
               />
               <Text style={[styles.charCount, { color: colors.text }]}>
-                {tempBio.length} / {MAX_BIO_CHAR}
+                {tempBio?.length || 0} / {MAX_BIO_CHAR}
               </Text>
             </>
           ) : (
             <>
-              <View style={styles.skillInputWrapper}>
+              <View
+                style={[
+                  styles.skillInputWrapper,
+                  { borderColor: colors.border },
+                ]}
+              >
                 <MaterialIcons
                   name="auto-fix-high"
                   size={20}
@@ -996,7 +1057,13 @@ export const ProfileScreen = ({ route }: any) => {
                 style={styles.activeScroll}
               >
                 {tempSkills.map((skill, index) => (
-                  <View key={index} style={styles.activeSkillChip}>
+                  <View
+                    key={index}
+                    style={[
+                      styles.activeSkillChip,
+                      { backgroundColor: colors.background },
+                    ]}
+                  >
                     <Text
                       style={[styles.activeSkillText, { color: colors.text }]}
                     >
@@ -1004,7 +1071,9 @@ export const ProfileScreen = ({ route }: any) => {
                     </Text>
                     <TouchableOpacity
                       onPress={() =>
-                        setTempSkills(tempSkills.filter(s => s !== skill))
+                        setTempSkills(
+                          tempSkills.filter((s: string) => s !== skill),
+                        )
                       }
                     >
                       <MaterialIcons
@@ -1033,7 +1102,10 @@ export const ProfileScreen = ({ route }: any) => {
                     return (
                       <TouchableOpacity
                         key={index}
-                        style={styles.suggestionChip}
+                        style={[
+                          styles.suggestionChip,
+                          { backgroundColor: colors.background },
+                        ]}
                         onPress={() => {
                           setTempSkills([...tempSkills, skill]);
                           setSkillInput('');
@@ -1049,7 +1121,7 @@ export const ProfileScreen = ({ route }: any) => {
                         </Text>
                         <MaterialIcons
                           name="add"
-                          size={18}
+                          size={16}
                           color={colors.primary}
                         />
                       </TouchableOpacity>
@@ -1061,7 +1133,7 @@ export const ProfileScreen = ({ route }: any) => {
           )}
           <CustomButton
             title={isSaving ? 'Saving...' : 'Save Changes'}
-            style={[styles.saveButton, { backgroundColor: colors.btnColor }]}
+            style={[styles.saveButton, { backgroundColor: colors.primary }]}
             onPress={handleSave}
             disabled={isSaving}
           />
@@ -1071,13 +1143,6 @@ export const ProfileScreen = ({ route }: any) => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, position: 'relative' },
-  subContainer: {
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    marginHorizontal: -15,
-    marginBottom: 10,
-  },
   blockedContainer: {
     position: 'relative',
     alignItems: 'center',
@@ -1089,63 +1154,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  profileInfoSection: {
-    padding: 20,
-    position: 'relative',
-    marginVertical: 15,
-  },
   bioText: { fontSize: 14, marginBottom: 10, paddingHorizontal: 15 },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 20,
-    marginBottom: 15,
-    paddingHorizontal: 15,
-    alignItems: 'center',
-  },
   statCount: { fontWeight: 'bold', fontSize: 12 },
-  verifyBtn: {
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
-    borderRadius: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  verifyBtnText: { fontWeight: 'bold', fontSize: 14 },
   rowDiv: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
     paddingHorizontal: 15,
-  },
-  iScoreChip: {
-    alignItems: 'center',
-  },
-  iScoreLabel: {
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 5,
-  },
-  iScoreValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  statCountDiv: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  editButtonCircle: {
-    position: 'absolute',
-    top: 10,
-    right: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactContainer: {
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   contactRow: {
     alignItems: 'center',
@@ -1157,12 +1173,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 4,
   },
-  iTagDiv: {
-    position: 'relative',
-    padding: 20,
-    borderRadius: 15,
-    marginBottom: 15,
-  },
   courseCount: {
     marginLeft: 8,
     fontSize: 12,
@@ -1173,22 +1183,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     fontWeight: '700',
   },
-  sectionContainer: {
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 15,
-  },
-  sectionTitleDiv: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  // Professional Specifics
   thumbnail: {
     width: '100%',
     height: '45%',
@@ -1242,26 +1236,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     padding: 20,
     minHeight: '70%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  blockedTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 15,
-  },
-  blockedSubTitle: {
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  blockedBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    alignItems: 'center',
   },
   modalSubTitle: {
     fontSize: 12,
@@ -1327,74 +1301,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 15,
   },
-  blockBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 15,
-    borderWidth: 1,
-    width: 'auto',
-  },
   blockBtnMain: {
     paddingHorizontal: 15,
     width: 'auto',
   },
-  blockBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   followBtnText: {
     fontSize: 14,
-  },
-  aboutContent: {
-    width: '100%',
-  },
-  aboutText: {
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  seeMoreButton: {
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  seeMoreText: {
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  tabContent: {
-    marginVertical: 10,
-    flex: 1,
-    marginHorizontal: 15,
-  },
-  emptyText: {
-    marginVertical: 15,
-    textAlign: 'center',
-    fontSize: 13,
-    color: PRIMARY_COLOR_TINT,
-  },
-  skillsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  skillChip: {
-    padding: 10,
-  },
-  skillText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  modalBottom: {
-    justifyContent: 'flex-end',
-    backgroundColor: '#000',
-    margin: 0,
-  },
-  modalContainer: {
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    minHeight: '80%',
   },
   bioInput: {
     height: 120,
@@ -1405,11 +1317,6 @@ const styles = StyleSheet.create({
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
   },
-  charCount: {
-    textAlign: 'right',
-    marginTop: 8,
-    fontSize: 12,
-  },
   skillInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1418,17 +1325,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-  },
-  searchIcon: {
-    marginRight: 5,
-  },
-  skillSearchInput: {
-    flex: 1,
-    fontSize: 14,
-  },
-  addBtnText: {
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   modalSkillsList: {
     flexDirection: 'row',
@@ -1444,55 +1340,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 15,
   },
-  saveButton: {
-    paddingHorizontal: 15,
-    marginVertical: 20,
-  },
   saveButtonText: {
     fontWeight: 'bold',
     fontSize: 14,
-  },
-  activeScroll: {
-    maxHeight: 60,
-    marginVertical: 15,
-  },
-  suggestionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  suggestionChip: {
-    alignItems: 'center',
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    padding: 10,
-    borderRadius: 12,
-    width: '45%',
-    marginBottom: 8,
-  },
-  suggestionText: {
-    fontSize: 14,
-    marginBottom: 3,
-  },
-  suggestionsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  activeSkillChip: {
-    alignItems: 'center',
-    padding: 8,
-    marginRight: 8,
-  },
-  activeSkillText: {
-    fontWeight: '600',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  suggestionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
   },
   fab: {
     position: 'absolute',
@@ -1510,5 +1360,249 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 100,
+  },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 40,
+  },
+  subContainer: {
+    borderRadius: 16,
+    marginTop: 10,
+    marginBottom: 10,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  profileInfoSection: {
+    padding: 16,
+  },
+  editButtonCircle: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headlineText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginVertical: 8,
+    paddingHorizontal: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginVertical: 12,
+    gap: 20,
+  },
+  statCountDiv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginRight: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginVertical: 10,
+  },
+  primaryActionBtn: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  secondaryActionBtn: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  contactContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  contactRowBtn: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  verifyBtn: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyBtnText: {
+    fontWeight: '600',
+  },
+  sectionContainer: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    elevation: 2,
+  },
+  sectionTitleDiv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  aboutContent: {
+    marginTop: 4,
+  },
+  aboutText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  seeMoreButton: {
+    marginTop: 6,
+  },
+  seeMoreText: {
+    fontWeight: '600',
+  },
+  skillsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  skillChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  skillText: {
+    fontSize: 13,
+  },
+  tabContent: {
+    marginTop: 10,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#888',
+  },
+  errorStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  blockedTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 15,
+  },
+  blockedSubTitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  blockedBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  blockBtn: {
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  blockBtnText: {
+    fontWeight: '600',
+  },
+  modalBottom: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  modalContainer: {
+    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 15,
+  },
+  charCount: {
+    alignSelf: 'flex-end',
+    marginTop: 6,
+    fontSize: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  skillSearchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  addBtnText: {
+    fontWeight: '700',
+  },
+  activeScroll: {
+    marginVertical: 12,
+  },
+  activeSkillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    gap: 6,
+  },
+  activeSkillText: {
+    fontSize: 13,
+  },
+  suggestionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  suggestionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  suggestionsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  suggestionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  suggestionText: {
+    fontSize: 13,
+  },
+  saveButton: {
+    marginTop: 20,
+    borderRadius: 12,
   },
 });

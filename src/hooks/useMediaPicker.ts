@@ -22,7 +22,6 @@ export const useMediaPicker = () => {
       return null;
     }
   }, []);
-
   const pickDocument = useCallback(async () => {
     try {
       const [result] = await pick({ type: [types.allFiles] });
@@ -34,7 +33,6 @@ export const useMediaPicker = () => {
       return null;
     }
   }, []);
-
   const pickImageFromCamera = useCallback(async () => {
     try {
       const image = await ImagePicker.openCamera({
@@ -48,7 +46,6 @@ export const useMediaPicker = () => {
       return null; 
     }
   }, []);
-
   const pickProductImages = useCallback(async (maxLimit: number = 5) => {
     try {
       const selectedAssets = await ImagePicker.openPicker({
@@ -66,8 +63,6 @@ export const useMediaPicker = () => {
       return null;
     }
   }, []);
-
-
   const pickDigitalFile = useCallback(async () => {
     try {
       const [response] = await pick({

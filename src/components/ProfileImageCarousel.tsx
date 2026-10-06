@@ -1,320 +1,348 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { View, FlatList, Image, Dimensions, StyleSheet, Animated, TouchableOpacity, Modal, Text, ActivityIndicator, Linking, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  FlatList,
+  Image,
+  Dimensions,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
-import ImagePicker from 'react-native-image-crop-picker';
 import { patchUserProfile } from '../api/localPatchApis';
 import { updateUserImage } from '../context/UserSlice';
 import { useDispatch } from 'react-redux';
 import Toast from 'react-native-toast-message';
-import { CustomButton } from '../assets/components/AppUIComponents';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { useMediaPicker } from '../hooks/useMediaPicker';
+import { ImageConfirmationModal } from './ImageConfirmationModal';
+import { useTheme } from '../context/ThemeContext';
 
 interface ProfileImageCarouselProps {
-  images: string[];
-  isOwner: boolean;
-  uid?: string;
-  organizationName?: string;
+  images: string | string[] | null | undefined;
+  user?: {
+    firstname?: string;
+    lastname?: string;
+    username?: string;
+    organizationName?: string;
+  };
+}
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CAROUSEL_WIDTH = SCREEN_WIDTH - 32;
+const CAROUSEL_HEIGHT = 220;
+
+const getInitials = (user?: {
   firstName?: string;
   lastName?: string;
   username?: string;
-}
-
-export const ProfileImageCarousel: React.FC<ProfileImageCarouselProps> = ({
-  images,
-  isOwner,
-  organizationName,
-  firstName,
-  lastName,
-  username,
+  organizationName?: string;
 }) => {
-  const scrollX = useRef(new Animated.Value(0)).current;
+  if (!user) return 'U';
+  if (user.organizationName && user.organizationName.trim().length > 0) {
+    const parts = user.organizationName.trim().split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return user.organizationName.substring(0, 2).toUpperCase();
+  }
+  if (user.firstName && user.lastName) {
+    return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+  }
+  const identifier = user.firstName || user.username;
+  if (identifier && identifier.trim().length > 0) {
+    const cleanId = identifier.trim();
+    return cleanId.length >= 2
+      ? cleanId.substring(0, 2).toUpperCase()
+      : cleanId[0].toUpperCase();
+  }
+
+  return 'U';
+};
+export const ProfileImageCarousel = ({
+  images: profileImages,
+  user,
+}: ProfileImageCarouselProps) => {
+  const { colors } = useTheme();
   const dispatch = useDispatch();
-  const flatListRef = useRef<FlatList>(null);
+  const { pickImage } = useMediaPicker();
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const getInitials = () => {
-    if (organizationName) return organizationName.substring(0, 2).toUpperCase();
-    if (firstName && lastName)
-      return `${firstName[0]}${lastName[0]}`.toUpperCase();
-    if (firstName) return firstName[0].toUpperCase();
-    if (lastName) return lastName[0].toUpperCase();
-    if (username) return username[0].toUpperCase();
-    return '?';
-  };
-  const handlePickImage = async () => {
-    try {
-      const image = await ImagePicker.openPicker({
-        width: 400,
-        height: 400,
-        cropping: true,
-        cropperCircleOverlay: true,
-        compressImageQuality: 0.8,
-        mediaType: 'photo',
-        loadingLabelText: 'Processing...',
-      });
-      setPreviewImage(image.path);
-    } catch (error: any) {
-      if (
-        error.message.includes('permission') ||
-        error.message.includes('Required')
-      ) {
-        Alert.alert(
-          'Permission Required',
-          'iCampus needs access to your gallery to update your profile. Grant access in settings?',
-          [
-            { text: 'Not now', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => Linking.openSettings(),
-            },
-          ],
-        );
-      } else if (error.message.includes('User cancelled')) {
-        console.log('User backed out');
-      } else {
-        console.error('ImagePicker Error: ', error.message);
-      }
+  const [localImages, setLocalImages] = useState<string[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedUri, setSelectedUri] = useState<string | null>(null);
+
+  const normalizedImages: string[] = React.useMemo(() => {
+    let raw: string[] = [];
+    if (Array.isArray(profileImages)) {
+      raw = profileImages.filter(
+        img => typeof img === 'string' && img.trim().length > 0,
+      );
+    } else if (
+      typeof profileImages === 'string' &&
+      profileImages.trim().length > 0
+    ) {
+      raw = [profileImages];
     }
+    return Array.from(new Set([...raw, ...localImages]));
+  }, [profileImages, localImages]);
+
+  const handleScroll = (event: any) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / CAROUSEL_WIDTH);
+    setActiveIndex(index);
+  };
+  const handleTriggerPick = async () => {
+    const fileData = await pickImage();
+    if (!fileData || !fileData.uri) return;
+
+    setSelectedUri(fileData.uri);
+    setIsModalVisible(true);
   };
   const handleConfirmUpload = async () => {
-    setIsUploading(true);
+    if (!selectedUri) return;
+
     try {
-      const imageUrl = await uploadToFirebase(previewImage!);
-      const result = await patchUserProfile({ profilePic: [imageUrl] });
-      if (result && result.success) {
+      setIsUploading(true);
+      Toast.show({
+        type: 'info',
+        text1: 'Uploading image...',
+        position: 'bottom',
+      });
+      const imageUrl = await uploadToFirebase(selectedUri, 'profile-images');
+
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new Error('Failed to retrieve secure URL from storage.');
+      }
+      const updatedList = [...normalizedImages, imageUrl];
+      const apiResponse = await patchUserProfile({ profilePic: updatedList });
+
+      if (apiResponse && apiResponse.success) {
+        setLocalImages(prev => [...prev, imageUrl]);
         dispatch(updateUserImage(imageUrl));
         Toast.show({
           type: 'success',
-          text1: 'Success',
-          text2: 'Profile picture updated!',
+          text1: 'Profile photo updated successfully!',
         });
-        setPreviewImage(null);
+        setIsModalVisible(false);
+        setSelectedUri(null);
+      } else {
+        throw new Error(
+          apiResponse?.error || 'Failed to update profile on server.',
+        );
       }
-      setPreviewImage(null);
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Failed',
+        text2: error?.message || 'Could not process image attachment.',
+      });
     } finally {
       setIsUploading(false);
     }
   };
-  const displayImages = useMemo(() => {
-    if (images && images.length > 0) {
-      return [...images].reverse();
-    }
-    return [];
-  }, [images]);
-  // Handle auto-scroll logic
-  useEffect(() => {
-    if (displayImages.length <= 1) return;
-    const timer = setInterval(() => {
-      let nextIndex = activeIndex + 1;
-      if (nextIndex >= displayImages.length) nextIndex = 0;
-      flatListRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
-      });
-      setActiveIndex(nextIndex);
-    }, 9000); // 5 seconds per image
-    return () => clearInterval(timer);
-  }, [activeIndex, displayImages]);
+
+  if (normalizedImages.length === 0) {
+    const initials = getInitials(user);
+
+    return (
+      <View style={CarouselStyles.wrapper}>
+        <View
+          style={[
+            CarouselStyles.container,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View
+            style={[
+              CarouselStyles.emptyContainer,
+              { backgroundColor: PRIMARY_COLOR + '15' },
+            ]}
+          >
+            <View
+              style={[
+                CarouselStyles.initialsCircle,
+                { backgroundColor: PRIMARY_COLOR },
+              ]}
+            >
+              <Text style={CarouselStyles.initialsText}>{initials}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              CarouselStyles.cameraButton,
+              { backgroundColor: PRIMARY_COLOR },
+            ]}
+            onPress={handleTriggerPick}
+            disabled={isUploading}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="camera-alt" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {displayImages.length > 0 ? (
-        <Animated.FlatList
-          ref={flatListRef}
-          data={displayImages}
-          keyExtractor={(_, index) => index.toString()}
+    <View style={CarouselStyles.wrapper}>
+      <View
+        style={[
+          CarouselStyles.container,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
+      >
+        <FlatList
+          data={normalizedImages}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: false },
-          )}
-          onMomentumScrollEnd={e => {
-            const index = Math.round(
-              e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
-            );
-            setActiveIndex(index);
-          }}
+          onScroll={handleScroll}
+          keyExtractor={(item, index) => `${item}-${index}`}
           renderItem={({ item }) => (
-            <Image
-              source={{ uri: item }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-          )}
-        />
-      ) : (
-        <View style={[styles.image, styles.fallbackContainer]}>
-          <Text style={styles.fallbackText}>{getInitials()}</Text>
-        </View>
-      )}
-      {/* Glassmorphism Pagination Dots */}
-      <View style={styles.paginationContainer}>
-        {displayImages.map((_, i) => {
-          const opacity = scrollX.interpolate({
-            inputRange: [
-              (i - 1) * SCREEN_WIDTH,
-              i * SCREEN_WIDTH,
-              (i + 1) * SCREEN_WIDTH,
-            ],
-            outputRange: [0.4, 1, 0.4],
-            extrapolate: 'clamp',
-          });
-          const scale = scrollX.interpolate({
-            inputRange: [
-              (i - 1) * SCREEN_WIDTH,
-              i * SCREEN_WIDTH,
-              (i + 1) * SCREEN_WIDTH,
-            ],
-            outputRange: [0.8, 1.2, 0.8],
-            extrapolate: 'clamp',
-          });
-          return (
-            <Animated.View
-              key={i}
-              style={[styles.dot, { opacity, transform: [{ scale }] }]}
-            />
-          );
-        })}
-      </View>
-      {/* Owner Edit Overlay */}
-      {isOwner && (
-        <TouchableOpacity style={styles.editBtn} onPress={handlePickImage}>
-          <MaterialIcons name="camera-alt" size={20} color="#FFF" />
-        </TouchableOpacity>
-      )}
-      {/* Confirmation Modal */}
-      <Modal visible={!!previewImage} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.previewCard}>
-            <Text style={styles.previewTitle}>Update Profile Photo</Text>
-            <Image
-              source={{ uri: previewImage || '' }}
-              style={styles.fullPreview}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                onPress={() => setPreviewImage(null)}
-                style={styles.cancelBtn}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <CustomButton
-                title="Set as Profile Pic"
-                onPress={handleConfirmUpload}
-                style={styles.confirmBtn}
-                disabled={isUploading}
+            <View style={CarouselStyles.imageContainer}>
+              <Image
+                source={{ uri: item }}
+                style={CarouselStyles.image}
+                resizeMode="cover"
               />
             </View>
+          )}
+        />
+
+        {/* Dynamic Pagination Pill Dots */}
+        {normalizedImages.length > 1 && (
+          <View style={CarouselStyles.paginationContainer}>
+            {normalizedImages.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  CarouselStyles.dot,
+                  {
+                    backgroundColor:
+                      index === activeIndex
+                        ? '#fff'
+                        : 'rgba(255, 255, 255, 0.4)',
+                    width: index === activeIndex ? 22 : 6,
+                  },
+                ]}
+              />
+            ))}
           </View>
-        </View>
-      </Modal>
+        )}
+        <TouchableOpacity
+          style={[
+            CarouselStyles.cameraButton,
+            { backgroundColor: PRIMARY_COLOR, opacity: isUploading ? 0.7 : 1 },
+          ]}
+          onPress={handleTriggerPick}
+          activeOpacity={0.8}
+        >
+          <MaterialIcons
+            name={isUploading ? 'hourglass-empty' : 'camera-alt'}
+            size={18}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      </View>
+      <ImageConfirmationModal
+        isVisible={isModalVisible}
+        imageUri={selectedUri}
+        onClose={() => {
+          if (!isUploading) {
+            setIsModalVisible(false);
+            setSelectedUri(null);
+          }
+        }}
+        onConfirm={handleConfirmUpload}
+        isUploading={isUploading}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const CarouselStyles = StyleSheet.create({
+  wrapper: {
+    alignItems: 'center',
+    marginVertical: 12,
+  },
   container: {
-    height: 350,
-    width: SCREEN_WIDTH,
-    backgroundColor: '#fadccc',
+    width: CAROUSEL_WIDTH,
+    height: CAROUSEL_HEIGHT,
+    borderRadius: 20,
+    overflow: 'hidden',
     position: 'relative',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  imageContainer: {
+    width: CAROUSEL_WIDTH,
+    height: CAROUSEL_HEIGHT,
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  fallbackContainer: {
+  emptyContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: PRIMARY_COLOR,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fallbackText: {
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: 'bold',
   },
   paginationContainer: {
     position: 'absolute',
-    top: 15,
-    right: 10,
-    flexDirection: 'row',
+    bottom: 12,
     alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)', // Glass effect
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFF',
-    marginHorizontal: 4,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 3,
   },
-  editBtn: {
+  cameraButton: {
     position: 'absolute',
-    bottom: -15,
-    right: 20,
-    backgroundColor: PRIMARY_COLOR,
-    padding: 15,
-    borderRadius: 15,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    bottom: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
     justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  initialsCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
-    zIndex: 5,
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  previewCard: {
-    width: '85%',
-    backgroundColor: '#FFF',
-    borderRadius: 25,
-    padding: 20,
-    alignItems: 'center',
-  },
-  previewTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 20,
-    color: '#222',
-  },
-  fullPreview: {
-    width: 250,
-    height: 250,
-    borderRadius: 20,
-    marginBottom: 25,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-  },
-  cancelBtn: {
-    padding: 15,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    color: PRIMARY_COLOR,
-    fontWeight: 'bold',
-  },
-  confirmBtn: {
-    paddingHorizontal: 15,
-    width: 'auto',
-  },
-  confirmBtnText: {
-    fontSize: 14,
+  initialsText: {
+    fontSize: 28,
+    fontWeight: '700',
     color: '#fff',
-    fontWeight: 'bold',
+    letterSpacing: 1,
   },
 });

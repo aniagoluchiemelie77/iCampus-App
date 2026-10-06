@@ -392,11 +392,12 @@ const styles = StyleSheet.create({
   tabBarScrollContainer: {
     paddingHorizontal: 10,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 0,
   },
   tabBarWrapper: {
     marginVertical: 10,
     flexGrow: 0,
+    height: 52,
   },
   tab: {
     paddingVertical: 10,

@@ -42,92 +42,174 @@ export const OrderAccordion = ({ order }: OrderProps) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
+
   const isPending = order.status === 'pending_delivery';
   const isDroppedOff = order.status === 'dropped_off';
-  const isActiveActive = isPending || isDroppedOff;
+  const isCompleted =
+    order.status === 'completed' || order.status === 'delivered';
+
+  const getStatusConfig = () => {
+    if (isPending)
+      return {
+        label: 'Pending Delivery',
+        bg: colors.pendingDelivery + '20',
+        text: colors.pendingDelivery,
+        icon: 'schedule',
+      };
+    if (isDroppedOff)
+      return {
+        label: 'Ready for Pickup',
+        bg: colors.primaryTint + '20',
+        text: colors.primary,
+        icon: 'local-shipping',
+      };
+    return {
+      label: 'Completed',
+      bg: colors.success + '20',
+      text: colors.success,
+      icon: 'check-circle',
+    };
+  };
+
+  const statusConfig = getStatusConfig();
 
   return (
     <View
       style={[
-        QRCodeStyles.cardContainer,
+        QRCodeStyles.modernCardContainer,
         {
           backgroundColor: colors.backgroundSecondary,
-          shadowColor: colors.border,
+          borderColor: colors.border ? colors.border + '40' : '#ffffff10',
         },
       ]}
     >
       <TouchableOpacity
         onPress={toggleAccordion}
         activeOpacity={0.7}
-        style={QRCodeStyles.header}
+        style={QRCodeStyles.modernHeader}
       >
-        <View style={QRCodeStyles.headerLead}>
-          <View
-            style={[
-              QRCodeStyles.statusDot,
-              {
-                backgroundColor: isPending
-                  ? colors.pendingDelivery
-                  : isDroppedOff
-                    ? colors.primaryTint
-                    : colors.text,
-              },
-            ]}
-          />
-          <View>
+        <View style={QRCodeStyles.headerContent}>
+          <View style={QRCodeStyles.titleRow}>
             <Text
-              style={[QRCodeStyles.productTitle, { color: colors.textDarker }]}
+              style={[
+                QRCodeStyles.modernProductTitle,
+                { color: colors.textDarker || colors.text },
+              ]}
               numberOfLines={1}
             >
               {order.productName}
             </Text>
-            <Text style={[QRCodeStyles.orderIdText, { color: colors.text }]}>
-              Order #{order.orderId}
+          </View>
+
+          <View style={QRCodeStyles.subRow}>
+            <Text
+              style={[
+                QRCodeStyles.modernOrderIdText,
+                { color: colors.text + '99' },
+              ]}
+            >
+              #{order.orderId}
             </Text>
+
+            {/* Status Pill Badge */}
+            <View
+              style={[
+                QRCodeStyles.statusBadge,
+                { backgroundColor: statusConfig.bg },
+              ]}
+            >
+              <MaterialIcons
+                name={statusConfig.icon as any}
+                size={12}
+                color={statusConfig.text}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  QRCodeStyles.statusBadgeText,
+                  { color: statusConfig.text },
+                ]}
+              >
+                {statusConfig.label}
+              </Text>
+            </View>
           </View>
         </View>
-        <MaterialIcons
-          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-          size={24}
-          color={colors.text}
-        />
+
+        <View
+          style={[
+            QRCodeStyles.chevronBox,
+            { backgroundColor: colors.background + '60' },
+          ]}
+        >
+          <MaterialIcons
+            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            size={20}
+            color={colors.text}
+          />
+        </View>
       </TouchableOpacity>
+
       {expanded && (
-        <View style={QRCodeStyles.expandedContent}>
-          {isActiveActive ? (
-            <View style={QRCodeStyles.qrSection2}>
-              <View style={QRCodeStyles.qrWrapper2}>
+        <View style={QRCodeStyles.modernExpandedContent}>
+          <View
+            style={[
+              QRCodeStyles.divider,
+              { backgroundColor: colors.border + '20' },
+            ]}
+          />
+
+          {isPending || isDroppedOff ? (
+            <View style={QRCodeStyles.qrSectionModern}>
+              <View
+                style={[
+                  QRCodeStyles.qrCardWrapper,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border + '30',
+                  },
+                ]}
+              >
                 <QRCode
                   value={order.orderId}
-                  size={160}
+                  size={150}
                   color={colors.text}
-                  backgroundColor={colors.backgroundSecondary}
+                  backgroundColor={colors.background}
                 />
               </View>
-              {isDroppedOff ? (
-                <Text
-                  style={[QRCodeStyles.instructionText, { color: colors.text }]}
-                >
-                  Your product has been dropped off! Please head over to the
-                  station to pick it up. Show this QR code to the Agent.
-                </Text>
-              ) : (
-                <Text
-                  style={[QRCodeStyles.instructionText, { color: colors.text }]}
-                >
-                  Show this QR code to the{' '}
-                  {order.selectedStation ? 'Agent' : 'Seller'}
-                </Text>
-              )}
+
+              <Text
+                style={[
+                  QRCodeStyles.modernInstructionText,
+                  { color: colors.text },
+                ]}
+              >
+                {isDroppedOff
+                  ? 'Your product has been dropped off! Head over to the station and show this QR code to the Agent.'
+                  : `Show this QR code to the ${order.selectedStation ? 'Agent' : 'Seller'}.`}
+              </Text>
+
               {order.selectedStation && (
-                <View style={QRCodeStyles.stationBox}>
+                <View
+                  style={[
+                    QRCodeStyles.modernStationBox,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border + '30',
+                    },
+                  ]}
+                >
                   <MaterialIcons
-                    name="local-shipping"
-                    size={16}
-                    color={colors.text}
+                    name="storefront"
+                    size={18}
+                    color={colors.primary}
                   />
                   <Text
-                    style={[QRCodeStyles.stationText, { color: colors.text }]}
+                    style={[
+                      QRCodeStyles.modernStationText,
+                      { color: colors.textDarker || colors.text },
+                    ]}
+                    numberOfLines={2}
                   >
                     {order.selectedStation.address}
                   </Text>
@@ -135,19 +217,35 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               )}
             </View>
           ) : (
-            <View style={QRCodeStyles.digitalSection}>
-              <MaterialIcons
-                name="check-circle"
-                size={60}
-                color={colors.success}
-              />
-              <Text
+            <View style={QRCodeStyles.modernDigitalSection}>
+              <View
                 style={[
-                  QRCodeStyles.completedText,
-                  { color: colors.textDarker },
+                  QRCodeStyles.successIconBubble,
+                  { backgroundColor: colors.success + '15' },
                 ]}
               >
-                Transaction Completed
+                <MaterialIcons
+                  name="check-circle"
+                  size={40}
+                  color={colors.success}
+                />
+              </View>
+              <Text
+                style={[
+                  QRCodeStyles.modernCompletedText,
+                  { color: colors.textDarker || colors.text },
+                ]}
+              >
+                Transaction Completed Successfully
+              </Text>
+              <Text
+                style={[
+                  QRCodeStyles.completedSubText,
+                  { color: colors.text + '88' },
+                ]}
+              >
+                Thank you for your order. This transaction has been securely
+                closed.
               </Text>
             </View>
           )}
@@ -760,10 +858,131 @@ const QRCodeStyles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+  modernCardContainer: {
+    borderRadius: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  modernHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modernProductTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  modernOrderIdText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chevronBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernExpandedContent: {
+    marginTop: 14,
+  },
   divider: {
     height: 1,
-    width: '80%',
-    marginBottom: 8,
-    alignSelf: 'center',
+    width: '100%',
+    marginBottom: 16,
+  },
+  qrSectionModern: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  qrCardWrapper: {
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+  modernInstructionText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 14,
+    paddingHorizontal: 8,
+  },
+  modernStationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  modernStationText: {
+    fontSize: 13,
+    marginLeft: 8,
+    fontWeight: '500',
+    flex: 1,
+  },
+  modernDigitalSection: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  successIconBubble: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  modernCompletedText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  completedSubText: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });
