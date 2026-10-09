@@ -46,3 +46,13 @@ export const formatPostDate = (timestamp: any): string => {
   if (isNaN(date.getTime())) return ''; 
   return date.toISOString(); 
 };
+export const parseFirestoreDate = (timestamp: any) => {
+    if (!timestamp) return new Date();
+    if (typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
+    }
+    if (timestamp.seconds) {
+      return new Date(timestamp.seconds * 1000);
+    }
+    return timestamp;
+  };

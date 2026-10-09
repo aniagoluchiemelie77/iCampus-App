@@ -835,25 +835,6 @@ export const ManualCourseModal = ({
                 maxLength={2}
               />
             </View>
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                Semester
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder="e.g., First or Second"
-                placeholderTextColor={colors.inputTextHolder || '#888'}
-                value={semester}
-                onChangeText={text => {
-                  const lettersOnly = text.replace(/[^a-zA-Z]/g, '');
-                  setSemester(lettersOnly);
-                }}
-                autoCorrect={false}
-              />
-            </View>
             <View style={[styles.formGroup, { zIndex: 3000 }]}>
               <Text style={[styles.label, { color: colors.text }]}>
                 Academic Session

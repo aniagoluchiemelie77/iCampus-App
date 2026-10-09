@@ -554,7 +554,6 @@ export const ProfileScreen = ({ route }: any) => {
     currentUser.isVerified &&
     currentUser.usertype === 'enterprise';
 
-  // Fallback auto-filled headline/bio content if profileData.bio is empty
   const resolvedBio =
     profileData.bio ||
     profileData.headline ||
@@ -595,7 +594,6 @@ export const ProfileScreen = ({ route }: any) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Profile Image & Header Banner */}
         <ProfileImageCarousel
           images={profileData.profilePic}
           user={{
@@ -947,8 +945,6 @@ export const ProfileScreen = ({ route }: any) => {
           )}
         </View>
       </ScrollView>
-
-      {/* Floating Action Button */}
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={styles.fab}
@@ -957,8 +953,6 @@ export const ProfileScreen = ({ route }: any) => {
           <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
-
-      {/* Modals & Menus */}
       <FollowersListModal
         visible={followModal.visible}
         title={followModal.title}

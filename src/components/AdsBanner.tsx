@@ -84,7 +84,6 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
   };
 
   if (!ads || ads.length === 0) return null;
-
   return (
     <View style={[styles.wrapper, { backgroundColor: colors.background }]}>
       <View

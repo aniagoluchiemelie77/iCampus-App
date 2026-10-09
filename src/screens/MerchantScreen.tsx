@@ -172,9 +172,9 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tabBarWrapper: {
-    marginBottom: 20,
-    marginHorizontal: 15,
+    marginVertical: 10,
     flexGrow: 0,
+    height: 52,
   },
   content: {
     flex: 1,
@@ -182,7 +182,8 @@ export const styles = StyleSheet.create({
   },
   tabBarScrollContainer: {
     paddingHorizontal: 10,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    paddingVertical: 0,
   },
   topBtn: {
     paddingHorizontal: 8,

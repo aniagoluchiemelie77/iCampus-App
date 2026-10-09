@@ -2,25 +2,30 @@ import { useState, useCallback, useEffect } from 'react';
 import { open } from 'react-native-quick-sqlite';
 
 export const db = open({ name: 'app_catalog.db' });
-
 export const setupDatabase = () => {
-  db.execute(`
-    CREATE TABLE IF NOT EXISTS products (
-      productId TEXT PRIMARY KEY NOT NULL,
-      title TEXT,
-      description TEXT,
-      price REAL,
-      sellerId TEXT,
-      type TEXT,
-      amountInStock INTEGER,
-      mediaUrls TEXT, -- stored as JSON string
-      physicalDetails TEXT -- stored as JSON string
-    );
-  `);
-  db.execute(`
-    CREATE INDEX IF NOT EXISTS idx_seller_id ON products (sellerId);
-  `);
+  try {
+    db.execute(`
+      CREATE TABLE IF NOT EXISTS products (
+        productId TEXT PRIMARY KEY NOT NULL,
+        title TEXT,
+        description TEXT,
+        price REAL,
+        sellerId TEXT,
+        type TEXT,
+        amountInStock INTEGER,
+        mediaUrls TEXT,
+        physicalDetails TEXT
+      );
+    `);
+    db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_seller_id ON products (sellerId);
+    `);
+    console.log('Products table and index initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize database tables:', error);
+  }
 };
+
 export const useSellerProducts = (sellerId?: string) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -42,14 +47,15 @@ export const useSellerProducts = (sellerId?: string) => {
         [sellerId]
       );
       const rows = result.rows;
-const rawProducts = Array.isArray(rows) 
-  ? rows 
-  : (rows && '_array' in rows ? rows._array : []);
+      const rawProducts = Array.isArray(rows) 
+        ? rows 
+        : (rows && '_array' in rows ? rows._array : []);
+      
       const parsedProducts = rawProducts.map((p: any) => ({
-  ...p,
-  mediaUrls: p.mediaUrls ? JSON.parse(p.mediaUrls) : [],
-  physicalDetails: p.physicalDetails ? JSON.parse(p.physicalDetails) : null,
-}));
+        ...p,
+        mediaUrls: p.mediaUrls ? JSON.parse(p.mediaUrls) : [],
+        physicalDetails: p.physicalDetails ? JSON.parse(p.physicalDetails) : null,
+      }));
 
       setProducts(parsedProducts);
     } catch (err: any) {
@@ -71,6 +77,7 @@ const rawProducts = Array.isArray(rows)
     refreshProducts: fetchSellerProducts, 
   };
 };
+
 export const deleteProductFromLocalDb = (productId: string) => {
   try {
     db.execute(`DELETE FROM products WHERE productId = ?;`, [productId]);

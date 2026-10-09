@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import dayjs from 'dayjs';
 import { useTheme } from '../context/ThemeContext';
+import { parseFirestoreDate } from '../utils/dateFormatter';
 
 export const NotificationItem = ({
   item,
@@ -111,7 +112,7 @@ export const NotificationItem = ({
           {formatNotificationMessage(item)}
         </Text>
         <Text style={[styles.time, { color: colors.text }]}>
-          {dayjs(item.createdAt).fromNow()}
+          {dayjs(parseFirestoreDate(item.createdAt)).fromNow()}
         </Text>
       </View>
     </TouchableOpacity>

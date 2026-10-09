@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Platform,
   PermissionsAndroid,
+  useWindowDimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { FeedTab } from '../components/HomeScreenComponents';
@@ -41,6 +42,16 @@ import {
   getAllExceptionsForOngoingLecture,
 } from '../api/localGetApis';
 import { useTheme } from '../context/ThemeContext';
+import { PageHeader } from '../components/PageHeader';
+import {
+  NotificationBell,
+  ProfileModal,
+} from '../components/HomeScreenComponents.tsx';
+import { UserAvatar } from '../components/UserAvatar';
+import { HeaderActionButton } from '../components/Storescreen.tsx';
+import { useAppDataContext } from '../context/EventContext.tsx';
+import { completeOrderDelivery } from '../api/localPostApis';
+import { OrderScannerModal } from '../components/OrderQRScannerModal';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 interface SocketProviderProps {
@@ -124,6 +135,7 @@ const TabBarItem = React.memo(
 const HomeScreen = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || initialState;
+  const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
   const pagerRef = useRef<PagerView>(null);
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const [activeIcon, setActiveIcon] = useState<string>('home');
@@ -135,12 +147,57 @@ const HomeScreen = () => {
   const rawRole = user?.usertype || 'student';
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const isClassroomAllowed = userType === 'student' || userType === 'lecturer';
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= 768;
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { pendingOrders } = useAppDataContext();
   const screens = isClassroomAllowed
     ? ['home', 'classroom', 'search', 'store']
     : ['home', 'search', 'store'];
   const handlePageSelected = (e: any) => {
     const index = e.nativeEvent.position;
     setActiveIcon(screens[index]);
+  };
+  const getHeaderTitle = () => {
+    switch (activeIcon) {
+      case 'home':
+        return 'iCampus';
+      case 'classroom':
+        return 'iCampus Classroom';
+      case 'search':
+        return 'iCampus Search';
+      case 'store':
+        return 'iCampus Store';
+      default:
+        return 'iCampus';
+    }
+  };
+  const getHeaderRightElement = () => {
+    switch (activeIcon) {
+      case 'home':
+        return (
+          <NotificationBell initialCount={0} colors={colors} socket={socket} />
+        );
+      case 'store':
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <HeaderActionButton
+              icon="qr-code-scanner"
+              onPress={() => setIsScannerOpen(true)}
+              colors={colors}
+            />
+            <HeaderActionButton
+              icon="inventory"
+              count={pendingOrders?.length || 0}
+              onPress={() => navigation.navigate('PendingOrdersScreen')}
+              colors={colors}
+            />
+          </View>
+        );
+      default:
+        return null;
+    }
   };
   const handleTabPress = (screenName: string) => {
     setActiveIcon(screenName);
@@ -149,11 +206,55 @@ const HomeScreen = () => {
       pagerRef.current?.setPage(index);
     }
   };
+  const handleCompleteOrder = async (orderId: string) => {
+    setIsScannerOpen(false);
+    setLoading(true);
+
+    try {
+      const response = await completeOrderDelivery(orderId);
+      if (response.success) {
+        Toast.show({
+          type: 'success',
+          text2:
+            response.message ||
+            'Transaction completed successfully, funds will be released immediately.',
+        });
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'OrderVerificationSuccess',
+              params: {
+                orderId: response.orderId,
+                amount: response.settlementAmount,
+                role: response.role,
+                productName: response.productName,
+              },
+            },
+          ],
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text2: response.message || 'Order verification failed, please retry.',
+        });
+      }
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Verification Error',
+        text2: err.message || 'Order verification failed, please retry.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   const messagingInstance = getMessaging();
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24;
   };
+  const isModalVisible = isLargeScreen ? true : isProfilePopupVisible;
 
   useEffect(() => {
     if (user?.tokenCreatedAt) {
@@ -288,6 +389,22 @@ const HomeScreen = () => {
   return (
     <AppDataProvider user={user}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <PageHeader
+          title={getHeaderTitle()}
+          showBackButton={false}
+          leftElement={
+            <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
+              <UserAvatar
+                profilePic={user?.profilePic}
+                firstName={user?.firstname}
+                lastName={user?.lastname}
+                organizationName={user?.organizationName}
+                style={styles.headerProfilePic}
+              />
+            </TouchableOpacity>
+          }
+          rightElement={getHeaderRightElement()}
+        />
         <PagerView
           style={styles.centerContent}
           initialPage={0}
@@ -348,6 +465,18 @@ const HomeScreen = () => {
         lecture={ongoingLecture}
         onJoin={handleJoinLecture}
         onDismiss={() => setOngoingLecture(null)}
+      />
+      <ProfileModal
+        visible={isModalVisible}
+        onClose={() => setProfilePopupVisible(false)}
+        currentUser={user}
+        navigation={navigation}
+        colors={colors}
+      />
+      <OrderScannerModal
+        isVisible={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onSuccess={handleCompleteOrder}
       />
     </AppDataProvider>
   );

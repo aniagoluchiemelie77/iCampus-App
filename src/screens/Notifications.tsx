@@ -10,8 +10,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { fetchNotificationsByTab } from '../api/localGetApis';
 import {
   markAllNotificationsAsRead,
@@ -25,7 +23,6 @@ import { NotificationItem } from '../components/NotificationItem';
 import { useSocketConnection } from '../hooks/useSocket';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { CustomButton } from '../assets/components/AppUIComponents';
-dayjs.extend(relativeTime);
 
 const Notifications = () => {
   const { colors } = useTheme();

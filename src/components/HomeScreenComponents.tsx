@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   Modal,
   ViewToken,
-  useWindowDimensions,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { PostCard } from './PostCard';
 import { useNavigation } from '@react-navigation/native';
@@ -32,7 +32,6 @@ import { AdItem } from '../types/firebase';
 import { initialState } from '../context/UserSlice.ts';
 
 import { BACKEND_URL } from '@env';
-import { PageHeader } from './PageHeader.tsx';
 export const baseUrl = BACKEND_URL;
 interface Props {
   initialCount?: number;
@@ -48,7 +47,7 @@ interface ProfileModalProps {
   navigation: any;
   colors: any;
 }
-const ProfileModal = ({
+export const ProfileModal = ({
   visible,
   onClose,
   currentUser,
@@ -230,8 +229,6 @@ export function FeedTab() {
   const { colors } = useTheme();
   const flatListRef = useRef<FlatList<Posts>>(null);
   const currentUser = useAppSelector(state => state.user) || initialState;
-  const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768;
   const socket = useSocketConnection({
     baseUrl,
     userId: currentUser?.uid || undefined,
@@ -241,9 +238,7 @@ export function FeedTab() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
-  const [isProfilePopupVisible, setProfilePopupVisible] = useState(false);
   const [pendingPosts, setPendingPosts] = useState<Posts[]>([]);
-  const navigation = useNavigation<any>();
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const stateRef = useRef({ cursor, loadingMore, refreshing, posts });
   stateRef.current = { cursor, loadingMore, refreshing, posts };
@@ -347,30 +342,8 @@ export function FeedTab() {
     setPendingPosts([]);
     flatListRef.current?.scrollToOffset({ animated: true, offset: 0 });
   };
-  const isModalVisible = isLargeScreen ? true : isProfilePopupVisible;
   return (
     <View style={styles.mainWrapper}>
-      <PageHeader
-        title="iCampus"
-        rightElement={
-          <NotificationBell
-            initialCount={0}
-            colors={colors}
-            socket={socket?.current}
-          />
-        }
-        leftElement={
-          <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
-            <UserAvatar
-              profilePic={currentUser?.profilePic}
-              firstName={currentUser?.firstname}
-              lastName={currentUser?.lastname}
-              organizationName={currentUser?.organizationName}
-              style={styles.headerProfilePic}
-            />
-          </TouchableOpacity>
-        }
-      />
       <View style={styles.postsDiv}>
         {pendingPosts.length > 0 && (
           <TouchableOpacity
@@ -434,14 +407,6 @@ export function FeedTab() {
           'Create Event',
           'iAssistant',
         ]}
-      />
-
-      <ProfileModal
-        visible={isModalVisible}
-        onClose={() => setProfilePopupVisible(false)}
-        currentUser={currentUser}
-        navigation={navigation}
-        colors={colors}
       />
     </View>
   );

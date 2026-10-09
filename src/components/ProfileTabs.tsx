@@ -40,7 +40,11 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={styles.tabBarScrollContainer}
+        style={[
+          styles.tabBarWrapper,
+          { backgroundColor: colors.backgroundSecondary },
+        ]}
       >
         {tabs.map(tab => (
           <TouchableOpacity
@@ -69,16 +73,14 @@ const styles = StyleSheet.create({
   tabWrapper: {
     borderBottomWidth: 0.8,
   },
-  container: {
-    alignItems: 'center',
-  },
   tabItem: {
-    marginRight: 7,
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: 'transparent',
+    marginRight: 8,
   },
   activeTabItem: {
     borderBottomColor: PRIMARY_COLOR,
@@ -86,5 +88,15 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  tabBarScrollContainer: {
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    paddingVertical: 0,
+  },
+  tabBarWrapper: {
+    marginVertical: 10,
+    flexGrow: 0,
+    height: 52,
   },
 });

@@ -32,7 +32,11 @@ import {
   clearFavoritesAPI,
   deletePostApi,
 } from '../api/localDeleteApis';
-import { db, deleteProductFromLocalDb } from '../hooks/useSQLiteDb';
+import {
+  db,
+  deleteProductFromLocalDb,
+  setupDatabase,
+} from '../hooks/useSQLiteDb';
 import { Transaction } from 'react-native-quick-sqlite';
 import {
   fetchPostByIdAPI,
@@ -100,6 +104,7 @@ interface AppDataContextType {
   handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
   unreadEmailSupportCount: number;
   isEmailSupportLoading: boolean;
+  isDeletingPost: boolean;
   isFetchingMore: boolean;
   nextCursor: string | null;
   fetchEmailSupportTickets: (cursor?: string, limit?: number) => Promise<void>;
@@ -133,6 +138,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
   const [sellerSales, setSellerSales] = useState<ProductSale[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
   const [allReviews, setAllReviews] = useState<Review[]>([]);
   const [emailSupportTickets, setEmailSupportTickets] = useState<
     SupportTicket[]
@@ -699,29 +705,28 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       const now = Date.now();
       const lastSync = await AsyncStorage.getItem('CATALOG_SYNC_TIME');
       const thirtyMinutes = 30 * 60 * 1000;
+
       if (!lastSync || now - parseInt(lastSync, 10) > thirtyMinutes) {
         const result = await fetchAllProductsAPI();
 
         if (result.success && result.data) {
-          db.transaction((tx: Transaction) => {
-            for (const product of result.data) {
-              tx.execute(
-                `INSERT OR REPLACE INTO products (productId, title, description, priceInPoints, sellerId, type, amountInStock, mediaUrls, physicalDetails) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-                [
-                  product.productId,
-                  product.title,
-                  product.description,
-                  product.priceInPoints,
-                  product.sellerId,
-                  product.type,
-                  product.amountInStock,
-                  JSON.stringify(product.mediaUrls),
-                  JSON.stringify(product.physicalDetails),
-                ],
-              );
-            }
-          });
+          for (const product of result.data) {
+            db.execute(
+              `INSERT OR REPLACE INTO products (productId, title, description, price, sellerId, type, amountInStock, mediaUrls, physicalDetails) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+              [
+                product.productId,
+                product.title,
+                product.description,
+                product.price,
+                product.sellerId,
+                product.type,
+                product.amountInStock,
+                JSON.stringify(product.mediaUrls),
+                JSON.stringify(product.physicalDetails),
+              ],
+            );
+          }
 
           await AsyncStorage.setItem('CATALOG_SYNC_TIME', now.toString());
         }
@@ -756,12 +761,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       const response = await fetchUserReviewsAPI();
       if (response.success) {
         setAllReviews(response.data);
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Fetch Error',
-          text2: response.message || 'An unexpected error occurred',
-        });
       }
     } catch (error: any) {
       console.error('Error fetching reviews:', error);
@@ -777,13 +776,16 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   };
   const handleDeletePost = async (postId: string): Promise<void> => {
     try {
+      setIsDeletingPost(true);
       const response = await deletePostApi(postId);
       if (response && response.success) {
+        setIsDeletingPost(false);
         setPosts(currentPosts =>
           currentPosts.filter(post => post.postId !== postId),
         );
         Toast.show({ type: 'success', text2: 'Post deleted successfully' });
       } else {
+        setIsDeletingPost(false);
         Toast.show({ type: 'error', text2: 'Failed to delete post' });
       }
     } catch (error) {
@@ -829,6 +831,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   ).length;
 
   useEffect(() => {
+    setupDatabase();
     fetchReviews();
     syncCatalogToDatabase();
   }, []);
@@ -872,6 +875,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         nextCursor,
         isFetchingMore,
         isFetchingMoreOrders,
+        isDeletingPost,
       }}
     >
       {children}

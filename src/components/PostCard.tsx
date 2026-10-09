@@ -22,7 +22,7 @@ import Video from 'react-native-video';
 import { Posts } from '../types/firebase';
 import { formatCount } from '../utils/followCountFormatter.ts';
 import { useNavigation } from '@react-navigation/native';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { UserIdentity } from './UserIdentity';
 import { UserAvatar } from './UserAvatar';
 import { formatPostDate } from '../utils/dateFormatter';
@@ -285,7 +285,6 @@ export const PostCard = React.memo(
     const [selectedPost, setSelectedPost] = useState<{
       id: string;
     } | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
     const TEXT_LIMIT = 150;
     const {
       toggleLike,
@@ -295,6 +294,7 @@ export const PostCard = React.memo(
       incrementShareCount,
       handleVote,
       handleDeletePost,
+      isDeletingPost,
     } = useAppDataContext();
     const { formatDate, formatTime } = useDateTimePicker();
     const getRelativeTime = (dateString: string | null): string => {
@@ -667,7 +667,7 @@ export const PostCard = React.memo(
         <ActionModal
           visible={deleteModalVisible}
           onClose={() => {
-            if (!isDeleting) {
+            if (!isDeletingPost) {
               setDeleteModalVisible(false);
               setSelectedPost(null);
             }
@@ -676,7 +676,7 @@ export const PostCard = React.memo(
           title="Delete Post?"
           subtitle={`Are you sure you want to delete this post? This action cannot be undone.`}
           continueText="Delete"
-          loading={isDeleting}
+          loading={isDeletingPost}
         />
       </Pressable>
     );
@@ -697,10 +697,8 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     borderRadius: 16,
-    marginHorizontal: 12,
-    marginVertical: 6,
-    // Modern subtle shadow layer
-    shadowColor: '#000',
+    marginBottom: 10,
+    shadowColor: PRIMARY_COLOR_TINT,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,

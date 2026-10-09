@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { extractCourseFormAPI } from '../api/localPostApis.ts';
 import ExpandableFAB from './ExpandableFAB.tsx';
-import { PageHeader } from '../components/PageHeader';
 import { AttachmentModal } from './ChatInput.tsx';
 import {
   fetchMyCoursesAPI,
@@ -50,33 +49,39 @@ interface ClassroomProps {
 
 const SESSIONS = generateSessions();
 
-const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
   const isStudent = userRole === 'student';
   const isInstructor = userRole === 'lecturer';
+
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('First');
+  const [selectedSemester, setSelectedSemester] = useState('All');
+  const [selectedSession, setSelectedSession] = useState('All');
+
   const [isManualModalVisible, setIsManualModalVisible] = useState(false);
-  const [selectedSession, setSelectedSession] = useState(SESSIONS[4]);
   const [isSessionModalVisible, setSessionModalVisible] = useState(false);
   const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
     useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
+
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [page, setPage] = useState(1);
+
   const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
   const stateRef = useRef({ hasMore, isFetchingMore, page });
   stateRef.current = { hasMore, isFetchingMore, page };
+
   const handlePickImage = async () => {
     try {
       const fileData = await pickImage();
@@ -91,6 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Image picker window dismissed');
     }
   };
+
   const handlePickDocument = async () => {
     try {
       const fileData = await pickDocument();
@@ -105,6 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Document picker window dismissed');
     }
   };
+
   const handleCaptureCamera = async () => {
     try {
       const fileData = await pickImageFromCamera();
@@ -119,6 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Camera window dismissed');
     }
   };
+
   const fetchMyCourses = useCallback(
     async (
       semester: string = 'All',
@@ -139,7 +147,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         });
 
         if (result.success) {
-          console.log('Fetch successful...');
           setCourses(result.courses);
           setPage(pageNumber);
           setHasMore(result.courses.length === 10);
@@ -163,8 +170,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         setIsFetchingMore(false);
       }
     },
-    [setCourses, setHasMore, setLoading, setIsFetchingMore, setPage],
+    [],
   );
+
   const fetchLecturerCourses = useCallback(
     async (semester: string, session: string, pageNumber: number = 1) => {
       const { hasMore, isFetchingMore } = stateRef.current;
@@ -181,7 +189,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         });
 
         if (result.success) {
-          console.log('Fetch successful...');
           setCourses(result.courses);
           setHasMore(result.courses.length === 10);
           setPage(pageNumber);
@@ -204,8 +211,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         setIsFetchingMore(false);
       }
     },
-    [setCourses, setHasMore, setLoading, setIsFetchingMore, setPage],
+    [],
   );
+
   const uploadAndExtractCourseFile = async (fileData: {
     uri: string;
     type: string;
@@ -227,7 +235,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 
       if (extractedCourses && extractedCourses.length > 0) {
         const { semester, session } = extractedCourses[0];
-        fetchMyCourses(String(semester), session);
+        setSelectedSemester(String(semester));
+        setSelectedSession(session);
+        if (userRole === 'lecturer') {
+          fetchLecturerCourses(String(semester), session);
+        } else {
+          fetchMyCourses(String(semester), session);
+        }
         Toast.show({
           type: 'success',
           text1: message,
@@ -255,6 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       setProgress(0);
     }
   };
+
   const handleManualCourseSubmit = async (newCourseData: {
     courseTitle: string;
     courseCode: string;
@@ -270,16 +285,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           text1: 'Success',
           text2: response.message,
         });
-        if (user.usertype === 'student') {
-          if (typeof fetchMyCourses === 'function') {
-            fetchMyCourses();
-          }
+        if (userRole === 'lecturer') {
+          fetchLecturerCourses(selectedSemester, selectedSession);
         } else {
-          /*
-          if (typeof fetchLecturerCourses === 'function') {
-            fetchLecturerCourses();
-          }
-          */
+          fetchMyCourses(selectedSemester, selectedSession);
         }
       } else {
         Toast.show({
@@ -317,327 +326,190 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <PageHeader title="iCampus Classroom" showBackButton={false} />
-      {isLoading ? (
-        <ActivityIndicator
-          size="small"
-          color={colors.primary}
-          style={{ flex: 1 }}
-        />
-      ) : (
-        <View style={{ flex: 1, marginHorizontal: 15 }}>
-          {isStudent && (
-            <>
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={[styles.btn, { borderColor: colors.primary }]}
-                  onPress={() => setIsAttachmentModalVisible(true)}
-                >
-                  <MaterialIcons
-                    name="cloud-upload"
-                    size={32}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.btnText, { color: colors.primary }]}>
-                    Upload{'\n'}Form
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btn, { borderColor: colors.primary }]}
-                  onPress={() => setIsManualModalVisible(true)}
-                >
-                  <MaterialIcons
-                    name="keyboard"
-                    size={32}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.btnText, { color: colors.primary }]}>
-                    Manual{'\n'}Entry
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {courses.length === 0 ? (
-                <View
-                  style={[
-                    styles.emptyState,
-                    { backgroundColor: colors.backgroundSecondary },
-                  ]}
-                >
-                  <Image
-                    source={{
-                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549467/The_Little_Things_-_Exam_Studying_wdspiv.png',
-                    }}
-                    style={styles.illustration}
-                  />
-                  <Text style={[styles.title, { color: colors.textDarker }]}>
-                    Get Started with iCampus
-                  </Text>
-                  <Text style={[styles.subtitle, { color: colors.text }]}>
-                    Let's populate your academic calendar.
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.headerContainer}>
-                    <Text style={[styles.title, { color: colors.textDarker }]}>
-                      Enrolled Courses
-                    </Text>
-                    <CustomButton
-                      title="View All"
-                      onPress={() => navigation.navigate('ViewAllCourses')}
-                      disabled={isLoading}
-                      isLoading={isLoading}
-                      style={styles.ctaBtn}
-                    />
-                  </View>
-                  <View style={styles.filterContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.selectorButton,
-                        { borderColor: colors.primary },
-                      ]}
-                      onPress={() => setSessionModalVisible(true)}
-                    >
-                      <View style={styles.selectorTextContainer}>
-                        <Text
-                          style={[styles.selectorLabel, { color: colors.text }]}
-                        >
-                          Session
-                        </Text>
-                        {selectedSession && (
-                          <Text
-                            style={[
-                              styles.selectorValue,
-                              { color: colors.primary },
-                            ]}
-                          >
-                            {selectedSession}
-                          </Text>
-                        )}
-                      </View>
-                      <MaterialIcons
-                        name="keyboard-arrow-down"
-                        size={24}
-                        color={colors.textDarker}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.selectorButton,
-                        { borderColor: colors.primary },
-                      ]}
-                      onPress={() => setSemesterModalVisible(true)}
-                    >
-                      <View style={styles.selectorTextContainer}>
-                        <Text
-                          style={[styles.selectorLabel, { color: colors.text }]}
-                        >
-                          Semester
-                        </Text>
-                        <Text
-                          style={[
-                            styles.selectorValue,
-                            { color: colors.primary },
-                          ]}
-                        >
-                          {selectedSemester || 'All'}
-                        </Text>
-                      </View>
-                      <MaterialIcons
-                        name="keyboard-arrow-down"
-                        size={24}
-                        color={colors.textDarker}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={courses}
-                    contentContainerStyle={{ paddingBottom: 40 }}
-                    keyExtractor={item => item.courseId}
-                    renderItem={({ item }) => {
-                      return (
-                        <CourseSearchCard
-                          item={item}
-                          navigation={navigation}
-                          colors={colors}
-                          onPress={() => {
-                            setSelectedCourse(item);
-                            setModalVisible(true);
-                          }}
-                        />
-                      );
-                    }}
-                  />
-                </>
-              )}
-            </>
-          )}
-          {isInstructor && (
-            <>
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={[styles.btn, { borderColor: colors.primary }]}
-                  onPress={() => setIsAttachmentModalVisible(true)}
-                >
-                  <MaterialIcons
-                    name="cloud-upload"
-                    size={32}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.btnText, { color: colors.primary }]}>
-                    Upload{'\n'}Course{'\n'}Allocation Form
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btn, { borderColor: colors.primary }]}
-                  onPress={() => setIsManualModalVisible(true)}
-                >
-                  <MaterialIcons
-                    name="keyboard"
-                    size={32}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.btnText, { color: colors.primary }]}>
-                    Manual{'\n'}Entry
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btn, { borderColor: colors.primary }]}
-                  onPress={() =>
-                    navigation.navigate('CourseSubPage', {
-                      title: 'QuickPublicClass',
-                      userRole: user.usertype,
-                    })
-                  }
-                >
-                  <MaterialIcons
-                    name="people-line"
-                    size={32}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.btnText, { color: colors.primary }]}>
-                    Schedule{'\n'}Quick Online{'\n'}Class
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {courses.length === 0 ? (
-                <View
-                  style={[
-                    styles.emptyState,
-                    { backgroundColor: colors.backgroundSecondary },
-                  ]}
-                >
-                  <Image
-                    source={{
-                      uri: 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549420/Fresh_Folk_-_Teaching_y1k0ov.png',
-                    }}
-                    style={styles.illustration}
-                  />
-                  <Text style={[styles.title, { color: colors.textDarker }]}>
-                    Manage your iCampus courses effortlessly
-                  </Text>
-                  <Text style={[styles.subtitle, { color: colors.text }]}>
-                    Prepare your syllabus and lectures
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.headerContainer}>
-                    <Text style={[styles.title, { color: colors.textDarker }]}>
-                      Manage Courses
-                    </Text>
-                    <CustomButton
-                      title="View All"
-                      onPress={() => navigation.navigate('ViewAllCourses')}
-                      disabled={isLoading}
-                      isLoading={isLoading}
-                      style={styles.ctaBtn}
-                    />
-                  </View>
-                  <View style={styles.filterContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.selectorButton,
-                        { borderColor: colors.primary },
-                      ]}
-                      onPress={() => setSessionModalVisible(true)}
-                    >
-                      <View style={styles.selectorTextContainer}>
-                        <Text
-                          style={[styles.selectorLabel, { color: colors.text }]}
-                        >
-                          Session
-                        </Text>
-                        {selectedSession && (
-                          <Text
-                            style={[
-                              styles.selectorValue,
-                              { color: colors.primary },
-                            ]}
-                          >
-                            {selectedSession}
-                          </Text>
-                        )}
-                      </View>
-                      <MaterialIcons
-                        name="keyboard-arrow-down"
-                        size={24}
-                        color={colors.textDarker}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.selectorButton,
-                        { borderColor: colors.primary },
-                      ]}
-                      onPress={() => setSemesterModalVisible(true)}
-                    >
-                      <View style={styles.selectorTextContainer}>
-                        <Text
-                          style={[styles.selectorLabel, { color: colors.text }]}
-                        >
-                          Semester
-                        </Text>
-                        <Text
-                          style={[
-                            styles.selectorValue,
-                            { color: colors.primary },
-                          ]}
-                        >
-                          {selectedSemester || 'All'}
-                        </Text>
-                      </View>
-                      <MaterialIcons
-                        name="keyboard-arrow-down"
-                        size={24}
-                        color={colors.textDarker}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={courses}
-                    contentContainerStyle={{ paddingBottom: 30 }}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => {
-                      return (
-                        <CourseSearchCard
-                          item={item}
-                          navigation={navigation}
-                          colors={colors}
-                          onPress={() => {
-                            setSelectedCourse(item);
-                            setModalVisible(true);
-                          }}
-                        />
-                      );
-                    }}
-                  />
-                </>
-              )}
-            </>
-          )}
+      <View style={{ flex: 1, marginHorizontal: 15 }}>
+        {isStudent && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.btn, { borderColor: colors.primary }]}
+              onPress={() => setIsAttachmentModalVisible(true)}
+            >
+              <MaterialIcons
+                name="cloud-upload"
+                size={32}
+                color={colors.primary}
+              />
+              <Text style={[styles.btnText, { color: colors.primary }]}>
+                Upload{'\n'}Form
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, { borderColor: colors.primary }]}
+              onPress={() => setIsManualModalVisible(true)}
+            >
+              <MaterialIcons name="keyboard" size={32} color={colors.primary} />
+              <Text style={[styles.btnText, { color: colors.primary }]}>
+                Manual{'\n'}Entry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {isInstructor && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.btn, { borderColor: colors.primary }]}
+              onPress={() => setIsAttachmentModalVisible(true)}
+            >
+              <MaterialIcons
+                name="cloud-upload"
+                size={32}
+                color={colors.primary}
+              />
+              <Text style={[styles.btnText, { color: colors.primary }]}>
+                Upload{'\n'}Course{'\n'}Allocation Form
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, { borderColor: colors.primary }]}
+              onPress={() => setIsManualModalVisible(true)}
+            >
+              <MaterialIcons name="keyboard" size={32} color={colors.primary} />
+              <Text style={[styles.btnText, { color: colors.primary }]}>
+                Manual{'\n'}Entry
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, { borderColor: colors.primary }]}
+              onPress={() =>
+                navigation.navigate('CourseSubPage', {
+                  title: 'QuickPublicClass',
+                  userRole: user.usertype,
+                })
+              }
+            >
+              <MaterialIcons
+                name="people-line"
+                size={32}
+                color={colors.primary}
+              />
+              <Text style={[styles.btnText, { color: colors.primary }]}>
+                Schedule{'\n'}Quick Online{'\n'}Class
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Persistent Header & Filter Selectors (Always visible so users can change filters even if list is empty) */}
+        <View style={styles.headerContainer}>
+          <Text style={[styles.title, { color: colors.textDarker }]}>
+            {isStudent ? 'Enrolled Courses' : 'Manage Courses'}
+          </Text>
+          <CustomButton
+            title="View All"
+            onPress={() => navigation.navigate('ViewAllCourses')}
+            disabled={isLoading}
+            isLoading={isLoading}
+            style={styles.ctaBtn}
+          />
         </View>
-      )}
+
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={[styles.selectorButton, { borderColor: colors.primary }]}
+            onPress={() => setSessionModalVisible(true)}
+          >
+            <View style={styles.selectorTextContainer}>
+              <Text style={[styles.selectorLabel, { color: colors.text }]}>
+                Session
+              </Text>
+              {selectedSession && (
+                <Text style={[styles.selectorValue, { color: colors.primary }]}>
+                  {selectedSession}
+                </Text>
+              )}
+            </View>
+            <MaterialIcons
+              name="keyboard-arrow-down"
+              size={24}
+              color={colors.textDarker}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.selectorButton, { borderColor: colors.primary }]}
+            onPress={() => setSemesterModalVisible(true)}
+          >
+            <View style={styles.selectorTextContainer}>
+              <Text style={[styles.selectorLabel, { color: colors.text }]}>
+                Semester
+              </Text>
+              <Text style={[styles.selectorValue, { color: colors.primary }]}>
+                {selectedSemester || 'All'}
+              </Text>
+            </View>
+            <MaterialIcons
+              name="keyboard-arrow-down"
+              size={24}
+              color={colors.textDarker}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Content Area: Loader, Empty State, or Course List */}
+        {isLoading && courses.length === 0 ? (
+          <ActivityIndicator
+            size="small"
+            color={colors.primary}
+            style={{ flex: 1, marginTop: 40 }}
+          />
+        ) : courses.length === 0 ? (
+          <View
+            style={[
+              styles.emptyState,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <Image
+              source={{
+                uri: isStudent
+                  ? 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549467/The_Little_Things_-_Exam_Studying_wdspiv.png'
+                  : 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549420/Fresh_Folk_-_Teaching_y1k0ov.png',
+              }}
+              style={styles.illustration}
+            />
+            <Text style={[styles.title, { color: colors.textDarker }]}>
+              {isStudent
+                ? 'Get Started with iCampus'
+                : 'Manage your iCampus courses effortlessly'}
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.text }]}>
+              {isStudent
+                ? "Let's populate your academic calendar."
+                : 'Prepare your syllabus and lectures'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={courses}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            keyExtractor={item => item.courseId || item.id}
+            renderItem={({ item }) => {
+              return (
+                <CourseSearchCard
+                  item={item}
+                  navigation={navigation}
+                  colors={colors}
+                  onPress={() => {
+                    setSelectedCourse(item);
+                    setModalVisible(true);
+                  }}
+                />
+              );
+            }}
+          />
+        )}
+      </View>
+
       {!isFabMenuVisible && (
         <TouchableOpacity
           style={styles.fab}
@@ -646,12 +518,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
+
       <ExpandableFAB
         isVisible={isFabMenuVisible}
         onClose={toggleFab}
         actions={['iAssistant', 'View Lectures']}
         userRole={user.usertype}
       />
+
       {selectedCourse && (
         <CourseModal
           isVisible={modalVisible}
@@ -662,11 +536,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           userRole={userRole}
         />
       )}
+
       <UploadProgressModal
         visible={uploading}
         progress={progress}
         statusText={status}
       />
+
       <AttachmentModal
         isVisible={isAttachmentModalVisible}
         onClose={() => setIsAttachmentModalVisible(false)}
@@ -675,16 +551,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         onTakePhoto={handleCaptureCamera}
         colors={colors}
       />
+
       <ManualCourseModal
         isVisible={isManualModalVisible}
         onClose={() => setIsManualModalVisible(false)}
         onSubmit={handleManualCourseSubmit}
         colors={colors}
       />
+
       <SelectionModal
         title="Select Session"
         visible={isSessionModalVisible}
-        options={SESSIONS}
+        options={['All', ...SESSIONS]}
         selectedValue={selectedSession}
         onSelect={val => {
           setHasMore(true);
@@ -694,6 +572,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         onClose={() => setSessionModalVisible(false)}
         colors={colors}
       />
+
       <SelectionModal
         title="Select Semester"
         visible={isSemesterModalVisible}
@@ -729,42 +608,6 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 20,
-    borderRadius: 15,
-  },
-  illustration: {
-    width: 250,
-    height: 200,
-    marginBottom: 25,
-    resizeMode: 'contain',
-  },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
-  subtitle: { fontSize: 14, marginBottom: 15 },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    width: '100%',
-  },
-  btn: {
-    padding: 15,
-    borderRadius: 15,
-    width: '30%',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  btnText: {
-    fontWeight: '700',
-    fontSize: 12,
-    marginTop: 10,
-    lineHeight: 20,
-  },
   typeText: {
     fontSize: 11,
     color: PRIMARY_COLOR,
@@ -782,43 +625,6 @@ const styles = StyleSheet.create({
   productCardWrapper: {
     width: CARD_WIDTH,
     marginBottom: 15,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    marginVertical: 15,
-  },
-  selectorButton: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    borderWidth: 1,
-  },
-  selectorTextContainer: {
-    alignItems: 'center',
-    marginRight: 5,
-  },
-  selectorLabel: {
-    fontSize: 14,
-  },
-  selectorValue: {
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: 'bold',
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  ctaBtn: {
-    paddingHorizontal: 15,
-    height: 50,
-    width: 'auto',
   },
   ctaBtnText: {
     fontSize: 14,
@@ -840,6 +646,86 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 100,
+  },
+  container: { flex: 1 },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  btn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  btnText: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  ctaBtn: {
+    paddingHorizontal: 12,
+    height: 36,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  selectorButton: {
+    flex: 1,
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 4,
+  },
+  selectorTextContainer: {
+    flex: 1,
+  },
+  selectorLabel: {
+    fontSize: 10,
+    opacity: 0.7,
+  },
+  selectorValue: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 10,
+  },
+  illustration: {
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
+    marginBottom: 15,
   },
 });
 

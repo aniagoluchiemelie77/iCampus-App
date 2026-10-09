@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
-import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '@env';
@@ -27,7 +26,6 @@ import { useDispatch } from 'react-redux';
 import { updateUserThemePreference } from '../api/localPutApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import { IconOutline } from '@ant-design/icons-react-native';
-const rnBiometrics = new ReactNativeBiometrics();
 
 export const SectionHeader = ({ title }: { title: string }) => {
   const { colors } = useTheme();
@@ -56,10 +54,8 @@ export const Settings = () => {
     user.theme === 'dark' ||
     (user.theme === 'system' && deviceColorScheme === 'dark');
   const navigation = useNavigation<any>();
-  const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [biometryType, setBiometryType] = useState<string>('Biometrics');
   const version = DeviceInfo.getVersion();
   const buildNumber = DeviceInfo.getBuildNumber();
   const options = {
@@ -68,33 +64,6 @@ export const Settings = () => {
     preferredAndroidMarket: AndroidMarket.Google,
     preferInApp: true,
     openAppStoreIfInAppFails: true,
-  };
-  const toggleBiometrics = async () => {
-    if (!biometricsEnabled) {
-      const { available, biometryType: detectedType } =
-        await rnBiometrics.isSensorAvailable();
-      if (available) {
-        const hardwareLabel = detectedType === 'FaceID' ? 'FaceID' : 'TouchID';
-        const { success } = await rnBiometrics.simplePrompt({
-          promptMessage: `Confirm ${hardwareLabel} to enable`,
-        });
-        if (success) {
-          await AsyncStorage.setItem('biometrics_enabled', 'true');
-          setBiometricsEnabled(true);
-          setBiometryType(hardwareLabel);
-          Toast.show({ type: 'success', text2: `${hardwareLabel} Enabled` });
-        }
-      } else {
-        Toast.show({
-          type: 'error',
-          text2: 'Biometrics not supported on this device',
-        });
-      }
-    } else {
-      await AsyncStorage.removeItem('biometrics_enabled');
-      setBiometricsEnabled(false);
-      Toast.show({ type: 'info', text2: 'Biometrics Disabled' });
-    }
   };
 
   const handleThemeToggle = async () => {
@@ -130,25 +99,6 @@ export const Settings = () => {
       });
     }
   };
-  useEffect(() => {
-    const checkStatus = async () => {
-      const val = await AsyncStorage.getItem('biometrics_enabled');
-      setBiometricsEnabled(val === 'true');
-    };
-    checkStatus();
-  }, []);
-  useEffect(() => {
-    const checkHardware = async () => {
-      const { available, biometryType: type } =
-        await rnBiometrics.isSensorAvailable();
-      if (available) {
-        if (type === BiometryTypes.FaceID) setBiometryType('FaceID');
-        else if (type === BiometryTypes.TouchID) setBiometryType('TouchID');
-        else setBiometryType('Biometrics');
-      }
-    };
-    checkHardware();
-  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -175,15 +125,6 @@ export const Settings = () => {
             title="Subscription"
             subtitle="Manage your Premium plan"
             onPress={() => navigation.navigate('Subscription')}
-          />
-          <SettingItem
-            icon="fingerprint"
-            title="Secure iCash Transactions"
-            subtitle={`Use ${biometryType} for iCash operations`}
-            toggle
-            value={biometricsEnabled}
-            onPress={toggleBiometrics}
-            onValueChange={toggleBiometrics}
           />
           <SettingItem
             icon="lock-reset"
