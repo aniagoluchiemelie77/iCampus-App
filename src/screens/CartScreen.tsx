@@ -9,7 +9,7 @@ import { useAppDataContext } from '../context/EventContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { Product } from '../types/firebase';
+import { db } from '../hooks/useSQLiteDb';
 import { CustomButton } from '../assets/components/AppUIComponents';
 
 interface CartItemEntry {
@@ -20,8 +20,7 @@ export const CartScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
-  const { handleCartItemToggle, allProducts, handleClearCart } =
-    useAppDataContext();
+  const { handleCartItemToggle, handleClearCart } = useAppDataContext();
 
   const cartData = useMemo<CartItemEntry[]>(() => {
     return currentUser?.cart ?? [];
@@ -29,14 +28,42 @@ export const CartScreen = () => {
 
   const itemCount = cartData.length;
   const productDictionary = useMemo(() => {
-    const map = new Map<string, Product>();
-    if (Array.isArray(allProducts)) {
-      allProducts.forEach(product => {
-        if (product.productId) map.set(product.productId, product);
+    const map = new Map<string, any>();
+    if (cartData.length === 0) return map;
+
+    try {
+      const productIds = cartData.map(item => item.productId);
+      const placeholders = productIds.map(() => '?').join(',');
+      const queryResult = db.execute(
+        `SELECT * FROM products WHERE productId IN (${placeholders});`,
+        productIds,
+      );
+
+      const rows = queryResult?.rows;
+      const rawProducts = Array.isArray(rows)
+        ? rows
+        : rows && '_array' in rows
+          ? rows._array
+          : [];
+
+      rawProducts.forEach((item: any) => {
+        const parsedProduct = {
+          ...item,
+          mediaUrls: item.mediaUrls ? JSON.parse(item.mediaUrls) : [],
+          physicalDetails: item.physicalDetails
+            ? JSON.parse(item.physicalDetails)
+            : null,
+        };
+        if (parsedProduct.productId) {
+          map.set(parsedProduct.productId, parsedProduct);
+        }
       });
+    } catch (error) {
+      console.error('Failed to load cart products from SQLite:', error);
     }
+
     return map;
-  }, [allProducts]);
+  }, [cartData]);
 
   const { totalPrice, containsInvalidItems } = useMemo(() => {
     let total = 0;
@@ -45,7 +72,8 @@ export const CartScreen = () => {
     cartData.forEach(item => {
       const product = productDictionary.get(item.productId);
       if (product) {
-        total += product.price * item.quantity;
+        const itemPrice = product.price ?? product.priceInPoints ?? 0;
+        total += itemPrice * item.quantity;
       } else {
         missingItemsFlag = true;
       }
@@ -55,7 +83,7 @@ export const CartScreen = () => {
   }, [cartData, productDictionary]);
 
   const handleRemoveItem = useCallback(
-    (product: Product) => {
+    (product: any) => {
       handleCartItemToggle(product);
     },
     [handleCartItemToggle],

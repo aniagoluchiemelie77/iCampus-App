@@ -7,23 +7,51 @@ import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../context/EventContext';
 import { FavItem } from '../components/FavItem';
 import { useTheme } from '../context/ThemeContext';
-import { User, Product } from '../types/firebase';
+import { User } from '../types/firebase';
+import { db } from '../hooks/useSQLiteDb';
 import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const FavoritesScreen = () => {
   const { colors } = useTheme();
   const currentUser = useAppSelector((state: { user: User }) => state.user);
   const {
-    allProducts,
     handleToggleFavorite,
     handleAddAllFavoritesToCart,
     handleDeleteAllFavorites,
   } = useAppDataContext();
+
+  const favoriteIds = useMemo(() => {
+    return currentUser?.favorites ?? [];
+  }, [currentUser?.favorites]);
   const favoriteItems = useMemo(() => {
-    if (!allProducts || !currentUser?.favorites) return [];
-    const favoriteSet = new Set(currentUser.favorites);
-    return allProducts.filter(product => favoriteSet.has(product.productId));
-  }, [allProducts, currentUser?.favorites]);
+    if (favoriteIds.length === 0) return [];
+
+    try {
+      const placeholders = favoriteIds.map(() => '?').join(',');
+      const queryResult = db.execute(
+        `SELECT * FROM products WHERE productId IN (${placeholders});`,
+        favoriteIds,
+      );
+
+      const rows = queryResult?.rows;
+      const rawProducts = Array.isArray(rows)
+        ? rows
+        : rows && '_array' in rows
+          ? rows._array
+          : [];
+
+      return rawProducts.map((item: any) => ({
+        ...item,
+        mediaUrls: item.mediaUrls ? JSON.parse(item.mediaUrls) : [],
+        physicalDetails: item.physicalDetails
+          ? JSON.parse(item.physicalDetails)
+          : null,
+      }));
+    } catch (error) {
+      console.error('Failed to load favorite products from SQLite:', error);
+      return [];
+    }
+  }, [favoriteIds]);
 
   const handleConfirmClearAll = () => {
     Alert.alert(
@@ -39,8 +67,9 @@ export const FavoritesScreen = () => {
       ],
     );
   };
+
   const renderFavItem = useCallback(
-    ({ item }: { item: Product }) => {
+    ({ item }: { item: any }) => {
       return (
         <FavItem
           product={item}

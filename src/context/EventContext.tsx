@@ -37,7 +37,6 @@ import {
   deleteProductFromLocalDb,
   setupDatabase,
 } from '../hooks/useSQLiteDb';
-import { Transaction } from 'react-native-quick-sqlite';
 import {
   fetchPostByIdAPI,
   fetchAllProductsAPI,
