@@ -55,8 +55,8 @@ interface StatusCardMiniProps {
   label: string;
   count: number;
   color: string;
-  icon: string;
   isSuccess?: boolean;
+  userCountry: string
 }
 interface TopBuyerProfile {
   uid: string;
@@ -86,7 +86,7 @@ const ProductListHeader = ({
       ]}
     >
       <Text style={[styles.countText, { color: themeColors.textDarker }]}>
-        {count} {count === 1 ? 'Product' : 'Products'}
+        Total Listings: {count}
       </Text>
     </View>
   );
@@ -157,23 +157,21 @@ export const StatusCardMini = ({
   label,
   count,
   color,
-  icon,
-  isSuccess,
+  userCountry
 }: StatusCardMiniProps) => {
   const { colors: themeColor } = useTheme();
+  const { exchangeData } = useExchangeRate(userCountry || 'Nigeria');
   return (
     <View style={[styles.statusCard, { borderColor: color }]}>
-      <View style={styles.statusIconContainer}>
-        <MaterialIcons name={icon} size={22} color={color} />
-      </View>
-      <View>
+      <View style={styles.statusIconContainerMini}>
+        <Text style={{color: themeColor.primary, fontSize: 12, fontWeight: 'bold', marginRight: 4}}> {exchangeData.symbol}</Text>
         <CurrencyDisplay value={count} size="medium" />
+      </View>
         <Text
           style={[styles.statusLabel, { marginTop: 4, color: themeColor.text }]}
         >
           {label}
         </Text>
-      </View>
     </View>
   );
 };
@@ -814,14 +812,6 @@ export const ProductList = () => {
         </View>
       ) : (
         <>
-          <View style={styles.statusRow}>
-            <StatusCard
-              label="Total Products Count"
-              count={formatStatNumber(sellerProducts.length)}
-              color={themeColors.textDarker}
-              icon="storefront"
-            />
-          </View>
           <FlatList
             data={sellerProducts}
             keyExtractor={item => item.productId}
@@ -845,7 +835,7 @@ export const ProductList = () => {
             }}
             onContinue={handleConfirmDelete}
             title="Remove Listing?"
-            subtitle={`Are you sure you want to permanently delete "${selectedProduct?.title || ''}"? This will clear all hosted media assets and cannot be undone.`}
+            subtitle={`Are you sure you want to permanently delete the selected listing? This action cannot be undone.`}
             continueText="Delete"
             loading={isDeleting}
           />
@@ -1176,14 +1166,13 @@ export const SalesScreen = () => {
               label="Total Generated Income"
               count={totalIncome}
               color={colors.pendingDelivery}
-              icon="diamond"
+              userCountry={currentUser.country || 'Nigeria'}
             />
             <StatusCardMini
               label="Available For Payout"
               count={currentBalance}
               color={colors.success}
-              icon="diamond"
-              isSuccess={true}
+              userCountry={currentUser.country || 'Nigeria'}
             />
           </View>
           <View
@@ -1410,6 +1399,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  statusIconContainerMini: {
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row'
   },
   emptyContainer: {
     flex: 1,

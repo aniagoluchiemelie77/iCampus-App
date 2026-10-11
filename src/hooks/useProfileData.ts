@@ -14,7 +14,7 @@ export const useProfileData = (identifier: string, currentUser: any) => {
     const [isBlocked, setIsBlocked] = useState(false);
     const [blockedUserUid, setBlockedUserUid] = useState<string | null>(null);
     const [profileData, setProfileData] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
     const [isFollowing, setIsFollowing] = useState(profileData?.isFollowing || false);
 
   
@@ -54,7 +54,7 @@ export const useProfileData = (identifier: string, currentUser: any) => {
   };
   const fetchProfile = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setIsSearching(true);
       const data = await searchUserProfile({identifier, currentUser});
       setProfileData(data);
       setIsBlocked(false);
@@ -64,7 +64,7 @@ export const useProfileData = (identifier: string, currentUser: any) => {
         setBlockedUserUid(error.response.data.targetUid);
       }
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
   }, [identifier, currentUser]);
   const updateLocalProfile = (updater: (prev: any) => any) => {
@@ -105,7 +105,7 @@ export const useProfileData = (identifier: string, currentUser: any) => {
     handleFollowToggle, 
     setIsFollowing, 
     profileData, 
-    isLoading, 
+    isSearching, 
     isBlocked, 
     blockedUserUid, 
     setBlockedUserUid,

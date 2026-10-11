@@ -198,12 +198,9 @@ export const DeleteAccountModal = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        onPress={onClose}
-        activeOpacity={1}
-      >
-        <View
+      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
+        <TouchableOpacity
+          activeOpacity={1}
           style={[
             styles.modalContent,
             { backgroundColor: colors.backgroundSecondary },
@@ -218,7 +215,7 @@ export const DeleteAccountModal = ({
             Delete Account
           </Text>
           {renderStep()}
-        </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );

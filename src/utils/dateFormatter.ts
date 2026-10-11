@@ -47,12 +47,13 @@ export const formatPostDate = (timestamp: any): string => {
   return date.toISOString(); 
 };
 export const parseFirestoreDate = (timestamp: any) => {
-    if (!timestamp) return new Date();
-    if (typeof timestamp.toDate === 'function') {
-      return timestamp.toDate();
-    }
-    if (timestamp.seconds) {
-      return new Date(timestamp.seconds * 1000);
-    }
-    return timestamp;
-  };
+  if (!timestamp) return new Date();
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  const seconds = timestamp.seconds || timestamp._seconds;
+  if (seconds) {
+    return new Date(seconds * 1000);
+  }
+  return new Date(timestamp);
+};

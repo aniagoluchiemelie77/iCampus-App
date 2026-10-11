@@ -57,7 +57,9 @@ export const CourseSearchCard = ({
         ) : (
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.initialsText}>
-              {item.code ? item.code : getCourseInitials(item.title)}
+              {item.courseCode
+                ? item.courseCode
+                : getCourseInitials(item.courseTitle)}
             </Text>
           </View>
         )}
@@ -72,7 +74,7 @@ export const CourseSearchCard = ({
             style={[styles.courseTitleHeader, { color: colors.text }]}
             numberOfLines={2}
           >
-            {item.title}
+            {item.courseTitle}
           </Text>
 
           {item.instructors ? (
@@ -140,7 +142,7 @@ export const CourseSearchCard = ({
               style={{ marginBottom: 2 }}
             />
             <Text style={[styles.metricLabelText, { color: colors.text }]}>
-              {item.creditLoad} units
+              {item.credits} units
             </Text>
           </View>
         </View>

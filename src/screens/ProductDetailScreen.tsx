@@ -18,7 +18,6 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { logProductImpressionAPI } from '../api/localPatchApis';
-import { searchUsersByUid } from '../api/localGetApis';
 import { UserIdentity } from '../components/UserIdentity';
 import { ProductCard } from '../components/ProductCard';
 import { UserAvatar } from '../components/UserAvatar';
@@ -26,6 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 import { StationCarousel } from '../components/StationCarousel.tsx';
 import { useLocationServices } from '../hooks/useLocationService.ts';
 import { db } from '../hooks/useSQLiteDb';
+import { useUser } from '../hooks/useUserDetails.ts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -66,7 +66,6 @@ export const ProductDetailScreen = () => {
   const [quantity, setQuantity] = useState(1);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
-  const [seller, setSeller] = useState<any>(null);
 
   const getProductsBySeller = (sellerId: string, excludeProductId: string) => {
     const queryResult = db.execute(
@@ -93,22 +92,7 @@ export const ProductDetailScreen = () => {
     if (!product || !product.sellerId) return [];
     return getProductsBySeller(product.sellerId, productId);
   }, [product, productId]);
-
-  useEffect(() => {
-    const fetchSeller = async () => {
-      if (product?.sellerId) {
-        const data = await searchUsersByUid(
-          product.sellerId,
-          currentUser.tier!,
-          currentUser.usertype!,
-        );
-        if (data && data.length > 0) {
-          setSeller(data[0]);
-        }
-      }
-    };
-    fetchSeller();
-  }, [product?.sellerId, currentUser?.tier, currentUser?.usertype]);
+  const { user: seller } = useUser(product?.sellerId);
   useEffect(() => {
     if (!product?.mediaUrls || product.mediaUrls.length <= 1) return;
     const interval = setInterval(() => {
@@ -343,7 +327,11 @@ export const ProductDetailScreen = () => {
                 firstname={seller?.firstname || 'Merchant'}
                 lastname={seller?.lastname}
                 username={seller?.username}
-                tier={seller?.tier}
+                tier={
+                  seller?.tier === 'pro' || seller?.tier === 'premium'
+                    ? seller.tier
+                    : 'free'
+                }
                 isVerified={seller?.isVerified}
                 isOrganization={seller?.usertype === 'enterprise'}
                 organizationName={seller?.organizationName}
@@ -394,8 +382,6 @@ export const ProductDetailScreen = () => {
           )}
         </View>
       </ScrollView>
-
-      {/* Footer / Action Bar */}
       <View
         style={[styles.footer, { backgroundColor: colors.backgroundSecondary }]}
       >
@@ -608,6 +594,7 @@ const styles = StyleSheet.create({
   moreBtn: {
     paddingHorizontal: 12,
     height: 32,
+    width: 'auto',
   },
   footer: {
     position: 'absolute',
@@ -628,5 +615,6 @@ const styles = StyleSheet.create({
   },
   checkoutBtn: {
     paddingHorizontal: 20,
+    width: 'auto',
   },
 });

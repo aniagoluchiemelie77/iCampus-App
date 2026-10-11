@@ -17,8 +17,23 @@ export const setupDatabase = () => {
         physicalDetails TEXT
       );
     `);
+    
     db.execute(`
       CREATE INDEX IF NOT EXISTS idx_seller_id ON products (sellerId);
+    `);
+    db.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        uid TEXT PRIMARY KEY NOT NULL,
+        firstname TEXT,
+        lastname TEXT,
+        username TEXT,
+        organizationName TEXT,
+        profilePic TEXT,
+        tier TEXT,
+        usertype TEXT,
+        isVerified BOOLEAN,
+        lastSyncedAt INTEGER
+      );
     `);
     console.log('Products table and index initialized successfully');
   } catch (error) {

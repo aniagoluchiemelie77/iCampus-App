@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
-import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  Modal,
+} from 'react-native';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppDataContext } from '../context/EventContext';
-import Modal from 'react-native-modal';
 import { useTheme } from '../context/ThemeContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const POPULAR_REASONS = [
   'Changed my mind',
@@ -35,18 +42,20 @@ export const CancellationModal = ({
   };
   return (
     <Modal
-      isVisible={isVisible}
-      onBackdropPress={() => onClose()}
-      swipeDirection="down"
-      onSwipeComplete={() => onClose()}
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
     >
-      <View style={modalStyles.overlay}>
-        <View
+      <TouchableOpacity style={modalStyles.modalOverlay} onPress={onClose}>
+        <TouchableOpacity
+          activeOpacity={1}
           style={[
             modalStyles.content,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
+          <MaterialIcons name="info-outline" size={60} color={colors.primary} />
           <Text style={[modalStyles.title, { color: colors.textDarker }]}>
             Cancel Order?
           </Text>
@@ -87,7 +96,7 @@ export const CancellationModal = ({
               modalStyles.input,
               { color: colors.text, borderColor: colors.border },
             ]}
-            placeholder="Or type a custom reason..."
+            placeholder="Or type in your reason..."
             value={reason}
             onChangeText={setReason}
             multiline
@@ -111,31 +120,32 @@ export const CancellationModal = ({
               disabled={!reason || isCancelling}
             />
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
 const modalStyles = StyleSheet.create({
-  overlay: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   content: {
-    width: '80%',
-    borderRadius: 25,
-    padding: 20,
     elevation: 5,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 25,
+    maxHeight: '70%',
     alignItems: 'center',
   },
-  title: { fontSize: 18, fontWeight: 'bold' },
-  subtitle: { fontSize: 14, marginBottom: 15, width: '100%' },
+  title: { fontSize: 18, fontWeight: 'bold', marginVertical: 25 },
+  subtitle: { fontSize: 14, marginBottom: 20, width: '100%', lineHeight: 20 },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 15,
+    marginBottom: 20,
   },
   chip: {
     paddingHorizontal: 12,
@@ -165,8 +175,8 @@ const modalStyles = StyleSheet.create({
   },
   backButton: {
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 13,
+    height: 50,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 0.8,
   },

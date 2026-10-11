@@ -30,8 +30,7 @@ const OrderListItem = React.memo(
     onCancel: (id: string) => void;
     colors: any;
   }) => {
-    const isCompleted =
-      item.status === 'completed' || item.status === 'delivered';
+    const isCompleted = item.status === 'completed';
 
     return (
       <View style={styles.wrapperContainer}>

@@ -30,6 +30,7 @@ import { formatStatNumber } from '../utils/followCountFormatter';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
 import { useDateTimePicker } from '../hooks/useDateTimePicker';
+import { useUser } from '../hooks/useUserDetails.ts';
 export interface PostCardProps {
   post: Posts;
   isVisible?: boolean;
@@ -296,6 +297,7 @@ export const PostCard = React.memo(
       handleDeletePost,
       isDeletingPost,
     } = useAppDataContext();
+
     const { formatDate, formatTime } = useDateTimePicker();
     const getRelativeTime = (dateString: string | null): string => {
       if (!dateString) return '';
@@ -313,6 +315,7 @@ export const PostCard = React.memo(
         .replace(' day', 'd');
     };
     const targetPostId = post.postId || post.id;
+    const { user: poster } = useUser(post?.originalAuthor);
     const isOwner = currentUser?.uid === user;
     const isLiked = post.likes?.includes(currentUser?.uid);
     const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
@@ -363,10 +366,14 @@ export const PostCard = React.memo(
     const eventDate = dateValue ? formatDate(dateValue) : 'Not specified';
     const eventTime = timeValue ? formatTime(timeValue) : '00:00';
     const displayUser = post.featuredReposter;
-    const authorDetails = post.postAuthorsDetails;
+    const authorDetails = post.postAuthorsDetails
+      ? post.postAuthorsDetails
+      : poster;
     const authorProfilePic = authorDetails?.profilePic?.length
       ? String(authorDetails.profilePic[authorDetails.profilePic.length - 1])
-      : undefined;
+      : poster?.profilePic?.length
+        ? String(poster.profilePic[poster.profilePic.length - 1])
+        : undefined;
 
     return (
       <Pressable
@@ -409,7 +416,12 @@ export const PostCard = React.memo(
             <UserIdentity
               firstname={authorDetails?.firstname ?? ''}
               lastname={authorDetails?.lastname ?? ''}
-              tier={authorDetails?.tier ? authorDetails?.tier : 'free'}
+              tier={
+                authorDetails?.tier === 'pro' ||
+                authorDetails?.tier === 'premium'
+                  ? authorDetails.tier
+                  : 'free'
+              }
               isVerified={authorDetails?.isVerified}
               isOrganization={authorDetails?.organizationName ? true : false}
               organizationName={authorDetails?.organizationName}

@@ -398,8 +398,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
             </TouchableOpacity>
           </View>
         )}
-
-        {/* Persistent Header & Filter Selectors (Always visible so users can change filters even if list is empty) */}
         <View style={styles.headerContainer}>
           <Text style={[styles.title, { color: colors.textDarker }]}>
             {isStudent ? 'Enrolled Courses' : 'Manage Courses'}
@@ -492,7 +490,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           <FlatList
             data={courses}
             contentContainerStyle={{ paddingBottom: 40 }}
-            keyExtractor={item => item.courseId || item.id}
+            keyExtractor={item => item.courseId}
             renderItem={({ item }) => {
               return (
                 <CourseSearchCard
@@ -686,6 +684,7 @@ const styles = StyleSheet.create({
   ctaBtn: {
     paddingHorizontal: 12,
     height: 36,
+    width: 'auto',
   },
   filterContainer: {
     flexDirection: 'row',

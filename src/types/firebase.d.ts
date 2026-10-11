@@ -473,22 +473,17 @@ export interface iCampusOperationalInstitutionSchema {
 };
 export interface Transactions {
   transactionId: string; 
-  userId: User['uid'];
+  userId: string;
   type:
-      "buy" |
-      "withdraw" |
-      "p2p_sent" |
-      "p2p_received" |
       "payment" |
-      "exceptionsDividend" |
       "refund"
   ;
   payType: 'in' | 'out';
   title: string;
-  amountICash: number;
   amountLocal?: number;
   status?: "pending" | "success" | "failed";
   reference?: string,
+  currency: string,
   metadata?: TransactionMetadata,
   createdAt?: string
 };
@@ -502,9 +497,6 @@ interface TransactionMetadata {
   recipientId?: string;
   senderId?: string;
   note?: string;
-  senderItag?: string;
-  recipientItag?: string;
-  counterpartyProfile?: UserProfileSummary; 
 }
 export interface UserBillingAddressDetails {
   state?: string;

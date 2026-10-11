@@ -44,6 +44,7 @@ import {
   fetchPendingOrdersAPI,
   fetchUserReviewsAPI,
   fetchTicketsAPI,
+  fetchAllUsersAPI,
 } from '../api/localGetApis';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -734,6 +735,38 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       console.error('Database sync failed:', error);
     }
   };
+  const syncUsersToDatabase = async () => {
+    try {
+      const now = Date.now();
+      const lastSync = await AsyncStorage.getItem('USERS_SYNC_TIME');
+      const thirtyMinutes = 30 * 60 * 1000;
+
+      if (!lastSync || now - parseInt(lastSync, 10) > thirtyMinutes) {
+        const result = await fetchAllUsersAPI();
+
+        if (result.success && result.data) {
+          for (const user of result.data) {
+            db.execute(
+              `INSERT OR REPLACE INTO users (uid, firstname, lastname, username, organizationName, profilePic) 
+             VALUES (?, ?, ?, ?, ?, ?);`,
+              [
+                user.uid,
+                user.firstname || null,
+                user.lastname || null,
+                user.username || null,
+                user.organizationName || null,
+                JSON.stringify(user.profilePic || []),
+              ],
+            );
+          }
+
+          await AsyncStorage.setItem('USERS_SYNC_TIME', now.toString());
+        }
+      }
+    } catch (error) {
+      console.error('Users database sync failed:', error);
+    }
+  };
   const fetchSellerSales = async () => {
     try {
       const response = await fetchSellerSalesAPI();
@@ -831,6 +864,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
   useEffect(() => {
     setupDatabase();
+    syncUsersToDatabase();
     fetchReviews();
     syncCatalogToDatabase();
   }, []);

@@ -495,6 +495,43 @@ export const fetchAllProductsAPI = async (forceRefresh = false) => {
     }
   }
 };
+export const fetchAllUsersAPI = async (forceRefresh = false) => {
+  const CACHE_KEY = "local_users_cache";
+  
+  if (!forceRefresh) {
+    try {
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) return { success: true, data: JSON.parse(cached), source: "local" };
+    } catch (e) {
+    }
+  }
+
+  try {
+    const response = await fetchWithAuth(`${baseUrl}users/fetch-all-users`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) throw new Error(result.message || 'User sync failed');
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(result.users));
+
+    return { success: true, data: result.users };
+  } catch (error) {
+    console.error("fetchAllUsersAPI Error:", error);
+    try {
+      const fallback = await AsyncStorage.getItem(CACHE_KEY);
+      return { 
+        success: false, 
+        data: fallback ? JSON.parse(fallback) : [], 
+        message: 'Network error. Using offline mode.' 
+      };
+    } catch (e) {
+      return { success: false, data: [], message: 'Network error.' };
+    }
+  }
+};
 export const fetchPendingOrdersAPI = async (cursor?: string, maxRetries = 3) => {
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();

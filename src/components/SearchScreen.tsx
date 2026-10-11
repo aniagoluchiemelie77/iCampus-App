@@ -26,7 +26,6 @@ import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from '../components/ProductCard';
-import { PageHeader } from '../components/PageHeader';
 import { PreSearchComponent } from '../components/PresearchComponent';
 import {
   CourseSearchCard,
@@ -187,7 +186,6 @@ export const SearchScreen = () => {
 
   return (
     <View style={[styles.container]}>
-      <PageHeader title="iCampus Search" showBackButton={false} />
       <View
         style={[
           styles.activeSearchHeader,
