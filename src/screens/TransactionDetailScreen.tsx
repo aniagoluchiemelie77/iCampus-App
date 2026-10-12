@@ -23,6 +23,7 @@ import Toast from 'react-native-toast-message';
 import { IcampusWatermark } from '../assets/styles/Watermark.tsx';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useConvertedCurrency } from '../hooks/useCurrencyConverter.ts';
 
 export const TransactionDetailScreen = () => {
   const { colors } = useTheme();
@@ -104,15 +105,24 @@ export const TransactionDetailScreen = () => {
   }
 
   const renderLocalCurrencyRow = () => {
-    if (
-      transaction.amountLocal === undefined ||
-      transaction.amountLocal === null
-    ) {
+    if (transaction.amount === undefined || transaction.amount === null) {
       return null;
     }
+    const viewerCountry = currentUser.country || 'Nigeria';
     const { exchangeData } = useExchangeRate(currentUser.country || 'Nigeria');
     const { code, symbol } = exchangeData;
-    const formattedAmount = `${symbol}${transaction.amountLocal.toLocaleString(
+    const { convertedValue, loading } = useConvertedCurrency(
+      transaction.amount,
+      transaction.currency || 'NGN',
+      viewerCountry,
+    );
+    if (loading) {
+      return (
+        <DetailRow label={`Local Value (${code})`} value="Converting..." />
+      );
+    }
+
+    const formattedAmount = `${symbol}${convertedValue.toLocaleString(
       undefined,
       {
         minimumFractionDigits: 2,
@@ -209,10 +219,7 @@ export const TransactionDetailScreen = () => {
               >
                 {isIncome ? '+' : '-'}
               </Text>
-              <CurrencyDisplay
-                value={transaction.amountLocal || 0}
-                size="large"
-              />
+              <CurrencyDisplay value={transaction.amount || 0} size="large" />
             </View>
 
             <Text style={[styles.dateText, { color: colors.text }]}>

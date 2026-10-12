@@ -1,5 +1,11 @@
 import React, { useMemo, useCallback } from 'react';
-import { FlatList, View, Text, StyleSheet } from 'react-native';
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { CartItem } from '../components/CartItem';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -73,7 +79,7 @@ export const CartScreen = () => {
       const product = productDictionary.get(item.productId);
       if (product) {
         const itemPrice = product.price ?? product.priceInPoints ?? 0;
-        total += itemPrice * item.quantity;
+        total += itemPrice * (item.quantity ?? 1);
       } else {
         missingItemsFlag = true;
       }
@@ -92,7 +98,13 @@ export const CartScreen = () => {
   const renderItem = useCallback(
     ({ item }: { item: CartItemEntry }) => {
       const productData = productDictionary.get(item.productId);
-      if (!productData) return null;
+      if (!productData) {
+        return (
+          <View style={{ padding: 16 }}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        );
+      }
 
       return (
         <CartItem

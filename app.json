@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "displayName": "iCampus",
     "owner": "agolu-tech-services",
-    "platforms": ["ios", "android", "web"],
     "extra": {
       "eas": {
         "projectId": "f07adfc6-795f-4a7e-bcfd-9dfc6e9f9f21"
@@ -14,11 +13,6 @@
     "android": {
       "softwareKeyboardLayoutMode": "pan",
       "permissions": ["INTERNET"]
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "single",
-      "favicon": "./android/app/src/main/res/mipmap-hdpi/icampus_logo.png"
     }
   }
 }

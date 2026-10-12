@@ -6,13 +6,11 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader.tsx';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useAppSelector } from '../hooks/hooks.ts';
 import {
   verifySignupEmail,
@@ -26,7 +24,7 @@ import { isValidEmail } from '../utils/SignupHelpers.ts';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter.ts';
 import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CustomButton } from '../assets/components/AppUIComponents';
+import { ActionModal } from '../components/LogoutModal.tsx';
 
 export const EmailsScreen = () => {
   const { colors } = useTheme();
@@ -40,6 +38,11 @@ export const EmailsScreen = () => {
   const [emailError, setEmailError] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [timer, setTimer] = useState(900);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{
+    email: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSendCode = async () => {
     if (!isValidEmail(emailInput.trim())) {
@@ -104,35 +107,21 @@ export const EmailsScreen = () => {
       });
     }
   };
-
-  const handleDeleteRecovery = async (emailToDelete: string) => {
-    Alert.alert(
-      'Remove Email',
-      `Are you sure you want to remove ${emailToDelete}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const res = await deleteRecoveryEmailAPI(emailToDelete);
-            if (res && res.success) {
-              dispatch(updateEmailData({ recoveryEmails: res.recoveryEmails }));
-              Toast.show({
-                type: 'success',
-                text1: 'Recovery email removed',
-              });
-            } else {
-              Toast.show({
-                type: 'error',
-                text1: 'Delete Error',
-                text2: "Couldn't delete email, please retry.",
-              });
-            }
-          },
-        },
-      ],
-    );
+  const deleteEmail = async (email: string) => {
+    const res = await deleteRecoveryEmailAPI(email);
+    if (res && res.success) {
+      dispatch(updateEmailData({ recoveryEmails: res.recoveryEmails }));
+      Toast.show({
+        type: 'success',
+        text1: 'Recovery email removed',
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Error',
+        text2: "Couldn't delete email, please retry.",
+      });
+    }
   };
 
   useEffect(() => {
@@ -264,7 +253,10 @@ export const EmailsScreen = () => {
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => handleDeleteRecovery(item.email)}
+                onPress={() => {
+                  setDeleteModalVisible(true);
+                  setSelectedItem(item.email);
+                }}
               >
                 <MaterialIcons
                   name="delete-outline"
@@ -452,6 +444,24 @@ export const EmailsScreen = () => {
           </View>
         )}
       </ScrollView>
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedItem(null);
+          }
+        }}
+        onContinue={() => {
+          if (selectedItem) {
+            deleteEmail(selectedItem.email);
+          }
+        }}
+        title="Remove Email?"
+        subtitle={`Are you sure you want to permanently delete ${selectedItem?.email}? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </SafeAreaView>
   );
 };

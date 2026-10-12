@@ -19,7 +19,6 @@ import type { User, Posts } from '../types/firebase';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import ExpandableFAB from './ExpandableFAB.tsx';
 import { UserIdentity } from './UserIdentity.tsx';
 import { fetchPostsAPI } from '../api/localGetApis.ts';
 import { UserAvatar } from './UserAvatar.tsx';
@@ -237,9 +236,7 @@ export function FeedTab() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const [pendingPosts, setPendingPosts] = useState<Posts[]>([]);
-  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const stateRef = useRef({ cursor, loadingMore, refreshing, posts });
   stateRef.current = { cursor, loadingMore, refreshing, posts };
   const loadPosts = useCallback(
@@ -385,29 +382,6 @@ export function FeedTab() {
           windowSize={5}
         />
       </View>
-      {!isFabMenuVisible && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setFabMenuVisible(true)}
-        >
-          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
-        </TouchableOpacity>
-      )}
-      <ExpandableFAB
-        isVisible={isFabMenuVisible}
-        onClose={toggleFab}
-        userRole={
-          (currentUser?.usertype || 'student') as
-            'student' | 'lecturer' | 'otherUser'
-        }
-        actions={[
-          'Create Post',
-          'Create Poll',
-          'Post Job',
-          'Create Event',
-          'iAssistant',
-        ]}
-      />
     </View>
   );
 }
@@ -1285,23 +1259,6 @@ const styles = StyleSheet.create({
   settingsBtnLeftdivText: {
     fontSize: 12,
     color: '#222',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: PRIMARY_COLOR,
-    bottom: 80,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 100,
   },
   drawer: {
     position: 'absolute',

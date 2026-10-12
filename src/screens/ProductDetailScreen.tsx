@@ -26,6 +26,7 @@ import { StationCarousel } from '../components/StationCarousel.tsx';
 import { useLocationServices } from '../hooks/useLocationService.ts';
 import { db } from '../hooks/useSQLiteDb';
 import { useUser } from '../hooks/useUserDetails.ts';
+import { useConvertedPrice } from '../hooks/useCurrencyConverter';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -36,6 +37,7 @@ export const ProductDetailScreen = () => {
   const { productId } = route.params as { productId: string };
   const { handleCartItemToggle, handleToggleFavorite } = useAppDataContext();
   const currentUser = useAppSelector(state => state.user) || {};
+  const buyerNationality = currentUser?.country || 'Nigeria';
   const getProductById = (productId: string) => {
     const queryResult = db.execute(
       'SELECT * FROM products WHERE productId = ?;',
@@ -63,6 +65,11 @@ export const ProductDetailScreen = () => {
     product?.physicalDetails?.sizes?.[0],
   );
   const { userCoords } = useLocationServices();
+  const { convertedValue } = useConvertedPrice(
+    product.price,
+    product.nationalityOfSeller,
+    buyerNationality,
+  );
   const [quantity, setQuantity] = useState(1);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
@@ -205,7 +212,7 @@ export const ProductDetailScreen = () => {
                   </Text>
                 )}
               </View>
-              <CurrencyDisplay value={product.price} size="large" />
+              <CurrencyDisplay value={convertedValue} size="large" />
             </View>
 
             {product.physicalDetails?.colors && (

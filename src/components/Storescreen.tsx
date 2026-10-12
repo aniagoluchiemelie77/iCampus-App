@@ -12,17 +12,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from './ProductCard';
 import { fetchProductsAPI } from '../api/localGetApis';
-import { completeOrderDelivery } from '../api/localPostApis';
 import { Product } from '../types/firebase';
-import { useAppDataContext } from '../context/EventContext.tsx';
 import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useAppSelector } from '../hooks/hooks.ts';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import Toast from 'react-native-toast-message';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
-import ExpandableFAB from './ExpandableFAB.tsx';
-import { initialState } from '../context/UserSlice.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -67,10 +61,7 @@ export const HeaderActionButton = ({
 
 export const StoreScreen = () => {
   const { colors } = useTheme();
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const navigation = useNavigation<any>();
-  const currentUser = useAppSelector(state => state.user) || initialState;
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -141,8 +132,6 @@ export const StoreScreen = () => {
   useEffect(() => {
     fetchProducts(selectedTab, searchQuery, searchQuery !== '');
   }, [selectedTab, searchQuery]);
-
-  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
 
   const loadMore = async () => {
     if (isFetchingMore || !currentTabData.hasMore || !currentTabData.cursor)
@@ -250,20 +239,6 @@ export const StoreScreen = () => {
           }
         />
       )}
-      {!isFabMenuVisible && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setFabMenuVisible(true)}
-        >
-          <MaterialIcons name="widgets" size={34} color="#fff" />
-        </TouchableOpacity>
-      )}
-      <ExpandableFAB
-        isVisible={isFabMenuVisible}
-        onClose={toggleFab}
-        userRole={currentUser.usertype}
-        actions={['Sales Hub', 'View Cart', 'View Favorites']}
-      />
     </View>
   );
 };
@@ -299,23 +274,6 @@ const styles = StyleSheet.create({
     maxWidth: 220,
     marginBottom: 15,
     marginHorizontal: '1.5%',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: PRIMARY_COLOR,
-    bottom: 80,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 100,
   },
   tabBarScrollContainer: {
     paddingHorizontal: 10,

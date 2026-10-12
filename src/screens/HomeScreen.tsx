@@ -52,6 +52,7 @@ import { HeaderActionButton } from '../components/Storescreen.tsx';
 import { useAppDataContext } from '../context/EventContext.tsx';
 import { completeOrderDelivery } from '../api/localPostApis';
 import { OrderScannerModal } from '../components/OrderQRScannerModal';
+import ExpandableFAB from '../components/ExpandableFAB.tsx';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 interface SocketProviderProps {
@@ -150,12 +151,15 @@ const HomeScreen = () => {
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
+  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
   const [loading, setLoading] = useState(false);
   const { pendingOrders } = useAppDataContext();
   const screens = isClassroomAllowed
     ? ['home', 'classroom', 'search', 'store']
     : ['home', 'search', 'store'];
   const handlePageSelected = (e: any) => {
+    setFabMenuVisible(false);
     const index = e.nativeEvent.position;
     setActiveIcon(screens[index]);
   };
@@ -199,7 +203,40 @@ const HomeScreen = () => {
         return null;
     }
   };
+  const getFabConfig = () => {
+    switch (activeIcon) {
+      case 'home':
+        return {
+          actions: [
+            'Create Post',
+            'Create Poll',
+            'Post Job',
+            'Create Event',
+            'iAssistant',
+          ],
+          iconName: 'widgets',
+          iconColor: colors.btnTextColor,
+        };
+      case 'classroom':
+        return {
+          actions: ['iAssistant', 'View Lectures'],
+          iconName: 'widgets',
+          iconColor: colors.btnTextColor,
+        };
+      case 'store':
+        return {
+          actions: ['Sales Hub', 'View Cart', 'View Favorites'],
+          iconName: 'widgets',
+          iconColor: colors.btnTextColor,
+        };
+      case 'search':
+      default:
+        return null;
+    }
+  };
+  const fabConfig = getFabConfig();
   const handleTabPress = (screenName: string) => {
+    setFabMenuVisible(false);
     setActiveIcon(screenName);
     const index = screens.indexOf(screenName);
     if (index !== -1) {
@@ -426,6 +463,30 @@ const HomeScreen = () => {
             <StoreScreen />
           </View>
         </PagerView>
+        {fabConfig && !isFabMenuVisible && (
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setFabMenuVisible(true)}
+          >
+            <MaterialIcons
+              name={fabConfig.iconName as any}
+              size={34}
+              color={fabConfig.iconColor}
+            />
+          </TouchableOpacity>
+        )}
+
+        {fabConfig && (
+          <ExpandableFAB
+            isVisible={isFabMenuVisible}
+            onClose={toggleFab}
+            userRole={
+              (user?.usertype || 'student') as
+                'student' | 'lecturer' | 'otherUser'
+            }
+            actions={fabConfig.actions}
+          />
+        )}
 
         <View
           style={[
@@ -508,12 +569,12 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 75,
     right: 20,
     backgroundColor: PRIMARY_COLOR,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 80,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,

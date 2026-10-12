@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Text, StyleSheet, Alert, Image } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Text, StyleSheet, Image } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import {PageHeader} from '../components/PageHeader';

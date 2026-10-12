@@ -480,7 +480,7 @@ export interface Transactions {
   ;
   payType: 'in' | 'out';
   title: string;
-  amountLocal?: number;
+  amount?: number;
   status?: "pending" | "success" | "failed";
   reference?: string,
   currency: string,

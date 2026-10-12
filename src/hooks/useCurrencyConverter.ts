@@ -50,3 +50,56 @@ export const useConvertedPrice = (basePrice: number, sellerNationality: string, 
 
   return { convertedValue, loading };
 };
+export const useConvertedCurrency = (
+  baseAmount: number,
+  sourceCurrency: string, 
+  viewerCountry?: string  
+) => {
+  const [convertedValue, setConvertedValue] = useState<number>(baseAmount);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const convert = async () => {
+      const targetCountry = viewerCountry?.trim() || 'Nigeria';
+      const buyerCurrencyInfo = currencyMap[targetCountry] || currencyMap['Nigeria'];
+      const targetCurrencyCode = buyerCurrencyInfo.code.toUpperCase();
+      const sourceCode = sourceCurrency?.toUpperCase() || 'NGN';
+
+      if (sourceCode === targetCurrencyCode) {
+        if (isMounted) {
+          setConvertedValue(baseAmount);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const sourceRateData = await fetchLiveRate(sourceCode); 
+        const targetRateData = await fetchLiveRate(targetCurrencyCode);
+        const amountInUSD = baseAmount / sourceRateData.rate;
+        const converted = amountInUSD * targetRateData.rate;
+
+        if (isMounted) {
+          setConvertedValue(Number(converted.toFixed(2)));
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Currency conversion error:', err);
+        if (isMounted) {
+          setConvertedValue(baseAmount); 
+          setLoading(false);
+        }
+      }
+    };
+
+    convert();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [baseAmount, sourceCurrency, viewerCountry]);
+
+  return { convertedValue, loading };
+};

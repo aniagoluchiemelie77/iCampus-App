@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { useAppDataContext } from '../context/EventContext';
@@ -20,7 +21,7 @@ import { ProductSale, UserTier, Product, Payout } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
-import { searchUsersByUid, fetchPayoutHistoryAPI } from '../api/localGetApis';
+import { fetchPayoutHistoryAPI } from '../api/localGetApis';
 import { requestPayoutAPI } from '../api/localPostApis';
 import { deleteProductApi } from '../api/localDeleteApis';
 import { UserAvatar } from './UserAvatar';
@@ -44,6 +45,7 @@ import { ReviewItem } from './ReviewItem';
 import { useTheme } from '../context/ThemeContext';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import { ActionModal } from './LogoutModal.tsx';
+import { fetchUserWithOfflineFallback } from '../hooks/useUserDetails.ts';
 
 interface StatusCardProps {
   label: string;
@@ -56,7 +58,7 @@ interface StatusCardMiniProps {
   count: number;
   color: string;
   isSuccess?: boolean;
-  userCountry: string
+  userCountry: string;
 }
 interface TopBuyerProfile {
   uid: string;
@@ -157,21 +159,31 @@ export const StatusCardMini = ({
   label,
   count,
   color,
-  userCountry
+  userCountry,
 }: StatusCardMiniProps) => {
   const { colors: themeColor } = useTheme();
   const { exchangeData } = useExchangeRate(userCountry || 'Nigeria');
   return (
     <View style={[styles.statusCard, { borderColor: color }]}>
       <View style={styles.statusIconContainerMini}>
-        <Text style={{color: themeColor.primary, fontSize: 12, fontWeight: 'bold', marginRight: 4}}> {exchangeData.symbol}</Text>
+        <Text
+          style={{
+            color: themeColor.primary,
+            fontSize: 12,
+            fontWeight: 'bold',
+            marginRight: 4,
+          }}
+        >
+          {' '}
+          {exchangeData.symbol}
+        </Text>
         <CurrencyDisplay value={count} size="medium" />
       </View>
-        <Text
-          style={[styles.statusLabel, { marginTop: 4, color: themeColor.text }]}
-        >
-          {label}
-        </Text>
+      <Text
+        style={[styles.statusLabel, { marginTop: 4, color: themeColor.text }]}
+      >
+        {label}
+      </Text>
     </View>
   );
 };
@@ -251,8 +263,8 @@ export const OrdersList = () => {
 };
 export const OverviewsScreenComponent = () => {
   const { colors: themeColors } = useTheme();
-  const { pendingOrders, sellerSales } = useAppDataContext();
-  const currentUser = useAppSelector(state => state.user) || {};
+  const { currentUser, fetchSellerSales, pendingOrders, sellerSales } =
+    useAppDataContext();
   const { sellerProducts } = useSellerProducts(currentUser?.uid);
   const navigation = useNavigation<any>();
 
@@ -279,6 +291,11 @@ export const OverviewsScreenComponent = () => {
   const totalSalesCount = sellerSales.reduce(
     (sum: number, sale: ProductSale) => sum + sale.quantity,
     0,
+  );
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchSellerSales();
+    }, []),
   );
   return (
     <ScrollView
@@ -1031,7 +1048,7 @@ export const PayoutView = () => {
 };
 export const SalesScreen = () => {
   const { colors } = useTheme();
-  const { sellerSales, currentUser } = useAppDataContext();
+  const { sellerSales, currentUser, fetchSellerSales } = useAppDataContext();
   const navigation = useNavigation<any>();
   const [topBuyersProfiles, setTopBuyersProfiles] = useState<TopBuyerProfile[]>(
     [],
@@ -1078,26 +1095,26 @@ export const SalesScreen = () => {
   useEffect(() => {
     const fetchProfiles = async () => {
       if (!currentUser?.tier || !currentUser?.usertype) return;
+
       const profiles = await Promise.all(
         topBuyersList.map(async ([uid, totalSpent]) => {
-          const result = await searchUsersByUid(
-            uid,
-            currentUser.tier!,
-            currentUser.usertype!,
-          );
-          const userData = Array.isArray(result) ? result[0] : result;
+          const userData = await fetchUserWithOfflineFallback(uid);
+
           if (!userData) return null;
+
           return {
             ...userData,
             totalSpent,
           } as TopBuyerProfile;
         }),
       );
+
       const validProfiles = profiles.filter(
         (p): p is TopBuyerProfile => p !== null && !!p.uid,
       );
       setTopBuyersProfiles(validProfiles);
     };
+
     if (topBuyersList.length > 0) {
       fetchProfiles();
     }
@@ -1132,6 +1149,11 @@ export const SalesScreen = () => {
     0,
   );
   const currentBalance = currentUser.pendingSalesBalance || 0;
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchSellerSales();
+    }, []),
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -1301,8 +1323,7 @@ export const ReviewsSection = () => {
   const { colors } = useTheme();
   const { allReviews, refreshReviews } = useAppDataContext();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
-  const currentUser = useAppSelector(state => state.user) || {};
-  const sellerReviews = allReviews.filter(r => r.targetId === currentUser.uid);
+  const sellerReviews = allReviews;
   const totalReviews = sellerReviews.length;
   const avgRating =
     totalReviews > 0
@@ -1323,6 +1344,11 @@ export const ReviewsSection = () => {
     await refreshReviews();
     setIsRefreshing(false);
   };
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshReviews();
+    }, []),
+  );
   return (
     <View style={styles.container}>
       <View

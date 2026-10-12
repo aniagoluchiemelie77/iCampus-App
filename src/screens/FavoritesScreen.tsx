@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from 'react';
-import { FlatList, StyleSheet, View, Alert } from 'react-native';
+import React, { useMemo, useCallback, useState } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../hooks/hooks';
@@ -10,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { User } from '../types/firebase';
 import { db } from '../hooks/useSQLiteDb';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { ActionModal } from '../components/LogoutModal.tsx';
 
 export const FavoritesScreen = () => {
   const { colors } = useTheme();
@@ -19,6 +20,8 @@ export const FavoritesScreen = () => {
     handleAddAllFavoritesToCart,
     handleDeleteAllFavorites,
   } = useAppDataContext();
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const favoriteIds = useMemo(() => {
     return currentUser?.favorites ?? [];
@@ -53,21 +56,6 @@ export const FavoritesScreen = () => {
     }
   }, [favoriteIds]);
 
-  const handleConfirmClearAll = () => {
-    Alert.alert(
-      'Clear Favorites',
-      'Are you sure you want to remove all items from your favorites?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: handleDeleteAllFavorites,
-        },
-      ],
-    );
-  };
-
   const renderFavItem = useCallback(
     ({ item }: { item: any }) => {
       return (
@@ -92,7 +80,7 @@ export const FavoritesScreen = () => {
           favoriteItems.length > 0 ? (
             <CustomButton
               title="Clear Favorites"
-              onPress={handleConfirmClearAll}
+              onPress={() => setDeleteModalVisible(true)}
               style={styles.headerBtn}
             />
           ) : undefined
@@ -135,6 +123,19 @@ export const FavoritesScreen = () => {
           />
         </View>
       )}
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+          }
+        }}
+        onContinue={handleDeleteAllFavorites}
+        title="Delete Favorites?"
+        subtitle={`Are you sure you want to permanently delete your favorites? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </SafeAreaView>
   );
 };

@@ -34,70 +34,79 @@ export const ViewAllCoursesScreen = () => {
   const currentUser = useAppSelector(state => state.user) || {};
   const { colors } = useTheme();
   const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [selectedSemester, setSelectedSemester] = useState('First');
-  const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
-  const [isSessionModalVisible, setSessionModalVisible] = useState(false);
-  const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
-  const [page, setPage] = useState(1);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [isLoading, setLoading] = useState(false);
+const [isFetchingMore, setIsFetchingMore] = useState(false);
+const [selectedSemester, setSelectedSemester] = useState('First');
+const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
+const [isSessionModalVisible, setSessionModalVisible] = useState(false);
+const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
+const [page, setPage] = useState(1);
+const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+const [modalVisible, setModalVisible] = useState(false);
+const [isLoading, setLoading] = useState(false);
 
-  const [courses, setCourses] = useState<Course[]>([]);
-  const fetchCourses = useCallback(
-    async (isLoadMore = false) => {
-      if (isLoadMore && (!hasMore || isFetchingMore)) return;
-      const nextPage = isLoadMore ? page + 1 : 1;
-      if (!isLoadMore) setLoading(true);
-      else setIsFetchingMore(true);
-      try {
-        const params = {
-          semester: selectedSemester,
-          session: selectedSession,
-          page: nextPage,
-          limit: 10,
-        };
-        const result =
-          currentUser?.usertype === 'lecturer'
-            ? await fetchLecturerCoursesAPI(params)
-            : await fetchMyCoursesAPI(params);
-        if (result.success) {
-          setCourses(prev =>
-            isLoadMore ? [...prev, ...result.courses] : result.courses,
-          );
-          setPage(nextPage);
-          setHasMore(result.courses.length === 10);
-        }
-      } catch (error) {
-        console.error(error);
-        Toast.show({
-          type: 'error',
-          text1: 'Failed to fetch courses',
-          position: 'bottom',
-          bottomOffset: 5,
-        });
-      } finally {
-        setLoading(false);
-        setIsFetchingMore(false);
+const [courses, setCourses] = useState<Course[]>([]);
+const fetchCourses = useCallback(
+  async (
+    isLoadMore = false,
+    overrideSemester = selectedSemester,
+    overrideSession = selectedSession,
+  ) => {
+    if (isLoadMore && (!hasMore || isFetchingMore)) return;
+
+    const nextPage = isLoadMore ? page + 1 : 1;
+
+    if (!isLoadMore) setLoading(true);
+    else setIsFetchingMore(true);
+
+    try {
+      const params = {
+        semester: overrideSemester,
+        session: overrideSession,
+        page: nextPage,
+        limit: 10,
+      };
+
+      const result =
+        currentUser?.usertype === 'lecturer'
+          ? await fetchLecturerCoursesAPI(params)
+          : await fetchMyCoursesAPI(params);
+
+      if (result.success) {
+        setCourses(prev =>
+          isLoadMore ? [...prev, ...result.courses] : result.courses,
+        );
+        setPage(nextPage);
+        setHasMore(result.courses.length === 10);
       }
-    },
-    [
-      hasMore,
-      isFetchingMore,
-      page,
-      selectedSemester,
-      selectedSession,
-      currentUser?.usertype,
-    ],
-  );
+    } catch (error) {
+      console.error(error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to fetch courses',
+        position: 'bottom',
+        bottomOffset: 5,
+      });
+    } finally {
+      setLoading(false);
+      setIsFetchingMore(false);
+    }
+  },
+  [
+    hasMore,
+    isFetchingMore,
+    page,
+    selectedSemester,
+    selectedSession,
+    currentUser?.usertype,
+  ],
+);
 
-  useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-    fetchCourses(false);
-  }, [selectedSemester, selectedSession, fetchCourses]);
-
+useEffect(() => {
+  setPage(1);
+  setHasMore(true);
+  fetchCourses(false, selectedSemester, selectedSession);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [selectedSemester, selectedSession]);
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader

@@ -40,7 +40,6 @@ export const AdminSearchScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const { allProducts } = useAppDataContext();
   const currentUser = useAppSelector(state => state.admin);
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -81,7 +80,7 @@ export const AdminSearchScreen = () => {
             results = await searchPosts(searchQuery);
             break;
           case 'market':
-            results = searchICashMarketLocal(searchQuery, allProducts);
+            results = searchICashMarketLocal(searchQuery);
             break;
           case 'resources':
             results = await searchAcademicResources(searchQuery);
@@ -100,7 +99,7 @@ export const AdminSearchScreen = () => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, activeTab, currentUser, allProducts]);
+  }, [searchQuery, activeTab, currentUser]);
   const renderItemCard = ({ item }: { item: any }) => {
     switch (activeTab) {
       case 'posts':

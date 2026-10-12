@@ -116,7 +116,6 @@ interface AppDataProviderProps {
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
-const CATALOG_CACHE_KEY = 'local_catalog_cache';
 
 export const useAppDataContext = () => {
   const context = useContext(AppDataContext);
@@ -472,12 +471,19 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     const action = isAlreadyInCart ? 'remove' : 'add';
     let newCart;
 
+    const resolvedSize =
+      selectedSize || product.physicalDetails?.sizes?.[0] || undefined;
+    const resolvedColor =
+      selectedColor || product.physicalDetails?.colors?.[0] || undefined;
+
     if (action === 'add') {
       const newItem: CartItem = {
         productId: product.productId,
         quantity: 1,
-        selectedSize: selectedSize || product.physicalDetails?.sizes?.[0],
-        selectedColor: selectedColor || product.physicalDetails?.colors?.[0],
+        selectedSize:
+          selectedSize || product.physicalDetails?.sizes?.[0] || undefined,
+        selectedColor:
+          selectedColor || product.physicalDetails?.colors?.[0] || undefined,
       };
       newCart = [...previousCart, newItem];
     } else {
@@ -492,8 +498,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
 
     const result = await updateCartAPI(product.productId, action, {
-      selectedSize: selectedSize,
-      selectedColor: selectedColor,
+      selectedSize: resolvedSize,
+      selectedColor: resolvedColor,
       quantity: 1,
     });
 
@@ -571,14 +577,40 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const handleAddAllFavoritesToCart = async () => {
     const favoriteIds = currentUser?.favorites ?? [];
     if (favoriteIds.length === 0) return;
+    const placeholders = favoriteIds.map(() => '?').join(',');
+    let productsMap = new Map();
+    try {
+      const queryResult = db.execute(
+        `SELECT * FROM products WHERE productId IN (${placeholders});`,
+        favoriteIds,
+      );
+      const rows = queryResult?.rows;
+      const rawProducts = Array.isArray(rows)
+        ? rows
+        : rows && '_array' in rows
+          ? rows._array
+          : [];
+
+      rawProducts.forEach((p: any) => {
+        const physical = p.physicalDetails
+          ? JSON.parse(p.physicalDetails)
+          : null;
+        productsMap.set(p.productId, physical);
+      });
+    } catch (e) {
+      console.error(
+        'Failed to fetch favorite products details for cart conversion:',
+        e,
+      );
+    }
 
     const itemsToAdd: CartItem[] = favoriteIds.map(id => {
-      const product = sellerProducts.find(p => p.productId === id);
+      const physical = productsMap.get(id);
       return {
         productId: id,
         quantity: 1,
-        selectedColor: product?.physicalDetails?.colors?.[0],
-        selectedSize: product?.physicalDetails?.sizes?.[0],
+        selectedColor: physical?.colors?.[0] || undefined,
+        selectedSize: physical?.sizes?.[0] || undefined,
       };
     });
 

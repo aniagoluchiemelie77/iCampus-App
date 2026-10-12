@@ -15,6 +15,7 @@ export const setupDatabase = () => {
         amountInStock INTEGER,
         mediaUrls TEXT,
         physicalDetails TEXT
+        nationalityOfSeller TEXT
       );
     `);
     

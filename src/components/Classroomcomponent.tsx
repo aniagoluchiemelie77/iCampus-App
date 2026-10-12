@@ -16,7 +16,6 @@ import { useAppSelector } from '../hooks/hooks.ts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { extractCourseFormAPI } from '../api/localPostApis.ts';
-import ExpandableFAB from './ExpandableFAB.tsx';
 import { AttachmentModal } from './ChatInput.tsx';
 import {
   fetchMyCoursesAPI,
@@ -71,8 +70,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
     useState(false);
-  const [isFabMenuVisible, setFabMenuVisible] = useState(false);
-  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
 
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -508,22 +505,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         )}
       </View>
 
-      {!isFabMenuVisible && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setFabMenuVisible(true)}
-        >
-          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
-        </TouchableOpacity>
-      )}
-
-      <ExpandableFAB
-        isVisible={isFabMenuVisible}
-        onClose={toggleFab}
-        actions={['iAssistant', 'View Lectures']}
-        userRole={user.usertype}
-      />
-
       {selectedCourse && (
         <CourseModal
           isVisible={modalVisible}
@@ -627,23 +608,6 @@ const styles = StyleSheet.create({
   ctaBtnText: {
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: PRIMARY_COLOR,
-    bottom: 80,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 100,
   },
   container: { flex: 1 },
   actionRow: {
