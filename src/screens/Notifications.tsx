@@ -231,6 +231,8 @@ const Notifications = () => {
     }
   };
   const hasUnread = notifications.some(n => !n.isRead);
+  const unreadNotifications = notifications.filter(n => !n.isRead);
+  console.log('All unread notifications:', unreadNotifications);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

@@ -326,6 +326,7 @@ export const updateCartAPI = async (
 
     clearTimeout(timeoutId);
     const result = await response.json();
+    console.log('Toggle Status: ', response.ok || result.success);
 
     if (!response.ok || !result.success) {
       Toast.show({ 
@@ -384,6 +385,7 @@ export const toggleFavoriteAPI = async (
 
     clearTimeout(timeoutId);
     const result = await response.json();
+    console.log('Toggle Action Status: ', response.ok);
 
     if (!response.ok || !result.success) {
       Toast.show({ 

@@ -18,4 +18,6 @@ declare module '@env' {
   export const MEASUREMENT_ID: string;
   export const BACKEND_URL: string;
   export const INBOUND_SUPPORT_URL: string;
+  export const CLOUDINARY_CLOUD_NAME: string;
+  export const CLOUDINARY_UPLOAD_PRESET: string
 }

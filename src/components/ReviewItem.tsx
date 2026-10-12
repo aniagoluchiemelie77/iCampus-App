@@ -5,6 +5,7 @@ import { UserAvatar } from './UserAvatar';
 import { UserIdentity } from './UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
+import { parseFirestoreDate } from '../utils/dateFormatter';
 
 interface ReviewItemProps {
   review: Review & {
@@ -91,7 +92,7 @@ export const ReviewItem = ({ review }: ReviewItemProps) => {
           </View>
         )}
         <Text style={[styles.dateText, { color: colors.text }]}>
-          {new Date(review.createdAt).toLocaleDateString()}
+          {parseFirestoreDate(review.createdAt)}
         </Text>
       </View>
     </View>

@@ -25,12 +25,12 @@ import {
 import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { ProductCard } from '../components/ProductCard';
-import { PreSearchComponent } from '../components/PresearchComponent';
+import { ProductCard } from './ProductCard';
+import { PreSearchComponent } from './PresearchComponent';
 import {
   CourseSearchCard,
   ResourceSearchCard,
-} from '../components/SearchScreenComponents';
+} from './SearchScreenComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { Course } from '../types/firebase';
@@ -203,7 +203,6 @@ export const SearchScreen = () => {
 
         <TextInput
           placeholderTextColor={colors.inputTextHolder}
-          autoFocus
           placeholder={`Search ${CATEGORIES[placeholderIndex]}...`}
           style={[styles.headerSearchInput, { color: colors.text }]}
           value={searchQuery}
@@ -294,9 +293,6 @@ export const SearchScreen = () => {
             isVisible={modalVisible}
             onClose={() => setModalVisible(false)}
             course={selectedCourse}
-            id={currentUser.uid}
-            currentUser={currentUser}
-            userRole={currentUser.usertype as 'student' | 'lecturer'}
           />
         )}
     </View>

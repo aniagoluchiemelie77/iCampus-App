@@ -17,6 +17,8 @@ import { EmptyState } from './EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAppDataContext } from '../context/EventContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -66,6 +68,7 @@ export const StoreScreen = () => {
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedTab, setSelectedTab] = useState('All');
+  const { syncCatalogToDatabase, syncUsersToDatabase } = useAppDataContext();
 
   const [tabData, setTabData] = useState<
     Record<
@@ -162,6 +165,12 @@ export const StoreScreen = () => {
       setIsFetchingMore(false);
     }
   };
+  useFocusEffect(
+    React.useCallback(() => {
+      syncCatalogToDatabase();
+      syncUsersToDatabase();
+    }, []),
+  );
 
   return (
     <View style={styles.container}>

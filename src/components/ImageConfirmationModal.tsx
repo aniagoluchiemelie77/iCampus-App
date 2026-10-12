@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   buttonText: {
-    color: '#fff',
+    color: PRIMARY_COLOR,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -116,11 +116,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cancelButton: {
-    backgroundColor: '#fadccc',
-    paddingVertical: 10,
+    height: 50,
     paddingHorizontal: 15,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderColor: PRIMARY_COLOR,
+    borderWidth: 1,
   },
 });

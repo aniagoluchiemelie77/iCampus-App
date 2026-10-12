@@ -24,7 +24,7 @@ import {
 import { createManualCourseAPI } from '../api/localPostApis.ts';
 import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
+import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { CourseSearchCard } from './SearchScreenComponents.tsx';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import {
@@ -510,9 +510,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           isVisible={modalVisible}
           onClose={() => setModalVisible(false)}
           course={selectedCourse}
-          id={user.uid}
-          currentUser={user}
-          userRole={userRole}
         />
       )}
 
@@ -541,7 +538,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       <SelectionModal
         title="Select Session"
         visible={isSessionModalVisible}
-        options={['All', ...SESSIONS]}
+        options={[...SESSIONS]}
         selectedValue={selectedSession}
         onSelect={val => {
           setHasMore(true);

@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import { selectImage } from './SelectImage';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -151,7 +151,7 @@ const StudentSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadToFirebase(imageUri);
+      const imageUrl = await uploadToCloudinary(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);

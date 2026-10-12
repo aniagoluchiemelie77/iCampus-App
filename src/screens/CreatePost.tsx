@@ -23,11 +23,10 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 import { UserAvatar } from '../components/UserAvatar';
 import { UserIdentity } from '../components/UserIdentity';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
 import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../../App';
 import { useDateTimePicker } from '../hooks/useDateTimePicker';
@@ -275,7 +274,7 @@ export const CreatePost = ({ route, navigation }: Props) => {
         const targetUri = item.uri[0];
 
         if (targetUri) {
-          const downloadUrl = await uploadToFirebase(
+          const downloadUrl = await uploadToCloudinary(
             targetUri,
             `posts/${currentUser.uid}`,
           );
@@ -389,19 +388,17 @@ export const CreatePost = ({ route, navigation }: Props) => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Main Thought Input Card */}
           <View
             style={[
               styles.cardContainer,
               {
                 backgroundColor: colors.backgroundSecondary,
-                borderColor: colors.border,
               },
             ]}
           >
             <TextInput
               placeholder="What's on your mind? Mention people with @..."
-              placeholderTextColor={colors.inputTextHolder || '#9ca3af'}
+              placeholderTextColor={colors.inputTextHolder}
               multiline
               autoFocus
               style={[styles.input, { color: colors.text }]}
@@ -860,6 +857,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     minHeight: 120,
     lineHeight: 22,
+    flex: 1,
   },
   modernInput: {
     fontSize: 14,

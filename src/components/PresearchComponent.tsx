@@ -57,29 +57,11 @@ const styles = StyleSheet.create({
   illustrationImage: {
     width: 240,
     height: 200,
-    marginBottom: 10,
   },
   preSearchSectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     alignSelf: 'flex-start',
     marginBottom: 15,
-  },
-  suggestionChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    width: '100%',
-  },
-  suggestionChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  suggestionChipText: {
-    fontSize: 14,
-    fontWeight: '500',
   },
 });

@@ -30,9 +30,9 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import DropDownPicker from 'react-native-dropdown-picker';
+import { useAppDataContext } from '../context/EventContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SESSIONS = generateSessions();
 
 interface SelectionModalProps {
   visible: boolean;
@@ -57,10 +57,7 @@ interface GridItemProps {
 interface CourseModalProps {
   isVisible: boolean;
   onClose: () => void;
-  id: string;
   course: Course;
-  currentUser: User;
-  userRole: 'student' | 'lecturer' | 'otherUser';
 }
 interface ManualCourseModalProps {
   isVisible: boolean;
@@ -88,12 +85,9 @@ const GridItem = ({ label, iconName, count, onPress }: GridItemProps) => {
       </Text>
       {count !== undefined && count > 0 && (
         <View
-          style={[
-            styles.notifBadge,
-            { backgroundColor: themeColors.backgroundSecondary },
-          ]}
+          style={[styles.notifBadge, { backgroundColor: themeColors.btnColor }]}
         >
-          <Text style={[styles.notifText, { color: themeColors.primary }]}>
+          <Text style={[styles.notifText, { color: themeColors.btnTextColor }]}>
             {count}
           </Text>
         </View>
@@ -180,14 +174,14 @@ export const CourseModal = ({
   isVisible,
   onClose,
   course,
-  id,
-  currentUser,
-  userRole,
 }: CourseModalProps) => {
-  if (!course || !currentUser) {
+  if (!course) {
     return null;
   }
   const { colors: themeColors } = useTheme();
+  const { currentUser } = useAppDataContext();
+  const id = currentUser?.uid;
+  const userRole = currentUser?.usertype;
   const navigation = useNavigation<any>();
   const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
   const [lectures, setAllLectures] = useState<Lecture[]>([]);
@@ -205,6 +199,7 @@ export const CourseModal = ({
     const fetchCourseData = async () => {
       if (!course || !isVisible) return;
       setLoadingExceptions(true);
+      console.log('Selected Course ID: ', course.courseId);
 
       try {
         const [exceptionsRes, lecturesRes] = await Promise.all([
@@ -277,9 +272,7 @@ export const CourseModal = ({
       ? (lecturesDelivered / totalExpectedLectures) * 100
       : 0;
 
-  const pendingExceptionsCount = allExceptions.filter(
-    ex => ex.status === 'pending',
-  ).length;
+  console.log('Selected Course: ', course);
 
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
@@ -381,59 +374,64 @@ export const CourseModal = ({
                       label="Course Contents"
                       iconName="format-list-bulleted"
                       count={course.courseContents?.length}
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Course Contents',
                           course: course,
                           userRole: currentUser.usertype,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <GridItem
                       label="Course Materials"
                       iconName="folder-copy"
                       count={totalMaterials}
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Course Materials',
                           course,
                           lectures: lectures,
                           userRole: currentUser.usertype,
                           exceptions: null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <GridItem
                       label="View Lectures"
                       iconName="access-time"
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'View Lecture Schedule',
                           course,
                           userRole: currentUser.usertype,
                           exceptions: null,
                           lectures: null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <GridItem
                       label="Assignments"
                       iconName="pending-actions"
                       count={assignmentCount}
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Assignments',
                           course,
                           userRole: currentUser.usertype,
                           exceptions: null,
                           lectures: null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <GridItem
                       label="Exceptions"
                       iconName="verified-user"
                       onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Exceptions',
                           course,
@@ -455,6 +453,7 @@ export const CourseModal = ({
                         ) {
                           return;
                         }
+                        onClose();
                         navigation.navigate('Profile', {
                           identifier: lastInstructor,
                         });
@@ -519,21 +518,23 @@ export const CourseModal = ({
                     <GridItem
                       label="Upload Materials"
                       iconName="cloud-upload"
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Course Materials',
                           course,
                           userRole: currentUser.usertype,
                           exceptions: null,
                           lectures: null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <GridItem
                       label="Manage Exceptions"
                       iconName="verified-user"
                       onPress={() => {
                         if (loadingExceptions) return;
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Exceptions',
                           course,
@@ -546,56 +547,60 @@ export const CourseModal = ({
                     <GridItem
                       label="Add Assignments"
                       iconName="assignment-add"
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'Assignments',
                           course,
                           userRole: currentUser.usertype,
                           exceptions: null,
                           lectures: null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <GridItem
                       label="Lecture Schedule"
                       iconName="access-time"
-                      onPress={() =>
+                      onPress={() => {
+                        onClose();
                         navigation.navigate('CourseSubPage', {
                           title: 'View Lecture Schedule',
                           course,
                           userRole: currentUser.usertype,
                           exceptions: null,
                           lectures: null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     {currentUser.institutionTier !== 'free' && (
                       <>
                         <GridItem
                           label="Create A Test"
                           iconName="quiz"
-                          onPress={() =>
+                          onPress={() => {
+                            onClose();
                             navigation.navigate('CourseSubPage', {
                               title: 'Assessments',
                               course,
                               userRole: currentUser.usertype,
                               exceptions: null,
                               lectures: null,
-                            })
-                          }
+                            });
+                          }}
                         />
                         <GridItem
                           label="Performance"
                           iconName="insights"
-                          onPress={() =>
+                          onPress={() => {
+                            onClose();
                             navigation.navigate('CourseSubPage', {
                               title: 'Grade Accelerator',
                               course,
                               userRole: currentUser.usertype,
                               exceptions: null,
                               lectures: null,
-                            })
-                          }
+                            });
+                          }}
                         />
                       </>
                     )}
@@ -702,7 +707,7 @@ export const ManualCourseModal = ({
     { label: 'Second Semester', value: 'Second' },
   ]);
   const [openSession, setOpenSession] = useState(false);
-  const [session, setSession] = useState(`${generateSessions()[0]}`);
+  const [session, setSession] = useState(`${generateSessions()[5]}`);
   const [sessionItems] = useState(
     generateSessions().map(sess => ({ label: sess, value: sess })),
   );
@@ -874,7 +879,7 @@ export const ManualCourseModal = ({
             <View
               style={[
                 styles.formGroup,
-                { zIndex: 2000, marginTop: openSession ? 140 : 0 },
+                { zIndex: 4000, marginTop: openSession ? 140 : 0 },
               ]}
             >
               <Text style={[styles.label, { color: colors.text }]}>
@@ -1107,19 +1112,17 @@ const styles = StyleSheet.create({
   },
   notifBadge: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: -10,
+    left: 6,
     borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 4,
+    minWidth: 23,
+    height: 23,
+    paddingHorizontal: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
   notifText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   sheetIndicator: {

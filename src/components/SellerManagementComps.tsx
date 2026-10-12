@@ -9,19 +9,22 @@ import {
   RefreshControl,
   Image,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { useAppDataContext } from '../context/EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { useAppSelector } from '../hooks/hooks';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { ProductSale, UserTier, Product, Payout } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
-import { fetchPayoutHistoryAPI } from '../api/localGetApis';
+import {
+  fetchPayoutHistoryAPI,
+  fetchUserReviewsAPI,
+} from '../api/localGetApis';
 import { requestPayoutAPI } from '../api/localPostApis';
 import { deleteProductApi } from '../api/localDeleteApis';
 import { UserAvatar } from './UserAvatar';
@@ -58,7 +61,6 @@ interface StatusCardMiniProps {
   count: number;
   color: string;
   isSuccess?: boolean;
-  userCountry: string;
 }
 interface TopBuyerProfile {
   uid: string;
@@ -159,24 +161,11 @@ export const StatusCardMini = ({
   label,
   count,
   color,
-  userCountry,
 }: StatusCardMiniProps) => {
   const { colors: themeColor } = useTheme();
-  const { exchangeData } = useExchangeRate(userCountry || 'Nigeria');
   return (
     <View style={[styles.statusCard, { borderColor: color }]}>
       <View style={styles.statusIconContainerMini}>
-        <Text
-          style={{
-            color: themeColor.primary,
-            fontSize: 12,
-            fontWeight: 'bold',
-            marginRight: 4,
-          }}
-        >
-          {' '}
-          {exchangeData.symbol}
-        </Text>
         <CurrencyDisplay value={count} size="medium" />
       </View>
       <Text
@@ -217,6 +206,11 @@ export const OrdersList = () => {
       </View>
     );
   }
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPendingOrders();
+    }, []),
+  );
 
   return (
     <>
@@ -1048,6 +1042,7 @@ export const PayoutView = () => {
 };
 export const SalesScreen = () => {
   const { colors } = useTheme();
+  const [isVisible, setIsVisible] = useState(false);
   const { sellerSales, currentUser, fetchSellerSales } = useAppDataContext();
   const navigation = useNavigation<any>();
   const [topBuyersProfiles, setTopBuyersProfiles] = useState<TopBuyerProfile[]>(
@@ -1188,13 +1183,11 @@ export const SalesScreen = () => {
               label="Total Generated Income"
               count={totalIncome}
               color={colors.pendingDelivery}
-              userCountry={currentUser.country || 'Nigeria'}
             />
             <StatusCardMini
               label="Available For Payout"
               count={currentBalance}
               color={colors.success}
-              userCountry={currentUser.country || 'Nigeria'}
             />
           </View>
           <View
@@ -1240,34 +1233,17 @@ export const SalesScreen = () => {
                 useNativeAndroidPickerStyle={false}
               />
             </View>
-            <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              onPress={() => setIsVisible(true)}
+              style={styles.pickerContainer}
+            >
               <Text style={[styles.pickerLabel, { color: colors.text }]}>
-                Month
+                {availableMonths.find(m => m.value === selectedMonth)?.label ||
+                  'Select Month'}
               </Text>
-              <RNPickerSelect
-                onValueChange={value => setSelectedMonth(value)}
-                items={availableMonths}
-                value={selectedMonth}
-                style={{
-                  ...pickerSelectStyles,
-                  inputIOS: {
-                    ...pickerSelectStyles.inputIOS,
-                    color: colors.text,
-                  },
-                  inputAndroid: {
-                    ...pickerSelectStyles.inputAndroid,
-                    color: colors.text,
-                  },
-                  iconContainer: {
-                    top: 10,
-                    right: 12,
-                  },
-                }}
-                useNativeAndroidPickerStyle={false}
-              />
-            </View>
+            </TouchableOpacity>
           </View>
-          <View style={{ height: 120 }}>
+          <View style={{ height: 120, marginBottom: 20 }}>
             <LineGraph
               trend={monthlyStats.trend as 'up' | 'down'}
               themeBackgroundColor={colors.backgroundSecondary}
@@ -1316,15 +1292,43 @@ export const SalesScreen = () => {
           </View>
         </>
       )}
+      <Modal visible={isVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
+            <FlatList
+              data={availableMonths}
+              keyExtractor={item => item.value.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.itemRow}
+                  onPress={() => {
+                    setSelectedMonth(item.value);
+                    setIsVisible(false);
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 16 }}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
 export const ReviewsSection = () => {
   const { colors } = useTheme();
-  const { allReviews, refreshReviews } = useAppDataContext();
+  const { allReviews, setAllReviews } = useAppDataContext();
+  const [page, setPage] = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(true);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const sellerReviews = allReviews;
   const totalReviews = sellerReviews.length;
+
   const avgRating =
     totalReviews > 0
       ? (
@@ -1341,12 +1345,32 @@ export const ReviewsSection = () => {
         : colors.success;
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refreshReviews();
+    setPage(1);
+    const response = await fetchUserReviewsAPI(1, 10);
+    if (response.success) {
+      setAllReviews(response.data);
+      setHasMore(response.pagination.hasMore);
+    }
     setIsRefreshing(false);
   };
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+    const response = await fetchUserReviewsAPI(nextPage, 10);
+
+    if (response.success) {
+      setAllReviews(prev => [...prev, ...response.data]);
+      setPage(nextPage);
+      setHasMore(response.pagination.hasMore);
+    }
+    setIsLoadingMore(false);
+  };
+
   useFocusEffect(
     React.useCallback(() => {
-      refreshReviews();
+      handleRefresh();
     }, []),
   );
   return (
@@ -1382,19 +1406,30 @@ export const ReviewsSection = () => {
       </View>
       <FlatList
         data={sellerReviews}
-        keyExtractor={item => item.reviewerId}
+        keyExtractor={item => item.id || item.reviewerId}
         renderItem={({ item }) => <ReviewItem review={item} />}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={{ paddingVertical: 20 }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
-          <EmptyState
-            iconName="rate-review"
-            title="No Reviews Yet"
-            subtitle="When customers rate your products or service, they will appear here."
-            buttonText="Refresh Now"
-            onPress={handleRefresh}
-          />
+          isRefreshing ? null : (
+            <EmptyState
+              iconName="rate-review"
+              title="No Reviews Yet"
+              subtitle="When customers rate your products or service, they will appear here."
+              buttonText="Refresh Now"
+              onPress={handleRefresh}
+            />
+          )
         }
       />
     </View>
@@ -1430,7 +1465,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row'
+    flexDirection: 'row',
   },
   emptyContainer: {
     flex: 1,
@@ -1442,6 +1477,7 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     width: '100%',
+    marginBottom: 15,
   },
   subheader: {
     width: '100%',
@@ -1846,6 +1882,32 @@ const styles = StyleSheet.create({
   newsText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 25,
+    maxHeight: '70%', 
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: PRIMARY_COLOR_TINT,
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+  itemRow: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });
 

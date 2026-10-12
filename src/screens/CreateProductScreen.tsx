@@ -28,7 +28,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { saveProductApiCall } from '../api/localPostApis';
 import { fetchDropOffStationsAPI } from '../api/localGetApis';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { useTheme } from '../context/ThemeContext';
@@ -241,7 +241,7 @@ export const CreateProductScreen = ({ route }: any) => {
         const remoteUrls = mediaUrls.filter(uri => uri.startsWith('http'));
         if (localUris.length > 0) {
           const uploadedUrls = await Promise.all(
-            localUris.map(uri => uploadToFirebase(uri, 'product-thumbnails')),
+            localUris.map(uri => uploadToCloudinary(uri, 'product-thumbnails')),
           );
           finalThumbnails = [...remoteUrls, ...uploadedUrls];
         } else {

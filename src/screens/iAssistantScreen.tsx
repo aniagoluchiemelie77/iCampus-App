@@ -18,7 +18,7 @@ import { ChatInput } from '../components/ChatInput.tsx';
 import { askIAssistantAgent } from '../api/localPostApis.ts';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
 import {
-  uploadToFirebase,
+  uploadToCloudinary,
   uploadFileToFirebaseClient,
 } from '../utils/CloudinaryPresetHelper.ts';
 import { errorCodes, isErrorWithCode } from '@react-native-documents/picker';
@@ -133,7 +133,7 @@ export const Assistant = ({ route }: Props) => {
     try {
       const fileData = await pickImage();
       if (fileData) {
-        const imageUrl = await uploadToFirebase(fileData.uri);
+        const imageUrl = await uploadToCloudinary(fileData.uri);
         handleAttachment(imageUrl, 'image');
       }
     } catch (error: any) {

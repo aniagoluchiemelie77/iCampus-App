@@ -71,6 +71,8 @@ const Login = () => {
   await AsyncStorage.setItem('accessToken', accessToken);
   await AsyncStorage.setItem('refreshToken', refreshToken);
   await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
+  console.log('User cart: ', user.cart);
+  console.log('User favorites: ', user.favorites);
 
   dispatch(setUser({ ...mergedUser, accessToken, tokenCreatedAt: Date.now() }));
 

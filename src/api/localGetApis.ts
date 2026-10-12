@@ -713,7 +713,7 @@ export const fetchSellerSalesAPI = async (maxRetries = 3) => {
 
   return { success: false, data: [], message: 'Max retry attempts reached.' };
 };
-export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
+export const fetchUserReviewsAPI = async (page = 1, limit = 10, signal?: AbortSignal) => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
 
@@ -724,7 +724,7 @@ export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/reviews/fetch-seller-reviews`; 
+    const url = `${cleanBaseUrl}/reviews/fetch-seller-reviews?page=${page}&limit=${limit}`; 
     const headers = { 'Content-Type': 'application/json' };
 
     const response = await fetchWithAuth(url, {
@@ -745,6 +745,7 @@ export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
       return {
         success: false,
         data: [],
+        pagination: { hasMore: false },
         message: result?.message || 'Failed to fetch sales reviews',
       };
     }
@@ -752,15 +753,16 @@ export const fetchUserReviewsAPI = async (signal?: AbortSignal) => {
     return {
       success: true,
       data: result.data || [],
+      pagination: result.pagination || { hasMore: false },
       message: result.message
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
 
     if (error.name === 'AbortError') {
-      return { success: false, data: [], message: 'Reviews fetch request timed out.' };
+      return { success: false, data: [], pagination: { hasMore: false }, message: 'Reviews fetch request timed out.' };
     }
-    return { success: false, data: [], message: 'Network error fetching reviews' };
+    return { success: false, data: [], pagination: { hasMore: false }, message: 'Network error fetching reviews' };
   }
 };
 export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {

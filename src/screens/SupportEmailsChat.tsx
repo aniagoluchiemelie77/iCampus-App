@@ -13,15 +13,15 @@ import { ChatInput } from '../components/ChatInput.tsx';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App.tsx';
 import {
-  uploadToFirebase,
+  uploadToCloudinary,
   uploadFileToFirebaseClient,
 } from '../utils/CloudinaryPresetHelper.ts';
 import { errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import { EmptyState } from '../components/EmptyFlatlistComponent.tsx';
 import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
-import { sendSupportMessageApi } from '../api/localPostApis.ts'; 
-import { fetchSupportTicketByRefIdAPI } from '../api/localGetApis.ts'; 
+import { sendSupportMessageApi } from '../api/localPostApis.ts';
+import { fetchSupportTicketByRefIdAPI } from '../api/localGetApis.ts';
 import { PageHeader } from '../components/PageHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SupportChat'>;
@@ -38,49 +38,56 @@ export const SupportChatScreen = ({ route }: Props) => {
   const [inputText, setInputText] = useState('');
   const { pickImage, pickDocument } = useMediaPicker();
 
-useEffect(() => {
-  let isMounted = true;
-  const fetchTicketThread = async () => {
-    try {
-      setLoading(true);
-      const result = await fetchSupportTicketByRefIdAPI({ ticketRefId });
-      
-      if (result.success && result.ticket && isMounted) {
-        const currentTicket = result.ticket;
-        setTicketDetails(currentTicket);
-        const formattedThread = (currentTicket.thread || []).map((msg: any, index: number) => ({
-          id: `${index}_${msg.timestamp}`,
-          text: msg.message,
-          isUser: msg.sender !== (currentTicket.guestEmail || currentTicket.userId),
-          timestamp: msg.timestamp,
-          attachments: msg.attachments || [],
-        })).reverse();
-        if (formattedThread.length === 0 && currentTicket.originalMessage) {
-          formattedThread.push({
-            id: 'original_msg',
-            text: currentTicket.originalMessage,
-            isUser: false,
-            timestamp: currentTicket.createdAt,
-            attachments: [],
-          });
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTicketThread = async () => {
+      try {
+        setLoading(true);
+        const result = await fetchSupportTicketByRefIdAPI({ ticketRefId });
+
+        if (result.success && result.ticket && isMounted) {
+          const currentTicket = result.ticket;
+          setTicketDetails(currentTicket);
+          const formattedThread = (currentTicket.thread || [])
+            .map((msg: any, index: number) => ({
+              id: `${index}_${msg.timestamp}`,
+              text: msg.message,
+              isUser:
+                msg.sender !==
+                (currentTicket.guestEmail || currentTicket.userId),
+              timestamp: msg.timestamp,
+              attachments: msg.attachments || [],
+            }))
+            .reverse();
+          if (formattedThread.length === 0 && currentTicket.originalMessage) {
+            formattedThread.push({
+              id: 'original_msg',
+              text: currentTicket.originalMessage,
+              isUser: false,
+              timestamp: currentTicket.createdAt,
+              attachments: [],
+            });
+          }
+
+          setMessages(formattedThread);
         }
-
-        setMessages(formattedThread);
+      } catch (error) {
+        console.error('Failed fetching ticket support thread:', error);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    } catch (error) {
-      console.error('Failed fetching ticket support thread:', error);
-    } finally {
-      if (isMounted) setLoading(false);
-    }
-  };
+    };
 
-  fetchTicketThread();
-  return () => {
-    isMounted = false;
-  };
-}, [ticketRefId]);
+    fetchTicketThread();
+    return () => {
+      isMounted = false;
+    };
+  }, [ticketRefId]);
 
-  const handleSendMessage = async (textToSend: string, attachments: any[] = []) => {
+  const handleSendMessage = async (
+    textToSend: string,
+    attachments: any[] = [],
+  ) => {
     if (!textToSend.trim() && attachments.length === 0) return;
 
     const optimisticMessage = {
@@ -124,12 +131,18 @@ useEffect(() => {
     try {
       const fileData = await pickImage();
       if (fileData) {
-        const imageUrl = await uploadToFirebase(fileData.uri);
-        handleSendMessage('Sent an image', [{ url: imageUrl, type: 'image', fileName: 'attachment.jpg' }]);
+        const imageUrl = await uploadToCloudinary(fileData.uri);
+        handleSendMessage('Sent an image', [
+          { url: imageUrl, type: 'image', fileName: 'attachment.jpg' },
+        ]);
       }
     } catch (error: any) {
       if (!error.message?.includes('cancelled')) {
-        Toast.show({ type: 'error', text1: 'Media Error', text2: 'Could not attach image.' });
+        Toast.show({
+          type: 'error',
+          text1: 'Media Error',
+          text2: 'Could not attach image.',
+        });
       }
     }
   };
@@ -138,15 +151,28 @@ useEffect(() => {
     const fileData = await pickDocument();
     if (fileData) {
       try {
-        const response = await uploadFileToFirebaseClient(fileData.uri, 'chat-attachments');
+        const response = await uploadFileToFirebaseClient(
+          fileData.uri,
+          'chat-attachments',
+        );
         if (response.success && response.data?.permanentUrl) {
           handleSendMessage(`Shared: ${fileData.name || 'Document'}`, [
-            { url: response.data.permanentUrl, type: 'file', fileName: fileData.name || 'Document' },
+            {
+              url: response.data.permanentUrl,
+              type: 'file',
+              fileName: fileData.name || 'Document',
+            },
           ]);
         }
       } catch (err: any) {
-        if (!(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)) {
-          Toast.show({ type: 'error', text1: 'Document Error', text2: 'Attachment process failed.' });
+        if (!(
+          isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+        )) {
+          Toast.show({
+            type: 'error',
+            text1: 'Document Error',
+            text2: 'Attachment process failed.',
+          });
         }
       }
     }

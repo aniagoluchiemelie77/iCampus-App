@@ -8,7 +8,7 @@ import { useLocationServices } from '../hooks/useLocationService.ts';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { AttachmentModal } from '../components/ChatInput.tsx';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper.ts';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper.ts';
 import { requestDropStationApi } from '../api/localPostApis.ts';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
@@ -60,7 +60,7 @@ export const RegisterStationScreen = () => {
       setSubmitting(true);
       const uploadedUrls: string[] = [];
       for (const uri of formData.images) {
-        const url = await uploadToFirebase(uri);
+        const url = await uploadToCloudinary(uri);
         uploadedUrls.push(url);
       }
       const payload = {

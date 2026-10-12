@@ -153,8 +153,11 @@ const HomeScreen = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const { pendingOrders } = useAppDataContext();
+  const filteredOrders = pendingOrders.filter(
+    order => order.buyerId === user?.uid && order.status !== 'completed',
+  );
   const screens = isClassroomAllowed
     ? ['home', 'classroom', 'search', 'store']
     : ['home', 'search', 'store'];
@@ -193,7 +196,7 @@ const HomeScreen = () => {
             />
             <HeaderActionButton
               icon="inventory"
-              count={pendingOrders?.length || 0}
+              count={filteredOrders?.length || 0}
               onPress={() => navigation.navigate('PendingOrdersScreen')}
               colors={colors}
             />

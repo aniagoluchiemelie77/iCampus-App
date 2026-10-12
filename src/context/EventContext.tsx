@@ -69,6 +69,7 @@ interface AppDataContextType {
   fetchSellerSales: () => Promise<void>;
   allReviews: any[];
   syncCatalogToDatabase: () => Promise<void>;
+  syncUsersToDatabase: () => Promise<void>;
   deleteProductLocal: (productId: string) => Promise<void>;
   emailSupportTickets: SupportTicket[];
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
@@ -131,9 +132,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [cursor, setCursor] = useState<string | null>(null);
   const [isFetchingMoreOrders, setIsFetchingMoreOrders] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  const { sellerProducts, refreshProducts } = useSellerProducts(
-    currentUser?.uid,
-  );
+  const { refreshProducts } = useSellerProducts(currentUser?.uid);
   const [pendingOrders, setPendingOrders] = useState<MarketplaceOrder[]>([]);
   const [sellerSales, setSellerSales] = useState<ProductSale[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
@@ -475,6 +474,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       selectedSize || product.physicalDetails?.sizes?.[0] || undefined;
     const resolvedColor =
       selectedColor || product.physicalDetails?.colors?.[0] || undefined;
+    console.log('Action: ', action);
 
     if (action === 'add') {
       const newItem: CartItem = {
@@ -493,6 +493,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     }
 
     const updatedUser = { ...currentUser, cart: newCart };
+    console.log('New cart Item: ', newCart);
     setCurrentUser(updatedUser);
     dispatch(setUser(updatedUser));
     await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
@@ -502,6 +503,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       selectedColor: resolvedColor,
       quantity: 1,
     });
+    console.log('Toggle cart action result: ', result.data);
 
     if (!result.success) {
       const rollbackUser = { ...currentUser, cart: previousCart };
@@ -553,16 +555,19 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       ? previousFavorites.filter(id => id !== productId)
       : [...previousFavorites, productId];
 
-    const updatedUser = { ...currentUser, favorites: newFavorites };
+    console.log(
+      'Action: ',
+      isFavorited ? 'Remove from Favorites' : 'Add to Favorites',
+    );
 
-    // 1. Optimistic update across local state, Redux, and AsyncStorage
+    const updatedUser = { ...currentUser, favorites: newFavorites };
     setCurrentUser(updatedUser);
     dispatch(setUser(updatedUser));
     await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
 
     const result = await toggleFavoriteAPI(productId);
+    console.log('Toggle Favorite Result: ', result?.data);
     if (!result.success) {
-      // 2. Rollback across all states if API fails
       const rollbackUser = { ...currentUser, favorites: previousFavorites };
       setCurrentUser(rollbackUser);
       dispatch(setUser(rollbackUser));
@@ -906,6 +911,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         handleDeletePost,
         deleteProductLocal,
         syncCatalogToDatabase,
+        syncUsersToDatabase,
         currentUser,
         allReviews,
         setAllReviews,

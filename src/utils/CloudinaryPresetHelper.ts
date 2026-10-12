@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../services/firebaseConfig"; 
+import {CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET} from '@env';
 
 export const uploadToFirebase = async (fileUri: string, folder: string = "uploads") => {
   try {
@@ -30,8 +31,6 @@ export const uploadFileToFirebaseClient = async (fileUri: string, folder: string
 
     const snapshot = await uploadBytes(storageRef, fileBlob);
     const downloadURL = await getDownloadURL(snapshot.ref);
-    
-    // Standardize your return payload structure
     return {
       success: true,
       message: 'Asset uploaded successfully.',
@@ -45,5 +44,47 @@ export const uploadFileToFirebaseClient = async (fileUri: string, folder: string
       message: error?.message || 'Network exception encountered during client upload.',
       data: null,
     };
+  }
+};
+//For development purposes only
+export const uploadToCloudinary = async (
+  fileUri: string, 
+  folder: string = "uploads"
+) => {
+  const cloudName = CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = CLOUDINARY_UPLOAD_PRESET;
+
+  try {
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    const filename = fileUri.split('/').pop() || Date.now().toString();
+    const fileExtension = filename.split('.').pop() || 'jpg';
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const formData = new FormData();
+    formData.append("file", {
+  uri: fileUri,
+  type: `image/${fileExtension}`,
+  name: `${uniqueName}.${fileExtension}`,
+} as any);
+    formData.append("upload_preset", uploadPreset);
+    formData.append("folder", folder);
+    formData.append("public_id", uniqueName);
+    const cloudinaryResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await cloudinaryResponse.json();
+
+    if (!cloudinaryResponse.ok) {
+      throw new Error(data.error?.message || "Cloudinary upload failed");
+    }
+    return data.secure_url;
+  } catch (error) {
+    console.error("Cloudinary Upload Error:", error);
+    throw error;
   }
 };

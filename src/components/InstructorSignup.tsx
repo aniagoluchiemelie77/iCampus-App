@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import { selectImage } from './SelectImage';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
@@ -146,7 +146,7 @@ const InstructorSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadToFirebase(imageUri);
+      const imageUrl = await uploadToCloudinary(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
@@ -303,7 +303,7 @@ const InstructorSignup = () => {
                       ? PRIMARY_COLOR
                       : PRIMARY_COLOR_TINT,
                   },
-                ]} 
+                ]}
               />
             </Animated.View>
           )}
@@ -340,7 +340,7 @@ const InstructorSignup = () => {
                       ? PRIMARY_COLOR
                       : PRIMARY_COLOR_TINT,
                   },
-                ]} 
+                ]}
               />
             </Animated.View>
           )}
@@ -374,8 +374,8 @@ const InstructorSignup = () => {
                       staffId.length < 3 || verifying
                         ? PRIMARY_COLOR_TINT
                         : PRIMARY_COLOR,
-                  }
-                ]} 
+                  },
+                ]}
               />
             </Animated.View>
           )}
@@ -397,11 +397,9 @@ const InstructorSignup = () => {
                 size="medium"
               />
               <CustomButton
-                title='Confirm'
+                title="Confirm"
                 onPress={nextStep}
-                style={[
-                  styles.nextButton
-                ]} 
+                style={[styles.nextButton]}
               />
             </Animated.View>
           )}
@@ -512,7 +510,7 @@ const InstructorSignup = () => {
                 <Text style={styles.errorText}>Passwords do not match.</Text>
               )}
               <CustomButton
-                title='Next'
+                title="Next"
                 onPress={nextStep}
                 disabled={
                   !isValidPassword(password) || confirmPassword !== password
@@ -525,7 +523,7 @@ const InstructorSignup = () => {
                         ? PRIMARY_COLOR_TINT
                         : PRIMARY_COLOR,
                   },
-                ]} 
+                ]}
               />
             </Animated.View>
           )}
@@ -562,12 +560,10 @@ const InstructorSignup = () => {
                   </View>
                 </TouchableOpacity>
               </View>
-               <CustomButton
-                title='Change Photo'
+              <CustomButton
+                title="Change Photo"
                 onPress={handleImageUpdate}
-                style={[
-                  styles.nextButton
-                ]} 
+                style={[styles.nextButton]}
               />
               <TouchableOpacity style={styles.skipLink} onPress={nextStep}>
                 <Text style={styles.skipLinkText}>

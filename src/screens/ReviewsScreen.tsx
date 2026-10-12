@@ -12,7 +12,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImagePicker from 'react-native-image-crop-picker';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { submitReviewApi } from '../api/localPostApis';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -127,7 +127,7 @@ export const CreateReviewScreen = ({ route, navigation }: any) => {
       if (localImageUris.length > 0) {
         finalMediaUrls = await Promise.all(
           localImageUris.map(uri =>
-            uploadToFirebase(uri, 'review-attachments'),
+            uploadToCloudinary(uri, 'review-attachments'),
           ),
         );
       }

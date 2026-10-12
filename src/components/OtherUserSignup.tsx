@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import { selectImage } from './SelectImage';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { WEB_CLIENT_ID } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -204,7 +204,7 @@ const OtherUserSignup = () => {
     const imageUri = await selectImage();
 
     if (imageUri) {
-      const imageUrl = await uploadToFirebase(imageUri);
+      const imageUrl = await uploadToCloudinary(imageUri);
 
       if (imageUrl) {
         console.log('Uploaded to Cloudinary:', imageUrl);
@@ -683,19 +683,19 @@ const OtherUserSignup = () => {
                 }}
               />
               <CustomButton
-                  title='Next'
-                  onPress={nextStep}
-                  disabled={!country || !firstname || !lastname}
-                  style={[
-                    styles.nextButton,
-                    {
-                      backgroundColor:
-                        country && firstname && lastname
-                          ? PRIMARY_COLOR
-                          : PRIMARY_COLOR_TINT,
-                    },
-                  ]}
-                />
+                title="Next"
+                onPress={nextStep}
+                disabled={!country || !firstname || !lastname}
+                style={[
+                  styles.nextButton,
+                  {
+                    backgroundColor:
+                      country && firstname && lastname
+                        ? PRIMARY_COLOR
+                        : PRIMARY_COLOR_TINT,
+                  },
+                ]}
+              />
             </Animated.View>
           )}
 
@@ -742,13 +742,11 @@ const OtherUserSignup = () => {
 
               {/* Primary Action Button */}
               <CustomButton
-                  title={hasUploadedAvatar ? 'Change Photo' : 'Upload Photo'}
-                  onPress={handleImageUpdate}
-                  disabled={!country || !firstname || !lastname}
-                  style={[
-                    styles.nextButton
-                  ]}
-                />
+                title={hasUploadedAvatar ? 'Change Photo' : 'Upload Photo'}
+                onPress={handleImageUpdate}
+                disabled={!country || !firstname || !lastname}
+                style={[styles.nextButton]}
+              />
 
               {/* Secondary Skip Action */}
               <TouchableOpacity style={styles.skipLink} onPress={nextStep}>
@@ -839,7 +837,7 @@ const OtherUserSignup = () => {
                   styles.nextButton,
                   {
                     backgroundColor:
-                    agreed || creating ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
+                      agreed || creating ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                   },
                 ]}
               />
@@ -871,7 +869,7 @@ const OtherUserSignup = () => {
                 onChangeText={setWebsite}
               />
               <CustomButton
-                title='Next'
+                title="Next"
                 onPress={nextStep}
                 disabled={!orgName || isValidWebsite(website) === false}
                 style={[
@@ -908,7 +906,7 @@ const OtherUserSignup = () => {
                 onChangeText={setJobTitle}
               />
               <CustomButton
-                title='Next'
+                title="Next"
                 onPress={nextStep}
                 disabled={!firstname || !jobTitle}
                 style={[
@@ -941,7 +939,7 @@ const OtherUserSignup = () => {
                 keyboardType="email-address"
               />
               <CustomButton
-                title='Verify Email'
+                title="Verify Email"
                 onPress={verifyEmail} // Use your existing verification logic
                 disabled={
                   !isValidEmail(email) ||
@@ -988,12 +986,10 @@ const OtherUserSignup = () => {
               </View>
               {emailCode.length === 6 && (
                 <CustomButton
-                title='Verify & Continue'
-                style={[
-                    styles.nextButton
-                  ]}
+                  title="Verify & Continue"
+                  style={[styles.nextButton]}
                   onPress={verifyCode}
-              />
+                />
               )}
             </Animated.View>
           )}

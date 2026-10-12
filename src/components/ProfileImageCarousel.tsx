@@ -9,7 +9,7 @@ import {
   Text,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { uploadToFirebase } from '../utils/CloudinaryPresetHelper';
+import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { patchUserProfile } from '../api/localPatchApis';
 import { updateUserImage } from '../context/UserSlice';
@@ -111,7 +111,7 @@ export const ProfileImageCarousel = ({
         text1: 'Uploading image...',
         position: 'bottom',
       });
-      const imageUrl = await uploadToFirebase(selectedUri, 'profile-images');
+      const imageUrl = await uploadToCloudinary(selectedUri, 'profile-images');
 
       if (!imageUrl || typeof imageUrl !== 'string') {
         throw new Error('Failed to retrieve secure URL from storage.');

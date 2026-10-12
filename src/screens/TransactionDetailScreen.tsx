@@ -85,21 +85,24 @@ export const TransactionDetailScreen = () => {
 
   if (error || !transaction) {
     return (
-      <View
-        style={[
-          styles.center,
-          { backgroundColor: colors.background, padding: 20 },
-        ]}
-      >
-        <EmptyState
-          iconName="receipt-long"
-          title="Transaction Not Found"
-          subtitle={
-            error || 'We could not retrieve details for this transaction.'
-          }
-          buttonText="Go Back"
-          onPress={() => navigation.goBack()}
-        />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <PageHeader title="Transaction Detail" />
+        <View
+          style={[
+            styles.center,
+            { backgroundColor: colors.background, padding: 20 },
+          ]}
+        >
+          <EmptyState
+            iconName="receipt-long"
+            title="Transaction Not Found"
+            subtitle={
+              error || 'We could not retrieve details for this transaction.'
+            }
+            buttonText="Go Back"
+            onPress={() => navigation.goBack()}
+          />
+        </View>
       </View>
     );
   }
@@ -351,7 +354,12 @@ const DetailRow = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
   scrollContent: {
     marginHorizontal: 16,
     paddingVertical: 12,
