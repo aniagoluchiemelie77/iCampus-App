@@ -636,6 +636,9 @@ export const ProductList = () => {
   );
 
   const hasProducts = sellerProducts.length > 0;
+  if (hasProducts) {
+    console.log(sellerProducts[0].amountInStock);
+  }
   const handleDeletePress = (productId: string, productTitle: string) => {
     setSelectedProduct({ id: productId, title: productTitle });
     setDeleteModalVisible(true);
@@ -1294,7 +1297,12 @@ export const SalesScreen = () => {
       )}
       <Modal visible={isVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.backgroundSecondary}]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <FlatList
               data={availableMonths}
               keyExtractor={item => item.value.toString()}
@@ -1892,7 +1900,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 25,
-    maxHeight: '70%', 
+    maxHeight: '70%',
   },
   sheetHandle: {
     width: 36,

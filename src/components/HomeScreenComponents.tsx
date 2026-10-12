@@ -42,17 +42,11 @@ interface Props {
 interface ProfileModalProps {
   visible: boolean;
   onClose: () => void;
-  currentUser: User;
-  navigation: any;
-  colors: any;
 }
-export const ProfileModal = ({
-  visible,
-  onClose,
-  currentUser,
-  navigation,
-  colors,
-}: ProfileModalProps) => {
+export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
+  const { colors } = useTheme();
+  const { currentUser } = useAppDataContext();
+  const navigation = useNavigation<StackNavigationProp<any>>();
   const [ads, setAds] = useState<AdItem[]>([]);
   const [loadingAds, setLoadingAds] = useState(true);
   const { width } = useWindowDimensions();

@@ -131,6 +131,7 @@ import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
+import { requestUserPermissionAndGetToken } from './src/utils/userTokenAuth.ts';
 
 const baseUrl = BACKEND_URL;
 
@@ -330,7 +331,7 @@ function MainApp() {
             dispatch(
               setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }),
             );
-
+            await requestUserPermissionAndGetToken(user.uid);
             if (user.isSuspended) {
               setInitialRoute('SuspendedScreen');
               return;
@@ -370,6 +371,7 @@ function MainApp() {
                   tokenCreatedAt: Date.now(),
                 }),
               );
+              await requestUserPermissionAndGetToken(mergedUser.uid);
               if (user.isSuspended) {
                 setInitialRoute('SuspendedScreen');
                 return;

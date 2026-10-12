@@ -109,14 +109,14 @@ export const ProductCard = ({
             {product.niche?.toUpperCase() || 'ITEM'}
           </Text>
         </View>
-        {!product.isAvailable && (
+        {product.amountInStock === 0 && (
           <View
             style={[
               styles.soldOutOverlay,
               { backgroundColor: colors.backgroundSecondary },
             ]}
           >
-            <Text style={[styles.soldOutText, { color: colors.text }]}>
+            <Text style={[styles.soldOutText, { color: colors.primary }]}>
               OUT OF STOCK
             </Text>
           </View>
@@ -225,12 +225,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   soldOutOverlay: {
-    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    top: 3,
-    right: 3,
+    top: -6,
+    right: 4,
+    borderRadius: 10,
+    padding: 10,
   },
   soldOutText: {
     fontWeight: 'bold',

@@ -9,7 +9,6 @@ import {
   Pressable,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 
 interface ChatInputProps {

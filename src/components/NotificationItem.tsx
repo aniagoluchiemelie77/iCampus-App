@@ -77,6 +77,7 @@ export const NotificationItem = ({
         return item.message;
     }
   };
+  const parsedDate = parseFirestoreDate(item?.createdAt);
 
   return (
     <TouchableOpacity
@@ -84,7 +85,7 @@ export const NotificationItem = ({
       style={[
         styles.card,
         !item.isRead
-          ? { backgroundColor: colors.backgroundSecondary }
+          ? { backgroundColor: '#fadccc' }
           : { backgroundColor: colors.background },
       ]}
     >
@@ -112,7 +113,9 @@ export const NotificationItem = ({
           {formatNotificationMessage(item)}
         </Text>
         <Text style={[styles.time, { color: colors.text }]}>
-          {dayjs(parseFirestoreDate(item.createdAt)).fromNow()}
+          {parsedDate
+            ? dayjs(parsedDate).format('MMM D, YYYY • h:mm A')
+            : 'Recent'}
         </Text>
       </View>
     </TouchableOpacity>

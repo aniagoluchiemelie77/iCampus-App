@@ -21,11 +21,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
-import {
-  getMessaging,
-  onMessage,
-  requestPermission,
-} from '@react-native-firebase/messaging';
+import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import {
   useSocketConnection,
   SocketContext,
@@ -289,7 +285,6 @@ const HomeScreen = () => {
       setLoading(false);
     }
   };
-  const messagingInstance = getMessaging();
   const isTokenExpired = (createdAt: number) => {
     const now = Date.now();
     return now - createdAt > 1000 * 60 * 60 * 24;
@@ -312,11 +307,17 @@ const HomeScreen = () => {
     }
   }, [route.params?.activeTab]);
   useEffect(() => {
+    const messagingInstance = getMessaging();
     const unsubscribe = onMessage(
       messagingInstance,
       async (remoteMessage: any) => {
         playNotificationSound();
-        console.log('A new FCM message arrived!', remoteMessage);
+        console.log('A new FCM message arrived in foreground!', remoteMessage);
+        Toast.show({
+          type: 'info',
+          text1: remoteMessage.notification?.title || 'New Notification',
+          text2: remoteMessage.notification?.body || '',
+        });
       },
     );
 
@@ -324,22 +325,21 @@ const HomeScreen = () => {
   }, []);
   useEffect(() => {
     const requestUserPermission = async () => {
-      if (Platform.OS === 'android') {
-        if (Platform.Version >= 33) {
-          await PermissionsAndroid.request(
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        try {
+          const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
           );
-        }
-      } else if (Platform.OS === 'ios') {
-        const messagingInstance = getMessaging();
-        const authStatus = await requestPermission(messagingInstance);
-        const enabled = authStatus === 1 || authStatus === 2;
-        if (enabled) {
-          console.log('iOS Authorization status granted:', authStatus);
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('Android notification permission granted.');
+          } else {
+            console.log('Android notification permission denied.');
+          }
+        } catch (err) {
+          console.warn('Error requesting Android permission:', err);
         }
       }
     };
-
     requestUserPermission();
   }, []);
   useEffect(() => {
@@ -533,9 +533,6 @@ const HomeScreen = () => {
       <ProfileModal
         visible={isModalVisible}
         onClose={() => setProfilePopupVisible(false)}
-        currentUser={user}
-        navigation={navigation}
-        colors={colors}
       />
       <OrderScannerModal
         isVisible={isScannerOpen}

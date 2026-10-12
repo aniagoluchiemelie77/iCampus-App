@@ -284,12 +284,14 @@ const Notifications = () => {
         <FlatList
           data={notifications}
           keyExtractor={item => item.notificationId || item.id}
-          renderItem={({ item }) => (
-            <NotificationItem
-              item={item}
-              handleNotificationPress={() => handleNotificationPress(item)}
-            />
-          )}
+          renderItem={({ item }) => {
+            return (
+              <NotificationItem
+                item={item}
+                handleNotificationPress={() => handleNotificationPress(item)}
+              />
+            );
+          }}
           refreshing={loading}
           onRefresh={fetchNotifications}
           ListEmptyComponent={

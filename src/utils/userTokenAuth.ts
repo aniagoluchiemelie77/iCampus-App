@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import {baseUrl} from '../components/HomeScreenComponents'
+import {saveTokenToDatabase} from '../api/localPostApis';
+import '@react-native-firebase/messaging'; // ensures it initializes
+import { getMessaging, getToken } from '@react-native-firebase/messaging';
 
 let navigationRef: any = null;
 const handleLogout = async () => {
@@ -59,3 +62,14 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}): Pro
   }
   return response;
 };
+export async function requestUserPermissionAndGetToken(uid: string) {
+  try {
+    const messagingInstance = getMessaging();
+    const fcmToken = await getToken(messagingInstance);
+    if (fcmToken) {
+      await saveTokenToDatabase(uid, fcmToken);
+    }
+  } catch (error) {
+    console.error("Error getting FCM token:", error);
+  }
+}

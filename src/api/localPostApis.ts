@@ -109,15 +109,6 @@ interface SystemNotificationPayload {
   [key: string]: any; 
 }
 
-const handleTransactionError = (error: any, title: string) => {
-  console.error(`${title}:`, error);
-  Toast.show({
-    type: 'error',
-    text1: title,
-    text2: error.message || 'Something went wrong',
-  });
-};
-
 export const fetchInquiryFromBackend = async (
   userType: string,
   signal?: AbortSignal
@@ -2911,5 +2902,51 @@ export const switchToAdminApi = async (userId: string, deviceId?: string, device
       text2: error?.message || 'An unexpected error occurred' 
     });
     return { success: false, error: error?.message || 'Network error' };
+  }
+};
+export const saveTokenToDatabase = async (
+  uid: string,
+  fcmToken: string,
+  signal?: AbortSignal
+): Promise<{ success: boolean; message?: string }> => {
+  const TIMEOUT_MS = await getAdaptiveTimeout();
+  const controller = new AbortController();
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const idempotencyKey = uuidv4();
+
+  try {
+    const response = await fetchWithAuth(`${baseUrl}users/fcm-token`, {
+      method: 'POST',
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify({ uid, fcmToken }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      const errorMessage = data?.error || data?.message || 'Failed to save notification token';
+      console.error("Failed to save FCM token:", errorMessage);
+      return { success: false, message: errorMessage };
+    }
+
+    return { success: true, message: data.message };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      console.warn("FCM token save timed out.");
+      return { success: false, message: 'Request timed out.' };
+    }
+
+    console.error("Backend Error:", error);
+    return { success: false, message: error?.message };
   }
 };

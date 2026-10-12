@@ -378,6 +378,7 @@ export const PostCard = React.memo(
     return (
       <Pressable
         onLongPress={() => setIsMenuVisible(true)}
+        onPress={() => navigation.navigate('PostDetailScreen', { post: post })}
         delayLongPress={400}
         style={[
           styles.container,

@@ -35,6 +35,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import { useLocationServices } from '../hooks/useLocationService.ts';
 import {
+  getDraftFromLocalDb,
+  saveDraftToLocalDb,
+  saveProductToLocalDb,
+  clearDraftFromLocalDb,
+} from '../hooks/useSQLiteDb.ts';
+import {
   StepHeader,
   CompleteFormInputs,
   PriceSectionComponent,
@@ -62,6 +68,7 @@ if (
 export const CreateProductScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
+  const draftKey = `product_draft_${user?.uid || 'guest'}`;
   const { product: existingProduct } = route.params || {};
   const productId = existingProduct?.productId || existingProduct?._id;
   const isEditing = !!productId;
@@ -249,6 +256,7 @@ export const CreateProductScreen = ({ route }: any) => {
         }
       }
       setUploadProgress(30);
+
       const formPayload = {
         title: title.trim(),
         description: description.trim(),
@@ -258,15 +266,34 @@ export const CreateProductScreen = ({ route }: any) => {
         niche,
         physicalDetails,
       };
-      const result = await saveProductApiCall(
+      const apiResponse = await saveProductApiCall(
         formPayload,
         productId,
         progress => {
           setUploadProgress(30 + Math.round(progress / 2));
         },
       );
+      const savedProduct = apiResponse?.data || apiResponse;
 
-      console.log('Product catalog update finalized:', result);
+      if (savedProduct) {
+        saveProductToLocalDb({
+          productId: savedProduct.productId || savedProduct.id || productId,
+          title: savedProduct.title,
+          description: savedProduct.description,
+          price: savedProduct.price,
+          sellerId: savedProduct.sellerId || user?.uid,
+          type: savedProduct.type,
+          amountInStock:
+            savedProduct.amountInStock ||
+            savedProduct.physicalDetails?.inStock ||
+            0,
+          mediaUrls: savedProduct.mediaUrls,
+          physicalDetails: savedProduct.physicalDetails,
+          nationalityOfSeller:
+            savedProduct.nationalityOfSeller || user?.country || '',
+        });
+      }
+      clearDraftFromLocalDb(draftKey);
       setIsSubmitting(false);
       navigation.reset({
         index: 0,
@@ -371,8 +398,20 @@ export const CreateProductScreen = ({ route }: any) => {
           ...(existingProduct.physicalDetails || {}),
         },
       });
+    } else {
+      const savedDraft = getDraftFromLocalDb(draftKey);
+      if (savedDraft) {
+        setFormInputs(savedDraft);
+      }
     }
-  }, [initialFormInputs, existingProduct]);
+  }, [initialFormInputs, existingProduct, draftKey]);
+  useEffect(() => {
+    if (isEditing) return;
+    const timer = setTimeout(() => {
+      saveDraftToLocalDb(draftKey, formInputs);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [formInputs, isEditing, draftKey]);
   return (
     <View
       style={[

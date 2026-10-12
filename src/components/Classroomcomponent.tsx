@@ -75,10 +75,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [page, setPage] = useState(1);
 
-  const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
   const stateRef = useRef({ hasMore, isFetchingMore, page });
   stateRef.current = { hasMore, isFetchingMore, page };
-
+  const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
   const handlePickImage = async () => {
     try {
       const fileData = await pickImage();
@@ -93,7 +92,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Image picker window dismissed');
     }
   };
-
   const handlePickDocument = async () => {
     try {
       const fileData = await pickDocument();
@@ -108,7 +106,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Document picker window dismissed');
     }
   };
-
   const handleCaptureCamera = async () => {
     try {
       const fileData = await pickImageFromCamera();
@@ -123,7 +120,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       console.log('Camera window dismissed');
     }
   };
-
   const fetchMyCourses = useCallback(
     async (
       semester: string = 'All',
@@ -546,7 +542,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           setSelectedSession(val);
         }}
         onClose={() => setSessionModalVisible(false)}
-        colors={colors}
       />
 
       <SelectionModal
@@ -560,7 +555,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           setSelectedSemester(val);
         }}
         onClose={() => setSemesterModalVisible(false)}
-        colors={colors}
       />
     </SafeAreaView>
   );

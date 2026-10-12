@@ -1,23 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Modal,
-  Dimensions,
-  Pressable,
-  Animated,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   ScrollView,
   TextInput,
   Platform,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Svg, Circle } from 'react-native-svg';
-import { Course, User, Lecture, CourseException } from '../types/firebase';
+import { Course, Lecture, CourseException } from '../types/firebase';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as Progress from 'react-native-progress';
@@ -27,12 +23,9 @@ import {
   fetchAllLecturesByCourseId,
 } from '../api/localGetApis.ts';
 import { useTheme } from '../context/ThemeContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { useAppDataContext } from '../context/EventContext';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface SelectionModalProps {
   visible: boolean;
@@ -41,7 +34,6 @@ interface SelectionModalProps {
   onSelect: (item: string) => void;
   onClose: () => void;
   title: string;
-  colors: any;
 }
 interface UploadProgressModalProps {
   visible: boolean;
@@ -186,14 +178,6 @@ export const CourseModal = ({
   const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
   const [lectures, setAllLectures] = useState<Lecture[]>([]);
   const [loadingExceptions, setLoadingExceptions] = useState(false);
-  const modalHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.7)).current;
-  const setFullScreen = (isFull: boolean) => {
-    Animated.spring(modalHeight, {
-      toValue: isFull ? SCREEN_HEIGHT : SCREEN_HEIGHT * 0.8,
-      useNativeDriver: false,
-      friction: 8,
-    }).start();
-  };
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -276,341 +260,315 @@ export const CourseModal = ({
 
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
-      <Pressable
+      <TouchableOpacity
         style={styles.modalOverlay}
         onPress={() => {
           onClose();
-          setFullScreen(false);
         }}
       >
-        <TouchableWithoutFeedback>
-          <Animated.View
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[
+            styles.modalContent,
+            {
+              maxHeight: '75%',
+              backgroundColor: themeColors.backgroundSecondary,
+            },
+          ]}
+        >
+          <View
             style={[
-              styles.modalContent,
-              {
-                maxHeight: modalHeight,
-                backgroundColor: themeColors.backgroundSecondary,
-              },
+              styles.modalGrabber,
+              { backgroundColor: themeColors.primaryTint },
             ]}
-          >
-            <View
-              style={[
-                styles.modalGrabber,
-                { backgroundColor: themeColors.primaryTint },
-              ]}
-            />
-            <View style={styles.modalHeaderInfo}>
-              <Text
-                style={[styles.modalCourseCode, { color: themeColors.primary }]}
-              >
-                {course.courseCode || 'COURSE'}
-              </Text>
-              <Text
-                style={[styles.modalCourseTitle, { color: themeColors.text }]}
-                numberOfLines={1}
-              >
-                {course.courseTitle}
-              </Text>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollableModalBody}
+          />
+          <View style={styles.modalHeaderInfo}>
+            <Text
+              style={[styles.modalCourseCode, { color: themeColors.primary }]}
             >
-              {isStudent && (
-                <>
-                  <View style={styles.dashboardRow}>
-                    <View style={styles.statCard}>
-                      <ProgressRing percentage={syllabusPercentage} />
-                      <View style={styles.statTextContainer}>
-                        <Text
-                          style={[
-                            styles.statLabel,
-                            { color: themeColors.text },
-                          ]}
-                        >
-                          Syllabus
-                        </Text>
-                        <Text
-                          style={[
-                            styles.statSub,
-                            { color: themeColors.primary },
-                          ]}
-                        >
-                          {taughtTopics}/{totalTopics} Covered
-                        </Text>
-                      </View>
-                    </View>
-                    <View
-                      style={[
-                        styles.verticalDivider,
-                        { backgroundColor: themeColors.primaryTint + '40' },
-                      ]}
-                    />
-                    <View style={styles.statCard}>
-                      <ProgressRing percentage={attendancePercentage} />
-                      <View style={styles.statTextContainer}>
-                        <Text
-                          style={[
-                            styles.statLabel,
-                            { color: themeColors.text },
-                          ]}
-                        >
-                          Attendance
-                        </Text>
-                        <Text
-                          style={[
-                            styles.statSub,
-                            { color: themeColors.primary },
-                          ]}
-                        >
-                          {lecturesAttended}/{lecturesHeld} attended
-                        </Text>
-                      </View>
+              {course.courseCode || 'COURSE'}
+            </Text>
+            <Text
+              style={[styles.modalCourseTitle, { color: themeColors.text }]}
+              numberOfLines={1}
+            >
+              {course.courseTitle}
+            </Text>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollableModalBody}
+          >
+            {isStudent && (
+              <>
+                <View style={styles.dashboardRow}>
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={syllabusPercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text
+                        style={[styles.statLabel, { color: themeColors.text }]}
+                      >
+                        Syllabus
+                      </Text>
+                      <Text
+                        style={[styles.statSub, { color: themeColors.primary }]}
+                      >
+                        {taughtTopics}/{totalTopics} Covered
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.iconGrid}>
-                    <GridItem
-                      label="Course Contents"
-                      iconName="format-list-bulleted"
-                      count={course.courseContents?.length}
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Course Contents',
-                          course: course,
-                          userRole: currentUser.usertype,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Course Materials"
-                      iconName="folder-copy"
-                      count={totalMaterials}
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Course Materials',
-                          course,
-                          lectures: lectures,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="View Lectures"
-                      iconName="access-time"
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'View Lecture Schedule',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Assignments"
-                      iconName="pending-actions"
-                      count={assignmentCount}
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Assignments',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Exceptions"
-                      iconName="verified-user"
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Exceptions',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: allExceptions,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Instructors"
-                      iconName="person-pin"
-                      count={instructorCount > 1 ? instructorCount : undefined}
-                      onPress={() => {
-                        if (
-                          !lastInstructor ||
-                          lastInstructor === 'No Instructor Assigned' ||
-                          lastInstructor === 'Unknown Instructor'
-                        ) {
-                          return;
-                        }
-                        onClose();
-                        navigation.navigate('Profile', {
-                          identifier: lastInstructor,
-                        });
-                      }}
-                    />
-                  </View>
-                </>
-              )}
-              {isLecturer && (
-                <>
-                  <View style={styles.dashboardRow}>
-                    <View style={styles.statCard}>
-                      <ProgressRing percentage={syllabusPercentage} />
-                      <View style={styles.statTextContainer}>
-                        <Text
-                          style={[
-                            styles.statLabel,
-                            { color: themeColors.text },
-                          ]}
-                        >
-                          Syllabus
-                        </Text>
-                        <Text
-                          style={[
-                            styles.statSub,
-                            { color: themeColors.primary },
-                          ]}
-                        >
-                          {taughtTopics}/{totalTopics} Covered
-                        </Text>
-                      </View>
-                    </View>
-                    <View
-                      style={[
-                        styles.verticalDivider,
-                        { backgroundColor: themeColors.primaryTint + '40' },
-                      ]}
-                    />
-                    <View style={styles.statCard}>
-                      <ProgressRing percentage={participationPercentage} />
-                      <View style={styles.statTextContainer}>
-                        <Text
-                          style={[
-                            styles.statLabel,
-                            { color: themeColors.text },
-                          ]}
-                        >
-                          Participation
-                        </Text>
-                        <Text
-                          style={[
-                            styles.statSub,
-                            { color: themeColors.primary },
-                          ]}
-                        >
-                          {lecturesDelivered}/{totalExpectedLectures} Delivered
-                        </Text>
-                      </View>
+                  <View
+                    style={[
+                      styles.verticalDivider,
+                      { backgroundColor: themeColors.primaryTint + '40' },
+                    ]}
+                  />
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={attendancePercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text
+                        style={[styles.statLabel, { color: themeColors.text }]}
+                      >
+                        Attendance
+                      </Text>
+                      <Text
+                        style={[styles.statSub, { color: themeColors.primary }]}
+                      >
+                        {lecturesAttended}/{lecturesHeld} attended
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.iconGrid}>
-                    <GridItem
-                      label="Upload Materials"
-                      iconName="cloud-upload"
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Course Materials',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Manage Exceptions"
-                      iconName="verified-user"
-                      onPress={() => {
-                        if (loadingExceptions) return;
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Exceptions',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Add Assignments"
-                      iconName="assignment-add"
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Assignments',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    <GridItem
-                      label="Lecture Schedule"
-                      iconName="access-time"
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'View Lecture Schedule',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: null,
-                          lectures: null,
-                        });
-                      }}
-                    />
-                    {currentUser.institutionTier !== 'free' && (
-                      <>
-                        <GridItem
-                          label="Create A Test"
-                          iconName="quiz"
-                          onPress={() => {
-                            onClose();
-                            navigation.navigate('CourseSubPage', {
-                              title: 'Assessments',
-                              course,
-                              userRole: currentUser.usertype,
-                              exceptions: null,
-                              lectures: null,
-                            });
-                          }}
-                        />
-                        <GridItem
-                          label="Performance"
-                          iconName="insights"
-                          onPress={() => {
-                            onClose();
-                            navigation.navigate('CourseSubPage', {
-                              title: 'Grade Accelerator',
-                              course,
-                              userRole: currentUser.usertype,
-                              exceptions: null,
-                              lectures: null,
-                            });
-                          }}
-                        />
-                      </>
-                    )}
+                </View>
+                <View style={styles.iconGrid}>
+                  <GridItem
+                    label="Course Contents"
+                    iconName="format-list-bulleted"
+                    count={course.courseContents?.length}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Contents',
+                        course: course,
+                        userRole: currentUser.usertype,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Course Materials"
+                    iconName="folder-copy"
+                    count={totalMaterials}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Materials',
+                        course,
+                        lectures: lectures,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="View Lectures"
+                    iconName="access-time"
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'View Lecture Schedule',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Assignments"
+                    iconName="pending-actions"
+                    count={assignmentCount}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Assignments',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Exceptions"
+                    iconName="verified-user"
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Exceptions',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: allExceptions,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Instructors"
+                    iconName="person-pin"
+                    count={instructorCount > 1 ? instructorCount : undefined}
+                    onPress={() => {
+                      if (
+                        !lastInstructor ||
+                        lastInstructor === 'No Instructor Assigned' ||
+                        lastInstructor === 'Unknown Instructor'
+                      ) {
+                        return;
+                      }
+                      onClose();
+                      navigation.navigate('Profile', {
+                        identifier: lastInstructor,
+                      });
+                    }}
+                  />
+                </View>
+              </>
+            )}
+            {isLecturer && (
+              <>
+                <View style={styles.dashboardRow}>
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={syllabusPercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text
+                        style={[styles.statLabel, { color: themeColors.text }]}
+                      >
+                        Syllabus
+                      </Text>
+                      <Text
+                        style={[styles.statSub, { color: themeColors.primary }]}
+                      >
+                        {taughtTopics}/{totalTopics} Covered
+                      </Text>
+                    </View>
                   </View>
-                </>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </TouchableWithoutFeedback>
-      </Pressable>
+                  <View
+                    style={[
+                      styles.verticalDivider,
+                      { backgroundColor: themeColors.primaryTint + '40' },
+                    ]}
+                  />
+                  <View style={styles.statCard}>
+                    <ProgressRing percentage={participationPercentage} />
+                    <View style={styles.statTextContainer}>
+                      <Text
+                        style={[styles.statLabel, { color: themeColors.text }]}
+                      >
+                        Participation
+                      </Text>
+                      <Text
+                        style={[styles.statSub, { color: themeColors.primary }]}
+                      >
+                        {lecturesDelivered}/{totalExpectedLectures} Delivered
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.iconGrid}>
+                  <GridItem
+                    label="Upload Materials"
+                    iconName="cloud-upload"
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Materials',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Manage Exceptions"
+                    iconName="verified-user"
+                    onPress={() => {
+                      if (loadingExceptions) return;
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Exceptions',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Add Assignments"
+                    iconName="assignment-add"
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Assignments',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
+                    label="Lecture Schedule"
+                    iconName="access-time"
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'View Lecture Schedule',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  {currentUser.institutionTier !== 'free' && (
+                    <>
+                      <GridItem
+                        label="Create A Test"
+                        iconName="quiz"
+                        onPress={() => {
+                          onClose();
+                          navigation.navigate('CourseSubPage', {
+                            title: 'Assessments',
+                            course,
+                            userRole: currentUser.usertype,
+                            exceptions: null,
+                            lectures: null,
+                          });
+                        }}
+                      />
+                      <GridItem
+                        label="Performance"
+                        iconName="insights"
+                        onPress={() => {
+                          onClose();
+                          navigation.navigate('CourseSubPage', {
+                            title: 'Grade Accelerator',
+                            course,
+                            userRole: currentUser.usertype,
+                            exceptions: null,
+                            lectures: null,
+                          });
+                        }}
+                      />
+                    </>
+                  )}
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -621,9 +579,8 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({
   onSelect,
   onClose,
   title,
-  colors,
 }) => {
-  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   return (
     <Modal
@@ -632,62 +589,60 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <TouchableWithoutFeedback>
-          <View
-            style={[
-              styles.bottomSheet,
-              {
-                backgroundColor: colors.backgroundSecondary,
-                paddingBottom: Math.max(insets.bottom, 20),
-              },
-            ]}
-          >
-            <View style={styles.sheetIndicator} />
-            <Text style={[styles.sheetTitle, { color: colors.textDarker }]}>
-              {title}
-            </Text>
+      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[
+            styles.bottomSheet,
+            {
+              backgroundColor: colors.backgroundSecondary,
+            },
+          ]}
+        >
+          <View style={styles.sheetIndicator} />
+          <Text style={[styles.sheetTitle, { color: colors.textDarker }]}>
+            {title}
+          </Text>
 
-            {options.map(item => {
-              const isSelected = item === selectedValue;
+          {options.map(item => {
+            const isSelected = item === selectedValue;
 
-              return (
-                <TouchableOpacity
-                  key={item}
+            return (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.sheetOption,
+                  { borderBottomColor: colors.border + '33' },
+                ]}
+                onPress={() => {
+                  onSelect(item);
+                  onClose();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
                   style={[
-                    styles.sheetOption,
-                    { borderBottomColor: colors.border + '33' },
+                    styles.optionText,
+                    {
+                      color: isSelected ? colors.primary : colors.text,
+                      fontWeight: isSelected ? '600' : '400',
+                    },
                   ]}
-                  onPress={() => {
-                    onSelect(item);
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      {
-                        color: isSelected ? colors.primary : colors.text,
-                        fontWeight: isSelected ? '600' : '400',
-                      },
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                  {isSelected && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </TouchableWithoutFeedback>
-      </Pressable>
+                  {item}
+                </Text>
+                {isSelected && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={20}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -956,8 +911,8 @@ const styles = StyleSheet.create({
   bottomSheet: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 20,
-    maxHeight: '40%',
+    padding: 25,
+    maxHeight: '50%',
   },
   overlay: {
     flex: 1,
