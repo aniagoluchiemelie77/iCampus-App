@@ -765,7 +765,7 @@ export const fetchUserReviewsAPI = async (page = 1, limit = 10, signal?: AbortSi
     return { success: false, data: [], pagination: { hasMore: false }, message: 'Network error fetching reviews' };
   }
 };
-export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
+export const fetchPayoutHistoryAPI = async (lastCreatedAt?: string, maxRetries = 3) => {
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -776,7 +776,11 @@ export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const url = `${cleanBaseUrl}/store/payouts/fetch-history`; 
+      let url = `${cleanBaseUrl}/store/payouts/fetch-history?limit=15`;
+      if (lastCreatedAt) {
+        url += `&lastCreatedAt=${encodeURIComponent(lastCreatedAt)}`;
+      }
+
       const headers = { 'Content-Type': 'application/json' };
       const response = await fetchWithAuth(url, {
         method: 'GET',
@@ -792,6 +796,8 @@ export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
           return {
             success: false,
             data: [],
+            hasMore: false,
+            nextCursor: null,
             message: result.message || 'Failed to fetch payout history',
           };
         }
@@ -801,6 +807,8 @@ export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
       return {
         success: true,
         data: result.data || [],
+        hasMore: result.hasMore || false,
+        nextCursor: result.nextCursor || null,
         message: result.message,
       };
 
@@ -815,17 +823,18 @@ export const fetchPayoutHistoryAPI = async (maxRetries = 3) => {
         return { 
           success: false, 
           data: [], 
+          hasMore: false,
+          nextCursor: null,
           message: errorMessage 
         };
       }
 
       const backoffDelay = Math.pow(2, attempt - 1) * 1000;
-      console.warn(`Fetch payout history attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, backoffDelay));
     }
   }
 
-  return { success: false, data: [], message: 'Max retry attempts reached.' };
+  return { success: false, data: [], hasMore: false, nextCursor: null, message: 'Max retry attempts reached.' };
 };
 export const fetchDropOffStationsAPI = async (lat?: number, lng?: number, maxRetries = 3) => {
   let attempt = 0;

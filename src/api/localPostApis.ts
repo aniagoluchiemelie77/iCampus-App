@@ -70,10 +70,6 @@ interface VerifyFaceResponse {
   message?: string;
   similarity?: number;
 }
-interface UploadMaterialPayload {
-  materialUrl: string;
-  title?: string;
-}
 interface ApiResponse {
   success: boolean;
   data?: any;
@@ -2196,7 +2192,7 @@ export const verifyFacialIdentity = async (
 };
 export const saveCourseMaterial = async (
   courseId: string,
-  payload: UploadMaterialPayload,
+  payload: any,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
   try {

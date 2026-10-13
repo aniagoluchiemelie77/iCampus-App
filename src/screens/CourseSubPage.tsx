@@ -520,20 +520,17 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         {title === 'Course Contents' && (
           <RenderContents
             course={currentCourse!}
-            userRole={userRole}
             onRefresh={fetchCourseDetails}
           />
         )}
         {title === 'Course Materials' && (
           <RenderMaterials
             course={currentCourse!}
-            lectures={lectures || []}
-            userRole={userRole}
             onRefresh={fetchCourseDetails}
           />
         )}
         {title === 'Assignments' && (
-          <RenderAssignments course={currentCourse!} userRole={userRole} />
+          <RenderAssignments course={currentCourse!} />
         )}
         {title === 'Exceptions' &&
           (userRole === 'lecturer' ? (
@@ -546,7 +543,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           ) : (
             <RenderStudentExceptions
               exceptions={localExceptions}
-              user={user}
               refreshing={loading}
               onRefresh={fetchExceptions}
               onAddPress={() => setModalVisible(true)}
@@ -708,7 +704,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
         course={course!}
-        user={user}
         lectures={allLectures}
         onSave={handleSaveException}
         isSaving={loading}

@@ -201,17 +201,6 @@ export interface CartItem {
   selectedColor?: string; 
   selectedSize?: string;  
 }
-export interface Payout
-  {
-    payoutId: string;
-    sellerUid: string;
-    amount: number;
-    status: "processing" | "completed" | "failed" | "cancelled";
-    method: string;
-    reference: string;
-    createdAt: Date;
-  }
-;
 export interface User {
   uid: string;
   bio?: string;
@@ -476,13 +465,15 @@ export interface Transactions {
   userId: string;
   type:
       "payment" |
-      "refund"
+      "refund" |
+       'checkout' | 
+       'payout'
   ;
   payType: 'in' | 'out';
   title: string;
-  amount?: number;
-  status?: "pending" | "success" | "failed";
-  reference?: string,
+  amount: number;
+  status: "pending" | "success" | "failed";
+  reference: string,
   currency: string,
   metadata?: TransactionMetadata,
   createdAt?: string
@@ -526,7 +517,7 @@ export interface UserBankOrCardDetails {
 export interface PollOption {
   optionId: string;
   text: string;
-  votes: string[]; // Array of user UIDs who voted for this option
+  votes: string[]; 
 }
 export interface Posts {
   _id: string;
@@ -621,6 +612,13 @@ export interface Lecture {
   department?: string;
   level?: string;
 }
+export interface CourseResource {
+  resourceId: string;
+  resourceTitle: string;
+  resourceUrl: string;
+  resourceSize?: string | number;
+  resourceMimetype?: string;
+}
 export interface Course {
   id: string;
   _id?: string;
@@ -630,7 +628,7 @@ export interface Course {
   niche?: string;
   department: string;
   courseContents?: string[];
-  resources?: string[];
+  resources?: CourseResource[];
   assignments?: Assignment[];
   level?: string;
   tests?: CreateTestPayload[];

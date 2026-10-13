@@ -14,7 +14,7 @@ interface DeleteLectureResponse {
   error?: string;
 }
 interface DeleteMaterialPayload {
-  materialUrl: string;
+  resourceId: string;
 }
 interface ApiResponse {
   success: boolean;

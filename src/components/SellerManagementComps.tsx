@@ -17,7 +17,12 @@ import Toast from 'react-native-toast-message';
 import { useAppDataContext } from '../context/EventContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { formatStatNumber } from '../utils/followCountFormatter';
-import { ProductSale, UserTier, Product, Payout } from '../types/firebase';
+import {
+  ProductSale,
+  UserTier,
+  Product,
+  Transactions,
+} from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
@@ -49,7 +54,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import { ActionModal } from './LogoutModal.tsx';
 import { fetchUserWithOfflineFallback } from '../hooks/useUserDetails.ts';
-
+import { useConvertedCurrency } from '../hooks/useCurrencyConverter';
+import { parseFirestoreDate } from '../utils/dateFormatter.ts';
 interface StatusCardProps {
   label: string;
   count: string;
@@ -862,8 +868,11 @@ export const PayoutView = () => {
   const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
   const { exchangeData } = useExchangeRate(currentUser.country || 'Nigeria');
-  const [history, setHistory] = useState<Payout[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
@@ -872,13 +881,31 @@ export const PayoutView = () => {
   const isVerified = currentUser?.isVerified || false;
 
   useEffect(() => {
-    loadHistory();
+    loadInitialHistory();
   }, []);
 
-  const loadHistory = async () => {
+  const loadInitialHistory = async () => {
+    setLoading(true);
     const res = await fetchPayoutHistoryAPI();
-    if (res.success) setHistory(res.data);
+    if (res.success) {
+      setHistory(res.data);
+      setHasMore(res.hasMore);
+      setNextCursor(res.nextCursor);
+    }
     setLoading(false);
+  };
+
+  const loadMoreHistory = async () => {
+    if (loadingMore || !hasMore || !nextCursor) return;
+
+    setLoadingMore(true);
+    const res = await fetchPayoutHistoryAPI(nextCursor);
+    if (res.success) {
+      setHistory(prev => [...prev, ...res.data]);
+      setHasMore(res.hasMore);
+      setNextCursor(res.nextCursor);
+    }
+    setLoadingMore(false);
   };
   const executePayout = async () => {
     setRequesting(true);
@@ -890,7 +917,7 @@ export const PayoutView = () => {
         text1: 'Fetch Error',
         text2: res.message || 'Payout processed successfully',
       });
-      loadHistory();
+      loadMoreHistory();
       navigation.reset({
         index: 0,
         routes: [
@@ -912,29 +939,88 @@ export const PayoutView = () => {
     }
     setRequesting(false);
   };
-  const renderHistoryItem = (item: Payout) => (
-    <View
-      style={[
-        styles.historyCard,
-        { backgroundColor: themeColors.backgroundSecondary },
-      ]}
-    >
-      <View style={styles.historyInfo}>
-        <Text style={[styles.refText, { color: themeColors.text }]}>
-          {item.reference}
-        </Text>
-        <Text style={[styles.historyDate, { color: themeColors.text }]}>
-          {moment(item.createdAt).format('MMM DD, YYYY • HH:mm')}
-        </Text>
+  const renderHistoryItem = (item: Transactions) => {
+    const { convertedValue } = useConvertedCurrency(
+      item.amount,
+      item.currency,
+      currentUser.country,
+    );
+
+    // Determine status color styling
+    const getStatusStyle = (status: string) => {
+      switch (status) {
+        case 'success':
+          return { bg: 'rgba(46, 204, 113, 0.15)', text: '#2ecc71' };
+        case 'pending':
+          return { bg: 'rgba(241, 196, 15, 0.15)', text: '#f1c40f' };
+        case 'failed':
+          return { bg: 'rgba(231, 76, 60, 0.15)', text: '#e74c3c' };
+        default:
+          return { bg: 'rgba(149, 165, 166, 0.15)', text: '#95a5a6' };
+      }
+    };
+
+    const statusStyle = getStatusStyle(item.status);
+    const isMoneyIn = item.payType === 'in';
+
+    return (
+      <View
+        style={[
+          styles.historyCard,
+          {
+            backgroundColor: themeColors.backgroundSecondary,
+            borderLeftColor: isMoneyIn ? '#2ecc71' : '#e74c3c',
+          },
+        ]}
+      >
+        {/* Left Details: Title & Date */}
+        <View style={styles.historyInfo}>
+          <Text
+            style={[styles.titleText, { color: themeColors.text }]}
+            numberOfLines={1}
+          >
+            {item.title || item.type.toUpperCase()}
+          </Text>
+
+          <Text
+            style={[styles.refText, { color: themeColors.text || '#888' }]}
+            numberOfLines={1}
+          >
+            Ref: {item.reference}
+          </Text>
+
+          <Text
+            style={[styles.historyDate, { color: themeColors.text || '#888' }]}
+          >
+            {item.createdAt
+              ? moment(parseFirestoreDate(item.createdAt)).format(
+                  'MMM DD, YYYY • HH:mm',
+                )
+              : 'Recent'}
+          </Text>
+        </View>
+        <View style={styles.historyRight}>
+          <Text
+            style={[
+              styles.amountText,
+              { color: isMoneyIn ? '#2ecc71' : themeColors.text },
+            ]}
+          >
+            {isMoneyIn ? '+' : '-'}
+            <CurrencyDisplay value={convertedValue} size="small" />
+          </Text>
+
+          <View
+            style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}
+          >
+            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+              {item.status.toUpperCase()}
+            </Text>
+          </View>
+        </View>
       </View>
-      <View style={styles.historyRight}>
-        <CurrencyDisplay value={item.amount} size="small" />
-        <Text style={[styles.statusBadge, { color: themeColors.text }]}>
-          {item.status}
-        </Text>
-      </View>
-    </View>
-  );
+    );
+  };
   const renderHeader = () => {
     const hasPayoutAccount = !!currentUser?.subaccountId;
 
@@ -1019,9 +1105,20 @@ export const PayoutView = () => {
     <>
       <FlatList
         data={history}
-        keyExtractor={item => item.payoutId}
+        keyExtractor={item => item.id || item.transactionId}
         renderItem={({ item }) => renderHistoryItem(item)}
         ListHeaderComponent={renderHeader}
+        onEndReached={loadMoreHistory}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator
+              style={{ marginVertical: 20 }}
+              color={themeColors.primary}
+              size="small"
+            />
+          ) : null
+        }
         ListEmptyComponent={
           !loading ? (
             <EmptyState
@@ -1619,33 +1716,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginVertical: 20,
   },
-  historyCard: {
-    padding: 15,
-    borderRadius: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  historyInfo: {
-    flex: 1,
-  },
-  historyDate: {
-    fontSize: 11,
-  },
-  refText: {
-    fontSize: 12,
-    marginBottom: 6,
-  },
-  historyRight: {
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  statusBadge: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 5,
-  },
   card: {
     flexDirection: 'row',
     borderRadius: 16,
@@ -1916,6 +1986,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  historyCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    marginVertical: 10,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  historyInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  titleText: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  refText: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  historyDate: {
+    fontSize: 11,
+  },
+  historyRight: {
+    alignItems: 'flex-end',
+  },
+  amountText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
 

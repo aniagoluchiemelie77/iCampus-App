@@ -26,7 +26,6 @@ import {
   ActivityIndicator,
   AppState,
   Dimensions,
-  SectionList,
   Alert,
   Share,
 } from 'react-native';
@@ -35,7 +34,7 @@ import {
   Course,
   Lecture,
   Assignment,
-  User,
+  CourseResource,
   CourseException,
   Question,
   CreateLecturePayload,
@@ -85,10 +84,7 @@ import {
   getAssessmentAnalysisUrl,
   fetchCourseGradebook,
 } from '../api/localGetApis';
-import {
-  EXCEPTION_ACCOUNT_LIMITS,
-  EXCEPTION_COST_IN_ICASH,
-} from '../constants/inAppConstants';
+import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants';
 const { width } = Dimensions.get('window');
 import {
   getCourseDetailsForOngoingLecture,
@@ -141,7 +137,6 @@ interface RenderScheduleProps {
 }
 interface StudentExceptionsProps {
   exceptions: CourseException[];
-  user: User;
   onAddPress: () => void;
   refreshing: boolean;
   onRefresh: () => void;
@@ -150,7 +145,6 @@ interface AddExceptionProps {
   visible: boolean;
   onClose: () => void;
   course: Course;
-  user: User;
   onSave: (data: Partial<CourseException>) => void;
   isSaving: boolean;
   lectures: Lecture[];
@@ -181,35 +175,43 @@ interface SearchBarProps {
   setTextInput: (text: string) => void;
   placeholder?: string;
   colors: any;
-  styles: any;
+  CourseActionStyles: any;
 }
-
+interface RenderMaterialsProps {
+  course: Course | null;
+  onRefresh: () => void;
+}
 export const CourseSearchBar: React.FC<SearchBarProps> = ({
   shouldShowSearch,
   textInput,
   setTextInput,
   placeholder = 'Search Course Contents...',
   colors,
-  styles,
+  CourseActionStyles,
 }) => {
   if (!shouldShowSearch) return null;
 
   return (
     <View
       style={[
-        styles.searchBarWrapper,
+        CourseActionStyles.searchBarWrapper,
         { backgroundColor: colors.backgroundSecondary },
       ]}
     >
-      <View style={[styles.searchBarInner, { borderColor: colors.border }]}>
+      <View
+        style={[
+          CourseActionStyles.searchBarInner,
+          { borderColor: colors.border },
+        ]}
+      >
         <MaterialIcons
           name="search"
           size={20}
           color={colors.inputTextHolder}
-          style={styles.searchIcon}
+          style={CourseActionStyles.searchIcon}
         />
         <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
+          style={[CourseActionStyles.searchInput, { color: colors.text }]}
           placeholder={placeholder}
           value={textInput}
           onChangeText={setTextInput}
@@ -665,14 +667,14 @@ export const AddExceptionModal = ({
   visible,
   onClose,
   course,
-  user,
   onSave,
   isSaving,
   lectures,
 }: AddExceptionProps) => {
-  if (!course || !user) {
+  if (!course) {
     return null;
   }
+  const user = useAppSelector(state => state.user);
   const { colors } = useTheme();
   const [category, setCategory] =
     useState<CourseException['reasonCategory']>('Personal');
@@ -927,18 +929,23 @@ export const DetailHeader = ({
 };
 export const RenderContents = ({
   course,
-  userRole,
   onRefresh,
 }: {
   course: Course | null;
-  userRole: string;
   onRefresh: () => void;
 }) => {
+  if (!course) {
+    console.log('Course details missing.');
+    return null;
+  }
+  const currentUser = useAppSelector(state => state.user);
+  const userRole = currentUser?.usertype;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [contents, setContents] = useState<string[]>(
     course?.courseContents || [],
   );
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setModalVisible] = useState(false);
   const [currentText, setCurrentText] = useState('');
@@ -951,12 +958,10 @@ export const RenderContents = ({
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  if (!course) {
-    return null;
-  }
   const filteredData = contents.filter((item: string) =>
     item.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  console.log('Course Contents: ', filteredData);
 
   const openModal = (index: number | null = null) => {
     setEditingIndex(index);
@@ -1076,7 +1081,7 @@ export const RenderContents = ({
           setTextInput={setSearchQuery}
           placeholder="Search topics, or notes..."
           colors={colors}
-          styles={CourseActionStyles}
+          CourseActionStyles={CourseActionStyles}
         />
       )}
       <FlatList
@@ -1214,57 +1219,130 @@ export const RenderContents = ({
         }}
         onContinue={confirmDelete}
         title="Delete Topic?"
-        subtitle={`Are you sure you want to delete "${selectedCourseContent?.topicName}"? This action cannot be undone.`}
+        subtitle={`Are you sure you want to delete the selected course content? This action cannot be undone.`}
         continueText="Delete"
         loading={isDeleting}
       />
     </View>
   );
 };
-export const RenderMaterials = ({
+export const RenderMaterials: React.FC<RenderMaterialsProps> = ({
   course,
-  lectures,
-  userRole,
   onRefresh,
-}: {
-  course: Course | null;
-  lectures: Lecture[];
-  userRole: string;
-  onRefresh: () => void;
 }) => {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const [isUploading, setIsUploading] = useState(false);
-  const [refreshing, _setRefreshing] = useState(false);
-  const { pickDocument } = useMediaPicker();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [selectedMaterialUrl, setSelectedMaterialUrl] = useState<string | null>(
-    null,
-  );
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const shouldShowSearch = !(userRole === 'student' || false);
-
   if (!course) {
     return null;
   }
+  const currentUser = useAppSelector((state: any) => state.user);
+  const userRole = currentUser?.usertype;
+  const { colors } = useTheme();
+  const { pickDocument } = useMediaPicker();
+  const insets = useSafeAreaInsets();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [isUploadModalVisible, setIsUploadModalVisible] = useState(false);
+  const [uploadTitleInput, setUploadTitleInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedResource, setSelectedResource] =
+    useState<CourseResource | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const safeLectures = lectures || [];
-  const combinedResources = [
-    ...(course?.resources || []).map(res => ({
-      title: 'General Reference',
-      url: res,
-      type: 'Course',
-    })),
-    ...safeLectures.flatMap(l =>
-      (l?.resources || []).map(res => ({
-        title: l?.topicName || 'Untitled Lecture',
-        url: res,
-        type: 'Lecture',
-      })),
-    ),
-  ];
+  const shouldShowSearch = userRole !== 'student';
+
+  // Normalize resources (handles case where old data might be string or new object)
+  const formattedResources: CourseResource[] = (course?.resources || []).map(
+    (res: any, index) => {
+      if (typeof res === 'string') {
+        return {
+          resourceId: `legacy_${index}`,
+          resourceTitle: res.split('/').pop() || 'General Reference',
+          resourceUrl: res,
+          resourceSize: 'Unknown size',
+          resourceMimetype: 'application/pdf',
+        };
+      }
+      return res;
+    },
+  );
+  const handleOpenPicker = async () => {
+    try {
+      const fileData = await pickDocument();
+      if (fileData) {
+        setSelectedFile(fileData);
+        setUploadTitleInput(fileData.name?.replace(/\.[^/.]+$/, '') || '');
+        setIsUploadModalVisible(true);
+      }
+    } catch (err: any) {
+      if (!(
+        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
+      )) {
+        Toast.show({
+          type: 'error',
+          text1: 'Document Error',
+          text2: 'Could not select document.',
+        });
+      }
+    }
+  };
+  const handleConfirmUpload = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setIsUploading(true);
+      Toast.show({
+        type: 'info',
+        text1: 'Uploading to cloud storage...',
+        position: 'bottom',
+      });
+      const firebaseResult = await uploadFileToFirebaseClient(
+        selectedFile.uri,
+        'course-materials',
+      );
+
+      if (!firebaseResult.success || !firebaseResult.data?.permanentUrl) {
+        throw new Error('Cloud storage processing failed.');
+      }
+
+      Toast.show({
+        type: 'info',
+        text1: 'Syncing with backend...',
+        position: 'bottom',
+      });
+      const payload = {
+        resourceTitle:
+          uploadTitleInput.trim() || selectedFile.name || 'Untitled Document',
+        resourceUrl: firebaseResult.data.permanentUrl,
+        resourceSize: selectedFile.size || 0,
+        resourceMimetype:
+          selectedFile.type ||
+          selectedFile.mimeType ||
+          'application/octet-stream',
+      };
+      const apiResult = await saveCourseMaterial(course.courseId, payload);
+      if (apiResult.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Material Uploaded Successfully',
+        });
+        setIsUploadModalVisible(false);
+        setSelectedFile(null);
+        setUploadTitleInput('');
+        onRefresh();
+      } else {
+        throw new Error(apiResult.error || 'Backend synchronization failed.');
+      }
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Failed',
+        text2: err?.message || 'Please try again later.',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
   const handleDownload = async (url: string, fileName: string) => {
     try {
       if (Platform.OS === 'ios') {
@@ -1279,246 +1357,402 @@ export const RenderMaterials = ({
       }
 
       const downloadPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
-      Toast.show({ type: 'info', text1: 'Downloading...', position: 'bottom' });
-
-      const result = RNFS.downloadFile({
-        fromUrl: url,
-        toFile: downloadPath,
+      Toast.show({
+        type: 'info',
+        text1: 'Downloading material...',
+        position: 'bottom',
       });
+
+      const result = RNFS.downloadFile({ fromUrl: url, toFile: downloadPath });
       await result.promise;
       Toast.show({
         type: 'success',
         text1: 'Download Complete',
-        text2: `Saved to Downloads`,
+        text2: 'Saved to Downloads folder',
       });
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Download Failed' });
+      Toast.show({
+        type: 'error',
+        text1: 'Download Failed',
+        text2: 'Could not complete file download.',
+      });
     }
   };
-  const handleAddMaterial = async () => {
-    try {
-      const fileData = await pickDocument();
-      if (fileData) {
-        setIsUploading(true);
-        const firebaseResult = await uploadFileToFirebaseClient(
-          fileData.uri,
-          'course-materials',
-        );
-
-        if (!firebaseResult.success || !firebaseResult.data?.permanentUrl) {
-          Toast.show({
-            type: 'error',
-            text2: 'Cloud storage processing failed.',
-          });
-          return;
-        }
-        Toast.show({ type: 'info', text2: 'Finalizing setup with server...' });
-        const apiResult = await saveCourseMaterial(course.courseId, {
-          materialUrl: firebaseResult.data.permanentUrl,
-          title: fileData.name || 'Untitled Document',
-        });
-        if (apiResult.success) {
-          onRefresh();
-          Toast.show({
-            type: 'success',
-            text1: 'Material Uploaded Successfully',
-          });
-        } else {
-          Toast.show({
-            type: 'error',
-            text2: 'Backend pipeline synchronization failed.',
-          });
-          return;
-        }
-      }
-    } catch (err: any) {
-      if (!(
-        isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED
-      )) {
-        Toast.show({
-          type: 'error',
-          text1: 'Document Error',
-          text2: 'Attachment process failed.',
-        });
-      }
-    } finally {
-      setIsUploading(false);
-    }
-  };
-  const handleDelete = (url: string) => {
-    setSelectedMaterialUrl(url);
+  const handleDeleteClick = (resource: CourseResource) => {
+    setSelectedResource(resource);
     setDeleteModalVisible(true);
   };
-
   const confirmDelete = async () => {
-    if (!selectedMaterialUrl) return;
+    if (!selectedResource) return;
     try {
       setIsDeleting(true);
       const apiResult = await deleteCourseMaterial(course.courseId, {
-        materialUrl: selectedMaterialUrl,
+        resourceId: selectedResource.resourceId,
       });
+
       if (apiResult.success) {
         Toast.show({ type: 'success', text1: 'Material Deleted Successfully' });
         setDeleteModalVisible(false);
-        setSelectedMaterialUrl(null);
+        setSelectedResource(null);
         onRefresh();
       } else {
         throw new Error(apiResult.error || 'Backend failed to delete asset.');
       }
-    } catch (err) {
-      console.error('Deletion Pipeline Failure: ', err);
+    } catch (err: any) {
       Toast.show({
         type: 'error',
-        text1: 'Deletion failed',
-        text2: err instanceof Error ? err.message : 'Please try again',
+        text1: 'Deletion Failed',
+        text2: err?.message || 'Please try again',
       });
     } finally {
       setIsDeleting(false);
     }
   };
-
-  const filteredData = combinedResources.filter(
+  const filteredData = formattedResources.filter(
     item =>
-      item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item?.url
-        ?.split('/')
-        .pop()
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()),
+      item?.resourceTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item?.resourceUrl?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-
-  const selectedFileName =
-    selectedMaterialUrl?.split('/').pop() || 'this document';
+  const formatBytes = (bytes?: number | string) => {
+    if (!bytes || typeof bytes !== 'number') return '';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader
         title="Course Materials"
         rightElement={
-          userRole === 'lecturer' && (
-            <CustomButton
-              title="Save Changes"
-              onPress={handleAddMaterial}
-              disabled={isUploading}
-              iconName="add"
-              iconColor="#fff"
-              style={CourseActionStyles.addButton}
-            />
-          )
+          userRole === 'lecturer' ? (
+            <TouchableOpacity
+              style={[
+                CourseActionStyles.primaryButton,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={handleOpenPicker}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="add" size={18} color="#fff" />
+              <Text style={CourseActionStyles.primaryButtonText}>
+                Add Material
+              </Text>
+            </TouchableOpacity>
+          ) : null
         }
       />
       {shouldShowSearch && (
-        <CourseSearchBar
-          shouldShowSearch={shouldShowSearch}
-          textInput={searchQuery}
-          setTextInput={setSearchQuery}
-          placeholder="Search materials..."
-          colors={colors}
-          styles={CourseActionStyles}
-        />
+        <View
+          style={[
+            CourseActionStyles.searchContainer,
+            { backgroundColor: colors.backgroundSecondary || '#f5f5f5' },
+          ]}
+        >
+          <MaterialIcons
+            name="search"
+            size={20}
+            color="#888"
+            style={{ marginRight: 8 }}
+          />
+          <TextInput
+            style={[CourseActionStyles.searchInput, { color: colors.text }]}
+            placeholder="Search documents..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialIcons name="close" size={18} color="#888" />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
       <FlatList
         data={filteredData}
-        keyExtractor={(_, i) => i.toString()}
+        keyExtractor={item => item.resourceId}
         refreshing={refreshing}
         onRefresh={onRefresh}
         contentContainerStyle={[
-          CourseActionStyles.listPadding,
-          { paddingBottom: insets.bottom + 20, flexGrow: 1 },
+          CourseActionStyles.listContent,
+          { paddingBottom: insets.bottom + 24 },
         ]}
         renderItem={({ item }) => {
-          const fileName = item?.url?.split('/').pop() || 'document.pdf';
+          const fileName = item.resourceUrl.split('/').pop() || 'document';
+          const formattedSize = formatBytes(item.resourceSize as number);
+
           return (
             <View
               style={[
                 CourseActionStyles.materialCard,
-                { backgroundColor: colors.backgroundSecondary },
+                { backgroundColor: colors.backgroundSecondary || '#ffffff' },
               ]}
             >
-              <MaterialIcons
-                name="picture-as-pdf"
-                size={32}
-                color={colors.primary}
-              />
-              <View style={{ flex: 1, marginLeft: 12, paddingHorizontal: 4 }}>
+              <View
+                style={[
+                  CourseActionStyles.iconContainer,
+                  { backgroundColor: `${colors.primary}15` },
+                ]}
+              >
+                <MaterialIcons
+                  name="insert-drive-file"
+                  size={24}
+                  color={colors.primary}
+                />
+              </View>
+
+              <View style={CourseActionStyles.cardInfo}>
                 <Text
                   style={[
                     CourseActionStyles.materialTitle,
-                    { color: colors.textDarker },
+                    { color: colors.text },
                   ]}
-                  numberOfLines={2}
+                  numberOfLines={1}
                 >
-                  {item.title}
+                  {item.resourceTitle}
                 </Text>
-                <View style={CourseActionStyles.rowButtons}>
-                  <TouchableOpacity
-                    style={CourseActionStyles.downloadCircle}
-                    onPress={() => handleDownload(item.url, fileName)}
-                  >
-                    <MaterialIcons
-                      name="file-download"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  </TouchableOpacity>
-                  {userRole === 'lecturer' && (
-                    <TouchableOpacity
-                      style={CourseActionStyles.downloadCircle}
-                      onPress={() => handleDelete(item.url)}
-                    >
-                      <MaterialIcons
-                        name="delete"
-                        size={20}
-                        color={colors.primary}
-                      />
-                    </TouchableOpacity>
+                <View style={CourseActionStyles.metaRow}>
+                  {formattedSize ? (
+                    <Text style={CourseActionStyles.metaText}>
+                      {formattedSize}
+                    </Text>
+                  ) : null}
+                  {item.resourceMimetype && (
+                    <Text style={CourseActionStyles.metaText}>
+                      • {item.resourceMimetype.split('/').pop()?.toUpperCase()}
+                    </Text>
                   )}
                 </View>
+              </View>
+
+              <View style={CourseActionStyles.actionRow}>
+                <TouchableOpacity
+                  style={[
+                    CourseActionStyles.iconButton,
+                    { backgroundColor: `${colors.primary}10` },
+                  ]}
+                  onPress={() => handleDownload(item.resourceUrl, fileName)}
+                >
+                  <MaterialIcons
+                    name="file-download"
+                    size={18}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+
+                {userRole === 'lecturer' && (
+                  <TouchableOpacity
+                    style={[
+                      CourseActionStyles.iconButton,
+                      CourseActionStyles.deleteIconButton,
+                    ]}
+                    onPress={() => handleDeleteClick(item)}
+                  >
+                    <MaterialIcons
+                      name="delete-outline"
+                      size={18}
+                      color="#FF3B30"
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           );
         }}
         ListEmptyComponent={
           <EmptyState
-            iconName="search-off"
             title="No Materials Found"
             subtitle={
               userRole === 'lecturer'
-                ? "You haven't uploaded any resources yet."
-                : "Your Instructor hasn't uploaded any materials for this course yet."
+                ? "You haven't uploaded any resources for this course yet."
+                : "Your instructor hasn't posted any materials yet."
             }
-            buttonText={
-              userRole === 'lecturer' ? 'Upload Course Material' : undefined
-            }
-            onPress={handleAddMaterial}
+            iconName="folder-open"
           />
         }
       />
-      <ActionModal
-        visible={deleteModalVisible}
-        onClose={() => {
-          if (!isDeleting) {
-            setDeleteModalVisible(false);
-            setSelectedMaterialUrl(null);
-          }
-        }}
-        onContinue={confirmDelete}
-        title="Delete Material"
-        subtitle={`Are you sure you want to permanently delete "${selectedFileName}"?`}
-        continueText="Delete"
-        loading={isDeleting}
-      />
+      <Modal visible={isUploadModalVisible} transparent animationType="fade">
+        <View style={CourseActionStyles.modalOverlay}>
+          <View
+            style={[
+              CourseActionStyles.modalContent,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <Text
+              style={[
+                CourseActionStyles.modalHeaderTitle,
+                { color: colors.text },
+              ]}
+            >
+              Upload Material
+            </Text>
+            <Text
+              style={[CourseActionStyles.modalSubText, { color: colors.text }]}
+            >
+              Provide a custom title for your document.
+            </Text>
+
+            <TextInput
+              style={[
+                CourseActionStyles.titleInput,
+                { color: colors.text, borderColor: colors.border || '#ddd' },
+              ]}
+              placeholder="Resource Title (e.g., Week 1 Lecture Notes)"
+              placeholderTextColor={colors.inputTextHolder}
+              value={uploadTitleInput}
+              onChangeText={setUploadTitleInput}
+            />
+
+            {selectedFile && (
+              <View style={CourseActionStyles.filePreviewBadge}>
+                <MaterialIcons
+                  name="attach-file"
+                  size={16}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.filePreviewText,
+                    { color: colors.text },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {selectedFile.name} ({formatBytes(selectedFile.size)})
+                </Text>
+              </View>
+            )}
+
+            <View style={CourseActionStyles.modalButtonRow}>
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.modalBtn,
+                  CourseActionStyles.cancelBtn,
+                ]}
+                onPress={() => {
+                  if (!isUploading) {
+                    setIsUploadModalVisible(false);
+                    setSelectedFile(null);
+                  }
+                }}
+              >
+                <Text style={CourseActionStyles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.modalBtn,
+                  CourseActionStyles.submitBtn,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleConfirmUpload}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={CourseActionStyles.submitBtnText}>
+                    Upload & Save
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={deleteModalVisible} transparent animationType="fade">
+        <View style={CourseActionStyles.modalOverlay}>
+          <View
+            style={[
+              CourseActionStyles.modalContent,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <View style={CourseActionStyles.deleteIconWrap}>
+              <MaterialIcons name="warning" size={28} color="#FF3B30" />
+            </View>
+            <Text
+              style={[
+                CourseActionStyles.modalHeaderTitle,
+                { color: colors.textDarker },
+              ]}
+            >
+              Delete Material
+            </Text>
+            <Text
+              style={[CourseActionStyles.modalSubText, { color: colors.text }]}
+            >
+              Are you sure you want to permanently delete "
+              {selectedResource?.resourceTitle}"?
+            </Text>
+
+            <View style={CourseActionStyles.modalButtonRow}>
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.modalBtn,
+                  { borderColor: colors.primary },
+                ]}
+                onPress={() => {
+                  if (!isDeleting) {
+                    setDeleteModalVisible(false);
+                    setSelectedResource(null);
+                  }
+                }}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.cancelBtnText,
+                    { color: colors.primary },
+                  ]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.modalBtn,
+                  { backgroundColor: colors.btnColor },
+                ]}
+                onPress={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text
+                    style={[
+                      CourseActionStyles.submitBtnText,
+                      { color: colors.btnTextColor },
+                    ]}
+                  >
+                    Delete
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
-export const RenderAssignments = ({
-  course,
-  userRole,
-}: {
-  course: Course | null;
-  userRole: string;
-}) => {
+export const RenderAssignments = ({ course }: { course: Course | null }) => {
+  if (!course) {
+    console.log('Course details missing.');
+    return null;
+  }
   const { colors } = useTheme();
+  const user = useAppSelector(state => state.user);
+  const userRole = user?.usertype;
   const insets = useSafeAreaInsets();
   const [isModalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -1534,10 +1768,6 @@ export const RenderAssignments = ({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const shouldShowSearch = !(userRole === 'student' || false);
-
-  if (!course) {
-    return null;
-  }
   const filteredData = localAssignments.filter(
     (item: any) =>
       item?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1562,13 +1792,11 @@ export const RenderAssignments = ({
       console.error('Refresh assignments failed:', error);
     }
   };
-
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchAssignments();
     setRefreshing(false);
   };
-
   const handleAssignmentDeletePress = (
     assignmentId: string,
     assignmentTitle: string,
@@ -1576,7 +1804,6 @@ export const RenderAssignments = ({
     setSelectedAssignment({ id: assignmentId, title: assignmentTitle });
     setDeleteModalVisible(true);
   };
-
   const confirmAssignmentDelete = async () => {
     if (!selectedAssignment) return;
     try {
@@ -1641,7 +1868,7 @@ export const RenderAssignments = ({
           setTextInput={setSearchQuery}
           placeholder="Search assignments..."
           colors={colors}
-          styles={CourseActionStyles}
+          CourseActionStyles={CourseActionStyles}
         />
       )}
       <FlatList
@@ -1749,12 +1976,12 @@ export const RenderAssignments = ({
 };
 export const RenderStudentExceptions = ({
   exceptions,
-  user,
   onAddPress,
   refreshing,
   onRefresh,
 }: StudentExceptionsProps) => {
   const { colors } = useTheme();
+  const user = useAppSelector(state => state.user);
   const currentPlan = user.tier || 'free';
   const planLimit = EXCEPTION_ACCOUNT_LIMITS[currentPlan];
   const [searchQuery, setSearchQuery] = useState('');
@@ -1817,7 +2044,7 @@ export const RenderStudentExceptions = ({
               setTextInput={setSearchQuery}
               placeholder="Search lecture exceptions..."
               colors={colors}
-              styles={CourseActionStyles}
+              CourseActionStyles={CourseActionStyles}
             />
           )}
         </>
@@ -2003,7 +2230,7 @@ export const RenderLecturerExceptionsManage = ({
               setTextInput={setSearchQuery}
               placeholder="Search assignments..."
               colors={colors}
-              styles={CourseActionStyles}
+              CourseActionStyles={CourseActionStyles}
             />
           )}
         </>
@@ -3001,7 +3228,7 @@ export const RenderLecturerTestManage = ({
                 setTextInput={setSearchQuery}
                 placeholder="Search assessments..."
                 colors={colors}
-                styles={CourseActionStyles}
+                CourseActionStyles={CourseActionStyles}
               />
             )}
           </>
@@ -5276,14 +5503,6 @@ export const CourseActionStyles = StyleSheet.create({
     color: PRIMARY_COLOR_TINT,
     marginBottom: 4,
   },
-  materialCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
-  },
-  materialTitle: { fontSize: 14, fontWeight: '600' },
   rowButtons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5342,7 +5561,6 @@ export const CourseActionStyles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
-  actionRow: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: { padding: 8 },
   modalOverlay: {
     flex: 1,
@@ -5427,13 +5645,6 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  modalSubText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 25,
-  },
   deleteConfirmBtn: {
     flex: 2,
     paddingVertical: 14,
@@ -5443,26 +5654,6 @@ export const CourseActionStyles = StyleSheet.create({
   },
   completedTopicText: {
     color: PRIMARY_COLOR,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 50,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 15,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: PRIMARY_COLOR_TINT,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
   },
   overdueCard: {
     borderColor: '#ffccd2',
@@ -5935,15 +6126,7 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  headerTitle: { fontSize: 18, fontWeight: 'bold' },
   draftText: { color: '#2D5A5A', fontWeight: 'bold' },
-  titleInput: {
-    fontSize: 14,
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    padding: 10,
-    marginBottom: 20,
-  },
   questionCard: {
     marginBottom: 15,
     padding: 15,
@@ -6401,11 +6584,6 @@ export const CourseActionStyles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  modalContent: {
-    padding: 15,
-    borderRadius: 25,
-    width: '90%',
-  },
   //Start
   title: {
     fontSize: 22,
@@ -6576,5 +6754,162 @@ export const CourseActionStyles = StyleSheet.create({
   classActionBtnText: { fontSize: 14, fontWeight: 'bold', marginRight: 4 },
   text: { fontSize: 14, fontWeight: 'bold', marginRight: 15 },
   mainIcon: { marginVertical: 20, alignSelf: 'center' },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  listContent: {
+    gap: 10,
+  },
+  materialCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardInfo: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  materialTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#888',
+    marginRight: 6,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteIconButton: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 380,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  modalHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  modalSubText: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  titleInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 46,
+    fontSize: 14,
+    marginBottom: 14,
+    borderColor: PRIMARY_COLOR_TINT,
+  },
+  filePreviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  filePreviewText: {
+    fontSize: 13,
+    marginLeft: 6,
+    flex: 1,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalBtn: {
+    height: 50,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+  },
+  deleteIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
 });
 

@@ -159,83 +159,122 @@ export const ResourceSearchCard = ({
   navigation: any;
   colors: any;
 }) => {
-  const getFileIconProps = (format: string) => {
-    const fmt = format?.toLowerCase();
-    if (fmt === 'pdf')
-      return {
-        name: 'picture-as-pdf-outlined',
-        color: PRIMARY_COLOR_TINT_MAIN,
-      };
-    if (['doc', 'docx'].includes(fmt))
-      return {
-        name: 'insert-drive-file-outlined',
-        color: PRIMARY_COLOR_TINT_MAIN,
-      };
-    if (['xls', 'xlsx'].includes(fmt))
-      return { name: 'article-outlined', color: PRIMARY_COLOR_TINT_MAIN };
-    if (['ppt', 'pptx'].includes(fmt))
-      return {
-        name: 'insert-drive-file-outlined',
-        color: PRIMARY_COLOR_TINT_MAIN,
-      };
-    if (['jpg', 'jpeg', 'png'].includes(fmt))
-      return { name: 'image-outlined', color: PRIMARY_COLOR_TINT_MAIN };
-    return {
-      name: 'insert-drive-file-outlined',
-      color: PRIMARY_COLOR_TINT_MAIN,
-    };
+  const getFileIconProps = (mimetype?: string, url?: string) => {
+    const fmt =
+      mimetype?.toLowerCase() || url?.split('.').pop()?.toLowerCase() || '';
+
+    if (fmt.includes('pdf')) {
+      return { name: 'picture-as-pdf', color: '#EF4444' };
+    }
+    if (
+      fmt.includes('word') ||
+      ['doc', 'docx'].some(ext => fmt.includes(ext))
+    ) {
+      return { name: 'description', color: '#3B82F6' };
+    }
+    if (
+      fmt.includes('sheet') ||
+      fmt.includes('excel') ||
+      ['xls', 'xlsx', 'csv'].some(ext => fmt.includes(ext))
+    ) {
+      return { name: 'table-chart', color: '#10B981' };
+    }
+    if (
+      fmt.includes('presentation') ||
+      ['ppt', 'pptx'].some(ext => fmt.includes(ext))
+    ) {
+      return { name: 'slideshow', color: '#F59E0B' };
+    }
+    if (
+      fmt.includes('image') ||
+      ['jpg', 'jpeg', 'png', 'webp'].some(ext => fmt.includes(ext))
+    ) {
+      return { name: 'image', color: '#8B5CF6' }; // Purple for Images
+    }
+    return { name: 'insert-drive-file', color: PRIMARY_COLOR_TINT_MAIN };
   };
-  const iconProps = getFileIconProps(item.format);
+  const formatBytes = (bytes?: number | string) => {
+    if (!bytes || typeof bytes !== 'number') return '';
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const iconProps = getFileIconProps(item.resourceMimetype, item.resourceUrl);
+  const formattedSize = formatBytes(item.resourceSize);
+
   const handlePress = () => {
     if (item.isPremiumPaid) {
-      navigation.navigate('ProductDetails', { productId: item.id });
+      navigation.navigate('ProductDetails', {
+        productId: item.id || item.productId,
+      });
     } else {
       navigation.navigate('CourseDetails', { courseId: item.courseId });
     }
   };
+
   return (
     <TouchableOpacity
       style={[
         styles.cardContainer,
-        { backgroundColor: colors.backgroundSecondary },
+        {
+          backgroundColor: colors.backgroundSecondary || '#ffffff',
+          borderColor: colors.border || '#f0f0f0',
+        },
       ]}
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <View style={styles.iconContainer}>
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: `${iconProps.color}15` },
+        ]}
+      >
         <MaterialIcons
           name={iconProps.name}
-          size={32}
+          size={24}
           color={iconProps.color}
         />
       </View>
+
       <View style={styles.metaContainer}>
         <Text
-          style={[styles.titleText, { color: colors.text }]}
+          style={[styles.titleText, { color: colors.text || '#1F2937' }]}
           numberOfLines={1}
         >
-          {item.title}
+          {item.resourceTitle || item.title || 'Untitled Resource'}
         </Text>
+
         <View style={styles.badgeRow}>
           <Text
-            style={[styles.sourceText, { color: colors.text || '#7F8C8D' }]}
+            style={[styles.sourceText, { color: colors.subtext || '#6B7280' }]}
+            numberOfLines={1}
           >
-            {item.metaSource}
+            {item.metaSource || item.courseTitle || 'General Material'}
           </Text>
-          {item.fileSize && (
+          {formattedSize ? (
             <Text
-              style={[styles.sizeText, { color: colors.text || '#7F8C8D' }]}
+              style={[styles.sizeText, { color: colors.subtext || '#9CA3AF' }]}
             >
-              • {item.fileSize}
+              • {formattedSize}
             </Text>
-          )}
+          ) : null}
         </View>
       </View>
-      <View style={styles.actionContainer}>
+
+      <View
+        style={[
+          styles.actionContainer,
+          { backgroundColor: colors.card || '#F9FAFB' },
+        ]}
+      >
         <MaterialIcons
           name="chevron-right"
-          size={20}
-          color={colors.text || '#7F8C8D'}
+          size={18}
+          color={colors.text || '#9CA3AF'}
         />
       </View>
     </TouchableOpacity>
@@ -252,43 +291,6 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR_TINT_MAIN,
     fontSize: 10,
     fontWeight: '700',
-  },
-  cardContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 15,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaContainer: {
-    flex: 1,
-    marginLeft: 14,
-    justifyContent: 'center',
-  },
-  titleText: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  sourceText: {
-    fontSize: 12,
-  },
-  sizeText: {
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  actionContainer: {
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginLeft: 8,
   },
   priceBadge: {
     flexDirection: 'row',
@@ -332,11 +334,6 @@ const styles = StyleSheet.create({
   infoMetaContainer: {
     flex: 1,
     marginLeft: 12,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
   },
   academicBadge: {
     backgroundColor: PRIMARY_COLOR,
@@ -391,5 +388,56 @@ const styles = StyleSheet.create({
   metricLabelText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  cardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    marginVertical: 6,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  metaContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  titleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sourceText: {
+    fontSize: 12,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  sizeText: {
+    fontSize: 12,
+    marginLeft: 6,
+    fontWeight: '400',
+  },
+  actionContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

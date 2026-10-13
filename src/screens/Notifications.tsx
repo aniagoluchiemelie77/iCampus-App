@@ -138,8 +138,6 @@ const Notifications = () => {
       case 'CONTENT_ADDED':
         navigation.navigate('CourseSubPage', {
           title: 'Course Contents',
-          userRole: user.usertype,
-          course: payload.course,
         });
         break;
 
@@ -161,8 +159,6 @@ const Notifications = () => {
       case 'ASSIGNMENT_REMOVED':
         navigation.navigate('CourseSubPage', {
           title: 'Assignments',
-          userRole: user.usertype,
-          course: payload.course,
         });
         break;
 
@@ -170,8 +166,6 @@ const Notifications = () => {
       case 'MATERIAL_DELETED':
         navigation.navigate('CourseSubPage', {
           title: 'Course Materials',
-          userRole: user.usertype,
-          course: payload.course,
         });
         break;
       case 'PROFILE_VIEW':
