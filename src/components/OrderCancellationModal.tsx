@@ -36,9 +36,12 @@ export const CancellationModal = ({
   const { handleCancelOrder } = useAppDataContext();
   const [isCancelling, setIsCancelling] = useState(false);
   const handleConfirmCancel = async () => {
-    setIsCancelling(true);
-    await handleCancelOrder(orderId, reason);
-    setIsCancelling(false);
+    try {
+      setIsCancelling(true);
+      await handleCancelOrder(orderId, reason);
+    } finally {
+      setIsCancelling(false);
+    }
   };
   return (
     <Modal

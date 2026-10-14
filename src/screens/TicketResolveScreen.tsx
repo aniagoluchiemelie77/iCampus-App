@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -22,6 +21,7 @@ import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { EditUserModalContent } from '../components/editUser';
 import { SendNotificationModal } from '../components/sendNotificationComponent';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { ActionModal } from '../components/LogoutModal.tsx';
 
 export const TicketResolveScreen = () => {
   const navigation = useNavigation<any>();
@@ -36,6 +36,8 @@ export const TicketResolveScreen = () => {
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [isResolveModalVisible, setResolveModalVisible] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
 
   useEffect(() => {
     const loadContextData = async () => {
@@ -59,21 +61,20 @@ export const TicketResolveScreen = () => {
   }, [ticket.userId]);
 
   const handleSetResolved = async () => {
-    Alert.alert(
-      'Resolve Ticket',
-      'Are you sure this issue is completely resolved?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Resolve',
-          style: 'default',
-          onPress: async () => {
-            await updateTicketStatus(ticket.ticketRefId, 'resolved');
-            navigation.goBack();
-          },
-        },
-      ],
-    );
+    try {
+      setIsResolving(true);
+      await updateTicketStatus(ticket.ticketRefId, 'resolved');
+      setResolveModalVisible(false);
+      navigation.goBack();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: "Couldn't resolve the ticket, please retry.",
+      });
+    } finally {
+      setIsResolving(false);
+    }
   };
 
   const getSeverityColor = (severity: string) => {
@@ -382,11 +383,24 @@ export const TicketResolveScreen = () => {
         <CustomButton
           title="Mark As Resolved"
           style={[styles.actionBtn, { backgroundColor: colors.success }]}
-          onPress={handleSetResolved}
+          onPress={() => setResolveModalVisible(true)}
           iconName="check-circle"
           iconColor="#fff"
         />
       </View>
+      <ActionModal
+        visible={isResolveModalVisible}
+        onClose={() => {
+          if (!isResolving) {
+            setResolveModalVisible(false);
+          }
+        }}
+        onContinue={handleSetResolved}
+        title="Resolve Ticket"
+        subtitle="Are you sure this issue is completely resolved?"
+        continueText="Resolve"
+        loading={isResolving}
+      />
 
       {/* SEND NOTIFICATION MODAL */}
       <SendNotificationModal

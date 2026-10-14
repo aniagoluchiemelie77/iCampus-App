@@ -8,7 +8,6 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -25,6 +24,7 @@ import { updatePhoneNumbersData } from '../context/UserSlice.ts';
 import { useDispatch } from 'react-redux';
 import { useTheme } from '../context/ThemeContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { ActionModal } from '../components/LogoutModal.tsx';
 
 export const PhoneScreen = () => {
   const { colors } = useTheme();
@@ -41,6 +41,9 @@ export const PhoneScreen = () => {
   const [timer, setTimer] = useState(900);
   const dispatch = useDispatch();
   const [codeInput, setCodeInput] = useState('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handlePhoneChange = (text: string) => {
     setPhoneNumber(text);
@@ -66,36 +69,30 @@ export const PhoneScreen = () => {
     }
   };
 
-  const handleDeleteRecovery = async (phoneNum: string) => {
-    Alert.alert(
-      'Remove Phone Number',
-      `Are you sure you want to remove ${phoneNum}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const res = await handleDeletePhone(phoneNum);
-            if (res && res.success) {
-              dispatch(
-                updatePhoneNumbersData({ phoneNumbers: res.phoneNumbers }),
-              );
-              Toast.show({
-                type: 'success',
-                text1: 'Phone number removed',
-              });
-            } else {
-              Toast.show({
-                type: 'error',
-                text1: 'Delete Error',
-                text2: "Couldn't delete phone number, please retry.",
-              });
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteRecovery = async () => {
+    if (!selectedItem) return;
+
+    try {
+      setIsDeleting(true);
+      const res = await handleDeletePhone(selectedItem);
+      if (res && res.success) {
+        dispatch(updatePhoneNumbersData({ phoneNumbers: res.phoneNumbers }));
+        Toast.show({
+          type: 'success',
+          text1: 'Phone number removed',
+        });
+        setDeleteModalVisible(false);
+        setSelectedItem(null);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Error',
+          text2: "Couldn't delete phone number, please retry.",
+        });
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleVerify = async () => {
@@ -188,7 +185,10 @@ export const PhoneScreen = () => {
                 )}
               </View>
               <TouchableOpacity
-                onPress={() => handleDeleteRecovery(item.number)}
+                onPress={() => {
+                  setDeleteModalVisible(true);
+                  setSelectedItem(item.number);
+                }}
               >
                 <MaterialIcons
                   name="delete-outline"
@@ -403,6 +403,20 @@ export const PhoneScreen = () => {
           </View>
         )}
       </ScrollView>
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedItem(null);
+          }
+        }}
+        onContinue={handleDeleteRecovery}
+        title="Remove Phone Number?"
+        subtitle={`Are you sure you want to remove ${selectedItem}? This action cannot be undone.`}
+        continueText="Remove"
+        loading={isDeleting}
+      />
     </SafeAreaView>
   );
 };

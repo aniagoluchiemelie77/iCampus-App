@@ -11,7 +11,7 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import { PostCard } from './PostCard';
+import { PostCard, getPostId } from './PostCard';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDataContext } from '../context/EventContext.tsx';
@@ -317,11 +317,12 @@ export function FeedTab() {
     }) => {
       changed.forEach((viewToken: ViewToken) => {
         if (viewToken.isViewable && viewToken.item) {
-          incrementImpression(viewToken.item.postId);
+          const viewedPostId = getPostId(viewToken.item);
+          if (viewedPostId) incrementImpression(viewedPostId);
         }
       });
       if (viewableItems.length > 0 && viewableItems[0].item) {
-        setActivePostId(viewableItems[0].item.postId);
+        setActivePostId(getPostId(viewableItems[0].item));
       }
     },
   ).current;
@@ -352,9 +353,14 @@ export function FeedTab() {
         <FlatList
           ref={flatListRef}
           data={posts}
-          keyExtractor={item => item.postId || item.id}
+          keyExtractor={(item, index) =>
+            getPostId(item) || `post-index-${index}`
+          }
           renderItem={({ item }) => (
-            <PostCard post={item} isVisible={item.postId === activePostId} />
+            <PostCard
+              post={item}
+              isVisible={getPostId(item) === activePostId}
+            />
           )}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}

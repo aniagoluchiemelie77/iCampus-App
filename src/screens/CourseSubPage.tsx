@@ -63,7 +63,9 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   const [localExceptions, setLocalExceptions] = useState<any[]>(
     initialExceptions || [],
   );
-  const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
+  const [currentCourse, setCurrentCourse] = useState<Course | null>(
+    course ?? null,
+  );
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [scheduledLecture, setScheduledLecture] = useState<any | null>(null);
   const [tests, setTests] = useState<any[]>([]);
@@ -454,6 +456,17 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (title === 'Exceptions') fetchExceptions();
     if (title === 'Assessments') fetchTests();
   }, [title, fetchExceptions, fetchTests]);
+
+  useEffect(() => {
+    if (
+      (title === 'Course Contents' ||
+        title === 'Course Materials' ||
+        title === 'Assignments') &&
+      course?.courseId
+    ) {
+      fetchCourseDetails();
+    }
+  }, [title, course?.courseId, fetchCourseDetails]);
 
   useEffect(() => {
     if (title === 'Assessments' && userRole === 'student' && tests.length > 0) {

@@ -84,7 +84,8 @@ export const DropOffStationItem = ({
     try {
       setIsDeleting(true);
       onDelete(selectedDropOffStation.id);
-      setIsDeleting(false);
+      setDeleteModalVisible(false);
+      setSelectedDropOffStation(null);
 
       Toast.show({
         type: 'success',
@@ -92,12 +93,13 @@ export const DropOffStationItem = ({
         text2: 'Drop off station deleted successfully.',
       });
     } catch (error: any) {
-      setIsDeleting(false);
       Toast.show({
         type: 'error',
         text1: 'Deletion Failed',
         text2: error?.message || 'Failed to delete drop off station.',
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
   return (

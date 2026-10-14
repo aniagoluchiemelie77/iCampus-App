@@ -39,23 +39,28 @@ export const AdItemComponent: React.FC<AdItemComponentProps> = ({
   };
 
   const confirmDelete = async () => {
-    setIsDeleting(true);
-    const result = await deleteAdApi(item.id);
-    setIsDeleting(false);
+    try {
+      setIsDeleting(true);
+      const result = await deleteAdApi(item.id);
 
-    if (result.success) {
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: 'Advertisement deleted successfully.',
-      });
-      onRefresh();
-    } else {
-      Toast.show({
-        type: 'error',
-        text1: 'Deletion Failed',
-        text2: result.error,
-      });
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Advertisement deleted successfully.',
+        });
+        setDeleteModalVisible(false);
+        setSelectedAd(null);
+        onRefresh();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Deletion Failed',
+          text2: result.error,
+        });
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 

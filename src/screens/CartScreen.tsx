@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
   FlatList,
   View,
@@ -14,9 +14,10 @@ import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../context/EventContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
-import { useNavigation } from '@react-navigation/native';
-import { db } from '../hooks/useSQLiteDb';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { fetchProductsByIdsFromLocalDb } from '../hooks/useSQLiteDb';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { ActionModal } from '../components/LogoutModal.tsx';
 
 interface CartItemEntry {
   productId: string;
@@ -26,7 +27,24 @@ export const CartScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
-  const { handleCartItemToggle, handleClearCart } = useAppDataContext();
+  const {
+    handleCartItemToggle,
+    handleClearCart,
+    catalogSyncVersion,
+  } = useAppDataContext();
+  const [clearCartModalVisible, setClearCartModalVisible] = useState(false);
+  const [isClearingCart, setIsClearingCart] = useState(false);
+  const [focusRefreshKey, setFocusRefreshKey] = useState(0);
+
+  const confirmClearCart = async () => {
+    try {
+      setIsClearingCart(true);
+      await handleClearCart();
+    } finally {
+      setIsClearingCart(false);
+      setClearCartModalVisible(false);
+    }
+  };
 
   const cartData = useMemo<CartItemEntry[]>(() => {
     return currentUser?.cart ?? [];
@@ -37,39 +55,28 @@ export const CartScreen = () => {
     const map = new Map<string, any>();
     if (cartData.length === 0) return map;
 
-    try {
-      const productIds = cartData.map(item => item.productId);
-      const placeholders = productIds.map(() => '?').join(',');
-      const queryResult = db.execute(
-        `SELECT * FROM products WHERE productId IN (${placeholders});`,
-        productIds,
-      );
+    const products = fetchProductsByIdsFromLocalDb(
+      cartData.map(item => item.productId),
+    );
 
-      const rows = queryResult?.rows;
-      const rawProducts = Array.isArray(rows)
-        ? rows
-        : rows && '_array' in rows
-          ? rows._array
-          : [];
-
-      rawProducts.forEach((item: any) => {
-        const parsedProduct = {
-          ...item,
-          mediaUrls: item.mediaUrls ? JSON.parse(item.mediaUrls) : [],
-          physicalDetails: item.physicalDetails
-            ? JSON.parse(item.physicalDetails)
-            : null,
-        };
-        if (parsedProduct.productId) {
-          map.set(parsedProduct.productId, parsedProduct);
-        }
-      });
-    } catch (error) {
-      console.error('Failed to load cart products from SQLite:', error);
-    }
+    products.forEach((item: any) => {
+      if (item.productId) {
+        map.set(item.productId, item);
+      }
+    });
 
     return map;
-  }, [cartData]);
+    // `catalogSyncVersion` and `focusRefreshKey` are deliberate triggers: the
+    // catalog sync is async, so the first render can legitimately miss rows.
+  }, [cartData, catalogSyncVersion, focusRefreshKey]);
+
+  // Re-read SQLite whenever the screen is re-entered, so rows cached by a late
+  // sync (or removed elsewhere) are reflected immediately.
+  useFocusEffect(
+    useCallback(() => {
+      setFocusRefreshKey(previous => previous + 1);
+    }, []),
+  );
 
   const { totalPrice, containsInvalidItems } = useMemo(() => {
     let total = 0;
@@ -131,7 +138,7 @@ export const CartScreen = () => {
           itemCount > 0 ? (
             <CustomButton
               title="Clear Cart"
-              onPress={handleClearCart}
+              onPress={() => setClearCartModalVisible(true)}
               style={styles.headerBtn}
             />
           ) : undefined
@@ -184,6 +191,19 @@ export const CartScreen = () => {
           />
         </View>
       )}
+      <ActionModal
+        visible={clearCartModalVisible}
+        onClose={() => {
+          if (!isClearingCart) {
+            setClearCartModalVisible(false);
+          }
+        }}
+        onContinue={confirmClearCart}
+        title="Clear Cart?"
+        subtitle="Are you sure you want to remove all items from your cart? This action cannot be undone."
+        continueText="Clear Cart"
+        loading={isClearingCart}
+      />
     </SafeAreaView>
   );
 };

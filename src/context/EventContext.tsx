@@ -35,7 +35,10 @@ import {
 import {
   db,
   deleteProductFromLocalDb,
+  fetchProductsByIdsFromLocalDb,
+  parseProductRow,
   setupDatabase,
+  upsertProductToLocalDb,
 } from '../hooks/useSQLiteDb';
 import {
   fetchPostByIdAPI,
@@ -70,6 +73,14 @@ interface AppDataContextType {
   allReviews: any[];
   syncCatalogToDatabase: () => Promise<void>;
   syncUsersToDatabase: () => Promise<void>;
+  /**
+   * Incremented every time the local catalog cache is (re)written.
+   * Screens that read products out of SQLite include this in their query
+   * dependencies so they refresh once the async sync actually lands.
+   */
+  catalogSyncVersion: number;
+  /** Full local product cache, used by Checkout to resolve cart entries. */
+  allProducts: Product[];
   deleteProductLocal: (productId: string) => Promise<void>;
   emailSupportTickets: SupportTicket[];
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
@@ -144,6 +155,24 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [isEmailSupportLoading, setIsEmailSupportLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [catalogSyncVersion, setCatalogSyncVersion] = useState(0);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  /** Mirrors the local `products` cache into React state. */
+  const loadAllProductsFromCache = useCallback(() => {
+    try {
+      const result = db.execute('SELECT * FROM products;');
+      const rows = result?.rows;
+      const rawProducts = Array.isArray(rows)
+        ? rows
+        : rows && '_array' in rows
+          ? rows._array
+          : [];
+      setAllProducts(rawProducts.map(parseProductRow));
+    } catch (error) {
+      console.error('Failed to load product cache into state:', error);
+    }
+  }, []);
 
   const toggleLike = async (postId: string) => {
     const userId = currentUser.uid;
@@ -582,35 +611,16 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const handleAddAllFavoritesToCart = async () => {
     const favoriteIds = currentUser?.favorites ?? [];
     if (favoriteIds.length === 0) return;
-    const placeholders = favoriteIds.map(() => '?').join(',');
-    let productsMap = new Map();
-    try {
-      const queryResult = db.execute(
-        `SELECT * FROM products WHERE productId IN (${placeholders});`,
-        favoriteIds,
-      );
-      const rows = queryResult?.rows;
-      const rawProducts = Array.isArray(rows)
-        ? rows
-        : rows && '_array' in rows
-          ? rows._array
-          : [];
 
-      rawProducts.forEach((p: any) => {
-        const physical = p.physicalDetails
-          ? JSON.parse(p.physicalDetails)
-          : null;
-        productsMap.set(p.productId, physical);
-      });
-    } catch (e) {
-      console.error(
-        'Failed to fetch favorite products details for cart conversion:',
-        e,
-      );
-    }
+    const productsMap = new Map<string, any>(
+      fetchProductsByIdsFromLocalDb(favoriteIds).map((product: any) => [
+        product.productId,
+        product,
+      ]),
+    );
 
     const itemsToAdd: CartItem[] = favoriteIds.map(id => {
-      const physical = productsMap.get(id);
+      const physical = productsMap.get(id)?.physicalDetails;
       return {
         productId: id,
         quantity: 1,
@@ -747,29 +757,37 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         const result = await fetchAllProductsAPI();
 
         if (result.success && result.data) {
+          let syncedCount = 0;
+          let failedCount = 0;
+
           for (const product of result.data) {
-            db.execute(
-              `INSERT OR REPLACE INTO products (productId, title, description, price, sellerId, type, amountInStock, mediaUrls, physicalDetails) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-              [
-                product.productId,
-                product.title,
-                product.description,
-                product.price,
-                product.sellerId,
-                product.type,
-                product.amountInStock,
-                JSON.stringify(product.mediaUrls),
-                JSON.stringify(product.physicalDetails),
-              ],
-            );
+            try {
+              upsertProductToLocalDb(product);
+              syncedCount++;
+            } catch (rowError) {
+              // One malformed row must never abort the whole catalog sync —
+              // that used to leave the cache empty and blank Favorites/Cart.
+              failedCount++;
+              console.error(
+                'Failed to cache product locally:',
+                product?.productId,
+                rowError,
+              );
+            }
           }
 
+          console.log(
+            `Catalog sync complete: ${syncedCount} cached, ${failedCount} skipped.`,
+          );
           await AsyncStorage.setItem('CATALOG_SYNC_TIME', now.toString());
         }
       }
     } catch (error) {
       console.error('Database sync failed:', error);
+    } finally {
+      // Always publish, even on failure, so screens stop reading a stale cache.
+      loadAllProductsFromCache();
+      setCatalogSyncVersion(previous => previous + 1);
     }
   };
   const syncUsersToDatabase = async () => {
@@ -839,6 +857,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     try {
       deleteProductFromLocalDb(productId);
       refreshProducts();
+      loadAllProductsFromCache();
+      setCatalogSyncVersion(previous => previous + 1);
     } catch (error) {
       console.error('Failed local product deletion pipeline:', error);
     }
@@ -904,6 +924,9 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     syncUsersToDatabase();
     fetchReviews();
     syncCatalogToDatabase();
+    // Seed the in-memory cache so screens render immediately from whatever is
+    // already on disk, before/without waiting for the network sync.
+    loadAllProductsFromCache();
   }, []);
   return (
     <AppDataContext.Provider
@@ -912,6 +935,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         deleteProductLocal,
         syncCatalogToDatabase,
         syncUsersToDatabase,
+        catalogSyncVersion,
+        allProducts,
         currentUser,
         allReviews,
         setAllReviews,

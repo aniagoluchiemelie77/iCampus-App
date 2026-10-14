@@ -474,14 +474,16 @@ const CreateAssignmentModal = ({
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <Text
-            style={[
-              CourseActionStyles.modalTitle,
-              { color: colors.textDarker },
-            ]}
-          >
-            Create New Assignment
-          </Text>
+          <View style={CourseActionStyles.sheetGrabber} />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text
+              style={[
+                CourseActionStyles.modalTitle,
+                { color: colors.textDarker },
+              ]}
+            >
+              Create New Assignment
+            </Text>
 
           <TextInput
             style={[
@@ -657,7 +659,8 @@ const CreateAssignmentModal = ({
               isLoading={isSaving}
               style={CourseActionStyles.saveBtn}
             />
-          </View>
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -727,14 +730,16 @@ export const AddExceptionModal = ({
               { backgroundColor: colors.backgroundSecondary },
             ]}
           >
-            <Text
-              style={[
-                CourseActionStyles.modalTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Request Exception
-            </Text>
+            <View style={CourseActionStyles.sheetGrabber} />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text
+                style={[
+                  CourseActionStyles.modalTitle,
+                  { color: colors.textDarker },
+                ]}
+              >
+                Request Exception
+              </Text>
             <Text
               style={[CourseActionStyles.modalSubtitle, { color: colors.text }]}
             >
@@ -858,7 +863,8 @@ export const AddExceptionModal = ({
                 isLoading={isSaving}
                 style={CourseActionStyles.saveBtn}
               />
-            </View>
+              </View>
+            </ScrollView>
           </View>
         </TouchableWithoutFeedback>
       </Pressable>
@@ -979,30 +985,33 @@ export const RenderContents = ({
     if (selectedCourseContent === null) return;
 
     const { index } = selectedCourseContent;
-    setIsDeleting(true);
 
-    const result = await deleteCourseContent(course.courseId, index);
+    try {
+      setIsDeleting(true);
 
-    setIsDeleting(false);
+      const result = await deleteCourseContent(course.courseId, index);
 
-    if (result.success) {
-      setContents(contents.filter((_, i) => i !== index));
-      setDeleteModalVisible(false);
-      setSelectedCourseContent(null);
-      Toast.show({
-        type: 'success',
-        text1: 'Topic Removed',
-        position: 'bottom',
-        bottomOffset: insets.bottom || 20,
-      });
-    } else {
-      Toast.show({
-        type: 'error',
-        text1: 'Delete Failed',
-        text2: result.error,
-        position: 'bottom',
-        bottomOffset: insets.bottom || 20,
-      });
+      if (result.success) {
+        setContents(contents.filter((_, i) => i !== index));
+        setDeleteModalVisible(false);
+        setSelectedCourseContent(null);
+        Toast.show({
+          type: 'success',
+          text1: 'Topic Removed',
+          position: 'bottom',
+          bottomOffset: insets.bottom || 20,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Failed',
+          text2: result.error,
+          position: 'bottom',
+          bottomOffset: insets.bottom || 20,
+        });
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1668,80 +1677,20 @@ export const RenderMaterials: React.FC<RenderMaterialsProps> = ({
           </View>
         </View>
       </Modal>
-      <Modal visible={deleteModalVisible} transparent animationType="fade">
-        <View style={CourseActionStyles.modalOverlay}>
-          <View
-            style={[
-              CourseActionStyles.modalContent,
-              { backgroundColor: colors.background },
-            ]}
-          >
-            <View style={CourseActionStyles.deleteIconWrap}>
-              <MaterialIcons name="warning" size={28} color="#FF3B30" />
-            </View>
-            <Text
-              style={[
-                CourseActionStyles.modalHeaderTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Delete Material
-            </Text>
-            <Text
-              style={[CourseActionStyles.modalSubText, { color: colors.text }]}
-            >
-              Are you sure you want to permanently delete "
-              {selectedResource?.resourceTitle}"?
-            </Text>
-
-            <View style={CourseActionStyles.modalButtonRow}>
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.modalBtn,
-                  { borderColor: colors.primary },
-                ]}
-                onPress={() => {
-                  if (!isDeleting) {
-                    setDeleteModalVisible(false);
-                    setSelectedResource(null);
-                  }
-                }}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.cancelBtnText,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.modalBtn,
-                  { backgroundColor: colors.btnColor },
-                ]}
-                onPress={confirmDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text
-                    style={[
-                      CourseActionStyles.submitBtnText,
-                      { color: colors.btnTextColor },
-                    ]}
-                  >
-                    Delete
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedResource(null);
+          }
+        }}
+        onContinue={confirmDelete}
+        title="Delete Material?"
+        subtitle={`Are you sure you want to permanently delete "${selectedResource?.resourceTitle}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
     </View>
   );
 };
@@ -5029,55 +4978,22 @@ export const LecturerLectureScheduleView = ({
           </TouchableWithoutFeedback>
         </Pressable>
       </Modal>
-      <Modal visible={showDeleteModal} transparent animationType="fade">
-        <Pressable
-          style={CourseActionStyles.modalOverlay}
-          onPress={() => setShowDeleteModal(false)}
-        >
-          <TouchableWithoutFeedback>
-            <View style={CourseActionStyles.modalContent}>
-              <Text
-                style={[
-                  CourseActionStyles.modalTitle,
-                  { color: colors.textDarker },
-                ]}
-              >
-                Delete Lecture?
-              </Text>
-              <Text
-                style={[CourseActionStyles.modalText, { color: colors.text }]}
-              >
-                Are you sure you want to delete "{selectedLecture?.topicName}
-                "? This action cannot be undone.
-              </Text>
-              <View style={CourseActionStyles.modalActions}>
-                <TouchableOpacity
-                  onPress={() => setShowDeleteModal(false)}
-                  style={CourseActionStyles.rejectBtn}
-                >
-                  <Text
-                    style={[
-                      CourseActionStyles.btnText,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-
-                <CustomButton
-                  title="Confirm Delete"
-                  onPress={() => {
-                    onDeleteLecture(selectedLecture!.id);
-                    setShowDeleteModal(false);
-                  }}
-                  style={CourseActionStyles.approveBtn}
-                />
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </Pressable>
-      </Modal>
+      <ActionModal
+        visible={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedLecture(null);
+        }}
+        onContinue={() => {
+          if (!selectedLecture) return;
+          onDeleteLecture(selectedLecture.id);
+          setSelectedLecture(null);
+          setShowDeleteModal(false);
+        }}
+        title="Delete Lecture?"
+        subtitle={`Are you sure you want to delete "${selectedLecture?.topicName}"? This action cannot be undone.`}
+        continueText="Delete"
+      />
       <OngoingLectureModal
         visible={!!ongoingLecture}
         lecture={ongoingLecture}
@@ -5486,17 +5402,26 @@ export const CourseActionStyles = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
     marginBottom: 12,
+    borderWidth: 0.8,
+    borderColor: 'rgba(0,0,0,0.04)',
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   numberCircle: {
-    width: 26,
+    minWidth: 38,
     height: 26,
+    paddingHorizontal: 8,
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    backgroundColor: `${PRIMARY_COLOR}14`,
   },
-  numberText: { fontSize: 14, fontWeight: 'bold' },
-  topicText: { fontSize: 14 },
+  numberText: { fontSize: 12, fontWeight: '700' },
+  topicText: { fontSize: 14, flex: 1 },
   topicText2: {
     fontSize: 16,
     fontWeight: '600',
@@ -5659,13 +5584,28 @@ export const CourseActionStyles = StyleSheet.create({
     borderColor: '#ffccd2',
     backgroundColor: '#fffdfd',
   },
+  sheetGrabber: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 14,
+    backgroundColor: PRIMARY_COLOR_TINT,
+  },
   assignmentModalContent: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 25,
+    paddingTop: 14,
     width: '100%',
     position: 'absolute',
     bottom: 0,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 16,
   },
   dateSelector: {
     flexDirection: 'row',
@@ -5826,39 +5766,56 @@ export const CourseActionStyles = StyleSheet.create({
   },
   exceptionCard: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    borderWidth: 0.8,
+    borderColor: 'rgba(0,0,0,0.04)',
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   courseIdText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    marginBottom: 2,
   },
   reasonText: {
-    fontSize: 14,
+    fontSize: 13,
     marginVertical: 4,
+    lineHeight: 18,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 20,
     marginLeft: 10,
+    backgroundColor: `${PRIMARY_COLOR}12`,
   },
   statusLabel: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
     textTransform: 'capitalize',
-    marginTop: 4,
   },
   exceptionModalContent: {
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     padding: 24,
+    paddingTop: 14,
     width: '100%',
     position: 'absolute',
     bottom: 0,
-    maxHeight: '80%',
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 16,
   },
   modalSubtitle: {
     fontSize: 14,
@@ -6180,16 +6137,23 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 0.8,
-    borderBottomColor: PRIMARY_COLOR_TINT,
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: 0.8,
+    borderColor: 'rgba(0,0,0,0.04)',
+    shadowColor: PRIMARY_COLOR_TINT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   testTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
   },
-  testMeta: { fontSize: 12, color: PRIMARY_COLOR_TINT },
+  testMeta: { fontSize: 12, color: PRIMARY_COLOR_TINT, fontWeight: '500' },
   settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',

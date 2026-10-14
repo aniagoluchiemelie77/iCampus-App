@@ -2,27 +2,136 @@ import { useState, useCallback, useEffect } from 'react';
 import { open } from 'react-native-quick-sqlite';
 
 export const db = open({ name: 'app_catalog.db' });
+
+/**
+ * Canonical column map for the local `products` cache table.
+ * `setupDatabase` builds the CREATE TABLE statement from this map and
+ * `migrateProductsTable` back-fills any column missing from an older
+ * install, so the SQLite schema can never drift from the INSERTs again.
+ */
+const PRODUCT_COLUMNS: Record<string, string> = {
+  productId: 'productId TEXT PRIMARY KEY NOT NULL',
+  id: 'id TEXT',
+  title: 'title TEXT',
+  description: 'description TEXT',
+  price: 'price REAL',
+  sellerId: 'sellerId TEXT',
+  type: 'type TEXT',
+  niche: 'niche TEXT',
+  category: 'category TEXT',
+  currency: 'currency TEXT',
+  amountInStock: 'amountInStock INTEGER',
+  mediaUrls: 'mediaUrls TEXT',
+  physicalDetails: 'physicalDetails TEXT',
+  nationalityOfSeller: 'nationalityOfSeller TEXT',
+  schoolName: 'schoolName TEXT',
+  impressions: 'impressions INTEGER',
+  sales: 'sales INTEGER',
+  favCount: 'favCount INTEGER',
+  ratings: 'ratings TEXT',
+  isAvailable: 'isAvailable BOOLEAN',
+  createdAt: 'createdAt TEXT',
+};
+
+/** Column order used by every INSERT/REPLACE into `products`. */
+export const PRODUCT_INSERT_COLUMNS = Object.keys(PRODUCT_COLUMNS);
+
+/** Columns persisted as JSON strings. */
+const JSON_COLUMNS = new Set(['mediaUrls', 'physicalDetails', 'ratings']);
+
+/** Safely turns a stored JSON string back into an object/array. */
+const safeJsonParse = <T>(value: any, fallback: T): T => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== 'string') return value as T;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed === null || parsed === undefined ? fallback : parsed;
+  } catch {
+    return fallback;
+  }
+};
+
+/** Converts a JS product field into a SQLite-bindable value. */
+const toDbValue = (product: any, column: string): any => {
+  const value = product?.[column];
+  if (JSON_COLUMNS.has(column)) {
+    return JSON.stringify(value === undefined ? null : value);
+  }
+  if (value === undefined) return null;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  return value;
+};
+
+/** Normalises a raw SQLite row into the shape the UI expects. */
+export const parseProductRow = (row: any) => ({
+  ...row,
+  price: Number(row?.price) || 0,
+  amountInStock: Number(row?.amountInStock) || 0,
+  favCount: Number(row?.favCount) || 0,
+  impressions: Number(row?.impressions) || 0,
+  sales: Number(row?.sales) || 0,
+  mediaUrls: safeJsonParse<string[]>(row?.mediaUrls, []),
+  physicalDetails: safeJsonParse<any>(row?.physicalDetails, null),
+  ratings: safeJsonParse<any[]>(row?.ratings, []),
+  isAvailable:
+    row?.isAvailable === undefined || row?.isAvailable === null
+      ? true
+      : !!row.isAvailable,
+});
+
+/**
+ * react-native-quick-sqlite exposes rows as `{ _array, length, item }`,
+ * but some builds hand back a plain array. Normalise both.
+ */
+const readRows = (result: any): any[] => {
+  const rows = result?.rows;
+  if (!rows) return [];
+  if (Array.isArray(rows)) return rows;
+  if ('_array' in rows) return rows._array ?? [];
+  return [];
+};
+
+/**
+ * Back-fills columns added after a release. Older installs already have a
+ * `products` table, so `CREATE TABLE IF NOT EXISTS` would silently skip it
+ * and every INSERT would keep failing.
+ */
+const migrateProductsTable = () => {
+  try {
+    const existing = new Set(
+      readRows(db.execute('PRAGMA table_info(products);')).map(
+        (column: any) => column.name,
+      ),
+    );
+
+    Object.entries(PRODUCT_COLUMNS).forEach(([name, ddl]) => {
+      if (existing.has(name)) return;
+      try {
+        db.execute(`ALTER TABLE products ADD COLUMN ${ddl};`);
+      } catch (alterError) {
+        console.error(`Failed to add column "${name}" to products:`, alterError);
+      }
+    });
+  } catch (error) {
+    console.error('Failed to inspect products table for migration:', error);
+  }
+};
+
 export const setupDatabase = () => {
   try {
-    db.execute(`
-      CREATE TABLE IF NOT EXISTS products (
-        productId TEXT PRIMARY KEY NOT NULL,
-        title TEXT,
-        description TEXT,
-        price REAL,
-        sellerId TEXT,
-        niche TEXT,
-        amountInStock INTEGER,
-        mediaUrls TEXT,
-        physicalDetails TEXT,
-        nationalityOfSeller TEXT
-        currency TEXT
-        isAvailable BOOLEAN
-      );
-    `);
-    
+    const productColumnDefs = Object.values(PRODUCT_COLUMNS).join(', ');
+    db.execute(
+      `CREATE TABLE IF NOT EXISTS products (${productColumnDefs});`,
+    );
+    // Existing installs may still carry the older/broken schema, so back-fill
+    // any column that is missing before anything tries to INSERT into it.
+    migrateProductsTable();
+
     db.execute(`
       CREATE INDEX IF NOT EXISTS idx_seller_id ON products (sellerId);
+    `);
+    db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_niche ON products (niche);
     `);
     db.execute(`
       CREATE TABLE IF NOT EXISTS product_drafts (
@@ -72,16 +181,7 @@ export const useSellerProducts = (sellerId?: string) => {
         `SELECT * FROM products WHERE sellerId = ? ORDER BY title ASC;`,
         [sellerId]
       );
-      const rows = result.rows;
-      const rawProducts = Array.isArray(rows) 
-        ? rows 
-        : (rows && '_array' in rows ? rows._array : []);
-      
-      const parsedProducts = rawProducts.map((p: any) => ({
-        ...p,
-        mediaUrls: p.mediaUrls ? JSON.parse(p.mediaUrls) : [],
-        physicalDetails: p.physicalDetails ? JSON.parse(p.physicalDetails) : null,
-      }));
+      const parsedProducts = readRows(result).map(parseProductRow);
 
       setProducts(parsedProducts);
     } catch (err: any) {
@@ -113,35 +213,25 @@ export const deleteProductFromLocalDb = (productId: string) => {
     throw error;
   }
 };
-export const saveProductToLocalDb = (product: {
-  productId: string;
-  title: string;
-  description?: string;
-  price: number;
-  sellerId: string;
-  type: string;
-  amountInStock: number;
-  mediaUrls: string[];
-  physicalDetails?: any;
-  nationalityOfSeller?: string;
-}) => {
+/**
+ * Inserts/updates a single product row.
+ *
+ * The column list and values are both derived from `PRODUCT_INSERT_COLUMNS`,
+ * so adding a field to the schema automatically flows through here — the
+ * hand-maintained column list that used to live here was the original source
+ * of the "table products has no column named type" crash.
+ */
+export const upsertProductToLocalDb = (product: any) => {
   try {
+    const placeholders = PRODUCT_INSERT_COLUMNS.map(() => '?').join(', ');
+    const columnList = PRODUCT_INSERT_COLUMNS.join(', ');
+    const values = PRODUCT_INSERT_COLUMNS.map(column =>
+      toDbValue(product, column),
+    );
+
     db.execute(
-      `INSERT OR REPLACE INTO products (
-        productId, title, description, price, sellerId, type, amountInStock, mediaUrls, physicalDetails, nationalityOfSeller
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        product.productId,
-        product.title,
-        product.description || '',
-        product.price,
-        product.sellerId,
-        product.type,
-        product.amountInStock || 0,
-        JSON.stringify(product.mediaUrls || []),
-        JSON.stringify(product.physicalDetails || null),
-        product.nationalityOfSeller || '',
-      ]
+      `INSERT OR REPLACE INTO products (${columnList}) VALUES (${placeholders});`,
+      values,
     );
     return true;
   } catch (error) {
@@ -149,6 +239,10 @@ export const saveProductToLocalDb = (product: {
     throw error;
   }
 };
+
+/** @deprecated use {@link upsertProductToLocalDb} */
+export const saveProductToLocalDb = (product: any) =>
+  upsertProductToLocalDb(product);
 export const saveDraftToLocalDb = (draftKey: string, formData: any) => {
   try {
     db.execute(
@@ -163,8 +257,7 @@ export const saveDraftToLocalDb = (draftKey: string, formData: any) => {
 export const getDraftFromLocalDb = (draftKey: string) => {
   try {
     const result = db.execute(`SELECT formData FROM product_drafts WHERE draftKey = ?;`, [draftKey]);
-    const rows = result.rows;
-    const rawRows = Array.isArray(rows) ? rows : (rows && '_array' in rows ? rows._array : []);
+    const rawRows = readRows(result);
     if (rawRows.length > 0 && rawRows[0].formData) {
       return JSON.parse(rawRows[0].formData);
     }
@@ -172,6 +265,30 @@ export const getDraftFromLocalDb = (draftKey: string) => {
     console.error('Failed to load draft:', err);
   }
   return null;
+};
+
+/**
+ * Fetches products by id from the local cache and normalises them.
+ *
+ * Shared by FavoritesScreen, CartScreen and EventContext so every consumer
+ * reads the same columns and parses JSON the same way. Returns `[]` instead
+ * of throwing, because an empty cache is a normal state (e.g. the catalog
+ * sync has not finished yet) and must not blank the screen.
+ */
+export const fetchProductsByIdsFromLocalDb = (productIds: string[]) => {
+  if (!productIds || productIds.length === 0) return [];
+
+  try {
+    const placeholders = productIds.map(() => '?').join(', ');
+    const result = db.execute(
+      `SELECT * FROM products WHERE productId IN (${placeholders});`,
+      productIds,
+    );
+    return readRows(result).map(parseProductRow);
+  } catch (error) {
+    console.error('Failed to load products from SQLite:', error);
+    return [];
+  }
 };
 
 export const clearDraftFromLocalDb = (draftKey: string) => {

@@ -80,7 +80,7 @@ export const AdminManagementSection = () => {
   const [selectedAdmin, setSelectedAdmin] = useState<{
     uid: string;
   } | null>(null);
-  const [isDeleting, _setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -95,10 +95,15 @@ export const AdminManagementSection = () => {
     if (!selectedAdmin?.uid) return;
 
     try {
+      setIsDeleting(true);
       await deleteAdminApi(selectedAdmin.uid);
+      setDeleteModalVisible(false);
+      setSelectedAdmin(null);
       handleRefresh();
     } catch (error) {
       console.error('Failed to delete admin:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
   const handleRemoveAdmin = async (uid: string) => {

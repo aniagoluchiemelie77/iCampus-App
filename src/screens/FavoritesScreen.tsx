@@ -6,11 +6,13 @@ import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../context/EventContext';
 import { FavItem } from '../components/FavItem';
+import { COLUMN_GAP } from '../components/ProductListItem';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../types/firebase';
-import { db } from '../hooks/useSQLiteDb';
+import { fetchProductsByIdsFromLocalDb } from '../hooks/useSQLiteDb';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { ActionModal } from '../components/LogoutModal.tsx';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const FavoritesScreen = () => {
   const { colors } = useTheme();
@@ -19,42 +21,28 @@ export const FavoritesScreen = () => {
     handleToggleFavorite,
     handleAddAllFavoritesToCart,
     handleDeleteAllFavorites,
+    catalogSyncVersion,
   } = useAppDataContext();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [focusRefreshKey, setFocusRefreshKey] = useState(0);
 
   const favoriteIds = useMemo(() => {
     return currentUser?.favorites ?? [];
   }, [currentUser?.favorites]);
   const favoriteItems = useMemo(() => {
-    if (favoriteIds.length === 0) return [];
+    return fetchProductsByIdsFromLocalDb(favoriteIds);
+    // `catalogSyncVersion` and `focusRefreshKey` are deliberate triggers: the
+    // catalog sync is async, so the first render can legitimately miss rows.
+  }, [favoriteIds, catalogSyncVersion, focusRefreshKey]);
 
-    try {
-      const placeholders = favoriteIds.map(() => '?').join(',');
-      const queryResult = db.execute(
-        `SELECT * FROM products WHERE productId IN (${placeholders});`,
-        favoriteIds,
-      );
-
-      const rows = queryResult?.rows;
-      const rawProducts = Array.isArray(rows)
-        ? rows
-        : rows && '_array' in rows
-          ? rows._array
-          : [];
-
-      return rawProducts.map((item: any) => ({
-        ...item,
-        mediaUrls: item.mediaUrls ? JSON.parse(item.mediaUrls) : [],
-        physicalDetails: item.physicalDetails
-          ? JSON.parse(item.physicalDetails)
-          : null,
-      }));
-    } catch (error) {
-      console.error('Failed to load favorite products from SQLite:', error);
-      return [];
-    }
-  }, [favoriteIds]);
+  // Re-read SQLite every time the screen comes back into view, so items added
+  // or removed elsewhere (or rows cached after a late sync) show up.
+  useFocusEffect(
+    useCallback(() => {
+      setFocusRefreshKey(previous => previous + 1);
+    }, []),
+  );
 
   const renderFavItem = useCallback(
     ({ item }: { item: any }) => {
@@ -67,6 +55,16 @@ export const FavoritesScreen = () => {
     },
     [handleToggleFavorite],
   );
+
+  const confirmDeleteAllFavorites = async () => {
+    try {
+      setIsDeleting(true);
+      await handleDeleteAllFavorites();
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalVisible(false);
+    }
+  };
 
   return (
     <SafeAreaView
@@ -92,6 +90,7 @@ export const FavoritesScreen = () => {
         keyExtractor={item => item.productId}
         renderItem={renderFavItem}
         numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         key="two-column-favorites-list"
         contentContainerStyle={[
           styles.listContent,
@@ -130,7 +129,7 @@ export const FavoritesScreen = () => {
             setDeleteModalVisible(false);
           }
         }}
-        onContinue={handleDeleteAllFavorites}
+        onContinue={confirmDeleteAllFavorites}
         title="Delete Favorites?"
         subtitle={`Are you sure you want to permanently delete your favorites? This action cannot be undone.`}
         continueText="Delete"
@@ -146,6 +145,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 15,
+  },
+  columnWrapper: {
+    gap: COLUMN_GAP,
   },
   footer: {
     position: 'absolute',

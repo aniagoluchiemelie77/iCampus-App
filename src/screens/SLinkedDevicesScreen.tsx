@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
@@ -21,6 +20,7 @@ import { revokeDeviceSession } from '../api/localPostApis';
 import { useTheme } from '../context/ThemeContext';
 import { fetchLinkedDevicesAPI } from '../api/localGetApis';
 import Toast from 'react-native-toast-message';
+import { ActionModal } from '../components/LogoutModal.tsx';
 
 export const LinkedDevicesScreen = () => {
   const { colors } = useTheme();
@@ -30,6 +30,10 @@ export const LinkedDevicesScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState<string>('');
   const [isRevoking, setIsRevoking] = useState<string | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<{
+    deviceId: string;
+    deviceName: string;
+  } | null>(null);
 
   const handleRemoveDevice = ({
     deviceId,
@@ -38,31 +42,28 @@ export const LinkedDevicesScreen = () => {
     deviceId: string;
     deviceName: string;
   }) => {
-    Alert.alert('Log out device?', `This will sign you out of ${deviceName}.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        onPress: () => processRevoke({ deviceIdToRevoke: deviceId }),
-      },
-    ]);
+    setSelectedDevice({ deviceId, deviceName });
   };
-  const processRevoke = async ({
-    deviceIdToRevoke,
-  }: {
-    deviceIdToRevoke: string;
-  }) => {
+  const processRevoke = async () => {
+    if (!selectedDevice) return;
+
     try {
-      setIsRevoking(deviceIdToRevoke);
-      const result = await revokeDeviceSession(deviceIdToRevoke);
+      setIsRevoking(selectedDevice.deviceId);
+      const result = await revokeDeviceSession(selectedDevice.deviceId);
       if (result.success) {
-        const updatedSessions = currentUser.sessions!.filter(
-          s => s.deviceId !== deviceIdToRevoke,
+        const updatedSessions = (currentUser.sessions ?? []).filter(
+          s => s.deviceId !== selectedDevice.deviceId,
+        );
+        setSessions(prev =>
+          prev.filter(s => s.deviceId !== selectedDevice.deviceId),
         );
         dispatch(updateUserSessions(updatedSessions));
       }
     } catch (error) {
       console.error('Revoke failed', error);
+    } finally {
+      setIsRevoking(null);
+      setSelectedDevice(null);
     }
   };
   const renderItem = ({ item }: { item: UserSession }) => {
@@ -100,9 +101,10 @@ export const LinkedDevicesScreen = () => {
                 deviceName: item.deviceName,
               })
             }
+            disabled={isRevoking !== null}
             style={styles.removeButton}
           >
-            {isRevoking ? (
+            {isRevoking === item.deviceId ? (
               <ActivityIndicator color={colors.primary} size={'small'} />
             ) : (
               <MaterialIcons name="logout" size={20} color={colors.primary} />
@@ -169,6 +171,21 @@ export const LinkedDevicesScreen = () => {
         refreshing={isLoading}
         onRefresh={loadDeviceData}
         contentContainerStyle={{ marginHorizontal: 15 }}
+      />
+      <ActionModal
+        visible={selectedDevice !== null}
+        onClose={() => {
+          if (!isRevoking) {
+            setSelectedDevice(null);
+          }
+        }}
+        onContinue={processRevoke}
+        title="Log Out Device?"
+        subtitle={`This will sign you out of ${
+          selectedDevice?.deviceName ?? 'this device'
+        }. You will need to log in again on that device.`}
+        continueText="Log Out"
+        loading={isRevoking !== null}
       />
     </View>
   );

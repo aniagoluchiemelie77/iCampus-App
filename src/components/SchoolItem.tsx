@@ -41,7 +41,8 @@ export const SchoolItem = ({
     try {
       setIsDeleting(true);
       onDelete(selectedInstitution.id);
-      setIsDeleting(false);
+      setDeleteModalVisible(false);
+      setSelectedInstitution(null);
 
       Toast.show({
         type: 'success',
@@ -49,12 +50,13 @@ export const SchoolItem = ({
         text2: 'Institution deleted successfully.',
       });
     } catch (error: any) {
-      setIsDeleting(false);
       Toast.show({
         type: 'error',
         text1: 'Deletion Failed',
         text2: error?.message || 'Failed to delete institution.',
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
   return (

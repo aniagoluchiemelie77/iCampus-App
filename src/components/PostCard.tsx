@@ -1,55 +1,144 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  Share,
-  FlatList,
-  Linking,
   Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Linking,
   Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { useAppDataContext } from '../context/EventContext';
-import { ActionModal } from './LogoutModal.tsx';
 import Video from 'react-native-video';
-import { Posts } from '../types/firebase';
-import { formatCount } from '../utils/followCountFormatter.ts';
 import { useNavigation } from '@react-navigation/native';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import Toast from 'react-native-toast-message';
+
+import { Posts } from '../types/firebase';
+import { formatCount, formatStatNumber } from '../utils/followCountFormatter';
+import { formatPostDate, parseFirestoreDate } from '../utils/dateFormatter';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { UserIdentity } from './UserIdentity';
 import { UserAvatar } from './UserAvatar';
-import { formatPostDate } from '../utils/dateFormatter';
-import { formatStatNumber } from '../utils/followCountFormatter';
-import Toast from 'react-native-toast-message';
+import { ActionModal } from './LogoutModal';
+import { useAppDataContext } from '../context/EventContext';
 import { useTheme } from '../context/ThemeContext';
-import { useDateTimePicker } from '../hooks/useDateTimePicker';
-import { useUser } from '../hooks/useUserDetails.ts';
+import { useUser } from '../hooks/useUserDetails';
+
 export interface PostCardProps {
   post: Posts;
   isVisible?: boolean;
 }
+
 interface LinkedTextProps {
   content: string;
   onTagPress?: (tag: string) => void;
   onMentionPress?: (mention: string) => void;
   colors: any;
 }
+
 const { width } = Dimensions.get('window');
+
+/** Width of media inside a card that sits in a 15px-padded list. */
+const MEDIA_WIDTH = width - 62;
+const TEXT_LIMIT = 180;
+
+/**
+ * Posts reach this component from three different sources (feed, search,
+ * profile) that expose different id fields, so resolve the id defensively.
+ */
+export const getPostId = (post: any): string =>
+  post?.postId || post?.id || post?._id || '';
+
+const toText = (value: any): string => {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return '';
+  return String(value);
+};
+
+const toArray = (value: any): any[] =>
+  Array.isArray(value) ? value : value ? [value] : [];
+
+/** Accepts Date, ISO string, Firestore Timestamp or {_seconds} shapes. */
+const toSafeDate = (value: any): Date | null => {
+  if (!value) return null;
+  const parsed = parseFirestoreDate(value);
+  return parsed && !isNaN(parsed.getTime()) ? parsed : null;
+};
+
+const compactRelativeTime = (value: any): string => {
+  if (!value) return '';
+  const iso = formatPostDate(value);
+  if (!iso) return '';
+  try {
+    return formatDistanceToNowStrict(new Date(iso), { addSuffix: false })
+      .replace(/ seconds?/g, 's')
+      .replace(/ minutes?/g, 'm')
+      .replace(/ hours?/g, 'h')
+      .replace(/ days?/g, 'd')
+      .replace(/ months?/g, 'mo')
+      .replace(/ years?/g, 'y');
+  } catch (error) {
+    return '';
+  }
+};
+
+const eventMonthDay = (value: any): string => {
+  const date = toSafeDate(value);
+  if (!date) return '---';
+  return `${date
+    .toLocaleString('en-US', { month: 'short' })
+    .toUpperCase()} ${date.getDate()}`;
+};
+
+const eventClockTime = (value: any): string => {
+  const date = toSafeDate(value);
+  if (!date) return '--:--';
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
+const lastProfilePic = (profilePic: any): string | undefined => {
+  const urls = toArray(profilePic);
+  const uri = urls[urls.length - 1];
+  return typeof uri === 'string' && uri ? uri : undefined;
+};
+
+/**
+ * React Navigation refuses to carry class instances (Date), functions and
+ * circular references through route params, which is what made tapping the
+ * card throw. Send a plain-data snapshot plus the id so it can refetch.
+ */
+const sanitizePostForNavigation = (post: Posts): Posts | undefined => {
+  try {
+    return JSON.parse(JSON.stringify(post));
+  } catch (error) {
+    console.warn('Could not serialize post for navigation:', error);
+    return undefined;
+  }
+};
+
 export const MediaSection = ({ post, isVisible }: PostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
-  const mediaUrls = Array.isArray(post.media?.url)
-    ? post.media.url
-    : [post.media?.url];
+  const mediaUrls = useMemo(
+    () =>
+      toArray(post.media?.url).filter(
+        (uri: any) => typeof uri === 'string' && uri,
+      ),
+    [post.media?.url],
+  );
   const isVideo = post.media?.mediaType === 'video';
 
-  if (!post.media?.url) return null;
+  if (!mediaUrls.length) return null;
 
   return (
     <View style={styles.mediaContainer}>
@@ -71,9 +160,8 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={e => {
-              const contentWidth = width - 24; // Accounts for modern container side margins (12px * 2)
               const newIndex = Math.round(
-                e.nativeEvent.contentOffset.x / contentWidth,
+                e.nativeEvent.contentOffset.x / MEDIA_WIDTH,
               );
               setActiveIndex(newIndex);
             }}
@@ -120,19 +208,22 @@ const PollView = ({
   onVote: (postId: string, optionId: string) => void;
   colors: any;
 }) => {
-  const hasVoted = poll.options.some((opt: any) =>
-    opt.votes.includes(currentUserId),
+  const options = toArray(poll?.options);
+  const totalVotes = Number(poll?.totalVotes) || 0;
+  const hasVoted = options.some((opt: any) =>
+    toArray(opt?.votes).includes(currentUserId),
   );
+
+  if (!options.length) return null;
 
   return (
     <View style={styles.pollContainer}>
-      {poll.options.map((option: any) => {
+      {options.map((option: any) => {
+        const votes = toArray(option?.votes);
         const percentage =
-          poll.totalVotes > 0
-            ? Math.round((option.votes.length / poll.totalVotes) * 100)
-            : 0;
+          totalVotes > 0 ? Math.round((votes.length / totalVotes) * 100) : 0;
 
-        const isMyVote = option.votes.includes(currentUserId);
+        const isMyVote = votes.includes(currentUserId);
 
         return (
           <TouchableOpacity
@@ -166,7 +257,7 @@ const PollView = ({
                       : { color: colors.text },
                   ]}
                 >
-                  {option.text}
+                  {toText(option?.text)}
                 </Text>
               </View>
               {hasVoted && (
@@ -183,7 +274,7 @@ const PollView = ({
 
       <View style={styles.pollFooter}>
         <Text style={[styles.voteCount, { color: colors.text }]}>
-          {formatCount(poll.totalVotes)} votes
+          {formatCount(totalVotes)} votes
         </Text>
         <Text style={[styles.pollStatus, { color: colors.primary }]}>
           {hasVoted ? 'Final results' : 'Voting ongoing'}
@@ -215,10 +306,11 @@ export const LinkedText = ({
   onMentionPress,
   colors,
 }: LinkedTextProps) => {
-  if (!content) return null;
+  const text = toText(content);
+  if (!text) return null;
 
   const regex = /((?:https?:\/\/|www\.)[^\s]+|#\w+|@\w+)/g;
-  const parts = content.split(regex);
+  const parts = text.split(regex);
 
   const handleLinkPress = async (url: string) => {
     const fullUrl = url.startsWith('www.') ? `https://${url}` : url;
@@ -278,15 +370,7 @@ export const LinkedText = ({
 export const PostCard = React.memo(
   ({ post, isVisible }: PostCardProps) => {
     const { colors } = useTheme();
-    const user = post.originalAuthor;
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isMenuVisible, setIsMenuVisible] = useState(false);
     const navigation = useNavigation<any>();
-    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-    const [selectedPost, setSelectedPost] = useState<{
-      id: string;
-    } | null>(null);
-    const TEXT_LIMIT = 150;
     const {
       toggleLike,
       toggleBookmark,
@@ -298,32 +382,77 @@ export const PostCard = React.memo(
       isDeletingPost,
     } = useAppDataContext();
 
-    const { formatDate, formatTime } = useDateTimePicker();
-    const getRelativeTime = (dateString: string | null): string => {
-      if (!dateString) return '';
-      const parsedDate = formatPostDate(dateString);
-      if (!parsedDate) return '';
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
 
-      return formatDistanceToNowStrict(new Date(parsedDate), {
-        addSuffix: false,
-      })
-        .replace(' minutes', 'm')
-        .replace(' minute', 'm')
-        .replace(' hours', 'h')
-        .replace(' hour', 'h')
-        .replace(' days', 'd')
-        .replace(' day', 'd');
-    };
-    const targetPostId = post.postId || post.id;
-    const { user: poster } = useUser(post?.originalAuthor);
-    const isOwner = currentUser?.uid === user;
-    const isLiked = post.likes?.includes(currentUser?.uid);
-    const isBookmarked = post.bookmarks?.includes(currentUser?.uid);
-    const shouldShowSeeMore = post.content && post.content.length > TEXT_LIMIT;
-    const displayText = isExpanded
-      ? post.content
-      : post.content?.slice(0, TEXT_LIMIT);
+    const originalAuthor = post?.originalAuthor;
+    const targetPostId = getPostId(post);
+    const { user: poster } = useUser(originalAuthor);
+
+    const likes = toArray(post?.likes);
+    const bookmarks = toArray(post?.bookmarks);
+    const reposters = toArray(post?.repostersDetails);
+    const isOwner = !!currentUser?.uid && currentUser.uid === originalAuthor;
+    const isLiked = likes.includes(currentUser?.uid);
+    const isBookmarked = bookmarks.includes(currentUser?.uid);
+
+    // Reset transient UI when the FlatList reuses this cell for another post.
+    useEffect(() => {
+      setIsExpanded(false);
+      setIsNavigating(false);
+    }, [targetPostId]);
+
+    const content = toText(post?.content);
+    const shouldShowSeeMore = content.length > TEXT_LIMIT;
+    const displayText = isExpanded ? content : content.slice(0, TEXT_LIMIT);
+    const relativeTime = compactRelativeTime(post?.createdAt);
     const deepLinkUrl = `https://useicampus.io/posts/${targetPostId}`;
+
+    const authorDetails = post?.postAuthorsDetails ?? poster;
+    const displayUser = post?.featuredReposter;
+    const authorProfilePic =
+      lastProfilePic(authorDetails?.profilePic) ??
+      lastProfilePic(poster?.profilePic);
+
+    const openPostDetails = useCallback(() => {
+      if (!targetPostId || isNavigating) return;
+      setIsNavigating(true);
+      try {
+        navigation.navigate('PostDetailScreen', {
+          postId: targetPostId,
+          post: sanitizePostForNavigation(post),
+        });
+      } catch (error) {
+        console.error('Failed to open post details:', error);
+        Toast.show({ type: 'error', text1: 'Could not open this post' });
+      }
+    }, [navigation, post, targetPostId, isNavigating]);
+
+    const handleToggleLike = useCallback(() => {
+      if (!targetPostId || !currentUser?.uid) {
+        Toast.show({ type: 'error', text2: 'Please sign in to react to posts' });
+        return;
+      }
+      toggleLike(targetPostId);
+    }, [currentUser?.uid, targetPostId, toggleLike]);
+
+    const handleToggleBookmark = useCallback(() => {
+      if (!targetPostId || !currentUser?.uid) {
+        Toast.show({ type: 'error', text2: 'Please sign in to save posts' });
+        return;
+      }
+      toggleBookmark(targetPostId);
+    }, [currentUser?.uid, targetPostId, toggleBookmark]);
+
+    const handleToggleRepost = useCallback(() => {
+      if (!targetPostId || !currentUser?.uid) {
+        Toast.show({ type: 'error', text2: 'Please sign in to repost' });
+        return;
+      }
+      handleRepost(targetPostId);
+    }, [currentUser?.uid, targetPostId, handleRepost]);
 
     const handleCopyLink = () => {
       Clipboard.setString(deepLinkUrl);
@@ -331,25 +460,24 @@ export const PostCard = React.memo(
       Toast.show({ type: 'success', text2: 'Link copied to clipboard!' });
     };
 
-    const handleExternalShare = async (posts: Posts) => {
+    const handleExternalShare = async () => {
       try {
         const result = await Share.share({
-          message: `${
-            post.content || 'Check out this post on iCampus!'
-          } \n\nView more on iCampus App!`,
+          message: `${content || 'Check out this post on iCampus!'} \n\nView more on iCampus App!`,
           url: deepLinkUrl,
         });
 
         if (result.action === Share.sharedAction) {
-          incrementShareCount(posts.postId);
+          incrementShareCount(targetPostId);
         }
       } catch (error) {
-        console.error(error);
+        console.error('Failed to share post:', error);
+        Toast.show({ type: 'error', text2: 'Could not open the share sheet' });
       }
     };
     const handleEditNavigate = () => {
       setIsMenuVisible(false);
-      navigation.navigate('CreatePost', { post: post });
+      navigation.navigate('CreatePost', { post: post, postId: targetPostId });
     };
     const handleJobApply = (url: string) => {
       Alert.alert(
@@ -361,29 +489,24 @@ export const PostCard = React.memo(
         ],
       );
     };
-    const dateValue = post.eventMetadata?.date;
-    const timeValue = post.eventMetadata?.startTime;
-    const eventDate = dateValue ? formatDate(dateValue) : 'Not specified';
-    const eventTime = timeValue ? formatTime(timeValue) : '00:00';
-    const displayUser = post.featuredReposter;
-    const authorDetails = post.postAuthorsDetails
-      ? post.postAuthorsDetails
-      : poster;
-    const authorProfilePic = authorDetails?.profilePic?.length
-      ? String(authorDetails.profilePic[authorDetails.profilePic.length - 1])
-      : poster?.profilePic?.length
-        ? String(poster.profilePic[poster.profilePic.length - 1])
-        : undefined;
+    const eventDate = post?.eventMetadata?.date
+      ? eventMonthDay(post.eventMetadata.date)
+      : 'Not specified';
+    const eventTime = post?.eventMetadata?.startTime
+      ? eventClockTime(post.eventMetadata.startTime)
+      : '--:--';
 
     return (
       <Pressable
         onLongPress={() => setIsMenuVisible(true)}
-        onPress={() => navigation.navigate('PostDetailScreen', { post: post })}
+        onPress={openPostDetails}
         delayLongPress={400}
+        android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
         style={[
           styles.container,
           {
             backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
           },
         ]}
       >
@@ -428,22 +551,53 @@ export const PostCard = React.memo(
               organizationName={authorDetails?.organizationName}
               size="small"
             />
-            <Text style={styles.timestamp}>
-              {getRelativeTime(post.createdAt)}
-            </Text>
+            <View style={styles.metaRow}>
+              {!!relativeTime && (
+                <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+                  {relativeTime}
+                </Text>
+              )}
+              {isOwner && (
+                <View
+                  style={[
+                    styles.ownerTag,
+                    { backgroundColor: colors.primaryTint },
+                  ]}
+                >
+                  <Text style={[styles.ownerTagText, { color: colors.primary }]}>
+                    You
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
         <View style={styles.contentContainer}>
           {post.postType === 'job' && (
-            <View style={styles.jobCardBanner}>
+            <View
+              style={[
+                styles.jobCardBanner,
+                { backgroundColor: colors.background },
+              ]}
+            >
               <Text
                 style={[styles.jobTitleLarge, { color: colors.textDarker }]}
+                numberOfLines={2}
               >
-                {post.jobMetadata?.title}
+                {toText(post.jobMetadata?.title)}
               </Text>
               <Text style={[styles.jobCompanySub, { color: colors.text }]}>
-                {post.jobMetadata?.company} • {post.jobMetadata?.location}
+                {`${toText(post.jobMetadata?.company)} • ${toText(
+                  post.jobMetadata?.location,
+                )}`}
               </Text>
+              {!!post.jobMetadata?.salaryRange && (
+                <Text
+                  style={[styles.jobSalary, { color: colors.primary }]}
+                >
+                  {toText(post.jobMetadata?.salaryRange)}
+                </Text>
+              )}
             </View>
           )}
           {post.postType === 'event' && (
@@ -465,13 +619,14 @@ export const PostCard = React.memo(
                 </Text>
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.eventTitleText, { color: colors.text }]}>
-                  {post.eventMetadata?.title}
-                </Text>
                 <Text
-                  style={[styles.eventLocationText, { color: colors.text }]}
+                  style={[styles.eventTitleText, { color: colors.text }]}
+                  numberOfLines={2}
                 >
-                  {post.eventMetadata?.location}
+                  {toText(post.eventMetadata?.title)}
+                </Text>
+                <Text style={[styles.eventLocationText, { color: colors.text }]}>
+                  {`${eventTime} • ${toText(post.eventMetadata?.location)}`}
                 </Text>
               </View>
             </View>
@@ -481,20 +636,24 @@ export const PostCard = React.memo(
             colors={colors}
             onTagPress={(tag: string) => {
               const cleanTag = tag.replace('#', '');
-              console.log(cleanTag);
+              console.log('Hashtag tapped:', cleanTag);
             }}
             onMentionPress={(mention: string) => {
-              const name = mention.replace('@', '');
-              console.log(name);
-              navigation.navigate('ProfileScreen', { identifier: name });
+              const identifier = mention.replace('@', '');
+              try {
+                navigation.navigate('Profile', { identifier });
+              } catch (error) {
+                console.error('Failed to open mentioned profile:', error);
+              }
             }}
           />
-          {shouldShowSeeMore && !isExpanded && (
-            <Text style={[styles.content, { color: colors.text }]}>...</Text>
-          )}
           {shouldShowSeeMore && (
-            <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-              <Text style={styles.seeMoreText}>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => setIsExpanded(!isExpanded)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <Text style={[styles.seeMoreText, { color: colors.primary }]}>
                 {isExpanded ? 'Show less' : 'See more'}
               </Text>
             </TouchableOpacity>
@@ -524,8 +683,14 @@ export const PostCard = React.memo(
             </TouchableOpacity>
           )}
           {post.postType === 'event' && (
-            <TouchableOpacity style={styles.rsvpButtonOutline}>
-              <Text style={styles.rsvpText}>RSVP for Event</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.rsvpButtonOutline, { borderColor: colors.primary }]}
+              onPress={openPostDetails}
+            >
+              <Text style={[styles.rsvpText, { color: colors.primary }]}>
+                View Event Details
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -543,69 +708,77 @@ export const PostCard = React.memo(
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() =>
-              navigation.navigate('PostDetailScreen', { post: post })
-            }
+            activeOpacity={0.6}
+            onPress={openPostDetails}
           >
             <MaterialIcons
               name="chat-bubble-outline"
-              size={18}
+              size={19}
               color={colors.primary}
             />
-            <Text style={[styles.statText, { color: colors.primary }]}>
+            <Text style={[styles.statText, { color: colors.text }]}>
               {formatStatNumber(post.commentsCount ?? 0)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() => toggleLike(targetPostId)}
+            activeOpacity={0.6}
+            onPress={handleToggleLike}
           >
             <MaterialIcons
               name={isLiked ? 'favorite' : 'favorite-border'}
-              size={18}
-              color={colors.primary}
+              size={19}
+              color={isLiked ? '#FF3B30' : colors.primary}
             />
-            <Text style={[styles.statText, { color: colors.primary }]}>
-              {formatStatNumber(post.likes?.length || 0)}
+            <Text
+              style={[
+                styles.statText,
+                { color: isLiked ? '#FF3B30' : colors.text },
+              ]}
+            >
+              {formatStatNumber(likes.length)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() => handleRepost(targetPostId)}
+            activeOpacity={0.6}
+            onPress={handleToggleRepost}
           >
             <MaterialIcons
               name="repeat"
-              size={18}
+              size={19}
               color={post.isRepost ? colors.success : colors.primary}
             />
-            <Text style={[styles.statText, { color: colors.primary }]}>
-              {formatStatNumber(post.repostersDetails?.length || 0)}
+            <Text style={[styles.statText, { color: colors.text }]}>
+              {formatStatNumber(reposters.length)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statGroup}
-            onPress={() => toggleBookmark(targetPostId)}
+            activeOpacity={0.6}
+            onPress={handleToggleBookmark}
           >
             <MaterialIcons
               name={isBookmarked ? 'bookmark' : 'bookmark-border'}
-              size={18}
+              size={19}
               color={colors.primary}
             />
-            <Text style={[styles.statText, { color: colors.primary }]}>
-              {formatStatNumber(post.bookmarks?.length || 0)}
+            <Text style={[styles.statText, { color: colors.text }]}>
+              {formatStatNumber(bookmarks.length)}
             </Text>
           </TouchableOpacity>
           <View style={styles.statGroup}>
-            <MaterialIcons name="bar-chart" size={18} color={colors.primary} />
-            <Text style={[styles.statText, { color: colors.primary }]}>
+            <MaterialIcons name="bar-chart" size={19} color={colors.primary} />
+            <Text style={[styles.statText, { color: colors.text }]}>
               {formatStatNumber(post.impressions || 0)}
             </Text>
           </View>
           <TouchableOpacity
             style={styles.shareIconContainer}
-            onPress={() => handleExternalShare(post)}
+            activeOpacity={0.6}
+            onPress={handleExternalShare}
           >
-            <MaterialIcons name="share" size={18} color={colors.primaryTint} />
+            <MaterialIcons name="share" size={19} color={colors.primary} />
           </TouchableOpacity>
         </View>
         <Modal
@@ -637,7 +810,7 @@ export const PostCard = React.memo(
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => handleExternalShare(post)}
+                onPress={handleExternalShare}
               >
                 <MaterialIcons name="share" size={22} color={colors.text} />
                 <Text style={[styles.menuText, { color: colors.text }]}>
@@ -659,7 +832,6 @@ export const PostCard = React.memo(
                     style={styles.menuItem}
                     onPress={() => {
                       setIsMenuVisible(false);
-                      setSelectedPost({ id: targetPostId });
                       setDeleteModalVisible(true);
                     }}
                   >
@@ -680,14 +852,19 @@ export const PostCard = React.memo(
         <ActionModal
           visible={deleteModalVisible}
           onClose={() => {
-            if (!isDeletingPost) {
+            if (!isDeletingPost) setDeleteModalVisible(false);
+          }}
+          onContinue={async () => {
+            try {
+              await handleDeletePost(targetPostId);
+            } catch {
+              // Error toast is already shown by handleDeletePost.
+            } finally {
               setDeleteModalVisible(false);
-              setSelectedPost(null);
             }
           }}
-          onContinue={() => handleDeletePost(targetPostId)}
           title="Delete Post?"
-          subtitle={`Are you sure you want to delete this post? This action cannot be undone.`}
+          subtitle="Are you sure you want to delete this post? This action cannot be undone."
           continueText="Delete"
           loading={isDeletingPost}
         />
@@ -695,13 +872,16 @@ export const PostCard = React.memo(
     );
   },
   (prevProps, nextProps) => {
+    const prev = prevProps.post;
+    const next = nextProps.post;
     return (
-      (prevProps.post.postId || prevProps.post.id) ===
-        (nextProps.post.postId || nextProps.post.id) &&
-      prevProps.post.likes?.length === nextProps.post.likes?.length &&
-      prevProps.post.bookmarks?.length === nextProps.post.bookmarks?.length &&
-      prevProps.post.commentsCount === nextProps.post.commentsCount &&
-      prevProps.post.poll === nextProps.post.poll
+      getPostId(prev) === getPostId(next) &&
+      toArray(prev?.likes).length === toArray(next?.likes).length &&
+      toArray(prev?.bookmarks).length === toArray(next?.bookmarks).length &&
+      prev?.commentsCount === next?.commentsCount &&
+      prev?.poll === next?.poll &&
+      prev?.isRepost === next?.isRepost &&
+      prevProps.isVisible === nextProps.isVisible
     );
   },
 );
@@ -711,9 +891,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginBottom: 10,
-    shadowColor: PRIMARY_COLOR_TINT,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -738,10 +919,24 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  ownerTag: {
+    marginLeft: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  ownerTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   timestamp: {
     fontSize: 11,
     color: '#8E8E93',
-    marginTop: 2,
   },
   contentContainer: {
     marginBottom: 8,
@@ -760,14 +955,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 12,
     paddingTop: 10,
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   statGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
   statText: {
     marginLeft: 4,
@@ -776,6 +973,11 @@ const styles = StyleSheet.create({
   },
   shareIconContainer: {
     padding: 4,
+  },
+  jobSalary: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 6,
   },
   optionButtonSelected: {
     borderWidth: 1.5,
@@ -884,7 +1086,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 280,
     backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     marginVertical: 10,
   },
@@ -893,7 +1095,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   postMediaSlider: {
-    width: width - 24, // Matches the new 12px card margins on both sides
+    width: MEDIA_WIDTH,
     height: 280,
   },
   pagination: {

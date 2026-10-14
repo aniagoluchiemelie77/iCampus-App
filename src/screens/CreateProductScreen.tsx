@@ -278,11 +278,15 @@ export const CreateProductScreen = ({ route }: any) => {
       if (savedProduct) {
         saveProductToLocalDb({
           productId: savedProduct.productId || savedProduct.id || productId,
+          id: savedProduct.id || savedProduct._id,
           title: savedProduct.title,
           description: savedProduct.description,
           price: savedProduct.price,
           sellerId: savedProduct.sellerId || user?.uid,
-          type: savedProduct.type,
+          type: savedProduct.type || type,
+          niche: savedProduct.niche || formPayload.niche,
+          category: savedProduct.category || formPayload.niche,
+          currency: savedProduct.currency || 'NGN',
           amountInStock:
             savedProduct.amountInStock ||
             savedProduct.physicalDetails?.inStock ||
@@ -291,6 +295,13 @@ export const CreateProductScreen = ({ route }: any) => {
           physicalDetails: savedProduct.physicalDetails,
           nationalityOfSeller:
             savedProduct.nationalityOfSeller || user?.country || '',
+          schoolName: savedProduct.schoolName || user?.schoolName,
+          favCount: savedProduct.favCount || 0,
+          impressions: savedProduct.impressions || 0,
+          sales: savedProduct.sales || 0,
+          ratings: savedProduct.ratings || [],
+          isAvailable: savedProduct.isAvailable ?? true,
+          createdAt: savedProduct.createdAt || new Date().toISOString(),
         });
       }
       clearDraftFromLocalDb(draftKey);

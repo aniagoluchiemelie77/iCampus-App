@@ -277,9 +277,87 @@ export const CoursesView = ({
     </View>
   );
 };
+// Number of items rendered inline on the profile before "View All" is shown.
+// Keeps the profile feed light so it doesn't render every post at once.
+const PROFILE_PREVIEW_COUNT = 5;
+
+/**
+ * Renders a preview (first PROFILE_PREVIEW_COUNT items) of a profile tab's
+ * content plus a "View All" button that opens the full, paginated list on the
+ * ProfileContentList screen.
+ */
+const ProfileTabSection = ({
+  items,
+  tab,
+  identifier,
+  emptyText,
+  numColumns = 1,
+  isMedia = false,
+}: {
+  items: any[];
+  tab: string;
+  identifier: string;
+  emptyText: string;
+  numColumns?: number;
+  isMedia?: boolean;
+}) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation<any>();
+
+  const previewItems = items.slice(0, PROFILE_PREVIEW_COUNT);
+  const hasMore = items.length > PROFILE_PREVIEW_COUNT;
+
+  return (
+    <View>
+      <FlatList
+        data={previewItems}
+        keyExtractor={(item, index) => item.postId || index.toString()}
+        renderItem={({ item }) =>
+          isMedia ? (
+            <MediaGridItem post={item} />
+          ) : (
+            <PostCard post={item} isVisible={true} />
+          )
+        }
+        numColumns={numColumns}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: hasMore ? 6 : 20 }}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>{emptyText}</Text>
+        }
+      />
+      {hasMore && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[styles.viewAllBtn, { borderColor: colors.border }]}
+          onPress={() =>
+            navigation.navigate('ProfileContentList', {
+              identifier,
+              tab,
+              title: tab,
+              isMedia,
+              items,
+            })
+          }
+        >
+          <Text style={[styles.viewAllText, { color: colors.primary }]}>
+            View All ({items.length})
+          </Text>
+          <MaterialIcons
+            name="chevron-right"
+            size={18}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
 export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
-  const { identifier } = route.params;
+  const { identifier } = route.params || {};
   const currentUser = useAppSelector((state: any) => state.user) || {};
   const dispatch = useDispatch();
 
@@ -327,6 +405,9 @@ export const ProfileScreen = ({ route }: any) => {
   const [apiSuggestions, setApiSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
+  // Tracks whether the first profile request has settled so we can show a
+  // loader instead of flashing the "User Not Found" state on initial mount.
+  const [hasFetchedProfile, setHasFetchedProfile] = useState(false);
 
   const onTextLayout = (e: any) => {
     if (!isExpanded) {
@@ -361,7 +442,15 @@ export const ProfileScreen = ({ route }: any) => {
   };
 
   useEffect(() => {
-    fetchProfile();
+    let isMounted = true;
+    fetchProfile().finally(() => {
+      if (isMounted) {
+        setHasFetchedProfile(true);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [fetchProfile]);
 
   const handleSwitchToInstitutionAdmin = async () => {
@@ -439,7 +528,6 @@ export const ProfileScreen = ({ route }: any) => {
     );
   }
 
-  const isVerified = profileData.isVerified === true;
   const isExplicitlyBlockedByMe = currentUser.blockedUsers?.includes(
     profileData?.uid || identifier,
   );
@@ -496,23 +584,36 @@ export const ProfileScreen = ({ route }: any) => {
     );
   }
 
-  const canSwitchToInstitutionAdmin =
-    currentUser.isInstitutionAdmin &&
-    isOwner &&
-    currentUser.isVerified &&
-    currentUser.usertype === 'enterprise';
-
-  const resolvedBio =
-    profileData.bio ||
-    profileData.headline ||
-    (profileData.usertype === 'student'
-      ? `Student at ${profileData.schoolName || 'Campus'}`
-      : profileData.usertype === 'lecturer'
-        ? `${profileData.jobTitle || 'Lecturer'} • ${profileData.department || ''} at ${profileData.schoolName || ''}`
-        : profileData.usertype === 'enterprise'
-          ? `${profileData.organizationName || 'Organization'} Global Enterprise`
-          : 'iCampus Community Member');
-  if (!profileData && !isSearching)
+  // Guard: profileData is null until the profile request resolves (or fails).
+  // Every profileData.* read below must happen AFTER this block, otherwise the
+  // screen crashes with "Cannot read property 'isVerified' of null".
+  if (!profileData) {
+    if (isSearching || !hasFetchedProfile) {
+      return (
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <PageHeader
+            title="Profile"
+            rightElement={
+              <View style={styles.headerRightDiv}>
+                <TouchableOpacity
+                  onPress={() => setIsSearchFocused(true)}
+                  style={{ marginRight: 6 }}
+                >
+                  <MaterialIcons
+                    name="search"
+                    size={23}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            }
+          />
+          <View style={styles.errorStateContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        </View>
+      );
+    }
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <PageHeader
@@ -562,6 +663,25 @@ export const ProfileScreen = ({ route }: any) => {
         </View>
       </View>
     );
+  }
+
+  const isVerified = profileData.isVerified === true;
+  const canSwitchToInstitutionAdmin =
+    currentUser.isInstitutionAdmin &&
+    isOwner &&
+    currentUser.isVerified &&
+    currentUser.usertype === 'enterprise';
+
+  const resolvedBio =
+    profileData.bio ||
+    profileData.headline ||
+    (profileData.usertype === 'student'
+      ? `Student at ${profileData.schoolName || 'Campus'}`
+      : profileData.usertype === 'lecturer'
+        ? `${profileData.jobTitle || 'Lecturer'} • ${profileData.department || ''} at ${profileData.schoolName || ''}`
+        : profileData.usertype === 'enterprise'
+          ? `${profileData.organizationName || 'Organization'} Global Enterprise`
+          : 'iCampus Community Member');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -863,94 +983,66 @@ export const ProfileScreen = ({ route }: any) => {
           />
           <View style={styles.tabContent}>
             {activeTab === 'Posts' && (
-              <FlatList
-                data={profileData.posts?.filter((p: any) => !p.isRepost) || []}
-                keyExtractor={item => item.postId}
-                renderItem={({ item }) => (
-                  <PostCard post={item} isVisible={true} />
-                )}
-                contentContainerStyle={{ paddingBottom: 20 }}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No posts yet.</Text>
+              <ProfileTabSection
+                items={
+                  profileData.posts?.filter((p: any) => !p.isRepost) || []
                 }
-                showsVerticalScrollIndicator={false}
-                scrollEnabled={false}
+                tab="Posts"
+                identifier={identifier}
+                emptyText="No posts yet."
               />
             )}
             {activeTab === 'Reposts' && (
-              <FlatList
-                data={profileData.posts?.filter((p: any) => p.isRepost) || []}
-                keyExtractor={item => item.postId}
-                renderItem={({ item }) => (
-                  <PostCard post={item} isVisible={true} />
-                )}
-                contentContainerStyle={{ paddingBottom: 20 }}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No reposts yet.</Text>
-                }
-                scrollEnabled={false}
+              <ProfileTabSection
+                items={profileData.posts?.filter((p: any) => p.isRepost) || []}
+                tab="Reposts"
+                identifier={identifier}
+                emptyText="No reposts yet."
               />
             )}
             {activeTab === 'Bookmarks' && (
-              <FlatList
-                data={profileData.bookmarkedPosts || []}
-                keyExtractor={item => item.postId}
-                renderItem={({ item }) => (
-                  <PostCard post={item} isVisible={true} />
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No bookmarks yet.</Text>
-                }
-                scrollEnabled={false}
+              <ProfileTabSection
+                items={profileData.bookmarkedPosts || []}
+                tab="Bookmarks"
+                identifier={identifier}
+                emptyText="No bookmarks yet."
               />
             )}
             {activeTab === 'Media' && (
-              <FlatList
-                data={
+              <ProfileTabSection
+                items={
                   profileData.posts?.filter(
                     (p: any) => p.media?.url?.length > 0,
                   ) || []
                 }
-                keyExtractor={item => item.postId}
+                tab="Media"
+                identifier={identifier}
+                emptyText="No media found."
                 numColumns={3}
-                renderItem={({ item }) => <MediaGridItem post={item} />}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No media found.</Text>
-                }
-                scrollEnabled={false}
+                isMedia
               />
             )}
             {activeTab === 'Jobs' && (
-              <FlatList
-                data={
+              <ProfileTabSection
+                items={
                   profileData.posts?.filter((p: any) => p.postType === 'job') ||
                   []
                 }
-                keyExtractor={item => item.postId}
-                renderItem={({ item }) => (
-                  <PostCard post={item} isVisible={true} />
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No job listings.</Text>
-                }
-                scrollEnabled={false}
+                tab="Jobs"
+                identifier={identifier}
+                emptyText="No job listings."
               />
             )}
             {activeTab === 'Events' && (
-              <FlatList
-                data={
+              <ProfileTabSection
+                items={
                   profileData.posts?.filter(
                     (p: any) => p.postType === 'event',
                   ) || []
                 }
-                keyExtractor={item => item.postId}
-                renderItem={({ item }) => (
-                  <PostCard post={item} isVisible={true} />
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No upcoming events.</Text>
-                }
-                scrollEnabled={false}
+                tab="Events"
+                identifier={identifier}
+                emptyText="No upcoming events."
               />
             )}
           </View>
@@ -1505,6 +1597,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     color: '#888',
+  },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingVertical: 11,
+    marginTop: 4,
+    marginBottom: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   errorStateContainer: {
     flex: 1,

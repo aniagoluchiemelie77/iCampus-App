@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { useLocationServices } from '../hooks/useLocationService.ts';
 import { db } from '../hooks/useSQLiteDb';
 import { useUser } from '../hooks/useUserDetails.ts';
 import { useConvertedPrice } from '../hooks/useCurrencyConverter';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -35,9 +36,11 @@ export const ProductDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation<any>();
   const { productId } = route.params as { productId: string };
-  const { handleCartItemToggle, handleToggleFavorite } = useAppDataContext();
+  const { handleCartItemToggle, handleToggleFavorite, catalogSyncVersion } =
+    useAppDataContext();
   const currentUser = useAppSelector(state => state.user) || {};
   const buyerNationality = currentUser?.country || 'Nigeria';
+  const [focusRefreshKey, setFocusRefreshKey] = useState(0);
   const getProductById = (productId: string) => {
     const queryResult = db.execute(
       'SELECT * FROM products WHERE productId = ?;',
@@ -56,7 +59,16 @@ export const ProductDetailScreen = () => {
   };
   const product = useMemo(() => {
     return getProductById(productId);
-  }, [productId]);
+    // `catalogSyncVersion` and `focusRefreshKey` are deliberate triggers: the
+    // catalog sync is async, so the first render can legitimately miss the row.
+  }, [productId, catalogSyncVersion, focusRefreshKey]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocusRefreshKey(previous => previous + 1);
+    }, []),
+  );
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(
     product?.physicalDetails?.colors?.[0],
@@ -65,9 +77,11 @@ export const ProductDetailScreen = () => {
     product?.physicalDetails?.sizes?.[0],
   );
   const { userCoords } = useLocationServices();
+  // Guarded with `?? 0` because `product` can be null while the local cache is
+  // still populating — dereferencing it here crashed the screen.
   const { convertedValue } = useConvertedPrice(
-    product.price,
-    product.nationalityOfSeller,
+    product?.price ?? 0,
+    product?.nationalityOfSeller ?? 'Nigeria',
     buyerNationality,
   );
   const [quantity, setQuantity] = useState(1);

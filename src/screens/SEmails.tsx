@@ -108,19 +108,26 @@ export const EmailsScreen = () => {
     }
   };
   const deleteEmail = async (email: string) => {
-    const res = await deleteRecoveryEmailAPI(email);
-    if (res && res.success) {
-      dispatch(updateEmailData({ recoveryEmails: res.recoveryEmails }));
-      Toast.show({
-        type: 'success',
-        text1: 'Recovery email removed',
-      });
-    } else {
-      Toast.show({
-        type: 'error',
-        text1: 'Delete Error',
-        text2: "Couldn't delete email, please retry.",
-      });
+    try {
+      setIsDeleting(true);
+      const res = await deleteRecoveryEmailAPI(email);
+      if (res && res.success) {
+        dispatch(updateEmailData({ recoveryEmails: res.recoveryEmails }));
+        Toast.show({
+          type: 'success',
+          text1: 'Recovery email removed',
+        });
+        setDeleteModalVisible(false);
+        setSelectedItem(null);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Error',
+          text2: "Couldn't delete email, please retry.",
+        });
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -255,7 +262,7 @@ export const EmailsScreen = () => {
               <TouchableOpacity
                 onPress={() => {
                   setDeleteModalVisible(true);
-                  setSelectedItem(item.email);
+                  setSelectedItem({ email: item.email });
                 }}
               >
                 <MaterialIcons

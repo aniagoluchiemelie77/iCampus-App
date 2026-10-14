@@ -119,6 +119,7 @@ import { AdminSearchScreen } from './src/screens/AdminSearchScreen.tsx';
 import { TermsScreen } from './src/screens/TermsScreen.tsx';
 import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
 import { AllTaxEntriesScreen } from './src/screens/ViewAllTaxEntries.tsx';
+import { ProfileContentListScreen } from './src/screens/ProfileContentListScreen.tsx';
 import { ViewAllAdsScreen } from './src/screens/ViewAllAds.tsx';
 import { AdAorEScreen } from './src/screens/AdsCreateOrEditScreen.tsx';
 import { ViewAllSupportInquiriesScreen } from './src/screens/SupportInquiriesScreen.tsx';
@@ -277,6 +278,13 @@ export type RootStackParamList = {
   };
   Settings: undefined;
   Profile: { identifier: string };
+  ProfileContentList: {
+    identifier?: string;
+    tab?: string;
+    title?: string;
+    isMedia?: boolean;
+    items?: any[];
+  };
   SuspendedScreen: { reason: string };
   ProductDetails: { productId: string };
   CartScreen: undefined;
@@ -463,6 +471,11 @@ function MainApp() {
             <Stack.Screen
               name="ViewAllTaxEntries"
               component={AllTaxEntriesScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProfileContentList"
+              component={ProfileContentListScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

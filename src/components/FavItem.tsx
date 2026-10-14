@@ -1,10 +1,25 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { Product } from '../types/firebase'; 
+﻿import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from 'react-native';
+import { Product } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import { withAlpha, PRIMARY_COLOR } from '../assets/styles/colors';
+import {
+  ProductMedia,
+  NichePill,
+  RoundIconButton,
+  usePressScale,
+  useResponsiveCardLayout,
+  cardShadow,
+  ProductListItemTokens,
+} from './ProductListItem';
 
 interface FavItemProps {
   product: Product;
@@ -14,98 +29,136 @@ interface FavItemProps {
 export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
-  return (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
-      onPress={() =>
-        navigation.navigate('ProductDetails', {
-          productId: product.productId,
-        })
-      }
-    >
-      <Image source={{ uri: product.mediaUrls[0] }} style={styles.image} />
+  const { scale, onPressIn, onPressOut } = usePressScale();
+  const { cardWidth, isStacked: isNarrow } = useResponsiveCardLayout(2);
 
-      <View style={styles.details}>
-        <View style={styles.detailSubdiv}>
-          <View style={styles.headerRow}>
-            <Text style={[styles.typeTag, { color: colors.primary }]}>
-              {product.niche.toUpperCase()}
-            </Text>
-          </View>
+  const imageUri = product?.mediaUrls?.[0];
+  const unitPrice = Number(product?.price) || 0;
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPress={() =>
+          navigation.navigate('ProductDetails', {
+            productId: product.productId,
+          })
+        }
+        style={[
+          styles.card,
+          { width: cardWidth },
+          isNarrow ? styles.cardStacked : styles.cardRow,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: withAlpha(PRIMARY_COLOR, 0.14),
+          },
+          cardShadow(colors.text),
+        ]}
+      >
+        <ProductMedia
+          uri={imageUri}
+          style={isNarrow ? styles.mediaStacked : styles.mediaRow}
+        >
+          {/* Category pill overlays the image in the stacked (grid) layout. */}
+          {isNarrow ? (
+            <View style={styles.mediaTopLeft}>
+              <View style={styles.pillOnMedia}>
+                <Text style={styles.pillOnMediaText}>
+                  {(product.niche || 'Item').toUpperCase()}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </ProductMedia>
+
+        <View style={[styles.body, isNarrow && styles.bodyStacked]}>
+          {!isNarrow && <NichePill label={product.niche} />}
+
           <Text
             style={[styles.title, { color: colors.textDarker }]}
             numberOfLines={2}
           >
             {product.title}
           </Text>
-        </View>
 
-        <View style={styles.bottomRow}>
-          <CurrencyDisplay value={product.price} size="medium" />
-          <TouchableOpacity
-            onPress={() => onRemove(product)}
-            style={[styles.removeButton, { backgroundColor: colors.btnColor }]}
-          >
-            <MaterialIcons
-              name="delete"
-              size={18}
-              color={colors.btnTextColor}
+          <View style={styles.footer}>
+            <CurrencyDisplay value={unitPrice} size="medium" />
+            <RoundIconButton
+              iconName="delete-outline"
+              onPress={() => onRemove(product)}
+              accessibilityLabel="Remove from favorites"
             />
-          </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: ProductListItemTokens.radius,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 14,
+  },
+  cardRow: {
     flexDirection: 'row',
-    borderRadius: 20,
+    alignItems: 'center',
     padding: 10,
-    marginBottom: 15,
   },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 14,
+  cardStacked: {
+    padding: 0,
   },
-  details: {
+  mediaRow: {
+    width: ProductListItemTokens.mediaSize,
+    height: ProductListItemTokens.mediaSize,
+    borderRadius: ProductListItemTokens.mediaRadius,
+  },
+  mediaStacked: {
+    width: '100%',
+    height: 132,
+    borderTopLeftRadius: ProductListItemTokens.radius,
+    borderTopRightRadius: ProductListItemTokens.radius,
+  },
+  mediaTopLeft: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+  },
+  pillOnMedia: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  pillOnMediaText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+    color: '#FFFFFF',
+  },
+  body: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: ProductListItemTokens.gap,
     justifyContent: 'space-between',
   },
-  headerRow: {
-    width: '100%',
-    justifyContent: 'flex-end',
-  },
-  typeTag: {
-    fontSize: 10,
-    fontWeight: '800',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  bodyStacked: {
+    marginLeft: 0,
+    padding: 12,
+    gap: 8,
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    marginTop: 4,
+    lineHeight: 20,
+    marginTop: 6,
   },
-  bottomRow: {
+  footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    width: '100%',
-    marginTop: 8,
-  },
-  removeButton: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  detailSubdiv: {
-    width: '100%',
+    justifyContent: 'space-between',
+    marginTop: 8,
   },
 });

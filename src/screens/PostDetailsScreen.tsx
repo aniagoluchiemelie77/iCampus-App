@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { PostCard } from '../components/PostCard';
+import { PostCard, getPostId } from '../components/PostCard';
 import { CommentItem } from '../components/CommentSection';
 import { useAppDataContext } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
@@ -23,9 +23,9 @@ import { EmptyState } from '../components/EmptyFlatlistComponent';
 
 export const PostDetailScreen = ({ route }: any) => {
   const { colors } = useTheme();
-  const { post: initialPost, postId } = route.params;
+  const { post: initialPost, postId } = route.params ?? {};
   const [post, setPost] = useState<Posts | null>(initialPost || null);
-  const [loading, setLoading] = useState(!initialPost);
+  const [loading, setLoading] = useState(!initialPost && !postId);
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{
@@ -54,7 +54,8 @@ export const PostDetailScreen = ({ route }: any) => {
     return () => {
       isMounted = false;
     };
-  }, [postId, fetchPostById, post]);
+    // Only re-run when the requested post changes, not on every post update.
+  }, [postId, fetchPostById]);
 
   const threadedComments = useMemo(() => {
     if (!post?.comments) return [];
@@ -72,12 +73,14 @@ export const PostDetailScreen = ({ route }: any) => {
     return roots;
   }, [post?.comments]);
 
+  const activePostId = getPostId(post);
+
   const handleSend = async () => {
-    if (!commentText.trim() || !post) return;
+    if (!commentText.trim() || !activePostId) return;
     setIsSending(true);
 
     try {
-      await addComment(post.postId, commentText, replyingTo?.id || null);
+      await addComment(activePostId, commentText, replyingTo?.id || null);
       Toast.show({
         type: 'success',
         text1: 'Comment posted!',
@@ -139,7 +142,7 @@ export const PostDetailScreen = ({ route }: any) => {
         renderItem={({ item }) => (
           <CommentItem
             comment={item}
-            onLike={(id: string) => toggleCommentLike(post.postId, id)}
+            onLike={(id: string) => toggleCommentLike(activePostId, id)}
             onReply={(id: string, name: string) => {
               setReplyingTo({ id, name });
               inputRef.current?.focus();
