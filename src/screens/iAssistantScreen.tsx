@@ -27,7 +27,12 @@ import { AssistantMessage } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const uniqueMessageId = uuidv4();
+import { View, Text, ActivityIndicator } from 'react-native';
+
+// The list stores newest first (it is inverted); the backend and Gemini need
+// the conversation oldest first.
+const toChronologicalHistory = (messages: AssistantMessage[]) =>
+  [...messages].reverse().map(m => ({ role: m.role, content: m.content }));
 
 type Props = StackScreenProps<RootStackParamList, 'Assistant'>;
 
@@ -68,20 +73,16 @@ export const Assistant = ({ route }: Props) => {
     try {
       const result = await askIAssistantAgent({
         message: userText,
-        history: messages,
+        history: toChronologicalHistory(messages),
         contextType,
         contextData,
         userState: user,
       });
 
+      // On failure askIAssistantAgent already shows the server's message
+      // (e.g. "AI service is busy"), so no second toast here.
       if (result.success && result.reply) {
         addMessage({ role: 'model', content: result.reply });
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Server unreachable',
-          text2: 'Try again shortly.',
-        });
       }
     } catch (err) {
       Toast.show({
@@ -109,14 +110,14 @@ export const Assistant = ({ route }: Props) => {
     try {
       const result = await askIAssistantAgent({
         message: `I uploaded an academic ${type}.`,
-        history: messages,
+        history: toChronologicalHistory(messages),
         contextType,
         contextData: { ...contextData, attachmentUrl: url },
         userState: user,
       });
 
-      if (result.success) {
-        addMessage({ role: 'model', content: result.reply! });
+      if (result.success && result.reply) {
+        addMessage({ role: 'model', content: result.reply });
       }
     } catch (e) {
       Toast.show({
@@ -180,13 +181,13 @@ export const Assistant = ({ route }: Props) => {
       }
     }
   };
-  const onContentSizeChange = () =>
-    flatListRef.current?.scrollToEnd({ animated: true });
   const loadStoredMessages = async () => {
     try {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
       if (saved) {
-        setMessages(JSON.parse(saved));
+        // Older saves gave every message the same id; re-key on load.
+        const parsed: AssistantMessage[] = JSON.parse(saved);
+        setMessages(parsed.map(m => ({ ...m, id: uuidv4() })));
       }
     } catch (e) {
       console.error('Failed to load chat history', e);
@@ -201,11 +202,16 @@ export const Assistant = ({ route }: Props) => {
   };
   const addMessage = useCallback((msg: AssistantMessage) => {
     setMessages(prev => {
-      const updated = [{ ...msg, id: uniqueMessageId }, ...prev];
+      // A fresh id per message (it used to be one id generated at import).
+      const updated = [{ ...msg, id: uuidv4() }, ...prev];
       const limitedMessages = updated.slice(0, MAX_MESSAGES);
       saveMessages(limitedMessages);
       return limitedMessages;
     });
+    // Inverted list: the newest message lives at offset 0.
+    requestAnimationFrame(() =>
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true }),
+    );
   }, []);
   useEffect(() => {
     loadStoredMessages();
@@ -221,12 +227,22 @@ export const Assistant = ({ route }: Props) => {
         subtitle={contextData?.title || contextData?.name || 'Support Chat'}
       />
 
+      {/* Inverted: newest at the bottom. scrollToEnd here would jump to the
+          OLDEST message, so no onLayout/onContentSizeChange scrolling. */}
       <FlatList
         ref={flatListRef}
         data={messages}
-        onContentSizeChange={onContentSizeChange}
         inverted={true}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        ListHeaderComponent={
+          isProcessing ? (
+            <View style={styles.thinkingRow}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.thinkingText, { color: colors.text }]}>
+                {assistantTitle} is thinking…
+              </Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => (
           <MessageBubble
             content={item.content}
@@ -236,7 +252,7 @@ export const Assistant = ({ route }: Props) => {
             status={item.status}
           />
         )}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(item, index) => (item as any).id || `msg-${index}`}
         ListEmptyComponent={
           <EmptyState
             iconName="school"
@@ -260,4 +276,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  thinkingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  thinkingText: { fontSize: 13, fontWeight: '600', opacity: 0.75 },
 });

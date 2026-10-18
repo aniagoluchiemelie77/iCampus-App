@@ -24,7 +24,6 @@ import {
   Transactions,
 } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
-import { SellerOrderAccordion } from './MyQRCodeSection';
 import { EmptyState } from './EmptyFlatlistComponent';
 import {
   fetchPayoutHistoryAPI,
@@ -32,6 +31,7 @@ import {
 } from '../api/localGetApis';
 import { requestPayoutAPI } from '../api/localPostApis';
 import { deleteProductApi } from '../api/localDeleteApis';
+import { markOrderAsDroppedOffAPI } from '../api/localPatchApis';
 import { UserAvatar } from './UserAvatar';
 import { AddPaymentModal } from './AddPaymentMethodModal';
 import { UserIdentity } from './UserIdentity';
@@ -182,91 +182,357 @@ export const StatusCardMini = ({
     </View>
   );
 };
-export const OrdersList = () => {
-  const { colors: themeColors } = useTheme();
-  const { pendingOrders, currentUser, fetchPendingOrders } =
-    useAppDataContext();
-  const sellerOrders = pendingOrders
-    .filter(o => o.sellerId === currentUser.uid)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+// ---------------------------------------------------------------------------
+// Sales Orders
+// ---------------------------------------------------------------------------
+type OrderFilter = 'all' | 'pending_delivery' | 'dropped_off' | 'completed' | 'cancelled';
 
-  if (sellerOrders.length === 0) {
-    return (
-      <View
-        style={[
-          styles.emptyContainer,
-          { backgroundColor: themeColors.backgroundSecondary },
-        ]}
-      >
-        <MaterialIcons
-          name="hourglass-disabled"
-          size={50}
-          color={themeColors.text}
-        />
-        <Text style={[styles.emptyText, { color: themeColors.text }]}>
-          No orders found yet.
+const useOrderStatusMeta = () => {
+  const { colors: themeColors } = useTheme();
+  return {
+    pending_delivery: {
+      label: 'Pending',
+      long: 'Awaiting delivery',
+      icon: 'local-shipping',
+      color: themeColors.pendingDelivery,
+    },
+    dropped_off: {
+      label: 'At station',
+      long: 'At drop-off station',
+      icon: 'storefront',
+      color: themeColors.primaryTint,
+    },
+    completed: {
+      label: 'Completed',
+      long: 'Delivered & paid',
+      icon: 'check-circle',
+      color: themeColors.success,
+    },
+    cancelled: {
+      label: 'Cancelled',
+      long: 'Cancelled',
+      icon: 'cancel',
+      color: themeColors.primary,
+    },
+  } as Record<
+    Exclude<OrderFilter, 'all'>,
+    { label: string; long: string; icon: string; color: string }
+  >;
+};
+
+/** One order: everything visible at a glance, plus the next action if any. */
+const SellerOrderCard = ({
+  order,
+  onStatusUpdated,
+}: {
+  order: any;
+  onStatusUpdated: () => void;
+}) => {
+  const { colors: themeColors } = useTheme();
+  const { currentUser } = useAppDataContext();
+  const statusMeta = useOrderStatusMeta();
+  const meta =
+    statusMeta[order.status as Exclude<OrderFilter, 'all'>] ||
+    statusMeta.pending_delivery;
+  const [markingDropOff, setMarkingDropOff] = useState(false);
+  // Orders are paid in the buyer's currency; show the seller's equivalent.
+  const { convertedValue } = useConvertedCurrency(
+    Number(order.amountPaid) || 0,
+    order.amountPaidCurrencyCode || 'NGN',
+    currentUser?.country,
+  );
+  const createdAt = parseFirestoreDate(order.createdAt);
+  const isDropOff = order.deliveryMethod === 'drop_off';
+
+  const handleMarkAsDroppedOff = async () => {
+    setMarkingDropOff(true);
+    try {
+      const result = await markOrderAsDroppedOffAPI(order.orderId);
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text2: result.message || 'Marked as dropped off at the station.',
+        });
+        onStatusUpdated();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Update failed',
+          text2: result.message || 'Please try again.',
+        });
+      }
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Network Error',
+        text2: err?.message || 'Please try again.',
+      });
+    } finally {
+      setMarkingDropOff(false);
+    }
+  };
+
+  const footerMessage =
+    order.status === 'pending_delivery'
+      ? isDropOff && order.selectedStation
+        ? `Drop off at ${order.selectedStation.name}`
+        : 'Buyer is waiting for direct delivery'
+      : order.status === 'dropped_off'
+        ? `Waiting for the buyer to pick up at ${order.selectedStation?.name || 'the station'}`
+        : order.status === 'cancelled'
+          ? `Reason: ${order.cancellationReason || 'No reason provided'}`
+          : order.completedAt
+            ? `Completed on ${moment(parseFirestoreDate(order.completedAt)).format('MMM D, YYYY')}`
+            : 'Delivered and paid out';
+
+  return (
+    <View
+      style={[hub.orderCard, { backgroundColor: themeColors.backgroundSecondary }]}
+    >
+      <View style={hub.orderTopRow}>
+        <View style={[hub.orderIconTile, { backgroundColor: meta.color + '1F' }]}>
+          <MaterialIcons name={meta.icon} size={22} color={meta.color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[hub.orderTitle, { color: themeColors.textDarker }]}
+            numberOfLines={1}
+          >
+            {order.productName}
+          </Text>
+          <Text style={[hub.orderMeta, { color: themeColors.text }]}>
+            #{order.orderId} · {order.quantity} {order.quantity === 1 ? 'item' : 'items'}
+          </Text>
+        </View>
+        <View style={[hub.statusPill, { backgroundColor: meta.color + '1F' }]}>
+          <Text style={[hub.statusPillText, { color: meta.color }]}>
+            {meta.label}
+          </Text>
+        </View>
+      </View>
+
+      <View style={[hub.orderStatsRow, { borderColor: themeColors.border + '40' }]}>
+        <View style={hub.orderStat}>
+          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>Amount</Text>
+          <CurrencyDisplay
+            value={convertedValue}
+            size="small"
+            isSuccess={order.status === 'completed'}
+          />
+        </View>
+        <View style={hub.orderStat}>
+          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>Date</Text>
+          <Text style={[hub.orderStatValue, { color: themeColors.textDarker }]}>
+            {createdAt ? moment(createdAt).format('MMM D, YYYY') : '—'}
+          </Text>
+        </View>
+        <View style={hub.orderStat}>
+          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>Delivery</Text>
+          <Text style={[hub.orderStatValue, { color: themeColors.textDarker }]}>
+            {isDropOff ? 'Drop-off' : 'Direct'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={[hub.orderFooter, { backgroundColor: meta.color + '12' }]}>
+        <MaterialIcons name={meta.icon} size={16} color={meta.color} />
+        <Text
+          style={[hub.orderFooterText, { color: themeColors.text }]}
+          numberOfLines={2}
+        >
+          {footerMessage}
         </Text>
       </View>
-    );
-  }
+
+      {order.status === 'pending_delivery' && isDropOff && (
+        <CustomButton
+          title="Mark as dropped off"
+          iconName="where-to-vote"
+          onPress={handleMarkAsDroppedOff}
+          isLoading={markingDropOff}
+          disabled={markingDropOff}
+          style={hub.orderAction}
+        />
+      )}
+    </View>
+  );
+};
+
+export const OrdersList = () => {
+  const { colors: themeColors } = useTheme();
+  const { pendingOrders, currentUser, fetchPendingOrders, isOrdersLoading } =
+    useAppDataContext();
+  const statusMeta = useOrderStatusMeta();
+  const [filter, setFilter] = useState<OrderFilter>('all');
+
+  const sellerOrders = useMemo(
+    () =>
+      (pendingOrders || [])
+        .filter(o => o.sellerId === currentUser.uid)
+        .sort(
+          (a, b) =>
+            (parseFirestoreDate(b.createdAt)?.getTime() || 0) -
+            (parseFirestoreDate(a.createdAt)?.getTime() || 0),
+        ),
+    [pendingOrders, currentUser.uid],
+  );
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: sellerOrders.length };
+    sellerOrders.forEach(o => {
+      c[o.status] = (c[o.status] || 0) + 1;
+    });
+    return c;
+  }, [sellerOrders]);
+  const visibleOrders =
+    filter === 'all' ? sellerOrders : sellerOrders.filter(o => o.status === filter);
+
   useFocusEffect(
     React.useCallback(() => {
       fetchPendingOrders();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
 
+  const filters: OrderFilter[] = [
+    'all',
+    'pending_delivery',
+    'dropped_off',
+    'completed',
+    'cancelled',
+  ];
+
   return (
-    <>
-      <View style={styles.statusRow}>
-        <StatusCard
-          label="Pending"
-          count={formatStatNumber(
-            sellerOrders.filter(o => o.status === 'pending_delivery').length,
-          )}
-          color={themeColors.pendingDelivery}
-          icon="delivery-dining"
+    <FlatList
+      data={visibleOrders}
+      keyExtractor={item => item.orderId}
+      renderItem={({ item }) => (
+        <SellerOrderCard
+          order={item}
+          onStatusUpdated={() => fetchPendingOrders()}
         />
-        <StatusCard
-          label="Completed"
-          count={formatStatNumber(
-            sellerOrders.filter(o => o.status === 'completed').length,
-          )}
-          color={themeColors.success}
-          icon="check-circle"
+      )}
+      refreshControl={
+        <RefreshControl
+          refreshing={!!isOrdersLoading}
+          onRefresh={() => fetchPendingOrders()}
+          tintColor={themeColors.primary}
+          colors={[themeColors.primary]}
         />
-        <StatusCard
-          label="Cancelled"
-          count={formatStatNumber(
-            sellerOrders.filter(o => o.status === 'cancelled').length,
-          )}
-          color={themeColors.primary}
-          icon="cancel"
-        />
-      </View>
-      <FlatList
-        data={sellerOrders}
-        keyExtractor={item => item.orderId}
-        renderItem={({ item }) => (
-          <SellerOrderAccordion
-            order={item}
-            onStatusUpdated={fetchPendingOrders}
+      }
+      ListHeaderComponent={
+        sellerOrders.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={hub.filterRow}
+          >
+            {filters.map(f => {
+              const isActive = filter === f;
+              const color = f === 'all' ? themeColors.primary : statusMeta[f].color;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setFilter(f)}
+                  activeOpacity={0.8}
+                  style={[
+                    hub.filterChip,
+                    { borderColor: color },
+                    isActive && { backgroundColor: color },
+                  ]}
+                >
+                  <Text
+                    style={[hub.filterChipText, { color: isActive ? '#fff' : color }]}
+                  >
+                    {f === 'all' ? 'All' : statusMeta[f].label}
+                  </Text>
+                  <View
+                    style={[
+                      hub.filterCount,
+                      { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : color + '1F' },
+                    ]}
+                  >
+                    <Text
+                      style={[hub.filterCountText, { color: isActive ? '#fff' : color }]}
+                    >
+                      {counts[f] || 0}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        ) : null
+      }
+      ListEmptyComponent={
+        isOrdersLoading && sellerOrders.length === 0 ? (
+          <ActivityIndicator style={{ marginTop: 40 }} color={themeColors.primary} />
+        ) : (
+          <EmptyState
+            iconName={sellerOrders.length === 0 ? 'receipt-long' : 'filter-list-off'}
+            title={
+              sellerOrders.length === 0
+                ? 'No orders yet'
+                : `No ${statusMeta[filter as Exclude<OrderFilter, 'all'>]?.long.toLowerCase() || ''} orders`
+            }
+            subtitle={
+              sellerOrders.length === 0
+                ? 'When buyers purchase your listings, their orders appear here.'
+                : 'Try another filter to see the rest of your orders.'
+            }
+            buttonText={sellerOrders.length === 0 ? undefined : 'Show all orders'}
+            onPress={sellerOrders.length === 0 ? undefined : () => setFilter('all')}
           />
-        )}
-        contentContainerStyle={{ paddingBottom: 30 }}
-        showsVerticalScrollIndicator={false}
-      />
-    </>
+        )
+      }
+      contentContainerStyle={[hub.listContent, visibleOrders.length === 0 && { flexGrow: 1 }]}
+      showsVerticalScrollIndicator={false}
+    />
   );
 };
+
+// ---------------------------------------------------------------------------
+// Overview
+// ---------------------------------------------------------------------------
+const OverviewStat = ({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  hint?: string;
+}) => {
+  const { colors: themeColors } = useTheme();
+  return (
+    <View style={[hub.statTile, { backgroundColor: themeColors.backgroundSecondary }]}>
+      <View style={[hub.statTileIcon, { backgroundColor: themeColors.primary + '1A' }]}>
+        <MaterialIcons name={icon} size={18} color={themeColors.primary} />
+      </View>
+      <Text style={[hub.statTileValue, { color: themeColors.textDarker }]}>{value}</Text>
+      <Text style={[hub.statTileLabel, { color: themeColors.text }]}>{label}</Text>
+      {!!hint && (
+        <Text style={[hub.statTileHint, { color: themeColors.text }]}>{hint}</Text>
+      )}
+    </View>
+  );
+};
+
 export const OverviewsScreenComponent = () => {
   const { colors: themeColors } = useTheme();
-  const { currentUser, fetchSellerSales, pendingOrders, sellerSales } =
-    useAppDataContext();
-  const { sellerProducts } = useSellerProducts(currentUser?.uid);
+  const {
+    currentUser,
+    fetchSellerSales,
+    pendingOrders,
+    sellerSales,
+    catalogSyncVersion,
+  } = useAppDataContext();
+  const { sellerProducts } = useSellerProducts(currentUser?.uid, catalogSyncVersion);
   const navigation = useNavigation<any>();
+  const statusMeta = useOrderStatusMeta();
+  // Lifetime successful payouts, from the payout history endpoint.
+  const [totalPaidOut, setTotalPaidOut] = useState<number | null>(null);
 
   const sellerOrders = (pendingOrders || []).filter(
     o => o?.sellerId === currentUser?.uid,
@@ -277,359 +543,186 @@ export const OverviewsScreenComponent = () => {
     0,
   );
   const allRatings = sellerProducts.flatMap(p => p.ratings || []);
-  const currentBalance = currentUser.pendingSalesBalance || 0;
+  const availableBalance = Number(currentUser.pendingSalesBalance) || 0;
+  const totalGenerated = (totalPaidOut || 0) + availableBalance;
+  const paidOutShare =
+    totalGenerated > 0 ? Math.min(1, (totalPaidOut || 0) / totalGenerated) : 0;
   const avgRating =
     allRatings.length > 0
       ? (
-          allRatings.reduce((sum, r) => sum + r.score, 0) / allRatings.length
+          allRatings.reduce((sum, r) => sum + (r?.score || 0), 0) /
+          allRatings.length
         ).toFixed(1)
-      : '0.0';
-  const totalIncome: number = sellerSales.reduce(
-    (sum: number, sale: ProductSale) => sum + sale.netEarnings,
-    0,
-  );
+      : '—';
   const totalSalesCount = sellerSales.reduce(
-    (sum: number, sale: ProductSale) => sum + sale.quantity,
+    (sum: number, sale: ProductSale) => sum + (sale.quantity || 0),
     0,
   );
+  const conversion =
+    totalImpressions > 0
+      ? `${((totalSalesCount / totalImpressions) * 100).toFixed(1)}%`
+      : '—';
+
   useFocusEffect(
     React.useCallback(() => {
       fetchSellerSales();
+      let active = true;
+      fetchPayoutHistoryAPI().then(res => {
+        if (active && res.success && typeof res.totalPaidOut === 'number') {
+          setTotalPaidOut(res.totalPaidOut);
+        }
+      });
+      return () => {
+        active = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
+
+  if (!hasProducts) {
+    return (
+      <EmptyState
+        iconName="add-business"
+        title="Start selling on iCampus"
+        subtitle="List your first product and your sales, earnings and orders will show up here."
+        buttonText="Create your first listing"
+        buttonIcon="add"
+        onPress={() => navigation.navigate('CreateProduct')}
+      />
+    );
+  }
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      style={[styles.container, { backgroundColor: themeColors.background }]}
-      contentContainerStyle={[styles.contentContainer]}
+      contentContainerStyle={hub.listContent}
     >
-      {!hasProducts ? (
-        <View
-          style={[
-            styles.emptyStateCard,
-            { backgroundColor: themeColors.backgroundSecondary },
-          ]}
-        >
-          <MaterialIcons
-            name="add-shopping-cart"
-            size={60}
+      {/* Earnings hero */}
+      <View style={[hub.heroCard, { backgroundColor: themeColors.backgroundSecondary }]}>
+        <View style={hub.heroHeader}>
+          <Text style={[hub.heroLabel, { color: themeColors.text }]}>
+            Total generated
+          </Text>
+          <MaterialIcons name="insights" size={20} color={themeColors.primary} />
+        </View>
+        {totalPaidOut === null ? (
+          <ActivityIndicator
+            style={{ alignSelf: 'flex-start', marginVertical: 14 }}
             color={themeColors.primary}
           />
-          <Text
-            style={[styles.emptyStateTitle, { color: themeColors.textDarker }]}
-          >
-            Start Selling
-          </Text>
-          <Text style={[styles.emptyStateSub, { color: themeColors.text }]}>
-            You haven't uploaded any products yet.
-          </Text>
-          <CustomButton
-            title="Upload your first listing"
-            onPress={() => navigation.navigate('CreateProduct')}
-            style={[styles.addBtnSmall]}
+        ) : (
+          <CurrencyDisplay value={totalGenerated} size="large" />
+        )}
+        <Text style={[hub.heroSub, { color: themeColors.text }]}>
+          Everything you have earned: paid out plus available balance.
+        </Text>
+
+        <View style={[hub.heroTrack, { backgroundColor: themeColors.primary + '22' }]}>
+          <View
+            style={[
+              hub.heroTrackFill,
+              { width: `${paidOutShare * 100}%`, backgroundColor: themeColors.success },
+            ]}
           />
         </View>
-      ) : (
-        <>
-          {/* Overview Header */}
-          <View
-            style={[
-              styles.sectionHeader,
-              { backgroundColor: themeColors.backgroundSecondary },
-            ]}
-          >
-            <Text
-              style={[styles.sectionTitle, { color: themeColors.textDarker }]}
-            >
-              Overview
-            </Text>
-            <Text style={styles.timeRange}>Total Reach</Text>
+        <View style={hub.heroSplitRow}>
+          <View style={hub.heroSplit}>
+            <View style={hub.heroLegend}>
+              <View style={[hub.legendDot, { backgroundColor: themeColors.success }]} />
+              <Text style={[hub.heroSplitLabel, { color: themeColors.text }]}>Paid out</Text>
+            </View>
+            <CurrencyDisplay value={totalPaidOut || 0} size="small" isSuccess />
           </View>
-
-          {/* Core Stats Row */}
-          <View style={styles.statsOverviewRow}>
-            <View
-              style={[
-                styles.statBox,
-                { backgroundColor: themeColors.backgroundSecondary },
-              ]}
-            >
-              <MaterialIcons
-                name="visibility"
-                size={20}
-                color={themeColors.primary}
-                style={styles.statIcon}
-              />
-              <View>
-                <Text
-                  style={[styles.statValue, { color: themeColors.textDarker }]}
-                >
-                  {formatStatNumber(totalImpressions)}
-                </Text>
-                <Text style={[styles.statLabel, { color: themeColors.text }]}>
-                  Impressions
-                </Text>
-              </View>
+          <View style={[hub.heroSplit, { alignItems: 'flex-end' }]}>
+            <View style={hub.heroLegend}>
+              <View style={[hub.legendDot, { backgroundColor: themeColors.primary }]} />
+              <Text style={[hub.heroSplitLabel, { color: themeColors.text }]}>Available</Text>
             </View>
-            <View
-              style={[
-                styles.statBox,
-                { backgroundColor: themeColors.backgroundSecondary },
-              ]}
-            >
-              <MaterialIcons
-                name="shopping-bag"
-                size={20}
-                color={themeColors.primary}
-                style={styles.statIcon}
-              />
-              <View>
-                <Text
-                  style={[styles.statValue, { color: themeColors.textDarker }]}
-                >
-                  {formatStatNumber(totalSalesCount)}
-                </Text>
-                <Text style={[styles.statLabel, { color: themeColors.text }]}>
-                  Total Sales
-                </Text>
-              </View>
-            </View>
+            <CurrencyDisplay value={availableBalance} size="small" />
           </View>
+        </View>
+      </View>
 
-          {/* Grid Container for Graphs and Financials */}
-          <View style={styles.gridContainer}>
-            {/* Left Column: Sales Growth & Quick Rating */}
-            <View style={styles.leftColumn}>
-              <View
-                style={[
-                  styles.salesGraphBox,
-                  { backgroundColor: themeColors.backgroundSecondary },
-                ]}
-              >
-                <View style={styles.graphHeader}>
-                  <Text style={[styles.miniLabel, { color: themeColors.text }]}>
-                    Sales Growth
-                  </Text>
-                  <MaterialIcons
-                    name={totalSalesCount > 0 ? 'trending-up' : 'trending-flat'}
-                    size={18}
-                    color={themeColors.primary}
-                  />
-                </View>
-                <LineGraph
-                  trend={totalSalesCount > 5 ? 'up' : 'down'}
-                  themeBackgroundColor={themeColors.backgroundSecondary}
-                />
-              </View>
+      {/* Key stats */}
+      <View style={hub.statGrid}>
+        <OverviewStat
+          icon="visibility"
+          label="Impressions"
+          value={formatStatNumber(totalImpressions)}
+        />
+        <OverviewStat
+          icon="shopping-bag"
+          label="Units sold"
+          value={formatStatNumber(totalSalesCount)}
+          hint={`${conversion} conversion`}
+        />
+        <OverviewStat
+          icon="star"
+          label="Avg. rating"
+          value={avgRating}
+          hint={`${allRatings.length} ${allRatings.length === 1 ? 'review' : 'reviews'}`}
+        />
+        <OverviewStat
+          icon="inventory-2"
+          label="Active listings"
+          value={formatStatNumber(sellerProducts.length)}
+        />
+      </View>
 
-              <View
-                style={[
-                  styles.ratingMiniBox,
-                  { backgroundColor: themeColors.backgroundSecondary },
-                ]}
-              >
-                <View style={styles.graphHeader}>
-                  <Text style={[styles.miniLabel, { color: themeColors.text }]}>
-                    Rating
-                  </Text>
-                  <MaterialIcons
-                    name="star"
-                    size={18}
-                    color={themeColors.primary}
-                  />
-                </View>
-                <View style={styles.ratingContentRow}>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      { color: themeColors.textDarker },
-                    ]}
-                  >
-                    {avgRating}
-                  </Text>
-                  <MaterialIcons
-                    name="star"
-                    size={24}
-                    color={themeColors.primary}
-                    style={{ marginLeft: 6 }}
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Right Column: Impressions & Financials (Rendered conditionally if impressions exist, or layout shifts cleanly) */}
-            {totalImpressions > 0 && (
-              <View style={styles.rightColumn}>
-                <View
-                  style={[
-                    styles.impressionsTallBox,
-                    { backgroundColor: themeColors.backgroundSecondary },
-                  ]}
-                >
-                  <View style={styles.graphHeader}>
-                    <Text
-                      style={[
-                        styles.miniLabel,
-                        { color: themeColors.textDarker },
-                      ]}
-                    >
-                      Impressions Activity
-                    </Text>
-                    <MaterialIcons
-                      name="bar-chart"
-                      size={18}
-                      color={themeColors.primary}
-                    />
+      {/* Orders snapshot */}
+      {sellerOrders.length > 0 && (
+        <View style={[hub.sectionCard, { backgroundColor: themeColors.backgroundSecondary }]}>
+          <Text style={[hub.sectionCardTitle, { color: themeColors.textDarker }]}>
+            Orders
+          </Text>
+          <View style={hub.ordersSnapshotRow}>
+            {(Object.keys(statusMeta) as Exclude<OrderFilter, 'all'>[]).map(key => {
+              const meta = statusMeta[key];
+              const count = sellerOrders.filter(o => o.status === key).length;
+              return (
+                <View key={key} style={hub.ordersSnapshotItem}>
+                  <View style={[hub.ordersSnapshotIcon, { backgroundColor: meta.color + '1F' }]}>
+                    <MaterialIcons name={meta.icon} size={18} color={meta.color} />
                   </View>
-                  <LineGraph
-                    trend={totalImpressions > 0 ? 'up' : 'down'}
-                    colorOverride="rgba(255,255,255,0.8)"
-                    themeBackgroundColor={themeColors.backgroundSecondary}
-                  />
-
-                  <View style={styles.financialsDivider} />
-
-                  <View style={styles.financialSection}>
-                    <View style={styles.graphHeader}>
-                      <Text
-                        style={[styles.miniLabel, { color: themeColors.text }]}
-                      >
-                        Total Generated Income
-                      </Text>
-                      <MaterialIcons
-                        name="diamond"
-                        size={16}
-                        color={themeColors.primary}
-                      />
-                    </View>
-                    <CurrencyDisplay
-                      value={totalIncome}
-                      size="medium"
-                      containerStyle={styles.incomeCurrency}
-                    />
-
-                    <View style={[styles.graphHeader, { marginTop: 10 }]}>
-                      <Text
-                        style={[styles.miniLabel, { color: themeColors.text }]}
-                      >
-                        Available For Payout
-                      </Text>
-                      <MaterialIcons
-                        name="account-balance-wallet"
-                        size={16}
-                        color={themeColors.success}
-                      />
-                    </View>
-                    <CurrencyDisplay
-                      value={currentBalance}
-                      size="medium"
-                      containerStyle={styles.incomeCurrency}
-                    />
-                  </View>
+                  <Text style={[hub.ordersSnapshotCount, { color: themeColors.textDarker }]}>
+                    {formatStatNumber(count)}
+                  </Text>
+                  <Text style={[hub.ordersSnapshotLabel, { color: themeColors.text }]}>
+                    {meta.label}
+                  </Text>
                 </View>
-              </View>
-            )}
+              );
+            })}
           </View>
-
-          {/* Orders Status Row */}
-          {sellerOrders.length > 0 && (
-            <View style={styles.statusRow}>
-              <StatusCard
-                label="Pending"
-                count={formatStatNumber(
-                  sellerOrders.filter(o => o.status === 'pending_delivery')
-                    .length,
-                )}
-                color={themeColors.pendingDelivery}
-                icon="delivery-dining"
-              />
-              <StatusCard
-                label="Completed"
-                count={formatStatNumber(
-                  sellerOrders.filter(o => o.status === 'completed').length,
-                )}
-                color={themeColors.success}
-                icon="check-circle"
-              />
-              <StatusCard
-                label="Cancelled"
-                count={formatStatNumber(
-                  sellerOrders.filter(o => o.status === 'cancelled').length,
-                )}
-                color={themeColors.primary}
-                icon="cancel"
-              />
-            </View>
-          )}
-
-          {/* Customer Satisfaction / Reviews Section (Conditionally Rendered) */}
-          {allRatings.length > 0 && (
-            <View
-              style={[
-                styles.reviewHighlight,
-                { backgroundColor: themeColors.backgroundSecondary },
-              ]}
-            >
-              <View>
-                <Text
-                  style={[
-                    styles.ratingTitle,
-                    { color: themeColors.textDarker },
-                  ]}
-                >
-                  Customer Satisfaction
-                </Text>
-                <Text style={[styles.ratingSub, { color: themeColors.text }]}>
-                  {allRatings.length}{' '}
-                  {allRatings.length === 1 ? 'review' : 'reviews'}
-                </Text>
-              </View>
-              <View style={styles.ratingValueBox}>
-                <Text
-                  style={[styles.ratingText, { color: themeColors.textDarker }]}
-                >
-                  {avgRating}
-                </Text>
-                <MaterialIcons
-                  name="star"
-                  size={20}
-                  color={themeColors.primary}
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Pro Tip Card */}
-          <View
-            style={[
-              styles.newsCard,
-              { backgroundColor: themeColors.backgroundSecondary },
-            ]}
-          >
-            <View style={styles.proTipHeader}>
-              <MaterialIcons
-                name="lightbulb"
-                size={16}
-                color={themeColors.primary}
-              />
-              <Text style={[styles.newsTag, { color: themeColors.primary }]}>
-                PRO TIP
-              </Text>
-            </View>
-            <Text style={[styles.newsText, { color: themeColors.text }]}>
-              {totalImpressions > 0 && totalSalesCount === 0
-                ? 'High impressions but no sales? Try lowering your price or adding clearer descriptions.'
-                : "Keep your stock updated! Products marked 'In Stock' get 2x more clicks."}
-            </Text>
-          </View>
-        </>
+        </View>
       )}
+
+      {/* Tip */}
+      <View style={[hub.tipCard, { backgroundColor: themeColors.primary + '12' }]}>
+        <MaterialIcons name="lightbulb" size={18} color={themeColors.primary} />
+        <Text style={[hub.tipText, { color: themeColors.text }]}>
+          {totalImpressions > 0 && totalSalesCount === 0
+            ? 'People are viewing but not buying. Try clearer photos, a sharper description or a better price.'
+            : sellerProducts.some(p => (Number(p.amountInStock) || 0) <= 0)
+              ? 'Some listings are out of stock. Restock them so they keep showing up for buyers.'
+              : 'Listings with several clear photos and an up-to-date stock count sell faster.'}
+        </Text>
+      </View>
     </ScrollView>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
 export const ProductList = () => {
   const { colors: themeColors } = useTheme();
-  const { currentUser, deleteProductLocal } = useAppDataContext();
+  const {
+    currentUser,
+    deleteProductLocal,
+    syncCatalogToDatabase,
+    catalogSyncVersion,
+  } = useAppDataContext();
   const navigation = useNavigation<any>();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{
@@ -637,14 +730,26 @@ export const ProductList = () => {
     title: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  // Re-reads SQLite whenever a catalog sync lands.
   const { sellerProducts, refreshProducts } = useSellerProducts(
     currentUser?.uid,
+    catalogSyncVersion,
   );
 
-  const hasProducts = sellerProducts.length > 0;
-  if (hasProducts) {
-    console.log(sellerProducts[0].amountInStock);
-  }
+  // Stock must be current here, so bypass the 30-minute sync throttle.
+  const refreshFromServer = React.useCallback(async () => {
+    setRefreshing(true);
+    await syncCatalogToDatabase({ force: true });
+    setRefreshing(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshFromServer();
+    }, [refreshFromServer]),
+  );
+
   const handleDeletePress = (productId: string, productTitle: string) => {
     setSelectedProduct({ id: productId, title: productTitle });
     setDeleteModalVisible(true);
@@ -682,98 +787,72 @@ export const ProductList = () => {
       setIsDeleting(false);
     }
   };
+
   const renderProductItem = ({ item }: { item: Product }) => {
-    const isPhysical = item.type === 'physical';
-    const isLowStock =
-      isPhysical &&
-      (item.amountInStock ?? 0) > 0 &&
-      (item.amountInStock ?? 0) < 5;
-    const isOutOfStock = isPhysical && item.amountInStock === 0;
+    // All listings are physical; stock is read straight from the synced row
+    // (no longer gated on `type`, which older cached rows were missing).
+    const stock = Number(item.amountInStock) || 0;
+    const isOutOfStock = stock <= 0;
+    const isLowStock = stock > 0 && stock < 5;
+    const stockColor = isOutOfStock
+      ? themeColors.primary
+      : isLowStock
+        ? themeColors.pendingDelivery
+        : themeColors.success;
+    const stockLabel = isOutOfStock
+      ? 'Out of stock'
+      : isLowStock
+        ? `Only ${stock} left`
+        : `${stock} in stock`;
 
     return (
-      <TouchableOpacity
-        style={[
-          styles.card,
-          { backgroundColor: themeColors.backgroundSecondary },
-        ]}
-        activeOpacity={0.8}
-      >
-        {/* Thumbnail Container */}
+      <View style={[styles.card, { backgroundColor: themeColors.backgroundSecondary }]}>
         <View style={styles.imageContainer}>
           <Image
             source={{
-              uri: item.mediaUrls[0] || 'https://via.placeholder.com/150',
+              uri: item.mediaUrls?.[0] || 'https://via.placeholder.com/150',
             }}
             style={styles.thumbnail}
           />
         </View>
 
-        {/* Info Container */}
         <View style={styles.infoContainer}>
-          {/* Niche / Category Pill */}
-          <View
-            style={[
-              styles.typeBadge,
-              { backgroundColor: themeColors.primary + '15' },
-            ]}
-          >
-            <Text style={[styles.typeText, { color: themeColors.primary }]}>
-              {item.niche?.toUpperCase()}
-            </Text>
-          </View>
+          {!!item.niche && (
+            <View
+              style={[styles.typeBadge, { backgroundColor: themeColors.primary + '15' }]}
+            >
+              <Text style={[styles.typeText, { color: themeColors.primary }]}>
+                {item.niche.toUpperCase()}
+              </Text>
+            </View>
+          )}
 
-          {/* Title */}
           <Text
-            style={[styles.title, { color: themeColors.textDarker }]}
-            numberOfLines={1}
+            style={[hub.productTitle, { color: themeColors.textDarker }]}
+            numberOfLines={2}
           >
             {item.title}
           </Text>
 
-          {/* Stock & Price Row */}
           <View style={styles.detailsRow}>
-            <View style={styles.badge}>
-              <MaterialIcons
-                name="inventory"
-                size={14}
-                color={
-                  isOutOfStock
-                    ? themeColors.primary
-                    : isLowStock
-                      ? themeColors.primaryTint
-                      : themeColors.text
-                }
-              />
-              <Text
-                style={[
-                  styles.detailText,
-                  isOutOfStock
-                    ? { color: themeColors.primary, fontWeight: '600' }
-                    : { color: themeColors.text },
-                ]}
-              >
-                {isOutOfStock
-                  ? 'Out of Stock'
-                  : `${item.amountInStock ?? 0} in stock`}
+            <View style={[hub.stockPill, { backgroundColor: stockColor + '1A' }]}>
+              <MaterialIcons name="inventory-2" size={13} color={stockColor} />
+              <Text style={[hub.stockPillText, { color: stockColor }]}>
+                {stockLabel}
               </Text>
             </View>
-            <CurrencyDisplay value={item.price} size="medium" />
+            <CurrencyDisplay value={item.price} size="small" />
           </View>
 
-          {/* Actions Footer */}
           <View
             style={[
               styles.statsFooter,
-              { borderTopColor: themeColors.border || 'rgba(0,0,0,0.05)' },
+              { borderTopColor: themeColors.border + '40' },
             ]}
           >
             <TouchableOpacity
               style={styles.actionIconButton}
-              onPress={() =>
-                navigation.navigate('CreateProduct', {
-                  product: item,
-                })
-              }
+              onPress={() => navigation.navigate('CreateProduct', { product: item })}
             >
               <MaterialIcons name="edit" size={18} color={themeColors.text} />
               <Text style={[styles.actionText, { color: themeColors.text }]}>
@@ -796,78 +875,194 @@ export const ProductList = () => {
             </TouchableOpacity>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
   const handleAddNew = () => {
     navigation.navigate('CreateProduct');
   };
+  const outOfStockCount = sellerProducts.filter(
+    p => (Number(p.amountInStock) || 0) <= 0,
+  ).length;
+
   return (
-    <ScrollView>
-      {!hasProducts ? (
-        <View
-          style={[
-            styles.emptyStateCard,
-            { backgroundColor: themeColors.backgroundSecondary },
-          ]}
-        >
-          <MaterialIcons
-            name="add-shopping-cart"
-            size={60}
-            color={themeColors.primary}
+    <>
+      {/* The FlatList is the scroll container (it used to be nested in a
+          ScrollView, which disabled virtualization). */}
+      <FlatList
+        data={sellerProducts}
+        keyExtractor={item => item.productId}
+        renderItem={renderProductItem}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshFromServer}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
           />
+        }
+        ListHeaderComponent={
+          sellerProducts.length > 0 ? (
+            <View
+              style={[hub.inventoryHeader, { backgroundColor: themeColors.backgroundSecondary }]}
+            >
+              <View>
+                <Text style={[hub.inventoryCount, { color: themeColors.textDarker }]}>
+                  {sellerProducts.length} {sellerProducts.length === 1 ? 'listing' : 'listings'}
+                </Text>
+                <Text style={[hub.inventorySub, { color: themeColors.text }]}>
+                  {outOfStockCount > 0
+                    ? `${outOfStockCount} out of stock`
+                    : 'All physical listings in stock'}
+                </Text>
+              </View>
+              <CustomButton
+                title="Add"
+                iconName="add"
+                onPress={handleAddNew}
+                style={hub.inventoryAddBtn}
+              />
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          refreshing ? (
+            <ActivityIndicator style={{ marginTop: 40 }} color={themeColors.primary} />
+          ) : (
+            <ProductEmptyState onAdd={handleAddNew} />
+          )
+        }
+        contentContainerStyle={[
+          hub.listContent,
+          sellerProducts.length === 0 && { flexGrow: 1 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      />
+      <ActionModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setSelectedProduct(null);
+          }
+        }}
+        onContinue={handleConfirmDelete}
+        title="Remove Listing?"
+        subtitle={`Are you sure you want to permanently delete "${selectedProduct?.title || 'this listing'}"? This action cannot be undone.`}
+        continueText="Delete"
+        loading={isDeleting}
+      />
+    </>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Payouts
+// ---------------------------------------------------------------------------
+const getPayoutStatusStyle = (status: string) => {
+  switch (status) {
+    case 'success':
+      return { bg: 'rgba(46, 204, 113, 0.15)', text: '#2ecc71' };
+    case 'pending':
+      return { bg: 'rgba(241, 196, 15, 0.15)', text: '#f1c40f' };
+    case 'failed':
+      return { bg: 'rgba(231, 76, 60, 0.15)', text: '#e74c3c' };
+    default:
+      return { bg: 'rgba(149, 165, 166, 0.15)', text: '#95a5a6' };
+  }
+};
+/**
+ * Each payout row must be its own component so currency conversion hooks
+ * are called at the top level of a component. Calling hooks inside
+ * FlatList's renderItem function crashes React Native.
+ */
+const PayoutHistoryItem = ({
+  item,
+  viewerCountry,
+}: {
+  item: Transactions;
+  viewerCountry?: string;
+}) => {
+  const { colors: themeColors } = useTheme();
+  const navigation = useNavigation<any>();
+  const { convertedValue } = useConvertedCurrency(
+    item.amount,
+    item.currency,
+    viewerCountry,
+  );
+
+  const statusStyle = getPayoutStatusStyle(item.status);
+  const isMoneyIn = item.payType === 'in';
+  const isSuccessful = item.status === 'success';
+  // Older payout records only have a document id, which the backend accepts.
+  const transactionId = (item as any).transactionId || (item as any).id;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      disabled={!transactionId}
+      onPress={() => navigation.navigate('TransactionDetail', { transactionId })}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.title || 'Payout'}, ${item.status}. View details`}
+      style={[
+        styles.historyCard,
+        {
+          backgroundColor: themeColors.backgroundSecondary,
+          borderLeftColor: isSuccessful ? themeColors.success : statusStyle.text,
+        },
+      ]}
+    >
+      <View style={styles.historyInfo}>
+        <Text
+          style={[styles.titleText, { color: themeColors.textDarker }]}
+          numberOfLines={1}
+        >
+          {item.title || (item.type ? item.type.toUpperCase() : 'Transaction')}
+        </Text>
+        <Text
+          style={[styles.refText, { color: themeColors.text }]}
+          numberOfLines={1}
+        >
+          Ref: {item.reference}
+        </Text>
+        <Text style={[styles.historyDate, { color: themeColors.text }]}>
+          {item.createdAt
+            ? moment(parseFirestoreDate(item.createdAt)).format('MMM DD, YYYY • HH:mm')
+            : 'Recent'}
+        </Text>
+      </View>
+      <View style={styles.historyRight}>
+        <View style={styles.amountRow}>
           <Text
-            style={[styles.emptyStateTitle, { color: themeColors.textDarker }]}
+            style={[
+              styles.amountSign,
+              { color: isSuccessful ? themeColors.success : themeColors.text },
+            ]}
           >
-            Start Selling
+            {isMoneyIn ? '+' : '-'}
           </Text>
-          <Text style={[styles.emptyStateSub, { color: themeColors.text }]}>
-            You haven't uploaded any products yet.
-          </Text>
-          <CustomButton
-            title="Upload your first listing"
-            onPress={() => navigation.navigate('CreateProduct')}
-            style={[styles.addBtnSmall]}
+          <CurrencyDisplay
+            value={convertedValue}
+            size="small"
+            isSuccess={isSuccessful}
           />
         </View>
-      ) : (
-        <>
-          <FlatList
-            data={sellerProducts}
-            keyExtractor={item => item.productId}
-            renderItem={renderProductItem}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            ListHeaderComponent={
-              <ProductListHeader
-                count={sellerProducts.length}
-                onAdd={handleAddNew}
-              />
-            }
-            ListEmptyComponent={<ProductEmptyState onAdd={handleAddNew} />}
-          />
-          <ActionModal
-            visible={deleteModalVisible}
-            onClose={() => {
-              if (!isDeleting) {
-                setDeleteModalVisible(false);
-                setSelectedProduct(null);
-              }
-            }}
-            onContinue={handleConfirmDelete}
-            title="Remove Listing?"
-            subtitle={`Are you sure you want to permanently delete the selected listing? This action cannot be undone.`}
-            continueText="Delete"
-            loading={isDeleting}
-          />
-        </>
-      )}
-    </ScrollView>
+        <View style={hub.payoutRightRow}>
+          <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+              {item.status ? item.status.toUpperCase() : 'UNKNOWN'}
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={themeColors.text} />
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 };
 export const PayoutView = () => {
   const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
-  const { exchangeData } = useExchangeRate(currentUser.country || 'Nigeria');
+  const { exchangeData } = useExchangeRate(currentUser?.country || 'Nigeria');
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -914,7 +1109,7 @@ export const PayoutView = () => {
       dispatch(setUser({ ...currentUser }));
       Toast.show({
         type: 'success',
-        text1: 'Fetch Error',
+        text1: 'Payout Successful',
         text2: res.message || 'Payout processed successfully',
       });
       loadMoreHistory();
@@ -938,88 +1133,6 @@ export const PayoutView = () => {
       });
     }
     setRequesting(false);
-  };
-  const renderHistoryItem = (item: Transactions) => {
-    const { convertedValue } = useConvertedCurrency(
-      item.amount,
-      item.currency,
-      currentUser.country,
-    );
-
-    // Determine status color styling
-    const getStatusStyle = (status: string) => {
-      switch (status) {
-        case 'success':
-          return { bg: 'rgba(46, 204, 113, 0.15)', text: '#2ecc71' };
-        case 'pending':
-          return { bg: 'rgba(241, 196, 15, 0.15)', text: '#f1c40f' };
-        case 'failed':
-          return { bg: 'rgba(231, 76, 60, 0.15)', text: '#e74c3c' };
-        default:
-          return { bg: 'rgba(149, 165, 166, 0.15)', text: '#95a5a6' };
-      }
-    };
-
-    const statusStyle = getStatusStyle(item.status);
-    const isMoneyIn = item.payType === 'in';
-
-    return (
-      <View
-        style={[
-          styles.historyCard,
-          {
-            backgroundColor: themeColors.backgroundSecondary,
-            borderLeftColor: isMoneyIn ? '#2ecc71' : '#e74c3c',
-          },
-        ]}
-      >
-        {/* Left Details: Title & Date */}
-        <View style={styles.historyInfo}>
-          <Text
-            style={[styles.titleText, { color: themeColors.text }]}
-            numberOfLines={1}
-          >
-            {item.title || item.type.toUpperCase()}
-          </Text>
-
-          <Text
-            style={[styles.refText, { color: themeColors.text || '#888' }]}
-            numberOfLines={1}
-          >
-            Ref: {item.reference}
-          </Text>
-
-          <Text
-            style={[styles.historyDate, { color: themeColors.text || '#888' }]}
-          >
-            {item.createdAt
-              ? moment(parseFirestoreDate(item.createdAt)).format(
-                  'MMM DD, YYYY • HH:mm',
-                )
-              : 'Recent'}
-          </Text>
-        </View>
-        <View style={styles.historyRight}>
-          <Text
-            style={[
-              styles.amountText,
-              { color: isMoneyIn ? '#2ecc71' : themeColors.text },
-            ]}
-          >
-            {isMoneyIn ? '+' : '-'}
-            <CurrencyDisplay value={convertedValue} size="small" />
-          </Text>
-
-          <View
-            style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}
-          >
-            <Text style={[styles.statusText, { color: statusStyle.text }]}>
-              {item.status.toUpperCase()}
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
   };
   const renderHeader = () => {
     const hasPayoutAccount = !!currentUser?.subaccountId;
@@ -1105,8 +1218,12 @@ export const PayoutView = () => {
     <>
       <FlatList
         data={history}
-        keyExtractor={item => item.id || item.transactionId}
-        renderItem={({ item }) => renderHistoryItem(item)}
+        keyExtractor={(item, index) =>
+          item?.transactionId || item?.reference || `payout-${index}`
+        }
+        renderItem={({ item }) => (
+          <PayoutHistoryItem item={item} viewerCountry={currentUser?.country} />
+        )}
         ListHeaderComponent={renderHeader}
         onEndReached={loadMoreHistory}
         onEndReachedThreshold={0.5}
@@ -1140,289 +1257,6 @@ export const PayoutView = () => {
     </>
   );
 };
-export const SalesScreen = () => {
-  const { colors } = useTheme();
-  const [isVisible, setIsVisible] = useState(false);
-  const { sellerSales, currentUser, fetchSellerSales } = useAppDataContext();
-  const navigation = useNavigation<any>();
-  const [topBuyersProfiles, setTopBuyersProfiles] = useState<TopBuyerProfile[]>(
-    [],
-  );
-  const hasProducts = sellerSales.length > 0;
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonthIndex = now.getMonth();
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthIndex);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-
-  const yearItems = [
-    { label: '2025', value: 2025 },
-    { label: '2026', value: 2026 },
-  ];
-
-  const allMonths = [
-    { label: 'January', value: 0 },
-    { label: 'February', value: 1 },
-    { label: 'March', value: 2 },
-    { label: 'April', value: 3 },
-    { label: 'May', value: 4 },
-    { label: 'June', value: 5 },
-    { label: 'July', value: 6 },
-    { label: 'August', value: 7 },
-    { label: 'September', value: 8 },
-    { label: 'October', value: 9 },
-    { label: 'November', value: 10 },
-    { label: 'December', value: 11 },
-  ];
-  const availableMonths = allMonths.filter(
-    m => selectedYear < currentYear || m.value <= currentMonthIndex,
-  );
-
-  const topBuyersList = useMemo(() => {
-    const counts = sellerSales.reduce<Record<string, number>>((acc, sale) => {
-      acc[sale.buyerId] = (acc[sale.buyerId] || 0) + sale.amountPaid;
-      return acc;
-    }, {});
-    return Object.entries(counts)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
-      .slice(0, 8);
-  }, [sellerSales]);
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      if (!currentUser?.tier || !currentUser?.usertype) return;
-
-      const profiles = await Promise.all(
-        topBuyersList.map(async ([uid, totalSpent]) => {
-          const userData = await fetchUserWithOfflineFallback(uid);
-
-          if (!userData) return null;
-
-          return {
-            ...userData,
-            totalSpent,
-          } as TopBuyerProfile;
-        }),
-      );
-
-      const validProfiles = profiles.filter(
-        (p): p is TopBuyerProfile => p !== null && !!p.uid,
-      );
-      setTopBuyersProfiles(validProfiles);
-    };
-
-    if (topBuyersList.length > 0) {
-      fetchProfiles();
-    }
-  }, [topBuyersList, currentUser?.tier, currentUser?.usertype]);
-  const monthlyStats = useMemo(() => {
-    const filterSales = (m: number, y: number) =>
-      sellerSales.filter(s => {
-        const d = new Date(s.createdAt);
-        return d.getMonth() === m && d.getFullYear() === y;
-      });
-
-    const currentMonthTotal = filterSales(selectedMonth, selectedYear).reduce(
-      (sum, s) => sum + s.netEarnings,
-      0,
-    );
-    const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
-    const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
-
-    const prevMonthTotal = filterSales(prevMonth, prevYear).reduce(
-      (sum, s) => sum + s.netEarnings,
-      0,
-    );
-
-    return {
-      total: currentMonthTotal,
-      trend: (currentMonthTotal >= prevMonthTotal ? 'up' : 'down') as
-        'up' | 'down',
-    };
-  }, [selectedMonth, selectedYear, sellerSales]);
-  const totalIncome: number = sellerSales.reduce(
-    (sum: number, sale: ProductSale) => sum + (sale.netEarnings || 0),
-    0,
-  );
-  const currentBalance = currentUser.pendingSalesBalance || 0;
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchSellerSales();
-    }, []),
-  );
-
-  return (
-    <ScrollView style={styles.container}>
-      {!hasProducts ? (
-        <View
-          style={[
-            styles.emptyStateCard,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <MaterialIcons
-            name="add-shopping-cart"
-            size={60}
-            color={colors.primary}
-          />
-          <Text style={[styles.emptyStateTitle, { color: colors.textDarker }]}>
-            Start Selling
-          </Text>
-          <Text style={[styles.emptyStateSub, { color: colors.text }]}>
-            You haven't uploaded any products yet.
-          </Text>
-          <CustomButton
-            title="Upload your first listing"
-            style={[styles.verifyBtn]}
-            onPress={() => navigation.navigate('CreateProduct')}
-          />
-        </View>
-      ) : (
-        <>
-          <View style={styles.statusRowB}>
-            <StatusCardMini
-              label="Total Generated Income"
-              count={totalIncome}
-              color={colors.pendingDelivery}
-            />
-            <StatusCardMini
-              label="Available For Payout"
-              count={currentBalance}
-              color={colors.success}
-            />
-          </View>
-          <View
-            style={[
-              styles.graphHeader,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Text style={[styles.chartTitle, { color: colors.textDarker }]}>
-              Revenue Trend
-            </Text>
-            <CurrencyDisplay value={monthlyStats.total} size="medium" />
-          </View>
-          <View
-            style={[
-              styles.dropdownRow,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <View style={styles.pickerContainer}>
-              <Text style={[styles.pickerLabel, { color: colors.text }]}>
-                Year
-              </Text>
-              <RNPickerSelect
-                onValueChange={value => setSelectedYear(value)}
-                items={yearItems}
-                value={selectedYear}
-                style={{
-                  ...pickerSelectStyles,
-                  inputIOS: {
-                    ...pickerSelectStyles.inputIOS,
-                    color: colors.text,
-                  },
-                  inputAndroid: {
-                    ...pickerSelectStyles.inputAndroid,
-                    color: colors.text,
-                  },
-                  iconContainer: {
-                    top: 10,
-                    right: 12,
-                  },
-                }}
-                useNativeAndroidPickerStyle={false}
-              />
-            </View>
-            <TouchableOpacity
-              onPress={() => setIsVisible(true)}
-              style={styles.pickerContainer}
-            >
-              <Text style={[styles.pickerLabel, { color: colors.text }]}>
-                {availableMonths.find(m => m.value === selectedMonth)?.label ||
-                  'Select Month'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ height: 120, marginBottom: 20 }}>
-            <LineGraph
-              trend={monthlyStats.trend as 'up' | 'down'}
-              themeBackgroundColor={colors.backgroundSecondary}
-            />
-          </View>
-          <View
-            style={[
-              styles.bodyCard,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
-              Your Top Customers
-            </Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {topBuyersProfiles.map(buyer => (
-                <TouchableOpacity
-                  key={buyer.uid}
-                  style={styles.buyerCard}
-                  onPress={() =>
-                    navigation.navigate('Profile', {
-                      identifier: buyer.uid,
-                    })
-                  }
-                >
-                  <View style={styles.buyerCardSubDiv}>
-                    <UserAvatar
-                      profilePic={buyer.profilePic}
-                      firstName={buyer.firstname}
-                      lastName={buyer.lastname}
-                      style={styles.avatar}
-                    />
-                    <UserIdentity
-                      firstname={buyer.firstname}
-                      lastname={buyer.lastname}
-                      tier={buyer?.tier || 'free'}
-                      organizationName={buyer.organizationName}
-                      size="small"
-                      containerStyle={{ marginLeft: 8 }}
-                    />
-                  </View>
-                  <CurrencyDisplay value={buyer.totalSpent} size="medium" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </>
-      )}
-      <Modal visible={isVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <FlatList
-              data={availableMonths}
-              keyExtractor={item => item.value.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.itemRow}
-                  onPress={() => {
-                    setSelectedMonth(item.value);
-                    setIsVisible(false);
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16 }}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
-  );
-};
 export const ReviewsSection = () => {
   const { colors } = useTheme();
   const { allReviews, setAllReviews } = useAppDataContext();
@@ -1437,7 +1271,8 @@ export const ReviewsSection = () => {
   const avgRating =
     totalReviews > 0
       ? (
-          sellerReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+          sellerReviews.reduce((sum, r) => sum + (r?.rating || 0), 0) /
+            totalReviews
         ).toFixed(1)
       : '0.0';
 
@@ -1511,8 +1346,10 @@ export const ReviewsSection = () => {
       </View>
       <FlatList
         data={sellerReviews}
-        keyExtractor={item => item.id || item.reviewerId}
-        renderItem={({ item }) => <ReviewItem review={item} />}
+        keyExtractor={(item, index) =>
+          item?.id || item?.reviewerId || `review-${index}`
+        }
+        renderItem={({ item }) => (item ? <ReviewItem review={item} /> : null)}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
@@ -2020,10 +1857,15 @@ const styles = StyleSheet.create({
   historyRight: {
     alignItems: 'flex-end',
   },
-  amountText: {
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  amountSign: {
     fontSize: 15,
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginRight: 3,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -2058,3 +1900,167 @@ const pickerSelectStyles = {
     borderRadius: 8,
   },
 };
+
+// Styles for the redesigned Sales Hub tabs (orders, overview, inventory).
+const hub = StyleSheet.create({
+  listContent: { paddingTop: 4, paddingBottom: 40 },
+
+  // Orders
+  filterRow: { gap: 8, paddingBottom: 14, paddingRight: 8 },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.2,
+    borderRadius: 20,
+    paddingLeft: 13,
+    paddingRight: 6,
+    paddingVertical: 6,
+  },
+  filterChipText: { fontSize: 13, fontWeight: '700' },
+  filterCount: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountText: { fontSize: 11, fontWeight: '800' },
+  orderCard: {
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  orderTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  orderIconTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orderTitle: { fontSize: 15, fontWeight: '800' },
+  orderMeta: { fontSize: 12, marginTop: 2, opacity: 0.75 },
+  statusPill: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  statusPillText: { fontSize: 11, fontWeight: '800' },
+  orderStatsRow: {
+    flexDirection: 'row',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  orderStat: { flex: 1 },
+  orderStatLabel: { fontSize: 11, fontWeight: '600', opacity: 0.7, marginBottom: 4 },
+  orderStatValue: { fontSize: 14, fontWeight: '700' },
+  orderFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  orderFooterText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  orderAction: { marginTop: 12, borderRadius: 14 },
+
+  // Overview
+  heroCard: {
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  heroLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  heroSub: { fontSize: 12, marginTop: 4, opacity: 0.7 },
+  heroTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 16 },
+  heroTrackFill: { height: '100%', borderRadius: 4 },
+  heroSplitRow: { flexDirection: 'row', marginTop: 12 },
+  heroSplit: { flex: 1 },
+  heroLegend: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  heroSplitLabel: { fontSize: 12, fontWeight: '600' },
+  statGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+    marginBottom: 14,
+  },
+  statTile: { width: '48.5%', borderRadius: 16, padding: 14 },
+  statTileIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  statTileValue: { fontSize: 22, fontWeight: '800' },
+  statTileLabel: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  statTileHint: { fontSize: 11, marginTop: 4, opacity: 0.65 },
+  sectionCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
+  sectionCardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  ordersSnapshotRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  ordersSnapshotItem: { alignItems: 'center', flex: 1 },
+  ordersSnapshotIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  ordersSnapshotCount: { fontSize: 18, fontWeight: '800' },
+  ordersSnapshotLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  tipCard: {
+    flexDirection: 'row',
+    gap: 10,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'flex-start',
+  },
+  tipText: { flex: 1, fontSize: 13, lineHeight: 19 },
+
+  // Inventory
+  inventoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  inventoryCount: { fontSize: 17, fontWeight: '800' },
+  inventorySub: { fontSize: 12, marginTop: 2, opacity: 0.75 },
+  inventoryAddBtn: { width: 'auto', paddingHorizontal: 16, height: 38, borderRadius: 19 },
+  productTitle: { fontSize: 15, fontWeight: '700', marginBottom: 8 },
+  stockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  stockPillText: { fontSize: 12, fontWeight: '700' },
+
+  // Payouts
+  payoutRightRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+});

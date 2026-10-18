@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,6 +71,7 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   const [tests, setTests] = useState<any[]>([]);
   const [activeTest, setActiveTest] = useState<any | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [, setStartGateTick] = useState(0);
   const [allLectures, setAllLectures] = useState<any[]>([]);
   const [lecturersLectureTimeline, setLecturersLectureTimeline] = useState<
     any[]
@@ -275,8 +276,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     [user],
   );
 
+  // Resolves true when the backend recorded the submission so the test screen
+  // can show results, or false so the student can retry. Tests are not refetched
+  // here: doing so would hand RenderStudentTest a new `test` mid-result screen.
   const handleTestSubmission = useCallback(
-    async (payload: any) => {
+    async (payload: any): Promise<boolean> => {
       setLoading(true);
       try {
         const result = await submitStudentTest(payload);
@@ -286,25 +290,26 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             text1: 'Test Submitted!',
             text2: 'Your grade has been recorded.',
           });
-          fetchTests();
-        } else {
-          Toast.show({
-            type: 'error',
-            text1: 'Submission Failure',
-            text2: result.message,
-          });
+          return true;
         }
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failure',
+          text2: result.message,
+        });
+        return false;
       } catch (error: any) {
         Toast.show({
           type: 'error',
           text1: 'Submission Error',
           text2: error.message,
         });
+        return false;
       } finally {
         setLoading(false);
       }
     },
-    [fetchTests],
+    [],
   );
 
   const handleUpdateStatus = useCallback(
@@ -468,23 +473,28 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     }
   }, [title, course?.courseId, fetchCourseDetails]);
 
+  const specificAssessmentId: string | undefined = (route.params as any)
+    ?.assessmentId;
+  const checkedTestIdRef = useRef<string | null>(null);
+
+  // Without a deep-linked assessment, open the latest published test, but
+  // always through check-status so already-submitted tests are blocked upfront.
   useEffect(() => {
-    if (title === 'Assessments' && userRole === 'student' && tests.length > 0) {
-      const publishedTest = tests.find(t => t.isPublished);
-      if (publishedTest) setActiveTest(publishedTest);
+    if (title !== 'Assessments' || userRole !== 'student') return;
+    if (specificAssessmentId || tests.length === 0) return;
+    const publishedTest = tests.find(t => t.isPublished);
+    const testId = publishedTest?.id || publishedTest?._id;
+    if (testId && checkedTestIdRef.current !== testId) {
+      checkedTestIdRef.current = testId;
+      fetchStudentTest(testId);
     }
-  }, [tests, title, userRole]);
+  }, [tests, title, userRole, specificAssessmentId, fetchStudentTest]);
 
   useEffect(() => {
-    const specificId = (route.params as any)?.assessmentId;
-    if (title === 'Assessments' && userRole === 'student') {
-      if (specificId) {
-        fetchStudentTest(specificId);
-      } else {
-        fetchTests();
-      }
+    if (title === 'Assessments' && userRole === 'student' && specificAssessmentId) {
+      fetchStudentTest(specificAssessmentId);
     }
-  }, [title, userRole, route.params, fetchStudentTest, fetchTests]);
+  }, [title, userRole, specificAssessmentId, fetchStudentTest]);
 
   useEffect(() => {
     if (title === 'View Lecture Schedule') {
@@ -507,20 +517,17 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
       userRole === 'student'
     ) {
       const startTime = new Date(activeTest.scheduledStart).getTime();
-      const now = Date.now();
       const buffer = 30000;
-      const delay = startTime - buffer - now;
+      const delay = startTime - buffer - Date.now();
 
+      // Only re-render when the start gate opens. Refetching here used to
+      // replace activeTest, retrigger this effect, and loop forever.
       if (delay > 0) {
-        const timer = setTimeout(() => {
-          fetchTests();
-        }, delay);
+        const timer = setTimeout(() => setStartGateTick(t => t + 1), delay);
         return () => clearTimeout(timer);
-      } else {
-        fetchTests();
       }
     }
-  }, [activeTest, fetchTests, userRole, title]);
+  }, [activeTest, userRole, title]);
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 

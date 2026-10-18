@@ -71,7 +71,8 @@ interface AppDataContextType {
   sellerSales: ProductSale[];
   fetchSellerSales: () => Promise<void>;
   allReviews: any[];
-  syncCatalogToDatabase: () => Promise<void>;
+  /** Pass `{ force: true }` to bypass the 30-minute throttle (e.g. Inventory). */
+  syncCatalogToDatabase: (options?: { force?: boolean }) => Promise<void>;
   syncUsersToDatabase: () => Promise<void>;
   /**
    * Incremented every time the local catalog cache is (re)written.
@@ -747,14 +748,25 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       });
     }
   };
-  const syncCatalogToDatabase = async () => {
+  const catalogSyncInFlightRef = useRef(false);
+  const syncCatalogToDatabase = async (options?: { force?: boolean }) => {
+    if (catalogSyncInFlightRef.current) return;
+    catalogSyncInFlightRef.current = true;
     try {
       const now = Date.now();
       const lastSync = await AsyncStorage.getItem('CATALOG_SYNC_TIME');
       const thirtyMinutes = 30 * 60 * 1000;
 
-      if (!lastSync || now - parseInt(lastSync, 10) > thirtyMinutes) {
-        const result = await fetchAllProductsAPI();
+      if (
+        options?.force ||
+        !lastSync ||
+        now - parseInt(lastSync, 10) > thirtyMinutes
+      ) {
+        // Network first. Without `true` this returned the very first catalog
+        // ever saved in AsyncStorage forever, so SQLite kept being refilled
+        // with stale stock (shown as "Out of Stock"). The AsyncStorage copy
+        // is still used as the offline fallback inside fetchAllProductsAPI.
+        const result = await fetchAllProductsAPI(true);
 
         if (result.success && result.data) {
           let syncedCount = 0;
@@ -785,6 +797,7 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     } catch (error) {
       console.error('Database sync failed:', error);
     } finally {
+      catalogSyncInFlightRef.current = false;
       // Always publish, even on failure, so screens stop reading a stale cache.
       loadAllProductsFromCache();
       setCatalogSyncVersion(previous => previous + 1);
@@ -887,34 +900,43 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       throw error;
     }
   };
-  const fetchEmailSupportTickets = async (
-    cursor: string = '',
-    limit: number = 15,
-  ) => {
-    if (cursor) {
-      setIsFetchingMore(true);
-    } else {
-      setIsEmailSupportLoading(true);
-    }
+  // Stable identity matters: screens call this from a mount effect that lists
+  // it as a dependency. A new function per provider render re-ran that effect
+  // after every fetch (each fetch re-renders the provider): an endless loop.
+  const emailTicketsInFlightRef = useRef(false);
+  const fetchEmailSupportTickets = useCallback(
+    async (cursor: string = '', limit: number = 15) => {
+      if (emailTicketsInFlightRef.current) return;
+      emailTicketsInFlightRef.current = true;
+      if (cursor) {
+        setIsFetchingMore(true);
+      } else {
+        setIsEmailSupportLoading(true);
+      }
 
-    const result = await fetchTicketsAPI({ limit, cursor });
+      try {
+        const result = await fetchTicketsAPI({ limit, cursor });
 
-    if (result.success) {
-      const externalInquiries = result.tickets.filter(
-        (ticket: any) => ticket.source === 'email' || ticket.guestEmail,
-      );
+        if (result.success) {
+          const externalInquiries = result.tickets.filter(
+            (ticket: any) => ticket.source === 'email' || ticket.guestEmail,
+          );
 
-      setEmailSupportTickets(prevTickets => {
-        return cursor
-          ? [...prevTickets, ...externalInquiries]
-          : externalInquiries;
-      });
-      setNextCursor(result.nextCursor);
-    }
-
-    setIsEmailSupportLoading(false);
-    setIsFetchingMore(false);
-  };
+          setEmailSupportTickets(prevTickets => {
+            return cursor
+              ? [...prevTickets, ...externalInquiries]
+              : externalInquiries;
+          });
+          setNextCursor(result.nextCursor);
+        }
+      } finally {
+        emailTicketsInFlightRef.current = false;
+        setIsEmailSupportLoading(false);
+        setIsFetchingMore(false);
+      }
+    },
+    [],
+  );
   const unreadEmailSupportCount = emailSupportTickets.filter(
     (ticket: any) => ticket.status === 'open',
   ).length;

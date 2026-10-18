@@ -17,6 +17,7 @@ import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
 import { useAppDataContext } from '../context/EventContext';
 import { UserAvatar } from '../components/UserAvatar';
+import { useLoadMoreOnScroll } from '../hooks/useLoadMoreOnScroll';
 
 dayjs.extend(relativeTime);
 
@@ -51,11 +52,10 @@ export const ViewAllSupportInquiriesScreen = () => {
       ticketRefId: ticket.ticketRefId,
     });
   };
-  const handleLoadMore = () => {
+  const loadMoreProps = useLoadMoreOnScroll(() => {
     if (isFetchingMore || isEmailSupportLoading || !nextCursor) return;
-
-    fetchEmailSupportTickets(nextCursor, 15);
-  };
+    return fetchEmailSupportTickets(nextCursor, 15);
+  });
   const handleRefresh = () => {
     fetchEmailSupportTickets('', 15);
   };
@@ -192,8 +192,13 @@ export const ViewAllSupportInquiriesScreen = () => {
           contentContainerStyle={styles.listContent}
           refreshing={isEmailSupportLoading}
           onRefresh={handleRefresh}
-          onEndReached={handleLoadMore}
+          {...loadMoreProps}
           onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingMore ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+            ) : null
+          }
         />
       )}
     </View>

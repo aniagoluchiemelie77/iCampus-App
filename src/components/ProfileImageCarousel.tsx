@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   FlatList,
-  Image,
   Dimensions,
   StyleSheet,
   TouchableOpacity,
   Text,
+  type ViewToken,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
@@ -18,6 +18,7 @@ import Toast from 'react-native-toast-message';
 import { useMediaPicker } from '../hooks/useMediaPicker';
 import { ImageConfirmationModal } from './ImageConfirmationModal';
 import { useTheme } from '../context/ThemeContext';
+import { LazyImage } from './LazyImage';
 
 interface ProfileImageCarouselProps {
   images: string | string[] | null | undefined;
@@ -73,6 +74,28 @@ export const ProfileImageCarousel = ({
   const [localImages, setLocalImages] = useState<string[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedUri, setSelectedUri] = useState<string | null>(null);
+  // Slides that have entered the viewport; only those are allowed to fetch
+  // their image. The first slide starts visible so the header never flashes.
+  const [visibleIndices, setVisibleIndices] = useState<Set<number>>(
+    () => new Set([0]),
+  );
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const next = new Set<number>();
+      viewableItems.forEach(token => {
+        if (token.isViewable && typeof token.index === 'number') {
+          next.add(token.index);
+        }
+      });
+      setVisibleIndices(prev => {
+        if (prev.size === next.size && [...next].every(i => prev.has(i))) {
+          return prev;
+        }
+        return next;
+      });
+    },
+  ).current;
 
   const normalizedImages: string[] = React.useMemo(() => {
     let raw: string[] = [];
@@ -202,13 +225,15 @@ export const ProfileImageCarousel = ({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           keyExtractor={(item, index) => `${item}-${index}`}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View style={CarouselStyles.imageContainer}>
-              <Image
-                source={{ uri: item }}
+              <LazyImage
+                uri={item}
                 style={CarouselStyles.image}
-                resizeMode="cover"
+                visible={visibleIndices.has(index)}
               />
             </View>
           )}

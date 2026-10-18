@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,40 +14,8 @@ import { formatStatNumber } from '../utils/followCountFormatter';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { useConvertedPrice } from '../hooks/useCurrencyConverter';
-
-const AnimatedThumbnail = ({ urls }: { urls?: string[] }) => {
-  const safeUrls = urls || [];
-  const [index, setIndex] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (safeUrls.length <= 1) return;
-
-    const interval = setInterval(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0.3,
-        duration: 800,
-        useNativeDriver: true,
-      }).start(() => {
-        setIndex(prevIndex => (prevIndex + 1) % safeUrls.length);
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start();
-      });
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, [safeUrls, fadeAnim]);
-
-  return (
-    <Animated.Image
-      source={{ uri: safeUrls[index] }}
-      style={[styles.thumbnail, { opacity: fadeAnim }]}
-    />
-  );
-};
+import { LazyRotatingImages } from './LazyRotatingImages';
+import Toast from 'react-native-toast-message';
 
 export const ProductCard = ({
   product,
@@ -62,20 +30,77 @@ export const ProductCard = ({
 
   if (!product) return null;
 
+  const favScale = React.useRef(new Animated.Value(1)).current;
+  const cartScale = React.useRef(new Animated.Value(1)).current;
   const isFavorited =
     currentUser?.favorites?.includes(product.productId) ?? false;
+  const cartItem = currentUser?.cart?.find(
+    item => item.productId === product.productId,
+  );
+  const isInCart = !!cartItem;
+
+  const pulse = (anim: Animated.Value) => {
+    Animated.sequence([
+      Animated.timing(anim, {
+        toValue: 1.25,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleFavoritePress = useCallback(() => {
+    pulse(favScale);
+    handleToggleFavorite(product.productId);
+    Toast.show({
+      type: isFavorited ? 'error' : 'success',
+      text1: isFavorited ? 'Removed from favorites' : 'Added to favorites',
+      position: 'bottom',
+      visibilityTime: 2500,
+      bottomOffset: 60,
+    });
+  }, [handleToggleFavorite, product.productId, isFavorited]);
+
+  const handleCartPress = useCallback(() => {
+    pulse(cartScale);
+    handleCartItemToggle(product);
+    Toast.show({
+      type: isInCart ? 'error' : 'success',
+      text1: isInCart ? 'Removed from cart' : 'Added to cart',
+      position: 'bottom',
+      visibilityTime: 2500,
+      bottomOffset: 60,
+    });
+  }, [handleCartItemToggle, product, isInCart]);
+
   const buyerNationality = currentUser?.country || 'Nigeria';
   const { convertedValue } = useConvertedPrice(
     product.price,
     product.nationalityOfSeller,
     buyerNationality,
   );
-  const cartItem = currentUser?.cart?.find(
-    item => item.productId === product.productId,
-  );
-  const isInCart = !!cartItem;
 
-  const ratings = product.ratings || [];
+  // `ratings` may arrive as a raw JSON string (e.g. products read straight
+  // from SQLite without `parseProductRow`), so normalise it to an array
+  // before calling `.reduce` — otherwise this throws `undefined is not a
+  // function` on every card render.
+  const rawRatings = product.ratings;
+  const ratings: any[] = Array.isArray(rawRatings)
+    ? rawRatings
+    : typeof rawRatings === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(rawRatings || '[]');
+          } catch {
+            return [];
+          }
+        })()
+      : [];
   const avgRating =
     ratings.length > 0
       ? (
@@ -98,7 +123,10 @@ export const ProductCard = ({
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        <AnimatedThumbnail urls={product.mediaUrls} />
+        <LazyRotatingImages
+          urls={product.mediaUrls}
+          imageStyle={styles.thumbnail}
+        />
         <View
           style={[
             styles.typeBadge,
@@ -106,7 +134,7 @@ export const ProductCard = ({
           ]}
         >
           <Text style={[styles.typeText, { color: colors.primary }]}>
-            {product.niche?.toUpperCase() || 'ITEM'}
+            {String(product.niche || 'ITEM').toUpperCase()}
           </Text>
         </View>
         {product.amountInStock === 0 && (
@@ -151,24 +179,36 @@ export const ProductCard = ({
           </View>
         </View>
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            onPress={() => handleToggleFavorite(product.productId)}
-          >
-            <MaterialIcons
-              name={isFavorited ? 'favorite' : 'favorite-border'}
-              size={22}
-              color={colors.primary}
-              style={{ padding: 10 }}
-            />
+          <TouchableOpacity onPress={handleFavoritePress}>
+            <Animated.View
+              style={[
+                styles.iconContainer,
+                { transform: [{ scale: favScale }] },
+              ]}
+            >
+              <MaterialIcons
+                name={isFavorited ? 'favorite' : 'favorite-border'}
+                size={22}
+                color={colors.primary}
+                style={{ padding: 10 }}
+              />
+            </Animated.View>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => handleCartItemToggle(product)}>
-            <MaterialIcons
-              name={isInCart ? 'shopping-cart' : 'add-shopping-cart'}
-              size={20}
-              color={colors.primary}
-              style={{ padding: 10 }}
-            />
+          <TouchableOpacity onPress={handleCartPress}>
+            <Animated.View
+              style={[
+                styles.iconContainer,
+                { transform: [{ scale: cartScale }] },
+              ]}
+            >
+              <MaterialIcons
+                name={isInCart ? 'shopping-cart' : 'add-shopping-cart'}
+                size={20}
+                color={colors.primary}
+                style={{ padding: 10 }}
+              />
+            </Animated.View>
           </TouchableOpacity>
         </View>
       </View>
@@ -183,6 +223,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 10,
     alignItems: 'center',
+  },
+  iconContainer: {
+    padding: 10,
   },
   card: {
     borderRadius: 16,

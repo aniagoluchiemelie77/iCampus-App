@@ -61,7 +61,6 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
           uri={imageUri}
           style={isNarrow ? styles.mediaStacked : styles.mediaRow}
         >
-          {/* Category pill overlays the image in the stacked (grid) layout. */}
           {isNarrow ? (
             <View style={styles.mediaTopLeft}>
               <View style={styles.pillOnMedia}>
@@ -78,13 +77,14 @@ export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
 
           <Text
             style={[styles.title, { color: colors.textDarker }]}
-            numberOfLines={2}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {product.title}
           </Text>
 
           <View style={styles.footer}>
-            <CurrencyDisplay value={unitPrice} size="medium" />
+            <CurrencyDisplay value={unitPrice} size="small" />
             <RoundIconButton
               iconName="delete-outline"
               onPress={() => onRemove(product)}
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   mediaStacked: {
     width: '100%',
-    height: 132,
+    height: 122,
     borderTopLeftRadius: ProductListItemTokens.radius,
     borderTopRightRadius: ProductListItemTokens.radius,
   },

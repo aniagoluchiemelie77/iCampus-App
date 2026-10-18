@@ -142,7 +142,13 @@ const transactionalFinances = useMemo(() => {
   useEffect(() => {
       const initialMethods = checkoutItems.reduce<Record<string, string>>(
         (acc, item) => {
-          acc[item.productId] = 'drop_off';
+          const gateways = item.product?.physicalDetails?.sellerGateways || [];
+          const hasHome = gateways.includes('home_delivery');
+          const hasDropOff =
+            (item.product?.physicalDetails?.dropOffAddress?.length || 0) > 0;
+          // Home-only sellers must default to home delivery so the buyer
+          // provides an address and phone number before paying.
+          acc[item.productId] = hasHome && !hasDropOff ? 'home_delivery' : 'drop_off';
           return acc;
         },
         {},

@@ -16,7 +16,6 @@ import {
   ProductList,
   PayoutView,
   ReviewsSection,
-  SalesScreen,
 } from '../components/SellerManagementComps.tsx';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { useNavigation } from '@react-navigation/native';
@@ -29,7 +28,6 @@ import { useAppDataContext } from '../context/EventContext';
 const TABS = {
   Overview: OverviewsScreenComponent,
   'Sales Orders': OrdersList,
-  Sales: SalesScreen,
   Inventory: ProductList,
   Payouts: PayoutView,
   Reviews: ReviewsSection,
@@ -51,7 +49,7 @@ export const MerchantDashboard = () => {
   const { syncUsersToDatabase, syncCatalogToDatabase } = useAppDataContext();
   const [activeTab, setActiveTab] = useState('Overview');
   const navigation = useNavigation<any>();
-  const isOrganization = currentUser.organizationName !== '';
+  const isOrganization = currentUser.usertype === 'enterprise';
   const ActiveComponent = TABS[activeTab as keyof typeof TABS];
   useFocusEffect(
     React.useCallback(() => {
@@ -93,6 +91,7 @@ export const MerchantDashboard = () => {
           <UserIdentity
             firstname={currentUser?.firstname!}
             lastname={currentUser?.lastname}
+            username={currentUser?.username}
             tier={currentUser?.tier!}
             isVerified={currentUser?.isVerified}
             showVerifyIcon={true}
@@ -111,31 +110,26 @@ export const MerchantDashboard = () => {
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        {[
-          'Overview',
-          'Sales Orders',
-          'Sales',
-          'Inventory',
-          'Reviews',
-          'Payouts',
-        ].map(tab => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab
-                  ? { color: colors.primary }
-                  : { color: colors.text },
-              ]}
+        {['Overview', 'Sales Orders', 'Inventory', 'Reviews', 'Payouts'].map(
+          tab => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
             >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab
+                    ? { color: colors.primary }
+                    : { color: colors.text },
+                ]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ),
+        )}
       </ScrollView>
       <View style={styles.content}>
         <Suspense fallback={<DashboardSkeleton />}>

@@ -6,6 +6,7 @@ import { UserIdentity } from './UserIdentity';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { parseFirestoreDate } from '../utils/dateFormatter';
+import moment from 'moment';
 
 interface ReviewItemProps {
   review: Review & {
@@ -92,7 +93,7 @@ export const ReviewItem = ({ review }: ReviewItemProps) => {
           </View>
         )}
         <Text style={[styles.dateText, { color: colors.text }]}>
-          {parseFirestoreDate(review.createdAt)}
+          {moment(parseFirestoreDate(review.createdAt)).format('MMM DD, YYYY')}
         </Text>
       </View>
     </View>

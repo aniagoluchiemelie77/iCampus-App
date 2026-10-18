@@ -1,5 +1,5 @@
 import { PageHeader } from '../components/PageHeader';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { navigate } from '../context/navigationContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
@@ -21,8 +21,12 @@ export const ViewAllAdsScreen = () => {
     adminType === 'super_admin' ||
     (adminType === 'school_administrator' && !hasSchoolAdminPostedAd);
 
-  const fetchAds = async () => {
-    if (loading) return;
+  // A ref, not the `loading` state: state is stale inside this closure, so two
+  // quick refreshes from list items could both get through.
+  const inFlightRef = useRef(false);
+  const fetchAds = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
 
     const result = await getAds();
@@ -37,11 +41,12 @@ export const ViewAllAdsScreen = () => {
       });
     }
     setLoading(false);
-  };
+    inFlightRef.current = false;
+  }, []);
 
   useEffect(() => {
     fetchAds();
-  }, []);
+  }, [fetchAds]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

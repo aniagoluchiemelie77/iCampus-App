@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
-  Image,
   StyleSheet,
   Dimensions,
   ActivityIndicator,
@@ -34,6 +33,7 @@ import {
   SelectionModal,
 } from './ClassroomScreenComponents.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { EmptyState } from './EmptyFlatlistComponent';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -64,6 +64,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [status, setStatus] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('All');
   const [selectedSession, setSelectedSession] = useState('All');
+  const isFiltered = selectedSemester !== 'All' || selectedSession !== 'All';
 
   const [isManualModalVisible, setIsManualModalVisible] = useState(false);
   const [isSessionModalVisible, setSessionModalVisible] = useState(false);
@@ -96,11 +97,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     try {
       const fileData = await pickDocument();
       if (fileData) {
-        await uploadAndExtractCourseFile({
-          uri: fileData.uri,
-          type: 'application/pdf',
-          name: fileData.name || `document_${Date.now()}.pdf`,
-        });
+        // The picker allows any file; only PDFs and images can be read.
+        const name = fileData.name || `document_${Date.now()}.pdf`;
+        const extension = name.split('.').pop()?.toLowerCase() || '';
+        const mimeByExtension: Record<string, string> = {
+          pdf: 'application/pdf',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          webp: 'image/webp',
+          heic: 'image/heic',
+        };
+        const mimeType = mimeByExtension[extension];
+        if (!mimeType) {
+          Toast.show({
+            type: 'error',
+            text1: 'Unsupported file',
+            text2: 'Upload your course form as a PDF or a photo.',
+          });
+          return;
+        }
+        await uploadAndExtractCourseFile({ uri: fileData.uri, type: mimeType, name });
       }
     } catch (err) {
       console.log('Document picker window dismissed');
@@ -249,11 +266,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           bottomOffset: 5,
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('AI Extraction Pipeline Error:', err);
+      // Show the server's reason (matric mismatch, unsupported file, AI busy…)
+      // instead of a generic failure.
       Toast.show({
         type: 'error',
-        text1: 'Failed to process document, please retry.',
+        text1: 'Could not process your form',
+        text2:
+          err?.response?.data?.message ||
+          'Please check your connection and try again.',
         position: 'bottom',
         bottomOffset: 5,
       });
@@ -454,31 +476,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
             style={{ flex: 1, marginTop: 40 }}
           />
         ) : courses.length === 0 ? (
-          <View
-            style={[
-              styles.emptyState,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Image
-              source={{
+          isFiltered ? (
+            <EmptyState
+              iconName="event-busy"
+              title="No courses for this term"
+              subtitle={`Nothing found for ${
+                selectedSession === 'All' ? 'any session' : selectedSession
+              }${
+                selectedSemester === 'All'
+                  ? ''
+                  : `, ${selectedSemester} semester`
+              }.`}
+              buttonText="Show all courses"
+              buttonIcon="filter-alt-off"
+              onPress={() => {
+                setHasMore(true);
+                setPage(1);
+                setSelectedSession('All');
+                setSelectedSemester('All');
+              }}
+              secondaryButtonText={isStudent ? 'Add a course manually' : 'Add a course'}
+              onSecondaryPress={() => setIsManualModalVisible(true)}
+              style={styles.emptyState}
+            />
+          ) : (
+            <EmptyState
+              illustration={{
                 uri: isStudent
                   ? 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549467/The_Little_Things_-_Exam_Studying_wdspiv.png'
                   : 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549420/Fresh_Folk_-_Teaching_y1k0ov.png',
               }}
-              style={styles.illustration}
+              title={
+                isStudent ? 'Get started with iCampus' : 'Set up your teaching load'
+              }
+              subtitle={
+                isStudent
+                  ? 'Upload your course registration form and we’ll fill in your courses for you.'
+                  : 'Upload your course allocation form to prepare your syllabus and lectures.'
+              }
+              buttonText={isStudent ? 'Upload course form' : 'Upload allocation form'}
+              buttonIcon="cloud-upload"
+              onPress={() => setIsAttachmentModalVisible(true)}
+              secondaryButtonText="Or add courses manually"
+              onSecondaryPress={() => setIsManualModalVisible(true)}
+              style={styles.emptyState}
             />
-            <Text style={[styles.title, { color: colors.textDarker }]}>
-              {isStudent
-                ? 'Get Started with iCampus'
-                : 'Manage your iCampus courses effortlessly'}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.text }]}>
-              {isStudent
-                ? "Let's populate your academic calendar."
-                : 'Prepare your syllabus and lectures'}
-            </Text>
-          </View>
+          )
         ) : (
           <FlatList
             data={courses}
@@ -671,15 +714,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
-    padding: 20,
-    marginVertical: 10,
-  },
-  illustration: {
-    width: 150,
-    height: 150,
-    resizeMode: 'contain',
-    marginBottom: 15,
+    marginTop: 0,
+    paddingVertical: 20,
   },
 });
 

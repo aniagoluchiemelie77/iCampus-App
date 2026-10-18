@@ -42,6 +42,43 @@ const CARD_WIDTH = (width - 48) / 2;
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
 const CATEGORIES = ['people', 'posts', 'courses', 'resources', 'store'];
 
+// Per-tab copy and icons for the empty and loading states.
+const TAB_META: Record<
+  SearchTab,
+  { label: string; noun: string; icon: string; hint: string }
+> = {
+  people: {
+    label: 'People',
+    noun: 'people',
+    icon: 'person-search',
+    hint: 'Try a first name, last name or @username.',
+  },
+  posts: {
+    label: 'Posts',
+    noun: 'posts',
+    icon: 'article',
+    hint: 'Try a keyword or topic from the post.',
+  },
+  market: {
+    label: 'Store',
+    noun: 'products',
+    icon: 'storefront',
+    hint: 'Try a product name or category.',
+  },
+  resources: {
+    label: 'Resources',
+    noun: 'resources',
+    icon: 'menu-book',
+    hint: 'Try a course code or resource title.',
+  },
+  courses: {
+    label: 'Courses',
+    noun: 'courses',
+    icon: 'school',
+    hint: 'Try a course code like "PET 301" or a title.',
+  },
+};
+
 export const SearchScreen = () => {
   const navigation = useNavigation<any>();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -122,7 +159,7 @@ export const SearchScreen = () => {
               { backgroundColor: colors.backgroundSecondary },
             ]}
             onPress={() => {
-              navigation.navigate('Profile', { uid: item.uid });
+              navigation.navigate('Profile', { identifier: item.uid });
             }}
           >
             <UserAvatar
@@ -248,6 +285,9 @@ export const SearchScreen = () => {
             {isSearching ? (
               <View style={styles.searchEmptyState}>
                 <ActivityIndicator color={colors.primary} size="small" />
+                <Text style={[styles.searchingText, { color: colors.text }]}>
+                  Searching {TAB_META[activeTab].noun}…
+                </Text>
               </View>
             ) : searchResults.length > 0 ? (
               <FlatList
@@ -266,19 +306,31 @@ export const SearchScreen = () => {
                   marginHorizontal: 15,
                 }}
               />
+            ) : searchQuery.trim().length < 2 ? (
+              <EmptyState
+                iconName={TAB_META[activeTab].icon}
+                title="Keep typing…"
+                subtitle={`Enter at least 2 characters to search ${TAB_META[activeTab].noun}.`}
+                style={styles.emptyStatePadding}
+              />
             ) : (
               <EmptyState
-                iconName={searchQuery.length < 2 ? 'search' : 'find-in-page'}
-                title={
-                  searchQuery.length < 2
-                    ? `Search iCampus ${activeTab}`
-                    : 'No Results Found'
-                }
-                subtitle={
-                  searchQuery.length < 2
-                    ? `Enter at least 2 characters to look through the platform database directory updates.`
-                    : `We couldn't discover any matches matching "${searchQuery}" inside this tab profile context.`
-                }
+                iconName="search-off"
+                title={`No ${TAB_META[activeTab].noun} found`}
+                subtitle={`Nothing matches "${searchQuery.trim()}". ${TAB_META[activeTab].hint}`}
+                chipsLabel="Search somewhere else"
+                chips={tabs
+                  .filter(tab => tab.id !== activeTab)
+                  .map(tab => ({
+                    label: tab.label,
+                    icon: TAB_META[tab.id].icon,
+                    onPress: () => {
+                      setActiveTab(tab.id);
+                      setSearchResults([]);
+                    },
+                  }))}
+                secondaryButtonText="Clear search"
+                onSecondaryPress={() => setSearchQuery('')}
                 style={styles.emptyStatePadding}
               />
             )}
@@ -341,13 +393,18 @@ const styles = StyleSheet.create({
   searchEmptyState: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingTop: 60,
   },
+  searchingText: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.75,
+  },
   emptyStatePadding: {
-    marginTop: 80,
-    paddingHorizontal: 32,
-    alignItems: 'center',
+    flex: 0,
+    marginTop: 24,
   },
   productWrapper: {
     width: CARD_WIDTH,

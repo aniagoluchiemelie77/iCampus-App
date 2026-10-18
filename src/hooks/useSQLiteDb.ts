@@ -161,7 +161,12 @@ export const setupDatabase = () => {
   }
 };
 
-export const useSellerProducts = (sellerId?: string) => {
+/**
+ * @param refreshKey pass `catalogSyncVersion` from the app context so the list
+ * re-reads SQLite whenever a catalog sync lands (it used to read only once on
+ * mount and keep showing stale stock).
+ */
+export const useSellerProducts = (sellerId?: string, refreshKey?: number) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +199,7 @@ export const useSellerProducts = (sellerId?: string) => {
 
   useEffect(() => {
     fetchSellerProducts();
-  }, [fetchSellerProducts]);
+  }, [fetchSellerProducts, refreshKey]);
 
   return {
     sellerProducts: products,

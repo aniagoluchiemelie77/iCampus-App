@@ -30,7 +30,8 @@ const OrderListItem = React.memo(
     onCancel: (id: string) => void;
     colors: any;
   }) => {
-    const isCompleted = item.status === 'completed';
+    const isCompleted =
+      item.status === 'completed' || item.status === 'delivered';
 
     return (
       <View style={styles.wrapperContainer}>
@@ -94,7 +95,7 @@ export const PendingOrdersScreen = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <PageHeader
-        title="My Orders"
+        title="My Purchase Orders"
         subtitle={`${pendingOrders.length} item(s) pending`}
       />
       <FlatList

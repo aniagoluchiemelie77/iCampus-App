@@ -25,7 +25,7 @@ import { UserAvatar } from './UserAvatar.tsx';
 import { useAppSelector } from '../hooks/hooks.ts';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { useSocketConnection } from '../hooks/useSocket';
-import { getAds } from '../api/localGetApis';
+import { getAds, fetchUnreadNotificationCount } from '../api/localGetApis';
 import AdBanner from './AdsBanner';
 import { AdItem } from '../types/firebase';
 import { initialState } from '../context/UserSlice.ts';
@@ -186,6 +186,23 @@ export const NotificationBell: React.FC<Props> = ({
   const navigation = useNavigation<StackNavigationProp<any>>();
   const [unreadCount, setUnreadCount] = useState(initialCount);
 
+  // The server count is the source of truth: load it on mount and whenever
+  // Home regains focus (e.g. after reading notifications), so the badge
+  // reflects what is actually unread rather than only what arrived live.
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const count = await fetchUnreadNotificationCount();
+      if (active && count !== null) setUnreadCount(count);
+    };
+    refresh();
+    const unsubscribe = navigation.addListener('focus', refresh);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [navigation]);
+
   useEffect(() => {
     if (!socket) return;
     const handleNotification = (_data: any) => {
@@ -199,10 +216,12 @@ export const NotificationBell: React.FC<Props> = ({
 
   return (
     <TouchableOpacity
-      onPress={() => {
-        setUnreadCount(0);
-        navigation.navigate('Notifications');
-      }}
+      onPress={() => navigation.navigate('Notifications')}
+      accessibilityLabel={
+        unreadCount > 0
+          ? `Notifications, ${unreadCount} unread`
+          : 'Notifications'
+      }
       style={[styles.notificationContainer]}
     >
       <MaterialIcons name="notifications" size={23} color={colors.primary} />

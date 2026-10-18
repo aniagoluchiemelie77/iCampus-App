@@ -2,12 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Animated,
   useWindowDimensions,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -16,6 +14,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR, withAlpha } from '../assets/styles/colors';
+import { LazyImage } from './LazyImage';
 
 /**
  * Shared building blocks for the Favorites and Cart list items.
@@ -32,7 +31,7 @@ export const STACK_BREAKPOINT = 300;
 /** Design tokens — the single source of truth for this family of cards. */
 export const ProductListItemTokens = {
   radius: 20,
-  mediaSize: 104,
+  mediaSize: 94,
   mediaRadius: 16,
   gap: 14,
   pressScale: 0.975,
@@ -186,7 +185,8 @@ export const RoundIconButton = ({
 /**
  * Product media with a gradient scrim so overlaid controls stay readable
  * regardless of how light or busy the underlying photo is. Falls back to a
- * neutral icon when a listing has no media yet.
+ * neutral icon when a listing has no media yet. The picture itself is lazy
+ * loaded (see LazyImage), so list rows never block on off-screen thumbnails.
  */
 export const ProductMedia = ({
   uri,
@@ -198,12 +198,11 @@ export const ProductMedia = ({
   children?: React.ReactNode;
 }) => {
   const { colors } = useTheme();
-  const source: ImageSourcePropType | null = uri ? { uri } : null;
 
   return (
     <View style={[listStyles.media, { backgroundColor: colors.tint }, style]}>
-      {source ? (
-        <Image source={source} style={listStyles.mediaImage} resizeMode="cover" />
+      {uri ? (
+        <LazyImage uri={uri} style={listStyles.mediaImage} />
       ) : (
         <View style={listStyles.mediaFallback}>
           <MaterialIcons

@@ -23,6 +23,8 @@ import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import DeviceInfo from 'react-native-device-info';
 import { isValidEmail } from '../utils/SignupHelpers';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { normalizeIdentifier, passwordAttempts } from '../utils/loginInput';
+import { saveSession } from '../utils/session';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 export const AdminLogin = () => {
@@ -40,29 +42,40 @@ export const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const performLogin = useCallback(
-    async (payload: any) => {
+    async (payload: any, passwordOptions: string[] = []) => {
       setIsLoading(true);
       try {
         const deviceId = await DeviceInfo.getUniqueId();
         const deviceName = DeviceInfo.getModel();
         const brand = DeviceInfo.getBrand();
+        const attempt = (password?: string) =>
+          loginAdmin({
+            ...payload,
+            ...(password !== undefined ? { password } : {}),
+            deviceId,
+            deviceName: `${brand} ${deviceName}`,
+          });
 
-        const response = await loginAdmin({
-          ...payload,
-          deviceId,
-          deviceName: `${brand} ${deviceName}`,
-        });
+        // Trimmed password first; the exact text only if that is rejected.
+        let response = await attempt(passwordOptions[0]);
+        if (!response.success && passwordOptions.length > 1) {
+          response = await attempt(passwordOptions[1]);
+        }
 
         if (response.success) {
           const { accessToken, refreshToken, user } = response;
-          await AsyncStorage.setItem('accessToken', accessToken);
-          await AsyncStorage.setItem('refreshToken', refreshToken);
-          await AsyncStorage.setItem('user', JSON.stringify(user));
+          // sessionType lets app start-up reopen the admin dashboard.
+          await saveSession({
+            accessToken,
+            refreshToken,
+            user,
+            sessionType: 'admin',
+          });
 
           dispatch(
             setAdmin({ ...user, accessToken, tokenCreatedAt: Date.now() }),
           );
-          navigation.navigate('AdminDashboard');
+          navigation.reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
         } else {
           setAlertType('error');
           setAlertMessage(response.message || 'Invalid credentials.');
@@ -80,18 +93,25 @@ export const AdminLogin = () => {
   );
 
   const handlePasswordLogin = () => {
-    if (!identifier || !password) {
+    const cleanIdentifier = normalizeIdentifier(identifier);
+    const passwords = passwordAttempts(password);
+    if (!cleanIdentifier || passwords.length === 0) {
       setAlertMessage('Ensure required fields are not empty.');
       setAlertType('error');
       setAlertVisible(true);
       return;
     }
-    performLogin({ identifier, password, socialProvider: 'password' });
+    setIdentifier(cleanIdentifier);
+    performLogin(
+      { identifier: cleanIdentifier, socialProvider: 'password' },
+      passwords,
+    );
   };
 
+  const trimmedIdentifier = normalizeIdentifier(identifier);
   const canSubmit = useMemo(() => {
-    return isValidEmail(identifier) && password.length > 0;
-  }, [identifier, password]);
+    return isValidEmail(trimmedIdentifier) && password.trim().length > 0;
+  }, [trimmedIdentifier, password]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -129,10 +149,15 @@ export const AdminLogin = () => {
                 style={styles.input2}
                 value={identifier}
                 onChangeText={setIdentifier}
+                onEndEditing={() => setIdentifier(prev => prev.trim())}
                 autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
               />
             </View>
-            {identifier.length > 0 && !isValidEmail(identifier) && (
+            {trimmedIdentifier.length > 0 && !isValidEmail(trimmedIdentifier) && (
               <Text style={styles.validationText}>Invalid email format</Text>
             )}
 

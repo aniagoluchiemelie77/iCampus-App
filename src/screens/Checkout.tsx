@@ -26,7 +26,9 @@ import { DELIVERY_FEES } from '../constants/inAppConstants';
 import { useLocationServices } from '../hooks/useLocationService.ts';
 import { StationCarousel } from '../components/StationCarousel.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
-import { useExchangeRate } from '../hooks/useExchangeRate.ts';
+import { useConvertedCurrency } from '../hooks/useCurrencyConverter.ts';
+import { currencyMap } from '../utils/UserTransactionsHelpers';
+import { useResponsiveCardLayout } from '../components/ProductListItem';
 import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
 
 export const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
@@ -42,7 +44,8 @@ export const CheckoutScreen = () => {
   const route = useRoute();
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user) || {};
-  const { exchangeData } = useExchangeRate(currentUser.country || 'Nigeria');
+  const buyerCountry = currentUser?.country || 'Nigeria';
+  const buyerCurrency = currencyMap[buyerCountry] || currencyMap.Nigeria;
   const { allProducts } = useAppDataContext();
   const params = useMemo(() => {
     return (route.params || {}) as CheckoutScreenParams;
@@ -68,6 +71,19 @@ export const CheckoutScreen = () => {
     homeItems,
   } = useCheckout(params, currentUser, allProducts);
   const { userCoords, locationPermission } = useLocationServices();
+
+  // Convert the grand total to the buyer's currency only when it differs
+  // from the seller's currency. useConvertedCurrency returns the base amount
+  // unchanged when both currencies match (no double conversion).
+  const sourceCurrency = checkoutItems[0]?.product?.currency || buyerCurrency.code;
+  const { convertedValue: payAmount } = useConvertedCurrency(
+    transactionalFinances.grandTotal,
+    sourceCurrency,
+    buyerCountry,
+  );
+
+  const { cardWidth } = useResponsiveCardLayout(1);
+  const cappedCardWidth = Math.min(cardWidth, 430);
 
   const handleProceedToCheckoutPayment = useCallback(() => {
     if (!formValidation.valid) {
@@ -111,7 +127,7 @@ export const CheckoutScreen = () => {
         subtotal: transactionalFinances.subtotal,
         delivery: transactionalFinances.totalDeliveryFee,
         grandTotal: transactionalFinances.grandTotal,
-        currency: exchangeData.code,
+        currency: buyerCurrency.code,
       },
       shippingContact: {
         phone: formattedValue,
@@ -176,7 +192,9 @@ export const CheckoutScreen = () => {
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <CartItem cartEntry={item} product={item.product!} />
+          <View style={[styles.cardCenter, { width: cappedCardWidth }]}>
+            <CartItem cartEntry={item} product={item.product!} />
+          </View>
           {isPhysical && (
             <View style={styles.itemDeliveryContainer}>
               {canToggle && (
@@ -477,7 +495,7 @@ export const CheckoutScreen = () => {
         </View>
 
         <CustomButton
-          title={`Pay ${exchangeData.symbol}${(transactionalFinances.grandTotal * exchangeData.rate).toFixed(2)}`}
+          title={`Pay ${buyerCurrency.symbol}${Number(payAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true })}`}
           style={[styles.buyBtn]}
           onPress={handleProceedToCheckoutPayment}
         />
@@ -497,6 +515,8 @@ export const CheckoutScreen = () => {
     userCoords,
     setDeliveryAddress,
     homeItems.length,
+    payAmount,
+    buyerCurrency,
   ]);
 
   return (
@@ -514,7 +534,7 @@ export const CheckoutScreen = () => {
       <AddPaymentModal
         visible={isCheckoutPaymentVisible}
         onClose={() => setIsCheckoutPaymentVisible(false)}
-        currencyData={exchangeData}
+        currencyData={buyerCurrency}
         user={currentUser}
         mode="checkout"
         amount={transactionalFinances.grandTotal}
@@ -531,6 +551,10 @@ const styles = StyleSheet.create({
   itemWrapper: {
     paddingHorizontal: 15,
     marginTop: 10,
+    alignItems: 'center',
+  },
+  cardCenter: {
+    alignSelf: 'center',
   },
   summaryContainer: {
     padding: 20,
@@ -566,6 +590,7 @@ const styles = StyleSheet.create({
   balanceText: { fontSize: 14, fontWeight: '600' },
   buyBtn: {
     paddingHorizontal: 15,
+    marginTop: 12,
   },
   buyBtnText: { fontSize: 14, fontWeight: 'bold' },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },

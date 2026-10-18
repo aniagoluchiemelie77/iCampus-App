@@ -7,12 +7,15 @@ interface CurrencyDisplayProps {
   value: number;
   size?: 'small' | 'medium' | 'large';
   containerStyle?: ViewStyle;
+  /** Renders the amount in the theme's success colour (e.g. money received). */
+  isSuccess?: boolean;
 }
 
 export const CurrencyDisplay = ({
   value,
   size = 'medium',
   containerStyle,
+  isSuccess = false,
 }: CurrencyDisplayProps) => {
   const { colors } = useTheme();
   const { country } = useAppSelector(state => state.user);
@@ -36,7 +39,7 @@ export const CurrencyDisplay = ({
     decimal: decSize,
     spacing,
   } = config[size];
-  const activeColor = colors.primary;
+  const activeColor = isSuccess ? colors.success : colors.primary;
   return (
     <View style={[styles.balanceContainer, containerStyle]}>
       <Text
@@ -44,7 +47,7 @@ export const CurrencyDisplay = ({
           fontSize: currencySize,
           fontWeight: 'bold',
           marginRight: spacing,
-          color: colors.primary,
+          color: activeColor,
         }}
       >
         {exchangeData.symbol}

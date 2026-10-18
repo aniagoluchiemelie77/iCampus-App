@@ -765,6 +765,8 @@ export interface Attachment {
   fileSize?: number;
 }
 export type AssistantMessage = {
+  id?: string;
+  status?: string;
   role: 'user' | 'model';
   content: string;
   attachments?: {

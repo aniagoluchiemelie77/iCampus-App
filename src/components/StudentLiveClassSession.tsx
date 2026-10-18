@@ -1,349 +1,314 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { User, ChatMessage, Lecture } from '../types/firebase';
-import ExpandableFAB from './ExpandableFAB';
-import { useAppSelector } from '../hooks/hooks';
-import { UserAvatar } from './UserAvatar';
-import LiveAudioStream from 'react-native-live-audio-stream';
-import { useNavigation } from '@react-navigation/native';
-import { useLiveTranscription } from '../hooks/useLiveTransciption';
+import { Socket } from 'socket.io-client';
 import {
+  MediaStream,
   RTCPeerConnection,
   RTCSessionDescription,
   RTCIceCandidate,
   RTCView,
 } from 'react-native-webrtc';
+import LiveAudioStream from 'react-native-live-audio-stream';
+import { Buffer } from 'buffer';
+import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-import { CustomButton } from '../assets/components/AppUIComponents';
+import { User, ChatMessage, Lecture } from '../types/firebase';
+import { useAppSelector } from '../hooks/hooks';
+import { UserAvatar } from './UserAvatar';
+import { useLiveTranscription } from '../hooks/useLiveTransciption';
+import { useTheme } from '../context/ThemeContext';
+import {
+  createLiveClassPeerConnectionConfig,
+  formatElapsed,
+  toMillis,
+} from '../utils/liveClassRtc';
+import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
 import {
   ChatModal,
   AttendeeListModal,
-  WavingToast,
-  SpeakerToast,
   ConfirmationModal,
   LecturerTab,
+  LiveControlButton,
 } from './liveClassComponents';
-import { useTheme } from '../context/ThemeContext';
-import { PageHeader } from './PageHeader';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface StudentLiveSessionProps {
   lecture: Lecture;
-  socket: any;
+  socket: Socket | null;
   lecturerLiveData: any;
+  /** True once the server has admitted this socket to the lecture room. */
+  joined: boolean;
 }
+
+type StreamState = 'waiting' | 'connecting' | 'connected' | 'reconnecting';
+
+const MAX_VISIBLE_AVATARS = 6;
+const RETRY_STREAM_MS = 4000;
+
+const serializeCandidate = (c: any) =>
+  typeof c?.toJSON === 'function'
+    ? c.toJSON()
+    : { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex };
+
+export { LiveClassSessionStyles } from './liveClassStyles';
+
 export const StudentLiveClassSession = ({
   lecture,
   socket,
   lecturerLiveData,
+  joined,
 }: StudentLiveSessionProps) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
-  const pc = useRef<RTCPeerConnection | null>(null);
   const navigation = useNavigation<any>();
-  const AVATAR_SIZE = 40;
-  const AVATAR_OVERLAP = -10;
-  const BADGE_WIDTH = 60;
-  const [chatVisible, setChatVisible] = useState(false);
-  const [activeSpeakersList, setActiveSpeakersList] = useState<any[]>([]);
-  const [transcription, setTranscription] = useState<string>(
-    'Waiting for audio...',
+
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const hostSocketIdRef = useRef<string | null>(null);
+  const pendingCandidatesRef = useRef<any[]>([]);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatVisibleRef = useRef(false);
+  const startedAtRef = useRef<number>(
+    toMillis((lecture as any).startedAt) ?? Date.now(),
   );
-  const [fabVisible, setFabVisible] = useState(false);
+
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [streamState, setStreamState] = useState<StreamState>(
+    lecture.isLive ? 'connecting' : 'waiting',
+  );
+  const [isLecturerMuted, setIsLecturerMuted] = useState<boolean>(
+    !!(lecture as any).isLecturerMuted,
+  );
+  const [isLecturerCameraOn, setIsLecturerCameraOn] = useState<boolean>(
+    (lecture as any).isVideoActive !== false,
+  );
+  const [isScreenShared, setIsScreenShared] = useState<boolean>(
+    !!(lecture as any).isScreenSharing,
+  );
+  const [isAudioOnly, setIsAudioOnly] = useState<boolean>(
+    !!(lecture as any).isAudioOnly,
+  );
+  const [chatVisible, setChatVisible] = useState(false);
+  const [transcription, setTranscription] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isMicAllowed, setIsMicAllowed] = useState(false);
   const [isLocalMuted, setIsLocalMuted] = useState(true);
-  const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
+  const [speakerName, setSpeakerName] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [isWaving, setIsWaving] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState('00:00');
-  const [remoteStreamUrl, setRemoteStreamUrl] = useState<string | null>(null);
-  const [maxVisibleAvatars, setMaxVisibleAvatars] = useState(4);
+  const [elapsedTime, setElapsedTime] = useState('0:00');
   const [attendeeModalVisible, setAttendeeModalVisible] = useState(false);
-  const [permittedSpeaker, setPermittedSpeaker] = useState<User | null>(null);
-  const [wavers, setWavers] = useState<any[]>([]);
-  const [isSharingScreen, setIsSharingScreen] = useState(false);
-  const [endModalVisible, setEndModalVisible] = useState(false);
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [currentAttendees, setCurrentAttendees] = useState<User[]>([]);
-  const handleContainerLayout = (event: any) => {
-    const { width } = event.nativeEvent.layout;
-    const availableWidth = width - BADGE_WIDTH;
-    const effectiveAvatarWidth = AVATAR_SIZE + AVATAR_OVERLAP;
-    const computedMax = Math.floor(availableWidth / effectiveAvatarWidth);
-    setMaxVisibleAvatars(Math.max(2, computedMax));
-  };
-  const checkNetworkQuality = useCallback(async () => {
-    if (!pc.current) return;
 
-    const stats = await pc.current.getStats();
-    stats.forEach((report: any) => {
-      if (report.type === 'inbound-rtp' && report.packetsLost > 50) {
-        console.log('Low network detected, switching to audio-only...');
-        switchToAudioOnly();
-      }
-    });
-  }, [pc]);
+  const currentAttendeesRef = useRef<User[]>([]);
+  currentAttendeesRef.current = currentAttendees;
+  chatVisibleRef.current = chatVisible;
+  const classmates = currentAttendees.filter(a => a.uid !== lecture.hostId);
 
-  const switchToAudioOnly = async () => {
-    if (!pc.current) return;
-    const senders = pc.current.getSenders();
-    senders.forEach(sender => {
-      if (sender.track && sender.track.kind === 'video') {
-        sender.track.enabled = false;
-      }
-    });
-
-    Toast.show({
-      type: 'info',
-      text1: 'Low Bandwidth',
-      text2: 'Video stream disabled to maintain audio quality.',
-    });
-  };
-  const appendTranscriptionText = (label: string, text: string) => {
+  const appendTranscriptionText = useCallback((label: string, text: string) => {
     setTranscription(prev => {
-      const currentBuffer =
-        prev === 'Waiting for audio...' ||
-        prev === 'Listening to classroom room audio tracks...'
-          ? ''
-          : prev;
-      const cleanLine = currentBuffer.endsWith(`${label} `)
-        ? text
-        : `\n${label} ${text}`;
-      return (currentBuffer + cleanLine).slice(-200);
+      const line = prev.endsWith(`${label} `) ? text : `\n${label} ${text}`;
+      return (prev + line).trimStart().slice(-400);
     });
-  };
-  const { sendAudioChunkToDeepgram } = useLiveTranscription({
-    lectureId: lecture.id,
-    isHost: false, // Students are not the host
-    currentUserFirstName: user.firstname!,
-    isMicActive: isMicAllowed,
-    onTranscriptChunk: (label, text) => {
-      appendTranscriptionText(label, text);
-      // Broadcast the student's transcription to everyone else
-      socket.emit('share_transcription_chunk', {
-        lectureId: lecture.id,
-        speakerLabel: label,
-        text: text,
-      });
+  }, []);
+
+  // ---- WebRTC (receive-only) -----------------------------------------------
+  const resetPeer = useCallback(() => {
+    pcRef.current?.close();
+    pcRef.current = null;
+    pendingCandidatesRef.current = [];
+    setRemoteStream(null);
+  }, []);
+
+  const requestStream = useCallback(() => {
+    if (!socket || !joined) return;
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    socket.emit('webrtc_request_stream', { lectureId: lecture.id });
+    // If no offer arrives (host not broadcasting yet), ask again shortly.
+    retryTimerRef.current = setTimeout(() => {
+      if ((pcRef.current as any)?.connectionState !== 'connected') requestStream();
+    }, RETRY_STREAM_MS * 2);
+  }, [socket, joined, lecture.id]);
+
+  const handleHostSignal = useCallback(
+    async ({ signal, senderId }: { signal: any; senderId: string }) => {
+      if (!socket) return;
+      try {
+        if (signal.type === 'offer') {
+          resetPeer();
+          hostSocketIdRef.current = senderId;
+          setStreamState('connecting');
+          const pc = new RTCPeerConnection(createLiveClassPeerConnectionConfig());
+          pcRef.current = pc;
+
+          (pc as any).ontrack = (event: any) => {
+            const [stream] = event.streams || [];
+            if (stream) setRemoteStream(stream);
+          };
+          (pc as any).onicecandidate = (event: any) => {
+            if (!event.candidate) return;
+            socket.emit('webrtc_signal', {
+              lectureId: lecture.id,
+              targetSocketId: senderId,
+              signal: { candidate: serializeCandidate(event.candidate) },
+            });
+          };
+          (pc as any).onconnectionstatechange = () => {
+            if (pcRef.current !== pc) return;
+            const state = (pc as any).connectionState;
+            if (state === 'connected') {
+              setStreamState('connected');
+              if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+            } else if (state === 'failed' || state === 'disconnected') {
+              setStreamState('reconnecting');
+              if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+              retryTimerRef.current = setTimeout(requestStream, RETRY_STREAM_MS);
+            }
+          };
+
+          await pc.setRemoteDescription(new RTCSessionDescription(signal));
+          for (const c of pendingCandidatesRef.current) {
+            await pc.addIceCandidate(new RTCIceCandidate(c));
+          }
+          pendingCandidatesRef.current = [];
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit('webrtc_signal', {
+            lectureId: lecture.id,
+            targetSocketId: senderId,
+            signal: { type: answer.type, sdp: answer.sdp },
+          });
+        } else if (signal.candidate) {
+          const pc = pcRef.current;
+          if (!pc || !(pc as any).remoteDescription) {
+            pendingCandidatesRef.current.push(signal.candidate);
+          } else {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          }
+        }
+      } catch (err) {
+        console.error('[LIVE_RTC] Failed to process host signal:', err);
+      }
     },
-  });
+    [socket, lecture.id, resetPeer, requestStream],
+  );
+
+  // Ask for the stream as soon as we're in the room (and after reconnects).
   useEffect(() => {
-    if (isMicAllowed && !isLocalMuted) {
-      LiveAudioStream.init({
-        sampleRate: 16000,
-        channels: 1,
-        bitsPerSample: 16,
-        bufferSize: 4096,
-        wavFile: 'temp_audio.wav',
-      });
-
-      LiveAudioStream.on('data', (data: string) => {
-        socket.emit('student_audio_chunk', {
-          lectureId: lecture.id,
-          audio: data,
-        });
-      });
-
-      LiveAudioStream.start();
-    } else {
-      LiveAudioStream.stop();
-    }
+    if (joined) requestStream();
     return () => {
-      LiveAudioStream.stop();
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [isMicAllowed, isLocalMuted, socket, lecture.id]);
-  useEffect(() => {
-    const start = new Date(lecture.startTime).getTime();
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
-      const diff = Math.floor((now - start) / 1000);
-      const mins = Math.floor(diff / 60)
-        .toString()
-        .padStart(2, '0');
-      const secs = (diff % 60).toString().padStart(2, '0');
-      setElapsedTime(`${mins}:${secs}`);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [lecture.startTime]);
+  }, [joined, requestStream]);
+
+  useEffect(() => () => resetPeer(), [resetPeer]);
+
+  // ---- Socket events --------------------------------------------------------
   useEffect(() => {
     if (!socket) return;
-
-    const handlers = {
-      mic_permission_granted_received: (data: { targetUid: string }) => {
-        const student = currentAttendees.find(a => a.uid === data.targetUid);
-        setPermittedSpeaker(student || null);
-        if (data.targetUid === user.uid) {
+    const handlers: Record<string, (data: any) => void> = {
+      webrtc_signal_received: handleHostSignal,
+      live_stream_started: ({ startedAt }) => {
+        startedAtRef.current = toMillis(startedAt) ?? startedAtRef.current;
+        setStreamState('connecting');
+        requestStream();
+      },
+      webrtc_viewer_left: ({ viewerSocketId }) => {
+        // The host's socket dropped: wait for it to come back.
+        if (viewerSocketId === hostSocketIdRef.current) {
+          resetPeer();
+          setStreamState('reconnecting');
+        }
+      },
+      lecturer_mic_status_changed: ({ isMuted }) => setIsLecturerMuted(!!isMuted),
+      lecturer_camera_toggled_received: ({ isCameraOn }) => setIsLecturerCameraOn(!!isCameraOn),
+      lecturer_screen_share_started: () => setIsScreenShared(true),
+      lecturer_screen_share_stopped: () => setIsScreenShared(false),
+      lecturer_network_mode_changed: ({ mode }) => setIsAudioOnly(mode === 'audio-only'),
+      mic_permission_granted_received: ({ targetUid }: { targetUid: string }) => {
+        const speaker = currentAttendeesRef.current.find(a => a.uid === targetUid);
+        setSpeakerName(targetUid === user.uid ? 'You' : speaker?.firstname || 'A classmate');
+        if (targetUid === user.uid) {
           setIsMicAllowed(true);
           setIsLocalMuted(false);
+          setIsWaving(false);
           Toast.show({
             type: 'success',
-            text1: 'Floor is Yours',
-            text2: 'You are now live.',
+            text1: 'The floor is yours',
+            text2: 'Your speech is being transcribed for the class.',
           });
         }
       },
-      student_waved_received: (data: {
-        uid: string;
-        firstname: string;
-        profilePic: string;
-      }) => {
-        setWavers(prev => {
-          if (prev.find(w => w.uid === data.uid)) return prev;
-          return [...prev, data];
-        });
+      all_mics_revoked_received: () => {
+        setSpeakerName(null);
+        setIsMicAllowed(false);
+        setIsLocalMuted(true);
+        setIsWaving(false);
       },
-      stream_received: ({ streamUrl }: { streamUrl: string }) => {
-        setIsSharingScreen(true);
-        setRemoteStreamUrl(streamUrl);
+      receive_message: (msg: ChatMessage) => {
+        setMessages(prev => [...prev, msg]);
+        if (!chatVisibleRef.current && (msg as any).userId !== user.uid) {
+          setUnreadCount(c => c + 1);
+        }
       },
-      lecture_ended_by_host: () => {
-        navigation.navigate('Home');
-      },
-      receive_message: (newMessage: ChatMessage) => {
-        setMessages(prev => [...prev, newMessage]);
-        if (!chatVisible) setUnreadCount(prev => prev + 1);
-      },
-      active_speaker_changed_received: (data: {
-        uid: string;
-        firstname: string;
-      }) => {
-        setActiveSpeaker(data.firstname);
-        setActiveSpeakersList(prev => {
-          if (prev.find(s => s.uid === data.uid)) return prev;
-          return [...prev, data];
-        });
-      },
+      active_speaker_changed_received: ({ firstname }) => setSpeakerName(firstname),
+      update_attendee_list: (list: User[]) => setCurrentAttendees(list),
+      share_transcription_chunk: (data: { speakerLabel: string; text: string }) =>
+        appendTranscriptionText(data.speakerLabel, data.text),
     };
     Object.entries(handlers).forEach(([evt, fn]) => socket.on(evt, fn));
     return () => {
       Object.entries(handlers).forEach(([evt, fn]) => socket.off(evt, fn));
     };
-  }, [socket, user.uid, navigation, chatVisible, currentAttendees]);
-  useEffect(() => {
-    if (!socket || !lecture?.id || !user?.uid) return;
-    socket.emit('join_lecture_session', {
-      lectureId: lecture.id,
-      hostId: lecture.hostId,
-      user: {
-        uid: user?.uid,
-        firstname: user?.firstname,
-        lastname: user?.lastname,
-        username: user?.username,
-        tier: user?.tier || 'free',
-        profilePic: user?.profilePic || '',
-      },
-    });
-    const handleAttendeeUpdate = (updatedList: User[]) => {
-      setCurrentAttendees(updatedList);
-    };
-    const handleIncomingTranscript = (data: {
-      speakerLabel: string;
-      text: string;
-    }) => {
-      appendTranscriptionText(data.speakerLabel, data.text);
-    };
-    socket.on('update_attendee_list', handleAttendeeUpdate);
-    socket.on('share_transcription_chunk', handleIncomingTranscript);
-    socket.on('webrtc_signal_received', async (data: any) => {
-      if (!pc.current) return;
-      try {
-        if (data.signal.type === 'offer') {
-          await pc.current.setRemoteDescription(
-            new RTCSessionDescription(data.signal),
-          );
-          const answer = await pc.current.createAnswer();
-          await pc.current.setLocalDescription(answer);
-          socket.emit('webrtc_signal', {
-            lectureId: lecture.id,
-            signal: answer,
-          });
-        } else if (data.signal.candidate) {
-          await pc.current.addIceCandidate(
-            new RTCIceCandidate(data.signal.candidate),
-          );
-        }
-      } catch (err) {
-        console.error('Failed to process WebRTC signal:', err);
-      }
-    });
-    socket.on(
-      'user_joined_announcement',
-      (data: { uid: string; message: string; isHost: boolean }) => {
-        if (data.uid === user.uid) return;
-        Toast.show({
-          type: 'success',
-          text2: data.message,
-        });
-      },
-    );
-    socket.on(
-      'user_left_announcement',
-      (data: { uid: string; message: string; isHost: boolean }) => {
-        if (data.uid === user.uid) return;
+  }, [socket, user.uid, handleHostSignal, requestStream, resetPeer, appendTranscriptionText]);
 
-        Toast.show({
-          type: 'success',
-          text2: data.message,
-        });
-      },
-    );
-    return () => {
-      socket.off('update_attendee_list', handleAttendeeUpdate);
-      socket.off('transcription_update', handleIncomingTranscript);
-      socket.off('user_joined_announcement');
-      socket.off('user_left_announcement');
-    };
-  }, [socket, lecture.id, user]);
   useEffect(() => {
-    pc.current = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    });
+    const timer = setInterval(() => setElapsedTime(formatElapsed(startedAtRef.current)), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    if (pc.current) {
-      const interval = setInterval(checkNetworkQuality, 5000);
-      return () => clearInterval(interval);
-    }
+  // ---- Floor mic -> transcription -------------------------------------------
+  const micLive = isMicAllowed && !isLocalMuted;
+  const { sendAudioChunkToDeepgram } = useLiveTranscription({
+    lectureId: lecture.id,
+    isHost: false,
+    currentUserFirstName: user.firstname || 'Student',
+    isMicActive: micLive,
+    onTranscriptChunk: (label, text) => {
+      appendTranscriptionText(label, text);
+      socket?.emit('share_transcription_chunk', {
+        lectureId: lecture.id,
+        speakerLabel: label,
+        text,
+      });
+    },
+  });
 
-    return () => {
-      pc.current?.close();
-    };
-  }, [checkNetworkQuality]);
   useEffect(() => {
-    if (!isMicAllowed) {
-      LiveAudioStream.stop();
-      return;
-    }
-    const options = {
+    if (!micLive) return;
+    LiveAudioStream.init({
       sampleRate: 16000,
       channels: 1,
       bitsPerSample: 16,
       audioSource: 6,
       bufferSize: 4096,
       wavFile: '',
-    };
-    LiveAudioStream.init(options);
-    LiveAudioStream.on('data', (base64Data: string) => {
-      const audioBuffer = Buffer.from(base64Data, 'base64').buffer;
-      sendAudioChunkToDeepgram(audioBuffer);
+    });
+    const subscription: any = LiveAudioStream.on('data', (base64Data: string) => {
+      sendAudioChunkToDeepgram(Buffer.from(base64Data, 'base64').buffer);
     });
     LiveAudioStream.start();
-
     return () => {
       LiveAudioStream.stop();
+      subscription?.remove?.();
     };
-  }, [isMicAllowed, sendAudioChunkToDeepgram]);
+  }, [micLive, sendAudioChunkToDeepgram]);
+
+  // ---- Actions ----------------------------------------------------------------
   const sendMessage = () => {
-    if (inputText.trim().length === 0) return;
+    if (!inputText.trim() || !socket) return;
     socket.emit('send_message', {
       text: inputText,
       senderId: user.uid,
@@ -354,268 +319,201 @@ export const StudentLiveClassSession = ({
     setInputText('');
   };
   const handleWave = () => {
-    if (isWaving) return;
+    if (isWaving || !socket) return;
     socket.emit('student_waved', {
       lectureId: lecture.id,
       uid: user.uid,
       firstname: user.firstname,
       profilePic: user.profilePic || '',
     });
-    setWavers(prev => [...prev, { uid: user.uid, firstname: user.firstname }]);
     setIsWaving(true);
-    setFabVisible(false);
-
     Toast.show({
       type: 'info',
-      text1: 'Request Sent',
-      text2: 'Hand raised for the lecturer.',
+      text1: 'Hand raised',
+      text2: 'The lecturer can now let you speak.',
     });
   };
   const handleLeaveLecture = () => {
-    socket.emit('leave_lecture', {
+    socket?.emit('leave_lecture', {
       lectureId: lecture.id,
       user: {
-        uid: user?.uid,
-        firstname: user?.firstname,
-        lastname: user?.lastname,
-        username: user?.username,
-        tier: user?.tier || 'free',
-        profilePic: user?.profilePic || '',
+        uid: user.uid,
+        firstname: user.firstname,
+        lastname: user.lastname,
+        username: user.username,
+        tier: user.tier || 'free',
+        profilePic: user.profilePic || '',
       },
     });
     setIsMicAllowed(false);
     setIsLocalMuted(true);
-    setEndModalVisible(false);
+    setLeaveModalVisible(false);
     navigation.navigate('Home', { activeTab: 'classroom' });
   };
-  return (
-    <View
-      style={[
-        LiveClassSessionStyles.mainContainer,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      <PageHeader
-        title="● LIVE"
-        showBackButton={false}
-        rightElement={
-          <CustomButton
-            title="Leave Session"
-            onPress={() => setEndModalVisible(true)}
-            style={[
-              LiveClassSessionStyles.endButton,
-              { backgroundColor: colors.btnColor },
-            ]}
-          />
-        }
-      />
 
-      {/* 2. Shared Screen Area */}
-      <View
-        style={[
-          LiveClassSessionStyles.sharedScreen,
-          isSharingScreen && LiveClassSessionStyles.sharingActive,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        {remoteStreamUrl && (
+  // ---- Render ----------------------------------------------------------------
+  const hasVideo = !!remoteStream && (isScreenShared || (isLecturerCameraOn && !isAudioOnly));
+  const stageMessage =
+    streamState === 'waiting'
+      ? { icon: 'hourglass-top', title: 'Waiting for the lecturer', hint: 'The class will appear here as soon as it starts.' }
+      : streamState === 'reconnecting'
+        ? { icon: 'sync', title: 'Reconnecting…', hint: 'Trying to restore the class stream.' }
+        : streamState === 'connecting'
+          ? { icon: 'cast', title: 'Connecting to class…', hint: 'This usually takes a few seconds.' }
+          : isAudioOnly
+            ? { icon: 'graphic-eq', title: 'Audio-only mode', hint: "The lecturer's connection is weak, so video is paused." }
+            : { icon: 'videocam-off', title: "Lecturer's camera is off", hint: 'You can still hear the class.' };
+
+  return (
+    <SafeAreaView
+      edges={['top']}
+      style={[S.mainContainer, { backgroundColor: colors.background }]}
+    >
+      <View style={S.topBar}>
+        <View style={[S.livePill, streamState !== 'connected' && S.livePillWaiting]}>
+          <View style={S.liveDot} />
+          <Text style={S.livePillText}>
+            {streamState === 'connected' ? 'LIVE' : streamState.toUpperCase()}
+          </Text>
+        </View>
+        <View style={S.topChip}>
+          <MaterialIcons name="schedule" size={14} color={colors.primary} />
+          <Text style={[S.topChipText, { color: colors.textDarker }]}>{elapsedTime}</Text>
+        </View>
+        <TouchableOpacity style={S.topBarAction} onPress={() => setLeaveModalVisible(true)}>
+          <MaterialIcons name="logout" size={16} color="#fff" />
+          <Text style={S.topBarActionText}>Leave</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={S.stage}>
+        {remoteStream && (
+          // Kept mounted even when video is hidden: it also carries the audio.
           <RTCView
-            streamURL={remoteStreamUrl}
-            style={LiveClassSessionStyles.fullScreenVideo}
-            objectFit="cover"
+            streamURL={remoteStream.toURL()}
+            style={[S.stageVideo, !hasVideo && { opacity: 0 }]}
+            objectFit={isScreenShared ? 'contain' : 'cover'}
           />
         )}
-        <LecturerTab
-          lecturer={lecturerLiveData}
-          isCameraOn={lecturerLiveData?.isCameraOn}
-          streamUrl={lecturerLiveData?.cameraStreamUrl}
-        />
-      </View>
-      <ScrollView
-        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 30 }}
-      >
-        <View
-          style={[
-            LiveClassSessionStyles.monitoringSection,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          {activeSpeaker || permittedSpeaker ? (
-            <Text
-              style={[
-                LiveClassSessionStyles.speakerNote,
-                { color: colors.text },
-              ]}
-            >
-              Speaker:{' '}
-              {currentAttendees.find(a => a.uid === activeSpeaker)?.firstname ||
-                permittedSpeaker?.firstname ||
-                'Someone'}
-            </Text>
-          ) : null}
-          {isWaving! && (
-            <TouchableOpacity
-              style={[
-                LiveClassSessionStyles.muteAllButton,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={handleWave}
-            >
-              <MaterialIcons
-                name={'waving-hand'}
-                size={18}
-                color={colors.btnTextColor}
+        {!hasVideo && (
+          <View style={S.stageOverlay}>
+            {streamState === 'connected' ? (
+              <LecturerTab
+                lecturer={lecturerLiveData}
+                isCameraOn={false}
+                streamUrl={null}
               />
-              <Text
-                style={[
-                  LiveClassSessionStyles.muteAllText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Wave
-              </Text>
-            </TouchableOpacity>
+            ) : (
+              <MaterialIcons name={stageMessage.icon} size={46} color={colors.primary} />
+            )}
+            <Text style={S.stageTitle}>{stageMessage.title}</Text>
+            <Text style={S.stageHint}>{stageMessage.hint}</Text>
+          </View>
+        )}
+        <View style={S.stageChipsRow}>
+          {isScreenShared && (
+            <View style={S.stageChip}>
+              <MaterialIcons name="screen-share" size={13} color="#fff" />
+              <Text style={S.stageChipText}>Screen share</Text>
+            </View>
+          )}
+          {isLecturerMuted && streamState === 'connected' && (
+            <View style={[S.stageChip, { backgroundColor: LIVE_RED }]}>
+              <MaterialIcons name="mic-off" size={13} color="#fff" />
+              <Text style={S.stageChipText}>Lecturer muted</Text>
+            </View>
           )}
         </View>
-        <View
-          style={[
-            LiveClassSessionStyles.infoSection,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <View style={LiveClassSessionStyles.row}>
-            <Text
-              style={[
-                LiveClassSessionStyles.courseTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              {lecture.topicName || 'Untitled Session'}
-            </Text>
-            <Text
-              style={[
-                LiveClassSessionStyles.durationText,
-                { color: colors.text },
-              ]}
-            >
-              Duration: {elapsedTime}
+      </View>
+
+      <View style={[S.controlDock, { backgroundColor: colors.backgroundSecondary }]}>
+        <LiveControlButton
+          icon="waving-hand"
+          label={isWaving ? 'Raised' : 'Raise hand'}
+          active={isWaving}
+          disabled={isWaving || isMicAllowed || !joined}
+          onPress={handleWave}
+        />
+        {isMicAllowed && (
+          <LiveControlButton
+            icon={isLocalMuted ? 'mic-off' : 'mic'}
+            label={isLocalMuted ? 'Unmute' : 'Mute'}
+            danger={isLocalMuted}
+            onPress={() => setIsLocalMuted(m => !m)}
+          />
+        )}
+        <LiveControlButton
+          icon="chat"
+          label="Chat"
+          badge={unreadCount}
+          onPress={() => {
+            setChatVisible(true);
+            setUnreadCount(0);
+          }}
+        />
+        <LiveControlButton
+          icon="people"
+          label="People"
+          onPress={() => setAttendeeModalVisible(true)}
+        />
+      </View>
+
+      <ScrollView contentContainerStyle={S.scrollBody} showsVerticalScrollIndicator={false}>
+        {speakerName && (
+          <View style={S.speakerBanner}>
+            <MaterialIcons name="record-voice-over" size={18} color={colors.primary} />
+            <Text style={[S.speakerBannerText, { color: colors.textDarker }]}>
+              {speakerName === 'You' ? 'You have the floor' : `${speakerName} has the floor`}
             </Text>
           </View>
-          <View
-            style={LiveClassSessionStyles.attendeeContainer}
-            onLayout={handleContainerLayout}
-          >
-            {currentAttendees
-              .slice(0, maxVisibleAvatars)
-              .map((student: User, i: number) => (
+        )}
+
+        <View style={[S.card, { backgroundColor: colors.backgroundSecondary }]}>
+          <Text style={[S.topicText, { color: colors.textDarker }]}>
+            {lecture.topicName || 'Untitled Session'}
+          </Text>
+          <Text style={[S.subtleText, { color: colors.text }]}>
+            with {lecturerLiveData?.displayName || 'your lecturer'} · {classmates.length}{' '}
+            {classmates.length === 1 ? 'student' : 'students'}
+          </Text>
+          {classmates.length > 0 && (
+            <TouchableOpacity
+              style={S.attendeeContainer}
+              onPress={() => setAttendeeModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              {classmates.slice(0, MAX_VISIBLE_AVATARS).map((student, i) => (
                 <UserAvatar
                   key={student.uid || i}
                   profilePic={student.profilePic}
                   firstName={student.firstname}
                   lastName={student.lastname}
                   username={student.username}
-                  style={LiveClassSessionStyles.attendeeCircle}
+                  style={S.attendeeCircle}
                 />
               ))}
-            {currentAttendees.length > maxVisibleAvatars && (
-              <TouchableOpacity
-                style={[
-                  LiveClassSessionStyles.attendeeCount,
-                  { backgroundColor: colors.btnColor },
-                ]}
-                onPress={() => setAttendeeModalVisible(true)}
-              >
-                <Text
-                  style={[
-                    LiveClassSessionStyles.attendeeCountText,
-                    { color: colors.btnTextColor },
-                  ]}
-                >
-                  +{currentAttendees.length}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              {classmates.length > MAX_VISIBLE_AVATARS && (
+                <View style={S.attendeeCount}>
+                  <Text style={S.attendeeCountText}>
+                    +{classmates.length - MAX_VISIBLE_AVATARS}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
-        <View
-          style={[
-            LiveClassSessionStyles.bottomSection,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <View style={LiveClassSessionStyles.aiHeader}>
-            <MaterialIcons
-              name="auto-awesome"
-              size={16}
-              color={colors.primary}
-            />
-            <Text
-              style={[
-                LiveClassSessionStyles.aiLabel,
-                { color: colors.primary },
-              ]}
-            >
-              Live Transcription
-            </Text>
+
+        <View style={[S.card, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={[S.cardLabelRow, { marginBottom: 8 }]}>
+            <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
+            <Text style={[S.cardLabel, { color: colors.primary }]}>LIVE TRANSCRIPTION</Text>
           </View>
-          <Text
-            style={[
-              LiveClassSessionStyles.transcriptionText,
-              { color: colors.text },
-            ]}
-          >
-            {transcription || 'Listening to classroom room audio tracks...'}
+          <Text style={[S.transcriptionText, { color: colors.text }]}>
+            {transcription || 'Captions will appear here when the lecturer speaks.'}
           </Text>
         </View>
       </ScrollView>
-      {isMicAllowed && (
-        <TouchableOpacity
-          style={[
-            LiveClassSessionStyles.micButton,
-            { backgroundColor: colors.btnColor },
-          ]}
-          onPress={() => setIsLocalMuted(!isLocalMuted)}
-        >
-          <MaterialIcons
-            name={isLocalMuted ? 'mic-off' : 'mic'}
-            size={24}
-            color={colors.btnTextColor}
-          />
-          <Text
-            style={[
-              LiveClassSessionStyles.micStatusText,
-              { color: colors.btnTextColor },
-            ]}
-          >
-            {isLocalMuted ? 'Muted' : 'Speak'}
-          </Text>
-        </TouchableOpacity>
-      )}
-      {!fabVisible && (
-        <TouchableOpacity
-          style={LiveClassSessionStyles.fab}
-          onPress={() => {
-            setFabVisible(true);
-            setUnreadCount(0);
-          }}
-        >
-          <MaterialIcons name="widgets" size={34} color={colors.btnTextColor} />
-        </TouchableOpacity>
-      )}
-      <ExpandableFAB
-        isVisible={fabVisible}
-        onClose={() => setFabVisible(false)}
-        actions={['Live Chat', 'Hand Wave', 'View Lectures']}
-        unreadCount={unreadCount}
-        onChatOpen={() => setChatVisible(true)}
-        onWave={() => {
-          socket.emit('send_wave', {
-            lectureId: lecture.id,
-            firstName: user.firstname,
-          });
-          setFabVisible(false);
-        }}
-      />
+
       <ChatModal
         visible={chatVisible}
         onDismiss={() => setChatVisible(false)}
@@ -629,238 +527,19 @@ export const StudentLiveClassSession = ({
       <AttendeeListModal
         visible={attendeeModalVisible}
         onDismiss={() => setAttendeeModalVisible(false)}
-        attendees={currentAttendees}
-        wavers={wavers}
+        attendees={classmates}
+        wavers={[]}
         colors={colors}
       />
       <ConfirmationModal
-        visible={endModalVisible}
-        onDismiss={() => setEndModalVisible(false)}
+        visible={leaveModalVisible}
+        onDismiss={() => setLeaveModalVisible(false)}
         onConfirm={handleLeaveLecture}
         title="Leave Live Session?"
-        subText="This will end the session and finalize your attendance record."
+        subText="You can rejoin while the class is still live."
         colors={colors}
         islecturer={false}
       />
-      {wavers.length > 0 && (
-        <WavingToast activeUsers={wavers} onHide={() => setWavers([])} />
-      )}
-      {activeSpeakersList.length > 0 && (
-        <SpeakerToast
-          activeUsers={activeSpeakersList}
-          onHide={() => setActiveSpeakersList([])}
-        />
-      )}
-    </View>
+    </SafeAreaView>
   );
 };
-
-export const LiveClassSessionStyles = StyleSheet.create({
-  mainContainer: { flex: 1, position: 'relative' },
-  liveText: { color: PRIMARY_COLOR, fontWeight: 'bold', fontSize: 12 },
-  endButton: {
-    paddingHorizontal: 16,
-    width: 'auto',
-  },
-  endButtonText: { fontWeight: 'bold', fontSize: 14 },
-  sharedScreen: {
-    width: '100%',
-    height: 250,
-    borderRadius: 15,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    elevation: 5,
-    marginBottom: 20,
-    marginHorizontal: 15,
-  },
-  fullScreenVideo: {
-    width: '100%',
-    height: '100%',
-  },
-  infoSection: { padding: 15, borderRadius: 15 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  courseTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  durationBox: { alignItems: 'flex-end' },
-  durationText: { fontSize: 12 },
-  attendeeContainer: {
-    flexDirection: 'row',
-    marginTop: 10,
-    alignItems: 'center',
-    width: '100%',
-  },
-  attendeeCircle: { marginRight: 6, borderWidth: 2, borderColor: '#fff' },
-  attendeeCount: {
-    marginLeft: 10,
-    fontWeight: 'bold',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  attendeeCountText: { fontSize: 12, fontWeight: 'bold' },
-  bottomSection: { padding: 15, borderRadius: 15 },
-  aiHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  aiLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    marginLeft: 4,
-  },
-  transcriptionText: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  fabContainer: {
-    flex: 1,
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-  },
-  chatModal: {
-    padding: 20,
-    marginHorizontal: 10,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: SCREEN_HEIGHT * 0.75,
-    position: 'absolute',
-    bottom: 0,
-  },
-  chatHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 10,
-  },
-  emptyChat: {
-    textAlign: 'center',
-    color: PRIMARY_COLOR_TINT,
-    marginTop: 20,
-    fontSize: 12,
-  },
-  micButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    elevation: 4,
-    zIndex: 100,
-  },
-  micStatusText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  sharingActive: {
-    borderColor: PRIMARY_COLOR,
-    borderWidth: 2,
-  },
-  sharingOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginVertical: 15,
-  },
-  hintText: {
-    fontSize: 14,
-  },
-  stopShareButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  stopShareText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  startSharePlaceholder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    borderRadius: 15,
-    paddingVertical: 10,
-  },
-  startSharePlaceholderText: {
-    marginLeft: 3,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  monitoringSection: {
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'scroll',
-  },
-  speakerNote: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  horizontalMonitorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  monitorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  monitorValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  muteAllText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
-  muteAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    marginRight: 6,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: PRIMARY_COLOR,
-    bottom: 80,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 100,
-  },
-});

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {db} from './useSQLiteDb';
 import { useAppSelector } from '../hooks/hooks';
-import {searchUsersByUid} from '../api/localGetApis';
+import {searchUsers, searchUsersByUid} from '../api/localGetApis';
 
 export const useUser = (
   uid?: string,
@@ -167,4 +167,159 @@ export const fetchUserWithOfflineFallback = async (
     console.error(`Failed to fetch user details for ${uid}:`, error);
   }
   return null;
+};
+
+const parseCachedUser = (rawUser: any) => {
+  let profilePic: string[] = [];
+  try {
+    if (rawUser.profilePic) {
+      profilePic =
+        typeof rawUser.profilePic === 'string'
+          ? JSON.parse(rawUser.profilePic)
+          : rawUser.profilePic;
+    }
+  } catch (parseError) {
+    profilePic = [];
+  }
+
+  return {
+    ...rawUser,
+    profilePic: Array.isArray(profilePic) ? profilePic : [],
+    tier: (rawUser.tier as 'free' | 'pro' | 'premium') || 'free',
+    isVerified: Boolean(rawUser.isVerified),
+  };
+};
+
+export const searchUsersWithOfflineFallback = async (
+  keyword: string,
+  viewerTier: string,
+  viewerRole: string,
+  signal?: AbortSignal,
+): Promise<any[]> => {
+  const query = keyword.trim();
+  let localUsers: any[] = [];
+
+  try {
+    const likeParam = `%${query}%`;
+    const result = db.execute(
+      `SELECT * FROM users 
+       WHERE username LIKE ? OR firstname LIKE ? OR lastname LIKE ? OR organizationName LIKE ? 
+       LIMIT 20;`,
+      [likeParam, likeParam, likeParam, likeParam],
+    );
+    const rows = result.rows;
+    const rawUsers = Array.isArray(rows)
+      ? rows
+      : rows && '_array' in rows
+        ? rows._array
+        : [];
+    localUsers = rawUsers.map(parseCachedUser);
+  } catch (dbError) {
+    console.error('Failed to search local user cache:', dbError);
+  }
+
+  // The remote search endpoint requires at least 2 characters.
+  if (query.length < 2) {
+    return localUsers;
+  }
+
+  const remoteUsers = await searchUsers({
+    q: query,
+    viewerTier,
+    viewerRole,
+    signal,
+  });
+
+  // Remote failed or was cancelled — degrade to whatever we have cached locally.
+  if (!Array.isArray(remoteUsers)) {
+    return localUsers;
+  }
+
+  for (const remoteUser of remoteUsers) {
+    if (!remoteUser?.uid) continue;
+
+    try {
+      db.execute(
+        `INSERT OR REPLACE INTO users (uid, firstname, lastname, username, organizationName, tier, isVerified, usertype, profilePic) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          remoteUser.uid,
+          remoteUser.firstname || null,
+          remoteUser.lastname || null,
+          remoteUser.username || null,
+          remoteUser.organizationName || null,
+          remoteUser.tier || 'free',
+          remoteUser.isVerified ? 1 : 0,
+          remoteUser.usertype || 'user',
+          JSON.stringify(remoteUser.profilePic || []),
+        ],
+      );
+    } catch (dbError) {
+      console.error('Failed to cache searched user to SQLite:', dbError);
+    }
+  }
+
+  const seenUids = new Set<string>(
+    remoteUsers.map((user: any) => user?.uid).filter(Boolean),
+  );
+  const localOnlyMatches = localUsers.filter(
+    user => user.uid && !seenUids.has(user.uid),
+  );
+
+  return [...remoteUsers, ...localOnlyMatches];
+};
+
+export const useUserSearch = () => {
+  const currentUser = useAppSelector(state => state.user) || {};
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const search = useCallback(
+    async (keyword: string) => {
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      setLoading(true);
+      try {
+        const data = await searchUsersWithOfflineFallback(
+          keyword,
+          currentUser?.tier ?? 'free',
+          currentUser?.usertype ?? 'student',
+          controller.signal,
+        );
+
+        if (controller.signal.aborted) return;
+        setResults(data);
+      } catch (err: any) {
+        console.error('Failed to search users:', err);
+        if (!controller.signal.aborted) {
+          setResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    },
+    [currentUser?.tier, currentUser?.usertype],
+  );
+
+  const clearResults = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setResults([]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort();
+  }, []);
+
+  return {
+    results,
+    loading,
+    searchUsers: search,
+    clearResults,
+  };
 };

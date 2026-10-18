@@ -17,6 +17,7 @@ import {fetchTaxReport, fetchTaxEntries} from '../api/localGetApis';
 import Toast from 'react-native-toast-message';
 import { Picker } from '@react-native-picker/picker';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { useLoadMoreOnScroll } from '../hooks/useLoadMoreOnScroll';
 
 export const AllTaxEntriesScreen = () => {
   const navigation = useNavigation<any>();
@@ -103,13 +104,14 @@ export const AllTaxEntriesScreen = () => {
     loadData(1, true);
   }, [loadData]);
 
-  const handleLoadMore = () => {
-    if (!isFetchingMore && page < totalPages) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadData(nextPage, false);
-    }
-  };
+  // useLoadMoreOnScroll blocks overlapping calls, so the same page can no
+  // longer be requested twice (which used to duplicate rows).
+  const loadMoreProps = useLoadMoreOnScroll(async () => {
+    if (page >= totalPages) return;
+    const nextPage = page + 1;
+    await loadData(nextPage, false);
+    setPage(nextPage);
+  });
 
   const renderItem = ({ item }: { item: TaxEntry }) => {
     const handlePress = () => {
@@ -167,7 +169,7 @@ export const AllTaxEntriesScreen = () => {
         rightElement={
           <CustomButton
             title="Download"
-            onPress={handleDownloadSubmit}
+            onPress={() => setIsModalVisible(true)}
             style={styles.downloadButton}
             iconName="file-download"
             iconColor="#fff"
@@ -191,8 +193,13 @@ export const AllTaxEntriesScreen = () => {
             `${item.transactionReference}-${index}`
           }
           contentContainerStyle={styles.listContainer}
-          onEndReached={handleLoadMore}
+          {...loadMoreProps}
           onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingMore ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={{ color: colors.text }}>No tax entries found.</Text>

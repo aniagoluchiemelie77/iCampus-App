@@ -32,12 +32,7 @@ export const FavoritesScreen = () => {
   }, [currentUser?.favorites]);
   const favoriteItems = useMemo(() => {
     return fetchProductsByIdsFromLocalDb(favoriteIds);
-    // `catalogSyncVersion` and `focusRefreshKey` are deliberate triggers: the
-    // catalog sync is async, so the first render can legitimately miss rows.
   }, [favoriteIds, catalogSyncVersion, focusRefreshKey]);
-
-  // Re-read SQLite every time the screen comes back into view, so items added
-  // or removed elsewhere (or rows cached after a late sync) show up.
   useFocusEffect(
     useCallback(() => {
       setFocusRefreshKey(previous => previous + 1);
@@ -142,8 +137,8 @@ export const FavoritesScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative' },
   listContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
     paddingHorizontal: 15,
   },
   columnWrapper: {
@@ -167,7 +162,8 @@ const styles = StyleSheet.create({
   checkoutText: { fontSize: 14, fontWeight: '700' },
   headerBtn: {
     paddingHorizontal: 8,
-    height: 40,
+    width: 'auto',
+    height: 35,
   },
   headerBtnText: {
     fontSize: 14,

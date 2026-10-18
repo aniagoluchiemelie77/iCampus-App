@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Linking,
   Platform,
   NativeEventEmitter,
   NativeModules,
   Dimensions,
+  ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
@@ -37,6 +37,7 @@ import { verifyFacialIdentity } from '../api/localPostApis';
 import Modal from 'react-native-modal';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { PulseEmitter } from '../components/PulsingAnimation';
 
 const rnBiometrics = new ReactNativeBiometrics();
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -331,10 +332,10 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
                   Scanning...
                 </Text>
               </View>
-              <ActivityIndicator
+              <PulseEmitter
                 size={150}
+                strokeWidth={2}
                 color={colors.primary}
-                style={GetAttendanceScreenStyles.absoluteLoader}
               />
             </View>
             <CustomButton
@@ -381,7 +382,12 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         )}
         {!isScanning && status === 'joining' && (
           <View style={styles.feedbackContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <PulseEmitter
+              size={60}
+              strokeWidth={3}
+              color={colors.primary}
+              count={3}
+            />
             <Text style={[styles.joinText, { color: colors.text }]}>
               Submitting your verified attendance attendance record...
             </Text>

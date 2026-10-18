@@ -1,34 +1,43 @@
 import {DropOffStationItem} from '../components/DropOffStationItem';
 import {PageHeader} from '../components/PageHeader';
-import { useRef, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { navigate } from '../context/navigationContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { getDropOffStationsAPI } from '../api/localGetApis';
 import { deleteDropOffStationApi } from '../api/localDeleteApis';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '../context/ThemeContext';
+import { useLoadMoreOnScroll } from '../hooks/useLoadMoreOnScroll';
+
+const PAGE_SIZE = 20;
 
 export const ViewAllDropStations = () => {
   const { colors } = useTheme();
   const [dropOffStations, setDropOffStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const pageRef = useRef(1);
+  const pageRef = useRef(0);
+  const hasMoreRef = useRef(true);
 
-  const fetchDropOffStations = async (pageNum: number) => {
-    if (loading) return;
+  // Pages are only advanced after a successful fetch, so a skipped or failed
+  // request never makes the list jump a page.
+  const fetchDropOffStations = useCallback(async (pageNum: number) => {
     setLoading(true);
-
-    const data = await getDropOffStationsAPI(pageNum, 20);
-
+    const data = (await getDropOffStationsAPI(pageNum, PAGE_SIZE)) || [];
     setDropOffStations(prev => (pageNum === 1 ? data : [...prev, ...data]));
+    pageRef.current = pageNum;
+    hasMoreRef.current = data.length === PAGE_SIZE;
     setLoading(false);
-  };
+  }, []);
 
-  const handleLoadMore = () => {
-    pageRef.current += 1;
-    fetchDropOffStations(pageRef.current);
-  };
+  useEffect(() => {
+    fetchDropOffStations(1);
+  }, [fetchDropOffStations]);
+
+  const loadMoreProps = useLoadMoreOnScroll(() => {
+    if (!hasMoreRef.current) return;
+    return fetchDropOffStations(pageRef.current + 1);
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -70,8 +79,11 @@ export const ViewAllDropStations = () => {
             }}
           />
         )}
-        onEndReached={handleLoadMore}
+        {...loadMoreProps}
         onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loading ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} /> : null
+        }
         contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 30 }}
       />
     </View>

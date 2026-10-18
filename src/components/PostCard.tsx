@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Dimensions,
-  FlatList,
-  Image,
   Linking,
   Pressable,
   Share,
@@ -11,8 +8,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
-import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -30,6 +27,8 @@ import { ActionModal } from './LogoutModal';
 import { useAppDataContext } from '../context/EventContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../hooks/useUserDetails';
+import { LazyImage } from './LazyImage';
+import { LazyRotatingImages } from './LazyRotatingImages';
 
 export interface PostCardProps {
   post: Posts;
@@ -43,10 +42,6 @@ interface LinkedTextProps {
   colors: any;
 }
 
-const { width } = Dimensions.get('window');
-
-/** Width of media inside a card that sits in a 15px-padded list. */
-const MEDIA_WIDTH = width - 62;
 const TEXT_LIMIT = 180;
 
 /**
@@ -128,7 +123,6 @@ const sanitizePostForNavigation = (post: Posts): Posts | undefined => {
 };
 
 export const MediaSection = ({ post, isVisible }: PostCardProps) => {
-  const [activeIndex, setActiveIndex] = useState(0);
   const mediaUrls = useMemo(
     () =>
       toArray(post.media?.url).filter(
@@ -138,11 +132,21 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
   );
   const isVideo = post.media?.mediaType === 'video';
 
+  // Lazy-mount the video player: the stream is only opened once the card has
+  // been visible at least once, then kept mounted (paused) to keep position.
+  const [hasActivatedVideo, setHasActivatedVideo] = useState(false);
+  const isCurrentlyVisible = isVisible !== false;
+  useEffect(() => {
+    if (isCurrentlyVisible && !hasActivatedVideo) {
+      setHasActivatedVideo(true);
+    }
+  }, [isCurrentlyVisible, hasActivatedVideo]);
+
   if (!mediaUrls.length) return null;
 
   return (
     <View style={styles.mediaContainer}>
-      {isVideo && mediaUrls[0] && (
+      {isVideo && mediaUrls[0] && hasActivatedVideo && (
         <Video
           source={{ uri: mediaUrls[0] }}
           style={styles.postMedia}
@@ -153,43 +157,18 @@ export const MediaSection = ({ post, isVisible }: PostCardProps) => {
         />
       )}
       {!isVideo && mediaUrls.length > 1 && (
-        <View>
-          <FlatList
-            data={mediaUrls}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={e => {
-              const newIndex = Math.round(
-                e.nativeEvent.contentOffset.x / MEDIA_WIDTH,
-              );
-              setActiveIndex(newIndex);
-            }}
-            keyExtractor={(_, index) => index.toString()}
-            renderItem={({ item }) => (
-              <Image
-                source={{ uri: item }}
-                style={styles.postMediaSlider}
-                resizeMode="cover"
-              />
-            )}
-          />
-          {/* Pagination Dots */}
-          <View style={styles.pagination}>
-            {mediaUrls.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, activeIndex === i && styles.activeDot]}
-              />
-            ))}
-          </View>
-        </View>
+        <LazyRotatingImages
+          urls={mediaUrls}
+          paused={isVisible === false}
+          showDots
+          imageStyle={styles.postMedia}
+        />
       )}
       {!isVideo && mediaUrls.length === 1 && (
-        <Image
-          source={{ uri: mediaUrls[0] }}
+        <LazyImage
+          uri={mediaUrls[0]}
           style={styles.postMedia}
-          resizeMode="cover"
+          visible={isCurrentlyVisible}
         />
       )}
     </View>
@@ -432,7 +411,10 @@ export const PostCard = React.memo(
 
     const handleToggleLike = useCallback(() => {
       if (!targetPostId || !currentUser?.uid) {
-        Toast.show({ type: 'error', text2: 'Please sign in to react to posts' });
+        Toast.show({
+          type: 'error',
+          text2: 'Please sign in to react to posts',
+        });
         return;
       }
       toggleLike(targetPostId);
@@ -564,7 +546,9 @@ export const PostCard = React.memo(
                     { backgroundColor: colors.primaryTint },
                   ]}
                 >
-                  <Text style={[styles.ownerTagText, { color: colors.primary }]}>
+                  <Text
+                    style={[styles.ownerTagText, { color: colors.primary }]}
+                  >
                     You
                   </Text>
                 </View>
@@ -592,9 +576,7 @@ export const PostCard = React.memo(
                 )}`}
               </Text>
               {!!post.jobMetadata?.salaryRange && (
-                <Text
-                  style={[styles.jobSalary, { color: colors.primary }]}
-                >
+                <Text style={[styles.jobSalary, { color: colors.primary }]}>
                   {toText(post.jobMetadata?.salaryRange)}
                 </Text>
               )}
@@ -625,7 +607,9 @@ export const PostCard = React.memo(
                 >
                   {toText(post.eventMetadata?.title)}
                 </Text>
-                <Text style={[styles.eventLocationText, { color: colors.text }]}>
+                <Text
+                  style={[styles.eventLocationText, { color: colors.text }]}
+                >
                   {`${eventTime} • ${toText(post.eventMetadata?.location)}`}
                 </Text>
               </View>
@@ -685,7 +669,10 @@ export const PostCard = React.memo(
           {post.postType === 'event' && (
             <TouchableOpacity
               activeOpacity={0.8}
-              style={[styles.rsvpButtonOutline, { borderColor: colors.primary }]}
+              style={[
+                styles.rsvpButtonOutline,
+                { borderColor: colors.primary },
+              ]}
               onPress={openPostDetails}
             >
               <Text style={[styles.rsvpText, { color: colors.primary }]}>
@@ -782,16 +769,17 @@ export const PostCard = React.memo(
           </TouchableOpacity>
         </View>
         <Modal
-          isVisible={isMenuVisible}
-          onBackdropPress={() => setIsMenuVisible(false)}
-          swipeDirection="down"
-          onSwipeComplete={() => setIsMenuVisible(false)}
+          visible={isVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setIsMenuVisible(false)}
         >
-          <Pressable
+          <TouchableOpacity
             style={styles.backdrop}
             onPress={() => setIsMenuVisible(false)}
           >
-            <View
+            <TouchableOpacity
+              activeOpacity={1}
               style={[
                 styles.sheetContainer,
                 { backgroundColor: colors.backgroundSecondary },
@@ -838,16 +826,16 @@ export const PostCard = React.memo(
                     <MaterialIcons
                       name="delete-outline"
                       size={22}
-                      color="#FF3B30"
+                      color={colors.primary}
                     />
-                    <Text style={[styles.menuText, { color: '#FF3B30' }]}>
+                    <Text style={[styles.menuText, { color: colors.primary }]}>
                       Delete post
                     </Text>
                   </TouchableOpacity>
                 </>
               )}
-            </View>
-          </Pressable>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
         <ActionModal
           visible={deleteModalVisible}
@@ -1055,11 +1043,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 25,
     width: '100%',
   },
   dragIndicator: {
@@ -1093,33 +1079,6 @@ const styles = StyleSheet.create({
   postMedia: {
     width: '100%',
     height: '100%',
-  },
-  postMediaSlider: {
-    width: MEDIA_WIDTH,
-    height: 280,
-  },
-  pagination: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: 12,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    marginHorizontal: 3,
-  },
-  activeDot: {
-    backgroundColor: '#fff',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   pollContainer: {
     marginVertical: 12,

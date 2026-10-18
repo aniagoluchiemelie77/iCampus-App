@@ -130,6 +130,8 @@ import { BACKEND_URL } from '@env';
 import { AppDataProvider } from './src/context/EventContext.tsx';
 import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
+import { setAdmin } from './src/context/AdminSlice';
+import { clearSession } from './src/utils/session';
 import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
 import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 import { requestUserPermissionAndGetToken } from './src/utils/userTokenAuth.ts';
@@ -304,7 +306,7 @@ function MainApp() {
   const dispatch = useDispatch();
   const [isInitializing, setIsInitializing] = useState(true);
   const [initialRoute, setInitialRoute] = useState<
-    'SignUp' | 'Login' | 'Home' | 'SuspendedScreen'
+    'SignUp' | 'Login' | 'Home' | 'SuspendedScreen' | 'AdminDashboard'
   >('SignUp');
   const user = useAppSelector(state => state.user) || initialState;
   const toastConfig = getToastConfig(colors);
@@ -319,81 +321,73 @@ function MainApp() {
         BleManager.start({ showAlert: false }).catch(() => {});
         axios.get(`${baseUrl}ping`).catch(() => {});
 
-        const [accessToken, refreshToken, hasLaunched, userString] =
-          await Promise.all([
-            AsyncStorage.getItem('accessToken'),
-            AsyncStorage.getItem('refreshToken'),
-            AsyncStorage.getItem('hasLaunched'),
-            AsyncStorage.getItem('user'),
-          ]);
-
-        if (!hasLaunched) {
-          await AsyncStorage.setItem('hasLaunched', 'true');
-          setInitialRoute('SignUp');
-          return;
+        const stored = await AsyncStorage.getMany([
+          'accessToken',
+          'refreshToken',
+          'hasLaunched',
+          'user',
+          'sessionType',
+        ]);
+        let accessToken = stored.accessToken;
+        const { refreshToken, hasLaunched, sessionType } = stored;
+        let cachedUser: any = null;
+        try {
+          cachedUser = stored.user ? JSON.parse(stored.user) : null;
+        } catch {
+          cachedUser = null;
         }
 
-        if (accessToken) {
-          if (userString) {
-            const user = JSON.parse(userString);
-            dispatch(
-              setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }),
-            );
-            await requestUserPermissionAndGetToken(user.uid);
-            if (user.isSuspended) {
-              setInitialRoute('SuspendedScreen');
-              return;
-            }
-          }
-          setInitialRoute('Home');
-        } else if (refreshToken) {
-          const result = await refreshAccessToken(refreshToken);
-          if (result.success) {
-            const {
-              accessToken: newAccessToken,
-              refreshToken: newRefreshToken,
-              user,
-            } = result;
-
-            if (newAccessToken)
-              await AsyncStorage.setItem('accessToken', newAccessToken);
-            if (newRefreshToken)
-              await AsyncStorage.setItem('refreshToken', newRefreshToken);
-
-            if (user) {
-              const existingUserString = await AsyncStorage.getItem('user');
-              const existingUser = existingUserString
-                ? JSON.parse(existingUserString)
-                : {};
-
-              const mergedUser = {
-                ...user,
-                theme: existingUser.theme || user.theme || 'system',
-              };
-
-              await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
-              dispatch(
-                setUser({
-                  ...mergedUser,
-                  accessToken: newAccessToken,
-                  tokenCreatedAt: Date.now(),
-                }),
-              );
-              await requestUserPermissionAndGetToken(mergedUser.uid);
-              if (user.isSuspended) {
-                setInitialRoute('SuspendedScreen');
-                return;
-              }
-            }
-            setInitialRoute('Home');
+        // Signed-in users skip onboarding/login entirely (log in once, like
+        // LinkedIn). Only a session the server actually rejects sends them
+        // back to Login.
+        if (!cachedUser?.uid || !(accessToken || refreshToken)) {
+          if (!hasLaunched) {
+            await AsyncStorage.setItem('hasLaunched', 'true');
+            setInitialRoute('SignUp');
           } else {
             setInitialRoute('Login');
           }
-        } else {
-          setInitialRoute('Login');
+          return;
         }
+        if (!hasLaunched) AsyncStorage.setItem('hasLaunched', 'true');
+
+        let user = cachedUser;
+        if (!accessToken && refreshToken) {
+          const result: any = await refreshAccessToken(refreshToken);
+          if (result.success) {
+            accessToken = result.accessToken;
+            if (result.user) {
+              user = {
+                ...result.user,
+                theme: cachedUser.theme || result.user.theme || 'system',
+              };
+              AsyncStorage.setItem('user', JSON.stringify(user));
+            }
+          } else if (result.rejected) {
+            await clearSession();
+            setInitialRoute('Login');
+            return;
+          }
+          // Offline / server hiccup: continue with the cached profile. The
+          // first API call will refresh the token once the network is back.
+        }
+
+        // Admin sessions predating `sessionType` are recognisable by adminType.
+        const isAdmin =
+          sessionType === 'admin' || (!sessionType && !!user.adminType);
+        if (isAdmin) {
+          dispatch(setAdmin({ ...user, accessToken, tokenCreatedAt: Date.now() }));
+          setInitialRoute('AdminDashboard');
+          return;
+        }
+
+        dispatch(setUser({ ...user, accessToken, tokenCreatedAt: Date.now() }));
+        // Don't hold the splash screen for push-token registration.
+        requestUserPermissionAndGetToken(user.uid).catch(() => {});
+        setInitialRoute(user.isSuspended ? 'SuspendedScreen' : 'Home');
       } catch (e) {
-        setInitialRoute('SignUp');
+        console.error('Bootstrap failed:', e);
+        setInitialRoute('Login');
       } finally {
         setTimeout(() => {
           setIsInitializing(false);
@@ -422,7 +416,9 @@ function MainApp() {
     <SocketProvider baseUrl={baseUrl} userUid={user?.uid}>
       <AppDataProvider user={user}>
         <NavigationContainer linking={linking} ref={navigationRef}>
-          <Stack.Navigator>
+          {/* Without initialRouteName the stack always opened its first
+              screen (SignUp), ignoring the session restored above. */}
+          <Stack.Navigator initialRouteName={initialRoute}>
             <Stack.Screen
               name="SignUp"
               component={SignUpScreen}
@@ -638,6 +634,9 @@ function MainApp() {
               name="SuspendedScreen"
               component={SuspendedScreen}
               options={{ headerShown: false }}
+              initialParams={{
+                reason: 'This account has been flagged for security violations.',
+              }}
             />
             <Stack.Screen
               name="NotificationSettings"

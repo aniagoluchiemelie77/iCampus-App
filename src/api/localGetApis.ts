@@ -809,6 +809,9 @@ export const fetchPayoutHistoryAPI = async (lastCreatedAt?: string, maxRetries =
         data: result.data || [],
         hasMore: result.hasMore || false,
         nextCursor: result.nextCursor || null,
+        // Lifetime successful payouts; only present on the first page.
+        totalPaidOut:
+          typeof result.totalPaidOut === 'number' ? result.totalPaidOut : undefined,
         message: result.message,
       };
 
@@ -1004,6 +1007,23 @@ export const fetchNotificationDetails = async (
     return { success: false, notification: null };
   }
 };
+/** Unread notification groups (matches the Unread tab). Silent on failure. */
+export const fetchUnreadNotificationCount = async (
+  signal?: AbortSignal,
+): Promise<number | null> => {
+  try {
+    const response = await fetchWithAuth(`${baseUrl}users/notifications/unread-count`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    return typeof result.count === 'number' ? result.count : null;
+  } catch {
+    return null;
+  }
+};
 export const fetchNotificationsByTab = async (
   activeTab: 'all' | 'finance' | 'unread',
   options?: ApiRequestOptions
@@ -1079,6 +1099,26 @@ export const fetchOngoingLecture = async (
     }
     console.error("Fetch Ongoing Lecture Utility Error:", error);
     return { success: false, ongoing: false, lecture: null };
+  }
+};
+export const fetchLectureById = async (
+  lectureId: string,
+  signal?: AbortSignal
+): Promise<{ success: boolean; lecture: Lecture | null; message?: string }> => {
+  try {
+    const response = await fetchWithAuth(`${baseUrl}users/courses/lectures/${lectureId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, lecture: null, message: result.error || result.message || 'Lecture not found.' };
+    }
+    return { success: true, lecture: result };
+  } catch (error: any) {
+    if (error.name !== 'AbortError') console.error('Fetch Lecture By Id Utility Error:', error);
+    return { success: false, lecture: null, message: 'Could not load this lecture.' };
   }
 };
 export const getUserAccountState = async (

@@ -27,11 +27,8 @@ export const CartScreen = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const currentUser = useAppSelector(state => state.user);
-  const {
-    handleCartItemToggle,
-    handleClearCart,
-    catalogSyncVersion,
-  } = useAppDataContext();
+  const { handleCartItemToggle, handleClearCart, catalogSyncVersion } =
+    useAppDataContext();
   const [clearCartModalVisible, setClearCartModalVisible] = useState(false);
   const [isClearingCart, setIsClearingCart] = useState(false);
   const [focusRefreshKey, setFocusRefreshKey] = useState(0);
@@ -66,12 +63,8 @@ export const CartScreen = () => {
     });
 
     return map;
-    // `catalogSyncVersion` and `focusRefreshKey` are deliberate triggers: the
-    // catalog sync is async, so the first render can legitimately miss rows.
   }, [cartData, catalogSyncVersion, focusRefreshKey]);
 
-  // Re-read SQLite whenever the screen is re-entered, so rows cached by a late
-  // sync (or removed elsewhere) are reflected immediately.
   useFocusEffect(
     useCallback(() => {
       setFocusRefreshKey(previous => previous + 1);
@@ -212,10 +205,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   headerBtn: {
     paddingHorizontal: 8,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 35,
+    width: 'auto',
   },
   headerBtnText: {
     fontSize: 14,

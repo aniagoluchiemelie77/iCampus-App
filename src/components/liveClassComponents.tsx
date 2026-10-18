@@ -34,6 +34,58 @@ interface GroupToastProps {
   activeUsers: any[];
   onHide: () => void;
 }
+interface LiveControlButtonProps {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+  badge?: number;
+}
+/** Round icon button used in the live-class control dock. */
+export const LiveControlButton = ({
+  icon,
+  label,
+  onPress,
+  active = false,
+  danger = false,
+  disabled = false,
+  badge = 0,
+}: LiveControlButtonProps) => {
+  const { colors: themeColors } = useTheme();
+  const bg = danger
+    ? '#E53935'
+    : active
+      ? PRIMARY_COLOR
+      : 'rgba(120,120,120,0.16)';
+  const fg = danger || active ? '#fff' : themeColors.textDarker;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+      style={[styles.controlBtnWrap, disabled && { opacity: 0.4 }]}
+    >
+      <View style={[styles.controlBtn, { backgroundColor: bg }]}>
+        <MaterialIcons name={icon} size={22} color={fg} />
+        {badge > 0 && (
+          <View style={styles.controlBadge}>
+            <Text style={styles.controlBadgeText}>
+              {badge > 99 ? '99+' : badge}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text
+        style={[styles.controlLabel, { color: themeColors.text }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 export const WavingToast = ({ activeUsers, onHide }: GroupToastProps) => {
   const { colors: themeColors } = useTheme();
   const slideAnim = useRef(new Animated.Value(-100)).current;
@@ -345,6 +397,7 @@ export const ChatModal = ({
   }, [messages, visible]);
 
   return (
+    <Portal>
     <Modal visible={visible} onDismiss={onDismiss} style={styles.bottomOverlay}>
       <View
         style={[
@@ -380,6 +433,7 @@ export const ChatModal = ({
         />
       </View>
     </Modal>
+    </Portal>
   );
 };
 export const AttendeeListModal = ({
@@ -437,7 +491,7 @@ export const ConfirmationModal = ({
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
-        <MaterialIcons name="info-circke" size={50} color={colors.primary} />
+        <MaterialIcons name="info-outline" size={50} color={colors.primary} />
 
         <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
           {title}
@@ -522,6 +576,28 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
   );
 };
 const styles = StyleSheet.create({
+  controlBtnWrap: { alignItems: 'center', width: 58 },
+  controlBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  controlLabel: { fontSize: 11, fontWeight: '700', marginTop: 5 },
   messageBubble: {
     padding: 10,
     borderRadius: 12,

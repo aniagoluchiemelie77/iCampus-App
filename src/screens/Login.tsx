@@ -27,6 +27,8 @@ import { authorize } from 'react-native-app-auth';
 import { githubConfig } from '../components/OtherUserSignup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { normalizeIdentifier, passwordAttempts } from '../utils/loginInput';
+import { saveSession } from '../utils/session';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -46,35 +48,46 @@ const Login = () => {
   const [isSocialsLogin, setIsSocialsLogin] = useState(false);
 
   const performLogin = useCallback(
-    async (payload: any) => {
+    async (payload: any, passwordOptions: string[] = []) => {
       setIsLoading(true);
       try {
         const deviceId = await DeviceInfo.getUniqueId();
         const deviceName = DeviceInfo.getModel();
         const brand = DeviceInfo.getBrand();
+        const attempt = (password?: string) =>
+          loginUser({
+            ...payload,
+            ...(password !== undefined ? { password } : {}),
+            deviceId,
+            deviceName: `${brand} ${deviceName}`,
+          });
 
-        const response = await loginUser({
-          ...payload,
-          deviceId,
-          deviceName: `${brand} ${deviceName}`,
-        });
+        // Trimmed password first; the exact text only if that is rejected.
+        let response = await attempt(passwordOptions[0]);
+        if (!response.success && passwordOptions.length > 1) {
+          response = await attempt(passwordOptions[1]);
+        }
         if (response.success) {
           const { accessToken, refreshToken, user } = response;
-  
-  const existingUserString = await AsyncStorage.getItem('user');
-  const existingUser = existingUserString ? JSON.parse(existingUserString) : {};
-  const mergedUser = {
-    ...user,
-    theme: existingUser.theme || user.theme || 'system',
-  };
 
-  await AsyncStorage.setItem('accessToken', accessToken);
-  await AsyncStorage.setItem('refreshToken', refreshToken);
-  await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
-  console.log('User cart: ', user.cart);
-  console.log('User favorites: ', user.favorites);
+          const existingUserString = await AsyncStorage.getItem('user');
+          const existingUser = existingUserString
+            ? JSON.parse(existingUserString)
+            : {};
+          const mergedUser = {
+            ...user,
+            theme: existingUser.theme || user.theme || 'system',
+          };
 
-  dispatch(setUser({ ...mergedUser, accessToken, tokenCreatedAt: Date.now() }));
+          await saveSession({
+            accessToken,
+            refreshToken,
+            user: mergedUser,
+            sessionType: 'user',
+          });
+          dispatch(
+            setUser({ ...mergedUser, accessToken, tokenCreatedAt: Date.now() }),
+          );
 
           if (user.isSuspended) {
             navigation.reset({
@@ -113,13 +126,19 @@ const Login = () => {
 
   const handlePasswordLogin = () => {
     setIsSocialsLogin(false);
-    if (!identifier || !password) {
+    const cleanIdentifier = normalizeIdentifier(identifier);
+    const passwords = passwordAttempts(password);
+    if (!cleanIdentifier || passwords.length === 0) {
       setAlertMessage('Ensure required fields are not empty.');
       setAlertType('error');
       setAlertVisible(true);
       return;
     }
-    performLogin({ identifier, password, socialProvider: 'password' });
+    setIdentifier(cleanIdentifier);
+    performLogin(
+      { identifier: cleanIdentifier, socialProvider: 'password' },
+      passwords,
+    );
   };
 
   const handleSocialLogin = async (provider: 'google' | 'github') => {
@@ -151,7 +170,7 @@ const Login = () => {
 
       if (!email) throw new Error('Could not retrieve verified email');
       await performLogin({
-        identifier: email,
+        identifier: normalizeIdentifier(email),
         idToken: token,
         socialProvider: provider,
       });
@@ -163,9 +182,15 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+  // Validate the trimmed email: a trailing space from autofill used to make a
+  // correct address "invalid" and disable the button.
+  const trimmedIdentifier = normalizeIdentifier(identifier);
   const canSubmit = useMemo(() => {
-    return isSocialsLogin || (isValidEmail(identifier) && password.length > 0);
-  }, [identifier, password, isSocialsLogin]);
+    return (
+      isSocialsLogin ||
+      (isValidEmail(trimmedIdentifier) && password.trim().length > 0)
+    );
+  }, [trimmedIdentifier, password, isSocialsLogin]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -202,11 +227,15 @@ const Login = () => {
                 style={styles.input2}
                 value={identifier}
                 onChangeText={setIdentifier}
+                onEndEditing={() => setIdentifier(prev => prev.trim())}
                 autoCapitalize="none"
                 autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
               />
             </View>
-            {identifier.length > 0 && !isValidEmail(identifier) && (
+            {trimmedIdentifier.length > 0 && !isValidEmail(trimmedIdentifier) && (
               <Text style={styles.validationText}>Invalid email format</Text>
             )}
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,257 +15,216 @@ import {
   markAllNotificationsAsRead,
   markSingleNotificationAsRead,
 } from '../api/localPatchApis';
-import { PRIMARY_COLOR } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
 import { NotificationItem } from '../components/NotificationItem';
-import { useSocketConnection } from '../hooks/useSocket';
-import { baseUrl } from '../components/HomeScreenComponents';
+import { useSocket } from '../hooks/useSocket';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import {
+  navigateForNotification,
+  notificationGroupKey,
+} from '../utils/notificationNavigation';
+
+type NotificationTab = 'all' | 'unread' | 'finance';
+const TABS: { id: NotificationTab; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'unread', label: 'Unread' },
+  { id: 'finance', label: 'Finance' },
+];
+
+const matchesTab = (notif: any, tab: NotificationTab) =>
+  tab === 'all' ||
+  (tab === 'unread' && notif.isRead !== true) ||
+  (tab === 'finance' && notif.category === 'finance');
 
 const Notifications = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
-  const socketRef = useSocketConnection({
-    baseUrl,
-    userId: user?.uid,
-  });
+  // The app-wide socket (SocketProvider in App.tsx); no extra connection here.
+  const { socket } = useSocket();
 
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'finance' | 'unread'>(
-    'all',
-  );
+  const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const [loading, setLoading] = useState(false);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  // Ignore responses for a tab the user has already left.
+  const requestIdRef = useRef(0);
+
   const fetchNotifications = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
       const result = await fetchNotificationsByTab(activeTab);
-      if (result.success) {
+      if (requestId === requestIdRef.current && result.success) {
         setNotifications(result.notifications);
       }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [activeTab]);
-  const markAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    try {
-      const result = await markAllNotificationsAsRead();
-
-      if (result.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Notifications all marked as read',
-        });
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      } else {
-        fetchNotifications();
-      }
-    } catch (err) {
-      console.error('Mark all read error:', err);
-      fetchNotifications();
-    }
-  };
-  const tabs: ('all' | 'unread' | 'finance')[] = ['all', 'unread', 'finance'];
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Live notifications: respect the active tab and fold into an existing group
+  // ("Ada and 3 others…") instead of adding a duplicate row.
   useEffect(() => {
-    const currentSocket = socketRef.current;
-    if (!currentSocket) return;
-
-    currentSocket.on('new_notification', (newNotif: any) => {
-      setNotifications(prev => [newNotif, ...prev]);
-    });
-
-    return () => {
-      currentSocket.off('new_notification');
+    if (!socket) return;
+    const handleNewNotification = (incoming: any) => {
+      const notif = { ...incoming, isRead: false };
+      if (!matchesTab(notif, activeTabRef.current)) return;
+      const key = notificationGroupKey(notif);
+      setNotifications(prev => {
+        const existing = prev.find(n => notificationGroupKey(n) === key);
+        const rest = prev.filter(n => notificationGroupKey(n) !== key);
+        const payload = notif.payload || {};
+        const merged = existing
+          ? {
+              ...notif,
+              payload: {
+                ...payload,
+                primaryUser:
+                  payload.username || payload.firstname || 'Someone',
+                othersCount: (existing.payload?.othersCount ?? 0) + 1,
+                unreadCount: (existing.payload?.unreadCount ?? 0) + 1,
+              },
+            }
+          : {
+              ...notif,
+              payload: {
+                ...payload,
+                primaryUser:
+                  payload.username || payload.firstname || 'Someone',
+                othersCount: 0,
+                unreadCount: 1,
+              },
+            };
+        return [merged, ...rest];
+      });
     };
-  }, [socketRef]);
-  const handleNotificationPress = async (item: any) => {
-    if (!item.isRead) {
-      markAsReadOnServer(item.notificationId);
-      setNotifications(prev =>
-        prev.map(n =>
-          n.notificationId === item.notificationId ? { ...n, isRead: true } : n,
-        ),
-      );
-    }
-    const { actionType, payload } = item;
+    socket.on('new_notification', handleNewNotification);
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [socket]);
 
-    switch (actionType) {
-      case 'POST_UPDATED':
-      case 'NEW_POST':
-      case 'POST_MENTION':
-      case 'POST_LIKED':
-      case 'POST_COMMENTED':
-      case 'POLL_MILESTONE':
-      case 'POST_REPOSTED':
-        navigation.navigate('PostDetailScreen', { postId: payload.postId });
-        break;
-
-      case 'PRODUCT_DELETION':
-      case 'PRODUCT_CREATION':
-      case 'PRODUCT_UPDATE':
-        navigation.navigate('SalesHub');
-        break;
-
-      case 'NEW_PRODUCT':
-        navigation.navigate('ProductDetails', {
-          productId: payload.productId,
-        });
-        break;
-
-      case 'LECTURE_CANCELLED':
-      case 'LECTURE_POSTPONED':
-      case 'LECTURE_VENUE_CHANGE':
-      case 'LECTURE_TYPE_CHANGE':
-      case 'LECTURE_SCHEDULED':
-        navigation.navigate('CourseSubPage', {
-          title: 'View Lecture Schedule',
-          userRole: user.usertype,
-        });
-        break;
-
-      case 'CONTENT_MUTATED':
-      case 'CONTENT_DELETION':
-      case 'CONTENT_ADDED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Course Contents',
-        });
-        break;
-
-      case 'EXCEPTION_UPDATED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Exceptions',
-          userRole: user.usertype,
-        });
-        break;
-
-      case 'TEST_CREATED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Assessments',
-          userRole: user.usertype,
-        });
-        break;
-
-      case 'ASSIGNMENT_CREATED':
-      case 'ASSIGNMENT_REMOVED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Assignments',
-        });
-        break;
-
-      case 'MATERIAL_UPLOADED':
-      case 'MATERIAL_DELETED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Course Materials',
-        });
-        break;
-      case 'PROFILE_VIEW':
-      case 'PROFILE_UPDATED':
-        navigation.navigate('Profile', { identifier: user.uid });
-        break;
-
-      case 'NEW_FOLLOWER':
-        navigation.navigate('Profile', { identifier: payload.followerId });
-        break;
-
-      case 'TEST_CREATED':
-        navigation.navigate('CourseSubPage', {
-          title: 'Assessments',
-          userRole: user.usertype,
-        });
-        break;
-
-      case 'SALES_PAYOUT_SUCCESS':
-      case 'MARKET_PURCHASE_DEBIT':
-      case 'ICASH_PURCHASE':
-      case 'ICASH_WITHDRAWAL':
-        navigation.navigate('TransactionDetail', {
-          transactionId: payload.transactionId,
-        });
-        break;
-
-      case 'ORDER_REVIEW_REQUEST':
-        navigation.navigate('CreateReviewScreen', {
-          targetId: payload.targetId,
-          productType: 'product',
-        });
-        break;
-
-      case 'LECTURER_REVIEW_REQUEST':
-        navigation.navigate('CreateReviewScreen', {
-          targetId: payload.targetId,
-          productType: 'lecturer',
-        });
-        break;
-
-      default:
-        navigation.navigate('NotificationDetails', { notification: item });
-        break;
-    }
-  };
-  const markAsReadOnServer = async (id: string) => {
+  const markAllAsRead = async () => {
+    const previous = notifications;
+    // On the Unread tab nothing remains once everything is read.
+    setNotifications(prev =>
+      activeTab === 'unread' ? [] : prev.map(n => ({ ...n, isRead: true })),
+    );
     try {
-      const result = await markSingleNotificationAsRead(id);
+      const result = await markAllNotificationsAsRead();
       if (result.success) {
-        setNotifications(prev =>
-          prev.map(n => (n.id === id ? { ...n, isRead: true } : n)),
-        );
+        Toast.show({ type: 'success', text1: 'All caught up' });
+      } else {
+        setNotifications(previous);
       }
     } catch (err) {
-      console.error('Read error:', err);
+      console.error('Mark all read error:', err);
+      setNotifications(previous);
     }
   };
-  const hasUnread = notifications.some(n => !n.isRead);
-  const unreadNotifications = notifications.filter(n => !n.isRead);
-  console.log('All unread notifications:', unreadNotifications);
+
+  const handleNotificationPress = (item: any) => {
+    if (item.isRead !== true && item.notificationId) {
+      // The server marks the whole group read; mirror that locally.
+      setNotifications(prev =>
+        prev.map(n =>
+          n.notificationId === item.notificationId
+            ? { ...n, isRead: true, payload: { ...n.payload, unreadCount: 0 } }
+            : n,
+        ),
+      );
+      markSingleNotificationAsRead(item.notificationId).catch(err =>
+        console.error('Read error:', err),
+      );
+    }
+    navigateForNotification(navigation, item, user);
+  };
+
+  const unreadCount = notifications.filter(n => n.isRead !== true).length;
+
+  const emptyState =
+    activeTab === 'unread'
+      ? {
+          iconName: 'done-all',
+          title: "You're all caught up",
+          subtitle: 'No unread notifications right now.',
+          buttonText: 'View all notifications',
+          onPress: () => setActiveTab('all'),
+        }
+      : activeTab === 'finance'
+        ? {
+            iconName: 'account-balance-wallet',
+            title: 'No finance activity yet',
+            subtitle:
+              'Payments, payouts and iCash updates will show up here.',
+          }
+        : {
+            iconName: 'notifications-none',
+            title: 'No notifications yet',
+            subtitle:
+              'Likes, comments, class updates and more will appear here.',
+          };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title="Notifications"
         rightElement={
-          hasUnread && (
+          unreadCount > 0 ? (
             <CustomButton
-              title="Mark All As Read"
+              title="Mark all read"
+              iconName="done-all"
               onPress={markAllAsRead}
               style={[
                 styles.rightElementBtn,
                 { backgroundColor: colors.btnColor },
               ]}
             />
-          )
+          ) : null
         }
       />
-      <View
-        style={[styles.tabBar, { backgroundColor: colors.backgroundSecondary }]}
-      >
-        {tabs.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-          >
-            <Text
+      <View style={styles.tabBar}>
+        {TABS.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              onPress={() => setActiveTab(tab.id)}
+              activeOpacity={0.8}
               style={[
-                styles.tabText,
-                activeTab === tab
-                  ? { color: colors.primary }
-                  : { color: colors.text },
+                styles.tab,
+                { borderColor: colors.primary },
+                isActive && { backgroundColor: colors.primary },
               ]}
             >
-              {tab.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: isActive ? '#fff' : colors.primary },
+                ]}
+              >
+                {tab.label}
+              </Text>
+              {tab.id === 'unread' && activeTab !== 'unread' && unreadCount > 0 && (
+                <View style={[styles.tabBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.tabBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading && notifications.length === 0 ? (
@@ -278,24 +237,19 @@ const Notifications = () => {
         <FlatList
           data={notifications}
           keyExtractor={item => item.notificationId || item.id}
-          renderItem={({ item }) => {
-            return (
-              <NotificationItem
-                item={item}
-                handleNotificationPress={() => handleNotificationPress(item)}
-              />
-            );
-          }}
+          renderItem={({ item }) => (
+            <NotificationItem
+              item={item}
+              handleNotificationPress={() => handleNotificationPress(item)}
+            />
+          )}
           refreshing={loading}
           onRefresh={fetchNotifications}
-          ListEmptyComponent={
-            <EmptyState
-              iconName="notifications-none"
-              title="No Notifications Found"
-              subtitle="We couldn't find any notifications for you."
-            />
-          }
-          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={<EmptyState {...emptyState} />}
+          contentContainerStyle={[
+            styles.listContent,
+            notifications.length === 0 && { flexGrow: 1 },
+          ]}
         />
       )}
     </View>
@@ -307,35 +261,34 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 16,
     marginHorizontal: 15,
   },
   tab: {
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.2,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
   },
-  activeTab: { borderBottomColor: PRIMARY_COLOR },
-  tabText: { fontSize: 14, fontWeight: '600' },
+  tabText: { fontSize: 13, fontWeight: '700' },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   listContent: { marginHorizontal: 15, paddingBottom: 30 },
-  unreadDot: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: PRIMARY_COLOR,
-  },
   rightElementBtn: {
-    paddingHorizontal: 8,
-    height: 40,
+    paddingHorizontal: 10,
+    height: 38,
     width: 'auto',
-  },
-  rightElementBtnText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginRight: 4,
   },
 });
 

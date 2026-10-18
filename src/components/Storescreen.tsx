@@ -19,6 +19,7 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppDataContext } from '../context/EventContext';
+import ExpandableFAB from './ExpandableFAB';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -41,6 +42,26 @@ const CATEGORIES = [
   'Health and Beauty',
 ];
 const STORE_TABS = ['All', 'Popular', ...CATEGORIES];
+
+// Backend (fetchStoreProducts) does an exact, case-sensitive match:
+//   where("niche", "==", category)
+// so each tab must map to the exact niche value used when products are
+// created (see CreateProductScreen nicheItems). 'popular' is a special
+// backend value (lowercase) for the favCount-sorted feed; 'All' sends ''
+// so no category filter is applied.
+const TAB_TO_API_CATEGORY: Record<string, string> = {
+  All: '',
+  Popular: 'popular',
+  Electronics: 'Electronics',
+  Fashion: 'Fashion',
+  Stationery: 'Stationery',
+  'Snacks and Deserts': 'Snacks and Deserts',
+  Food: 'Food',
+  FootWears: 'Footwears',
+  'Health and Beauty': 'Health & Beauty',
+};
+
+const getCategoryParam = (tab: string): string => TAB_TO_API_CATEGORY[tab] ?? '';
 
 export const HeaderActionButton = ({
   onPress,
@@ -68,6 +89,7 @@ export const StoreScreen = () => {
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedTab, setSelectedTab] = useState('All');
+  const [isFabVisible, setIsFabVisible] = useState(false);
   const { syncCatalogToDatabase, syncUsersToDatabase } = useAppDataContext();
 
   const [tabData, setTabData] = useState<
@@ -108,7 +130,7 @@ export const StoreScreen = () => {
         : (tabData[tab]?.cursor ?? undefined);
       const result = await fetchProductsAPI({
         q: query,
-        category: tab === 'All' ? '' : tab.toLowerCase(),
+        category: getCategoryParam(tab),
         cursor: currentCursor,
         limit: 10,
       });
@@ -144,7 +166,7 @@ export const StoreScreen = () => {
     try {
       const result = await fetchProductsAPI({
         q: searchQuery,
-        category: selectedTab === 'All' ? '' : selectedTab.toLowerCase(),
+        category: getCategoryParam(selectedTab),
         cursor: currentTabData.cursor,
         limit: 10,
       });
@@ -248,6 +270,17 @@ export const StoreScreen = () => {
           }
         />
       )}
+      <TouchableOpacity
+        style={styles.storeFab}
+        onPress={() => setIsFabVisible(prev => !prev)}
+      >
+        <MaterialIcons name="add" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
+      <ExpandableFAB
+        isVisible={isFabVisible}
+        onClose={() => setIsFabVisible(false)}
+        actions={['View Cart', 'View Favorites', 'Sales Hub']}
+      />
     </View>
   );
 };
@@ -309,5 +342,22 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  storeFab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: PRIMARY_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    zIndex: 200,
   },
 });

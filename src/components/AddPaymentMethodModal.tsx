@@ -43,7 +43,7 @@ interface AddPaymentModalProps {
   visible: boolean;
   onClose: () => void;
   currencyData: {
-    rate: number;
+    rate?: number;
     code: string;
   };
   user: User;

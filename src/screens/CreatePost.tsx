@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   KeyboardAvoidingView,
   View,
@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   Platform,
-  FlatList,
   StyleSheet,
   ScrollView,
 } from 'react-native';
@@ -20,19 +19,25 @@ import {
   ImageLibraryOptions,
 } from 'react-native-image-picker';
 import { CustomButton } from '../assets/components/AppUIComponents';
-import { UserAvatar } from '../components/UserAvatar';
-import { UserIdentity } from '../components/UserIdentity';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
 import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
+import { MentionUserModal } from '../components/MentionUserModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../../App';
 import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import { usePicker } from '../hooks/useDropDownPicker';
 import { JobTypePicker } from '../components/InputGroup';
 import { HorizontalScrollableMediaPreviewList } from '../components/MediaPreview';
+import {
+  applyMentionAwareChange,
+  extractMentionTokens,
+  findMentionRanges,
+  getActiveMentionQuery,
+  splitTextWithMentions,
+} from '../utils/mentions';
 interface MediaItem {
   uri: string[];
   type: 'image' | 'video';
@@ -102,10 +107,19 @@ export const CreatePost = ({ route, navigation }: Props) => {
 
   const currentUser = useAppSelector(state => state.user) || {};
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-  const [mentionSearchKeyword, setMentionSearchKeyword] = useState<
-    string | null
-  >(null);
+  const [isMentionModalVisible, setIsMentionModalVisible] = useState(false);
+  const [mentionKeyword, setMentionKeyword] = useState('');
+  // Confirmed mentions ("@username"): highlighted and deleted as a whole.
+  const [mentionTokens, setMentionTokens] = useState<string[]>(() =>
+    isEditMode ? extractMentionTokens(editPostData.content || '') : [],
+  );
+  const selectionRef = useRef({ start: content.length, end: content.length });
+  // Set only when the caret must be moved programmatically; cleared on the
+  // next native selection event so the user keeps full control.
+  const [forcedSelection, setForcedSelection] = useState<
+    { start: number; end: number } | undefined
+  >(undefined);
+  const isPlainPost = postType !== 'poll' && postType !== 'job' && postType !== 'event';
 
   useEffect(() => {
     const loadTaggingContext = async () => {
@@ -151,41 +165,53 @@ export const CreatePost = ({ route, navigation }: Props) => {
     }
   };
 
-  const handleContentChange = (text: string) => {
-    setContent(text);
-    const words = text.split(/\s/);
-    const currentWord = words[words.length - 1];
-
-    if (currentWord && currentWord.startsWith('@')) {
-      const keyword = currentWord.slice(1);
-      setMentionSearchKeyword(keyword);
-
-      if (keyword.length === 0) {
-        setFilteredUsers(followingUsers);
-      } else {
-        const matches = followingUsers.filter(
-          user =>
-            user.username?.toLowerCase().includes(keyword.toLowerCase()) ||
-            user.displayName?.toLowerCase().includes(keyword.toLowerCase()),
-        );
-        setFilteredUsers(matches);
-      }
+  const updateMentionLookup = (text: string, cursor: number, tokens: string[]) => {
+    const active = getActiveMentionQuery(text, cursor, tokens);
+    if (active) {
+      setMentionKeyword(active.query);
+      setIsMentionModalVisible(true);
     } else {
-      setMentionSearchKeyword(null);
-      setFilteredUsers([]);
+      setIsMentionModalVisible(false);
     }
   };
 
-  const handleSelectUserToTag = (username: string) => {
-    const words = content.split(/\s/);
-    words.pop();
-    const baseContent = words.join(' ');
-    const newContent = baseContent
-      ? `${baseContent} @${username} `
-      : `@${username} `;
+  const handleContentChange = (next: string) => {
+    // Deleting into a confirmed mention removes the whole "@name".
+    const result = applyMentionAwareChange(content, next, mentionTokens);
+    const remainingTokens = mentionTokens.filter(
+      token => findMentionRanges(result.text, [token]).length > 0,
+    );
+    setContent(result.text);
+    if (remainingTokens.length !== mentionTokens.length) {
+      setMentionTokens(remainingTokens);
+    }
+    selectionRef.current = { start: result.cursor, end: result.cursor };
+    if (result.removedMention) {
+      // The native field still holds the half-deleted text; move the caret to
+      // where the mention started.
+      setForcedSelection({ start: result.cursor, end: result.cursor });
+    }
+    updateMentionLookup(result.text, result.cursor, remainingTokens);
+  };
+
+  const handleSelectUserToTag = (user: any) => {
+    const identifier = user?.username || user?.firstname;
+    if (!identifier) return;
+    const token = `@${identifier}`;
+    const cursor = selectionRef.current.start;
+    const active = getActiveMentionQuery(content, cursor, mentionTokens);
+    // Replace the "@partial" at the caret (not just the last word).
+    const start = active ? active.start : cursor;
+    const after = content.slice(cursor).replace(/^[^\s]*/, '');
+    const insertion = after.startsWith(' ') ? token : `${token} `;
+    const newContent = content.slice(0, start) + insertion + after;
+    const newCursor = start + insertion.length + (after.startsWith(' ') ? 1 : 0);
+
     setContent(newContent);
-    setMentionSearchKeyword(null);
-    setFilteredUsers([]);
+    setMentionTokens(prev => (prev.includes(token) ? prev : [...prev, token]));
+    selectionRef.current = { start: newCursor, end: newCursor };
+    setForcedSelection({ start: newCursor, end: newCursor });
+    setIsMentionModalVisible(false);
   };
 
   const removeOption = (index: number) => {
@@ -385,26 +411,56 @@ export const CreatePost = ({ route, navigation }: Props) => {
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            isPlainPost && styles.plainScrollContainer,
+          ]}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View
-            style={[
-              styles.cardContainer,
-              {
-                backgroundColor: colors.backgroundSecondary,
-              },
-            ]}
+            style={
+              isPlainPost
+                ? styles.plainComposer
+                : [
+                    styles.cardContainer,
+                    { backgroundColor: colors.backgroundSecondary },
+                  ]
+            }
           >
+            {/* Styled children instead of `value`, so confirmed mentions can
+                be coloured inside the editable text. */}
             <TextInput
               placeholder="What's on your mind? Mention people with @..."
               placeholderTextColor={colors.inputTextHolder}
               multiline
               autoFocus
-              style={[styles.input, { color: colors.text }]}
-              value={content}
+              scrollEnabled={!isPlainPost}
+              style={[
+                styles.input,
+                isPlainPost && styles.plainInput,
+                { color: colors.text },
+              ]}
               onChangeText={handleContentChange}
-            />
+              selection={forcedSelection}
+              onSelectionChange={({ nativeEvent }) => {
+                selectionRef.current = nativeEvent.selection;
+                if (forcedSelection) setForcedSelection(undefined);
+              }}
+            >
+              {splitTextWithMentions(content, mentionTokens).map((segment, i) => (
+                <Text
+                  key={`${i}-${segment.isMention ? 'm' : 't'}`}
+                  style={
+                    segment.isMention
+                      ? [styles.mentionText, { color: colors.primary }]
+                      : { color: colors.text }
+                  }
+                >
+                  {segment.text}
+                </Text>
+              ))}
+            </TextInput>
 
             {mediaList.length > 0 && (
               <HorizontalScrollableMediaPreviewList
@@ -695,7 +751,9 @@ export const CreatePost = ({ route, navigation }: Props) => {
             style={[
               styles.actionToolbar,
               {
-                backgroundColor: colors.backgroundSecondary,
+                backgroundColor: isPlainPost
+                  ? colors.background
+                  : colors.backgroundSecondary,
                 borderColor: colors.border,
               },
             ]}
@@ -723,49 +781,14 @@ export const CreatePost = ({ route, navigation }: Props) => {
           </View>
         )}
 
-        {/* Tagging / Mentions Overlay */}
-        {mentionSearchKeyword !== null && filteredUsers.length > 0 && (
-          <View
-            style={[
-              styles.mentionOverlayContainer,
-              {
-                backgroundColor: colors.backgroundSecondary,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <FlatList
-              data={filteredUsers}
-              keyExtractor={item => item.uid || item.id}
-              keyboardShouldPersistTaps="always"
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.mentionUserItem}
-                  onPress={() => handleSelectUserToTag(item.username)}
-                >
-                  <UserAvatar
-                    profilePic={item.profilePic}
-                    firstName={item.firstname}
-                    lastName={item.lastname}
-                    organizationName={item.organizationName}
-                    style={styles.miniAvatar}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <UserIdentity
-                      firstname={item.firstname}
-                      lastname={item.lastname}
-                      username={item.username}
-                      tier={item.tier}
-                      size="small"
-                      isOrganization={item.usertype === 'enterprise'}
-                      organizationName={item.organizationName}
-                    />
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
+        {/* Tagging / Mentions Modal */}
+        <MentionUserModal
+          visible={isMentionModalVisible}
+          initialKeyword={mentionKeyword}
+          suggestions={followingUsers}
+          onSelect={handleSelectUserToTag}
+          onClose={() => setIsMentionModalVisible(false)}
+        />
 
         {/* Upload Status Overlay */}
         {isUploading && (
@@ -834,6 +857,18 @@ export const CreatePost = ({ route, navigation }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContainer: { padding: 16, paddingBottom: 100 },
+  // Normal posts: the composer is the page itself, edge to edge.
+  plainScrollContainer: { flexGrow: 1, paddingTop: 4 },
+  plainComposer: { flex: 1 },
+  plainInput: {
+    flex: 1,
+    minHeight: 320,
+    fontSize: 17,
+    lineHeight: 25,
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
+  mentionText: { fontWeight: '700' },
   cardContainer: {
     borderRadius: 16,
     borderWidth: 1,
@@ -977,29 +1012,6 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
-  },
-  mentionOverlayContainer: {
-    position: 'absolute',
-    bottom: 70,
-    left: 16,
-    right: 16,
-    maxHeight: 180,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 8,
-    zIndex: 100,
-  },
-  mentionUserItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  miniAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 10,
   },
 });
 

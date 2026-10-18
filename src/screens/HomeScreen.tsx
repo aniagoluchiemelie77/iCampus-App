@@ -1,7 +1,5 @@
 import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import PagerView from 'react-native-pager-view';
-import { useDispatch } from 'react-redux';
-import { clearUser } from '../context/UserSlice';
 import {
   View,
   TouchableOpacity,
@@ -18,10 +16,15 @@ import type { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppSelector } from '../hooks/hooks';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { AppDataProvider } from '../context/EventContext';
 import Toast from 'react-native-toast-message';
 import { playNotificationSound } from '../services/notificationSound';
-import { getMessaging, onMessage } from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  onMessage,
+  onNotificationOpenedApp,
+  getInitialNotification,
+} from '@react-native-firebase/messaging';
+import { navigateForNotification } from '../utils/notificationNavigation';
 import {
   useSocketConnection,
   SocketContext,
@@ -64,19 +67,23 @@ export const SocketProvider = ({
 }: SocketProviderProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useSocketConnection({ baseUrl, userId: userUid });
-  const socket = socketRef.current;
+  // Held in state (not read from the ref during render) so consumers re-render
+  // as soon as the socket exists, instead of seeing null until the next render.
+  const [socket, setSocket] = useState<ReturnType<typeof useSocket>['socket']>(null);
 
   useEffect(() => {
     const currentSocket = socketRef.current;
+    setSocket(currentSocket);
     if (!currentSocket) {
       setIsConnected(false);
       return;
     }
 
+    // The server also joins the personal room from the handshake userId;
+    // this re-join is a harmless safety net after reconnects.
     const handleConnect = () => {
       setIsConnected(true);
       currentSocket.emit('join_room', String(userUid));
-      console.log('Socket connected for user:', userUid);
     };
 
     const handleDisconnect = () => {
@@ -137,7 +144,6 @@ const HomeScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const [activeIcon, setActiveIcon] = useState<string>('home');
   const userType = user?.usertype;
-  const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
   const socketContext = useSocket();
   const socket = socketContext?.socket;
@@ -285,22 +291,10 @@ const HomeScreen = () => {
       setLoading(false);
     }
   };
-  const isTokenExpired = (createdAt: number) => {
-    const now = Date.now();
-    return now - createdAt > 1000 * 60 * 60 * 24;
-  };
   const isModalVisible = isLargeScreen ? true : isProfilePopupVisible;
-
-  useEffect(() => {
-    if (user?.tokenCreatedAt) {
-      const createdAtTime = new Date(user.tokenCreatedAt).getTime();
-
-      if (isTokenExpired(createdAtTime)) {
-        dispatch(clearUser());
-        navigation.navigate('Login');
-      }
-    }
-  }, [dispatch, navigation, user?.tokenCreatedAt]);
+  // No client-side "24h since login" logout here: it signed active users out
+  // even with valid tokens. Expiry is handled by the token refresh in
+  // fetchWithAuth, which logs out only when the server rejects the session.
   useEffect(() => {
     if (route.params?.activeTab) {
       setActiveIcon(route.params.activeTab);
@@ -323,6 +317,39 @@ const HomeScreen = () => {
 
     return unsubscribe;
   }, []);
+  // Tapping a push (app in background, or launched from a quit state) should
+  // land on the same screen as tapping it in the Notifications list.
+  const handledInitialPushRef = useRef(false);
+  useEffect(() => {
+    const messagingInstance = getMessaging();
+    const openFromPush = (remoteMessage: any) => {
+      const data = remoteMessage?.data || {};
+      if (!data.actionType) return;
+      const { actionType, category, notificationId, entityId, entityType, ...payload } =
+        data;
+      navigateForNotification(
+        navigation,
+        {
+          notificationId,
+          actionType,
+          category,
+          payload,
+          relatedEntity: { entityId, entityType },
+          title: remoteMessage.notification?.title,
+          message: remoteMessage.notification?.body,
+        },
+        { uid: user?.uid, usertype: user?.usertype },
+      );
+    };
+    const unsubscribe = onNotificationOpenedApp(messagingInstance, openFromPush);
+    if (!handledInitialPushRef.current) {
+      handledInitialPushRef.current = true;
+      getInitialNotification(messagingInstance)
+        .then(message => message && openFromPush(message))
+        .catch(() => {});
+    }
+    return unsubscribe;
+  }, [navigation, user?.uid, user?.usertype]);
   useEffect(() => {
     const requestUserPermission = async () => {
       if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -427,7 +454,7 @@ const HomeScreen = () => {
     }
   };
   return (
-    <AppDataProvider user={user}>
+    <>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <PageHeader
           title={getHeaderTitle()}
@@ -539,7 +566,7 @@ const HomeScreen = () => {
         onClose={() => setIsScannerOpen(false)}
         onSuccess={handleCompleteOrder}
       />
-    </AppDataProvider>
+    </>
   );
 };
 const styles = StyleSheet.create({

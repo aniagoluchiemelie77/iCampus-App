@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   SectionList,
   Alert,
   Linking,
@@ -27,6 +26,7 @@ import { EmptyState } from '../components/EmptyFlatlistComponent';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSocketConnection } from '../hooks/useSocket.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { PulseRadar } from '../components/PulsingAnimation';
 
 type AttendanceStatus = 'idle' | 'fetching' | 'completed';
 type Props = StackScreenProps<RootStackParamList, 'PhysicalAttendanceManager'>;
@@ -237,6 +237,14 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     socketRef?.current?.on('attendance_session_started', data => {
       console.log('Attendance server channel successfully established:', data);
     });
+    socketRef?.current?.on('attendance_session_ended', data => {
+      console.log(
+        'Attendance session ended for lecture',
+        data.lectureId,
+        'status:',
+        data.status,
+      );
+    });
 
     socketRef?.current?.on('error_response', err => {
       Toast.show({
@@ -248,6 +256,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
     return () => {
       socketRef?.current?.off('student_checked_in');
       socketRef?.current?.off('attendance_session_started');
+      socketRef?.current?.off('attendance_session_ended');
       socketRef?.current?.off('error_response');
       socketRef?.current?.disconnect();
       socketRef.current = null;
@@ -352,10 +361,10 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
                   Scanning...
                 </Text>
               </View>
-              <ActivityIndicator
+              <PulseRadar
                 size={150}
+                strokeWidth={2}
                 color={colors.primary}
-                style={GetAttendanceScreenStyles.absoluteLoader}
               />
             </View>
             <Text

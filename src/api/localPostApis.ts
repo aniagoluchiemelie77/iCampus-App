@@ -9,6 +9,7 @@ import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload} from
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
 import { fetchWithAuth} from '../utils/userTokenAuth';
+import { clearSession } from '../utils/session';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
 interface ServiceResponse {
@@ -69,6 +70,8 @@ interface VerifyFaceResponse {
   verified: boolean;
   message?: string;
   similarity?: number;
+  /** True when verification could not run (network/server/avatar issue), as opposed to a face mismatch. */
+  isError?: boolean;
 }
 interface ApiResponse {
   success: boolean;
@@ -392,11 +395,12 @@ export const handleLogout = async (navigation: any) => {
   } catch (error) {
     console.error("Logout action failed", error);
   } finally {
-    await AsyncStorage.clear(); 
+    // Session keys only: keep app flags such as hasLaunched.
+    await clearSession();
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'Login' }], 
+        routes: [{ name: 'Login' }],
       })
     );
   }
@@ -966,14 +970,23 @@ export const refreshAccessToken = async (refreshToken: string) => {
     if (response.ok) {
       const data = await response.json();
       await AsyncStorage.setItem('accessToken', data.accessToken);
-      return { 
-        success: true, 
+      // The server renews the refresh token periodically (sliding session).
+      if (data.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', data.refreshToken);
+      }
+      return {
+        success: true,
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
-        user: data.user 
+        user: data.user
       };
     } else {
-      return { success: false, status: response.status };
+      // 401/403 = the session itself was rejected; anything else is transient.
+      return {
+        success: false,
+        status: response.status,
+        rejected: response.status === 401 || response.status === 403,
+      };
     }
   } catch (error: any) {
     clearTimeout(timeoutId);
@@ -2172,20 +2185,31 @@ export const verifyFacialIdentity = async (
       signal,
     });
 
-    if (response.status === 401) {
-      return { verified: false, message: "Session expired. Please log back in." };
+    let result: any = {};
+    try {
+      result = await response.json();
+    } catch {
+      result = {};
     }
-    const result = await response.json();
+    // Only a 403 is a genuine face mismatch; every other failure is a service error.
+    if (!response.ok && response.status !== 403) {
+      return {
+        verified: false,
+        isError: true,
+        message: result.message || `Verification request failed (${response.status}).`,
+      };
+    }
     return {
-      verified: response.ok && result.verified,
+      verified: response.ok && result.verified === true,
       message: result.message,
-      similarity: result.similarity
+      similarity: result.similarity,
     };
   } catch (error: any) {
-    if (error.name === 'AbortError') return { verified: false, message: 'Request cancelled.' };
+    if (error.name === 'AbortError') return { verified: false, isError: true, message: 'Request cancelled.' };
     console.error("API Utility Network Exception:", error);
     return {
       verified: false,
+      isError: true,
       message: "Network communication timeout. Is your internet active?",
     };
   }

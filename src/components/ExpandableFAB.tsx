@@ -1,9 +1,16 @@
-import React from 'react';
-import { Modal, StyleSheet, TouchableOpacity, View, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  Text,
+  Animated,
+} from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-import { PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { Lecture } from '../types/firebase';
 import { useAppSelector } from '../hooks/hooks';
 import { useTheme } from '../context/ThemeContext';
@@ -104,6 +111,45 @@ export const ExpandableFAB = ({
   const navigation = useNavigation<any>();
   const user = useAppSelector((state: any) => state.user) || {};
 
+  const itemCount = React.useMemo(() => actions.filter(Boolean).length, [
+    actions,
+  ]);
+  const scaleRefs = useRef<Animated.Value[]>([]);
+  const opacityRefs = useRef<Animated.Value[]>([]);
+
+  if (scaleRefs.current.length !== itemCount) {
+    scaleRefs.current = Array.from({ length: itemCount }, () =>
+      new Animated.Value(0.6)
+    );
+    opacityRefs.current = Array.from({ length: itemCount }, () =>
+      new Animated.Value(0)
+    );
+  }
+
+  useEffect(() => {
+    if (!isVisible) return;
+    // Staggered spring-in animation for each menu item
+    Animated.stagger(
+      60,
+      scaleRefs.current.map((scale, i) =>
+        Animated.parallel([
+          Animated.spring(scale, {
+            toValue: 1,
+            damping: 18,
+            mass: 1,
+            stiffness: 260,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityRefs.current[i], {
+            toValue: 1,
+            duration: 220,
+            useNativeDriver: true,
+          }),
+        ])
+      )
+    ).start();
+  }, [isVisible, itemCount]);
+
   if (!isVisible) return null;
 
   const handleAction = (label: string) => {
@@ -177,36 +223,43 @@ export const ExpandableFAB = ({
             label === 'Create Course' && !user?.hasSubscribed;
 
           return (
-            <TouchableOpacity
+            <Animated.View
               key={index}
-              style={styles.menuItemWrapper}
-              onPress={() => {
-                if (isRestricted) {
-                  onClose();
-                  navigation.navigate('SubscriptionScreen');
-                } else {
-                  handleAction(label);
-                }
+              style={{
+                transform: [{ scale: scaleRefs.current[index] }],
+                opacity: opacityRefs.current[index],
               }}
             >
-              <View
-                style={[
-                  styles.menuLabelBubble,
-                  { backgroundColor: 'rgba(28, 28, 30, 0.85)' },
-                ]}
+              <TouchableOpacity
+                style={styles.menuItemWrapper}
+                onPress={() => {
+                  if (isRestricted) {
+                    onClose();
+                    navigation.navigate('SubscriptionScreen');
+                  } else {
+                    handleAction(label);
+                  }
+                }}
               >
-                <Text style={[styles.menuLabel, { color: '#FFFFFF' }]}>
-                  {label}
-                </Text>
-              </View>
-              <View style={styles.miniFab}>
-                <MaterialIcons
-                  name={config.icon}
-                  size={22}
-                  color={colors.btnColor || PRIMARY_COLOR_TINT}
-                />
-              </View>
-            </TouchableOpacity>
+                <View
+                  style={[
+                    styles.menuLabelBubble,
+                    { backgroundColor: 'rgba(28, 28, 30, 0.85)' },
+                  ]}
+                >
+                  <Text style={[styles.menuLabel, { color: '#FFFFFF' }]}>
+                    {label}
+                  </Text>
+                </View>
+                <View style={styles.miniFab}>
+                  <MaterialIcons
+                    name={config.icon}
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           );
         })}
 
@@ -298,6 +351,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.2,
     borderColor: '#fff',
+    backgroundColor: PRIMARY_COLOR,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
