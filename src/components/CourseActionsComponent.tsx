@@ -90,8 +90,11 @@ import {
   getAssessmentAnalysisUrl,
   fetchCourseGradebook,
 } from '../api/localGetApis';
-import { EXCEPTION_ACCOUNT_LIMITS } from '../constants/inAppConstants';
-import { AddPaymentModal } from './AddPaymentMethodModal';
+import {
+  EXCEPTION_ACCOUNT_LIMITS,
+  EXCEPTION_COST_USD,
+} from '../constants/inAppConstants';
+import { useExchangeRate } from '../hooks/useExchangeRate';
 const { width } = Dimensions.get('window');
 import {
   getCourseDetailsForOngoingLecture,
@@ -145,6 +148,8 @@ interface RenderScheduleProps {
 interface StudentExceptionsProps {
   exceptions: CourseException[];
   onAddPress: () => void;
+  /** Opens the purchase sheet for an extra exception. */
+  onBuyPress?: () => void;
   refreshing: boolean;
   onRefresh: () => void;
 }
@@ -682,15 +687,17 @@ export const AddExceptionModal = ({
   isSaving,
   lectures,
 }: AddExceptionProps) => {
-  if (!course) {
-    return null;
-  }
+  // Hooks must run on every render, so the `course` guard comes after them.
   const user = useAppSelector(state => state.user);
   const { colors } = useTheme();
   const [category, setCategory] =
     useState<CourseException['reasonCategory']>('Personal');
   const [reason, setReason] = useState('');
   const [lectureId, setLectureId] = useState('');
+  const credits = Number(user?.exceptionCredits) || 0;
+  if (!course) {
+    return null;
+  }
   const futureLectures =
     (Array.isArray(lectures) ? lectures : []).filter(l => {
       const lectureDate = safeParseDate((l as any)?.date);
@@ -818,7 +825,7 @@ export const AddExceptionModal = ({
             </View>
 
             <TextInput
-              style={[CourseActionStyles.textArea, { color: colors.border }]}
+              style={[CourseActionStyles.textArea, { color: colors.text, borderColor: colors.border }]}
               placeholder="Explain your reason in detail..."
               multiline
               numberOfLines={5}
@@ -839,9 +846,11 @@ export const AddExceptionModal = ({
                 color={colors.primary}
               />
               <Text
-                style={[CourseActionStyles.costText, { color: colors.primary }]}
+                style={[CourseActionStyles.costText, { color: colors.primary, flex: 1 }]}
               >
-                0.5 iCash will be deducted upon submission.
+                {credits > 0
+                  ? `Free while you have allowance left this month; otherwise 1 of your ${credits} extra exception${credits === 1 ? '' : 's'} is used.`
+                  : `Free while you have allowance left this month. After that, you'll be asked to pay $${EXCEPTION_COST_USD} in your currency.`}
               </Text>
             </View>
 
@@ -1948,6 +1957,7 @@ export const RenderAssignments = ({ course }: { course: Course | null }) => {
 export const RenderStudentExceptions = ({
   exceptions,
   onAddPress,
+  onBuyPress,
   refreshing,
   onRefresh,
 }: StudentExceptionsProps) => {
@@ -1959,9 +1969,16 @@ export const RenderStudentExceptions = ({
       ? user.tier
       : 'free';
   const planLimit = (EXCEPTION_ACCOUNT_LIMITS as any)[currentPlan] ?? 2;
+  const credits = Number(user?.exceptionCredits) || 0;
+  // Display price only; the server charges the same USD price at its live rate.
+  const { exchangeData, ready } = useExchangeRate(user?.country || 'Nigeria');
+  const localPrice = ready
+    ? `${exchangeData.symbol}${(EXCEPTION_COST_USD * exchangeData.rate).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    : `$${EXCEPTION_COST_USD.toFixed(2)}`;
   const [searchQuery, setSearchQuery] = useState('');
-  const [isPaymentVisible, setIsPaymentVisible] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const shouldShowSearch = true;
 
   const filteredData = safeExceptions.filter(item => {
@@ -1984,23 +2001,11 @@ export const RenderStudentExceptions = ({
     );
   }).length;
 
+  // Only this course's exceptions are loaded here, so this is a hint; the
+  // server counts every course and asks for payment when it's needed.
   const isOverTierLimit = usedThisMonth >= planLimit;
-  const topUpAmount = planLimit > 0 ? 500 : 1000;
-
-  const handleTopUpSuccess = (gatewayResponse: any) => {
-    // Called by AddPaymentModal after a successful gateway charge — do NOT re-charge here.
-    setIsPaymentVisible(false);
-    setIsProcessingPayment(false);
-    Toast.show({
-      type: 'success',
-      text1: 'Payment Successful',
-      text2: 'Your monthly exceptions have been replenished.',
-    });
-    if (onRefresh) onRefresh();
-  };
 
   return (
-    <>
     <FlatList
       data={filteredData}
       refreshing={refreshing}
@@ -2011,25 +2016,35 @@ export const RenderStudentExceptions = ({
         <>
           <PageHeader
             title="My Lecture Exceptions"
-            subtitle={`${usedThisMonth} / ${planLimit} free used`}
+            subtitle={`${planLimit} free each month${credits > 0 ? ` · ${credits} extra available` : ''}`}
             rightElement={
               <CustomButton
-                title={
-                  isOverTierLimit ? 'Buy Extra Exception' : 'Request Exception'
-                }
-                onPress={() => {
-                  if (isOverTierLimit) {
-                    setIsPaymentVisible(true);
-                  } else {
-                    onAddPress();
-                  }
-                }}
+                title="Request Exception"
+                onPress={onAddPress}
                 iconName="add"
                 iconColor="#fff"
                 style={CourseActionStyles.addButton}
               />
             }
           />
+          <View
+            style={[
+              CourseActionStyles.costWarning,
+              { borderLeftColor: colors.primary, marginHorizontal: 15 },
+            ]}
+          >
+            <MaterialIcons name="info-outline" size={19} color={colors.primary} />
+            <Text style={[CourseActionStyles.costText, { color: colors.text, flex: 1 }]}>
+              {isOverTierLimit && credits === 0
+                ? `You've used this month's free exceptions. Extra ones cost ${localPrice} each.`
+                : `After your free ones, extra exceptions cost ${localPrice} each.`}
+            </Text>
+            {onBuyPress && (
+              <TouchableOpacity onPress={onBuyPress} hitSlop={8}>
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>Buy</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {shouldShowSearch && (
             <CourseSearchBar
               shouldShowSearch={shouldShowSearch}
@@ -2099,18 +2114,6 @@ export const RenderStudentExceptions = ({
         />
       }
     />
-    <AddPaymentModal
-      visible={isPaymentVisible}
-      onClose={() => {
-        if (!isProcessingPayment) setIsPaymentVisible(false);
-      }}
-      currencyData={{ code: 'NGN' }}
-      user={user as User}
-      mode="buy"
-      amount={topUpAmount}
-      onPaymentSuccess={handleTopUpSuccess}
-    />
-    </>
   );
 };
 export const RenderLecturerExceptionsManage = ({

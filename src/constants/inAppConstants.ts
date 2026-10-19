@@ -11,7 +11,9 @@ export const USD_SUBSCRIPTION_PRICES = {
   Premium: 3.69,
   Free: 0,
 } as const;
-export const EXCEPTION_COST_IN_ICASH = 0.5 as const;
+/** Price of one lecture exception beyond the monthly free allowance. Shown in
+ * the student's currency at the live rate; the server charges the same. */
+export const EXCEPTION_COST_USD = 1.5 as const;
 export const TRANSACTION_TAX_RATE = 0.15 as const;
 export const WATERMARK_TEXT = 'iCampus' as const;
 export const DELIVERY_FEES = {

@@ -1,9 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
@@ -12,9 +15,11 @@ import { PageHeader } from '../components/PageHeader';
 import { PostCard } from '../components/PostCard.tsx';
 import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { useProfileTab } from '../hooks/useProfileTab';
+import { useLoadMoreOnScroll } from '../hooks/useLoadMoreOnScroll';
 
-// How many items are rendered per page while scrolling through the list.
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 12;
+const { width } = Dimensions.get('window');
 
 const EMPTY_MESSAGES: Record<string, string> = {
   Posts: 'No posts to show.',
@@ -26,90 +31,71 @@ const EMPTY_MESSAGES: Record<string, string> = {
 };
 
 /**
- * Full, paginated view of a profile tab's content (Posts, Reposts,
- * Bookmarks, Media, Jobs, Events). The profile screen only renders a short
- * preview; this screen receives the already-fetched items via route params
- * and reveals them PAGE_SIZE at a time so large profiles stay performant.
+ * Full list for one profile tab, fetched from the server a page at a time
+ * (it used to receive every item at once through navigation params).
  */
 export const ProfileContentListScreen = () => {
   const route = useRoute<any>();
   const { colors } = useTheme();
-
   const {
-    items = [],
+    identifier,
     tab = 'Posts',
     title = tab,
     isMedia = false,
-  }: {
-    items?: any[];
-    tab?: string;
-    title?: string;
-    isMedia?: boolean;
-  } = route.params || {};
+  }: { identifier?: string; tab?: string; title?: string; isMedia?: boolean } = route.params || {};
 
-  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
-  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-  const loadMoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const total = items.length;
-  const hasMore = visibleCount < total;
-  const data = items.slice(0, visibleCount);
-
-  // Clear any pending "load more" timer when the screen unmounts.
-  useEffect(() => {
-    return () => {
-      if (loadMoreTimer.current) {
-        clearTimeout(loadMoreTimer.current);
-      }
-    };
-  }, []);
-
-  const handleLoadMore = () => {
-    if (!hasMore || isLoadingMore) {
-      return;
-    }
-    setIsLoadingMore(true);
-    // Brief pause so the footer spinner paints before the next batch mounts.
-    loadMoreTimer.current = setTimeout(() => {
-      setVisibleCount(prev => Math.min(prev + PAGE_SIZE, total));
-      setIsLoadingMore(false);
-    }, 150);
-  };
-
-  const renderItem = ({ item }: { item: any }) =>
-    isMedia ? (
-      <MediaGridItem post={item} />
-    ) : (
-      <PostCard post={item} isVisible={true} />
-    );
+  const { items, hasMore, loading, error, loadMore, reload } = useProfileTab(
+    identifier,
+    tab,
+    undefined,
+    PAGE_SIZE,
+  );
+  const loadMoreProps = useLoadMoreOnScroll(() => (hasMore && !loading ? loadMore() : undefined));
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader
-        title={title}
-        subtitle={total > 0 ? `${total} items` : undefined}
-        showBackButton={true}
-      />
+      <PageHeader title={title} showBackButton />
       <FlatList
-        data={data}
+        key={isMedia ? 'grid' : 'list'}
+        data={items}
         keyExtractor={(item, index) => item.postId || index.toString()}
-        renderItem={renderItem}
+        renderItem={({ item }) =>
+          isMedia ? (
+            <MediaGridItem post={item} size={(width - 24) / 3 - 2} />
+          ) : (
+            <PostCard post={item} isVisible />
+          )
+        }
         numColumns={isMedia ? 3 : 1}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        initialNumToRender={PAGE_SIZE}
-        maxToRenderPerBatch={PAGE_SIZE}
-        windowSize={7}
-        onEndReached={handleLoadMore}
+        {...loadMoreProps}
         onEndReachedThreshold={0.5}
-        ListEmptyComponent={
-          <EmptyState
-            iconName={isMedia ? 'perm-media' : 'article-outlined'}
-            title={EMPTY_MESSAGES[tab] || 'Nothing here yet.'}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading && items.length > 0 && !hasMore}
+            onRefresh={reload}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+          ) : error ? (
+            <TouchableOpacity style={styles.errorState} onPress={reload}>
+              <Text style={{ color: colors.text }}>{error}</Text>
+              <Text style={[styles.retry, { color: colors.primary }]}>Tap to retry</Text>
+            </TouchableOpacity>
+          ) : (
+            <EmptyState
+              iconName={isMedia ? 'perm-media' : 'article'}
+              title={EMPTY_MESSAGES[tab] || 'Nothing here yet.'}
+            />
+          )
+        }
         ListFooterComponent={
-          isLoadingMore ? (
+          loading && items.length > 0 ? (
             <View style={styles.footerLoader}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
@@ -121,16 +107,9 @@ export const ProfileContentListScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 40,
-    flexGrow: 1,
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
+  container: { flex: 1 },
+  listContent: { paddingHorizontal: 12, paddingBottom: 40, flexGrow: 1 },
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
+  errorState: { alignItems: 'center', paddingTop: 40, gap: 6 },
+  retry: { fontWeight: '700' },
 });

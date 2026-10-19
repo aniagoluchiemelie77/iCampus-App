@@ -31,6 +31,8 @@ import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import { usePicker } from '../hooks/useDropDownPicker';
 import { JobTypePicker } from '../components/InputGroup';
 import { HorizontalScrollableMediaPreviewList } from '../components/MediaPreview';
+import { useAppDataContext } from '../context/EventContext';
+import { PostAudience } from '../types/firebase';
 import {
   applyMentionAwareChange,
   extractMentionTokens,
@@ -106,6 +108,14 @@ export const CreatePost = ({ route, navigation }: Props) => {
   const { value: jobType, selectType } = usePicker(jobMetadata.type);
 
   const currentUser = useAppSelector(state => state.user) || {};
+  const { upsertPost } = useAppDataContext();
+  // Institution admins can address a memo to their own school only (its
+  // students and lecturers). The server enforces this too.
+  const canPostToSchool =
+    currentUser?.isInstitutionAdmin === true && !!currentUser?.schoolCode;
+  const [audience, setAudience] = useState<PostAudience>(
+    editPostData?.audience === 'school' ? 'school' : 'public',
+  );
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
   const [isMentionModalVisible, setIsMentionModalVisible] = useState(false);
   const [mentionKeyword, setMentionKeyword] = useState('');
@@ -318,6 +328,7 @@ export const CreatePost = ({ route, navigation }: Props) => {
       const postData = {
         content: content,
         postType: postType,
+        audience: canPostToSchool ? audience : 'public',
         media:
           combinedMediaUrls.length > 0
             ? {
@@ -352,11 +363,16 @@ export const CreatePost = ({ route, navigation }: Props) => {
             : null,
       };
 
-      await submitOrUpdatePostService(
+      const result = await submitOrUpdatePostService(
         postData,
         isEditMode,
         editPostData?.postId,
       );
+      if (!result.success) return;
+      // New posts come back in feed shape; show them at the top right away.
+      if (!isEditMode && result.data?.postId) {
+        upsertPost(result.data);
+      }
 
       setIsSuccess(true);
       Toast.show({
@@ -418,6 +434,54 @@ export const CreatePost = ({ route, navigation }: Props) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {canPostToSchool && (
+            <View style={styles.audienceBlock}>
+              <Text style={[styles.audienceLabel, { color: colors.text }]}>Who can see this?</Text>
+              <View style={styles.audienceRow}>
+                {(
+                  [
+                    { id: 'public', icon: 'public', label: 'Everyone' },
+                    { id: 'school', icon: 'school', label: 'My school only' },
+                  ] as const
+                ).map(option => {
+                  const selected = audience === option.id;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      onPress={() => setAudience(option.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      style={[
+                        styles.audienceChip,
+                        { borderColor: colors.primary },
+                        selected && { backgroundColor: colors.primary },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={option.icon}
+                        size={15}
+                        color={selected ? '#fff' : colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.audienceChipText,
+                          { color: selected ? '#fff' : colors.primary },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {audience === 'school' && (
+                <Text style={[styles.audienceHint, { color: colors.text }]}>
+                  Only students and lecturers of your school will see this memo.
+                  It can't be reposted.
+                </Text>
+              )}
+            </View>
+          )}
           <View
             style={
               isPlainPost
@@ -869,6 +933,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   mentionText: { fontWeight: '700' },
+  audienceBlock: { marginBottom: 14 },
+  audienceLabel: { fontSize: 12.5, fontWeight: '700', marginBottom: 8, opacity: 0.8 },
+  audienceRow: { flexDirection: 'row', gap: 8 },
+  audienceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.2,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  audienceChipText: { fontSize: 13, fontWeight: '700' },
+  audienceHint: { fontSize: 12, marginTop: 8, opacity: 0.8 },
   cardContainer: {
     borderRadius: 16,
     borderWidth: 1,

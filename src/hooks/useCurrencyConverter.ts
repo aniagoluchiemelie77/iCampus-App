@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchLiveRate, currencyMap } from '../utils/UserTransactionsHelpers';
+import { fetchLiveRate, fetchRateByCurrency, currencyMap } from '../utils/UserTransactionsHelpers';
 
 export const useConvertedPrice = (basePrice: number, sellerNationality: string, buyerNationality?: string) => {
   const [convertedValue, setConvertedValue] = useState<number>(basePrice);
@@ -76,8 +76,10 @@ export const useConvertedCurrency = (
       }
 
       try {
-        const sourceRateData = await fetchLiveRate(sourceCode); 
-        const targetRateData = await fetchLiveRate(targetCurrencyCode);
+        // These are currency codes, not country names: fetchLiveRate('NGN')
+        // fell back to Nigeria for both sides, so nothing was ever converted.
+        const sourceRateData = await fetchRateByCurrency(sourceCode);
+        const targetRateData = await fetchRateByCurrency(targetCurrencyCode);
         const amountInUSD = baseAmount / sourceRateData.rate;
         const converted = amountInUSD * targetRateData.rate;
 

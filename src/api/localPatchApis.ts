@@ -214,82 +214,58 @@ export const recordPostImpressionAPI = async (postId: string) => {
     };
   }
 };
-export const castPollVoteAPI = async (postId: string, optionId: string, userId: string) => {
+export const castPollVoteAPI = async (
+  postId: string,
+  optionId: string,
+): Promise<{ success: boolean; poll?: any; message?: string }> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/posts/${postId}/vote`;
-
-    const response = await fetchWithAuth(url, {
+    // The voter is the signed-in user; the server ignores any userId sent here.
+    const response = await fetchWithAuth(`${cleanBaseUrl}/posts/${postId}/vote`, {
       method: 'PATCH',
-      headers: {
-        'Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({
-        optionId,
-        userId,
-      }),
+      headers: { 'Idempotency-Key': uuidv4() },
+      body: JSON.stringify({ optionId }),
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to cast poll vote',
-      };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, message: data?.message || data?.error || 'Failed to cast poll vote' };
     }
-
-    return {
-      success: true,
-      data: data,
-      message: data.message || 'Vote registered',
-    };
+    return { success: true, poll: data.poll };
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error("castPollVoteAPI Error:", error);
-    return { 
-      success: false, 
-      message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' 
+    return {
+      success: false,
+      message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed',
     };
   }
 };
-export const toggleBookmarkAPI = async (postId: string) => {
+export const toggleBookmarkAPI = async (
+  postId: string,
+): Promise<{ success: boolean; bookmarked?: boolean; bookmarks?: string[]; message?: string }> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/posts/${postId}/bookmark`;
-
-    const response = await fetchWithAuth(url, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/posts/${postId}/bookmark`, {
       method: 'PATCH',
-      headers: {
-        'Idempotency-Key': uuidv4(),
-      },
+      headers: { 'Idempotency-Key': uuidv4() },
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Bookmark sync failed',
-      };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, message: data?.message || 'Bookmark sync failed' };
     }
-
-    return {
-      success: true,
-      message: data.message,
-    };
+    return { success: true, bookmarked: data.bookmarked, bookmarks: data.bookmarks, message: data.message };
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error("toggleBookmarkAPI Error:", error);

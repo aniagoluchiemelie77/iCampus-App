@@ -171,9 +171,9 @@ export interface PostReposter {
   lastname?: string;
   username?: string;
   tier: UserTier,
-  organizationName?: string;
-  profilePic: [String],
-  repostedAt: { type: Date },
+  organizationName?: string | null;
+  profilePic: string[],
+  repostedAt?: string | null;
   isVerified?: boolean;
 };
 export interface PostAuthor {
@@ -182,10 +182,46 @@ export interface PostAuthor {
   lastname?: string;
   username?: string;
   tier: UserTier,
-  organizationName?: string;
-  profilePic: [String],
+  organizationName?: string | null;
+  profilePic: string[],
   isVerified?: boolean;
+  usertype?: UserType | null;
 };
+/** "public": everyone. "school": a school memo for its students and lecturers. */
+export type PostAudience = 'public' | 'school';
+export interface CommentMedia {
+  url: string;
+  previewUrl?: string;
+  width?: number | null;
+  height?: number | null;
+}
+/** A comment as returned by GET /posts/:postId/comments. */
+export interface PostComment {
+  commentId: string;
+  postId: string;
+  parentId: string | null;
+  type: 'text' | 'gif' | 'sticker';
+  text: string;
+  media?: CommentMedia | null;
+  likes: string[];
+  likesCount: number;
+  createdAt: string | null;
+  author: PostAuthor;
+  replyCount: number;
+  /** Up to two replies previewed under a top-level comment. */
+  replies?: PostComment[];
+  /** Client-only: sending, or failed to send. */
+  pending?: boolean;
+  failed?: boolean;
+}
+export interface GifResult {
+  id: string;
+  url: string;
+  previewUrl: string;
+  width: number | null;
+  height: number | null;
+  title?: string;
+}
 export interface UserSession {
   deviceId: string;
   deviceName: string;
@@ -209,6 +245,17 @@ export interface User {
   institutionTier?: 'free' | 'pro' | 'premium';
   theme: ThemeType;
   subaccountId?: string;
+  /** Bank account sellers withdraw to. */
+  payoutAccount?: {
+    bankCode: string;
+    bankName?: string | null;
+    accountNumber: string;
+    accountName?: string | null;
+    currency?: string;
+  };
+  /** Paid lecture exceptions not yet used. */
+  exceptionCredits?: number;
+  subscriptionExpiresAt?: any;
   headline?: string;
   sessions?: UserSession[];
   usertype?: UserType;
@@ -526,27 +573,24 @@ export interface Posts {
   content: string;
   media?: {
     mediaType: string | null;
-    url: string;
+    url: string | string[];
   };
   likes?: string[];
-  comments?: {
-    commentId: string;
-    userId: string;
-    comment: string;
-    parentId: string;
-    likes?: string[];
-    createdAt: string;
-    updatedAt?: string;
-  }[];
+  /** Comments are paged separately (fetchPostCommentsAPI); only the count travels with the post. */
   commentsCount?: number;
+  repostsCount?: number;
+  audience?: PostAudience;
+  schoolCode?: string | null;
+  status?: 'visible' | 'hidden';
   bookmarks?: string[];
   impressions?: number;
   shares?: string[]; 
   isRepost: boolean;
   originalPostId?: string; 
   repostersDetails: PostReposter[],
-  featuredReposter?: PostReposter;
-  postAuthorsDetails: PostAuthor;
+  featuredReposter?: PostReposter | null;
+  /** null for legacy posts with no recorded author. */
+  postAuthorsDetails: PostAuthor | null;
   sharesCount?: number;
   createdAt: string;
   poll?: {

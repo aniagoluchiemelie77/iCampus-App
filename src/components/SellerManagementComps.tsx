@@ -39,9 +39,8 @@ import { useNavigation } from '@react-navigation/native';
 import RNPickerSelect from 'react-native-picker-select';
 import moment from 'moment';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../context/UserSlice';
+import { patchUser } from '../context/UserSlice';
 import { CustomButton } from '../assets/components/AppUIComponents';
-import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 import Svg, {
   Polyline,
   Defs,
@@ -1062,7 +1061,6 @@ const PayoutHistoryItem = ({
 export const PayoutView = () => {
   const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
-  const { exchangeData } = useExchangeRate(currentUser?.country || 'Nigeria');
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1072,8 +1070,16 @@ export const PayoutView = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
   const [isAddBankVisible, setIsAddBankVisible] = useState(false);
-  const currentBalance = currentUser?.pendingSalesBalance || 0;
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const currentBalance = Number(currentUser?.pendingSalesBalance) || 0;
   const isVerified = currentUser?.isVerified || false;
+  // Accounts linked before payoutAccount existed only have the legacy fields.
+  const legacy = currentUser as any;
+  const payoutAccount =
+    currentUser?.payoutAccount ||
+    (legacy?.bankCode && legacy?.accountNumber
+      ? { bankCode: legacy.bankCode, accountNumber: String(legacy.accountNumber) }
+      : null);
 
   useEffect(() => {
     loadInitialHistory();
@@ -1103,39 +1109,35 @@ export const PayoutView = () => {
     setLoadingMore(false);
   };
   const executePayout = async () => {
+    setConfirmVisible(false);
+    if (requesting) return;
     setRequesting(true);
-    const res = await requestPayoutAPI(currentBalance);
-    if (res.success) {
-      dispatch(setUser({ ...currentUser }));
-      Toast.show({
-        type: 'success',
-        text1: 'Payout Successful',
-        text2: res.message || 'Payout processed successfully',
-      });
-      loadMoreHistory();
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'PayoutSuccess',
-            params: {
-              amount: currentBalance,
-              transactionId: res.transactionId || 'N/A',
-            },
-          },
-        ],
-      });
-    } else {
+    const amount = currentBalance;
+    const res = await requestPayoutAPI(amount);
+    setRequesting(false);
+    if (!res.success) {
       Toast.show({
         type: 'error',
-        text1: 'Transaction Error',
-        text2: res.message || 'An unexpected error occurred',
+        text1: 'Payout failed',
+        text2: res.message,
       });
+      return;
     }
-    setRequesting(false);
+    // The server already deducted it; mirror that so the button can't be
+    // pressed again for the same money.
+    dispatch(patchUser({ pendingSalesBalance: res.newPendingSalesBalance }));
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'PayoutSuccess',
+          params: { amount, transactionId: res.transactionId || 'N/A' },
+        },
+      ],
+    });
   };
   const renderHeader = () => {
-    const hasPayoutAccount = !!currentUser?.subaccountId;
+    const hasPayoutAccount = !!payoutAccount;
 
     return (
       <View
@@ -1171,13 +1173,29 @@ export const PayoutView = () => {
             />
           </>
         ) : (
+          <>
+          <TouchableOpacity
+            onPress={() => setIsAddBankVisible(true)}
+            style={hub.payoutAccountRow}
+            accessibilityRole="button"
+            accessibilityLabel="Change payout bank account"
+          >
+            <MaterialIcons name="account-balance" size={16} color={themeColors.text} />
+            <Text style={[hub.payoutAccountText, { color: themeColors.text }]} numberOfLines={1}>
+              {(payoutAccount as any)?.accountName ||
+                (payoutAccount as any)?.bankName ||
+                'Bank account'}{' '}
+              ••••{String(payoutAccount?.accountNumber || '').slice(-4)}
+            </Text>
+            <Text style={[hub.payoutAccountChange, { color: themeColors.primary }]}>Change</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.withdrawBtn,
               (currentBalance <= 0 || requesting) && styles.disabledBtn,
               { backgroundColor: themeColors.btnColor },
             ]}
-            onPress={executePayout}
+            onPress={() => setConfirmVisible(true)}
             disabled={currentBalance <= 0 || requesting}
           >
             {requesting ? (
@@ -1203,13 +1221,21 @@ export const PayoutView = () => {
               </>
             )}
           </TouchableOpacity>
+          </>
         )}
         <AddPaymentModal
           visible={isAddBankVisible}
           onClose={() => setIsAddBankVisible(false)}
-          currencyData={exchangeData}
           user={currentUser}
-          mode="withdraw"
+        />
+        <ActionModal
+          visible={confirmVisible}
+          onClose={() => setConfirmVisible(false)}
+          onContinue={executePayout}
+          title="Withdraw your balance?"
+          subtitle={`Your full available balance will be sent to the account ending ${String(payoutAccount?.accountNumber || '').slice(-4)}. Transfers usually arrive within minutes.`}
+          continueText="Withdraw"
+          loading={requesting}
         />
       </View>
     );
@@ -1969,6 +1995,20 @@ const hub = StyleSheet.create({
   },
   orderFooterText: { flex: 1, fontSize: 13, lineHeight: 18 },
   orderAction: { marginTop: 12, borderRadius: 14 },
+
+  // Payouts
+  payoutAccountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignSelf: 'stretch',
+  },
+  payoutAccountText: { flex: 1, fontSize: 13, fontWeight: '600' },
+  payoutAccountChange: { fontSize: 13, fontWeight: '700' },
 
   // Overview
   heroCard: {

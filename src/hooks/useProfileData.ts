@@ -1,117 +1,135 @@
-// src/modules/profile/hooks/useProfileData.ts
-import { useState, useEffect, useCallback } from 'react';
-import { searchUserProfile } from '../api/localGetApis.ts';
-import Toast from 'react-native-toast-message'; 
-import { 
-    toggleBlockUser, 
-    toggleFollowUser 
-} from '../api/localPostApis.ts';
+import { useState, useCallback, useRef } from 'react';
+import Toast from 'react-native-toast-message';
 import { useDispatch } from 'react-redux';
+import { searchUserProfile } from '../api/localGetApis.ts';
+import { toggleBlockUser, toggleFollowUser } from '../api/localPostApis.ts';
 import { updateBlockedUsers } from '../context/UserSlice.ts';
 
+export type ProfileStatus = 'loading' | 'ready' | 'blocked' | 'notFound' | 'error';
+
 export const useProfileData = (identifier: string, currentUser: any) => {
-    const dispatch = useDispatch();
-    const [isBlocked, setIsBlocked] = useState(false);
-    const [blockedUserUid, setBlockedUserUid] = useState<string | null>(null);
-    const [profileData, setProfileData] = useState<any>(null);
-    const [isSearching, setIsSearching] = useState(false);
-    const [isFollowing, setIsFollowing] = useState(profileData?.isFollowing || false);
+  const dispatch = useDispatch();
+  const [profileData, setProfileData] = useState<any>(null);
+  const [status, setStatus] = useState<ProfileStatus>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Who blocked whom decides whether the screen offers "Unblock".
+  const [blockedByViewer, setBlockedByViewer] = useState(false);
+  const [blockedUid, setBlockedUid] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const viewerRef = useRef(currentUser);
+  viewerRef.current = currentUser;
+  const requestId = useRef(0);
 
-  
-  useEffect(() => {
-    if (profileData) {
-      setIsFollowing(profileData.isFollowing);
-    }
-  }, [profileData]);
-  const handleFollowToggle = async () => {
-    const previousState = isFollowing;
-    setIsFollowing(!previousState);
-
-    try {
-      const result = await toggleFollowUser(profileData.uid);
-      if (!result.success) {
-        Toast.show({
-        type: 'error',
-        text2: 'Update failed',
-      });
-      }
-      
-      Toast.show({
-        type: 'success',
-        text1: result.action === 'followed' ? 'Success!' : 'Updated',
-        text2: result.action === 'followed' 
-          ? `You are now following ${profileData.firstname}` 
-          : `Unfollowed ${profileData.firstname}`,
-      });
-    } catch (error) {
-      setIsFollowing(previousState); // Revert on failure
-      Toast.show({
-        type: 'error',
-        text1: 'Network Error',
-        text2: 'Could not update follow status.',
-      });
-    }
-  };
+  // Depends on the viewer's uid only. It used to depend on the whole user
+  // object, so blocking (which updates the user's blockedUsers in Redux)
+  // re-ran the fetch: the server answered 403, an error toast appeared and
+  // the screen fell back to "User not found".
   const fetchProfile = useCallback(async () => {
-    try {
-      setIsSearching(true);
-      const data = await searchUserProfile({identifier, currentUser});
-      setProfileData(data);
-      setIsBlocked(false);
-    } catch (error: any) {
-      if (error.response?.status === 403 || error.isBlocked) {
-        setIsBlocked(true);
-        setBlockedUserUid(error.response.data.targetUid);
-      }
-    } finally {
-      setIsSearching(false);
+    const id = ++requestId.current;
+    setStatus(prev => (prev === 'ready' ? prev : 'loading'));
+    const result = await searchUserProfile({ identifier, currentUser: viewerRef.current });
+    if (id !== requestId.current) return;
+    switch (result.status) {
+      case 'ok':
+        setProfileData(result.data);
+        setIsFollowing(!!result.data?.isFollowing);
+        setStatus('ready');
+        break;
+      case 'blocked':
+        setProfileData(null);
+        setBlockedByViewer(result.blockedByViewer);
+        setBlockedUid(result.targetUid);
+        setStatus('blocked');
+        break;
+      case 'notFound':
+        setProfileData(null);
+        setStatus('notFound');
+        break;
+      default:
+        setErrorMessage(result.message);
+        setStatus(prev => (prev === 'ready' ? prev : 'error'));
     }
-  }, [identifier, currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identifier, currentUser?.uid]);
+
   const updateLocalProfile = (updater: (prev: any) => any) => {
     setProfileData(updater);
   };
-    const handleBlockToggle = async () => {
-      const targetUid = profileData?.uid || blockedUserUid;
-      if (!targetUid) {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'User ID not found' });
-        return;
-      }
-      const result = await toggleBlockUser(targetUid);
-      if (result.success && result.action) {
-        dispatch(
-          updateBlockedUsers({
-            targetUid,
-            action: result.action,
-          }),
-        );
-        if (result.action === 'unblocked') {
-          setIsBlocked(false);
-          setBlockedUserUid(null);
-          fetchProfile();
-        } else {
-          setIsBlocked(true);
-        }
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Toggle Failed',
-          text2: 'Could not update block status. Please try again.',
-        });
-      }
-    };
 
-  return { 
-    isFollowing, 
-    handleFollowToggle, 
-    setIsFollowing, 
-    profileData, 
-    isSearching, 
-    isBlocked, 
-    blockedUserUid, 
-    setBlockedUserUid,
-    fetchProfile, 
+  const handleFollowToggle = async () => {
+    if (!profileData?.uid || followBusy) return;
+    const wasFollowing = isFollowing;
+    const adjust = (delta: number) =>
+      setProfileData((p: any) =>
+        p ? { ...p, followersCount: Math.max(0, (p.followersCount || 0) + delta) } : p,
+      );
+    setFollowBusy(true);
+    setIsFollowing(!wasFollowing);
+    adjust(wasFollowing ? -1 : 1);
+    try {
+      const result = await toggleFollowUser(profileData.uid);
+      if (!result?.success) throw new Error(result?.message);
+      const nowFollowing = result.action === 'followed';
+      if (nowFollowing === wasFollowing) {
+        // Server disagreed with the optimistic guess; adopt its answer.
+        setIsFollowing(nowFollowing);
+        adjust(wasFollowing ? 1 : -1);
+      }
+      Toast.show({
+        type: 'success',
+        text2: nowFollowing
+          ? `You're now following ${profileData.firstname || 'this user'}`
+          : `Unfollowed ${profileData.firstname || 'this user'}`,
+      });
+    } catch (error: any) {
+      setIsFollowing(wasFollowing);
+      adjust(wasFollowing ? 1 : -1);
+      Toast.show({
+        type: 'error',
+        text1: 'Follow failed',
+        text2: error?.message || 'Could not update follow status.',
+      });
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
+  const handleBlockToggle = async () => {
+    const targetUid = profileData?.uid || blockedUid;
+    if (!targetUid || blockBusy) return;
+    setBlockBusy(true);
+    // toggleBlockUser shows its own success / error toast.
+    const result = await toggleBlockUser(targetUid);
+    setBlockBusy(false);
+    if (!result.success || !result.action) return;
+    dispatch(updateBlockedUsers({ targetUid, action: result.action }));
+    if (result.action === 'blocked') {
+      setBlockedByViewer(true);
+      setBlockedUid(targetUid);
+      setIsFollowing(false);
+      setStatus('blocked');
+    } else {
+      setBlockedByViewer(false);
+      setBlockedUid(null);
+      setStatus('loading');
+      fetchProfile();
+    }
+  };
+
+  return {
+    profileData,
+    status,
+    errorMessage,
+    isBlocked: status === 'blocked',
+    blockedByViewer,
+    isFollowing,
+    followBusy,
+    blockBusy,
+    fetchProfile,
     updateLocalProfile,
-    setIsBlocked,
-    handleBlockToggle
- };
+    handleFollowToggle,
+    handleBlockToggle,
+  };
 };

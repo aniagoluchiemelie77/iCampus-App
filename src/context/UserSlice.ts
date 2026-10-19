@@ -38,6 +38,10 @@ const userSlice = createSlice({
     setUser(state, action: PayloadAction<User>) {
       return { ...state, ...action.payload };
     },
+    /** Merge a few server-confirmed fields (e.g. after a payment). */
+    patchUser(state, action: PayloadAction<Partial<User>>) {
+      return { ...state, ...action.payload };
+    },
     clearUser() {
       return initialState;
     },
@@ -81,5 +85,5 @@ const userSlice = createSlice({
   },
 });
 export const { 
-  updateThemeState, setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, updateBlockedUsers} = userSlice.actions;
+  updateThemeState, setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, updateBlockedUsers, patchUser} = userSlice.actions;
 export default userSlice.reducer;

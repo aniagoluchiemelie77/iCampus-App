@@ -5,7 +5,7 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
-import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload} from '../types/firebase';
+import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload, PostComment, User} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
 import { fetchWithAuth} from '../utils/userTokenAuth';
@@ -27,7 +27,11 @@ interface SubmitExceptionResponse {
   success: boolean;
   exception?: CourseException;
   message?: string;
-  newIcashBalance?: string
+  /** 'EXCEPTION_PAYMENT_REQUIRED' when the free allowance is used up. */
+  code?: string;
+  exceptionCredits?: number;
+  usedThisMonth?: number;
+  freeLimit?: number;
 }
 interface ApiOptions {
   endpoint: string;
@@ -226,38 +230,6 @@ export const revokeDeviceSession = async (
       text2: error?.message || 'Check your internet connection',
     });
     return { success: false, message: error?.message };
-  }
-};
-export const verifySubscriptionOnBackend = async (
-  transactionId: string, 
-  tier: string, 
-  currentExchangeRate: number
-): Promise<{ success: boolean; data?: any; message?: string }> => {
-  try {
-    const response = await fetchWithAuth(`${baseUrl}user/subscriptionPayments/verify`, {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({ transactionId, tier, currentExchangeRate }),
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      return { 
-        success: false, 
-        message: result.message || 'Subscription verification failed' 
-      };
-    }
-    
-    return { success: true, data: result };
-  } catch (error: any) {
-    console.error("Subscription Verification Network Error:", error);
-    return { 
-      success: false, 
-      message: error.message || 'Network error during verification' 
-    };
   }
 };
 export const toggleBlockUser = async (
@@ -1152,173 +1124,136 @@ export const verifyPhoneOTPAPI = async (
 };
 export const addCommentAPI = async (
   postId: string,
-  text: string,
-  parentId: string | null = null
-) => {
+  input: {
+    text?: string;
+    type?: 'text' | 'gif' | 'sticker';
+    media?: { url: string; previewUrl?: string; width?: number | null; height?: number | null } | null;
+    parentId?: string | null;
+  },
+): Promise<{ success: boolean; comment?: PostComment; commentsCount?: number; message?: string }> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/posts/${postId}/comment`;
-
-    const response = await fetchWithAuth(url, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/posts/${postId}/comment`, {
       method: 'POST',
-      headers: {
-        'Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({ 
-        comment: text,
-        parentId: parentId || "",
+      headers: { 'Idempotency-Key': uuidv4() },
+      body: JSON.stringify({
+        type: input.type || 'text',
+        text: input.text || '',
+        media: input.media || null,
+        parentId: input.parentId || null,
       }),
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to add comment',
-      };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, message: data?.message || 'Failed to add comment' };
     }
-
-    return {
-      success: true,
-      data: data, 
-      message: 'Comment added',
-    };
+    return { success: true, comment: data.comment, commentsCount: data.commentsCount };
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error("addCommentAPI Error:", error);
     return { success: false, message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' };
   }
 };
-export const toggleLikeAPI = async (postId: string) => {
+export const toggleLikeAPI = async (
+  postId: string,
+): Promise<{ success: boolean; liked?: boolean; likes?: string[]; message?: string }> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/posts/${postId}/like`;
-
-    const response = await fetchWithAuth(url, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/posts/${postId}/like`, {
       method: 'POST',
-      headers: {
-        'Idempotency-Key': uuidv4(),
-      },
+      headers: { 'Idempotency-Key': uuidv4() },
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to sync like',
-      };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, message: data?.message || 'Failed to sync like' };
     }
-
-    return {
-      success: true,
-      message: data.message,
-    };
+    return { success: true, liked: data.liked, likes: data.likes, message: data.message };
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error("toggleLikeAPI Error:", error);
     return { success: false, message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' };
   }
 };
-export const createRepostAPI = async (originalPostId: string) => {
+export const createRepostAPI = async (
+  originalPostId: string,
+): Promise<{
+  success: boolean;
+  reposted?: boolean;
+  repostsCount?: number;
+  reposter?: any;
+  message?: string;
+}> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/posts/repost`;
-
-    const response = await fetchWithAuth(url, {
+    const response = await fetchWithAuth(`${cleanBaseUrl}/posts/repost`, {
       method: 'POST',
-      headers: {
-        'Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({
-        originalPostId,
-        isRepost: true,
-      }),
+      headers: { 'Idempotency-Key': uuidv4() },
+      body: JSON.stringify({ originalPostId }),
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to repost',
-      };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, message: data?.message || 'Failed to repost' };
     }
-
     return {
       success: true,
-      data: data,
-      message: data.message || 'Reposted successfully!',
+      reposted: data.reposted,
+      repostsCount: data.repostsCount,
+      reposter: data.reposter,
+      message: data.message,
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error("createRepostAPI Error:", error);
-    return { 
-      success: false, 
-      message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' 
-    };
+    return { success: false, message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' };
   }
 };
 export const toggleCommentLikeAPI = async (
-  postId: string, 
-  commentId: string
-) => {
+  postId: string,
+  commentId: string,
+): Promise<{ success: boolean; isLiked?: boolean; likes?: string[]; message?: string }> => {
   const TIMEOUT_MS = await getAdaptiveTimeout();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const url = `${cleanBaseUrl}/posts/${postId}/comments/${commentId}/like`;
-
-    const response = await fetchWithAuth(url, {
-      method: 'PATCH',
-      headers: {
-        'Idempotency-Key': uuidv4(),
+    // The route is POST; this used to send PATCH and always got a 404.
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/posts/${postId}/comments/${commentId}/like`,
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': uuidv4() },
+        signal: controller.signal,
       },
-      signal: controller.signal,
-    });
-
+    );
     clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to like comment',
-      };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, message: data?.message || 'Failed to like comment' };
     }
-
-    return {
-      success: true,
-      message: data.message || 'Comment like updated',
-    };
+    return { success: true, isLiked: data.isLiked, likes: data.likes };
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error("toggleCommentLikeAPI Error:", error);
-    return { 
-      success: false, 
-      message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' 
-    };
+    return { success: false, message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' };
   }
 };
 export const bulkAddToCartApi = async (
@@ -1388,76 +1323,6 @@ export const bulkAddToCartApi = async (
     }
   }
   return null;
-};
-export const initializeCheckoutTransaction = async (
-  payload: any,
-  maxRetries = 3
-) => {
-  const idempotencyKey = uuidv4();
-  let attempt = 0;
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-
-  while (attempt < maxRetries) {
-    attempt++;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-      const response = await fetchWithAuth(`${cleanBaseUrl}/store/initialize-checkout`, {
-        method: 'POST',
-        headers: {
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          Toast.show({
-            type: 'error',
-            text1: 'Checkout Failed',
-            text2: data?.message || 'Check your selection and try again.',
-          });
-          return { success: false, message: data?.message || 'Failed to initialize checkout' };
-        }
-        throw new Error(data?.message || `Server error: ${response.status}`);
-      }
-
-      Toast.show({
-        type: 'success',
-        text1: 'Order Placed',
-        text2: 'Checkout completed successfully.',
-      });
-      return { success: true, data };
-
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-
-      const isTimeout = error.name === 'AbortError';
-      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
-
-      if (attempt >= maxRetries) {
-        Toast.show({
-          type: 'error',
-          text1: 'Connection Error',
-          text2: errorMessage,
-        });
-        return { success: false, message: errorMessage };
-      }
-
-      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
-      console.warn(`Checkout attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-    }
-  }
-
-  return { success: false, message: 'Max retry attempts reached.' };
 };
 export const completeOrderDelivery = async (orderId: string, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
@@ -1614,80 +1479,19 @@ export const cancelOrderAPI = async (
 
   return { success: false, message: 'Max retry attempts reached.' };
 };
-export const requestPayoutAPI = async (amount: number, maxRetries = 3) => {
-  const idempotencyKey = uuidv4();
-  let attempt = 0;
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-  while (attempt < maxRetries) {
-    attempt++;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const url = `${cleanBaseUrl}/store/payouts/request-payout`;
-      const response = await fetchWithAuth(url, {
-        method: 'POST',
-        headers: {
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify({ amount }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        if (response.status >= 400 && response.status < 500) {
-          Toast.show({
-            type: 'error',
-            text1: 'Payout Failed',
-            text2: result.message || 'Failed to process payout request',
-          });
-          return {
-            success: false,
-            message: result.message || 'Failed to process payout request',
-          };
-        }
-        throw new Error(result.message || `Server error: ${response.status}`);
-      }
-
-      Toast.show({
-        type: 'success',
-        text1: 'Payout Successful',
-        text2: `Successfully transferred ${amount.toLocaleString()} iCash to your wallet.`,
-      });
-
-      return {
-        success: true,
-        newPointsBalance: result.newPointsBalance,
-        transactionId: result.transactionId,
-      };
-
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-
-      const isTimeout = error.name === 'AbortError';
-      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
-
-      if (attempt >= maxRetries) {
-        Toast.show({
-          type: 'error',
-          text1: 'Connection Error',
-          text2: errorMessage,
-        });
-        return { success: false, message: errorMessage };
-      }
-
-      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
-      console.warn(`Request payout attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-    }
-  }
-
-  return { success: false, message: 'Max retry attempts reached.' };
+/**
+ * Withdraws `amount` of the seller's balance. Not retried automatically:
+ * the server reserves the balance before sending money, and the idempotency
+ * key makes an accidental double request return the first result.
+ */
+export const requestPayoutAPI = async (amount: number) => {
+  const result = await postJson<{
+    transactionId: string;
+    status: 'pending';
+    newPendingSalesBalance: number;
+    message?: string;
+  }>('/store/payouts/request-payout', { amount }, true);
+  return result;
 };
 export const saveProductApiCall = async (
   payload: any, 
@@ -1988,15 +1792,19 @@ export const submitLectureException = async (
 
     const result = await response.json();
     if (!response.ok) {
-      return { 
-        success: false, 
-        message: result.message || 'Failed to submit exception report' 
+      return {
+        success: false,
+        code: result.code,
+        exceptionCredits: result.exceptionCredits,
+        message: result.message || 'Failed to submit exception report',
       };
     }
     return {
       success: true,
       exception: result.exception,
-      newIcashBalance: result.newBalance
+      exceptionCredits: result.exceptionCredits,
+      usedThisMonth: result.usedThisMonth,
+      freeLimit: result.freeLimit,
     };
 
   } catch (error: any) {
@@ -2341,43 +2149,6 @@ export const submitStudentTest = async (
       success: false,
       message: "Network communication timeout. Is your internet active?",
     };
-  }
-};
-export const initiatePaymentCharge = async (
-  type: 'card' | 'account',
-  payload: any,
-): Promise<{ success: boolean; data?: any; message?: string }> => {
-  try {
-    const response = await fetchWithAuth(`${baseUrl}users/payments/initiate-charge`, {
-      method: 'POST',
-      headers: {
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify({
-        paymentType: type,
-        paymentData: payload,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Payment Failed',
-        text2: result.message || 'Error processing transaction',
-      });
-      return { success: false, message: result.message };
-    }
-
-    return { success: true, data: result.data };
-  } catch (error: any) {
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not reach the payment server',
-    });
-    return { success: false, message: error.message };
   }
 };
 export const submitOnlineClassAttendanceAPI = async (
@@ -2970,3 +2741,80 @@ export const saveTokenToDatabase = async (
     return { success: false, message: error?.message };
   }
 };
+
+export type PaymentPurpose = 'checkout' | 'subscription' | 'exception';
+
+export interface PaymentIntent {
+  txRef: string;
+  amount: number;
+  currency: string;
+  title: string;
+  customer: { email: string; name: string };
+  subtotal?: number;
+  delivery?: number;
+}
+
+type ApiResult<T> =
+  | ({ success: true } & T)
+  | { success: false; message: string; code?: string; status?: number };
+
+const postJson = async <T,>(path: string, body: any, idempotent = false): Promise<ApiResult<T>> => {
+  try {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}${path}`, {
+      method: 'POST',
+      headers: idempotent ? { 'X-Idempotency-Key': uuidv4() } : {},
+      body: JSON.stringify(body),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.success === false) {
+      return {
+        success: false,
+        status: response.status,
+        code: result?.code,
+        message: result?.message || 'Something went wrong. Please try again.',
+      };
+    }
+    return { success: true, ...result };
+  } catch (error: any) {
+    return { success: false, message: error?.message || 'Check your internet connection.' };
+  }
+};
+
+/**
+ * Asks the server to price a purchase. The amount and currency in the reply
+ * are what Flutterwave must charge; never compute them in the app.
+ */
+export const createPaymentIntentAPI = (
+  body:
+    | { purpose: 'subscription'; tier: string }
+    | { purpose: 'exception' }
+    | { purpose: 'checkout'; items: any[]; shippingContact?: { phone?: string; address?: string } },
+) => postJson<PaymentIntent>('/users/payments/intent', body);
+
+/**
+ * Tells the server a Flutterwave payment finished. The server verifies it
+ * with Flutterwave; calling it twice is safe.
+ */
+export const confirmPaymentAPI = (txRef: string, transactionId: string) =>
+  postJson<{
+    purpose: PaymentPurpose;
+    amount: number;
+    currency: string;
+    orders?: any[];
+    tier?: string;
+    subscriptionExpiresAt?: string;
+    exceptionCredits?: number;
+    transactionId?: string;
+  }>('/users/payments/confirm', { txRef, transactionId });
+
+export const savePayoutAccountAPI = (body: {
+  bankCode: string;
+  accountNumber: string;
+  bankName?: string;
+}) =>
+  postJson<{ payoutAccount: NonNullable<User['payoutAccount']> }>(
+    '/users/payments/payout-account',
+    body,
+    true,
+  );

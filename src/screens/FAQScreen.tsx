@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import {
   EXCEPTION_ACCOUNT_LIMITS,
-  EXCEPTION_COST_IN_ICASH,
+  EXCEPTION_COST_USD,
 } from '../constants/inAppConstants';
 
 interface FAQItemType {
@@ -53,7 +53,7 @@ const FAQ_DATA: FAQItemType[] = [
   {
     id: 'acad-3',
     question: 'What happens if I exhaust my free monthly lecture exceptions?',
-    answer: `If you have exhausted your free monthly allowance, you can purchase additional exceptions at a cost of ${EXCEPTION_COST_IN_ICASH} iCash each. Please note that if a lecturer disapproves or cancels a purchased exception, no refunds are issued.`,
+    answer: `Once you have used your free monthly allowance, each extra exception costs $${EXCEPTION_COST_USD} (US dollars), charged in your local currency at the current exchange rate. You pay by card, bank transfer or USSD through Flutterwave, and the purchased exception is used the next time you submit a request. The fee goes to iCampus, not to the lecturer, and it is not refunded if the lecturer rejects the exception.`,
   },
   {
     id: 'acad-4',

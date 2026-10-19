@@ -44,6 +44,12 @@ import { useTheme } from '../context/ThemeContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { RootStackParamList } from '../../App';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useDispatch } from 'react-redux';
+import { patchUser } from '../context/UserSlice';
+import {
+  FlutterwavePaySheet,
+  PaymentConfirmation,
+} from '../components/FlutterwavePaySheet';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CourseSubPage'>;
 
@@ -58,7 +64,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     userRole,
     exceptions: initialExceptions,
   } = route.params;
+  const dispatch = useDispatch();
   const [isModalVisible, setModalVisible] = useState(false);
+  const [isBuyingException, setIsBuyingException] = useState(false);
+  // An exception request waiting on payment for an extra exception.
+  const pendingException = useRef<Partial<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [localExceptions, setLocalExceptions] = useState<any[]>(
     initialExceptions || [],
@@ -246,6 +256,9 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
       setLoading(true);
       try {
         const result = await submitLectureException(newException);
+        if (typeof result.exceptionCredits === 'number') {
+          dispatch(patchUser({ exceptionCredits: result.exceptionCredits }));
+        }
         if (result.success && result.exception) {
           Toast.show({
             type: 'success',
@@ -254,6 +267,12 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           });
           setLocalExceptions(prev => [result.exception, ...prev]);
           setModalVisible(false);
+          pendingException.current = null;
+        } else if (result.code === 'EXCEPTION_PAYMENT_REQUIRED') {
+          // Free allowance used up: pay, then this request is sent again.
+          pendingException.current = newException;
+          setModalVisible(false);
+          setIsBuyingException(true);
         } else {
           Toast.show({
             type: 'error',
@@ -273,7 +292,21 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         setLoading(false);
       }
     },
-    [user],
+    [dispatch],
+  );
+
+  const handleExceptionPaid = useCallback(
+    (result: PaymentConfirmation) => {
+      setIsBuyingException(false);
+      dispatch(patchUser({ exceptionCredits: result.exceptionCredits ?? 1 }));
+      Toast.show({ type: 'success', text1: 'Payment received', position: 'bottom' });
+      if (pendingException.current) {
+        handleSaveException(pendingException.current);
+      } else {
+        setModalVisible(true);
+      }
+    },
+    [dispatch, handleSaveException],
   );
 
   // Resolves true when the backend recorded the submission so the test screen
@@ -566,6 +599,10 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
               refreshing={loading}
               onRefresh={fetchExceptions}
               onAddPress={() => setModalVisible(true)}
+              onBuyPress={() => {
+                pendingException.current = null;
+                setIsBuyingException(true);
+              }}
             />
           ))}
         {title === 'Set Lecture Schedule' && (
@@ -727,6 +764,21 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         lectures={allLectures}
         onSave={handleSaveException}
         isSaving={loading}
+      />
+      <FlutterwavePaySheet
+        visible={isBuyingException}
+        onClose={() => {
+          setIsBuyingException(false);
+          pendingException.current = null;
+        }}
+        request={{ purpose: 'exception' }}
+        title="Buy an extra exception"
+        subtitle={
+          pendingException.current
+            ? "You've used this month's free exceptions. Your request is sent as soon as payment completes."
+            : 'Use it on your next exception request. Not refunded if the lecturer rejects it.'
+        }
+        onPaid={handleExceptionPaid}
       />
 
       <Modal visible={showSuccessModal} transparent animationType="slide">

@@ -158,7 +158,6 @@ export const EditProfileScreen = () => {
             <InputGroup
               label="Username"
               value={formData.username}
-              isLocked={isVerified}
               onChangeText={text => handleInputChange('username', text)}
               type="text"
               placeholder="Enter your username"

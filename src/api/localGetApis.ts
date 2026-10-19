@@ -1,4 +1,4 @@
-import { User, CreateTestPayload, DropOffStation, Notification, Lecture, Course, CourseException, AdItem} from '../types/firebase';
+import { User, CreateTestPayload, DropOffStation, Notification, Lecture, Course, CourseException, AdItem, PostComment, GifResult} from '../types/firebase';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {fetchWithAuth} from '../utils/userTokenAuth';
@@ -59,6 +59,11 @@ interface FetchPostsParams extends ApiRequestOptions {
   limit?: number;
   cursor?: string;
 }
+export type ProfileFetchResult =
+  | { status: 'ok'; data: any }
+  | { status: 'blocked'; blockedByViewer: boolean; targetUid: string | null; message?: string }
+  | { status: 'notFound' }
+  | { status: 'error'; message: string };
 interface SearchUserProfileParams extends ApiRequestOptions {
   identifier: string;
   currentUser: User;
@@ -146,44 +151,38 @@ export const searchUserProfile = async ({
   identifier,
   currentUser,
   signal,
-}: SearchUserProfileParams): Promise<any> => {
+}: SearchUserProfileParams): Promise<ProfileFetchResult> => {
   try {
     const params = new URLSearchParams({
-      viewerUid: currentUser.uid,
-      viewerTier: currentUser.tier || 'free',
-      viewerRole: currentUser.usertype || '',
-      viewerFirstname: currentUser.firstname || '',
+      viewerTier: currentUser?.tier || 'free',
+      viewerRole: currentUser?.usertype || '',
+      viewerFirstname: currentUser?.firstname || '',
     });
-    
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const response = await fetchWithAuth(
-      `${cleanBaseUrl}/users/profile/search/${identifier}?${params.toString()}`,
-      {
-        method: 'GET',
-        signal,
-      }
+      `${cleanBaseUrl}/users/profile/search/${encodeURIComponent(identifier)}?${params.toString()}`,
+      { method: 'GET', signal },
     );
-    
-    const result = await response.json();
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result.message || 'An unexpected error occurred',
-      });
-      return null;
+    const result = await response.json().catch(() => ({}));
+    // Blocked and missing profiles are normal outcomes the screen renders
+    // itself; they are not errors to toast about.
+    if (response.status === 403 && result.isBlocked) {
+      return {
+        status: 'blocked',
+        blockedByViewer: !!result.blockedByViewer,
+        targetUid: result.targetUid || null,
+        message: result.message,
+      };
     }
-    return result.data;
+    if (response.status === 404) return { status: 'notFound' };
+    if (!response.ok) {
+      return { status: 'error', message: result.message || 'Could not load this profile.' };
+    }
+    return { status: 'ok', data: result.data };
   } catch (error: any) {
-    if (error.name === 'AbortError') return null;
-
+    if (error.name === 'AbortError') return { status: 'error', message: 'Request cancelled.' };
     console.error('Search User Profile Error:', error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not connect to the server',
-    });
-    return null;
+    return { status: 'error', message: 'Could not connect to the server' };
   }
 };
 export const getBlockedUsers = async ({
@@ -2417,5 +2416,164 @@ export const fetchPreferencesAPI = async ({ signal }: FetchPreferencesParams = {
 
     console.error("fetchPreferencesAPI Error:", error);
     return { success: false, preferences: null, message: 'Failed to connect to server' };
+  }
+};
+export const fetchPostCommentsAPI = async ({
+  postId,
+  cursor,
+  parentId,
+  limit = 20,
+  signal,
+}: {
+  postId: string;
+  cursor?: string | null;
+  parentId?: string | null;
+  limit?: number;
+  signal?: AbortSignal;
+}): Promise<{
+  success: boolean;
+  comments: PostComment[];
+  nextCursor: string | null;
+  total?: number;
+  message?: string;
+}> => {
+  try {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (cursor) params.append('cursor', cursor);
+    if (parentId) params.append('parentId', parentId);
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/posts/${postId}/comments?${params}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' }, signal },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, comments: [], nextCursor: null, message: data?.message || 'Failed to load comments' };
+    }
+    return {
+      success: true,
+      comments: data.comments || [],
+      nextCursor: data.nextCursor || null,
+      total: data.total,
+    };
+  } catch (error: any) {
+    if (error.name !== 'AbortError') console.error('fetchPostCommentsAPI Error:', error);
+    return { success: false, comments: [], nextCursor: null, message: 'Connection to server failed' };
+  }
+};
+export const searchGifsAPI = async ({
+  query = '',
+  type = 'gifs',
+  offset = 0,
+  signal,
+}: {
+  query?: string;
+  type?: 'gifs' | 'stickers';
+  offset?: number;
+  signal?: AbortSignal;
+}): Promise<{
+  success: boolean;
+  enabled: boolean;
+  results: GifResult[];
+  nextOffset: number | null;
+}> => {
+  try {
+    const params = new URLSearchParams({ type, offset: String(offset), limit: '24' });
+    if (query.trim()) params.append('q', query.trim());
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(`${cleanBaseUrl}/posts/media/gifs?${params}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+    });
+    const data = await response.json().catch(() => ({}));
+    return {
+      success: response.ok && data.success !== false,
+      enabled: data.enabled !== false,
+      results: data.results || [],
+      nextOffset: data.nextOffset ?? null,
+    };
+  } catch (error: any) {
+    return { success: false, enabled: true, results: [], nextOffset: null };
+  }
+};
+export const fetchProfileContentAPI = async ({
+  uid,
+  tab,
+  cursor,
+  limit = 10,
+  signal,
+}: {
+  uid: string;
+  tab: string;
+  cursor?: string | null;
+  limit?: number;
+  signal?: AbortSignal;
+}): Promise<{ success: boolean; items: any[]; nextCursor: string | null; message?: string }> => {
+  try {
+    const params = new URLSearchParams({ tab, limit: String(limit) });
+    if (cursor) params.append('cursor', cursor);
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/profile/${encodeURIComponent(uid)}/content?${params}`,
+      { method: 'GET', signal },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { success: false, items: [], nextCursor: null, message: data.message || 'Could not load this tab.' };
+    }
+    return { success: true, items: data.items || [], nextCursor: data.nextCursor || null };
+  } catch (error: any) {
+    return { success: false, items: [], nextCursor: null, message: 'Could not connect to the server' };
+  }
+};
+export const fetchProfileConnectionsAPI = async ({
+  uid,
+  type,
+  cursor,
+  signal,
+}: {
+  uid: string;
+  type: 'followers' | 'following';
+  cursor?: string | null;
+  signal?: AbortSignal;
+}): Promise<{ success: boolean; users: any[]; nextCursor: string | null; total?: number }> => {
+  try {
+    const params = new URLSearchParams({ type, limit: '30' });
+    if (cursor) params.append('cursor', cursor);
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/profile/${encodeURIComponent(uid)}/connections?${params}`,
+      { method: 'GET', signal },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { success: false, users: [], nextCursor: null };
+    return { success: true, users: data.users || [], nextCursor: data.nextCursor || null, total: data.total };
+  } catch {
+    return { success: false, users: [], nextCursor: null };
+  }
+};
+
+/** Looks up the account holder's name (Nigerian banks; null elsewhere). */
+export const resolveBankAccountAPI = async (
+  bankCode: string,
+  accountNumber: string,
+  signal?: AbortSignal,
+): Promise<{ success: boolean; accountName?: string | null; message?: string }> => {
+  try {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const query = `bankCode=${encodeURIComponent(bankCode)}&accountNumber=${encodeURIComponent(accountNumber)}`;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/payments/resolve-account?${query}`,
+      { method: 'GET', signal },
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result?.message || 'Could not verify the account.' };
+    }
+    return { success: true, accountName: result.accountName ?? null };
+  } catch (error: any) {
+    if (error?.name === 'AbortError') return { success: false };
+    return { success: false, message: 'Check your internet connection.' };
   }
 };

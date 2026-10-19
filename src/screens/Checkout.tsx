@@ -18,7 +18,6 @@ import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { CartItem } from '../components/CartItem';
 import Toast from 'react-native-toast-message';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { initializeCheckoutTransaction } from '../api/localPostApis';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useCheckout } from '../hooks/useCheckout.ts';
@@ -29,7 +28,11 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 import { useConvertedCurrency } from '../hooks/useCurrencyConverter.ts';
 import { currencyMap } from '../utils/UserTransactionsHelpers';
 import { useResponsiveCardLayout } from '../components/ProductListItem';
-import { AddPaymentModal } from '../components/AddPaymentMethodModal.tsx';
+import {
+  FlutterwavePaySheet,
+  PaymentConfirmation,
+  PaymentRequest,
+} from '../components/FlutterwavePaySheet';
 
 export const toPercentLabel = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
@@ -98,74 +101,50 @@ export const CheckoutScreen = () => {
     setIsCheckoutPaymentVisible(true);
   }, [formValidation.valid, formValidation.reason]);
 
-  const handlePaymentSuccess = async (flwResponse: any) => {
-    const transactionId =
-      flwResponse?.data?.flw_ref ||
-      flwResponse?.flw_ref ||
-      flwResponse?.data?.id ||
-      flwResponse?.id;
-
-    const orderPayload = {
+  // Only what the buyer chose. Prices, sellers, fees and the total are worked
+  // out on the server, and the pay sheet shows the server's total.
+  const paymentRequest = useMemo<PaymentRequest | null>(() => {
+    if (!isCheckoutPaymentVisible) return null;
+    return {
+      purpose: 'checkout',
       items: checkoutItems.map(item => {
-        const isPhysical = item.product?.type === 'physical';
         const method = itemDeliveryMethods[item.productId] || 'drop_off';
         return {
           productId: item.productId,
-          sellerId: item.product?.sellerId,
           quantity: item.quantity,
           deliveryMethod: method,
-          price: item.product?.price,
           color: item.selectedColor,
           size: item.selectedSize,
-          ...(isPhysical &&
-            method === 'drop_off' && {
-              selectedStation: selectedStations[item.productId],
-            }),
+          ...(method === 'drop_off' && {
+            selectedStation: selectedStations[item.productId],
+          }),
         };
       }),
-      totals: {
-        subtotal: transactionalFinances.subtotal,
-        delivery: transactionalFinances.totalDeliveryFee,
-        grandTotal: transactionalFinances.grandTotal,
-        currency: buyerCurrency.code,
-      },
       shippingContact: {
         phone: formattedValue,
         address: deliveryAddress.trim(),
       },
-      transactionId: transactionId
-        ? transactionId.toString()
-        : `FLW-${Date.now()}`,
-      timestamp: new Date().toISOString(),
     };
+  }, [
+    isCheckoutPaymentVisible,
+    checkoutItems,
+    itemDeliveryMethods,
+    selectedStations,
+    formattedValue,
+    deliveryAddress,
+  ]);
 
-    try {
-      const result = await initializeCheckoutTransaction(orderPayload);
-      if (result?.success) {
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: 'MSuccessScreen',
-              params: {
-                orders: result.data,
-                totalSpent: orderPayload.totals.grandTotal,
-              },
-            },
-          ],
-        });
-      } else {
-        throw new Error(
-          result?.message || 'Transaction Initialization Failed.',
-        );
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Checkout Error',
-        text2: error.message,
-      });
-    }
+  const handlePaymentSuccess = (result: PaymentConfirmation) => {
+    setIsCheckoutPaymentVisible(false);
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'MSuccessScreen',
+          params: { orders: result.orders || [], totalSpent: result.amount },
+        },
+      ],
+    });
   };
 
   const renderItem = useCallback(
@@ -531,17 +510,13 @@ export const CheckoutScreen = () => {
         ListFooterComponent={renderFooter}
         contentContainerStyle={{ paddingBottom: 40, marginHorizontal: 15 }}
       />
-      <AddPaymentModal
+      <FlutterwavePaySheet
         visible={isCheckoutPaymentVisible}
         onClose={() => setIsCheckoutPaymentVisible(false)}
-        currencyData={buyerCurrency}
-        user={currentUser}
-        mode="checkout"
-        amount={transactionalFinances.grandTotal}
-        onPaymentSuccess={async paymentResponse => {
-          setIsCheckoutPaymentVisible(false);
-          await handlePaymentSuccess(paymentResponse);
-        }}
+        request={paymentRequest}
+        title="Complete your order"
+        subtitle={`${checkoutItems.length} ${checkoutItems.length === 1 ? 'item' : 'items'}, delivery included`}
+        onPaid={handlePaymentSuccess}
       />
     </SafeAreaView>
   );

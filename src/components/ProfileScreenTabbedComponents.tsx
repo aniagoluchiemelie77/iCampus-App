@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
   View,
@@ -11,11 +12,17 @@ import { Video, ResizeMode } from 'react-native-video';
 import { useTheme } from '../context/ThemeContext';
 const { width } = Dimensions.get('window');
 
-export const MediaGridItem = ({ post }: { post: any }) => {
+export const MediaGridItem = ({ post, size }: { post: any; size?: number }) => {
   const isVideo = post.media?.mediaType === 'video';
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   return (
-    <TouchableOpacity style={styles.mediaGridItem} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={[styles.mediaGridItem, size ? { width: size, height: size } : null]}
+      activeOpacity={0.9}
+      onPress={() => navigation.navigate('PostDetailScreen', { postId: post.postId })}
+      accessibilityLabel={isVideo ? 'Open video post' : 'Open photo post'}
+    >
       {isVideo ? (
         <Video
           source={{ uri: post.media.url[0] }}

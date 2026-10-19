@@ -36,32 +36,63 @@ export const currencyMap: Record<string, { code: string; symbol: string }> = {
   'Netherlands': { code: 'EUR', symbol: '€' },
   'Spain': { code: 'EUR', symbol: '€' },
   'Italy': { code: 'EUR', symbol: '€' },
+  // Kept in step with CURRENCY_BY_COUNTRY on the backend (utils/currency.js).
+  'Kenya': { code: 'KES', symbol: 'KSh' },
+  'Uganda': { code: 'UGX', symbol: 'USh' },
+  'Rwanda': { code: 'RWF', symbol: 'FRw' },
+  'Tanzania': { code: 'TZS', symbol: 'TSh' },
+  'Cameroon': { code: 'XAF', symbol: 'FCFA' },
+  'Egypt': { code: 'EGP', symbol: 'E£' },
+  'Ethiopia': { code: 'ETB', symbol: 'Br' },
+  'South Africa': { code: 'ZAR', symbol: 'R' },
+  'United States of America': { code: 'USD', symbol: '$' },
+  'United Kingdom': { code: 'GBP', symbol: '£' },
+  'Canada': { code: 'CAD', symbol: 'CA$' },
 };
-export const fetchLiveRate = async (country: string) => {
-  const { code, symbol } = currencyMap[country] || currencyMap.Nigeria;
 
+/** Symbol for a currency code, e.g. 'GHS' -> 'GH₵'. */
+export const symbolForCurrency = (code: string) =>
+  Object.values(currencyMap).find(c => c.code === code)?.symbol ||
+  (code === 'USD' ? '$' : `${code} `);
+
+/** USD -> currency rates, cached for a day. Null when they can't be loaded. */
+const loadUsdRates = async (): Promise<Record<string, number> | null> => {
   try {
     const cachedData = await AsyncStorage.getItem(CACHE_KEY);
     if (cachedData) {
       const { rates, timestamp } = JSON.parse(cachedData);
-      const isExpired = Date.now() - timestamp > CACHE_DURATION;
-
-      if (!isExpired && rates[code]) {
-        return { rate: rates[code], symbol, code };
-      }
+      if (rates && Date.now() - timestamp <= CACHE_DURATION) return rates;
     }
+  } catch {}
+  try {
     const response = await axios.get(EXCHANGERATE_API_BASE_URL);
-    const allRates = response.data.conversion_rates;
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
-      rates: allRates,
-      timestamp: Date.now()
-    }));
-
-    return { rate: allRates[code] || 1, symbol, code };
+    const allRates = response.data?.conversion_rates;
+    if (!allRates) return null;
+    AsyncStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ rates: allRates, timestamp: Date.now() }),
+    ).catch(() => {});
+    return allRates;
   } catch (error) {
-    console.error("Rate fetch failed", error);
-    return { rate: 1, symbol, code }; 
+    console.error('Rate fetch failed', error);
+    return null;
   }
+};
+
+/** Rate from USD to a currency code. `ok` is false when the rate is a guess. */
+export const fetchRateByCurrency = async (code: string) => {
+  const upper = (code || 'USD').toUpperCase();
+  const symbol = symbolForCurrency(upper);
+  if (upper === 'USD') return { rate: 1, symbol, code: upper, ok: true };
+  const rates = await loadUsdRates();
+  const rate = rates?.[upper];
+  return rate ? { rate, symbol, code: upper, ok: true } : { rate: 1, symbol, code: upper, ok: false };
+};
+
+/** Rate from USD to a country's currency. */
+export const fetchLiveRate = async (country: string) => {
+  const { code } = currencyMap[country] || currencyMap.Nigeria;
+  return fetchRateByCurrency(code);
 };
 export const encryptCardDetails = (key: string, text: string): string => {
   const cipher = CryptoJS.TripleDES.encrypt(

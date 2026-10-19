@@ -132,8 +132,6 @@ import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
 import { setAdmin } from './src/context/AdminSlice';
 import { clearSession } from './src/utils/session';
-import { VerifyOTP } from './src/screens/LinkingActionOTPVerifyScreen.tsx';
-import FlutterwaveWebview from './src/screens/FlutterwaveWebview.tsx';
 import { requestUserPermissionAndGetToken } from './src/utils/userTokenAuth.ts';
 
 const baseUrl = BACKEND_URL;
@@ -163,13 +161,6 @@ export type RootStackParamList = {
   };
   SchoolAorE: {
     item?: any;
-  };
-  VerifyOTP: {
-    flw_ref: string;
-    type: 'card_linking' | 'bank_linking' | 'bank_transfer' | 'mobile_money';
-  };
-  FlutterwaveWebview: {
-    url: string;
   };
   FlutterwavePayment: {
     amount: number;
@@ -254,6 +245,8 @@ export type RootStackParamList = {
   PostDetailScreen: {
     post?: Posts;
     postId?: string;
+    /** Open with the comment box focused (from the comment button). */
+    focusComment?: boolean;
   };
   PhysicalAttendanceManager: {
     lecture: Lecture;
@@ -285,7 +278,6 @@ export type RootStackParamList = {
     tab?: string;
     title?: string;
     isMedia?: boolean;
-    items?: any[];
   };
   SuspendedScreen: { reason: string };
   ProductDetails: { productId: string };
@@ -437,16 +429,6 @@ function MainApp() {
             <Stack.Screen
               name="SupportChat"
               component={SupportChatScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FlutterwaveWebview"
-              component={FlutterwaveWebview}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="VerifyOTP"
-              component={VerifyOTP}
               options={{ headerShown: false }}
             />
             <Stack.Screen

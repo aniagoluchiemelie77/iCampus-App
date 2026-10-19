@@ -12,7 +12,9 @@ import {
   FlatList,
   TextInput,
   Image,
+  Share,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import Modal from 'react-native-modal';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -44,6 +46,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { setAdmin } from '../context/AdminSlice.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { useProfileTab } from '../hooks/useProfileTab.ts';
+import { fetchProfileConnectionsAPI } from '../api/localGetApis.ts';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -277,83 +281,115 @@ export const CoursesView = ({
     </View>
   );
 };
-// Number of items rendered inline on the profile before "View All" is shown.
-// Keeps the profile feed light so it doesn't render every post at once.
+// Items shown inline per tab before "View all" (the rest page in on the
+// ProfileContentList screen).
 const PROFILE_PREVIEW_COUNT = 5;
 
-/**
- * Renders a preview (first PROFILE_PREVIEW_COUNT items) of a profile tab's
- * content plus a "View All" button that opens the full, paginated list on the
- * ProfileContentList screen.
- */
 const ProfileTabSection = ({
-  items,
+  uid,
   tab,
-  identifier,
+  initial,
   emptyText,
-  numColumns = 1,
   isMedia = false,
 }: {
-  items: any[];
+  uid: string;
   tab: string;
-  identifier: string;
+  initial?: any;
   emptyText: string;
-  numColumns?: number;
   isMedia?: boolean;
 }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
+  const { items, hasMore, loading, error, reload } = useProfileTab(
+    uid,
+    tab,
+    initial,
+    PROFILE_PREVIEW_COUNT,
+  );
 
-  const previewItems = items.slice(0, PROFILE_PREVIEW_COUNT);
-  const hasMore = items.length > PROFILE_PREVIEW_COUNT;
-
+  if (loading && items.length === 0) {
+    return <ActivityIndicator style={{ marginVertical: 24 }} color={colors.primary} />;
+  }
+  if (error && items.length === 0) {
+    return (
+      <TouchableOpacity style={styles.tabState} onPress={reload}>
+        <Text style={[styles.emptyText, { color: colors.text }]}>{error}</Text>
+        <Text style={[styles.tabRetry, { color: colors.primary }]}>Tap to retry</Text>
+      </TouchableOpacity>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <View style={styles.tabState}>
+        <MaterialIcons name={isMedia ? 'photo-library' : 'article'} size={30} color={colors.text} style={{ opacity: 0.5 }} />
+        <Text style={[styles.emptyText, { color: colors.text }]}>{emptyText}</Text>
+      </View>
+    );
+  }
   return (
     <View>
-      <FlatList
-        data={previewItems}
-        keyExtractor={(item, index) => item.postId || index.toString()}
-        renderItem={({ item }) =>
-          isMedia ? (
-            <MediaGridItem post={item} />
-          ) : (
-            <PostCard post={item} isVisible={true} />
-          )
-        }
-        numColumns={numColumns}
-        scrollEnabled={false}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: hasMore ? 6 : 20 }}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>{emptyText}</Text>
-        }
-      />
+      {isMedia ? (
+        <View style={styles.mediaGrid}>
+          {items.map(item => (
+            // Three per row inside the 12px side padding.
+            <MediaGridItem key={item.postId} post={item} size={(width - 24) / 3 - 2} />
+          ))}
+        </View>
+      ) : (
+        items.map(item => <PostCard key={item.postId} post={item} isVisible />)
+      )}
       {hasMore && (
         <TouchableOpacity
           activeOpacity={0.8}
           style={[styles.viewAllBtn, { borderColor: colors.border }]}
-          onPress={() =>
-            navigation.navigate('ProfileContentList', {
-              identifier,
-              tab,
-              title: tab,
-              isMedia,
-              items,
-            })
-          }
+          onPress={() => navigation.navigate('ProfileContentList', { identifier: uid, tab, title: tab, isMedia })}
         >
-          <Text style={[styles.viewAllText, { color: colors.primary }]}>
-            View All ({items.length})
-          </Text>
-          <MaterialIcons
-            name="chevron-right"
-            size={18}
-            color={colors.primary}
-          />
+          <Text style={[styles.viewAllText, { color: colors.primary }]}>View all {tab.toLowerCase()}</Text>
+          <MaterialIcons name="chevron-right" size={18} color={colors.primary} />
         </TouchableOpacity>
       )}
     </View>
   );
 };
+
+const ROLE_META: Record<string, { label: string; icon: string }> = {
+  student: { label: 'Student', icon: 'school' },
+  lecturer: { label: 'Lecturer', icon: 'co-present' },
+  enterprise: { label: 'Organization', icon: 'business' },
+  otherUser: { label: 'Member', icon: 'person' },
+};
+
+const MetaChip = ({ icon, label, onPress, colors }: { icon: string; label: string; onPress?: () => void; colors: any }) => (
+  <TouchableOpacity
+    disabled={!onPress}
+    onPress={onPress}
+    activeOpacity={0.7}
+    style={[styles.metaChip, { backgroundColor: colors.background }]}
+  >
+    <MaterialIcons name={icon} size={14} color={colors.primary} />
+    <Text style={[styles.metaChipText, { color: onPress ? colors.primary : colors.text }]} numberOfLines={1}>
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
+
+const StatTile = ({ value, label, onPress, loading, colors }: { value: number; label: string; onPress?: () => void; loading?: boolean; colors: any }) => (
+  <TouchableOpacity
+    disabled={!onPress || loading}
+    onPress={onPress}
+    activeOpacity={0.7}
+    style={styles.statTile}
+    accessibilityRole={onPress ? 'button' : undefined}
+    accessibilityLabel={`${value} ${label}`}
+  >
+    {loading ? (
+      <ActivityIndicator size="small" color={colors.primary} />
+    ) : (
+      <Text style={[styles.statTileValue, { color: colors.textDarker }]}>{formatCount(value || 0)}</Text>
+    )}
+    <Text style={[styles.statTileLabel, { color: colors.text }]}>{label}</Text>
+  </TouchableOpacity>
+);
 
 export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
@@ -362,38 +398,35 @@ export const ProfileScreen = ({ route }: any) => {
   const dispatch = useDispatch();
 
   const {
+    profileData,
+    status,
+    errorMessage,
+    blockedByViewer,
     isFollowing,
-    handleFollowToggle,
-    isBlocked,
+    followBusy,
+    blockBusy,
     fetchProfile,
     updateLocalProfile,
-    profileData,
+    handleFollowToggle,
     handleBlockToggle,
-    isSearching,
   } = useProfileData(identifier, currentUser);
 
   const { tempBio, setTempBio, tempSkills, setTempSkills } =
     useProfileEditing(profileData);
 
   const isOwner =
+    profileData?.isOwner === true ||
     currentUser.uid === identifier ||
-    currentUser.firstname === identifier ||
-    currentUser.lastname === identifier ||
-    currentUser.username === identifier;
+    (!!currentUser.username && currentUser.username === identifier);
 
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState('Posts');
   const [isSaving, setIsSaving] = useState(false);
-  const [followModal, setFollowModal] = useState({
-    visible: false,
-    title: 'Followers',
-    data: [],
-  });
-  const [followingModal, setFollowingModal] = useState({
-    visible: false,
-    title: 'Following',
-    data: [],
-  });
+  const [connections, setConnections] = useState<{
+    type: 'followers' | 'following' | null;
+    data: any[];
+    loading: 'followers' | 'following' | null;
+  }>({ type: null, data: [], loading: null });
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
@@ -405,87 +438,87 @@ export const ProfileScreen = ({ route }: any) => {
   const [apiSuggestions, setApiSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
-  // Tracks whether the first profile request has settled so we can show a
-  // loader instead of flashing the "User Not Found" state on initial mount.
-  const [hasFetchedProfile, setHasFetchedProfile] = useState(false);
+  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
   const onTextLayout = (e: any) => {
-    if (!isExpanded) {
-      setNumLines(e.nativeEvent.lines.length);
-    }
+    if (!isExpanded) setNumLines(e.nativeEvent.lines.length);
   };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const payload: any =
-        modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
+      const payload: any = modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
       await patchUserProfile(payload);
-      updateLocalProfile((prev: any) =>
-        prev ? { ...prev, ...payload } : null,
-      );
+      updateLocalProfile((prev: any) => (prev ? { ...prev, ...payload } : null));
       setEditModalVisible(false);
-      Toast.show({
-        type: 'success',
-        text1: 'Update Successful',
-        text2: 'Your profile has been updated.',
-      });
+      Toast.show({ type: 'success', text1: 'Update Successful', text2: 'Your profile has been updated.' });
     } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Update Failed',
-        text2: 'Could not update profile.',
-      });
+      Toast.show({ type: 'error', text1: 'Update Failed', text2: 'Could not update profile.' });
     } finally {
       setIsSaving(false);
     }
   };
 
   useEffect(() => {
-    let isMounted = true;
-    fetchProfile().finally(() => {
-      if (isMounted) {
-        setHasFetchedProfile(true);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
+    fetchProfile();
   }, [fetchProfile]);
+
+  const openConnections = async (type: 'followers' | 'following') => {
+    if (!profileData?.uid || connections.loading) return;
+    setConnections(c => ({ ...c, loading: type }));
+    const res = await fetchProfileConnectionsAPI({ uid: profileData.uid, type });
+    if (!res.success) {
+      Toast.show({ type: 'error', text2: `Could not load ${type}.` });
+      setConnections({ type: null, data: [], loading: null });
+      return;
+    }
+    setConnections({ type, data: res.users, loading: null });
+  };
+
+  const confirmBlock = () => {
+    setMoreMenuVisible(false);
+    const name = profileData?.firstname || 'this user';
+    Alert.alert(
+      `Block ${name}?`,
+      `${name} won't be able to see your profile or posts, and you'll unfollow each other.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: handleBlockToggle },
+      ],
+    );
+  };
+
+  const profileLink = profileData
+    ? `https://useicampus.io/user/${profileData.username || profileData.uid}`
+    : '';
+  const shareProfile = async () => {
+    setMoreMenuVisible(false);
+    try {
+      await Share.share({ message: `Check out ${profileData?.firstname || 'this profile'} on iCampus: ${profileLink}` });
+    } catch {
+      // Share sheet dismissed.
+    }
+  };
 
   const handleSwitchToInstitutionAdmin = async () => {
     if (isSwitching) return;
     setIsSwitching(true);
-    const userId = currentUser.uid;
-
-    const result = await switchToAdminApi(userId);
+    const result = await switchToAdminApi(currentUser.uid);
     setIsSwitching(false);
-
     if (result && result.success) {
       const { accessToken, refreshToken, admin } = result.data;
       try {
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
         await AsyncStorage.setItem('admin', JSON.stringify(admin));
-        dispatch(
-          setAdmin({ ...admin, accessToken, tokenCreatedAt: Date.now() }),
-        );
-
-        Toast.show({
-          type: 'success',
-          text1: 'Welcome',
-          text2: 'Successfully switched to Institution Admin dashboard.',
-        });
+        dispatch(setAdmin({ ...admin, accessToken, tokenCreatedAt: Date.now() }));
+        Toast.show({ type: 'success', text1: 'Welcome', text2: 'Successfully switched to Institution Admin dashboard.' });
         navigation.navigate('AdminDashboard');
       } catch (storageError) {
         console.error('Storage/Navigation Error during switch:', storageError);
       }
     } else {
-      Toast.show({
-        type: 'error',
-        text1: 'Switch Failed',
-        text2: result?.error || 'Could not switch to administrator mode.',
-      });
+      Toast.show({ type: 'error', text1: 'Switch Failed', text2: result?.error || 'Could not switch to administrator mode.' });
     }
   };
 
@@ -497,24 +530,37 @@ export const ProfileScreen = ({ route }: any) => {
       }
       setIsLoading(true);
       try {
-        const response = await fetch(
-          `https://api.datamuse.com/words?ml=${skillInput}&max=10`,
-        );
+        const response = await fetch(`https://api.datamuse.com/words?ml=${skillInput}&max=10`);
         const data = await response.json();
-        const suggestions = data.map(
-          (item: any) => item.word.charAt(0).toUpperCase() + item.word.slice(1),
-        );
-        setApiSuggestions(suggestions);
+        setApiSuggestions(data.map((item: any) => item.word.charAt(0).toUpperCase() + item.word.slice(1)));
       } catch (error) {
         console.error('Skill API error:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
     const timer = setTimeout(fetchUniversalSkills, 400);
     return () => clearTimeout(timer);
   }, [skillInput]);
+
+  const header = (
+    <PageHeader
+      title="Profile"
+      rightElement={
+        <View style={styles.headerRightDiv}>
+          <TouchableOpacity onPress={() => setIsSearchFocused(true)} style={{ marginRight: 6 }} accessibilityLabel="Search people">
+            <MaterialIcons name="search" size={23} color={colors.primary} />
+          </TouchableOpacity>
+          {isOwner && (
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} accessibilityLabel="Settings">
+              <MaterialIcons name="settings" size={23} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      }
+    />
+  );
+
   if (isSearchFocused) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -528,138 +574,63 @@ export const ProfileScreen = ({ route }: any) => {
     );
   }
 
-  const isExplicitlyBlockedByMe = currentUser.blockedUsers?.includes(
-    profileData?.uid || identifier,
-  );
-
-  if (isBlocked) {
+  if (status === 'loading' && !profileData) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <PageHeader
-          title="Profile"
-          rightElement={
-            <View style={styles.headerRightDiv}>
-              <TouchableOpacity
-                onPress={() => setIsSearchFocused(true)}
-                style={{ marginRight: 6 }}
-              >
-                <MaterialIcons name="search" size={23} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-          }
-        />
+        {header}
         <View style={styles.errorStateContainer}>
-          <MaterialIcons
-            name={isExplicitlyBlockedByMe ? 'person-off' : 'no-accounts'}
-            size={80}
-            color={colors.primary}
-          />
-          <Text style={[styles.blockedTitle, { color: colors.text }]}>
-            {isExplicitlyBlockedByMe ? 'User Blocked' : 'User Not Found'}
-          </Text>
-          <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
-            {isExplicitlyBlockedByMe
-              ? `You have blocked this user. Unblock them to view their profile and posts.`
-              : `This account is private or you have restricted access to this profile.`}
-          </Text>
-          <View style={styles.blockedBtnRow}>
-            <TouchableOpacity
-              style={[styles.blockBtn, { borderColor: colors.primary }]}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={[styles.blockBtnText, { color: colors.primary }]}>
-                Go Back
-              </Text>
-            </TouchableOpacity>
-            {isExplicitlyBlockedByMe && (
-              <CustomButton
-                title="Unblock User"
-                style={styles.blockBtnMain}
-                onPress={handleBlockToggle}
-              />
-            )}
-          </View>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
   }
 
-  // Guard: profileData is null until the profile request resolves (or fails).
-  // Every profileData.* read below must happen AFTER this block, otherwise the
-  // screen crashes with "Cannot read property 'isVerified' of null".
-  if (!profileData) {
-    if (isSearching || !hasFetchedProfile) {
-      return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-          <PageHeader
-            title="Profile"
-            rightElement={
-              <View style={styles.headerRightDiv}>
-                <TouchableOpacity
-                  onPress={() => setIsSearchFocused(true)}
-                  style={{ marginRight: 6 }}
-                >
-                  <MaterialIcons
-                    name="search"
-                    size={23}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              </View>
-            }
-          />
-          <View style={styles.errorStateContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        </View>
-      );
-    }
+  if (status !== 'ready' || !profileData) {
+    const blocked = status === 'blocked';
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <PageHeader
-          title="Profile"
-          rightElement={
-            <View style={styles.headerRightDiv}>
-              <TouchableOpacity
-                onPress={() => setIsSearchFocused(true)}
-                style={{ marginRight: 6 }}
-              >
-                <MaterialIcons name="search" size={23} color={colors.primary} />
-              </TouchableOpacity>
-              {isOwner && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Settings')}
-                >
-                  <MaterialIcons
-                    name="settings"
-                    size={23}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
+        {header}
         <View style={styles.errorStateContainer}>
           <MaterialIcons
-            name={'no-accounts'}
-            size={80}
+            name={blocked && blockedByViewer ? 'person-off' : status === 'error' ? 'cloud-off' : 'no-accounts'}
+            size={72}
             color={colors.primary}
           />
-          <Text style={[styles.blockedTitle, { color: colors.text }]}>
-            User Not Found
+          <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
+            {blocked && blockedByViewer
+              ? 'You blocked this user'
+              : blocked
+                ? "This profile isn't available"
+                : status === 'error'
+                  ? "Couldn't load profile"
+                  : 'User not found'}
           </Text>
           <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
-            User account not found or has been deleted.
+            {blocked && blockedByViewer
+              ? "You won't see their profile or posts. Unblock them to see their profile again."
+              : blocked
+                ? "You can't view this profile."
+                : status === 'error'
+                  ? errorMessage || 'Check your connection and try again.'
+                  : 'This account was not found or has been deleted.'}
           </Text>
-          <TouchableOpacity
-            style={[styles.blockBtn, { borderColor: colors.primary }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={[styles.blockBtnText, { color: colors.primary }]}>
-              Go Back
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.blockedBtnRow}>
+            <TouchableOpacity style={[styles.blockBtn, { borderColor: colors.primary }]} onPress={() => navigation.goBack()}>
+              <Text style={[styles.blockBtnText, { color: colors.primary }]}>Go back</Text>
+            </TouchableOpacity>
+            {blocked && blockedByViewer && (
+              <CustomButton
+                title="Unblock"
+                style={styles.blockBtnMain}
+                onPress={handleBlockToggle}
+                isLoading={blockBusy}
+                disabled={blockBusy}
+              />
+            )}
+            {status === 'error' && (
+              <CustomButton title="Try again" style={styles.blockBtnMain} onPress={fetchProfile} />
+            )}
+          </View>
         </View>
       </View>
     );
@@ -667,415 +638,321 @@ export const ProfileScreen = ({ route }: any) => {
 
   const isVerified = profileData.isVerified === true;
   const canSwitchToInstitutionAdmin =
-    currentUser.isInstitutionAdmin &&
-    isOwner &&
-    currentUser.isVerified &&
-    currentUser.usertype === 'enterprise';
+    currentUser.isInstitutionAdmin && isOwner && currentUser.isVerified && currentUser.usertype === 'enterprise';
+  const role = ROLE_META[profileData.usertype] || ROLE_META.otherUser;
 
-  const resolvedBio =
-    profileData.bio ||
-    profileData.headline ||
-    (profileData.usertype === 'student'
-      ? `Student at ${profileData.schoolName || 'Campus'}`
-      : profileData.usertype === 'lecturer'
-        ? `${profileData.jobTitle || 'Lecturer'} • ${profileData.department || ''} at ${profileData.schoolName || ''}`
-        : profileData.usertype === 'enterprise'
-          ? `${profileData.organizationName || 'Organization'} Global Enterprise`
-          : 'iCampus Community Member');
+  // "Lecturer • Petroleum Eng. at FUPRE" with empty parts left out (it used
+  // to render as "Lecturer •  at").
+  const builtHeadline =
+    profileData.usertype === 'enterprise'
+      ? profileData.organizationName || ''
+      : [
+          [profileData.jobTitle || (profileData.usertype === 'lecturer' ? 'Lecturer' : profileData.usertype === 'student' ? 'Student' : ''), profileData.department]
+            .filter(Boolean)
+            .join(' · '),
+          profileData.schoolName,
+        ]
+          .filter(Boolean)
+          .join(' at ');
+  const headline = profileData.headline || builtHeadline || 'iCampus community member';
+  const aboutText = profileData.bio || '';
+  const websiteLabel = profileData.website?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const openWebsite = () => {
+    const url = profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`;
+    Linking.openURL(url).catch(() => Alert.alert('Error', "Couldn't open this website"));
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader
-        title="Profile"
-        rightElement={
-          <View style={styles.headerRightDiv}>
-            <TouchableOpacity
-              onPress={() => setIsSearchFocused(true)}
-              style={{ marginRight: 6 }}
-            >
-              <MaterialIcons name="search" size={23} color={colors.primary} />
-            </TouchableOpacity>
-            {isOwner && (
-              <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-                <MaterialIcons
-                  name="settings"
-                  size={23}
-                  color={colors.primary}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        }
-      />
-      {isSearching ? (
-        <View style={styles.errorStateContainer}>
-          <ActivityIndicator size="small" color={colors.primary} />
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <ProfileImageCarousel
-            images={profileData.profilePic}
-            user={{
-              firstname: profileData.firstname,
-              lastname: profileData.lastname,
-              username: profileData.username,
-              organizationName: profileData.organizationName,
-            }}
-          />
+      {header}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ProfileImageCarousel
+          images={profileData.profilePic}
+          user={{
+            firstname: profileData.firstname,
+            lastname: profileData.lastname,
+            username: profileData.username,
+            organizationName: profileData.organizationName,
+          }}
+        />
 
-          {/* Reordered Layout: Identity Card First */}
-          <View
-            style={[
-              styles.subContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <View style={styles.profileInfoSection}>
-              {isOwner && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('EditProfile')}
-                  style={[
-                    styles.editButtonCircle,
-                    { backgroundColor: colors.background },
-                  ]}
-                >
-                  <MaterialIcons name="edit" size={20} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-
+        {/* Identity */}
+        <View style={[styles.identityCard, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={styles.identityTop}>
+            <View style={{ flex: 1 }}>
               <UserIdentity
                 firstname={profileData.firstname}
                 lastname={profileData.lastname}
                 username={profileData.username}
                 tier={profileData.tier}
                 isVerified={profileData.isVerified}
-                showVerifyIcon={true}
+                showVerifyIcon
                 size="large"
                 isOrganization={profileData.usertype === 'enterprise'}
                 organizationName={profileData.organizationName}
-                containerStyle={{ paddingHorizontal: 15, paddingTop: 10 }}
+                containerStyle={styles.identityName}
               />
-
-              {/* Headline Display */}
-              <Text style={[styles.headlineText, { color: colors.text }]}>
-                {profileData.headline || resolvedBio}
-              </Text>
-
-              {/* Follow Stats Row */}
-              <View style={styles.statsRow}>
-                <TouchableOpacity
-                  style={styles.statCountDiv}
-                  onPress={() =>
-                    setFollowModal({
-                      visible: true,
-                      title: 'Followers',
-                      data: profileData.followersList || [],
-                    })
-                  }
-                >
-                  <Text style={[styles.statNumber, { color: colors.primary }]}>
-                    {formatCount(profileData.followersCount)}
-                  </Text>
-                  <Text style={[styles.statLabel, { color: colors.text }]}>
-                    Followers
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.statCountDiv}
-                  onPress={() =>
-                    setFollowingModal({
-                      visible: true,
-                      title: 'Following',
-                      data: profileData.followingList || [],
-                    })
-                  }
-                >
-                  <Text style={[styles.statNumber, { color: colors.primary }]}>
-                    {formatCount(profileData.followingCount)}
-                  </Text>
-                  <Text style={[styles.statLabel, { color: colors.text }]}>
-                    Following
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Action Buttons Row */}
-              <View style={styles.actionButtonsContainer}>
-                {!isOwner && !isBlocked && (
-                  <CustomButton
-                    title="Block User"
-                    style={styles.secondaryActionBtn}
-                    onPress={handleBlockToggle}
-                  />
-                )}
-                {!isOwner && !isFollowing && (
-                  <CustomButton
-                    title="Follow"
-                    style={[
-                      styles.primaryActionBtn,
-                      { backgroundColor: colors.primary },
-                    ]}
-                    onPress={handleFollowToggle}
-                  />
-                )}
-                {canSwitchToInstitutionAdmin && (
-                  <CustomButton
-                    title="Switch to Admin"
-                    style={styles.primaryActionBtn}
-                    onPress={handleSwitchToInstitutionAdmin}
-                  />
-                )}
-                {isOwner && !isVerified && (
-                  <TouchableOpacity
-                    style={[styles.verifyBtn, { borderColor: colors.primary }]}
-                    onPress={() => navigation.navigate('PersonaVerify')}
-                  >
-                    <Text
-                      style={[styles.verifyBtnText, { color: colors.primary }]}
-                    >
-                      Get Verified
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Contact / Portfolio Links */}
-              <View style={styles.contactContainer}>
-                {profileData.email && !isOwner && (
-                  <CustomButton
-                    title="Send mail"
-                    style={styles.contactRowBtn}
-                    onPress={() => {
-                      Linking.openURL(`mailto:${profileData.email}`).catch(() =>
-                        Alert.alert(
-                          'Error',
-                          'No email app found on this device',
-                        ),
-                      );
-                    }}
-                    iconName="email"
-                    iconColor="#fff"
-                  />
-                )}
-                {profileData.website && (
-                  <CustomButton
-                    title="View Portfolio"
-                    style={styles.contactRowBtn}
-                    onPress={() => {
-                      const url = profileData.website.startsWith('http')
-                        ? profileData.website
-                        : `https://${profileData.website}`;
-                      Linking.openURL(url).catch(() =>
-                        Alert.alert('Error', "Couldn't open this website"),
-                      );
-                    }}
-                    iconName="language"
-                    iconColor="#fff"
-                  />
-                )}
-              </View>
+              <Text style={[styles.headlineText, { color: colors.text }]}>{headline}</Text>
             </View>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EditProfile')}
+                style={[styles.iconCircle, { backgroundColor: colors.background }]}
+                accessibilityLabel="Edit profile"
+              >
+                <MaterialIcons name="edit" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* About Section (Auto-Filled or Editable) */}
-          <View
-            style={[
-              styles.sectionContainer,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
+          <View style={styles.metaChips}>
+            <MetaChip icon={role.icon} label={role.label} colors={colors} />
+            {!!profileData.schoolName && <MetaChip icon="account-balance" label={profileData.schoolName} colors={colors} />}
+            {!!profileData.department && <MetaChip icon="category" label={profileData.department} colors={colors} />}
+            {!!profileData.current_level && <MetaChip icon="stairs" label={`${profileData.current_level} level`} colors={colors} />}
+            {!!websiteLabel && <MetaChip icon="link" label={websiteLabel} onPress={openWebsite} colors={colors} />}
+          </View>
+
+          <View style={[styles.statTiles, { borderColor: colors.border + '55' }]}>
+            <StatTile value={profileData.postsCount} label="Posts" colors={colors} onPress={() => setActiveTab('Posts')} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border + '55' }]} />
+            <StatTile
+              value={profileData.followersCount}
+              label="Followers"
+              colors={colors}
+              loading={connections.loading === 'followers'}
+              onPress={() => openConnections('followers')}
+            />
+            <View style={[styles.statDivider, { backgroundColor: colors.border + '55' }]} />
+            <StatTile
+              value={profileData.followingCount}
+              label="Following"
+              colors={colors}
+              loading={connections.loading === 'following'}
+              onPress={() => openConnections('following')}
+            />
+          </View>
+
+          {isOwner ? (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.outlineBtn, { borderColor: colors.primary }]}
+                onPress={() => navigation.navigate('EditProfile')}
+              >
+                <MaterialIcons name="edit" size={17} color={colors.primary} />
+                <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Edit profile</Text>
+              </TouchableOpacity>
+              {!isVerified && (
+                <CustomButton
+                  title="Get verified"
+                  iconName="verified"
+                  style={styles.fillBtn}
+                  onPress={() => navigation.navigate('PersonaVerify')}
+                />
+              )}
+              {canSwitchToInstitutionAdmin && (
+                <CustomButton
+                  title="Switch to admin"
+                  iconName="admin-panel-settings"
+                  style={styles.fillBtn}
+                  onPress={handleSwitchToInstitutionAdmin}
+                  isLoading={isSwitching}
+                />
+              )}
+            </View>
+          ) : (
+            <View style={styles.actionRow}>
+              {isFollowing ? (
+                <TouchableOpacity
+                  style={[styles.outlineBtn, { borderColor: colors.primary }]}
+                  onPress={handleFollowToggle}
+                  disabled={followBusy}
+                  accessibilityLabel="Unfollow"
+                >
+                  <MaterialIcons name="check" size={17} color={colors.primary} />
+                  <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Following</Text>
+                </TouchableOpacity>
+              ) : (
+                <CustomButton
+                  title="Follow"
+                  iconName="person-add"
+                  style={styles.fillBtn}
+                  onPress={handleFollowToggle}
+                  disabled={followBusy}
+                />
+              )}
+              {!!profileData.email && (
+                <TouchableOpacity
+                  style={[styles.outlineBtn, { borderColor: colors.primary }]}
+                  onPress={() =>
+                    Linking.openURL(`mailto:${profileData.email}`).catch(() =>
+                      Alert.alert('Error', 'No email app found on this device'),
+                    )
+                  }
+                >
+                  <MaterialIcons name="mail-outline" size={17} color={colors.primary} />
+                  <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Message</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.squareBtn, { borderColor: colors.border }]}
+                onPress={() => setMoreMenuVisible(true)}
+                accessibilityLabel="More options"
+              >
+                <MaterialIcons name="more-horiz" size={22} color={colors.textDarker} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* About */}
+        {(!!aboutText || isOwner) && (
+          <View style={[styles.sectionContainer, { backgroundColor: colors.backgroundSecondary }]}>
             <View style={styles.sectionTitleDiv}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                About
-              </Text>
+              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>About</Text>
               {isOwner && (
                 <TouchableOpacity
                   onPress={() => {
                     setModalType('about');
                     setEditModalVisible(true);
                   }}
+                  accessibilityLabel="Edit about"
                 >
                   <MaterialIcons name="edit" size={18} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
-            <View style={styles.aboutContent}>
-              <Text
-                style={[styles.aboutText, { color: colors.text }]}
-                numberOfLines={isExpanded ? undefined : 4}
-                onTextLayout={onTextLayout}
-              >
-                {resolvedBio}
-              </Text>
-              {numLines && numLines > 4 && (
-                <TouchableOpacity
-                  onPress={() => setIsExpanded(!isExpanded)}
-                  style={styles.seeMoreButton}
+            {aboutText ? (
+              <>
+                <Text
+                  style={[styles.aboutText, { color: colors.text }]}
+                  numberOfLines={isExpanded ? undefined : 4}
+                  onTextLayout={onTextLayout}
                 >
-                  <Text style={[styles.seeMoreText, { color: colors.primary }]}>
-                    {isExpanded ? 'Show Less' : 'See More'}
-                  </Text>
+                  {aboutText}
+                </Text>
+                {!!numLines && numLines > 4 && (
+                  <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={styles.seeMoreButton}>
+                    <Text style={[styles.seeMoreText, { color: colors.primary }]}>{isExpanded ? 'Show less' : 'See more'}</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              <Text style={[styles.placeholderText, { color: colors.text }]}>
+                Tell people about yourself: what you study, teach or build.
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Skills */}
+        {(profileData.skills?.length > 0 || isOwner) && (
+          <View style={[styles.sectionContainer, { backgroundColor: colors.backgroundSecondary }]}>
+            <View style={styles.sectionTitleDiv}>
+              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>Skills</Text>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalType('skills');
+                    setEditModalVisible(true);
+                  }}
+                  accessibilityLabel="Edit skills"
+                >
+                  <MaterialIcons name={profileData.skills?.length ? 'edit' : 'add'} size={18} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
-          </View>
-
-          {/* Skills Section */}
-          {profileData.skills && profileData.skills.length > 0 && (
-            <View
-              style={[
-                styles.sectionContainer,
-                { backgroundColor: colors.backgroundSecondary },
-              ]}
-            >
-              <View style={styles.sectionTitleDiv}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Skills
-                </Text>
-                {isOwner && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setModalType('skills');
-                      setEditModalVisible(true);
-                    }}
-                  >
-                    <MaterialIcons
-                      name="edit"
-                      size={18}
-                      color={colors.primary}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
+            {profileData.skills?.length > 0 ? (
               <View style={styles.skillsWrapper}>
                 {profileData.skills.map((skill: string, index: number) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.skillChip,
-                      { backgroundColor: colors.background },
-                    ]}
-                  >
-                    <Text style={[styles.skillText, { color: colors.text }]}>
-                      {skill}
-                    </Text>
+                  <View key={index} style={[styles.skillChip, { backgroundColor: colors.primary + '14' }]}>
+                    <Text style={[styles.skillText, { color: colors.primary }]}>{skill}</Text>
                   </View>
                 ))}
               </View>
-            </View>
-          )}
-
-          {/* Courses Section */}
-          {profileData.courses && profileData.courses.length > 0 && (
-            <CoursesView courses={profileData.courses} colors={colors} />
-          )}
-
-          {/* Profile Tabs & Content Feed */}
-          <ProfileTabs
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            userType={profileData.usertype}
-            isOwner={isOwner}
-          />
-          <View style={styles.tabContent}>
-            {activeTab === 'Posts' && (
-              <ProfileTabSection
-                items={
-                  profileData.posts?.filter((p: any) => !p.isRepost) || []
-                }
-                tab="Posts"
-                identifier={identifier}
-                emptyText="No posts yet."
-              />
-            )}
-            {activeTab === 'Reposts' && (
-              <ProfileTabSection
-                items={profileData.posts?.filter((p: any) => p.isRepost) || []}
-                tab="Reposts"
-                identifier={identifier}
-                emptyText="No reposts yet."
-              />
-            )}
-            {activeTab === 'Bookmarks' && (
-              <ProfileTabSection
-                items={profileData.bookmarkedPosts || []}
-                tab="Bookmarks"
-                identifier={identifier}
-                emptyText="No bookmarks yet."
-              />
-            )}
-            {activeTab === 'Media' && (
-              <ProfileTabSection
-                items={
-                  profileData.posts?.filter(
-                    (p: any) => p.media?.url?.length > 0,
-                  ) || []
-                }
-                tab="Media"
-                identifier={identifier}
-                emptyText="No media found."
-                numColumns={3}
-                isMedia
-              />
-            )}
-            {activeTab === 'Jobs' && (
-              <ProfileTabSection
-                items={
-                  profileData.posts?.filter((p: any) => p.postType === 'job') ||
-                  []
-                }
-                tab="Jobs"
-                identifier={identifier}
-                emptyText="No job listings."
-              />
-            )}
-            {activeTab === 'Events' && (
-              <ProfileTabSection
-                items={
-                  profileData.posts?.filter(
-                    (p: any) => p.postType === 'event',
-                  ) || []
-                }
-                tab="Events"
-                identifier={identifier}
-                emptyText="No upcoming events."
-              />
+            ) : (
+              <Text style={[styles.placeholderText, { color: colors.text }]}>Add skills so people know what you're good at.</Text>
             )}
           </View>
-        </ScrollView>
-      )}
+        )}
+
+        {profileData.courses?.length > 0 && <CoursesView courses={profileData.courses} colors={colors} />}
+
+        <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} userType={profileData.usertype} isOwner={isOwner} />
+        <View style={styles.tabContent}>
+          <ProfileTabSection
+            key={activeTab}
+            uid={profileData.uid}
+            tab={activeTab}
+            initial={profileData.initialContent}
+            isMedia={activeTab === 'Media'}
+            emptyText={
+              {
+                Posts: isOwner ? "You haven't posted yet." : 'No posts yet.',
+                Reposts: 'No reposts yet.',
+                Bookmarks: 'No bookmarks yet.',
+                Media: 'No photos or videos yet.',
+                Jobs: 'No job listings.',
+                Events: 'No upcoming events.',
+              }[activeTab] || 'Nothing here yet.'
+            }
+          />
+        </View>
+      </ScrollView>
 
       {!isFabMenuVisible && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setFabMenuVisible(true)}
-        >
+        <TouchableOpacity style={styles.fab} onPress={() => setFabMenuVisible(true)}>
           <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
       <FollowersListModal
-        visible={followModal.visible}
-        title={followModal.title}
-        data={followModal.data}
+        visible={connections.type === 'followers'}
+        title="Followers"
+        data={connections.data}
         navigation={navigation}
-        onClose={() => setFollowModal(prev => ({ ...prev, visible: false }))}
+        onClose={() => setConnections({ type: null, data: [], loading: null })}
       />
       <FollowingListModal
-        visible={followingModal.visible}
-        title={followingModal.title}
-        data={followingModal.data}
+        visible={connections.type === 'following'}
+        title="Following"
+        data={connections.data}
         navigation={navigation}
-        onClose={() => setFollowingModal(prev => ({ ...prev, visible: false }))}
+        onClose={() => setConnections({ type: null, data: [], loading: null })}
       />
-      <ExpandableFAB
-        isVisible={isFabMenuVisible}
-        onClose={toggleFab}
-        actions={['iAssistant']}
-      />
+      <ExpandableFAB isVisible={isFabMenuVisible} onClose={toggleFab} actions={['iAssistant']} />
+
+      {/* More options (other people's profiles) */}
+      <Modal
+        isVisible={moreMenuVisible}
+        onBackdropPress={() => setMoreMenuVisible(false)}
+        onBackButtonPress={() => setMoreMenuVisible(false)}
+        swipeDirection="down"
+        onSwipeComplete={() => setMoreMenuVisible(false)}
+        style={styles.modalBottom}
+      >
+        <View style={[styles.sheet, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+          <TouchableOpacity
+            style={styles.sheetItem}
+            onPress={() => {
+              Clipboard.setString(profileLink);
+              setMoreMenuVisible(false);
+              Toast.show({ type: 'success', text2: 'Profile link copied' });
+            }}
+          >
+            <MaterialIcons name="link" size={22} color={colors.textDarker} />
+            <Text style={[styles.sheetText, { color: colors.textDarker }]}>Copy profile link</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sheetItem} onPress={shareProfile}>
+            <MaterialIcons name="ios-share" size={22} color={colors.textDarker} />
+            <Text style={[styles.sheetText, { color: colors.textDarker }]}>Share profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sheetItem} onPress={confirmBlock} disabled={blockBusy}>
+            <MaterialIcons name="block" size={22} color={colors.primary} />
+            <Text style={[styles.sheetText, { color: colors.primary }]}>Block {profileData.firstname || 'user'}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       <Modal
         isVisible={isEditModalVisible}
@@ -1241,6 +1118,72 @@ export const ProfileScreen = ({ route }: any) => {
   );
 };
 const styles = StyleSheet.create({
+  identityCard: {
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  identityTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  identityName: { paddingHorizontal: 0, paddingTop: 0, backgroundColor: 'transparent' },
+  iconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    maxWidth: '100%',
+  },
+  metaChipText: { fontSize: 12.5, fontWeight: '600', flexShrink: 1 },
+  statTiles: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  statTile: { flex: 1, alignItems: 'center', paddingVertical: 2, minHeight: 40, justifyContent: 'center' },
+  statTileValue: { fontSize: 18, fontWeight: '800' },
+  statTileLabel: { fontSize: 12, marginTop: 2, opacity: 0.8 },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 28 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  fillBtn: { flex: 1, width: 'auto', height: 44, borderRadius: 22, paddingHorizontal: 12 },
+  outlineBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  outlineBtnText: { fontSize: 14, fontWeight: '700' },
+  squareBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderText: { fontSize: 13.5, opacity: 0.7, lineHeight: 20 },
+  tabState: { alignItems: 'center', paddingVertical: 28, gap: 6 },
+  tabRetry: { fontSize: 13, fontWeight: '700' },
+  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
+  sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  sheetText: { fontSize: 15.5, fontWeight: '600' },
   blockedContainer: {
     position: 'relative',
     alignItems: 'center',

@@ -6,18 +6,20 @@ import {
   Dimensions,
   TouchableOpacity,
   StyleSheet,
-  Modal,
 } from 'react-native';
 import { useAppSelector } from '../hooks/hooks';
-import { PayWithFlutterwave } from 'flutterwave-react-native';
+import { useDispatch } from 'react-redux';
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { PageHeader } from '../components/PageHeader';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { User } from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { CustomButton } from '../assets/components/AppUIComponents';
-import { verifySubscriptionOnBackend } from '../api/localPostApis';
-import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
+import {
+  FlutterwavePaySheet,
+  PaymentConfirmation,
+} from '../components/FlutterwavePaySheet';
+import { patchUser } from '../context/UserSlice';
 import {
   USD_SUBSCRIPTION_PRICES,
   DELIVERY_FEES,
@@ -29,9 +31,6 @@ import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
 type SubscriptionTier = User['tier'] | 'free';
-
-type FlutterwaveCurrency =
-  'NGN' | 'USD' | 'GHS' | 'ZAR' | 'KES' | 'UGX' | 'TZS' | 'GBP' | 'EUR' | 'CAD';
 
 interface Props {
   route: { params: { targetScreen?: string } };
@@ -96,13 +95,13 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
 ];
 export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
-  const { tier, email, firstname, lastname, country } = useAppSelector(
-    state => state.user,
-  );
+  const dispatch = useDispatch();
+  const { tier, country } = useAppSelector(state => state.user);
   const [selectedTier, setSelectedTier] = useState(tier);
   const [isPayModalVisible, setPayModalVisible] = useState(false);
   const { targetScreen } = route.params || {};
-  const { exchangeData, loading } = useExchangeRate(country || 'Nigeria');
+  // Display only: the pay sheet shows the server's price, which is what's charged.
+  const { exchangeData } = useExchangeRate(country || 'Nigeria');
 
   const getLocalPriceValue = React.useCallback(
     (id: string) => {
@@ -128,52 +127,26 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
     [exchangeData.symbol, getLocalPriceValue],
   );
 
-  const handlePaymentSuccess = async (data: any) => {
-    try {
-      const transactionId = data.transaction_id || data.flw_ref;
-      if (data.status === 'successful' || data.status === 'completed') {
-        const verification = await verifySubscriptionOnBackend(
-          transactionId,
-          selectedTier!,
-          exchangeData.rate,
-        );
-        if (verification.success) {
-          Toast.show({
-            type: 'success',
-            text1: 'Subscription Active!',
-            text2: 'Your account has been upgraded.',
-          });
-          if (targetScreen) {
-            navigation.navigate(targetScreen);
-          } else {
-            navigation.navigate('Home', { activeTab: 'home' });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Verification Error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Verification Failed',
-        text2: 'Please contact support if you were charged.',
-      });
+  const handlePaymentSuccess = (result: PaymentConfirmation) => {
+    setPayModalVisible(false);
+    dispatch(
+      patchUser({
+        tier: result.tier as User['tier'],
+        isSubscribed: true,
+        subscriptionExpiresAt: result.subscriptionExpiresAt,
+      } as any),
+    );
+    Toast.show({
+      type: 'success',
+      text1: 'Subscription Active!',
+      text2: 'Your account has been upgraded.',
+    });
+    if (targetScreen) {
+      navigation.navigate(targetScreen);
+    } else {
+      navigation.navigate('Home', { activeTab: 'home' });
     }
   };
-
-  const renderCustomButton = React.useCallback(
-    (props: any) => (
-      <View
-        pointerEvents={loading ? 'none' : 'auto'}
-        style={{ opacity: loading ? 0.6 : 1 }}
-      >
-        <FlutterwaveButton
-          onPress={props.onPress}
-          label={`Pay ${formatLocalPrice(selectedTier!)}`}
-        />
-      </View>
-    ),
-    [selectedTier, formatLocalPrice, loading],
-  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -269,66 +242,22 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
         </ScrollView>
       </View>
 
-      <Modal
+      <FlutterwavePaySheet
         visible={isPayModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setPayModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setPayModalVisible(false)}
-        >
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <View style={styles.modalHandle} />
-
-            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
-              Confirm Subscription
-            </Text>
-            <Text style={[styles.modalSubTitle, { color: colors.text }]}>
-              You are upgrading to {selectedTier?.toUpperCase()} plan.
-            </Text>
-            <View style={styles.priceBreakdown}>
-              <Text style={[styles.priceLabel, { color: colors.text }]}>
-                Total to pay:
-              </Text>
-              <Text style={[styles.priceValue, { color: colors.text }]}>
-                {formatLocalPrice(selectedTier!)}
-              </Text>
-            </View>
-            <PayWithFlutterwave
-              onRedirect={data => {
-                setPayModalVisible(false);
-                handlePaymentSuccess(data);
-              }}
-              options={{
-                tx_ref: `sub_${Date.now()}`,
-                authorization: FLUTTERWAVE_PUBLIC_KEY,
-                customer: { email, name: `${firstname} ${lastname}` },
-                amount: getLocalPriceValue(selectedTier!),
-                currency: exchangeData.code as FlutterwaveCurrency,
-                payment_options: 'card,ussd,banktransfer',
-              }}
-              customButton={renderCustomButton}
-            />
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setPayModalVisible(false)}
-            >
-              <Text
-                style={[styles.cancelButtonText, { color: colors.primary }]}
-              >
-                Go Back
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setPayModalVisible(false)}
+        request={
+          selectedTier && selectedTier !== 'free'
+            ? { purpose: 'subscription', tier: selectedTier }
+            : null
+        }
+        title={`Upgrade to ${selectedTier ? selectedTier[0].toUpperCase() + selectedTier.slice(1) : ''}`}
+        subtitle={
+          selectedTier === tier
+            ? 'Renewing adds 30 days to your current plan.'
+            : '30 days of access. Renew any time.'
+        }
+        onPaid={handlePaymentSuccess}
+      />
     </View>
   );
 };
