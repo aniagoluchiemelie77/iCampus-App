@@ -84,7 +84,6 @@ import { EditProfileScreen } from './src/screens/EditProfileScreen.tsx';
 import { PersonaVerificationScreen } from './src/screens/PersonaVerificationScreen.tsx';
 import { LinkedDevicesScreen } from './src/screens/SLinkedDevicesScreen.tsx';
 import { SubscriptionScreen } from './src/screens/SubscriptionsScreen.tsx';
-import { BlockedUsersScreen } from './src/screens/BlockedUsersScreen.tsx';
 import { NotificationSettings } from './src/screens/SNotificationScreen.tsx';
 import { ResetPasswordScreen } from './src/screens/SResetPasswordScreen.tsx';
 import { EmailsScreen } from './src/screens/SEmails.tsx';
@@ -128,6 +127,7 @@ import { refreshAccessToken } from './src/api/localPostApis.ts';
 import { useAppSelector } from './src/hooks/hooks.ts';
 import { BACKEND_URL } from '@env';
 import { AppDataProvider } from './src/context/EventContext.tsx';
+import { PostUploadProvider } from './src/context/PostUploadContext.tsx';
 import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
 import { setAdmin } from './src/context/AdminSlice';
@@ -199,7 +199,6 @@ export type RootStackParamList = {
   };
   Welcome: { route: string };
   LinkedDevicesScreen: undefined;
-  BlockedUsers: undefined;
   ResetPasswordScreen: undefined;
   EmailsScreen: undefined;
   PhoneScreen: undefined;
@@ -255,7 +254,9 @@ export type RootStackParamList = {
   };
   StudentAttendanceScanner: {
     lecture: Lecture;
-    onSuccess: () => void;
+    // Unused; kept optional for older callers (functions in params break
+    // state persistence and deep links).
+    onSuccess?: () => void;
   };
   EditProfile: undefined;
   PersonaVerify: undefined;
@@ -368,7 +369,9 @@ function MainApp() {
         const isAdmin =
           sessionType === 'admin' || (!sessionType && !!user.adminType);
         if (isAdmin) {
-          dispatch(setAdmin({ ...user, accessToken, tokenCreatedAt: Date.now() }));
+          dispatch(
+            setAdmin({ ...user, accessToken, tokenCreatedAt: Date.now() }),
+          );
           setInitialRoute('AdminDashboard');
           return;
         }
@@ -410,6 +413,9 @@ function MainApp() {
         <NavigationContainer linking={linking} ref={navigationRef}>
           {/* Without initialRouteName the stack always opened its first
               screen (SignUp), ignoring the session restored above. */}
+          {/* Post uploads run here, outside any screen, so CreatePost can
+              close while the upload finishes in the background. */}
+          <PostUploadProvider>
           <Stack.Navigator initialRouteName={initialRoute}>
             <Stack.Screen
               name="SignUp"
@@ -617,7 +623,8 @@ function MainApp() {
               component={SuspendedScreen}
               options={{ headerShown: false }}
               initialParams={{
-                reason: 'This account has been flagged for security violations.',
+                reason:
+                  'This account has been flagged for security violations.',
               }}
             />
             <Stack.Screen
@@ -638,11 +645,6 @@ function MainApp() {
             <Stack.Screen
               name="LinkedDevicesScreen"
               component={LinkedDevicesScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="BlockedUsers"
-              component={BlockedUsersScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -727,6 +729,7 @@ function MainApp() {
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
+          </PostUploadProvider>
           <Toast config={toastConfig} />
         </NavigationContainer>
       </AppDataProvider>

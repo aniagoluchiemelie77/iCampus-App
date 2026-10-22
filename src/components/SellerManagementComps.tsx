@@ -22,6 +22,7 @@ import {
   UserTier,
   Product,
   Transactions,
+  ReviewSummary,
 } from '../types/firebase';
 import { CurrencyDisplay } from './CurrencyFormatter';
 import { EmptyState } from './EmptyFlatlistComponent';
@@ -48,7 +49,7 @@ import Svg, {
   Stop,
   Path,
 } from 'react-native-svg';
-import { ReviewItem } from './ReviewItem';
+import { ReviewItem, StarRow, ratingTone } from './ReviewItem';
 import { useTheme } from '../context/ThemeContext';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import { ActionModal } from './LogoutModal.tsx';
@@ -1290,25 +1291,34 @@ export const ReviewsSection = () => {
   const [hasMore, setHasMore] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  // Server-side totals across every review (not just the loaded pages).
+  const [summary, setSummary] = React.useState<ReviewSummary | null>(null);
 
   const sellerReviews = allReviews;
-  const totalReviews = sellerReviews.length;
-
-  const avgRating =
-    totalReviews > 0
-      ? (
-          sellerReviews.reduce((sum, r) => sum + (r?.rating || 0), 0) /
-            totalReviews
-        ).toFixed(1)
-      : '0.0';
-
-  const numericAvg = parseFloat(avgRating);
-  const ratingColor =
-    numericAvg < 2
-      ? colors.primary
-      : numericAvg < 3.5
-        ? colors.primaryTint
-        : colors.success;
+  const totalReviews = summary?.total ?? sellerReviews.length;
+  const numericAvg =
+    summary?.averageRating ??
+    (sellerReviews.length
+      ? sellerReviews.reduce((sum, r) => sum + (r?.rating || 0), 0) / sellerReviews.length
+      : 0);
+  const distribution = useMemo(() => {
+    if (summary?.distribution) return summary.distribution;
+    const d: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    sellerReviews.forEach(r => {
+      const bucket = Math.min(5, Math.max(1, Math.round(Number(r?.rating) || 0)));
+      if (r?.rating) d[bucket] += 1;
+    });
+    return d;
+  }, [summary, sellerReviews]);
+  const ratingColor = ratingTone(numericAvg, colors);
+  const performanceLabel =
+    numericAvg >= 4.5
+      ? 'Excellent'
+      : numericAvg >= 3.5
+        ? 'Very good'
+        : numericAvg >= 2.5
+          ? 'Average'
+          : 'Needs attention';
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setPage(1);
@@ -1316,6 +1326,7 @@ export const ReviewsSection = () => {
     if (response.success) {
       setAllReviews(response.data);
       setHasMore(response.pagination.hasMore);
+      if (response.summary) setSummary(response.summary);
     }
     setIsRefreshing(false);
   };
@@ -1339,45 +1350,70 @@ export const ReviewsSection = () => {
       handleRefresh();
     }, []),
   );
-  return (
-    <View style={styles.container}>
-      <View
-        style={[styles.header, { backgroundColor: colors.backgroundSecondary }]}
-      >
-        <View style={styles.subheader}>
-          <Text style={[styles.titleSecondary, { color: colors.textDarker }]}>
-            Customer Feedback
+  const renderSummary = () =>
+    totalReviews > 0 ? (
+      <View style={[reviewsUi.summaryCard, { backgroundColor: colors.backgroundSecondary }]}>
+        <View style={reviewsUi.summaryLeft}>
+          <Text style={[reviewsUi.avgValue, { color: colors.textDarker }]}>
+            {numericAvg.toFixed(1)}
           </Text>
-          <Text style={[styles.count, { color: colors.text }]}>
-            {totalReviews} Total Reviews
+          <StarRow rating={numericAvg} size={16} color={ratingColor} />
+          <Text style={[reviewsUi.avgCaption, { color: colors.text }]}>
+            {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
           </Text>
-        </View>
-        {avgRating && parseFloat(avgRating) > 0 && (
-          <View style={styles.avgContainer}>
-            <View style={styles.ratingRow}>
-              <Text style={[styles.avgText, { color: ratingColor }]}>
-                {avgRating}
-              </Text>
-              <MaterialIcons name="star" size={31} color={ratingColor} />
-            </View>
-            <Text style={[styles.performanceLabel, { color: ratingColor }]}>
-              {numericAvg < 2
-                ? 'Poor Performance'
-                : numericAvg < 3.5
-                  ? 'Average'
-                  : 'Excellent'}
+          <View style={[reviewsUi.toneChip, { backgroundColor: ratingColor + '1A' }]}>
+            <Text style={[reviewsUi.toneChipText, { color: ratingColor }]}>
+              {performanceLabel}
             </Text>
           </View>
-        )}
+        </View>
+        <View style={reviewsUi.summaryRight}>
+          {[5, 4, 3, 2, 1].map(star => {
+            const count = distribution[star as 1 | 2 | 3 | 4 | 5] || 0;
+            const share = totalReviews ? count / totalReviews : 0;
+            return (
+              <View key={star} style={reviewsUi.barRow}>
+                <Text style={[reviewsUi.barLabel, { color: colors.text }]}>{star}</Text>
+                <MaterialIcons name="star" size={11} color={colors.text} />
+                <View style={[reviewsUi.barTrack, { backgroundColor: colors.border + '88' }]}>
+                  <View
+                    style={[
+                      reviewsUi.barFill,
+                      { width: `${share * 100}%`, backgroundColor: ratingTone(star, colors) },
+                    ]}
+                  />
+                </View>
+                <Text style={[reviewsUi.barCount, { color: colors.text }]}>
+                  {formatStatNumber(count)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
       </View>
+    ) : null;
+
+  return (
+    <View style={styles.container}>
       <FlatList
         data={sellerReviews}
         keyExtractor={(item, index) =>
-          item?.id || item?.reviewerId || `review-${index}`
+          item?.id || item?.reviewId || `review-${item?.reviewerId}-${index}`
         }
         renderItem={({ item }) => (item ? <ReviewItem review={item} /> : null)}
+        ListHeaderComponent={renderSummary}
+        contentContainerStyle={[
+          hub.listContent,
+          sellerReviews.length === 0 && { flexGrow: 1 },
+        ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
@@ -1926,6 +1962,33 @@ const pickerSelectStyles = {
     borderRadius: 8,
   },
 };
+
+// Reviews tab summary card.
+const reviewsUi = StyleSheet.create({
+  summaryCard: {
+    flexDirection: 'row',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    gap: 18,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  summaryLeft: { alignItems: 'center', justifyContent: 'center', minWidth: 96 },
+  avgValue: { fontSize: 40, fontWeight: '800', letterSpacing: -1 },
+  avgCaption: { fontSize: 12, marginTop: 4, opacity: 0.75 },
+  toneChip: { marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  toneChipText: { fontSize: 11, fontWeight: '800' },
+  summaryRight: { flex: 1, justifyContent: 'center', gap: 6 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  barLabel: { fontSize: 12, fontWeight: '700', width: 10, textAlign: 'right' },
+  barTrack: { flex: 1, height: 7, borderRadius: 4, overflow: 'hidden', marginHorizontal: 4 },
+  barFill: { height: '100%', borderRadius: 4 },
+  barCount: { fontSize: 11.5, minWidth: 22, textAlign: 'right', opacity: 0.8 },
+});
 
 // Styles for the redesigned Sales Hub tabs (orders, overview, inventory).
 const hub = StyleSheet.create({

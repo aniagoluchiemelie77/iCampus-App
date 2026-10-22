@@ -4,8 +4,6 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  Platform,
-  PermissionsAndroid,
   useWindowDimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -35,11 +33,8 @@ import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
 import { Lecture } from '../types/firebase';
 import { SearchScreen } from '../components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
-import {
-  fetchOngoingLecture,
-  getCourseDetailsForOngoingLecture,
-  getAllExceptionsForOngoingLecture,
-} from '../api/localGetApis';
+import { fetchOngoingLecture } from '../api/localGetApis';
+import { openLecturerAttendance, openStudentAttendance } from '../utils/attendance';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
 import {
@@ -224,7 +219,7 @@ const HomeScreen = () => {
         };
       case 'classroom':
         return {
-          actions: ['iAssistant', 'View Lectures'],
+          actions: ['iAssistant', 'View Lectures', 'Attendance'],
           iconName: 'widgets',
           iconColor: colors.btnTextColor,
         };
@@ -350,25 +345,8 @@ const HomeScreen = () => {
     }
     return unsubscribe;
   }, [navigation, user?.uid, user?.usertype]);
-  useEffect(() => {
-    const requestUserPermission = async () => {
-      if (Platform.OS === 'android' && Platform.Version >= 33) {
-        try {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-          );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('Android notification permission granted.');
-          } else {
-            console.log('Android notification permission denied.');
-          }
-        } catch (err) {
-          console.warn('Error requesting Android permission:', err);
-        }
-      }
-    };
-    requestUserPermission();
-  }, []);
+  // Notification permission + FCM token registration happen together in
+  // requestUserPermissionAndGetToken (App start, login and signup).
   useEffect(() => {
     if (!socket || !user?.uid) return;
 
@@ -406,50 +384,12 @@ const HomeScreen = () => {
       setOngoingLecture(null);
       return;
     } else if (ongoingLecture.lectureType === 'Physical') {
-      try {
-        if (userType === 'lecturer') {
-          const [courseResult, exceptionsResult] = await Promise.all([
-            getCourseDetailsForOngoingLecture({
-              courseId: ongoingLecture.courseId,
-            }),
-            getAllExceptionsForOngoingLecture({ lectureId: ongoingLecture.id }),
-          ]);
-          if (courseResult.success && exceptionsResult.success) {
-            navigation.navigate('PhysicalAttendanceManager', {
-              lecture: ongoingLecture,
-              course: courseResult.data!,
-              exceptions: exceptionsResult.data!,
-            });
-          } else {
-            const courseError = courseResult.error
-              ? `Course Err: ${courseResult.error}`
-              : '';
-            const exceptionsError = exceptionsResult.error
-              ? `Exceptions Err: ${exceptionsResult.error}`
-              : '';
-            console.error(
-              `Data fetch failed. ${courseError} ${exceptionsError}`,
-            );
-            Toast.show({
-              type: 'error',
-              text1: 'Fetch Error',
-              text2: `Data fetch failed. ${courseError} ${exceptionsError}`,
-            });
-          }
-        } else if (userType === 'student') {
-          navigation.navigate('StudentAttendanceScanner', {
-            lecture: ongoingLecture,
-            onSuccess: () => navigation.navigate('Home', { activeTab: 'home' }),
-          });
-        }
-        setOngoingLecture(null);
-      } catch (err) {
-        console.error('Failed to fetch attendance requirements', err);
-        Toast.show({
-          type: 'error',
-          text1: 'Connection Error',
-          text2: 'Could not load lecture details.',
-        });
+      const lecture = ongoingLecture;
+      setOngoingLecture(null);
+      if (userType === 'lecturer') {
+        await openLecturerAttendance(navigation, lecture);
+      } else if (userType === 'student') {
+        openStudentAttendance(navigation, lecture);
       }
     }
   };

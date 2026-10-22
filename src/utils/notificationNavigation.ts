@@ -81,17 +81,67 @@ export const navigateForNotification = (
       }
       break;
 
+    case 'LIVE_CLASS_STARTED':
+      if (payload.lectureId) {
+        navigation.navigate('LiveClassSessions', {
+          lectureId: payload.lectureId,
+          courseId: payload.courseId,
+        });
+        return;
+      }
+      break;
+
     case 'LECTURE_CANCELLED':
+    case 'LECTURE_UPDATED':
     case 'LECTURE_POSTPONED':
     case 'LECTURE_VENUE_CHANGE':
     case 'LECTURE_TYPE_CHANGE':
     case 'LECTURE_SCHEDULED':
     case 'LECTURE_REMINDER':
+      // Online class reminder: go straight into the class (it shows a
+      // waiting screen until the lecturer goes live).
+      if (
+        item.actionType === 'LECTURE_REMINDER' &&
+        payload.lectureId &&
+        payload.courseId &&
+        String(payload.lectureType || '').toLowerCase() === 'online'
+      ) {
+        navigation.navigate('LiveClassSessions', {
+          lectureId: payload.lectureId,
+          courseId: payload.courseId,
+        });
+        return;
+      }
       navigation.navigate('CourseSubPage', {
         title: 'View Lecture Schedule',
         userRole: user.usertype,
       });
       return;
+
+    case 'ATTENDANCE_OPEN': {
+      // Straight to the scanner: the payload has what it needs.
+      const lectureId =
+        payload.lectureId ||
+        (item.relatedEntity?.entityType === 'lecture' ? item.relatedEntity.entityId : null);
+      if (lectureId && user.usertype === 'student') {
+        navigation.navigate('StudentAttendanceScanner', {
+          lecture: {
+            id: lectureId,
+            courseId: payload.courseId,
+            topicName: payload.topicName || 'Lecture',
+            location: payload.location,
+            lectureType: 'Physical',
+            status: 'ongoing',
+          },
+        });
+        return;
+      }
+      navigation.navigate('CourseSubPage', {
+        title: 'View Lecture Schedule',
+        userRole: user.usertype,
+      });
+      return;
+    }
 
     case 'CONTENT_MUTATED':
     case 'CONTENT_DELETION':

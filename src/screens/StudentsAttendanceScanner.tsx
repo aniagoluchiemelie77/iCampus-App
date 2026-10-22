@@ -4,13 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Linking,
   Platform,
-  NativeEventEmitter,
-  NativeModules,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
@@ -28,7 +24,6 @@ import { SocketContext } from '../hooks/useSocket';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { SERVICE_UUID } from '@env';
-import { LogoBigger } from '../assets/images/Logo';
 import { GetAttendanceScreenStyles } from './PhysicalClassGetAttendanceScreen';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
@@ -38,115 +33,122 @@ import Modal from 'react-native-modal';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { PulseEmitter } from '../components/PulsingAnimation';
+import { PageHeader } from '../components/PageHeader';
+import {
+  ensureBluetoothOn,
+  ensureBluetoothPermissions,
+  isLectureBeacon,
+  startBleManager,
+} from '../utils/attendance';
 
 const rnBiometrics = new ReactNativeBiometrics();
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SEARCH_SECONDS = 120;
+const SCAN_BURST_SECONDS = 10;
+const SUBMIT_TIMEOUT_MS = 20000;
 
 type Props = StackScreenProps<RootStackParamList, 'StudentAttendanceScanner'>;
-const BleManagerModule = NativeModules.BleManager;
-const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+type Status = 'idle' | 'preparing' | 'scanning' | 'notFound' | 'verifying' | 'submitting' | 'success' | 'error';
 
 export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const { lecture } = route.params;
   const user = useAppSelector(state => state.user);
   const socketContext = useContext(SocketContext);
-  const [isScanning, setIsScanning] = useState(false);
-  const [status, setStatus] = useState<
-    'idle' | 'joining' | 'verifying' | 'success' | 'error'
-  >('idle');
+  const [status, setStatus] = useState<Status>('idle');
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState(SEARCH_SECONDS);
   const device = useCameraDevice('front');
   const { hasPermission, requestPermission } = useCameraPermission();
-
-  const [secondsLeft, setSecondsLeft] = useState(300);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cameraRef = useRef<any>(null);
-  const detectedLectureIdRef = useRef<string | null>(null);
+  const statusRef = useRef<Status>(status);
+  statusRef.current = status;
+  const submitTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const fail = useCallback((message: string) => {
+    BleManager.stopScan().catch(() => {});
+    setShowCamera(false);
+    setIsProcessingAI(false);
+    setErrorMessage(message);
+    setStatus('error');
+  }, []);
+
+  // ---- Submit -------------------------------------------------------------
   const dispatchAttendancePayload = useCallback(() => {
-    setStatus('joining');
-    setIsScanning(false);
-    socketContext?.socket?.emit('student_mark_attendance', {
-      lectureId: detectedLectureIdRef.current,
+    setStatus('submitting');
+    if (!socketContext?.socket) {
+      fail('You are offline. Check your connection and try again.');
+      return;
+    }
+    socketContext.socket.emit('student_mark_attendance', {
+      lectureId: lecture.id,
       studentId: user.uid,
       timestamp: new Date().toISOString(),
     });
-  }, [socketContext, user.uid]);
+    if (submitTimeout.current) clearTimeout(submitTimeout.current);
+    submitTimeout.current = setTimeout(() => {
+      if (statusRef.current === 'submitting') {
+        fail('The server did not respond. Check your connection and try again.');
+      }
+    }, SUBMIT_TIMEOUT_MS);
+  }, [socketContext, lecture.id, user.uid, fail]);
+
+  // ---- Identity -----------------------------------------------------------
   const openIdentityCamera = useCallback(async () => {
     if (!hasPermission) {
       const granted = await requestPermission();
       if (!granted) {
-        Toast.show({
-          type: 'error',
-          text1: 'Permission Denied',
-          text2: 'Camera access is required for AI identity verification.',
-        });
+        fail('Camera access is needed to verify your identity. Allow it in Settings and try again.');
         return;
       }
     }
+    setStatus('verifying');
     setShowCamera(true);
-  }, [hasPermission, requestPermission]);
+  }, [hasPermission, requestPermission, fail]);
+
   const handleTakeSelfie = async () => {
     if (!cameraRef.current || isProcessingAI) return;
     setIsProcessingAI(true);
     try {
-      const photoFile = await cameraRef.current.takePhoto({
-        flash: 'off',
-        enableShutterSound: false,
-      });
-      const resized = await ImageResizer.createResizedImage(
-        photoFile.path,
-        800,
-        800,
-        'JPEG',
-        80,
-      );
+      const photoFile = await cameraRef.current.takePhoto({ flash: 'off', enableShutterSound: false });
+      const resized = await ImageResizer.createResizedImage(photoFile.path, 800, 800, 'JPEG', 80);
       const base64Image = await RNFS.readFile(resized.path, 'base64');
-      const result = await verifyFacialIdentity(
-        base64Image,
-        user.schoolAvatarUrl!,
-      );
+      const result = await verifyFacialIdentity(base64Image, user.schoolAvatarUrl!);
+      setIsProcessingAI(false);
       if (result.verified) {
         setShowCamera(false);
         dispatchAttendancePayload();
       } else {
-        setIsProcessingAI(false);
-        setStatus('error');
-        setErrorMessage(result.message || 'Facial verification failed.');
-        setShowCamera(false);
+        fail(result.message || 'We could not match your face to your school photo. Try again in good light.');
       }
     } catch (error) {
       setIsProcessingAI(false);
-      Toast.show({
-        type: 'error',
-        text1: 'Camera Error',
-        text2: 'Failed to accurately capture photo payload.',
-      });
+      Toast.show({ type: 'error', text1: 'Camera error', text2: 'Could not take the photo. Try again.' });
     }
   };
-  const executeBiometricVerification = useCallback(async () => {
+
+  const verifyIdentity = useCallback(async () => {
+    const biometricsEnabled = await AsyncStorage.getItem('biometrics_enabled');
+    if (biometricsEnabled !== 'true') {
+      await openIdentityCamera();
+      return;
+    }
     try {
       const { available } = await rnBiometrics.isSensorAvailable();
       if (!available) {
         await openIdentityCamera();
         return;
       }
-
+      setStatus('verifying');
       const { success } = await rnBiometrics.simplePrompt({
         promptMessage: 'Verify your identity to mark attendance',
       });
-
       if (success) {
         dispatchAttendancePayload();
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Biometric Match Failed',
-          text2: 'Defaulting to selfie capture.',
-        });
+        Toast.show({ type: 'info', text1: 'Fingerprint not confirmed', text2: 'Take a selfie instead.' });
         await openIdentityCamera();
       }
     } catch (err) {
@@ -154,291 +156,238 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       await openIdentityCamera();
     }
   }, [openIdentityCamera, dispatchAttendancePayload]);
-  const startScan = async () => {
-    setStatus('joining');
-    setSecondsLeft(300);
-    setIsScanning(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    try {
-      const intervalId = setInterval(() => {
-        setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
-      }, 1000);
-      timerRef.current = intervalId;
-      await BleManager.scan({
-        serviceUUIDs: [SERVICE_UUID],
-        seconds: 10,
-        allowDuplicates: false,
-      });
-      console.log('Scan started successfully');
-    } catch (err) {
-      console.error('Scan error:', err);
-      setIsScanning(false);
-    }
-  };
-  const handleJoinAttendance = async () => {
-    try {
-      const state = await BleManager.checkState();
-      if (state !== 'on') {
-        Alert.alert(
-          'Bluetooth Required',
-          'Please turn on Bluetooth to scan for the lecturer’s signal.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Settings',
-              onPress: () => {
-                if (Platform.OS === 'android') {
-                  Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
-                } else {
-                  Linking.openURL('App-Prefs:Bluetooth');
-                }
-              },
-            },
-          ],
-        );
-        return;
-      }
-      startScan();
-    } catch (e) {
-      console.error('Bluetooth state check failed', e);
-      Alert.alert('Error', 'Could not verify Bluetooth status.');
-    }
-  };
-  const handleStopFetching = async () => {
-    setIsScanning(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-    setStatus('success');
-  };
-  const handleHostSignalFound = useCallback(
-    async (discoveredId: string) => {
-      if (discoveredId !== lecture.id) {
-        console.log(
-          'Found an iCampus signal, but it belongs to a different lecture session.',
-        );
-        return;
-      }
-      detectedLectureIdRef.current = discoveredId;
-      BleManager.stopScan();
-      setIsScanning(false);
-      if (timerRef.current) clearInterval(timerRef.current);
 
-      const biometricsEnabled =
-        await AsyncStorage.getItem('biometrics_enabled');
-      if (biometricsEnabled === 'true') {
-        await executeBiometricVerification();
-      } else {
-        setStatus('verifying');
-        await openIdentityCamera();
-      }
-    },
-    [lecture.id, openIdentityCamera, executeBiometricVerification],
-  );
+  // ---- Scanning -----------------------------------------------------------
+  const scanBurst = () =>
+    BleManager.scan({
+      serviceUUIDs: [SERVICE_UUID],
+      seconds: SCAN_BURST_SECONDS,
+      allowDuplicates: false,
+    }).catch(err => console.warn('BLE scan error', err));
+
+  const startSearch = async () => {
+    setStatus('preparing');
+    const allowed = await ensureBluetoothPermissions('scan');
+    if (!allowed) return setStatus('idle');
+    const on = await ensureBluetoothOn('iCampus needs it to find your lecturer’s signal in the room.');
+    if (!on) return setStatus('idle');
+    setSecondsLeft(SEARCH_SECONDS);
+    setStatus('scanning');
+    scanBurst();
+  };
+
+  const cancelSearch = () => {
+    BleManager.stopScan().catch(() => {});
+    setStatus('idle');
+  };
+
+  // Countdown while searching.
   useEffect(() => {
-    const handleDiscover = (data: any) => {
-      const name = data.name || data.advertising?.localName;
-      if (name && name.startsWith('iCampus-')) {
-        const detectedLectureId = name.split('iCampus-')[1];
-        handleHostSignalFound(detectedLectureId);
-      }
-    };
-
-    const discoverListener = bleManagerEmitter.addListener(
-      'BleManagerDiscoverPeripheral',
-      handleDiscover,
-    );
-
-    return () => discoverListener.remove();
-  }, [handleHostSignalFound]);
-  useEffect(() => {
-    if (!socketContext?.socket) return;
-    const socket = socketContext.socket;
-
-    socket.on('attendance_success', () => {
-      setStatus('success');
-      setTimeout(
-        () => navigation.navigate('Home', { activeTab: 'home' }),
-        4000,
-      );
-    });
-
-    socket.on('error', (err: string) => {
-      setIsScanning(false);
+    if (status !== 'scanning') return;
+    if (secondsLeft <= 0) {
       BleManager.stopScan().catch(() => {});
+      setStatus('notFound');
+      return;
+    }
+    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [status, secondsLeft]);
 
-      if (timerRef.current) clearInterval(timerRef.current);
-
-      setStatus('error');
-      setErrorMessage(err);
-    });
-
-    return () => {
-      socket.off('attendance_success');
-      socket.off('error');
-    };
-  }, [socketContext, navigation]);
   useEffect(() => {
-    BleManager.start({ showAlert: false });
-
+    startBleManager().catch(() => {});
+    const discover = BleManager.onDiscoverPeripheral((peripheral: any) => {
+      if (statusRef.current !== 'scanning') return;
+      const name = peripheral?.name || peripheral?.advertising?.localName;
+      // The scan only returns devices advertising the iCampus service; the
+      // server additionally checks this lecture's session is open.
+      if (name && !isLectureBeacon(name, lecture.id)) return;
+      BleManager.stopScan().catch(() => {});
+      verifyIdentity();
+    });
+    // Each native scan ends after a few seconds; keep going until time's up.
+    const stopped = BleManager.onStopScan(() => {
+      if (statusRef.current === 'scanning') scanBurst();
+    });
     return () => {
-      BleManager.stopScan().catch(err =>
-        console.log('BLE cleanup ignored:', err),
+      discover.remove();
+      stopped.remove();
+      BleManager.stopScan().catch(() => {});
+      if (submitTimeout.current) clearTimeout(submitTimeout.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lecture.id, verifyIdentity]);
+
+  // ---- Server responses ---------------------------------------------------
+  useEffect(() => {
+    const socket = socketContext?.socket;
+    if (!socket) return;
+    const onSuccess = () => {
+      if (submitTimeout.current) clearTimeout(submitTimeout.current);
+      setStatus('success');
+    };
+    const onError = (err: any) => {
+      if (submitTimeout.current) clearTimeout(submitTimeout.current);
+      const message = typeof err === 'string' ? err : err?.message;
+      fail(
+        message === 'Attendance session is no longer active.'
+          ? 'Attendance isn’t open for this lecture right now. Ask your lecturer to start (or reopen) it.'
+          : message || 'Could not confirm your attendance.',
       );
     };
-  }, []);
+    socket.on('attendance_success', onSuccess);
+    socket.on('error', onError);
+    return () => {
+      socket.off('attendance_success', onSuccess);
+      socket.off('error', onError);
+    };
+  }, [socketContext, fail]);
 
-  const idle = status === 'idle';
+  // ---- UI -----------------------------------------------------------------
+  const goHome = () => navigation.navigate('Home', { activeTab: 'classroom' } as any);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <LogoBigger />
-        {idle && (
-          <>
-            <MaterialIcons name="info" size={80} color={colors.primary} />
-            <Text style={[styles.joinText, { color: colors.text }]}>
-              Attendance for {lecture.topicName} is ongoing, click the button
-              below to scan and join
+      <PageHeader title="Mark Attendance" />
+      <View style={styles.body}>
+        <View style={[styles.infoCard, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={[styles.infoIcon, { backgroundColor: colors.primary + '1A' }]}>
+            <MaterialIcons name="how-to-reg" size={24} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.topic, { color: colors.textDarker }]} numberOfLines={2}>
+              {lecture.topicName}
             </Text>
-            <CustomButton
-              title="Join Attendance"
-              style={styles.joinBtn}
-              onPress={handleJoinAttendance}
-            />
-          </>
-        )}
-        {isScanning && status === 'joining' && (
-          <>
-            <View style={GetAttendanceScreenStyles.pulseWrapper}>
-              <View style={GetAttendanceScreenStyles.timerCircle}>
-                <Text
-                  style={[
-                    GetAttendanceScreenStyles.timerNumber,
-                    { color: colors.primary },
-                  ]}
-                >
-                  {formatTime(secondsLeft)}
-                </Text>
-                <Text
-                  style={[
-                    GetAttendanceScreenStyles.timerLabel,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Scanning...
-                </Text>
-              </View>
-              <PulseEmitter
-                size={150}
-                strokeWidth={2}
-                color={colors.primary}
-              />
+            {!!lecture.location && (
+              <Text style={[styles.meta, { color: colors.text }]} numberOfLines={1}>
+                {lecture.location}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {(status === 'idle' || status === 'preparing') && (
+          <View style={styles.center}>
+            <View style={styles.steps}>
+              {[
+                { icon: 'meeting-room', text: 'Be in the lecture room with your lecturer.' },
+                { icon: 'bluetooth-searching', text: 'Your phone finds the class signal over Bluetooth.' },
+                { icon: 'face', text: 'Confirm it’s you with your fingerprint or a selfie.' },
+              ].map(step => (
+                <View key={step.icon} style={styles.stepRow}>
+                  <MaterialIcons name={step.icon} size={20} color={colors.primary} />
+                  <Text style={[styles.stepText, { color: colors.text }]}>{step.text}</Text>
+                </View>
+              ))}
             </View>
             <CustomButton
-              title="Stop Scan"
-              style={styles.joinBtn}
-              onPress={handleStopFetching}
+              title={status === 'preparing' ? 'Getting ready…' : 'Mark attendance'}
+              iconName="bluetooth-searching"
+              isLoading={status === 'preparing'}
+              disabled={status === 'preparing'}
+              style={styles.primaryBtn}
+              onPress={startSearch}
             />
-          </>
+          </View>
         )}
-        {status === 'success' && !isScanning && (
-          <View style={styles.feedbackContainer}>
-            <MaterialIcons
-              name="check-circle"
-              size={80}
-              color={colors.success}
-            />
-            <Text style={[styles.successText, { color: colors.textDarker }]}>
-              Attendance Confirmed
+
+        {status === 'scanning' && (
+          <View style={styles.center}>
+            <View style={GetAttendanceScreenStyles.pulseWrapper}>
+              <PulseEmitter size={170} strokeWidth={2} color={colors.primary} />
+              <View style={GetAttendanceScreenStyles.timerCircle}>
+                <Text style={[GetAttendanceScreenStyles.timerNumber, { color: colors.primary }]}>
+                  {formatTime(secondsLeft)}
+                </Text>
+                <Text style={[GetAttendanceScreenStyles.timerLabel, { color: colors.primary }]}>
+                  Searching
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.title, { color: colors.textDarker }]} accessibilityLiveRegion="polite">
+              Looking for your lecturer’s signal…
             </Text>
-            <Text style={[styles.subText, { color: colors.text }]}>
-              Redirecting to home in 4 seconds...
+            <Text style={[styles.sub, { color: colors.text }]}>
+              Stay close to the front of the room with Bluetooth on.
+            </Text>
+            <TouchableOpacity onPress={cancelSearch} style={styles.linkBtn} accessibilityRole="button">
+              <Text style={[styles.linkText, { color: colors.primary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {status === 'notFound' && (
+          <View style={styles.center}>
+            <MaterialIcons name="bluetooth-disabled" size={72} color={colors.primary} style={styles.selfCenter} />
+            <Text style={[styles.title, { color: colors.textDarker }]}>Signal not found</Text>
+            <View style={styles.tips}>
+              {[
+                'Make sure your lecturer has started attendance.',
+                'Move closer to the lecturer’s phone.',
+                'Turn Bluetooth off and on, then try again.',
+              ].map(tip => (
+                <View key={tip} style={styles.stepRow}>
+                  <MaterialIcons name="chevron-right" size={18} color={colors.primary} />
+                  <Text style={[styles.stepText, { color: colors.text }]}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+            <CustomButton title="Search again" iconName="refresh" style={styles.primaryBtn} onPress={startSearch} />
+          </View>
+        )}
+
+        {(status === 'verifying' || status === 'submitting') && !showCamera && (
+          <View style={styles.center}>
+            <PulseEmitter size={70} strokeWidth={3} color={colors.primary} count={3} />
+            <Text style={[styles.title, { color: colors.textDarker }]}>
+              {status === 'verifying' ? 'Verifying it’s you…' : 'Recording your attendance…'}
             </Text>
           </View>
         )}
+
+        {status === 'success' && (
+          <View style={styles.center}>
+            <MaterialIcons name="check-circle" size={88} color={colors.success} style={styles.selfCenter} />
+            <Text style={[styles.title, { color: colors.textDarker }]}>You’re marked present</Text>
+            <Text style={[styles.sub, { color: colors.text }]}>{lecture.topicName}</Text>
+            <CustomButton title="Done" style={styles.primaryBtn} onPress={goHome} />
+          </View>
+        )}
+
         {status === 'error' && (
-          <View style={styles.feedbackContainer}>
-            <MaterialIcons
-              name="sync-problem"
-              size={100}
-              color={colors.primary}
-            />
-            <Text style={[styles.errorText, { color: colors.textDarker }]}>
-              Failed to Confirm Attendance
-            </Text>
-            <Text style={[styles.subText, { color: colors.text }]}>
-              {errorMessage}
-            </Text>
-            <CustomButton
-              title="Retry"
-              style={styles.joinBtn}
-              onPress={() => setStatus('idle')}
-            />
-          </View>
-        )}
-        {!isScanning && status === 'joining' && (
-          <View style={styles.feedbackContainer}>
-            <PulseEmitter
-              size={60}
-              strokeWidth={3}
-              color={colors.primary}
-              count={3}
-            />
-            <Text style={[styles.joinText, { color: colors.text }]}>
-              Submitting your verified attendance attendance record...
-            </Text>
+          <View style={styles.center}>
+            <MaterialIcons name="sync-problem" size={80} color={colors.primary} style={styles.selfCenter} />
+            <Text style={[styles.title, { color: colors.textDarker }]}>Couldn’t confirm attendance</Text>
+            <Text style={[styles.sub, { color: colors.text }]}>{errorMessage}</Text>
+            <CustomButton title="Try again" iconName="refresh" style={styles.primaryBtn} onPress={startSearch} />
           </View>
         )}
       </View>
+
       <Modal
         isVisible={showCamera}
-        onBackdropPress={() => {}}
-        swipeDirection="down"
-        onSwipeComplete={() => {
+        onBackButtonPress={() => {
           setShowCamera(false);
           setStatus('idle');
         }}
         style={styles.modalOverride}
       >
         <View style={styles.cameraContainer}>
-          <Text
-            style={[styles.cameraTitleHeader, { color: colors.btnTextColor }]}
-          >
-            Identity Verification
-          </Text>
+          <Text style={[styles.cameraTitleHeader, { color: '#fff' }]}>Take a selfie to verify</Text>
           {device && hasPermission ? (
-            <Camera
-              ref={cameraRef}
-              style={styles.previewStyle}
-              device={device}
-              isActive={showCamera}
-            />
+            <Camera ref={cameraRef} style={styles.previewStyle} device={device} isActive={showCamera} />
           ) : (
-            <View
-              style={[
-                styles.errorContainer,
-                { backgroundColor: colors.backgroundSecondary },
-              ]}
-            >
-              <Text style={[styles.errorText, { color: colors.text }]}>
-                {!device
-                  ? 'Front camera device initialization failed.'
-                  : 'Camera permission required.'}
+            <View style={[styles.errorContainer, { backgroundColor: colors.backgroundSecondary }]}>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {!device ? 'Front camera unavailable.' : 'Camera permission required.'}
               </Text>
             </View>
           )}
-          <View
-            style={[
-              styles.cameraActionTray,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
+          <View style={[styles.cameraActionTray, { backgroundColor: colors.backgroundSecondary }]}>
             {isProcessingAI ? (
-              <ActivityIndicator size="large" color={colors.primary} />
+              <View style={styles.processingRow}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.sub, { color: colors.text, marginTop: 0 }]}>Checking your photo…</Text>
+              </View>
             ) : (
               <>
                 <TouchableOpacity
@@ -451,17 +400,12 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.captureBtn,
-                    { backgroundColor: colors.btnColor },
-                  ]}
+                  style={[styles.captureBtn, { backgroundColor: colors.btnColor }]}
                   onPress={handleTakeSelfie}
+                  accessibilityLabel="Take selfie"
                 >
-                  <Text
-                    style={[styles.captureText, { color: colors.btnTextColor }]}
-                  >
-                    Take Selfie
-                  </Text>
+                  <MaterialIcons name="photo-camera" size={18} color={colors.btnTextColor} />
+                  <Text style={[styles.captureText, { color: colors.btnTextColor }]}>Take selfie</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -473,51 +417,25 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 15, flex: 1, alignContent: 'center' },
-  subContainer: { padding: 20, borderRadius: 15, alignContent: 'center' },
-  joinBtn: {
-    paddingHorizontal: 15,
-    marginTop: 20,
-  },
-  joinBtnText: { fontSize: 14, fontWeight: 'bold' },
-  joinText: {
-    fontSize: 14,
-    marginVertical: 25,
-    fontWeight: 'bold',
-  },
-  feedbackContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginTop: 20,
-  },
-  successText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 15,
-  },
-  errorText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  subText: {
-    fontSize: 14,
-  },
-  retryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
-    marginTop: 20,
-  },
-  retryBtnText: {
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  modalOverride: {
-    margin: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1 },
+  body: { flex: 1, paddingHorizontal: 16, paddingBottom: 24 },
+  infoCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, marginTop: 4 },
+  infoIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  topic: { fontSize: 16, fontWeight: '800' },
+  meta: { fontSize: 12.5, marginTop: 3, opacity: 0.8 },
+  center: { flex: 1, justifyContent: 'center' },
+  selfCenter: { alignSelf: 'center' },
+  steps: { gap: 14, marginBottom: 28 },
+  tips: { gap: 10, marginVertical: 18 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepText: { flex: 1, fontSize: 14, lineHeight: 20 },
+  primaryBtn: { height: 54, borderRadius: 27, marginTop: 16 },
+  title: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginTop: 14 },
+  sub: { fontSize: 14, textAlign: 'center', marginTop: 8, opacity: 0.8, lineHeight: 20 },
+  linkBtn: { alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 20, marginTop: 10 },
+  linkText: { fontSize: 14.5, fontWeight: '700' },
+  processingRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  modalOverride: { margin: 0, alignItems: 'center', justifyContent: 'center' },
   cameraContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -526,28 +444,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    position: 'relative',
   },
-  cameraTitleHeader: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginVertical: 16,
-    zIndex: 10,
-    textShadowColor: 'rgba(255, 255, 255, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  previewStyle: {
-    flex: 1,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
+  cameraTitleHeader: { fontSize: 18, fontWeight: '700', textAlign: 'center', marginVertical: 16, zIndex: 10 },
+  previewStyle: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   cameraActionTray: {
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -555,48 +455,29 @@ const styles = StyleSheet.create({
     borderColor: PRIMARY_COLOR_TINT,
     zIndex: 10,
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    left: 10,
-    padding: 20,
-    borderRadius: 15,
+    bottom: 24,
+    right: 16,
+    left: 16,
+    padding: 18,
+    borderRadius: 18,
   },
   captureBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 15,
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  captureText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
+  captureText: { fontSize: 14.5, fontWeight: '700' },
   cancelBtn: {
-    paddingVertical: 10,
-    borderRadius: 15,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 22,
+    paddingHorizontal: 18,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  cancelText: {
-    color: PRIMARY_COLOR,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    zIndex: 10,
-  },
+  cancelText: { color: PRIMARY_COLOR, fontSize: 14, fontWeight: '600' },
+  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, zIndex: 10 },
 });

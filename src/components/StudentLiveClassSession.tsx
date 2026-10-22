@@ -3,27 +3,16 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Socket } from 'socket.io-client';
-import {
-  MediaStream,
-  RTCPeerConnection,
-  RTCSessionDescription,
-  RTCIceCandidate,
-  RTCView,
-} from 'react-native-webrtc';
-import LiveAudioStream from 'react-native-live-audio-stream';
-import { Buffer } from 'buffer';
+import { RtcSurfaceView } from 'react-native-agora';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { User, ChatMessage, Lecture } from '../types/firebase';
 import { useAppSelector } from '../hooks/hooks';
 import { UserAvatar } from './UserAvatar';
 import { useLiveTranscription } from '../hooks/useLiveTransciption';
+import { useAgoraClass } from '../hooks/useAgoraClass';
 import { useTheme } from '../context/ThemeContext';
-import {
-  createLiveClassPeerConnectionConfig,
-  formatElapsed,
-  toMillis,
-} from '../utils/liveClassRtc';
+import { formatElapsed, toMillis } from '../utils/liveClassRtc';
 import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
 import {
   ChatModal,
@@ -44,12 +33,6 @@ interface StudentLiveSessionProps {
 type StreamState = 'waiting' | 'connecting' | 'connected' | 'reconnecting';
 
 const MAX_VISIBLE_AVATARS = 6;
-const RETRY_STREAM_MS = 4000;
-
-const serializeCandidate = (c: any) =>
-  typeof c?.toJSON === 'function'
-    ? c.toJSON()
-    : { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex };
 
 export { LiveClassSessionStyles } from './liveClassStyles';
 
@@ -63,19 +46,11 @@ export const StudentLiveClassSession = ({
   const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const hostSocketIdRef = useRef<string | null>(null);
-  const pendingCandidatesRef = useRef<any[]>([]);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatVisibleRef = useRef(false);
   const startedAtRef = useRef<number>(
     toMillis((lecture as any).startedAt) ?? Date.now(),
   );
 
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [streamState, setStreamState] = useState<StreamState>(
-    lecture.isLive ? 'connecting' : 'waiting',
-  );
   const [isLecturerMuted, setIsLecturerMuted] = useState<boolean>(
     !!(lecture as any).isLecturerMuted,
   );
@@ -114,113 +89,58 @@ export const StudentLiveClassSession = ({
     });
   }, []);
 
-  // ---- WebRTC (receive-only) -----------------------------------------------
-  const resetPeer = useCallback(() => {
-    pcRef.current?.close();
-    pcRef.current = null;
-    pendingCandidatesRef.current = [];
-    setRemoteStream(null);
-  }, []);
-
-  const requestStream = useCallback(() => {
-    if (!socket || !joined) return;
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    socket.emit('webrtc_request_stream', { lectureId: lecture.id });
-    // If no offer arrives (host not broadcasting yet), ask again shortly.
-    retryTimerRef.current = setTimeout(() => {
-      if ((pcRef.current as any)?.connectionState !== 'connected') requestStream();
-    }, RETRY_STREAM_MS * 2);
-  }, [socket, joined, lecture.id]);
-
-  const handleHostSignal = useCallback(
-    async ({ signal, senderId }: { signal: any; senderId: string }) => {
-      if (!socket) return;
-      try {
-        if (signal.type === 'offer') {
-          resetPeer();
-          hostSocketIdRef.current = senderId;
-          setStreamState('connecting');
-          const pc = new RTCPeerConnection(createLiveClassPeerConnectionConfig());
-          pcRef.current = pc;
-
-          (pc as any).ontrack = (event: any) => {
-            const [stream] = event.streams || [];
-            if (stream) setRemoteStream(stream);
-          };
-          (pc as any).onicecandidate = (event: any) => {
-            if (!event.candidate) return;
-            socket.emit('webrtc_signal', {
-              lectureId: lecture.id,
-              targetSocketId: senderId,
-              signal: { candidate: serializeCandidate(event.candidate) },
-            });
-          };
-          (pc as any).onconnectionstatechange = () => {
-            if (pcRef.current !== pc) return;
-            const state = (pc as any).connectionState;
-            if (state === 'connected') {
-              setStreamState('connected');
-              if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-            } else if (state === 'failed' || state === 'disconnected') {
-              setStreamState('reconnecting');
-              if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-              retryTimerRef.current = setTimeout(requestStream, RETRY_STREAM_MS);
-            }
-          };
-
-          await pc.setRemoteDescription(new RTCSessionDescription(signal));
-          for (const c of pendingCandidatesRef.current) {
-            await pc.addIceCandidate(new RTCIceCandidate(c));
-          }
-          pendingCandidatesRef.current = [];
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          socket.emit('webrtc_signal', {
-            lectureId: lecture.id,
-            targetSocketId: senderId,
-            signal: { type: answer.type, sdp: answer.sdp },
-          });
-        } else if (signal.candidate) {
-          const pc = pcRef.current;
-          if (!pc || !(pc as any).remoteDescription) {
-            pendingCandidatesRef.current.push(signal.candidate);
-          } else {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-          }
-        }
-      } catch (err) {
-        console.error('[LIVE_RTC] Failed to process host signal:', err);
-      }
+  // ---- Floor mic -> transcription -------------------------------------------
+  const micLive = isMicAllowed && !isLocalMuted;
+  const { sendAudioChunkToDeepgram } = useLiveTranscription({
+    lectureId: lecture.id,
+    isHost: false,
+    currentUserFirstName: user.firstname || 'Student',
+    isMicActive: micLive,
+    onTranscriptChunk: (label, text) => {
+      appendTranscriptionText(label, text);
+      socket?.emit('share_transcription_chunk', {
+        lectureId: lecture.id,
+        speakerLabel: label,
+        text,
+      });
     },
-    [socket, lecture.id, resetPeer, requestStream],
-  );
+  });
 
-  // Ask for the stream as soon as we're in the room (and after reconnects).
+  // ---- Media (Agora, receive-only until given the floor) ---------------------
+  const agora = useAgoraClass({
+    lectureId: lecture.id,
+    role: 'audience',
+    enabled: true,
+    onMicAudio: sendAudioChunkToDeepgram,
+    micAudioActive: micLive,
+  });
+  const streamState: StreamState =
+    agora.status === 'reconnecting'
+      ? 'reconnecting'
+      : agora.status !== 'joined'
+        ? 'connecting'
+        : agora.hostPresent
+          ? 'connected'
+          : 'waiting';
+
+  // Given the floor: publish the mic so the whole class hears it.
   useEffect(() => {
-    if (joined) requestStream();
-    return () => {
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, [joined, requestStream]);
-
-  useEffect(() => () => resetPeer(), [resetPeer]);
+    if (agora.status !== 'joined') return;
+    agora.setSpeaking(micLive).then(ok => {
+      if (micLive && !ok) {
+        setIsLocalMuted(true);
+        Toast.show({ type: 'error', text1: 'Microphone permission needed to speak' });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [micLive, agora.status]);
 
   // ---- Socket events --------------------------------------------------------
   useEffect(() => {
     if (!socket) return;
     const handlers: Record<string, (data: any) => void> = {
-      webrtc_signal_received: handleHostSignal,
       live_stream_started: ({ startedAt }) => {
         startedAtRef.current = toMillis(startedAt) ?? startedAtRef.current;
-        setStreamState('connecting');
-        requestStream();
-      },
-      webrtc_viewer_left: ({ viewerSocketId }) => {
-        // The host's socket dropped: wait for it to come back.
-        if (viewerSocketId === hostSocketIdRef.current) {
-          resetPeer();
-          setStreamState('reconnecting');
-        }
       },
       lecturer_mic_status_changed: ({ isMuted }) => setIsLecturerMuted(!!isMuted),
       lecturer_camera_toggled_received: ({ isCameraOn }) => setIsLecturerCameraOn(!!isCameraOn),
@@ -262,49 +182,12 @@ export const StudentLiveClassSession = ({
     return () => {
       Object.entries(handlers).forEach(([evt, fn]) => socket.off(evt, fn));
     };
-  }, [socket, user.uid, handleHostSignal, requestStream, resetPeer, appendTranscriptionText]);
+  }, [socket, user.uid, appendTranscriptionText]);
 
   useEffect(() => {
     const timer = setInterval(() => setElapsedTime(formatElapsed(startedAtRef.current)), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // ---- Floor mic -> transcription -------------------------------------------
-  const micLive = isMicAllowed && !isLocalMuted;
-  const { sendAudioChunkToDeepgram } = useLiveTranscription({
-    lectureId: lecture.id,
-    isHost: false,
-    currentUserFirstName: user.firstname || 'Student',
-    isMicActive: micLive,
-    onTranscriptChunk: (label, text) => {
-      appendTranscriptionText(label, text);
-      socket?.emit('share_transcription_chunk', {
-        lectureId: lecture.id,
-        speakerLabel: label,
-        text,
-      });
-    },
-  });
-
-  useEffect(() => {
-    if (!micLive) return;
-    LiveAudioStream.init({
-      sampleRate: 16000,
-      channels: 1,
-      bitsPerSample: 16,
-      audioSource: 6,
-      bufferSize: 4096,
-      wavFile: '',
-    });
-    const subscription: any = LiveAudioStream.on('data', (base64Data: string) => {
-      sendAudioChunkToDeepgram(Buffer.from(base64Data, 'base64').buffer);
-    });
-    LiveAudioStream.start();
-    return () => {
-      LiveAudioStream.stop();
-      subscription?.remove?.();
-    };
-  }, [micLive, sendAudioChunkToDeepgram]);
 
   // ---- Actions ----------------------------------------------------------------
   const sendMessage = () => {
@@ -352,9 +235,15 @@ export const StudentLiveClassSession = ({
   };
 
   // ---- Render ----------------------------------------------------------------
-  const hasVideo = !!remoteStream && (isScreenShared || (isLecturerCameraOn && !isAudioOnly));
+  const hasVideo =
+    streamState === 'connected' &&
+    agora.hostUid != null &&
+    agora.hostVideoOn &&
+    (isScreenShared || (isLecturerCameraOn && !isAudioOnly));
   const stageMessage =
-    streamState === 'waiting'
+    agora.status === 'failed'
+      ? { icon: 'wifi-off', title: "Couldn't join the class", hint: agora.error || 'Check your connection and try again.' }
+      : streamState === 'waiting'
       ? { icon: 'hourglass-top', title: 'Waiting for the lecturer', hint: 'The class will appear here as soon as it starts.' }
       : streamState === 'reconnecting'
         ? { icon: 'sync', title: 'Reconnecting…', hint: 'Trying to restore the class stream.' }
@@ -387,17 +276,17 @@ export const StudentLiveClassSession = ({
       </View>
 
       <View style={S.stage}>
-        {remoteStream && (
-          // Kept mounted even when video is hidden: it also carries the audio.
-          <RTCView
-            streamURL={remoteStream.toURL()}
-            style={[S.stageVideo, !hasVideo && { opacity: 0 }]}
-            objectFit={isScreenShared ? 'contain' : 'cover'}
-          />
+        {hasVideo && agora.hostUid != null && (
+          // Agora plays the audio regardless of whether this view is mounted.
+          <RtcSurfaceView canvas={{ uid: agora.hostUid, renderMode: isScreenShared ? 2 : 1 }} style={S.stageVideo} />
         )}
         {!hasVideo && (
           <View style={S.stageOverlay}>
-            {streamState === 'connected' ? (
+            {agora.status === 'failed' ? (
+              <TouchableOpacity onPress={agora.retry} style={{ alignItems: 'center' }}>
+                <MaterialIcons name="refresh" size={46} color={colors.primary} />
+              </TouchableOpacity>
+            ) : streamState === 'connected' ? (
               <LecturerTab
                 lecturer={lecturerLiveData}
                 isCameraOn={false}

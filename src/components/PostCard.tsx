@@ -30,8 +30,9 @@ import { usePostInteractions } from '../hooks/usePostInteractions';
 import {
   compactRelativeTime,
   displayName,
-  getPostId,
+  fullTimestamp,
   lastProfilePic,
+  pollTiming,
   toArray,
   toNavigablePost,
 } from '../utils/postHelpers';
@@ -126,6 +127,96 @@ export const MediaSection = ({
 // ---------------------------------------------------------------------------
 // Poll
 // ---------------------------------------------------------------------------
+const PollOptionRow = ({
+  text,
+  percentage,
+  showResults,
+  isMyVote,
+  isWinner,
+  locked,
+  ended,
+  onPress,
+  colors,
+}: {
+  text: string;
+  percentage: number;
+  showResults: boolean;
+  isMyVote: boolean;
+  isWinner: boolean;
+  locked: boolean;
+  ended: boolean;
+  onPress: () => void;
+  colors: any;
+}) => {
+  const fill = useRef(new Animated.Value(showResults ? percentage : 0)).current;
+  useEffect(() => {
+    Animated.timing(fill, {
+      toValue: showResults ? percentage : 0,
+      duration: 450,
+      useNativeDriver: false, // animates width
+    }).start();
+  }, [fill, percentage, showResults]);
+
+  const highlight = isMyVote || isWinner;
+  return (
+    // Always handles its own press, so a tap on a locked option never falls
+    // through to the card and opens the post.
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isMyVote, disabled: locked }}
+      accessibilityLabel={`${text}${showResults ? `, ${percentage} percent` : ''}${isMyVote ? ', your vote' : ''}`}
+      style={({ pressed }) => [
+        styles.optionButton,
+        {
+          borderColor: isMyVote ? colors.primary : colors.border,
+          backgroundColor: colors.backgroundSecondary,
+        },
+        pressed && !locked && styles.optionPressed,
+      ]}
+    >
+      {showResults && (
+        <Animated.View
+          style={[
+            styles.progressBg,
+            {
+              width: fill.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+              backgroundColor: colors.primary,
+              opacity: highlight ? 0.2 : 0.08,
+            },
+          ]}
+        />
+      )}
+      <View style={styles.optionContent}>
+        {!showResults && (
+          <View style={[styles.radio, { borderColor: colors.primary }]} />
+        )}
+        <Text
+          style={[
+            styles.optionText,
+            { color: colors.textDarker },
+            highlight && styles.optionTextStrong,
+          ]}
+          numberOfLines={2}
+        >
+          {text}
+        </Text>
+        {isMyVote && (
+          <MaterialIcons name="check-circle" size={16} color={colors.primary} style={styles.optionIcon} />
+        )}
+        {ended && isWinner && !isMyVote && (
+          <MaterialIcons name="emoji-events" size={16} color={colors.primary} style={styles.optionIcon} />
+        )}
+        {showResults && (
+          <Text style={[styles.percentageText, { color: highlight ? colors.primary : colors.textDarker }]}>
+            {percentage}%
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  );
+};
+
 const PollView = ({
   poll,
   currentUserId,
@@ -141,68 +232,73 @@ const PollView = ({
 }) => {
   const options = toArray<any>(poll?.options);
   const totalVotes = Number(poll?.totalVotes) || 0;
+  const { ended, label: timingLabel } = pollTiming(poll);
   if (!options.length) return null;
+
+  // Results are shown once you've voted or the poll has closed; either way
+  // the options stop accepting votes.
+  const showResults = hasVoted || ended;
+  const locked = showResults;
   const leading = Math.max(...options.map(o => toArray(o?.votes).length));
 
+  const handlePress = (optionId: string) => {
+    if (ended) {
+      Toast.show({ type: 'info', text1: 'This poll has ended', text2: 'Voting is closed.' });
+      return;
+    }
+    if (!hasVoted) onVote(optionId);
+  };
+
+  const status = ended ? 'Final results' : hasVoted ? 'You voted' : 'Tap an option to vote';
+
   return (
-    <View style={styles.pollContainer}>
+    <View style={[styles.pollContainer, { borderColor: colors.border, backgroundColor: colors.background }]}>
+      <View style={styles.pollHeader}>
+        <MaterialIcons name="poll" size={16} color={colors.primary} />
+        <Text style={[styles.pollTitle, { color: colors.textDarker }]}>Poll</Text>
+        <View
+          style={[
+            styles.pollStatusChip,
+            { backgroundColor: ended ? colors.border + '66' : colors.primary + '1A' },
+          ]}
+        >
+          <View style={[styles.pollStatusDot, { backgroundColor: ended ? colors.text : colors.success }]} />
+          <Text style={[styles.pollStatusText, { color: ended ? colors.text : colors.primary }]}>
+            {ended ? 'Closed' : 'Open'}
+          </Text>
+        </View>
+      </View>
+
       {options.map(option => {
         const votes = toArray(option?.votes);
         const percentage = totalVotes > 0 ? Math.round((votes.length / totalVotes) * 100) : 0;
-        const isMyVote = !!currentUserId && votes.includes(currentUserId);
-        const isLeading = hasVoted && votes.length === leading && leading > 0;
         return (
-          // A Pressable that always handles its own press: once voted, a tap
-          // on an option used to fall through and open the post instead.
-          <Pressable
+          <PollOptionRow
             key={option.optionId}
-            onPress={() => !hasVoted && onVote(option.optionId)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isMyVote, disabled: hasVoted }}
-            accessibilityLabel={`${toText(option?.text)}${hasVoted ? `, ${percentage} percent` : ''}`}
-            style={({ pressed }) => [
-              styles.optionButton,
-              { borderColor: isMyVote ? colors.primary : colors.border },
-              pressed && !hasVoted && { opacity: 0.7 },
-            ]}
-          >
-            {hasVoted && (
-              <View
-                style={[
-                  styles.progressBg,
-                  {
-                    width: `${percentage}%`,
-                    backgroundColor: colors.primary,
-                    opacity: isLeading ? 0.22 : 0.1,
-                  },
-                ]}
-              />
-            )}
-            <View style={styles.optionContent}>
-              <Text
-                style={[
-                  styles.optionText,
-                  { color: colors.textDarker },
-                  (isMyVote || isLeading) && { fontWeight: '700' },
-                ]}
-                numberOfLines={2}
-              >
-                {toText(option?.text)}
-              </Text>
-              {isMyVote && (
-                <MaterialIcons name="check-circle" size={16} color={colors.primary} style={{ marginRight: 6 }} />
-              )}
-              {hasVoted && (
-                <Text style={[styles.percentageText, { color: colors.textDarker }]}>{percentage}%</Text>
-              )}
-            </View>
-          </Pressable>
+            text={toText(option?.text)}
+            percentage={percentage}
+            showResults={showResults}
+            isMyVote={!!currentUserId && votes.includes(currentUserId)}
+            isWinner={showResults && leading > 0 && votes.length === leading}
+            locked={locked}
+            ended={ended}
+            onPress={() => handlePress(option.optionId)}
+            colors={colors}
+          />
         );
       })}
-      <Text style={[styles.pollFooter, { color: colors.text }]}>
-        {formatCount(totalVotes)} {totalVotes === 1 ? 'vote' : 'votes'} ·{' '}
-        {hasVoted ? 'You voted' : 'Tap an option to vote'}
-      </Text>
+
+      <View style={styles.pollFooterRow}>
+        <Text style={[styles.pollFooter, { color: colors.text }]}>
+          {formatCount(totalVotes)} {totalVotes === 1 ? 'vote' : 'votes'} · {status}
+        </Text>
+        {!!timingLabel && (
+          <View style={styles.pollTiming}>
+            <MaterialIcons name={ended ? 'lock-clock' : 'schedule'} size={12} color={colors.text} />
+            <Text style={[styles.pollFooter, { color: colors.text }]}>{timingLabel}</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 };
@@ -467,30 +563,35 @@ const PostCardBase = ({ post: incoming, isVisible, variant = 'feed', onCommentPr
           )}
         </TouchableOpacity>
         <View style={styles.headerText}>
-          {author ? (
-            <UserIdentity
-              firstname={author.firstname || ''}
-              lastname={author.lastname || ''}
-              tier={author.tier === 'pro' || author.tier === 'premium' ? author.tier : 'free'}
-              isVerified={author.isVerified}
-              isOrganization={!!author.organizationName}
-              organizationName={author.organizationName || undefined}
-              size="small"
-            />
-          ) : (
-            // Legacy posts saved without an author.
-            <Text style={[styles.fallbackName, { color: colors.textDarker }]}>iCampus</Text>
-          )}
+          <View style={styles.nameRow}>
+            {author ? (
+              <UserIdentity
+                firstname={author.firstname || ''}
+                lastname={author.lastname || ''}
+                tier={author.tier === 'pro' || author.tier === 'premium' ? author.tier : 'free'}
+                isVerified={author.isVerified}
+                isOrganization={!!author.organizationName}
+                organizationName={author.organizationName || undefined}
+                size="small"
+                containerStyle={styles.nameShrink}
+              />
+            ) : (
+              // Legacy posts saved without an author.
+              <Text style={[styles.fallbackName, { color: colors.textDarker }]}>iCampus</Text>
+            )}
+            {!!relativeTime && (
+              <Text
+                style={[styles.timeText, { color: colors.text }]}
+                accessibilityLabel={`Posted ${fullTimestamp(post.createdAt)}`}
+              >
+                · {relativeTime}
+              </Text>
+            )}
+          </View>
           <View style={styles.metaRow}>
             {!!author?.username && (
               <Text style={[styles.metaText, { color: colors.text }]} numberOfLines={1}>
                 @{author.username}
-              </Text>
-            )}
-            {!!relativeTime && (
-              <Text style={[styles.metaText, { color: colors.text }]}>
-                {author?.username ? ' · ' : ''}
-                {relativeTime}
               </Text>
             )}
             {isSchoolMemo && (
@@ -781,6 +882,9 @@ const styles = StyleSheet.create({
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   headerText: { marginLeft: 11, flex: 1 },
   fallbackName: { fontSize: 14, fontWeight: '700' },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  nameShrink: { flexShrink: 1 },
+  timeText: { fontSize: 12, marginLeft: 5, opacity: 0.7, flexShrink: 0 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 2 },
   metaText: { fontSize: 12, opacity: 0.75 },
   audienceChip: {
@@ -843,7 +947,26 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   postMedia: { width: '100%', height: '100%' },
-  pollContainer: { marginTop: 4, marginBottom: 4 },
+  pollContainer: {
+    marginTop: 6,
+    marginBottom: 4,
+    padding: 12,
+    paddingBottom: 10,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  pollHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  pollTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.3, flex: 1 },
+  pollStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  pollStatusDot: { width: 6, height: 6, borderRadius: 3 },
+  pollStatusText: { fontSize: 11, fontWeight: '700' },
   optionButton: {
     minHeight: 46,
     borderRadius: 12,
@@ -852,13 +975,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     overflow: 'hidden',
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
-  progressBg: { position: 'absolute', top: 0, left: 0, bottom: 0 },
+  optionPressed: { opacity: 0.7, transform: [{ scale: 0.99 }] },
+  progressBg: { position: 'absolute', top: 0, left: 0, bottom: 0, borderRadius: 10 },
   optionContent: { flexDirection: 'row', alignItems: 'center' },
+  radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.6, marginRight: 10 },
   optionText: { fontSize: 14.5, flex: 1, fontWeight: '500' },
-  percentageText: { fontSize: 14, fontWeight: '700' },
-  pollFooter: { fontSize: 12, opacity: 0.75, marginTop: 2 },
+  optionTextStrong: { fontWeight: '700' },
+  optionIcon: { marginHorizontal: 6 },
+  percentageText: { fontSize: 14, fontWeight: '800', minWidth: 38, textAlign: 'right' },
+  pollFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  pollTiming: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pollFooter: { fontSize: 12, opacity: 0.75 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -2,7 +2,8 @@ import React, {
   useState,
   useEffect,
   useMemo,
-  useCallback
+  useCallback,
+  useRef,
 } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useLiveSession } from '../hooks/useLiveSession';
@@ -17,6 +18,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CustomButton } from '../assets/components/AppUIComponents';
+
+// Students count as present after this long in the class (or at the end).
+const ATTENDANCE_AFTER_MS = 10 * 60 * 1000;
 
 const LoadingScreen = () => {
   const { colors } = useTheme();
@@ -40,8 +44,16 @@ const LoadingScreen = () => {
 export const LiveClassSessions = ({ route }: any) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const { lectureId, courseId } = route.params;
+  const { lectureId } = route.params;
+  // Some entry points (ongoing-lecture modal, /lectures/ongoing) pass the
+  // populated course object here; the loaders need the id string.
+  const rawCourseId = route.params?.courseId;
+  const courseId: string =
+    rawCourseId && typeof rawCourseId === 'object'
+      ? rawCourseId.courseId || rawCourseId.id || ''
+      : String(rawCourseId || '');
   const [lecturerUser, setLecturerUser] = useState<any | null>(null);
+  const attendanceSavedRef = useRef(false);
 
   const {
     user,
@@ -89,19 +101,6 @@ export const LiveClassSessions = ({ route }: any) => {
     );
   }, [isHost, isEnrolled, isLecturer, lecture, course, user?.uid]);
 
-  const isEligibleForAttendance = useMemo(() => {
-    if (!user?.uid) return false;
-    if (!isSchoolCourse) return false;
-
-    const hasApprovedException = exceptions.some(
-      ex =>
-        ex.studentId === user.uid &&
-        ex.lectureId === lectureId &&
-        ex.status === 'approved',
-    );
-    if (hasApprovedException) return true;
-    return true;
-  }, [exceptions, lectureId, user?.uid, isSchoolCourse]);
   const hostData = useMemo(() => {
     const activeHostUser = isHost ? user : lecturerUser;
 
@@ -118,54 +117,54 @@ export const LiveClassSessions = ({ route }: any) => {
     };
   }, [lecture, user, isHost, lecturerUser]);
 
-  const saveAttendance = useCallback(async () => {
-    try {
+  /**
+   * Marks the student present once. Called after they've been in the class
+   * for ATTENDANCE_AFTER_MS, or when the host ends it while they're in. Before,
+   * attendance was only sent if the student was still on this screen at the
+   * very end, so anyone who left a minute early got nothing.
+   */
+  const saveAttendance = useCallback(
+    async (silent = false) => {
+      if (attendanceSavedRef.current) return;
       const hasApprovedException = exceptions.some(
-        ex => ex.studentId === user?.uid && ex.status === 'approved',
+        ex =>
+          ex.studentId === user?.uid &&
+          ex.lectureId === lectureId &&
+          ex.status === 'approved',
       );
-      if (
-        isLecturer ||
-        !isStudent ||
-        !user?.uid ||
-        !lectureId ||
-        hasApprovedException
-      ) {
+      if (isLecturer || !isStudent || !isSchoolCourse || !user?.uid || hasApprovedException) {
         return;
       }
-      const submissionPayload = {
-        lectureId,
-        courseId,
-        status: isEligibleForAttendance ? 'Present' : 'Absent',
-        checkData: [],
-      };
-      const result = await submitOnlineClassAttendanceAPI(submissionPayload);
-      if (result.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Success',
-          text2: result.message,
+      attendanceSavedRef.current = true;
+      try {
+        const result = await submitOnlineClassAttendanceAPI({
+          lectureId,
+          courseId: (lecture?.courseId as any) || courseId,
+          status: 'Present',
+          checkData: [],
         });
-        navigation.navigate('Home', { activeTab: 'classroom' });
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Submission Failed',
-          text2: result.message,
-        });
+        if (!result.success) {
+          attendanceSavedRef.current = false;
+          if (!silent) {
+            Toast.show({ type: 'error', text1: 'Attendance not saved', text2: result.message });
+          }
+        } else if (!silent) {
+          Toast.show({ type: 'success', text1: 'Attendance recorded' });
+        }
+      } catch (err) {
+        attendanceSavedRef.current = false;
+        console.error('iCampus: Failed to save attendance:', err);
       }
-    } catch (err) {
-      console.error('iCampus: Failed to save attendance:', err);
-    }
-  }, [
-    isLecturer,
-    isStudent,
-    user?.uid,
-    lectureId,
-    courseId,
-    isEligibleForAttendance,
-    exceptions,
-    navigation,
-  ]);
+    },
+    [isLecturer, isStudent, isSchoolCourse, user?.uid, lectureId, courseId, lecture?.courseId, exceptions],
+  );
+
+  // Present after staying in the live class for a while.
+  useEffect(() => {
+    if (!joinState.joined || !isStudent || lecture?.status === 'completed') return;
+    const timer = setTimeout(() => saveAttendance(true), ATTENDANCE_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [joinState.joined, isStudent, lecture?.status, saveAttendance]);
 
   useEffect(() => {
     if (!socket) return;

@@ -11,16 +11,19 @@ import { CountryPicker } from 'react-native-country-codes-picker';
 import { useState } from 'react';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useNavigation } from '@react-navigation/native';
-import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import { selectImage } from './SelectImage';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import DeviceInfo from 'react-native-device-info';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../context/UserSlice';
+import {
+  completeSignup,
+  describeSignupFailure,
+  safeUpload,
+  signupError,
+} from '../utils/signupFlow';
 import LogoBigger from '../assets/images/Logo';
 import { ProgressBar } from './SignupComponents';
 import {
@@ -64,34 +67,44 @@ const InstructorSignup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [alertVisible, setAlertVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
   const [institutionName, setInstitutionName] = useState<string>('');
+  const [validatingSchool, setValidatingSchool] = useState(false);
+  // Signed by the server after the school lookup; registration requires it.
+  const [verificationToken, setVerificationToken] = useState('');
+  const [pickingPhoto, setPickingPhoto] = useState(false);
 
-  const nextStep = () => setStep(prev => Math.min(prev + 1, 9));
+  const nextStep = () => setStep(prev => Math.min(prev + 1, 6));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
 
   const checkICampusOperationalInSchool = async () => {
-    const response = await signupValidateInstitution(institution);
-    if (response.success) {
-      setVerifiedInstitution(true);
-      setSchoolCode(response.schoolCode);
-      setInstitutionName(response.schoolName);
-      nextStep();
-    } else {
-      setVerifiedInstitution(false);
-      console.log(response?.message || 'Failed to validate institution');
-      setAlertType('error');
-      setAlertMessage(response?.message || 'Failed to validate institution');
-      setAlertVisible(true);
+    if (institution === 'OTHER') {
+      Toast.show({
+        type: 'info',
+        text1: "Your school isn't on iCampus yet",
+        text2: 'Sign up with the "Other" option for now. We will notify you when your school joins.',
+        visibilityTime: 6000,
+      });
+      return;
+    }
+    setValidatingSchool(true);
+    try {
+      const response = await signupValidateInstitution(institution);
+      if (response.success) {
+        setVerifiedInstitution(true);
+        setSchoolCode(response.schoolCode);
+        setInstitutionName(response.schoolName);
+        nextStep();
+      } else {
+        setVerifiedInstitution(false);
+        signupError(response?.message || 'Failed to validate institution', 'School unavailable');
+      }
+    } finally {
+      setValidatingSchool(false);
     }
   };
   const fetchInstitutionsByCountry = async (selectedCountry: string) => {
@@ -109,50 +122,48 @@ const InstructorSignup = () => {
     }
   };
   const verifyInstructor = async () => {
+    if (verifying) return;
     setVerifying(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
-    let message;
     try {
-      const response = await verifySignupInstructor(
+      const response: any = await verifySignupInstructor(
         schoolCode,
-        staffId,
+        staffId.trim(),
         controller.signal,
       );
-      if (response.verified) {
+      if (response.success && response.verified && response.data?.verificationToken) {
         setVerifiedInstructor(response.data);
+        setVerificationToken(response.data.verificationToken);
         setInstructorNotFound(false);
         nextStep();
       } else {
-        message = response.message || 'Instructor not found';
-        setInstructorNotFound(true);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
+        setInstructorNotFound(response.status === 404);
+        signupError(
+          response.message || 'Instructor not found',
+          response.status === 409 ? 'Already registered' : 'Verification failed',
+        );
       }
     } catch (error) {
-      message = (error as Error).message;
-      console.error('Verification error:', message);
-      setInstructorNotFound(true);
-      setAlertType('error');
-      setAlertMessage(message);
-      setAlertVisible(true);
+      signupError((error as Error).message, 'Verification failed');
     } finally {
       clearTimeout(timeout);
       setVerifying(false);
     }
   };
   const handleImageUpdate = async () => {
-    const imageUri = await selectImage();
-
-    if (imageUri) {
-      const imageUrl = await uploadToCloudinary(imageUri);
-
+    if (pickingPhoto) return;
+    setPickingPhoto(true);
+    try {
+      const imageUri = await selectImage();
+      if (!imageUri) return;
+      const imageUrl = await safeUpload(() => uploadToCloudinary(imageUri));
       if (imageUrl) {
-        console.log('Uploaded to Cloudinary:', imageUrl);
         setSelectedImage(imageUrl);
         setShowModal(true);
       }
+    } finally {
+      setPickingPhoto(false);
     }
   };
   const confirmUpload = async () => {
@@ -176,63 +187,34 @@ const InstructorSignup = () => {
     }
   };
   const handleSubmit = async () => {
-    const userType = 'lecturer';
+    if (creating) return;
     setCreating(true);
     try {
       const deviceId = await DeviceInfo.getUniqueId();
       const deviceName = DeviceInfo.getModel();
       const brand = DeviceInfo.getBrand();
-      const registrationData = {
-        currentIScore: 5,
-        isVerified: true,
-        profilePic: avatar || verifiedInstructor?.schoolAvatarUrl,
-        usertype: userType,
-        schoolCode,
-        ...verifiedInstructor,
+      // Identity (name, staff ID, department, email) comes from the server's
+      // signed verification token; only choices made here are sent.
+      const response: any = await handleRegisterUser({
+        usertype: 'lecturer',
+        verificationToken,
         schoolName: institutionName || '',
+        profilePic: avatar || verifiedInstructor?.schoolAvatarUrl || undefined,
         deviceId,
         deviceName: `${brand} ${deviceName}`,
         password,
         country: country || '',
-      };
-      const response = await handleRegisterUser(registrationData);
-      if (response.status === 409) {
-        setCreating(false);
-        setAlertType('error');
-        setAlertMessage(response.message || 'User already exists.');
-        setAlertVisible(true);
+      });
+      if (response.success && response.accessToken) {
+        await completeSignup(response, dispatch, navigation);
         return;
       }
-      if (response.success) {
-        setAlertType('success');
-        setAlertMessage('Your account has been successfully created.');
-        const { accessToken, refreshToken, user } = response;
-        await AsyncStorage.setItem('hasLaunched', 'true');
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshToken);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-
-        dispatch(
-          setUser({
-            ...user,
-            accessToken,
-            tokenCreatedAt: Date.now().toString(),
-          }),
-        );
-        setCreating(false);
-        navigation.navigate('Home', { activeTab: 'home' });
-      } else {
-        console.warn('Signup failed:', response.message);
-        setAlertType('error');
-        setAlertMessage(response.message || 'Account creation failed.');
-        setCreating(false);
-      }
-      setAlertVisible(true);
+      if (response.status === 401) setStep(2); // proof expired: re-verify staff ID
+      describeSignupFailure(response);
     } catch (error) {
-      console.error('Error:', error);
-      setAlertType('error');
-      setAlertMessage('Network error. Please check your connection.');
-      setAlertVisible(true);
+      console.error('Signup error:', error);
+      signupError('Check your internet connection and try again.', 'Network error');
+    } finally {
       setCreating(false);
     }
   };
@@ -330,15 +312,15 @@ const InstructorSignup = () => {
                 style={styles.dropdown}
               />
               <CustomButton
-                title="Next"
-                onPress={async () => await checkICampusOperationalInSchool()}
-                disabled={!institution}
+                title={validatingSchool ? 'Checking…' : 'Next'}
+                onPress={checkICampusOperationalInSchool}
+                disabled={!institution || validatingSchool}
+                isLoading={validatingSchool}
                 style={[
                   styles.nextButton,
                   {
-                    backgroundColor: institution
-                      ? PRIMARY_COLOR
-                      : PRIMARY_COLOR_TINT,
+                    backgroundColor:
+                      institution && !validatingSchool ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                   },
                 ]}
               />
@@ -353,13 +335,28 @@ const InstructorSignup = () => {
               style={{ width: '100%' }}
             >
               <Text style={styles.inputHeader}>Enter your Staff ID:</Text>
-              <TextInput
-                placeholder="Staff ID"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                value={staffId}
-                onChangeText={setStaffId}
-                style={styles.input}
-              />
+              <View style={styles.passwordInput}>
+                <MaterialIcons
+                  name="badge"
+                  size={20}
+                  color={PRIMARY_COLOR_TINT}
+                  style={{ marginRight: 7 }}
+                />
+                <TextInput
+                  placeholder="Staff ID"
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  value={staffId}
+                  onChangeText={text => {
+                    setStaffId(text.toUpperCase());
+                    setInstructorNotFound(false);
+                  }}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={() => staffId.trim().length >= 3 && verifyInstructor()}
+                  style={styles.input2}
+                />
+              </View>
               {instructorNotFound && (
                 <Text style={styles.errorText}>User Staff ID not found.</Text>
               )}
@@ -671,21 +668,6 @@ const InstructorSignup = () => {
           </View>
         )}
       </View>
-      <SweetAlertModal
-        visible={alertVisible}
-        onConfirm={() => setAlertVisible(false)}
-        title={
-          alertType === 'success'
-            ? 'Success!'
-            : alertType === 'error'
-              ? 'Oops!'
-              : alertType === 'info'
-                ? 'Warning!'
-                : 'Notice'
-        }
-        message={alertMessage}
-        type={alertType}
-      />
       <ImageConfirmationModal
         isVisible={showModal}
         imageUri={selectedImage}

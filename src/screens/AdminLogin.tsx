@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { setAdmin } from '../context/AdminSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SweetAlertModal from '../components/alertscomponent';
+import { useToastAlert } from '../utils/toastAlert';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
@@ -31,11 +31,7 @@ export const AdminLogin = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
 
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
+  const { setAlertVisible, setAlertType, setAlertMessage } = useToastAlert();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -193,14 +189,6 @@ export const AdminLogin = () => {
             />
           </View>
         </ScrollView>
-
-        <SweetAlertModal
-          visible={alertVisible}
-          onConfirm={() => setAlertVisible(false)}
-          title={alertType === 'error' ? 'Oops!' : 'Notice'}
-          message={alertMessage}
-          type={alertType}
-        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

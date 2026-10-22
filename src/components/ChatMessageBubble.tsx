@@ -13,6 +13,7 @@ import { formatTime } from '../utils/ChatTimestampFormatter';
 import { Attachment } from '../types/firebase';
 import { downloadFile } from '../utils/downloadHelper';
 import { useTheme } from '../context/ThemeContext';
+import { ChatMarkdown } from './ChatMarkdown';
 
 interface MessageBubbleProps {
   content: string;
@@ -128,15 +129,25 @@ export const MessageBubble = ({
           </View>
         )}
 
-        <Text
-          style={[
-            styles.text,
-            { color: isUser ? colors.btnTextColor : colors.text },
-            isDeleted && styles.deletedText,
-          ]}
-        >
-          {isDeleted ? 'This message was deleted' : content}
-        </Text>
+        {type === 'ai' && !isUser && !isDeleted ? (
+          // Assistant replies use light markdown (bold, bullets, steps, code).
+          <ChatMarkdown
+            content={content}
+            color={colors.text}
+            accent={colors.primary}
+            codeBg={colors.background}
+          />
+        ) : (
+          <Text
+            style={[
+              styles.text,
+              { color: isUser ? colors.btnTextColor : colors.text },
+              isDeleted && styles.deletedText,
+            ]}
+          >
+            {isDeleted ? 'This message was deleted' : content}
+          </Text>
+        )}
 
         {(timestamp || status) && !isDeleted && (
           <View style={styles.footer}>

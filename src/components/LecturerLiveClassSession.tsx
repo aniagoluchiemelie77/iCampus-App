@@ -2,30 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import VIForegroundService from '@voximplant/react-native-foreground-service';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Socket } from 'socket.io-client';
-import {
-  mediaDevices,
-  MediaStream,
-  RTCPeerConnection,
-  RTCSessionDescription,
-  RTCIceCandidate,
-  RTCView,
-} from 'react-native-webrtc';
+import { RtcSurfaceView } from 'react-native-agora';
 import Toast from 'react-native-toast-message';
-import LiveAudioStream from 'react-native-live-audio-stream';
-import { Buffer } from 'buffer';
 import { useAppSelector } from '../hooks/hooks';
 import { User, Lecture } from '../types/firebase';
 import { UserAvatar } from './UserAvatar';
 import { useLiveTranscription } from '../hooks/useLiveTransciption';
+import { useAgoraClass } from '../hooks/useAgoraClass';
 import { useTheme } from '../context/ThemeContext';
-import {
-  createLiveClassPeerConnectionConfig,
-  formatElapsed,
-  toMillis,
-} from '../utils/liveClassRtc';
+import { formatElapsed, toMillis } from '../utils/liveClassRtc';
 import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
 import {
   ChatModal,
@@ -42,24 +29,9 @@ interface LecturerLiveSessionProps {
   joined: boolean;
 }
 
-const LOW_BANDWIDTH_KBPS = 150;
-const RECOVERY_KBPS = 400;
 const MAX_VISIBLE_AVATARS = 6;
-const STATS_INTERVAL_MS = 5000;
 // Stable identity: WavingToast restarts its hide timer whenever onHide changes.
 const noop = () => {};
-
-const getQualityLabel = (kbps: number, viewers: number) => {
-  if (viewers === 0) return { label: 'No viewers yet', icon: 'hourglass-empty' };
-  if (kbps > 600) return { label: 'Excellent', icon: 'signal-cellular-alt' };
-  if (kbps > 300) return { label: 'Good', icon: 'signal-cellular-alt-2-bar' };
-  if (kbps > LOW_BANDWIDTH_KBPS) return { label: 'Fair', icon: 'signal-cellular-alt-1-bar' };
-  return { label: 'Poor', icon: 'signal-cellular-connected-no-internet-0-bar' };
-};
-const serializeCandidate = (c: any) =>
-  typeof c?.toJSON === 'function'
-    ? c.toJSON()
-    : { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex };
 
 export const LecturerLiveClassSession = ({
   lecture,
@@ -70,26 +42,13 @@ export const LecturerLiveClassSession = ({
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
 
-  // One peer connection per viewer socket (mesh topology).
-  const peersRef = useRef(new Map<string, RTCPeerConnection>());
-  const pendingCandidatesRef = useRef(new Map<string, any[]>());
-  const pendingViewersRef = useRef(new Set<string>());
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const cameraTrackRef = useRef<any>(null);
-  const screenStreamRef = useRef<MediaStream | null>(null);
-  const bytesSentRef = useRef({ bytes: 0, at: Date.now() });
-  const lowStatsCountRef = useRef(0);
   const attendeesRef = useRef<User[]>([]);
   const chatVisibleRef = useRef(false);
+  const announcedLiveRef = useRef(false);
   const startedAtRef = useRef<number>(toMillis((lecture as any).startedAt) ?? Date.now());
 
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isLocalMuted, setIsLocalMuted] = useState(false);
-  const [isSharingScreen, setIsSharingScreen] = useState(false);
-  const [isAudioOnlyFallback, setIsAudioOnlyFallback] = useState(false);
-  const [viewerCount, setViewerCount] = useState(0);
-  const [quality, setQuality] = useState(getQualityLabel(0, 0));
   const [wavers, setWavers] = useState<any[]>([]);
   const [currentAttendees, setCurrentAttendees] = useState<User[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
@@ -114,173 +73,54 @@ export const LecturerLiveClassSession = ({
     });
   }, []);
 
-  // ---- Peer connections ---------------------------------------------------
-  const updateViewerCount = useCallback(() => {
-    let connected = 0;
-    peersRef.current.forEach(pc => {
-      if ((pc as any).connectionState === 'connected') connected += 1;
-    });
-    setViewerCount(connected);
-  }, []);
-
-  const closePeer = useCallback(
-    (viewerSocketId: string) => {
-      peersRef.current.get(viewerSocketId)?.close();
-      peersRef.current.delete(viewerSocketId);
-      pendingCandidatesRef.current.delete(viewerSocketId);
-      updateViewerCount();
-    },
-    [updateViewerCount],
-  );
-
-  const createPeerForViewer = useCallback(
-    async (viewerSocketId: string) => {
-      const stream = localStreamRef.current;
-      if (!socket || !stream) {
-        // Camera not ready yet; offer once it is.
-        pendingViewersRef.current.add(viewerSocketId);
-        return;
-      }
-      closePeer(viewerSocketId);
-      const pc = new RTCPeerConnection(createLiveClassPeerConnectionConfig());
-      peersRef.current.set(viewerSocketId, pc);
-
-      stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
-      const screenTrack = screenStreamRef.current?.getVideoTracks()[0];
-      const videoTrack = screenTrack || cameraTrackRef.current;
-      if (videoTrack) pc.addTrack(videoTrack, stream);
-
-      (pc as any).onicecandidate = (event: any) => {
-        if (!event.candidate) return;
-        socket.emit('webrtc_signal', {
-          lectureId: lecture.id,
-          targetSocketId: viewerSocketId,
-          signal: { candidate: serializeCandidate(event.candidate) },
-        });
-      };
-      (pc as any).onconnectionstatechange = () => {
-        const state = (pc as any).connectionState;
-        if (state === 'failed' || state === 'closed') {
-          if (peersRef.current.get(viewerSocketId) === pc) closePeer(viewerSocketId);
-        } else {
-          updateViewerCount();
-        }
-      };
-
-      try {
-        const offer = await pc.createOffer({});
-        await pc.setLocalDescription(offer);
-        socket.emit('webrtc_signal', {
-          lectureId: lecture.id,
-          targetSocketId: viewerSocketId,
-          signal: { type: offer.type, sdp: offer.sdp },
-        });
-      } catch (err) {
-        console.error('[LIVE_RTC] Offer failed for viewer', viewerSocketId, err);
-        closePeer(viewerSocketId);
-      }
-    },
-    [socket, lecture.id, closePeer, updateViewerCount],
-  );
-
-  const handleViewerSignal = useCallback(
-    async ({ signal, senderId }: { signal: any; senderId: string }) => {
-      const pc = peersRef.current.get(senderId);
-      if (!pc) return;
-      try {
-        if (signal.type === 'answer') {
-          await pc.setRemoteDescription(new RTCSessionDescription(signal));
-          const queued = pendingCandidatesRef.current.get(senderId) || [];
-          pendingCandidatesRef.current.delete(senderId);
-          for (const c of queued) await pc.addIceCandidate(new RTCIceCandidate(c));
-        } else if (signal.candidate) {
-          if (!(pc as any).remoteDescription) {
-            // The answer is still being applied; hold candidates until it is.
-            const queue = pendingCandidatesRef.current.get(senderId) || [];
-            queue.push(signal.candidate);
-            pendingCandidatesRef.current.set(senderId, queue);
-          } else {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-          }
-        }
-      } catch (err) {
-        console.error('[LIVE_RTC] Failed to apply viewer signal:', err);
-      }
-    },
-    [],
-  );
-
-  // Swap the outgoing video on every peer without renegotiating.
-  const replaceOutgoingVideo = useCallback(async (track: any) => {
-    const jobs: Promise<void>[] = [];
-    peersRef.current.forEach(pc => {
-      pc.getSenders().forEach(sender => {
-        if (sender.track?.kind === 'video') jobs.push(sender.replaceTrack(track));
+  // ---- Transcription (fed from Agora's mic capture) -------------------------
+  const { sendAudioChunkToDeepgram } = useLiveTranscription({
+    lectureId: lecture.id,
+    isHost: true,
+    currentUserFirstName: user?.firstname || 'Host',
+    isMicActive: joined && !isLocalMuted,
+    onTranscriptChunk: (label, text) => {
+      appendTranscriptionText(label, text);
+      socket?.emit('share_transcription_chunk', {
+        lectureId: lecture.id,
+        speakerLabel: label,
+        text,
       });
-    });
-    await Promise.all(jobs);
-  }, []);
+    },
+  });
 
-  // ---- Local media ----------------------------------------------------------
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Modest resolution: in a mesh the lecturer uploads once per viewer.
-        const stream = await mediaDevices.getUserMedia({
-          audio: true,
-          video: { facingMode: 'user', width: 640, height: 480, frameRate: 24 },
-        } as any);
-        if (cancelled) {
-          stream.getTracks().forEach(t => t.stop());
-          return;
-        }
-        localStreamRef.current = stream;
-        cameraTrackRef.current = stream.getVideoTracks()[0] || null;
-        setLocalStream(stream);
-      } catch (err) {
-        console.error('[LIVE_RTC] getUserMedia failed:', err);
-        Toast.show({
-          type: 'error',
-          text1: 'Camera / Microphone Blocked',
-          text2: 'Allow camera and microphone access to broadcast this class.',
-        });
-      }
-    })();
-    const peers = peersRef.current;
-    return () => {
-      cancelled = true;
-      peers.forEach(pc => pc.close());
-      peers.clear();
-      localStreamRef.current?.getTracks().forEach(t => t.stop());
-      screenStreamRef.current?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
+  // ---- Media (Agora) ----------------------------------------------------------
+  const agora = useAgoraClass({
+    lectureId: lecture.id,
+    role: 'host',
+    enabled: true,
+    onMicAudio: sendAudioChunkToDeepgram,
+    micAudioActive: joined && !isLocalMuted,
+  });
+  const isLiveOnAir = agora.status === 'joined' && joined;
 
-  // Go live once both the room and the camera are ready. After a reconnect the
-  // old viewer socket ids are dead, so drop them; viewers re-request on
-  // `live_stream_started`.
+  // Flip the lecture live (and notify students) once both the class room and
+  // the Agora channel are up. Re-announced after socket reconnects.
   useEffect(() => {
-    if (!socket || !joined) {
-      peersRef.current.forEach(pc => pc.close());
-      peersRef.current.clear();
-      updateViewerCount();
+    if (!socket || !isLiveOnAir) {
+      announcedLiveRef.current = false;
       return;
     }
-    if (!localStream) return;
+    if (announcedLiveRef.current) return;
+    announcedLiveRef.current = true;
     socket.emit('stream_ready', { lectureId: lecture.id });
-    const pending = Array.from(pendingViewersRef.current);
-    pendingViewersRef.current.clear();
-    pending.forEach(id => createPeerForViewer(id));
-  }, [socket, joined, localStream, lecture.id, createPeerForViewer, updateViewerCount]);
+  }, [socket, isLiveOnAir, lecture.id]);
+
+  useEffect(() => {
+    if (agora.status === 'failed' && agora.error) {
+      Toast.show({ type: 'error', text1: 'Live connection problem', text2: agora.error });
+    }
+  }, [agora.status, agora.error]);
 
   // ---- Socket events --------------------------------------------------------
   useEffect(() => {
     if (!socket) return;
     const handlers: Record<string, (data: any) => void> = {
-      webrtc_viewer_joined: ({ viewerSocketId }) => createPeerForViewer(viewerSocketId),
-      webrtc_signal_received: handleViewerSignal,
-      webrtc_viewer_left: ({ viewerSocketId }) => closePeer(viewerSocketId),
       student_waved_received: (data: { uid: string; firstname: string; profilePic: string }) =>
         setWavers(prev => (prev.some(w => w.uid === data.uid) ? prev : [...prev, data])),
       receive_message: (msg: any) => {
@@ -308,168 +148,37 @@ export const LecturerLiveClassSession = ({
     return () => {
       Object.entries(handlers).forEach(([evt, fn]) => socket.off(evt, fn));
     };
-  }, [socket, user?.uid, createPeerForViewer, handleViewerSignal, closePeer, appendTranscriptionText]);
-
-  // ---- Stream quality + adaptive fallback -----------------------------------
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      let bytes = 0;
-      let connected = 0;
-      for (const pc of peersRef.current.values()) {
-        if ((pc as any).connectionState !== 'connected') continue;
-        connected += 1;
-        try {
-          const stats: any = await pc.getStats();
-          stats.forEach((report: any) => {
-            if (report.type === 'outbound-rtp' && report.kind === 'video') {
-              bytes += report.bytesSent || 0;
-            }
-          });
-        } catch {
-          // A peer closing mid-poll is fine.
-        }
-      }
-      const now = Date.now();
-      const prev = bytesSentRef.current;
-      const seconds = Math.max(1, (now - prev.at) / 1000);
-      const kbpsPerViewer =
-        connected > 0 && bytes >= prev.bytes
-          ? ((bytes - prev.bytes) * 8) / seconds / 1000 / connected
-          : 0;
-      bytesSentRef.current = { bytes, at: now };
-      setViewerCount(connected);
-      setQuality(getQualityLabel(kbpsPerViewer, connected));
-
-      const camera = cameraTrackRef.current;
-      if (!camera || connected === 0 || screenStreamRef.current) return;
-      if (kbpsPerViewer < LOW_BANDWIDTH_KBPS && !isAudioOnlyFallback && isCameraOn) {
-        lowStatsCountRef.current += 1;
-        if (lowStatsCountRef.current >= 2) {
-          camera.enabled = false;
-          setIsAudioOnlyFallback(true);
-          socket?.emit('lecturer_network_fallback', { lectureId: lecture.id, mode: 'audio-only' });
-          Toast.show({
-            type: 'info',
-            text1: 'Weak Connection',
-            text2: 'Switched to audio-only so students stay connected.',
-          });
-        }
-      } else if (kbpsPerViewer >= RECOVERY_KBPS && isAudioOnlyFallback) {
-        lowStatsCountRef.current = 0;
-        camera.enabled = isCameraOn;
-        setIsAudioOnlyFallback(false);
-        socket?.emit('lecturer_network_fallback', { lectureId: lecture.id, mode: 'full-stream' });
-        Toast.show({ type: 'success', text1: 'Connection Recovered', text2: 'Video restored.' });
-      } else if (kbpsPerViewer >= LOW_BANDWIDTH_KBPS) {
-        lowStatsCountRef.current = 0;
-      }
-    }, STATS_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [socket, lecture.id, isAudioOnlyFallback, isCameraOn]);
+  }, [socket, user?.uid, appendTranscriptionText]);
 
   useEffect(() => {
     const timer = setInterval(() => setElapsedTime(formatElapsed(startedAtRef.current)), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // ---- Mic + transcription --------------------------------------------------
-  useEffect(() => {
-    const audioTrack = localStream?.getAudioTracks()[0];
-    if (audioTrack) audioTrack.enabled = !isLocalMuted;
-    if (joined) socket?.emit('toggle_lecturer_mic', { lectureId: lecture.id, isMuted: isLocalMuted });
-  }, [isLocalMuted, localStream, joined, socket, lecture.id]);
-
-  const { sendAudioChunkToDeepgram } = useLiveTranscription({
-    lectureId: lecture.id,
-    isHost: true,
-    currentUserFirstName: user?.firstname || 'Host',
-    isMicActive: joined && !isLocalMuted,
-    onTranscriptChunk: (label, text) => {
-      appendTranscriptionText(label, text);
-      socket?.emit('share_transcription_chunk', {
-        lectureId: lecture.id,
-        speakerLabel: label,
-        text,
-      });
-    },
-  });
-
-  useEffect(() => {
-    if (!joined || isLocalMuted) return;
-    LiveAudioStream.init({
-      sampleRate: 16000,
-      channels: 1,
-      bitsPerSample: 16,
-      audioSource: 6,
-      bufferSize: 4096,
-      wavFile: '',
-    });
-    const subscription: any = LiveAudioStream.on('data', (base64Data: string) => {
-      sendAudioChunkToDeepgram(Buffer.from(base64Data, 'base64').buffer);
-    });
-    LiveAudioStream.start();
-    return () => {
-      LiveAudioStream.stop();
-      subscription?.remove?.();
-    };
-  }, [joined, isLocalMuted, sendAudioChunkToDeepgram]);
-
   // ---- Controls --------------------------------------------------------------
+  useEffect(() => {
+    agora.setMicMuted(isLocalMuted);
+    if (joined) socket?.emit('toggle_lecturer_mic', { lectureId: lecture.id, isMuted: isLocalMuted });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocalMuted, joined, socket, lecture.id, agora.status]);
+
   const toggleCamera = () => {
     const next = !isCameraOn;
-    if (cameraTrackRef.current && !isAudioOnlyFallback) cameraTrackRef.current.enabled = next;
+    agora.setCameraOn(next);
     setIsCameraOn(next);
     socket?.emit('toggle_lecturer_camera', { lectureId: lecture.id, isCameraOn: next });
   };
 
-  const stopScreenShare = useCallback(async () => {
-    const screen = screenStreamRef.current;
-    screenStreamRef.current = null;
-    setIsSharingScreen(false);
-    await replaceOutgoingVideo(cameraTrackRef.current);
-    screen?.getTracks().forEach(t => t.stop());
-    if (Platform.OS === 'android') {
-      VIForegroundService.getInstance().stopService().catch(() => {});
+  const startScreenShare = () => {
+    if (!agora.startScreenShare()) {
+      Toast.show({ type: 'error', text1: 'Could not start screen sharing' });
+      return;
     }
+    socket?.emit('lecturer_started_sharing', { lectureId: lecture.id });
+  };
+  const stopScreenShare = () => {
+    agora.stopScreenShare();
     socket?.emit('lecturer_stopped_sharing', { lectureId: lecture.id });
-  }, [replaceOutgoingVideo, socket, lecture.id]);
-
-  const startScreenShare = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        // Android requires a foreground service for MediaProjection.
-        const service = VIForegroundService.getInstance();
-        await service.createNotificationChannel({
-          id: 'liveness_channel',
-          name: 'iCampus Live Session',
-          description: 'Keeps the lecture alive while screen sharing',
-          enableVibration: false,
-          importance: 4,
-        });
-        await service.startService({
-          channelId: 'liveness_channel',
-          id: 1234,
-          title: 'iCampus Live',
-          text: `Sharing screen for ${lecture.topicName}`,
-          icon: 'icampus_logo',
-          priority: 2,
-        });
-      }
-      const screen = await mediaDevices.getDisplayMedia({ video: true } as any);
-      const screenTrack = screen.getVideoTracks()[0];
-      if (!screenTrack) throw new Error('No screen track');
-      screenStreamRef.current = screen;
-      (screenTrack as any).addEventListener?.('ended', () => stopScreenShare());
-      await replaceOutgoingVideo(screenTrack);
-      setIsSharingScreen(true);
-      socket?.emit('lecturer_started_sharing', { lectureId: lecture.id });
-    } catch (e) {
-      console.log('Screen capture denied or failed:', e);
-      setIsSharingScreen(false);
-      if (Platform.OS === 'android') {
-        VIForegroundService.getInstance().stopService().catch(() => {});
-      }
-    }
   };
 
   const sendMessage = () => {
@@ -513,7 +222,16 @@ export const LecturerLiveClassSession = ({
   };
 
   // ---- Render ----------------------------------------------------------------
-  const showCameraPreview = !!localStream && isCameraOn && !isAudioOnlyFallback && !isSharingScreen;
+  const isSharingScreen = agora.isScreenSharing;
+  const showCameraPreview = agora.status !== 'idle' && agora.status !== 'failed' && isCameraOn && !isSharingScreen;
+  const connectionLabel =
+    agora.status === 'joined'
+      ? 'Broadcasting'
+      : agora.status === 'reconnecting'
+        ? 'Reconnecting…'
+        : agora.status === 'failed'
+          ? 'Not connected'
+          : 'Connecting…';
 
   return (
     <SafeAreaView
@@ -521,9 +239,9 @@ export const LecturerLiveClassSession = ({
       style={[S.mainContainer, { backgroundColor: colors.background }]}
     >
       <View style={S.topBar}>
-        <View style={[S.livePill, !joined && S.livePillWaiting]}>
+        <View style={[S.livePill, !isLiveOnAir && S.livePillWaiting]}>
           <View style={S.liveDot} />
-          <Text style={S.livePillText}>{joined ? 'LIVE' : 'OFFLINE'}</Text>
+          <Text style={S.livePillText}>{isLiveOnAir ? 'LIVE' : 'OFFLINE'}</Text>
         </View>
         <View style={S.topChip}>
           <MaterialIcons name="schedule" size={14} color={colors.primary} />
@@ -531,7 +249,7 @@ export const LecturerLiveClassSession = ({
         </View>
         <View style={S.topChip}>
           <MaterialIcons name="visibility" size={14} color={colors.primary} />
-          <Text style={[S.topChipText, { color: colors.textDarker }]}>{viewerCount}</Text>
+          <Text style={[S.topChipText, { color: colors.textDarker }]}>{students.length}</Text>
         </View>
         <TouchableOpacity style={S.topBarAction} onPress={() => setEndModalVisible(true)}>
           <MaterialIcons name="call-end" size={16} color="#fff" />
@@ -541,46 +259,40 @@ export const LecturerLiveClassSession = ({
 
       <View style={S.stage}>
         {showCameraPreview && (
-          <RTCView
-            streamURL={localStream!.toURL()}
-            style={S.stageVideo}
-            objectFit="cover"
-            mirror
-          />
+          <RtcSurfaceView canvas={{ uid: 0 }} style={S.stageVideo} />
         )}
         {!showCameraPreview && (
           <View style={S.stageOverlay}>
             <MaterialIcons
               name={
-                isSharingScreen
-                  ? 'screen-share'
-                  : isAudioOnlyFallback
-                    ? 'graphic-eq'
-                    : localStream
-                      ? 'videocam-off'
-                      : 'videocam'
+                agora.status === 'failed'
+                  ? 'wifi-off'
+                  : isSharingScreen
+                    ? 'screen-share'
+                    : 'videocam-off'
               }
               size={46}
               color={colors.primary}
             />
             <Text style={S.stageTitle}>
-              {isSharingScreen
-                ? 'You are sharing your screen'
-                : isAudioOnlyFallback
-                  ? 'Audio-only mode'
-                  : localStream
-                    ? 'Your camera is off'
-                    : 'Starting camera…'}
+              {agora.status === 'failed'
+                ? 'Not connected'
+                : isSharingScreen
+                  ? 'You are sharing your screen'
+                  : 'Your camera is off'}
             </Text>
             <Text style={S.stageHint}>
-              {isSharingScreen
-                ? 'Students see your screen. You can switch apps to present.'
-                : isAudioOnlyFallback
-                  ? 'Video paused because of a weak connection. Students can still hear you.'
-                  : localStream
-                    ? 'Students can still hear you.'
-                    : 'Allow camera and microphone access if prompted.'}
+              {agora.status === 'failed'
+                ? agora.error || 'Check your connection and try again.'
+                : isSharingScreen
+                  ? 'Students see your screen. You can switch apps to present.'
+                  : 'Students can still hear you.'}
             </Text>
+            {agora.status === 'failed' && (
+              <TouchableOpacity style={S.stageStopShare} onPress={agora.retry}>
+                <Text style={S.stageStopShareText}>Try again</Text>
+              </TouchableOpacity>
+            )}
             {isSharingScreen && (
               <TouchableOpacity style={S.stageStopShare} onPress={stopScreenShare}>
                 <Text style={S.stageStopShareText}>Stop Sharing</Text>
@@ -590,8 +302,12 @@ export const LecturerLiveClassSession = ({
         )}
         <View style={S.stageChipsRow}>
           <View style={S.stageChip}>
-            <MaterialIcons name={quality.icon} size={13} color="#fff" />
-            <Text style={S.stageChipText}>{quality.label}</Text>
+            <MaterialIcons
+              name={agora.status === 'joined' ? 'cell-tower' : 'sync'}
+              size={13}
+              color="#fff"
+            />
+            <Text style={S.stageChipText}>{connectionLabel}</Text>
           </View>
           {isLocalMuted && (
             <View style={[S.stageChip, { backgroundColor: LIVE_RED }]}>
@@ -613,14 +329,20 @@ export const LecturerLiveClassSession = ({
           icon={isCameraOn ? 'videocam' : 'videocam-off'}
           label="Camera"
           active={isCameraOn}
-          disabled={!localStream || isSharingScreen}
+          disabled={agora.status !== 'joined' || isSharingScreen}
           onPress={toggleCamera}
+        />
+        <LiveControlButton
+          icon="flip-camera-android"
+          label="Flip"
+          disabled={agora.status !== 'joined' || !isCameraOn || isSharingScreen}
+          onPress={agora.switchCamera}
         />
         <LiveControlButton
           icon={isSharingScreen ? 'stop-screen-share' : 'screen-share'}
           label={isSharingScreen ? 'Stop' : 'Share'}
           active={isSharingScreen}
-          disabled={!localStream || Platform.OS !== 'android'}
+          disabled={agora.status !== 'joined' || Platform.OS !== 'android'}
           onPress={isSharingScreen ? stopScreenShare : startScreenShare}
         />
         <LiveControlButton
@@ -684,8 +406,6 @@ export const LecturerLiveClassSession = ({
           </Text>
           <Text style={[S.subtleText, { color: colors.text }]}>
             {students.length} {students.length === 1 ? 'student' : 'students'} in class
-            {' · '}
-            {viewerCount} watching
           </Text>
           {students.length > 0 && (
             <TouchableOpacity

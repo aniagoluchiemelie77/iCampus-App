@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSocket } from '../hooks/useSocket';
+import { useAppSelector } from '../hooks/hooks';
 import {
   FlatList,
   TouchableOpacity,
@@ -30,13 +33,19 @@ const OrderListItem = React.memo(
     onCancel: (id: string) => void;
     colors: any;
   }) => {
-    const isCompleted =
-      item.status === 'completed' || item.status === 'delivered';
+    // The server only accepts cancellation while the order awaits delivery
+    // (storeControllers: status === "pending_delivery"). Showing the button for
+    // anything "not completed" also offered it on cancelled, cancelling and
+    // dropped-off orders.
+    // Also hidden once the order carries any sign of completion, in case the
+    // status field lags behind (e.g. a cached copy from before the QR scan).
+    const canCancel =
+      item.status === 'pending_delivery' && !item.completedAt;
 
     return (
       <View style={styles.wrapperContainer}>
         <OrderAccordion order={item} />
-        {!isCompleted && (
+        {canCancel && (
           <TouchableOpacity
             style={[
               styles.modernCancelButton,
@@ -74,9 +83,40 @@ export const PendingOrdersScreen = () => {
   } = useAppDataContext();
   const [isModalVisible, setModalVisible] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const currentUser = useAppSelector(state => state.user);
+  const socket = useSocket()?.socket;
+  // `pendingOrders` also holds orders where this user is the seller.
+  const myOrders = useMemo(
+    () => (pendingOrders || []).filter(o => o?.buyerId === currentUser?.uid),
+    [pendingOrders, currentUser?.uid],
+  );
+  const activeCount = myOrders.filter(
+    o => o.status === 'pending_delivery' || o.status === 'dropped_off',
+  ).length;
+  // Refetch every time the screen is shown: orders change on other devices
+  // (the seller scans the QR, a cancellation is processed), and a list
+  // loaded once on mount kept showing those orders as still pending.
+  const fetchRef = useRef(fetchPendingOrders);
+  fetchRef.current = fetchPendingOrders;
+  useFocusEffect(
+    useCallback(() => {
+      fetchRef.current(false);
+    }, []),
+  );
+  // Refresh as soon as the server reports an order update.
   useEffect(() => {
-    fetchPendingOrders();
-  }, [fetchPendingOrders]);
+    if (!socket) return;
+    const onNotification = (data: any) => {
+      const type = data?.actionType || data?.notification?.actionType;
+      if (typeof type === 'string' && /ORDER|DELIVER|DROPPED/.test(type)) {
+        fetchRef.current(false);
+      }
+    };
+    socket.on('new_notification', onNotification);
+    return () => {
+      socket.off('new_notification', onNotification);
+    };
+  }, [socket]);
   const renderItem = useCallback(
     ({ item }: { item: MarketplaceOrder }) => (
       <OrderListItem
@@ -96,10 +136,10 @@ export const PendingOrdersScreen = () => {
     >
       <PageHeader
         title="My Purchase Orders"
-        subtitle={`${pendingOrders.length} item(s) pending`}
+        subtitle={`${activeCount} active ${activeCount === 1 ? 'order' : 'orders'}`}
       />
       <FlatList
-        data={pendingOrders}
+        data={myOrders}
         keyExtractor={item => item.orderId}
         renderItem={renderItem}
         contentContainerStyle={{ marginHorizontal: 15 }}

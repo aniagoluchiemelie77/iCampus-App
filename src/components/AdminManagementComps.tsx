@@ -23,6 +23,7 @@ import { deleteAdminApi } from '../api/localDeleteApis';
 import { useNavigation } from '@react-navigation/native';
 import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
 import { Notification, SchoolMetrics } from '../types/firebase';
+import { SchoolAnalyticsView } from './SchoolAnalyticsView';
 import { io, Socket } from 'socket.io-client';
 import { baseUrl } from '../components/HomeScreenComponents';
 import { NotificationItem } from '../components/NotificationItem';
@@ -626,9 +627,15 @@ export const Overview = () => {
           />
         </>
       )}
-      {canViewSchoolMetrics && stats?.schoolMetrics && (
-        <SchoolAdminDashboardView metrics={stats?.schoolMetrics!} />
-      )}
+      {canViewSchoolMetrics &&
+        stats?.schoolMetrics &&
+        (stats.schoolMetrics.basic ? (
+          // Tiered view (Basic / Professional / Enterprise by school plan).
+          <SchoolAnalyticsView metrics={stats.schoolMetrics} />
+        ) : (
+          // Older servers only send the flat legacy fields.
+          <SchoolAdminDashboardView metrics={stats.schoolMetrics} />
+        ))}
       <SchoolDetailModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}

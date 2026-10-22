@@ -3,7 +3,14 @@ import { CommonActions } from '@react-navigation/native';
 import {baseUrl} from '../components/HomeScreenComponents'
 import {saveTokenToDatabase} from '../api/localPostApis';
 import '@react-native-firebase/messaging'; // ensures it initializes
-import { getMessaging, getToken } from '@react-native-firebase/messaging';
+import { PermissionsAndroid, Platform } from 'react-native';
+import {
+  AuthorizationStatus,
+  getMessaging,
+  getToken,
+  onTokenRefresh,
+  requestPermission,
+} from '@react-native-firebase/messaging';
 import { clearSession } from './session';
 import { navigationRef } from '../context/navigationContext';
 
@@ -99,13 +106,67 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}): Pro
   }
   return response;
 };
+const FCM_SAVE_RETRY_DELAYS_MS = [5000, 20000, 60000];
+let unsubscribeTokenRefresh: (() => void) | null = null;
+
+/** Saves the token, retrying with backoff (a cold server often times out). */
+const saveTokenWithRetry = async (uid: string, fcmToken: string) => {
+  for (let attempt = 0; attempt <= FCM_SAVE_RETRY_DELAYS_MS.length; attempt++) {
+    const result = await saveTokenToDatabase(uid, fcmToken);
+    if (result.success) return true;
+    const delay = FCM_SAVE_RETRY_DELAYS_MS[attempt];
+    if (delay === undefined) break;
+    await new Promise<void>(resolve => setTimeout(() => resolve(), delay));
+  }
+  console.warn('FCM token could not be saved; push notifications may not arrive.');
+  return false;
+};
+
+/**
+ * Asks once for permission to show notifications. Android 13+ needs the
+ * POST_NOTIFICATIONS runtime grant; iOS shows nothing without requestPermission.
+ * Returns false when the user said no (the token is still registered so pushes
+ * start working if they enable notifications later in Settings).
+ */
+const ensureNotificationPermission = async (messagingInstance: ReturnType<typeof getMessaging>) => {
+  try {
+    if (Platform.OS === 'android') {
+      if (Number(Platform.Version) < 33) return true;
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      );
+      return result === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    const status = await requestPermission(messagingInstance, {
+      alert: true,
+      sound: true,
+      badge: true,
+    });
+    return (
+      status === AuthorizationStatus.AUTHORIZED ||
+      status === AuthorizationStatus.PROVISIONAL
+    );
+  } catch (error) {
+    console.warn('Notification permission request failed:', error);
+    return false;
+  }
+};
+
 export async function requestUserPermissionAndGetToken(uid: string) {
   try {
     const messagingInstance = getMessaging();
+    const allowed = await ensureNotificationPermission(messagingInstance);
+    if (!allowed) console.log('Notifications are turned off for iCampus.');
     const fcmToken = await getToken(messagingInstance);
     if (fcmToken) {
-      await saveTokenToDatabase(uid, fcmToken);
+      await saveTokenWithRetry(uid, fcmToken);
     }
+    // Firebase rotates tokens; without this the server keeps a dead one and
+    // pushes (lecture reminders included) silently stop arriving.
+    unsubscribeTokenRefresh?.();
+    unsubscribeTokenRefresh = onTokenRefresh(messagingInstance, newToken => {
+      saveTokenWithRetry(uid, newToken).catch(() => {});
+    });
   } catch (error) {
     console.error("Error getting FCM token:", error);
   }

@@ -29,7 +29,10 @@ import { useTheme } from '../context/ThemeContext';
 import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.8;
+const CARD_WIDTH = Math.min(width * 0.82, 420);
+const CARD_GAP = 16;
+// Centres each card when snapped.
+const SIDE_INSET = (width - CARD_WIDTH) / 2;
 type SubscriptionTier = User['tier'] | 'free';
 
 interface Props {
@@ -99,6 +102,7 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const { tier, country } = useAppSelector(state => state.user);
   const [selectedTier, setSelectedTier] = useState(tier);
   const [isPayModalVisible, setPayModalVisible] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const { targetScreen } = route.params || {};
   // Display only: the pay sheet shows the server's price, which is what's charged.
   const { exchangeData } = useExchangeRate(country || 'Nigeria');
@@ -151,14 +155,23 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Subscription Plans" />
+      <Text style={[styles.intro, { color: colors.text }]}>
+        Swipe to compare plans. You can renew or upgrade any time.
+      </Text>
+      {/* Takes the remaining height so each card fits on screen; the feature
+          list scrolls inside the card instead of the card being cut off. */}
       <View style={styles.horizontalWrapper}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          snapToAlignment="center"
-          snapToInterval={CARD_WIDTH + 20}
+          snapToInterval={CARD_WIDTH + CARD_GAP}
           decelerationRate="fast"
           contentContainerStyle={styles.horizontalScrollContent}
+          onMomentumScrollEnd={e =>
+            setActiveIndex(
+              Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_GAP)),
+            )
+          }
         >
           {PLANS.map(plan => {
             const isCurrentPlan = tier === plan.id;
@@ -205,7 +218,9 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
                   </Text>
                 </View>
                 <ScrollView
+                  style={styles.featureScroll}
                   showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
                   contentContainerStyle={styles.cardScrollContent}
                 >
                   <View style={styles.featureList}>
@@ -241,6 +256,18 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
           })}
         </ScrollView>
       </View>
+      <View style={styles.dots}>
+        {PLANS.map((plan, i) => (
+          <View
+            key={plan.id}
+            style={[
+              styles.dot,
+              { backgroundColor: i === activeIndex ? colors.primary : colors.border },
+              i === activeIndex && styles.dotActive,
+            ]}
+          />
+        ))}
+      </View>
 
       <FlutterwavePaySheet
         visible={isPayModalVisible}
@@ -264,18 +291,25 @@ export const SubscriptionScreen = ({ route, navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  intro: { fontSize: 13, opacity: 0.75, textAlign: 'center', marginTop: 4, paddingHorizontal: 24 },
   horizontalWrapper: {
-    marginHorizontal: 15,
+    flex: 1,
   },
   horizontalScrollContent: {
-    paddingHorizontal: 10,
-    paddingTop: 20,
+    paddingHorizontal: SIDE_INSET - CARD_GAP / 2,
+    // Room for the "current plan" label above and the shadow below.
+    paddingTop: 22,
+    paddingBottom: 12,
+    alignItems: 'stretch',
   },
+  featureScroll: { flex: 1 },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 24, paddingTop: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  dotActive: { width: 20 },
   card: {
     borderRadius: 24,
-    padding: 24,
-    marginRight: 20,
-    minHeight: 600,
+    padding: 22,
+    marginHorizontal: CARD_GAP / 2,
     elevation: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -289,9 +323,9 @@ const styles = StyleSheet.create({
   currentPlanBorder: {
     borderColor: PRIMARY_COLOR_TINT,
   },
+  // Border only: a scale transform pushed the card past its clip bounds.
   selectedCard: {
     borderColor: PRIMARY_COLOR,
-    transform: [{ scale: 1.02 }],
   },
   currentPlanLabel: {
     position: 'absolute',
@@ -348,7 +382,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
   },
   payButtonMain: {
-    marginTop: 5,
+    marginTop: 12,
     height: 50,
   },
   payButtonText: {

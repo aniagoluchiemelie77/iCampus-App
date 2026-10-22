@@ -1,5 +1,5 @@
-import { formatDistanceToNowStrict } from 'date-fns';
-import { parseFirestoreDate } from './dateFormatter';
+import moment from 'moment';
+import { safeParseDate } from './dateFormatter';
 
 /**
  * Posts reach the app from the feed, search, profiles and notifications, which
@@ -18,25 +18,47 @@ export const lastProfilePic = (profilePic: any): string | undefined => {
   return typeof uri === 'string' && uri ? uri : undefined;
 };
 
-/** "now", "5m", "3h", "2d", "4mo", "1y". */
+/**
+ * Firestore dates reach the app as Timestamps, `{ _seconds }` / `{ seconds }`
+ * objects or ISO strings. Returns null (not "now") for a missing/invalid value.
+ */
+export const toMoment = (value: any): moment.Moment | null => {
+  const date = safeParseDate(value);
+  if (!date) return null;
+  const m = moment(date);
+  return m.isValid() ? m : null;
+};
+
+/** "now", "5m", "3h", "4d", then "Oct 3", or "Oct 3, 2025" for older years. */
 export const compactRelativeTime = (value: any): string => {
-  // parseFirestoreDate treats a missing value as "now"; an undated post
-  // should show no time instead.
-  if (!value) return '';
-  const date = parseFirestoreDate(value);
-  if (!date || isNaN(date.getTime())) return '';
-  if (Date.now() - date.getTime() < 45 * 1000) return 'now';
-  try {
-    return formatDistanceToNowStrict(date, { addSuffix: false })
-      .replace(/ seconds?/g, 's')
-      .replace(/ minutes?/g, 'm')
-      .replace(/ hours?/g, 'h')
-      .replace(/ days?/g, 'd')
-      .replace(/ months?/g, 'mo')
-      .replace(/ years?/g, 'y');
-  } catch {
-    return '';
+  const m = toMoment(value);
+  if (!m) return '';
+  const now = moment();
+  const seconds = now.diff(m, 'seconds');
+  if (seconds < 45) return 'now';
+  const minutes = now.diff(m, 'minutes');
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+  const hours = now.diff(m, 'hours');
+  if (hours < 24) return `${hours}h`;
+  const days = now.diff(m, 'days');
+  if (days < 7) return `${days}d`;
+  return m.format(m.isSame(now, 'year') ? 'MMM D' : 'MMM D, YYYY');
+};
+
+/** Full timestamp for accessibility labels, e.g. "Oct 21, 2026 at 7:34 PM". */
+export const fullTimestamp = (value: any): string => {
+  const m = toMoment(value);
+  return m ? m.format('MMM D, YYYY [at] h:mm A') : '';
+};
+
+/** Poll state derived from its (Firestore) `expiresAt`. */
+export const pollTiming = (poll: any): { ended: boolean; label: string } => {
+  const expires = toMoment(poll?.expiresAt);
+  if (!expires) return { ended: false, label: '' };
+  if (!expires.isAfter(moment())) {
+    return { ended: true, label: `Ended ${expires.fromNow()}` };
   }
+  return { ended: false, label: `Ends ${expires.fromNow()}` };
 };
 
 export const displayName = (person: any): string => {

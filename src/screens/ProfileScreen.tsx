@@ -48,6 +48,8 @@ import { setAdmin } from '../context/AdminSlice.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { useProfileTab } from '../hooks/useProfileTab.ts';
 import { fetchProfileConnectionsAPI } from '../api/localGetApis.ts';
+import moment from 'moment';
+import { parseFirestoreDate } from '../utils/dateFormatter';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -352,6 +354,34 @@ const ProfileTabSection = ({
   );
 };
 
+/**
+ * About text for profiles without a bio, so no account type (organizations
+ * and general members included) shows an empty or missing About section.
+ */
+const buildDefaultAbout = (p: any): string => {
+  const first = p.firstname || p.username || 'This member';
+  const where = p.country ? ` based in ${p.country}` : '';
+  const joinedDate = p.createdAt ? moment(parseFirestoreDate(p.createdAt)) : null;
+  const joined =
+    joinedDate && joinedDate.isValid() ? ` Joined iCampus in ${joinedDate.format('MMMM YYYY')}.` : '';
+  const dept = p.department ? ` in ${p.department}` : '';
+  const school = p.schoolName ? ` at ${p.schoolName}` : '';
+
+  switch (p.usertype) {
+    case 'enterprise': {
+      const org = p.organizationName || 'This organization';
+      return `${org} is an organization on iCampus${where}. Follow ${org} for their latest updates, job openings, events and store listings.${joined}`;
+    }
+    case 'lecturer':
+      return `${first} is a ${p.jobTitle || 'lecturer'}${dept}${school}, sharing course materials, schedules and updates on iCampus.${joined}`;
+    case 'student':
+      return `${first} is a student${dept}${school}, learning and connecting on iCampus.${joined}`;
+    case 'otherUser':
+    default:
+      return `${first} is part of the iCampus community${where}${p.jobTitle ? `, working as ${p.jobTitle}` : ''}. Follow ${first} to see their posts, listings and activity.${joined}`;
+  }
+};
+
 const ROLE_META: Record<string, { label: string; icon: string }> = {
   student: { label: 'Student', icon: 'school' },
   lecturer: { label: 'Lecturer', icon: 'co-present' },
@@ -586,49 +616,38 @@ export const ProfileScreen = ({ route }: any) => {
   }
 
   if (status !== 'ready' || !profileData) {
-    const blocked = status === 'blocked';
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {header}
         <View style={styles.errorStateContainer}>
           <MaterialIcons
-            name={blocked && blockedByViewer ? 'person-off' : status === 'error' ? 'cloud-off' : 'no-accounts'}
+            name={status === 'error' ? 'cloud-off' : 'no-accounts'}
             size={72}
             color={colors.primary}
           />
           <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
-            {blocked && blockedByViewer
-              ? 'You blocked this user'
-              : blocked
-                ? "This profile isn't available"
-                : status === 'error'
-                  ? "Couldn't load profile"
-                  : 'User not found'}
+            {status === 'error' ? "Couldn't load profile" : 'User not found'}
           </Text>
           <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
-            {blocked && blockedByViewer
-              ? "You won't see their profile or posts. Unblock them to see their profile again."
-              : blocked
-                ? "You can't view this profile."
-                : status === 'error'
-                  ? errorMessage || 'Check your connection and try again.'
-                  : 'This account was not found or has been deleted.'}
+            {status === 'error'
+              ? errorMessage || 'Check your connection and try again.'
+              : 'This account was not found or has been deleted.'}
           </Text>
           <View style={styles.blockedBtnRow}>
-            <TouchableOpacity style={[styles.blockBtn, { borderColor: colors.primary }]} onPress={() => navigation.goBack()}>
-              <Text style={[styles.blockBtnText, { color: colors.primary }]}>Go back</Text>
+            <TouchableOpacity
+              style={[styles.blockBtn, { borderColor: colors.primary }]}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={[styles.blockBtnText, { color: colors.primary }]}>
+                Go back
+              </Text>
             </TouchableOpacity>
-            {blocked && blockedByViewer && (
-              <CustomButton
-                title="Unblock"
-                style={styles.blockBtnMain}
-                onPress={handleBlockToggle}
-                isLoading={blockBusy}
-                disabled={blockBusy}
-              />
-            )}
             {status === 'error' && (
-              <CustomButton title="Try again" style={styles.blockBtnMain} onPress={fetchProfile} />
+              <CustomButton
+                title="Try again"
+                style={styles.blockBtnMain}
+                onPress={fetchProfile}
+              />
             )}
           </View>
         </View>
@@ -638,7 +657,10 @@ export const ProfileScreen = ({ route }: any) => {
 
   const isVerified = profileData.isVerified === true;
   const canSwitchToInstitutionAdmin =
-    currentUser.isInstitutionAdmin && isOwner && currentUser.isVerified && currentUser.usertype === 'enterprise';
+    currentUser.isInstitutionAdmin &&
+    isOwner &&
+    currentUser.isVerified &&
+    currentUser.usertype === 'enterprise';
   const role = ROLE_META[profileData.usertype] || ROLE_META.otherUser;
 
   // "Lecturer • Petroleum Eng. at FUPRE" with empty parts left out (it used
@@ -647,25 +669,44 @@ export const ProfileScreen = ({ route }: any) => {
     profileData.usertype === 'enterprise'
       ? profileData.organizationName || ''
       : [
-          [profileData.jobTitle || (profileData.usertype === 'lecturer' ? 'Lecturer' : profileData.usertype === 'student' ? 'Student' : ''), profileData.department]
+          [
+            profileData.jobTitle ||
+              (profileData.usertype === 'lecturer'
+                ? 'Lecturer'
+                : profileData.usertype === 'student'
+                  ? 'Student'
+                  : ''),
+            profileData.department,
+          ]
             .filter(Boolean)
             .join(' · '),
           profileData.schoolName,
         ]
           .filter(Boolean)
           .join(' at ');
-  const headline = profileData.headline || builtHeadline || 'iCampus community member';
-  const aboutText = profileData.bio || '';
-  const websiteLabel = profileData.website?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const headline =
+    profileData.headline || builtHeadline || 'iCampus community member';
+  const hasOwnBio = !!profileData.bio?.trim();
+  const aboutText = hasOwnBio ? profileData.bio : buildDefaultAbout(profileData);
+  const websiteLabel = profileData.website
+    ?.replace(/^https?:\/\//, '')
+    .replace(/\/$/, '');
   const openWebsite = () => {
-    const url = profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', "Couldn't open this website"));
+    const url = profileData.website.startsWith('http')
+      ? profileData.website
+      : `https://${profileData.website}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Error', "Couldn't open this website"),
+    );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {header}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <ProfileImageCarousel
           images={profileData.profilePic}
           user={{
@@ -677,7 +718,12 @@ export const ProfileScreen = ({ route }: any) => {
         />
 
         {/* Identity */}
-        <View style={[styles.identityCard, { backgroundColor: colors.backgroundSecondary }]}>
+        <View
+          style={[
+            styles.identityCard,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <View style={styles.identityTop}>
             <View style={{ flex: 1 }}>
               <UserIdentity
@@ -692,30 +738,62 @@ export const ProfileScreen = ({ route }: any) => {
                 organizationName={profileData.organizationName}
                 containerStyle={styles.identityName}
               />
-              <Text style={[styles.headlineText, { color: colors.text }]}>{headline}</Text>
+              <Text style={[styles.headlineText, { color: colors.text }]}>
+                {headline}
+              </Text>
             </View>
             {isOwner && (
               <TouchableOpacity
                 onPress={() => navigation.navigate('EditProfile')}
-                style={[styles.iconCircle, { backgroundColor: colors.background }]}
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: colors.btnColor },
+                ]}
                 accessibilityLabel="Edit profile"
               >
-                <MaterialIcons name="edit" size={18} color={colors.primary} />
+                <MaterialIcons
+                  name="edit"
+                  size={18}
+                  color={colors.btnTextColor}
+                />
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.metaChips}>
             <MetaChip icon={role.icon} label={role.label} colors={colors} />
-            {!!profileData.schoolName && <MetaChip icon="account-balance" label={profileData.schoolName} colors={colors} />}
-            {!!profileData.department && <MetaChip icon="category" label={profileData.department} colors={colors} />}
-            {!!profileData.current_level && <MetaChip icon="stairs" label={`${profileData.current_level} level`} colors={colors} />}
-            {!!websiteLabel && <MetaChip icon="link" label={websiteLabel} onPress={openWebsite} colors={colors} />}
+            {!!profileData.schoolName && (
+              <MetaChip
+                icon="account-balance"
+                label={profileData.schoolName}
+                colors={colors}
+              />
+            )}
+            {!!websiteLabel && (
+              <MetaChip
+                icon="link"
+                label={websiteLabel}
+                onPress={openWebsite}
+                colors={colors}
+              />
+            )}
           </View>
 
-          <View style={[styles.statTiles, { borderColor: colors.border + '55' }]}>
-            <StatTile value={profileData.postsCount} label="Posts" colors={colors} onPress={() => setActiveTab('Posts')} />
-            <View style={[styles.statDivider, { backgroundColor: colors.border + '55' }]} />
+          <View
+            style={[styles.statTiles, { borderColor: colors.border + '55' }]}
+          >
+            <StatTile
+              value={profileData.postsCount}
+              label="Posts"
+              colors={colors}
+              onPress={() => setActiveTab('Posts')}
+            />
+            <View
+              style={[
+                styles.statDivider,
+                { backgroundColor: colors.border + '55' },
+              ]}
+            />
             <StatTile
               value={profileData.followersCount}
               label="Followers"
@@ -723,7 +801,12 @@ export const ProfileScreen = ({ route }: any) => {
               loading={connections.loading === 'followers'}
               onPress={() => openConnections('followers')}
             />
-            <View style={[styles.statDivider, { backgroundColor: colors.border + '55' }]} />
+            <View
+              style={[
+                styles.statDivider,
+                { backgroundColor: colors.border + '55' },
+              ]}
+            />
             <StatTile
               value={profileData.followingCount}
               label="Following"
@@ -740,7 +823,11 @@ export const ProfileScreen = ({ route }: any) => {
                 onPress={() => navigation.navigate('EditProfile')}
               >
                 <MaterialIcons name="edit" size={17} color={colors.primary} />
-                <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Edit profile</Text>
+                <Text
+                  style={[styles.outlineBtnText, { color: colors.primary }]}
+                >
+                  Edit profile
+                </Text>
               </TouchableOpacity>
               {!isVerified && (
                 <CustomButton
@@ -769,8 +856,16 @@ export const ProfileScreen = ({ route }: any) => {
                   disabled={followBusy}
                   accessibilityLabel="Unfollow"
                 >
-                  <MaterialIcons name="check" size={17} color={colors.primary} />
-                  <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Following</Text>
+                  <MaterialIcons
+                    name="check"
+                    size={17}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[styles.outlineBtnText, { color: colors.primary }]}
+                  >
+                    Following
+                  </Text>
                 </TouchableOpacity>
               ) : (
                 <CustomButton
@@ -790,8 +885,16 @@ export const ProfileScreen = ({ route }: any) => {
                     )
                   }
                 >
-                  <MaterialIcons name="mail-outline" size={17} color={colors.primary} />
-                  <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Message</Text>
+                  <MaterialIcons
+                    name="mail-outline"
+                    size={17}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[styles.outlineBtnText, { color: colors.primary }]}
+                  >
+                    Message
+                  </Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -799,17 +902,28 @@ export const ProfileScreen = ({ route }: any) => {
                 onPress={() => setMoreMenuVisible(true)}
                 accessibilityLabel="More options"
               >
-                <MaterialIcons name="more-horiz" size={22} color={colors.textDarker} />
+                <MaterialIcons
+                  name="more-horiz"
+                  size={22}
+                  color={colors.textDarker}
+                />
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* About */}
-        {(!!aboutText || isOwner) && (
-          <View style={[styles.sectionContainer, { backgroundColor: colors.backgroundSecondary }]}>
+        {/* About (always shown; falls back to a per-account-type default) */}
+        {!!aboutText && (
+          <View
+            style={[
+              styles.sectionContainer,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <View style={styles.sectionTitleDiv}>
-              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>About</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+                About
+              </Text>
               {isOwner && (
                 <TouchableOpacity
                   onPress={() => {
@@ -822,34 +936,57 @@ export const ProfileScreen = ({ route }: any) => {
                 </TouchableOpacity>
               )}
             </View>
-            {aboutText ? (
-              <>
-                <Text
-                  style={[styles.aboutText, { color: colors.text }]}
-                  numberOfLines={isExpanded ? undefined : 4}
-                  onTextLayout={onTextLayout}
-                >
-                  {aboutText}
+            <Text
+              style={[
+                styles.aboutText,
+                { color: colors.text },
+                !hasOwnBio && styles.defaultAboutText,
+              ]}
+              numberOfLines={isExpanded ? undefined : 4}
+              onTextLayout={onTextLayout}
+            >
+              {aboutText}
+            </Text>
+            {!!numLines && numLines > 4 && (
+              <TouchableOpacity
+                onPress={() => setIsExpanded(!isExpanded)}
+                style={styles.seeMoreButton}
+              >
+                <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+                  {isExpanded ? 'Show less' : 'See more'}
                 </Text>
-                {!!numLines && numLines > 4 && (
-                  <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={styles.seeMoreButton}>
-                    <Text style={[styles.seeMoreText, { color: colors.primary }]}>{isExpanded ? 'Show less' : 'See more'}</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            ) : (
-              <Text style={[styles.placeholderText, { color: colors.text }]}>
-                Tell people about yourself: what you study, teach or build.
-              </Text>
+              </TouchableOpacity>
+            )}
+            {isOwner && !hasOwnBio && (
+              <TouchableOpacity
+                onPress={() => {
+                  setModalType('about');
+                  setEditModalVisible(true);
+                }}
+                style={styles.writeOwnBtn}
+                accessibilityRole="button"
+              >
+                <MaterialIcons name="edit-note" size={18} color={colors.primary} />
+                <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+                  This is a default description. Write your own
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         )}
 
         {/* Skills */}
         {(profileData.skills?.length > 0 || isOwner) && (
-          <View style={[styles.sectionContainer, { backgroundColor: colors.backgroundSecondary }]}>
+          <View
+            style={[
+              styles.sectionContainer,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
             <View style={styles.sectionTitleDiv}>
-              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>Skills</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+                Skills
+              </Text>
               {isOwner && (
                 <TouchableOpacity
                   onPress={() => {
@@ -858,27 +995,48 @@ export const ProfileScreen = ({ route }: any) => {
                   }}
                   accessibilityLabel="Edit skills"
                 >
-                  <MaterialIcons name={profileData.skills?.length ? 'edit' : 'add'} size={18} color={colors.primary} />
+                  <MaterialIcons
+                    name={profileData.skills?.length ? 'edit' : 'add'}
+                    size={18}
+                    color={colors.primary}
+                  />
                 </TouchableOpacity>
               )}
             </View>
             {profileData.skills?.length > 0 ? (
               <View style={styles.skillsWrapper}>
                 {profileData.skills.map((skill: string, index: number) => (
-                  <View key={index} style={[styles.skillChip, { backgroundColor: colors.primary + '14' }]}>
-                    <Text style={[styles.skillText, { color: colors.primary }]}>{skill}</Text>
+                  <View
+                    key={index}
+                    style={[
+                      styles.skillChip,
+                      { backgroundColor: colors.primary + '14' },
+                    ]}
+                  >
+                    <Text style={[styles.skillText, { color: colors.primary }]}>
+                      {skill}
+                    </Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text style={[styles.placeholderText, { color: colors.text }]}>Add skills so people know what you're good at.</Text>
+              <Text style={[styles.placeholderText, { color: colors.text }]}>
+                Add skills so people know what you're good at.
+              </Text>
             )}
           </View>
         )}
 
-        {profileData.courses?.length > 0 && <CoursesView courses={profileData.courses} colors={colors} />}
+        {profileData.courses?.length > 0 && (
+          <CoursesView courses={profileData.courses} colors={colors} />
+        )}
 
-        <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} userType={profileData.usertype} isOwner={isOwner} />
+        <ProfileTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          userType={profileData.usertype}
+          isOwner={isOwner}
+        />
         <View style={styles.tabContent}>
           <ProfileTabSection
             key={activeTab}
@@ -901,7 +1059,10 @@ export const ProfileScreen = ({ route }: any) => {
       </ScrollView>
 
       {!isFabMenuVisible && (
-        <TouchableOpacity style={styles.fab} onPress={() => setFabMenuVisible(true)}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setFabMenuVisible(true)}
+        >
           <MaterialIcons name="widgets" size={28} color={colors.btnTextColor} />
         </TouchableOpacity>
       )}
@@ -919,7 +1080,11 @@ export const ProfileScreen = ({ route }: any) => {
         navigation={navigation}
         onClose={() => setConnections({ type: null, data: [], loading: null })}
       />
-      <ExpandableFAB isVisible={isFabMenuVisible} onClose={toggleFab} actions={['iAssistant']} />
+      <ExpandableFAB
+        isVisible={isFabMenuVisible}
+        onClose={toggleFab}
+        actions={['iAssistant']}
+      />
 
       {/* More options (other people's profiles) */}
       <Modal
@@ -930,8 +1095,15 @@ export const ProfileScreen = ({ route }: any) => {
         onSwipeComplete={() => setMoreMenuVisible(false)}
         style={styles.modalBottom}
       >
-        <View style={[styles.sheet, { backgroundColor: colors.backgroundSecondary }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View
+            style={[styles.sheetHandle, { backgroundColor: colors.border }]}
+          />
           <TouchableOpacity
             style={styles.sheetItem}
             onPress={() => {
@@ -941,15 +1113,29 @@ export const ProfileScreen = ({ route }: any) => {
             }}
           >
             <MaterialIcons name="link" size={22} color={colors.textDarker} />
-            <Text style={[styles.sheetText, { color: colors.textDarker }]}>Copy profile link</Text>
+            <Text style={[styles.sheetText, { color: colors.textDarker }]}>
+              Copy profile link
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.sheetItem} onPress={shareProfile}>
-            <MaterialIcons name="ios-share" size={22} color={colors.textDarker} />
-            <Text style={[styles.sheetText, { color: colors.textDarker }]}>Share profile</Text>
+            <MaterialIcons
+              name="ios-share"
+              size={22}
+              color={colors.textDarker}
+            />
+            <Text style={[styles.sheetText, { color: colors.textDarker }]}>
+              Share profile
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sheetItem} onPress={confirmBlock} disabled={blockBusy}>
+          <TouchableOpacity
+            style={styles.sheetItem}
+            onPress={confirmBlock}
+            disabled={blockBusy}
+          >
             <MaterialIcons name="block" size={22} color={colors.primary} />
-            <Text style={[styles.sheetText, { color: colors.primary }]}>Block {profileData.firstname || 'user'}</Text>
+            <Text style={[styles.sheetText, { color: colors.primary }]}>
+              Block {profileData.firstname || 'user'}
+            </Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -1516,6 +1702,8 @@ const styles = StyleSheet.create({
   seeMoreButton: {
     marginTop: 6,
   },
+  defaultAboutText: { opacity: 0.8 },
+  writeOwnBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   seeMoreText: {
     fontWeight: '600',
   },

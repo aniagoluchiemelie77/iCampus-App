@@ -29,6 +29,23 @@ import { getAds, fetchUnreadNotificationCount } from '../api/localGetApis';
 import AdBanner from './AdsBanner';
 import { AdItem } from '../types/firebase';
 import { initialState } from '../context/UserSlice.ts';
+import { EmptyState } from './EmptyFlatlistComponent';
+import { usePostUpload } from '../context/PostUploadContext';
+
+/**
+ * Feed pages are ordered by a live ranking score, so a post can show up on
+ * two pages (or again via the socket). Keep the first copy of each id.
+ */
+const dedupePosts = (list: Posts[]): Posts[] => {
+  const seen = new Set<string>();
+  return list.filter(post => {
+    const id = getPostId(post);
+    if (!id) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+};
 
 import { BACKEND_URL } from '@env';
 export const baseUrl = BACKEND_URL;
@@ -250,16 +267,24 @@ export function FeedTab() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingPosts, setPendingPosts] = useState<Posts[]>([]);
-  const stateRef = useRef({ cursor, loadingMore, refreshing, posts });
-  stateRef.current = { cursor, loadingMore, refreshing, posts };
+  /** Set when the last fetch failed; drives the retry UI. */
+  const [loadError, setLoadError] = useState<'initial' | 'more' | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  // Synchronous lock: onEndReached can fire several times before the
+  // `loadingMore` state re-renders, which used to request the same page twice
+  // and append duplicate posts (duplicate keys crash the native list).
+  const fetchingRef = useRef(false);
+  const stateRef = useRef({ cursor, posts });
+  stateRef.current = { cursor, posts };
   const loadPosts = useCallback(
     async (isRefreshing = false) => {
-      const { cursor, loadingMore, refreshing, posts } = stateRef.current;
-
-      if (loadingMore || (refreshing && !isRefreshing)) return;
-      const currentCursor = isRefreshing ? '' : cursor || '';
+      const { cursor, posts } = stateRef.current;
+      if (fetchingRef.current) return;
+      // Reached the end of the feed.
       if (!isRefreshing && cursor === null && posts.length > 0) return;
+      const currentCursor = isRefreshing ? '' : cursor || '';
 
+      fetchingRef.current = true;
       if (isRefreshing) setRefreshing(true);
       else setLoadingMore(true);
 
@@ -269,35 +294,62 @@ export function FeedTab() {
           cursor: currentCursor,
         });
         if (response && response.success) {
-          console.log('Fetch successful...');
           setPosts(prev =>
-            isRefreshing ? response.posts : [...prev, ...response.posts],
+            isRefreshing
+              ? dedupePosts(response.posts)
+              : dedupePosts([...prev, ...response.posts]),
           );
           setCursor(response.nextCursor);
+          setLoadError(null);
         } else {
-          Toast.show({
-            type: 'error',
-            text1: 'Fetch Error',
-            text2: response.message || 'Something went wrong',
-          });
+          setLoadError(stateRef.current.posts.length ? 'more' : 'initial');
+          if (stateRef.current.posts.length) {
+            Toast.show({
+              type: 'error',
+              text1: 'Could not load posts',
+              text2: response?.message || 'Check your connection and try again.',
+            });
+          }
         }
       } catch (error) {
         console.error('Fetch error:', error);
+        setLoadError(stateRef.current.posts.length ? 'more' : 'initial');
       } finally {
+        fetchingRef.current = false;
+        setHasLoadedOnce(true);
         setLoadingMore(false);
         setRefreshing(false);
       }
     },
-    [setPosts, setCursor, setRefreshing, setLoadingMore],
+    [setPosts],
   );
   useEffect(() => {
     loadPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // A post just published from CreatePost is prepended to `posts` by the
+  // upload flow; bring it into view.
+  const { publishedVersion } = usePostUpload();
+  useEffect(() => {
+    if (publishedVersion === 0) return;
+    setLoadError(null);
+    requestAnimationFrame(() =>
+      flatListRef.current?.scrollToOffset({ animated: true, offset: 0 }),
+    );
+  }, [publishedVersion]);
+  const handleEndReached = useCallback(() => {
+    // After a failed page, wait for an explicit retry instead of hammering the
+    // server on every scroll event.
+    if (loadError) return;
+    loadPosts(false);
+  }, [loadError, loadPosts]);
   useEffect(() => {
     const currentSocket = socket?.current;
     if (!currentSocket) return;
 
     currentSocket.on('new_post', (newPost: Posts) => {
+      // Your own posts are inserted at the top by the upload flow already.
+      if (newPost?.originalAuthor && newPost.originalAuthor === currentUser.uid) return;
       setPendingPosts(prev => {
         if (prev.find(p => p.postId === newPost.postId)) return prev;
         return [newPost, ...prev];
@@ -349,9 +401,60 @@ export function FeedTab() {
     itemVisiblePercentThreshold: 60,
   }).current;
   const showNewPosts = () => {
-    setPosts(prev => [...pendingPosts, ...prev]);
+    setPosts(prev => dedupePosts([...pendingPosts, ...prev]));
     setPendingPosts([]);
     flatListRef.current?.scrollToOffset({ animated: true, offset: 0 });
+  };
+  const renderEmpty = () => {
+    // The pull-to-refresh spinner covers the very first load.
+    if (!hasLoadedOnce) return null;
+    if (loadError) {
+      return (
+        <EmptyState
+          iconName="wifi-off"
+          title="Couldn't load your feed"
+          subtitle="Check your internet connection, then try again."
+          buttonText={refreshing ? 'Retrying…' : 'Try again'}
+          buttonIcon="refresh"
+          buttonLoading={refreshing}
+          onPress={() => loadPosts(true)}
+        />
+      );
+    }
+    return (
+      <EmptyState
+        iconName="dynamic-feed"
+        title="No posts yet"
+        subtitle="When people you follow post, you'll see it here."
+        buttonText="Refresh"
+        buttonIcon="refresh"
+        buttonLoading={refreshing}
+        onPress={() => loadPosts(true)}
+      />
+    );
+  };
+  const renderFooter = () => {
+    if (loadingMore) {
+      return <ActivityIndicator style={styles.footerSpinner} color={colors.primary} />;
+    }
+    if (loadError === 'more') {
+      return (
+        <TouchableOpacity
+          style={[styles.retryMore, { borderColor: colors.primary }]}
+          onPress={() => {
+            setLoadError(null);
+            loadPosts(false);
+          }}
+          accessibilityRole="button"
+        >
+          <MaterialIcons name="refresh" size={18} color={colors.primary} />
+          <Text style={[styles.retryMoreText, { color: colors.primary }]}>
+            Couldn't load more posts · Tap to retry
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+    return null;
   };
   return (
     <View style={styles.mainWrapper}>
@@ -383,19 +486,17 @@ export function FeedTab() {
           )}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          onEndReached={() => loadPosts(false)}
+          onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator
-                style={{ margin: 20 }}
-                color={colors.primary}
-              />
-            ) : null
-          }
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={posts.length ? undefined : styles.emptyContent}
           refreshing={refreshing}
           onRefresh={() => loadPosts(true)}
-          removeClippedSubviews={true}
+          // Clipping subviews on Android detaches native views (videos,
+          // animated images) mid-scroll and is a known source of hard crashes
+          // when rows are appended; windowSize already bounds memory.
+          removeClippedSubviews={false}
           initialNumToRender={5}
           maxToRenderPerBatch={10}
           windowSize={5}
@@ -428,7 +529,23 @@ const styles = StyleSheet.create({
   postsDiv: {
     position: 'relative',
     marginHorizontal: 15,
+    flex: 1,
   },
+  emptyContent: { flexGrow: 1 },
+  footerSpinner: { margin: 20 },
+  retryMore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'center',
+    marginVertical: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1.2,
+  },
+  retryMoreText: { fontSize: 13, fontWeight: '700' },
   topHeader: {
     paddingVertical: 10,
     paddingHorizontal: 15,

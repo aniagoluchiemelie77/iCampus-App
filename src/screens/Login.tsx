@@ -15,7 +15,8 @@ import { loginUser } from '../api/localPostApis';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../context/UserSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SweetAlertModal from '../components/alertscomponent';
+import { useToastAlert } from '../utils/toastAlert';
+import { requestUserPermissionAndGetToken } from '../utils/userTokenAuth';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
@@ -36,11 +37,7 @@ const Login = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
 
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
+  const { setAlertVisible, setAlertType, setAlertMessage } = useToastAlert();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -88,6 +85,9 @@ const Login = () => {
           dispatch(
             setUser({ ...mergedUser, accessToken, tokenCreatedAt: Date.now() }),
           );
+          // Push token: only app start registered it, so a fresh login
+          // (or switching accounts) got no notifications until a relaunch.
+          requestUserPermissionAndGetToken(user.uid).catch(() => {});
 
           if (user.isSuspended) {
             navigation.reset({
@@ -174,10 +174,19 @@ const Login = () => {
         idToken: token,
         socialProvider: provider,
       });
-    } catch (err) {
-      setAlertMessage('Social login failed.');
-      setAlertType('error');
-      setAlertVisible(true);
+    } catch (err: any) {
+      // Closing the Google/GitHub sheet is not an error.
+      const cancelled =
+        err?.code === 'SIGN_IN_CANCELLED' ||
+        err?.code === '12501' ||
+        /cancel/i.test(String(err?.message || ''));
+      if (!cancelled) {
+        setAlertMessage(
+          `Could not sign in with ${provider === 'google' ? 'Google' : 'GitHub'}. Please try again.`,
+        );
+        setAlertType('error');
+        setAlertVisible(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -309,14 +318,6 @@ const Login = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <SweetAlertModal
-        visible={alertVisible}
-        onConfirm={() => setAlertVisible(false)}
-        title={alertType === 'error' ? 'Oops!' : 'Notice'}
-        message={alertMessage}
-        type={alertType}
-      />
     </SafeAreaView>
   );
 };

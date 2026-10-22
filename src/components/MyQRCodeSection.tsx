@@ -28,6 +28,7 @@ interface OrderProps {
     selectedStation?: { name: string; address: string };
     fileUrl?: string;
     createdAt: string;
+    cancellationReason?: string;
   };
 }
 interface FAQItemProps {
@@ -62,6 +63,14 @@ export const OrderAccordion = ({ order }: OrderProps) => {
         bg: colors.primaryTint + '20',
         text: colors.primary,
         icon: 'local-shipping',
+      };
+    // Anything else used to be labelled "Completed", cancelled orders included.
+    if (order.status === 'cancelled' || order.status === 'cancelling')
+      return {
+        label: order.status === 'cancelling' ? 'Cancelling…' : 'Cancelled',
+        bg: colors.border + '55',
+        text: colors.text,
+        icon: 'cancel',
       };
     return {
       label: 'Completed',
@@ -216,7 +225,7 @@ export const OrderAccordion = ({ order }: OrderProps) => {
                 </View>
               )}
             </View>
-          ) : (
+          ) : isCompleted ? (
             <View style={QRCodeStyles.modernDigitalSection}>
               <View
                 style={[
@@ -246,6 +255,36 @@ export const OrderAccordion = ({ order }: OrderProps) => {
               >
                 Thank you for your order. This transaction has been securely
                 closed.
+              </Text>
+            </View>
+          ) : (
+            <View style={QRCodeStyles.modernDigitalSection}>
+              <View
+                style={[
+                  QRCodeStyles.successIconBubble,
+                  { backgroundColor: colors.border + '33' },
+                ]}
+              >
+                <MaterialIcons name="cancel" size={40} color={colors.text} />
+              </View>
+              <Text
+                style={[
+                  QRCodeStyles.modernCompletedText,
+                  { color: colors.textDarker || colors.text },
+                ]}
+              >
+                {order.status === 'cancelling' ? 'Cancellation in progress' : 'Order cancelled'}
+              </Text>
+              <Text
+                style={[
+                  QRCodeStyles.completedSubText,
+                  { color: colors.text + '88' },
+                ]}
+              >
+                {order.cancellationReason
+                  ? `Reason: ${order.cancellationReason}. `
+                  : ''}
+                Your refund is sent back to your original payment method.
               </Text>
             </View>
           )}

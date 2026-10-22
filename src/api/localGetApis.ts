@@ -185,41 +185,6 @@ export const searchUserProfile = async ({
     return { status: 'error', message: 'Could not connect to the server' };
   }
 };
-export const getBlockedUsers = async ({
-  userId,
-  signal,
-}: GetBlockedUsersParams): Promise<any[]> => {
-  if (!userId) return [];
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/users/blocked-list/${userId}`, {
-      method: 'GET',
-      signal,
-    });
-    
-    const result = await response.json();
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result.message || 'Failed to fetch blocked users',
-      });
-      return [];
-    }
-    const list = Array.isArray(result) ? result : result.blockedUsers || result.data;
-    return Array.isArray(list) ? list : [];
-  } catch (error: any) {
-    if (error.name === 'AbortError') return [];
-
-    console.error('BlockedUsersService Error:', error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not connect to the server',
-    });
-    return [];
-  }
-};
 export const searchUsers = async ({
   q,
   uid,
@@ -752,6 +717,7 @@ export const fetchUserReviewsAPI = async (page = 1, limit = 10, signal?: AbortSi
     return {
       success: true,
       data: result.data || [],
+      summary: result.summary || null,
       pagination: result.pagination || { hasMore: false },
       message: result.message
     };
@@ -2208,6 +2174,34 @@ export const getStationDetailsApi = async (stationId: string, signal?: AbortSign
     return { success: false, error: 'Network error.' };
   }
 };
+export interface AgoraJoinInfo {
+  appId: string;
+  channel: string;
+  uid: number;
+  token: string;
+  expiresIn: number;
+  isHost: boolean;
+  hostAgoraUid: number;
+}
+/** Agora RTC token for a live class (the server checks the user may join). */
+export const fetchAgoraToken = async (
+  lectureId: string,
+): Promise<{ success: true; data: AgoraJoinInfo } | { success: false; message: string }> => {
+  try {
+    const response = await fetchWithAuth(
+      `${baseUrl}v1/auth/agora-token?lectureId=${encodeURIComponent(lectureId)}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+    );
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      return { success: false, message: result?.message || 'Could not connect to the live class.' };
+    }
+    return { success: true, data: result };
+  } catch {
+    return { success: false, message: 'Network error while joining the live class.' };
+  }
+};
+
 export const fetchCourseGradebook = async (
   courseId: string,
   signal?: AbortSignal
@@ -2227,7 +2221,8 @@ export const fetchCourseGradebook = async (
     if (response.ok && result.success) {
       return {
         success: true,
-        data: result.data, 
+        data: result.data,
+        summary: result.summary || null,
         message: 'Gradebook data loaded successfully',
       };
     }
@@ -2575,5 +2570,45 @@ export const resolveBankAccountAPI = async (
   } catch (error: any) {
     if (error?.name === 'AbortError') return { success: false };
     return { success: false, message: 'Check your internet connection.' };
+  }
+};
+
+export interface UsernameAvailability {
+  success: boolean;
+  username?: string;
+  available: boolean;
+  isCurrent?: boolean;
+  message: string;
+  suggestions?: string[];
+}
+/** Live "is this username free?" check for the Edit Profile screen. */
+export const checkUsernameAvailabilityAPI = async (
+  username: string,
+  signal?: AbortSignal,
+): Promise<UsernameAvailability> => {
+  try {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/username-availability?username=${encodeURIComponent(username)}`,
+      { method: 'GET', signal },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        available: false,
+        message: data?.message || 'Could not check that username.',
+      };
+    }
+    return data as UsernameAvailability;
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      return { success: false, available: false, message: '' };
+    }
+    return {
+      success: false,
+      available: false,
+      message: 'Could not check that username. Check your connection.',
+    };
   }
 };

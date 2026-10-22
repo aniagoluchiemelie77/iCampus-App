@@ -103,6 +103,10 @@ import {
 const math = create(all);
 import { PageHeader } from './PageHeader';
 import { StudentGradeCard } from './MyQRCodeSection';
+import moment from 'moment';
+import { LectureDayHeader, LectureScheduleCard } from './LectureScheduleCard';
+import { lectureDayKey, resolveLectureTime, todayKey } from '../utils/lectureTime';
+import { openLecturerAttendance, openStudentAttendance } from '../utils/attendance';
 
 type PageType =
   | 'Course Contents'
@@ -3651,6 +3655,29 @@ type PendingSubmission = {
 
 const MAX_GRACES = 3;
 const MAX_VERIFY_ATTEMPTS = 3;
+// Leaving the app briefly without it reaching the background (an incoming
+// call screen, the notification shade) is logged but not a strike.
+const BRIEF_INTERRUPTION_MS = 15 * 1000;
+// Away longer than this and the test submits on return.
+const MAX_AWAY_MS = 2 * 60 * 1000;
+// Random proctoring snapshots.
+const MIN_SNAPSHOT_GAP_MS = 45 * 1000;
+const ENTRY_SNAPSHOT_DELAY_MS = 5 * 1000;
+
+type ProctorInterruption = {
+  at: string;
+  seconds: number;
+  kind: 'brief' | 'left';
+  counted: boolean;
+};
+type ProctorSnapshot = {
+  at: string;
+  reason: 'entry' | 'random' | 'return';
+  outcome: 'ok' | 'mismatch' | 'away' | 'multipleFaces' | 'error';
+  faceCount?: number | null;
+  lookingAtScreen?: boolean | null;
+  suspicious?: string | null;
+};
 const OPTION_LETTERS = 'ABCDEFGH';
 
 const formatClock = (totalSeconds: number) => {
@@ -3701,6 +3728,17 @@ export const RenderStudentTest = ({
   const cameraRef = useRef<any>(null);
   const device = useCameraDevice('front');
   const { hasPermission, requestPermission } = useCameraPermission();
+  // Wall-clock deadline: JS timers pause in the background, so counting down
+  // with setInterval let students "stop the clock" by leaving the app.
+  const deadlineRef = useRef<number | null>(null);
+  const leftAtRef = useRef<number | null>(null);
+  const reachedBackgroundRef = useRef(false);
+  const interruptionsRef = useRef<ProctorInterruption[]>([]);
+  const snapshotsRef = useRef<ProctorSnapshot[]>([]);
+  const snapshotBusyRef = useRef(false);
+  const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attentionWarningsRef = useRef(0);
+  const [awayNotice, setAwayNotice] = useState<{ seconds: number } | null>(null);
 
   const goTo = useCallback((next: TestPhase) => {
     phaseRef.current = next;
@@ -3792,9 +3830,19 @@ export const RenderStudentTest = ({
         startTime: new Date().toISOString(),
         isUnrecognizedDevice: !isRecognizedDevice,
       });
+      if (hasTimeLimit) {
+        deadlineRef.current = Date.now() + durationMinutes * 60 * 1000;
+        setTimeLeft(durationMinutes * 60);
+      }
       // The permission dialog can flip AppState; don't count it as a strike.
       appState.current = AppState.currentState;
+      leftAtRef.current = null;
       goTo('active');
+      // Identity check shortly after starting, then at random moments.
+      snapshotTimerRef.current = setTimeout(async () => {
+        await takeSnapshotRef.current('entry');
+        scheduleNextSnapshotRef.current();
+      }, ENTRY_SNAPSHOT_DELAY_MS);
     } catch (error) {
       Toast.show({
         type: 'error',
@@ -3895,6 +3943,100 @@ export const RenderStudentTest = ({
     }
   };
 
+  // ---- Random proctoring snapshots ----------------------------------------
+  // Taken at unpredictable moments (and after returning to the app) so a
+  // different person can't sit the test and hand back for the final check,
+  // and so looking away / extra people in frame are noticed.
+  const takeProctorSnapshot = async (reason: ProctorSnapshot['reason']) => {
+    if (snapshotBusyRef.current || !cameraRef.current || !user.schoolAvatarUrl) return;
+    if (phaseRef.current !== 'active' || appState.current !== 'active') return;
+    snapshotBusyRef.current = true;
+    const at = new Date().toISOString();
+    try {
+      const photo = await cameraRef.current.takePhoto({ flash: 'off', enableShutterSound: false });
+      const resized = await ImageResizer.createResizedImage(photo.path, 640, 640, 'JPEG', 70);
+      const base64Image = await RNFS.readFile(resized.path, 'base64');
+      const res = await verifyFacialIdentity(base64Image, user.schoolAvatarUrl);
+      if (res.isError) {
+        snapshotsRef.current.push({ at, reason, outcome: 'error' });
+        return;
+      }
+      const noFace = res.faceCount === 0;
+      const multipleFaces = (res.faceCount ?? 1) > 1;
+      const away = noFace || res.lookingAtScreen === false;
+      const mismatch = !res.verified && !noFace;
+      const outcome: ProctorSnapshot['outcome'] = mismatch
+        ? 'mismatch'
+        : multipleFaces
+          ? 'multipleFaces'
+          : away
+            ? 'away'
+            : 'ok';
+      snapshotsRef.current.push({
+        at,
+        reason,
+        outcome,
+        faceCount: res.faceCount ?? null,
+        lookingAtScreen: res.lookingAtScreen ?? null,
+        suspicious: res.suspicious ?? null,
+      });
+      if (outcome === 'mismatch' || outcome === 'multipleFaces') {
+        Toast.show({
+          type: 'error',
+          text1: 'Identity check',
+          text2:
+            outcome === 'multipleFaces'
+              ? 'Only you should be in view of the camera. This has been recorded.'
+              : "We couldn't match your face to your profile. This has been recorded.",
+        });
+      } else if (outcome === 'away') {
+        // First time is a warning; repeat look-aways count as strikes.
+        attentionWarningsRef.current += 1;
+        const isStrike = attentionWarningsRef.current >= 2;
+        if (isStrike) setCheatingCount(c => c + 1);
+        Toast.show({
+          type: isStrike ? 'error' : 'info',
+          text1: isStrike ? 'Strike: looking away' : 'Stay in view',
+          text2: 'Keep your face in the camera and your eyes on the screen.',
+        });
+      }
+    } catch (err) {
+      console.warn('Proctor snapshot failed', err);
+      snapshotsRef.current.push({ at, reason, outcome: 'error' });
+    } finally {
+      snapshotBusyRef.current = false;
+    }
+  };
+  const takeSnapshotRef = useRef(takeProctorSnapshot);
+  takeSnapshotRef.current = takeProctorSnapshot;
+
+  const scheduleNextSnapshot = () => {
+    if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    const p = phaseRef.current;
+    if (p === 'done' || p === 'rejected' || p === 'submitting' || p === 'verifying') return;
+    // Roughly one check every ~8 minutes (3–8 per test), at random offsets.
+    const targetChecks = hasTimeLimit
+      ? Math.min(8, Math.max(3, Math.round(durationMinutes / 8)))
+      : 0;
+    const averageGap = hasTimeLimit
+      ? (durationMinutes * 60 * 1000) / (targetChecks + 1)
+      : 3 * 60 * 1000;
+    const delay = Math.max(MIN_SNAPSHOT_GAP_MS, averageGap * (0.5 + Math.random()));
+    snapshotTimerRef.current = setTimeout(async () => {
+      await takeSnapshotRef.current('random');
+      scheduleNextSnapshotRef.current();
+    }, delay);
+  };
+  const scheduleNextSnapshotRef = useRef(scheduleNextSnapshot);
+  scheduleNextSnapshotRef.current = scheduleNextSnapshot;
+
+  useEffect(
+    () => () => {
+      if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    },
+    [],
+  );
+
   const sendSubmission = useCallback(async () => {
     const pending = pendingRef.current;
     if (!pending) return;
@@ -3915,6 +4057,7 @@ export const RenderStudentTest = ({
   const handleFinalSubmit = async (forced = false) => {
     if (submitLockRef.current) return;
     submitLockRef.current = true;
+    if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
     goTo('verifying');
     verifyAttemptsRef.current += 1;
 
@@ -3925,6 +4068,7 @@ export const RenderStudentTest = ({
       setVerifyMessage(identity.message || null);
       submitLockRef.current = false;
       goTo('retryVerify');
+      scheduleNextSnapshotRef.current();
       return;
     }
     const flagged = identity.outcome === 'mismatch';
@@ -3989,8 +4133,17 @@ export const RenderStudentTest = ({
         proctoringData: {
           deviceId: submissionMetadata?.deviceId || 'Unknown Device',
           entrySelfieUrl: identity.label,
-          tabSwitchCount: cheatingCount,
+          // Times the student actually left the app (strikes).
+          tabSwitchCount: interruptionsRef.current.filter(i => i.counted).length,
+          totalStrikes: cheatingCount,
           ipAddress: user.ipAddress?.[0] || '',
+          // Every interruption, including brief ones such as an incoming
+          // call screen, so the lecturer can judge them.
+          interruptions: interruptionsRef.current,
+          snapshots: snapshotsRef.current,
+          identityMismatches: snapshotsRef.current.filter(s => s.outcome === 'mismatch').length,
+          multipleFaceCount: snapshotsRef.current.filter(s => s.outcome === 'multipleFaces').length,
+          lookAwayCount: snapshotsRef.current.filter(s => s.outcome === 'away').length,
         },
         startTime:
           safeParseDate((submissionMetadata as any)?.startTime) ?? undefined,
@@ -4088,24 +4241,58 @@ export const RenderStudentTest = ({
       });
     }
   };
-  // App switching / minimizing counts as a strike only while the test is live.
+  // Leaving the app while the test is live. Judged on return, by how long the
+  // student was away and whether the app actually went to the background:
+  //  - brief and never backgrounded (incoming call screen, notification
+  //    shade): logged, no strike;
+  //  - otherwise: a strike, a "welcome back" notice and an identity check;
+  //  - away longer than MAX_AWAY_MS: the test submits.
+  // The clock keeps running throughout (wall-clock deadline).
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
+      const previous = appState.current;
+      appState.current = nextAppState;
       const live =
         phaseRef.current === 'active' || phaseRef.current === 'retryVerify';
-      if (
-        live &&
-        appState.current === 'active' &&
-        nextAppState.match(/inactive|background/)
-      ) {
-        setCheatingCount(prev => prev + 1);
-        Toast.show({
-          type: 'error',
-          text1: 'Warning',
-          text2: `No switching/minimizing during tests. ${MAX_GRACES} strikes and the test auto-submits.`,
-        });
+      if (!live) {
+        leftAtRef.current = null;
+        return;
       }
-      appState.current = nextAppState;
+      if (previous === 'active' && nextAppState !== 'active') {
+        leftAtRef.current = Date.now();
+        reachedBackgroundRef.current = nextAppState === 'background';
+        return;
+      }
+      if (nextAppState === 'background') reachedBackgroundRef.current = true;
+      if (nextAppState !== 'active' || leftAtRef.current === null) return;
+
+      const awayMs = Date.now() - leftAtRef.current;
+      leftAtRef.current = null;
+      const brief = !reachedBackgroundRef.current && awayMs < BRIEF_INTERRUPTION_MS;
+      interruptionsRef.current.push({
+        at: new Date().toISOString(),
+        seconds: Math.round(awayMs / 1000),
+        kind: brief ? 'brief' : 'left',
+        counted: !brief,
+      });
+      if (deadlineRef.current) {
+        setTimeLeft(Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000)));
+      }
+      if (brief) return;
+
+      if (awayMs > MAX_AWAY_MS) {
+        Toast.show({
+          type: 'info',
+          text1: 'Test submitted',
+          text2: 'You were away from the test for too long.',
+        });
+        finalSubmitRef.current(true);
+        return;
+      }
+      setCheatingCount(prev => prev + 1);
+      setAwayNotice({ seconds: Math.round(awayMs / 1000) });
+      // Make sure it's still the same person after being away.
+      setTimeout(() => takeSnapshotRef.current('return'), 2000);
     });
     return () => subscription.remove();
   }, []);
@@ -4121,10 +4308,13 @@ export const RenderStudentTest = ({
   }, [cheatingCount]);
   useEffect(() => {
     if (!hasTimeLimit || !isTestLive) return;
-    const timer = setInterval(
-      () => setTimeLeft(prev => Math.max(0, prev - 1)),
-      1000,
-    );
+    const tick = () => {
+      if (deadlineRef.current) {
+        setTimeLeft(Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000)));
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [hasTimeLimit, isTestLive]);
   useEffect(() => {
@@ -4251,9 +4441,10 @@ export const RenderStudentTest = ({
                     <MaterialIcons name="verified-user" size={14} color="#fff" />
                   </View>
                   <Text style={[CourseActionStyles.testInsText, { color: colors.text }]}>
-                    <Text style={CourseActionStyles.boldText}>Identity check: </Text>
-                    Your front camera stays on, and a photo is matched against
-                    your school profile picture when you submit.
+                    <Text style={CourseActionStyles.boldText}>Identity checks: </Text>
+                    Your front camera stays on. Photos are taken at random times
+                    and when you submit, and matched against your school profile
+                    picture. Only you should be in view.
                   </Text>
                 </View>
                 <View style={CourseActionStyles.testInsBlock}>
@@ -4274,9 +4465,42 @@ export const RenderStudentTest = ({
                     <Text style={CourseActionStyles.boldText}>
                       Stay in the app:{' '}
                     </Text>
-                    Leaving or minimizing the app counts as a strike.{' '}
-                    {MAX_GRACES} strikes and your test auto-submits.
+                    Leaving or minimizing the app, or repeatedly looking away,
+                    counts as a strike. {MAX_GRACES} strikes and your test
+                    auto-submits. The timer keeps running while you're away, and
+                    being away for over {Math.round(MAX_AWAY_MS / 60000)} minutes
+                    submits your test.
                   </Text>
+                </View>
+                <View style={CourseActionStyles.testInsBlock}>
+                  <View style={CourseActionStyles.testInsBadge}>
+                    <MaterialIcons name="phone-disabled" size={14} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[CourseActionStyles.testInsText, { color: colors.text }]}>
+                      <Text style={CourseActionStyles.boldText}>Phone calls: </Text>
+                      Turn on Do Not Disturb first. A call screen that you
+                      dismiss quickly is only logged, but answering a call takes
+                      you out of the test and counts as a strike. Every
+                      interruption is shown to your lecturer.
+                    </Text>
+                    {Platform.OS === 'android' && (
+                      <TouchableOpacity
+                        onPress={() =>
+                          Linking.sendIntent('android.settings.ZEN_MODE_SETTINGS').catch(() =>
+                            Linking.openSettings(),
+                          )
+                        }
+                        style={CourseActionStyles.testDndBtn}
+                        accessibilityRole="button"
+                      >
+                        <MaterialIcons name="do-not-disturb-on" size={15} color={colors.primary} />
+                        <Text style={[CourseActionStyles.testLinkText, { color: colors.primary }]}>
+                          Turn on Do Not Disturb
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
                 <View style={[CourseActionStyles.testInsBlock, { marginBottom: 0 }]}>
                   <View style={CourseActionStyles.testInsBadge}>
@@ -4657,6 +4881,51 @@ export const RenderStudentTest = ({
         </View>
       </Modal>
 
+      {/* Shown on return after leaving the test (e.g. answering a call). */}
+      <Modal
+        visible={!!awayNotice && isTestLive}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAwayNotice(null)}
+      >
+        <View style={CourseActionStyles.testModalOverlay}>
+          <View
+            style={[
+              CourseActionStyles.testResultCard,
+              { backgroundColor: colors.backgroundSecondary },
+            ]}
+          >
+            <View style={CourseActionStyles.testWarnIconWrap}>
+              <MaterialIcons name="phone-paused" size={34} color="#fff" />
+            </View>
+            <Text
+              style={[
+                CourseActionStyles.testScoreTitle,
+                { color: colors.textDarker, marginTop: 10 },
+              ]}
+            >
+              Welcome back
+            </Text>
+            <Text style={[CourseActionStyles.testAdviceText, { color: colors.text }]}>
+              You left the test for {awayNotice?.seconds ?? 0} seconds. That
+              counts as a strike: {warningCount}{' '}
+              {warningCount === 1 ? 'strike remains' : 'strikes remain'} before
+              the test submits automatically. Your answers are saved and the
+              timer kept running.
+              {'\n\n'}
+              If this was a phone call, your lecturer can see when and for how
+              long you were away. A quick identity check will run now.
+            </Text>
+            <CustomButton
+              title="Continue test"
+              iconName="play-arrow"
+              onPress={() => setAwayNotice(null)}
+              style={CourseActionStyles.testFullWidthBtn}
+            />
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={phase === 'submitFailed'} transparent animationType="slide">
         <View style={CourseActionStyles.testModalOverlay}>
           <View
@@ -4828,6 +5097,52 @@ export const RenderStudentTest = ({
     </SafeAreaView>
   );
 };
+// ---------------------------------------------------------------------------
+// Lecture schedule helpers (student + lecturer views)
+// ---------------------------------------------------------------------------
+type LectureListRow =
+  | { type: 'HEADER'; title: string; id: string; count: number }
+  | (Lecture & { type: 'ITEM' });
+
+/** Day headers followed by that day's lectures, both in time order. */
+const groupLecturesByDay = (lectures: Lecture[]): LectureListRow[] => {
+  const groups: Record<string, Lecture[]> = {};
+  (Array.isArray(lectures) ? lectures : []).forEach(lecture => {
+    if (!lecture) return;
+    const key = lectureDayKey(lecture);
+    (groups[key] = groups[key] || []).push(lecture);
+  });
+  const startMs = (l: Lecture) => resolveLectureTime(l, 'start')?.getTime() ?? 0;
+  return Object.keys(groups)
+    .sort()
+    .flatMap(key => [
+      { type: 'HEADER' as const, title: key, id: `header-${key}`, count: groups[key].length },
+      ...groups[key]
+        .sort((a, b) => startMs(a) - startMs(b))
+        .map(item => ({ ...item, type: 'ITEM' as const })),
+    ]);
+};
+
+/** Today's header, or the next day that has lectures. */
+const findTodayOrNextIndex = (rows: { type: string; title?: string }[], today: string) =>
+  rows.findIndex(row => row.type === 'HEADER' && (row.title || '') >= today);
+
+/** Rows have variable heights; scroll near the target, then retry. */
+const scrollToIndexFallback = (
+  ref: React.RefObject<FlatList | null>,
+  info: { index: number; averageItemLength: number },
+) => {
+  ref.current?.scrollToOffset({
+    offset: info.averageItemLength * info.index,
+    animated: true,
+  });
+  setTimeout(() => {
+    ref.current?.scrollToIndex({ index: info.index, animated: true });
+  }, 250);
+};
+
+const lectureListContent = { paddingBottom: 110, flexGrow: 1 };
+
 export const RenderViewLectureSchedule = ({
   lectures,
 }: {
@@ -4839,57 +5154,24 @@ export const RenderViewLectureSchedule = ({
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
   const user = useAppSelector(state => state.user) || {};
   const flatListRef = useRef<FlatList>(null);
-  const today = new Date().toISOString().split('T')[0];
-
-  const sections = useMemo(() => {
-    const safeLectures = Array.isArray(lectures) ? lectures : [];
-    const groups = safeLectures.reduce(
-      (acc, lecture) => {
-        if (!lecture) return acc;
-        const dateKey = getDateKey((lecture as any)?.date);
-
-        if (!acc[dateKey]) {
-          acc[dateKey] = [];
-        }
-        acc[dateKey].push(lecture);
-        return acc;
-      },
-      {} as Record<string, Lecture[]>,
-    );
-
-    return Object.keys(groups)
-      .sort()
-      .map(dateKey => ({
-        title: dateKey,
-        data: groups[dateKey],
-      }));
-  }, [lectures]);
+  const today = todayKey();
 
   type FlatListItem =
-    | { type: 'HEADER'; title: string; id: string }
+    | { type: 'HEADER'; title: string; id: string; count: number }
     | (Lecture & { type: 'ITEM' });
 
-  const flatListData: FlatListItem[] = useMemo(() => {
-    return sections.flatMap(section => [
-      {
-        type: 'HEADER' as const,
-        title: section.title,
-        id: `header-${section.title}`,
-      },
-      ...section.data.map(item => ({ ...item, type: 'ITEM' as const })),
-    ]);
-  }, [sections]);
+  const flatListData: FlatListItem[] = useMemo(
+    () => groupLecturesByDay(lectures),
+    [lectures],
+  );
 
   const jumpToToday = () => {
-    const todayIndex = flatListData.findIndex(
-      item => item.type === 'HEADER' && item.title === today,
-    );
-    if (todayIndex !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index: todayIndex,
-        animated: true,
-      });
+    const index = findTodayOrNextIndex(flatListData, today);
+    if (index === -1) {
+      Toast.show({ type: 'info', text1: 'No lectures today or later' });
+      return;
     }
+    flatListRef.current?.scrollToIndex({ index, animated: true });
   };
 
   const handleJoinLecture = async () => {
@@ -4902,130 +5184,52 @@ export const RenderViewLectureSchedule = ({
       setOngoingLecture(null);
       return;
     }
-    try {
-      if (user.usertype === 'lecturer') {
-        const [courseRes, exceptionsRes] = await Promise.all([
-          fetch(`${baseUrl}users/courses/${ongoingLecture.courseId}`),
-          fetch(`${baseUrl}users/exceptions/lectures/${ongoingLecture.id}`),
-        ]);
-        const courseData = await courseRes.json();
-        const exceptionsData = await exceptionsRes.json();
-
-        navigation.navigate('PhysicalAttendanceManager', {
-          lecture: ongoingLecture,
-          course: courseData,
-          exceptions: exceptionsData,
-        });
-      } else if (user.usertype === 'student') {
-        navigation.navigate('StudentAttendanceScanner', {
-          lecture: ongoingLecture,
-          onSuccess: () => navigation.navigate('Home'),
-        });
-      }
-      setOngoingLecture(null);
-    } catch (err) {
-      console.error('Failed to fetch attendance requirements', err);
-      Toast.show({
-        type: 'error',
-        text1: 'Connection Error',
-        text2: 'Could not load lecture details.',
-      });
+    const lecture = ongoingLecture;
+    setOngoingLecture(null);
+    if (user.usertype === 'lecturer') {
+      await openLecturerAttendance(navigation, lecture);
+    } else {
+      openStudentAttendance(navigation, lecture);
     }
   };
 
   const renderLectureItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
-    const isClickable = item.lectureType === 'Online';
-    const handlePress = async () => {
-      if (isOngoing) {
-        setOngoingLecture(item);
-      }
-    };
+    const isPhysical = item.lectureType === 'Physical';
+    const isFinished = item.status === 'completed' || item.status === 'cancelled';
+    const canMarkAttendance = isPhysical && lectureDayKey(item) === today && !isFinished;
     return (
-      <TouchableOpacity
-        disabled={!isClickable}
-        onPress={handlePress}
-        style={[
-          CourseActionStyles.lectureCard,
-          { backgroundColor: colors.backgroundSecondary },
-          isOngoing && { borderLeftColor: colors.primary },
-        ]}
-      >
-        <View style={CourseActionStyles.lectureInfoColumn}>
-          <View style={CourseActionStyles.rowBetween}>
-            <Text
-              style={[CourseActionStyles.topicText, { color: colors.text }]}
-            >
-              {item.topicName}
-            </Text>
-            <Text
-              style={[CourseActionStyles.badgeText, { color: colors.primary }]}
-            >
-              {item.lectureType}
-            </Text>
-          </View>
-          <Text
-            style={[CourseActionStyles.locationText, { color: colors.text }]}
-          >
-            {item.lectureType === 'Physical'
-              ? `Venue: ${item.location}`
-              : ` ${item.lectureType} Class Session`}
-          </Text>
-          {isOngoing && (
-            <View style={CourseActionStyles.ongoingIndicator}>
-              <View
-                style={[
-                  CourseActionStyles.pulseDot,
-                  { backgroundColor: colors.primary },
-                ]}
-              />
-              <Text
-                style={[
-                  CourseActionStyles.ongoingText,
-                  { color: colors.primary },
-                ]}
-              >
-                Happening Now
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={CourseActionStyles.lectureTimeColumn}>
-          <Text style={[CourseActionStyles.timeText, { color: colors.text }]}>
-            {safeFormatDate(parseFirestoreDate(item?.startTime))}
-          </Text>
-          <Text
-            style={[
-              CourseActionStyles.timeText,
-              { color: colors.text, marginTop: 3 },
-            ]}
-          >
-            {safeFormatDate(parseFirestoreDate(item?.endTime))}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      <LectureScheduleCard
+        lecture={item}
+        primaryAction={
+          canMarkAttendance
+            ? {
+                label: 'Mark attendance',
+                icon: 'how-to-reg',
+                highlight: !!(item as any).attendanceOpen,
+                onPress: () => openStudentAttendance(navigation, item),
+              }
+            : undefined
+        }
+        onPress={
+          isOngoing && !isPhysical
+            ? () => setOngoingLecture(item)
+            : !isPhysical
+              ? () =>
+                  Toast.show({
+                    type: 'info',
+                    text1: "This class hasn't started yet",
+                    text2: "You'll get a reminder before it begins.",
+                  })
+              : undefined
+        }
+      />
     );
   };
 
   const renderFlatListItem = ({ item }: { item: FlatListItem }) => {
     if (item.type === 'HEADER') {
-      return (
-        <View
-          style={[
-            CourseActionStyles.sectionHeader,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <Text
-            style={[
-              CourseActionStyles.sectionHeaderText,
-              { color: colors.textDarker },
-            ]}
-          >
-            {item.title === today ? "Today's Lectures" : item.title}
-          </Text>
-        </View>
-      );
+      return <LectureDayHeader dayKey={item.title} count={item.count} />;
     }
     return renderLectureItem({ item });
   };
@@ -5043,7 +5247,9 @@ export const RenderViewLectureSchedule = ({
         data={flatListData}
         keyExtractor={item => item.id}
         renderItem={renderFlatListItem}
-
+        onScrollToIndexFailed={info => scrollToIndexFallback(flatListRef, info)}
+        contentContainerStyle={lectureListContent}
+        showsVerticalScrollIndicator={false}
         ListHeaderComponent={<PageHeader title="My Lectures Schedule" />}
         ListEmptyComponent={
           <EmptyState
@@ -5096,59 +5302,25 @@ export const LecturerLectureScheduleView = ({
   const [editLocation, setEditLocation] = useState('');
   const [editDate, setEditDate] = useState(new Date());
   const flatListRef = useRef<FlatList>(null);
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKey();
 
-  const sections = useMemo(() => {
-    const safeLectures = Array.isArray(lectures) ? lectures : [];
-    const groups = safeLectures.reduce(
-      (acc, lecture) => {
-        if (!lecture) return acc;
-        const dateKey = getDateKey((lecture as any)?.date);
-
-        if (!acc[dateKey]) {
-          acc[dateKey] = [];
-        }
-        acc[dateKey].push(lecture);
-        return acc;
-      },
-      {} as Record<string, Lecture[]>,
-    );
-
-    return Object.keys(groups)
-      .sort()
-      .map(dateKey => ({
-        title: dateKey,
-        data: groups[dateKey],
-      }));
-  }, [lectures]);
-
-  const flatListData = useMemo(() => {
-    return sections.flatMap(section => [
-      { type: 'HEADER', title: section.title, id: `header-${section.title}` },
-      ...section.data.map(item => ({ ...item, type: 'ITEM' })),
-    ]);
-  }, [sections]);
+  const flatListData = useMemo(() => groupLecturesByDay(lectures), [lectures]);
 
   const jumpToToday = () => {
-    const todayIndex = flatListData.findIndex(
-      item => item.type === 'HEADER' && (item as any).title === today,
-    );
-    if (todayIndex !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index: todayIndex,
-        animated: true,
-      });
+    const index = findTodayOrNextIndex(flatListData, today);
+    if (index === -1) {
+      Toast.show({ type: 'info', text1: 'No lectures today or later' });
+      return;
     }
+    flatListRef.current?.scrollToIndex({ index, animated: true });
   };
 
   const handleEditSave = async () => {
     if (!selectedLecture) return;
-    const formattedDate = safeToISOString(editDate)?.split('T')[0] ?? getDateKey(new Date());
-    const formattedTime = editDate.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+    // Local calendar day and wall-clock time, plus the exact instant so the
+    // server never has to guess the time zone.
+    const formattedDate = moment(editDate).format('YYYY-MM-DD');
+    const formattedTime = moment(editDate).format('HH:mm');
 
     try {
       const payload = {
@@ -5159,6 +5331,7 @@ export const LecturerLectureScheduleView = ({
         location: editLectureType === 'Physical' ? editLocation : undefined,
         newDate: formattedDate,
         newStartTime: formattedTime,
+        newStartAt: editDate.toISOString(),
       };
       const result = await updateLectureDetails(payload);
 
@@ -5191,11 +5364,7 @@ export const LecturerLectureScheduleView = ({
     setEditTopicName(lecture.topicName);
     setEditLectureType(lecture.lectureType);
     setEditLocation(lecture.location || '');
-    if ((lecture as any)?.date && (lecture as any)?.startTime) {
-      setEditDate(safeParseDate(`${(lecture as any).date}T${(lecture as any).startTime}`) ?? new Date());
-    } else {
-      setEditDate(new Date());
-    }
+    setEditDate(resolveLectureTime(lecture, 'start') ?? new Date());
     setShowPostponeModal(true);
   };
 
@@ -5209,174 +5378,61 @@ export const LecturerLectureScheduleView = ({
       setOngoingLecture(null);
       return;
     }
-    try {
-      if (user.usertype === 'lecturer') {
-        const [courseResult, exceptionsResult] = await Promise.all([
-          getCourseDetailsForOngoingLecture({
-            courseId: ongoingLecture.courseId,
-          }),
-          getAllExceptionsForOngoingLecture({ lectureId: ongoingLecture.id }),
-        ]);
-        if (courseResult.success && exceptionsResult.success) {
-          navigation.navigate('PhysicalAttendanceManager', {
-            lecture: ongoingLecture,
-            course: courseResult.data!,
-            exceptions: exceptionsResult.data!,
-          });
-        } else {
-          const courseError = courseResult.error
-            ? `Course Err: ${courseResult.error}`
-            : '';
-          const exceptionsError = exceptionsResult.error
-            ? `Exceptions Err: ${exceptionsResult.error}`
-            : '';
-          console.error(`Data fetch failed. ${courseError} ${exceptionsError}`);
-          Toast.show({
-            type: 'error',
-            text1: 'Fetch Error',
-            text2: `Data fetch failed. ${courseError} ${exceptionsError}`,
-          });
-        }
-      } else if (user.usertype === 'student') {
-        navigation.navigate('StudentAttendanceScanner', {
-          lecture: ongoingLecture,
-          onSuccess: () => navigation.navigate('Home'),
-        });
-      }
-      setOngoingLecture(null);
-    } catch (err) {
-      console.error('Failed to fetch attendance requirements', err);
-      Toast.show({
-        type: 'error',
-        text1: 'Connection Error',
-        text2: 'Could not load lecture details.',
-      });
+    const lecture = ongoingLecture;
+    setOngoingLecture(null);
+    if (user.usertype === 'lecturer') {
+      await openLecturerAttendance(navigation, lecture);
+    } else {
+      openStudentAttendance(navigation, lecture);
     }
   };
 
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
     const isOngoing = item.status === 'ongoing';
-    const isClickable = item.lectureType === 'Online';
-    // A lecture only becomes "ongoing" when its host goes live, so the host
-    // needs a way in before that happens.
-    const canStartLive =
-      item.lectureType === 'Online' &&
-      getDateKey((item as any)?.date) === today &&
-      item.status !== 'completed' &&
-      item.status !== 'cancelled';
-    const handlePress = () => {
-      if (isOngoing && item.lectureType === 'Online') {
-        setOngoingLecture(item);
-      }
-    };
-    return (
-      <TouchableOpacity
-        disabled={!isClickable}
-        onPress={handlePress}
-        style={[
-          CourseActionStyles.lectureCard2,
-          isOngoing && { borderLeftColor: colors.primary },
-        ]}
-      >
-        <View style={CourseActionStyles.lectureInfoColumn}>
-          <View style={CourseActionStyles.rowBetween}>
-            <Text
-              style={[CourseActionStyles.topicText, { color: colors.text }]}
-            >
-              {item.topicName}
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-            >
-              <CustomButton
-                title="Edit"
-                onPress={() => {
-                  handleOpenEditModal(item);
-                }}
-                iconName="edit"
-                iconColor="#fff"
-                style={CourseActionStyles.startBtn}
-              />
-              <CustomButton
-                title="Delete"
-                onPress={() => {
-                  setSelectedLecture(item);
-                  setShowDeleteModal(true);
-                }}
-                iconName="delete"
-                iconColor="#fff"
-                style={[CourseActionStyles.startBtn, { marginLeft: 10 }]}
-              />
-            </View>
-          </View>
-          <Text
-            style={[
-              CourseActionStyles.badgeText,
-              { marginTop: 4, color: colors.text, alignSelf: 'flex-end' },
-            ]}
-          >
-            {item.lectureType.toUpperCase()}
-          </Text>
-          <Text
-            style={[CourseActionStyles.locationText, { color: colors.text }]}
-          >
-            {item.lectureType === 'Physical'
-              ? ` ${item.location}`
-              : ` Online Class Session`}
-          </Text>
-          {canStartLive && (
-            <CustomButton
-              title={isOngoing ? 'Rejoin Live Class' : 'Start Live Class'}
-              iconName={isOngoing ? 'login' : 'videocam'}
-              onPress={() =>
+    // A lecture only becomes "ongoing" when its host goes live / opens
+    // attendance, so the host needs a way in before that happens.
+    const isFinished = item.status === 'completed' || item.status === 'cancelled';
+    const isToday = lectureDayKey(item) === today;
+    const primaryAction =
+      !isToday || isFinished
+        ? undefined
+        : item.lectureType === 'Physical'
+          ? {
+              label: (item as any).attendanceOpen ? 'Continue attendance' : 'Take attendance',
+              icon: 'how-to-reg',
+              highlight: true,
+              onPress: () => openLecturerAttendance(navigation, item),
+            }
+          : {
+              label: isOngoing ? 'Rejoin live class' : 'Start live class',
+              icon: isOngoing ? 'login' : 'videocam',
+              onPress: () =>
                 navigation.navigate('LiveClassSessions', {
                   lectureId: item.id,
                   courseId: item.courseId,
-                })
-              }
-              style={[CourseActionStyles.startBtn, { marginTop: 10, alignSelf: 'flex-start' }]}
-            />
-          )}
-        </View>
-        <View style={CourseActionStyles.lectureTimeColumn}>
-          <Text style={[CourseActionStyles.timeText, { color: colors.text }]}>
-            {safeFormatDate(parseFirestoreDate(item?.startTime))}
-          </Text>
-          <Text
-            style={[
-              CourseActionStyles.timeTextSmall,
-              { color: colors.text, marginTop: 3 },
-            ]}
-          >
-            {safeFormatDate(parseFirestoreDate(item?.endTime))}
-          </Text>
-        </View>
-      </TouchableOpacity>
+                }),
+            };
+    return (
+      <LectureScheduleCard
+        lecture={item}
+        onPress={
+          isOngoing && item.lectureType === 'Online'
+            ? () => setOngoingLecture(item)
+            : undefined
+        }
+        primaryAction={primaryAction}
+        onEdit={isFinished ? undefined : () => handleOpenEditModal(item)}
+        onDelete={() => {
+          setSelectedLecture(item);
+          setShowDeleteModal(true);
+        }}
+      />
     );
   };
 
   const renderFlatListItem = ({ item }: { item: any }) => {
     if (item.type === 'HEADER') {
-      return (
-        <View
-          style={[
-            CourseActionStyles.sectionHeader,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <Text
-            style={[
-              CourseActionStyles.sectionHeaderText,
-              { color: colors.textDarker },
-            ]}
-          >
-            {item.title === today ? 'Teaching Today' : item.title}
-          </Text>
-        </View>
-      );
+      return <LectureDayHeader dayKey={item.title} count={item.count} />;
     }
     return renderLecturerItem({ item });
   };
@@ -5394,6 +5450,9 @@ export const LecturerLectureScheduleView = ({
         data={flatListData}
         keyExtractor={item => item.id}
         renderItem={renderFlatListItem}
+        onScrollToIndexFailed={info => scrollToIndexFallback(flatListRef, info)}
+        contentContainerStyle={lectureListContent}
+        showsVerticalScrollIndicator={false}
         ListHeaderComponent={<PageHeader title="Manage Lectures Schedule" />}
         ListEmptyComponent={
           <EmptyState
@@ -5727,103 +5786,74 @@ export const AssessmentReportScreen = ({ route }: any) => {
     </ScrollView>
   );
 };
+// Nigerian 5-point scale bands on a percentage.
+const gradeFor = (pct: number) =>
+  pct >= 70 ? 'A' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : pct >= 45 ? 'D' : pct >= 40 ? 'E' : 'F';
+
+/**
+ * Lecturer gradebook: combines attendance % (present + approved exceptions
+ * over lectures held) and test % (marks over all published tests' marks)
+ * with lecturer-set weights, scaled to any total (e.g. 30 for CA).
+ */
 export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
   const { colors } = useTheme();
   const [data, setData] = useState<any[]>([]);
+  const [summary, setSummary] = useState<{
+    studentCount: number;
+    lecturesHeld: number;
+    testsCount: number;
+    totalTestMarks: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [attendanceWeight, setAttendanceWeight] = useState('40');
   const [testWeight, setTestWeight] = useState('60');
+  const [scaleTo, setScaleTo] = useState('100');
   const [downloading, setDownloading] = useState(false);
-  const hasAttendance = data.some(s => s.attendanceRecords?.length > 0);
-  const hasTests = data.some(s => s.testSubmissions?.length > 0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const finalMark =
-    (hasAttendance ? parseFloat(attendanceWeight || '0') : 0) +
-    (hasTests ? parseFloat(testWeight || '0') : 0);
-  const xFactor = finalMark / 100;
+  const hasAttendance = (summary?.lecturesHeld ?? 0) > 0;
+  const hasTests = (summary?.totalTestMarks ?? 0) > 0;
+  const attW = hasAttendance ? Math.max(0, Number(attendanceWeight) || 0) : 0;
+  const testW = hasTests ? Math.max(0, Number(testWeight) || 0) : 0;
+  const weightTotal = attW + testW;
+  const weightsValid = weightTotal > 0 && Math.abs(weightTotal - 100) < 0.01;
+  const scale = Math.max(1, Number(scaleTo) || 100);
 
-  const handleDownload = async () => {
-    setDownloading(true);
-
-    const attVal = hasAttendance ? parseFloat(attendanceWeight || '0') : 0;
-    const testVal = hasTests ? parseFloat(testWeight || '0') : 0;
-
-    const totalWeight = attVal + testVal || 1;
-
-    const attW = attVal / totalWeight;
-    const testW = testVal / totalWeight;
-
-    const tableRows = data
-      .map(s => {
-        const attScore = (s.attendanceSum || 0) * attW;
-        const testScore = (s.testSum || 0) * testW;
-        const finalScore = attScore + testScore;
-        return `
-        <tr>
-          <td>${s.studentName}</td>
-          <td>${s.matricNumber}</td>
-          ${hasAttendance ? `<td>${s.attendanceSum}</td>` : ''}
-          ${hasTests ? `<td>${s.testSum?.toFixed(2) || 0}</td>` : ''}
-          <td><strong>${finalScore.toFixed(2)}</strong></td>
-        </tr>`;
-      })
-      .join('');
-
-    const htmlContent = `
-    <html>
-      <head>
-        <style>
-          table { width: 100%; border-collapse: collapse; font-family: Arial; }
-          th, td { border: 1px solid ${
-            colors.border
-          }; padding: 10px; text-align: left; }
-          th { background-color: ${colors.backgroundSecondary}; }
-        </style>
-      </head>
-      <body>
-        <h1>Gradebook Report</h1>
-        <p>Weights Applied: Attendance (${attendanceWeight}%), Tests (${testWeight}%)</p>
-        <table>
-          <tr>
-            <th>Name</th>
-            <th>Matric No</th>
-            ${hasAttendance ? '<th>Attendance Score</th>' : ''}
-            ${hasTests ? '<th>Test Score</th>' : ''}
-            <th>Final Weighted Score</th>
-          </tr>
-          ${tableRows}
-        </table>
-      </body>
-    </html>
-  `;
-
-    try {
-      const options = {
-        html: htmlContent,
-        fileName: 'Gradebook_Report',
-        directory: 'Documents',
+  const rows = useMemo(() => {
+    const computed = data.map(s => {
+      // Normalise so a missing component doesn't cap the final score.
+      const pct = weightTotal
+        ? ((s.attendancePct ?? 0) * attW + (s.testPct ?? 0) * testW) / weightTotal
+        : 0;
+      return {
+        ...s,
+        finalPct: Math.round(pct * 10) / 10,
+        finalScaled: Math.round(((pct / 100) * scale) * 100) / 100,
+        grade: gradeFor(pct),
       };
-      const file = await (RNHTMLtoPDF as any).convert(options);
+    });
+    return computed.sort((a, b) => b.finalPct - a.finalPct);
+  }, [data, attW, testW, weightTotal, scale]);
 
-      if (file.filePath) {
-        await Share.share({
-          url: `file://${file.filePath}`,
-          title: 'Download Gradebook',
-        });
-      }
-      setDownloading(false);
-    } catch (error) {
-      console.error('Export Error:', error);
-    }
-  };
+  const classAverage = rows.length
+    ? Math.round((rows.reduce((sum, r) => sum + r.finalPct, 0) / rows.length) * 10) / 10
+    : 0;
+  const passCount = rows.filter(r => r.finalPct >= 40).length;
+  const gradeCounts = rows.reduce((acc: Record<string, number>, r) => {
+    acc[r.grade] = (acc[r.grade] || 0) + 1;
+    return acc;
+  }, {});
+
   const loadData = useCallback(async () => {
     setLoading(true);
-    const result = await fetchCourseGradebook(courseId);
-
+    setLoadError('');
+    const result: any = await fetchCourseGradebook(courseId);
     if (result.success) {
-      setData(result.data);
+      setData(Array.isArray(result.data) ? result.data : []);
+      setSummary(result.summary);
     } else {
-      Alert.alert('Error', result.message);
+      setLoadError(result.message || 'Could not load the gradebook.');
     }
     setLoading(false);
   }, [courseId]);
@@ -5831,105 +5861,262 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     loadData();
   }, [loadData]);
 
-  return (
-    <View
-      style={[
-        CourseActionStyles.container,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      <PageHeader title="Grade Accelerator" />
-      <MaterialIcons
-        name="poll"
-        size={60}
-        color={colors.textDarker}
-        style={CourseActionStyles.mainIcon}
-      />
-      {hasAttendance && (
-        <>
-          <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
-            Attendance Weight
-          </Text>
-          <TextInput
-            placeholder="Attendance Weight % (e.g., 40)"
-            value={attendanceWeight}
-            onChangeText={setAttendanceWeight}
-            keyboardType="numeric"
-            style={[
-              CourseActionStyles.input,
-              {
-                color: colors.text,
-                backgroundColor: colors.backgroundSecondary,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholderTextColor={colors.inputTextHolder}
-          />
-        </>
-      )}
-      {hasTests && (
-        <>
-          <Text style={[CourseActionStyles.text, { color: colors.textDarker }]}>
-            Test Weight
-          </Text>
-          <TextInput
-            placeholder="Test Weight % (e.g., 60)"
-            value={testWeight}
-            onChangeText={setTestWeight}
-            keyboardType="numeric"
-            style={[
-              CourseActionStyles.input,
-              {
-                color: colors.text,
-                backgroundColor: colors.backgroundSecondary,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholderTextColor={colors.inputTextHolder}
-          />
-        </>
-      )}
-      {hasTests ||
-        (hasAttendance && (
-          <CustomButton
-            title={downloading ? 'Downloading...' : 'Download Report'}
-            onPress={handleDownload}
-            disabled={downloading}
-            iconName="file-download"
-            iconColor="#fff"
-            style={CourseActionStyles.addBtn}
-          />
-        ))}
-      {loading ? (
-        <View
-          style={[
-            CourseActionStyles.container,
-            { backgroundColor: colors.background },
-          ]}
-        >
-          <ActivityIndicator size="large" color={colors.primary} />
+  const handleDownload = async () => {
+    if (!weightsValid) {
+      Toast.show({ type: 'error', text1: 'Weights must add up to 100%' });
+      return;
+    }
+    setDownloading(true);
+    const esc = (v: any) =>
+      String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as any)[c]);
+    const tableRows = rows
+      .map(
+        (s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${esc(s.studentName)}</td>
+          <td>${esc(s.matricNumber)}</td>
+          ${hasAttendance ? `<td>${s.attendancePct ?? 0}%</td>` : ''}
+          ${hasTests ? `<td>${s.testPct ?? 0}%</td>` : ''}
+          <td><strong>${s.finalScaled}</strong> / ${scale}</td>
+          <td><strong>${s.grade}</strong></td>
+        </tr>`,
+      )
+      .join('');
+    const htmlContent = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 16px; color: #222; }
+          h1 { margin-bottom: 4px; }
+          p { margin: 4px 0; color: #555; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f4f4f4; }
+        </style>
+      </head>
+      <body>
+        <h1>Gradebook Report</h1>
+        <p>Weights: ${hasAttendance ? `Attendance ${attW}%` : ''}${hasAttendance && hasTests ? ' · ' : ''}${hasTests ? `Tests ${testW}%` : ''} · Scaled to ${scale}</p>
+        <p>Lectures held: ${summary?.lecturesHeld ?? 0} · Tests: ${summary?.testsCount ?? 0} (${summary?.totalTestMarks ?? 0} marks)</p>
+        <p>Class average: ${classAverage}% · Passed (40%+): ${passCount}/${rows.length}</p>
+        <table>
+          <tr>
+            <th>#</th><th>Name</th><th>Matric No</th>
+            ${hasAttendance ? '<th>Attendance</th>' : ''}
+            ${hasTests ? '<th>Tests</th>' : ''}
+            <th>Score</th><th>Grade</th>
+          </tr>
+          ${tableRows}
+        </table>
+      </body>
+    </html>`;
+    try {
+      const file = await (RNHTMLtoPDF as any).convert({
+        html: htmlContent,
+        fileName: `Gradebook_${courseId}`,
+        directory: 'Documents',
+      });
+      if (file?.filePath) {
+        await Share.share({ url: `file://${file.filePath}`, title: 'Gradebook report' });
+      }
+    } catch (error) {
+      console.error('Export Error:', error);
+      Toast.show({ type: 'error', text1: 'Could not create the PDF' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const weightInput = (label: string, value: string, onChange: (v: string) => void, hint: string) => (
+    <View style={gradeUi.weightBox}>
+      <Text style={[gradeUi.weightLabel, { color: colors.text }]}>{label}</Text>
+      <View style={[gradeUi.weightField, { borderColor: colors.border, backgroundColor: colors.background }]}>
+        <TextInput
+          value={value}
+          onChangeText={v => onChange(v.replace(/[^0-9.]/g, ''))}
+          keyboardType="numeric"
+          style={[gradeUi.weightInput, { color: colors.textDarker }]}
+          maxLength={5}
+        />
+        <Text style={[gradeUi.weightSuffix, { color: colors.text }]}>{hint}</Text>
+      </View>
+    </View>
+  );
+
+  const header = (
+    <View>
+      <View style={[gradeUi.card, { backgroundColor: colors.backgroundSecondary }]}>
+        <Text style={[gradeUi.cardTitle, { color: colors.textDarker }]}>Weighting</Text>
+        <View style={gradeUi.weightRow}>
+          {hasAttendance && weightInput('Attendance', attendanceWeight, setAttendanceWeight, '%')}
+          {hasTests && weightInput('Tests', testWeight, setTestWeight, '%')}
+          {weightInput('Score out of', scaleTo, setScaleTo, 'pts')}
         </View>
-      ) : data.length === 0 ? (
+        {!weightsValid && (hasAttendance || hasTests) && (
+          <Text style={[gradeUi.warning, { color: colors.primary }]}>
+            Weights add up to {weightTotal}%. Make them total 100%.
+          </Text>
+        )}
+        <Text style={[gradeUi.meta, { color: colors.text }]}>
+          {summary?.lecturesHeld ?? 0} lectures held · {summary?.testsCount ?? 0} published{' '}
+          {summary?.testsCount === 1 ? 'test' : 'tests'} ({summary?.totalTestMarks ?? 0} marks)
+        </Text>
+      </View>
+
+      {rows.length > 0 && (
+        <View style={gradeUi.statRow}>
+          {[
+            { label: 'Class average', value: `${classAverage}%` },
+            { label: 'Passed (40%+)', value: `${passCount}/${rows.length}` },
+            { label: 'A grades', value: String(gradeCounts.A || 0) },
+          ].map(stat => (
+            <View key={stat.label} style={[gradeUi.statTile, { backgroundColor: colors.backgroundSecondary }]}>
+              <Text style={[gradeUi.statValue, { color: colors.textDarker }]}>{stat.value}</Text>
+              <Text style={[gradeUi.statLabel, { color: colors.text }]}>{stat.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {(hasAttendance || hasTests) && rows.length > 0 && (
+        <CustomButton
+          title={downloading ? 'Preparing PDF…' : 'Download report'}
+          onPress={handleDownload}
+          disabled={downloading || !weightsValid}
+          isLoading={downloading}
+          iconName="file-download"
+          style={gradeUi.downloadBtn}
+        />
+      )}
+    </View>
+  );
+
+  return (
+    <View style={[CourseActionStyles.container, { backgroundColor: colors.background }]}>
+      <PageHeader title="Grade Accelerator" />
+      {loading ? (
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+      ) : loadError ? (
         <EmptyState
-          iconName="assessment"
-          title="No Grade Data Found"
-          subtitle="There are no activities recorded for this course yet."
-          buttonText="Refresh"
+          iconName="cloud-off"
+          title="Couldn't load grades"
+          subtitle={loadError}
+          buttonText="Try again"
+          buttonIcon="refresh"
           onPress={loadData}
         />
       ) : (
-        <>
-          <FlatList
-            data={data}
-            renderItem={({ item }) => (
-              <StudentGradeCard student={item} xFactor={xFactor} />
-            )}
-          />
-        </>
+        <FlatList
+          data={rows}
+          keyExtractor={item => item._id}
+          ListHeaderComponent={header}
+          contentContainerStyle={gradeUi.list}
+          refreshing={loading}
+          onRefresh={loadData}
+          ListEmptyComponent={
+            <EmptyState
+              iconName="assessment"
+              title="No students yet"
+              subtitle="Grades appear once students enroll, attend lectures and take tests."
+              buttonText="Refresh"
+              onPress={loadData}
+            />
+          }
+          renderItem={({ item, index }) => {
+            const expanded = expandedId === item._id;
+            const gradeColor =
+              item.finalPct >= 50 ? colors.success : item.finalPct >= 40 ? colors.pendingDelivery : colors.primary;
+            return (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setExpandedId(expanded ? null : item._id)}
+                style={[gradeUi.rowCard, { backgroundColor: colors.backgroundSecondary }]}
+              >
+                <View style={gradeUi.rowTop}>
+                  <Text style={[gradeUi.rank, { color: colors.text }]}>{index + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[gradeUi.name, { color: colors.textDarker }]} numberOfLines={1}>
+                      {item.studentName}
+                    </Text>
+                    <Text style={[gradeUi.matric, { color: colors.text }]}>{item.matricNumber}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[gradeUi.score, { color: colors.textDarker }]}>
+                      {item.finalScaled}
+                      <Text style={[gradeUi.scoreOf, { color: colors.text }]}> / {scale}</Text>
+                    </Text>
+                  </View>
+                  <View style={[gradeUi.gradePill, { backgroundColor: gradeColor + '1F' }]}>
+                    <Text style={[gradeUi.gradeText, { color: gradeColor }]}>{item.grade}</Text>
+                  </View>
+                </View>
+                {expanded && (
+                  <View style={[gradeUi.breakdown, { borderTopColor: colors.border + '66' }]}>
+                    {hasAttendance && (
+                      <Text style={[gradeUi.breakdownText, { color: colors.text }]}>
+                        Attendance: {item.attendancePct ?? 0}% ({item.presentCount} present
+                        {item.excusedCount ? `, ${item.excusedCount} excused` : ''} of{' '}
+                        {summary?.lecturesHeld ?? 0})
+                      </Text>
+                    )}
+                    {hasTests && (
+                      <Text style={[gradeUi.breakdownText, { color: colors.text }]}>
+                        Tests: {item.testPct ?? 0}% ({item.testScore} of {summary?.totalTestMarks} marks,{' '}
+                        {item.testsTaken}/{summary?.testsCount} taken)
+                      </Text>
+                    )}
+                    {item.flaggedTests > 0 && (
+                      <Text style={[gradeUi.breakdownText, { color: colors.primary }]}>
+                        {item.flaggedTests} flagged test {item.flaggedTests === 1 ? 'submission' : 'submissions'} to review
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
+        />
       )}
     </View>
   );
 };
+const gradeUi = StyleSheet.create({
+  list: { paddingHorizontal: 15, paddingBottom: 40 },
+  card: { borderRadius: 18, padding: 14, marginBottom: 12 },
+  cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 10 },
+  weightRow: { flexDirection: 'row', gap: 10 },
+  weightBox: { flex: 1 },
+  weightLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, opacity: 0.8 },
+  weightField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 44,
+  },
+  weightInput: { flex: 1, fontSize: 16, fontWeight: '800', padding: 0 },
+  weightSuffix: { fontSize: 12, fontWeight: '700', opacity: 0.7 },
+  warning: { fontSize: 12.5, fontWeight: '700', marginTop: 10 },
+  meta: { fontSize: 12, marginTop: 10, opacity: 0.75 },
+  statRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statTile: { flex: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center' },
+  statValue: { fontSize: 18, fontWeight: '800' },
+  statLabel: { fontSize: 11, marginTop: 2, opacity: 0.75 },
+  downloadBtn: { marginBottom: 14, height: 46, borderRadius: 23 },
+  rowCard: { borderRadius: 16, padding: 12, marginBottom: 8 },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rank: { width: 22, fontSize: 13, fontWeight: '800', textAlign: 'center', opacity: 0.6 },
+  name: { fontSize: 14.5, fontWeight: '700' },
+  matric: { fontSize: 12, marginTop: 2, opacity: 0.7 },
+  score: { fontSize: 16, fontWeight: '800' },
+  scoreOf: { fontSize: 11.5, fontWeight: '600' },
+  gradePill: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  gradeText: { fontSize: 15, fontWeight: '900' },
+  breakdown: { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 6 },
+  breakdownText: { fontSize: 12.5, lineHeight: 18 },
+});
 export const CourseActionStyles = StyleSheet.create({
   safeArea: { flex: 1 },
   body: { flex: 1 },
@@ -7432,6 +7619,10 @@ export const CourseActionStyles = StyleSheet.create({
   },
   testAttemptText: { fontSize: 12, fontWeight: '800', color: PRIMARY_COLOR },
   testLinkBtn: { paddingVertical: 12, marginTop: 4 },
+  testDndBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4,
+  },
   testLinkText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   testScoreCircle: {
     flexDirection: 'row', alignItems: 'baseline',

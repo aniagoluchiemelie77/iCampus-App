@@ -87,8 +87,21 @@ const readRows = (result: any): any[] => {
   const rows = result?.rows;
   if (!rows) return [];
   if (Array.isArray(rows)) return rows;
-  if ('_array' in rows) return rows._array ?? [];
+  if ('_array' in rows && Array.isArray(rows._array)) return rows._array;
+  if (typeof rows.item === 'function' && typeof rows.length === 'number') {
+    return Array.from({ length: rows.length }, (_, i) => rows.item(i));
+  }
   return [];
+};
+
+/** Runs a products query and returns fully parsed rows (never throws). */
+export const queryProducts = (sql: string, params: any[] = []): any[] => {
+  try {
+    return readRows(db.execute(sql, params)).map(parseProductRow);
+  } catch (error) {
+    console.error('queryProducts failed:', error);
+    return [];
+  }
 };
 
 /**

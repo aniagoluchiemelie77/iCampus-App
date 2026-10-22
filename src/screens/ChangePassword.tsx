@@ -12,7 +12,7 @@ import {
   Dimensions,
   Pressable,
 } from 'react-native';
-import SweetAlertModal from '../components/alertscomponent';
+import { useToastAlert } from '../utils/toastAlert';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { changePassword } from '../api/localPostApis';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
@@ -39,11 +39,7 @@ export default function ChangePasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
+  const { setAlertVisible, setAlertType, setAlertMessage } = useToastAlert();
   const [isVerifying, setVerifying] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
@@ -207,20 +203,6 @@ export default function ChangePasswordScreen() {
             />
           </View>
         </ScrollView>
-
-        <SweetAlertModal
-          visible={alertVisible}
-          onConfirm={() => setAlertVisible(false)}
-          title={
-            alertType === 'success'
-              ? 'Success!'
-              : alertType === 'error'
-                ? 'Oops!'
-                : 'Warning!'
-          }
-          message={alertMessage}
-          type={alertType}
-        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

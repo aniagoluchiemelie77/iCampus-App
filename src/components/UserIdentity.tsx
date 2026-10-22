@@ -84,6 +84,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: '700',
     fontSize: 14,
+    flexShrink: 1,
   },
   nameSmall: { fontSize: 12 },
   nameLarge: { fontSize: 20, fontWeight: '800' },

@@ -46,6 +46,58 @@ export const uploadFileToFirebaseClient = async (fileUri: string, folder: string
     };
   }
 };
+/**
+ * Cloudinary upload that reports byte progress (0–1) through `onProgress`.
+ * Uses XMLHttpRequest because fetch exposes no upload progress events.
+ */
+export const uploadToCloudinaryWithProgress = (
+  fileUri: string,
+  folder: string = 'uploads',
+  mediaType: 'image' | 'video' = 'image',
+  onProgress?: (fraction: number) => void,
+): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const filename = fileUri.split('/').pop()?.split('?')[0] || '';
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    const fileExtension = ext && ext !== filename ? ext : mediaType === 'video' ? 'mp4' : 'jpg';
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      type: `${mediaType}/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
+      name: `${uniqueName}.${fileExtension}`,
+    } as any);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', folder);
+    formData.append('public_id', uniqueName);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`);
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress?.(Math.min(1, event.loaded / event.total));
+      }
+    };
+    xhr.onload = () => {
+      let data: any = null;
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        // handled below
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data?.secure_url) {
+        onProgress?.(1);
+        resolve(data.secure_url);
+      } else {
+        reject(new Error(data?.error?.message || 'Cloudinary upload failed'));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error while uploading media'));
+    xhr.ontimeout = () => reject(new Error('Media upload timed out'));
+    xhr.send(formData);
+  });
+
 //For development purposes only
 export const uploadToCloudinary = async (
   fileUri: string, 

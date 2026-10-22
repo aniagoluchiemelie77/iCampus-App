@@ -6,7 +6,9 @@ export const isValidEmail = (inputEmail: string) => {
 
 //Universal password regex
 export const isValidPassword = (inputPassword: string) => {
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{13,}$/;
+  // Must match getPasswordRequirements (and the server): it said 13 while the
+  // strength bar went full at 10, leaving "Next" disabled with no reason.
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{10,}$/;
   return passwordRegex.test(inputPassword);
 };
 

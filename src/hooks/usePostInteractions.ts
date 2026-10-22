@@ -5,7 +5,7 @@ import { Posts, PostReposter } from '../types/firebase';
 import { useAppDataContext } from '../context/EventContext';
 import { toggleLikeAPI, createRepostAPI } from '../api/localPostApis';
 import { toggleBookmarkAPI, castPollVoteAPI } from '../api/localPatchApis';
-import { getPostId, toArray } from '../utils/postHelpers';
+import { getPostId, pollTiming, toArray } from '../utils/postHelpers';
 
 /**
  * Like / bookmark / repost / vote / share for one post card.
@@ -148,7 +148,12 @@ export const usePostInteractions = (post: Posts) => {
 
   const vote = useCallback(
     async (optionId: string) => {
-      if (hasVoted || !guard('vote', 'Sign in to vote')) return;
+      if (hasVoted) return;
+      if (pollTiming(liveRef.current.poll).ended) {
+        Toast.show({ type: 'info', text1: 'This poll has ended', text2: 'Voting is closed.' });
+        return;
+      }
+      if (!guard('vote', 'Sign in to vote')) return;
       const beforePoll = liveRef.current.poll;
       if (!beforePoll) return release('vote');
       apply(p => ({

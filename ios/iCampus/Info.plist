@@ -6,6 +6,10 @@
 	<string>iCampus requires access to your photo library to let you upload profile pictures.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>iCampus needs camera access to scan iTag QR codes for instant iCash transfers or to take a new profile photo.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>iCampus uses Bluetooth to confirm you are in the lecture room when taking or marking attendance.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>iCampus uses Bluetooth to broadcast your class's attendance signal to students nearby.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show you the closest available drop-off stations.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -30,6 +34,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSRequiresIPhoneOS</key>

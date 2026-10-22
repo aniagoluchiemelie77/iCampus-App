@@ -68,6 +68,12 @@ const ACTION_CONFIG: Record<
     route: 'CourseSubPage',
     params: { title: 'View Lecture Schedule' },
   },
+  // Today's physical lectures carry Take / Mark attendance buttons there.
+  Attendance: {
+    icon: 'how-to-reg',
+    route: 'CourseSubPage',
+    params: { title: 'View Lecture Schedule' },
+  },
   'Create Course': {
     icon: 'library-books',
     route: 'CreateCourse',

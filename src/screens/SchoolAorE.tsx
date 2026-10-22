@@ -57,13 +57,41 @@ const initialData: InstitutionFormData = {
   },
 };
 
+// Institutions arrive from the list keyed as stored (`schoolName`, no config
+// fields); map them onto the form so editing doesn't start from blanks.
+const toFormData = (item: any): InstitutionFormData => ({
+  ...initialData,
+  ...item,
+  name: item?.name || item?.schoolName || '',
+  domainWhitelist: Array.isArray(item?.domainWhitelist) ? item.domainWhitelist : [],
+  tier: ['free', 'pro', 'premium'].includes(item?.tier) ? item.tier : 'free',
+  ssoConfig: { ...initialData.ssoConfig, ...(item?.ssoConfig || {}) },
+  externalApiConfig: { ...initialData.externalApiConfig, ...(item?.externalApiConfig || {}) },
+});
+
+const PLAN_INFO: Record<InstitutionFormData['tier'], { label: string; summary: string }> = {
+  free: {
+    label: 'Basic',
+    summary: 'Attendance overview, student identity, announcements, basic analytics.',
+  },
+  pro: {
+    label: 'Professional',
+    summary: '+ Tests & exam proctoring, LMS activity, attendance by department/course, lecturer activity.',
+  },
+  premium: {
+    label: 'Enterprise',
+    summary: '+ At-risk students, department comparison, 12-week trends, integrity & security, dedicated support.',
+  },
+};
+
 export const SchoolAorEScreen = ({ route, navigation }: Props) => {
   const isEdit = !!route.params?.item;
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<InstitutionFormData>(
-    route.params?.item || initialData,
+  const [originalData] = useState<InstitutionFormData>(() =>
+    route.params?.item ? toFormData(route.params.item) : initialData,
   );
+  const [formData, setFormData] = useState<InstitutionFormData>(originalData);
 
   const updateField = (key: keyof InstitutionFormData, value: any) => {
     setFormData((prev: InstitutionFormData) => ({ ...prev, [key]: value }));
@@ -71,7 +99,7 @@ export const SchoolAorEScreen = ({ route, navigation }: Props) => {
   const handleSave = async () => {
     if (isEdit) {
       const isUnchanged =
-        JSON.stringify(formData) === JSON.stringify(route.params?.item);
+        JSON.stringify(formData) === JSON.stringify(originalData);
 
       if (isUnchanged) {
         Toast.show({
@@ -151,13 +179,19 @@ export const SchoolAorEScreen = ({ route, navigation }: Props) => {
             )
           }
         />
+        <Text style={[styles.label, { color: colors.textDarker, marginTop: 12, fontWeight: '700' }]}>
+          Analytics plan
+        </Text>
+        <Text style={[styles.planHint, { color: colors.text }]}>
+          {PLAN_INFO[formData.tier].summary}
+        </Text>
         <RNPickerSelect
           value={formData.tier}
-          onValueChange={v => updateField('tier', v)}
+          onValueChange={v => v && updateField('tier', v)}
           items={[
-            { label: 'Free', value: 'free' },
-            { label: 'Pro', value: 'pro' },
-            { label: 'Premium', value: 'premium' },
+            { label: 'Basic (Free)', value: 'free' },
+            { label: 'Professional (Pro)', value: 'pro' },
+            { label: 'Enterprise (Premium)', value: 'premium' },
           ]}
           style={{
             inputIOS: { padding: 12, color: colors.text },
@@ -292,6 +326,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
   },
+  planHint: { fontSize: 12.5, marginTop: 4, marginBottom: 4, opacity: 0.8, lineHeight: 18 },
   saveBtn: {
     paddingHorizontal: 15,
   },

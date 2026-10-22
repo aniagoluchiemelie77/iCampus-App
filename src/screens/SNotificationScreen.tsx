@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, ScrollView, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { userPreferences } from '../types/firebase';
 import { SettingItem } from '../components/SettingsItem';
 import { SectionHeader } from './Settings';
@@ -9,124 +9,110 @@ import { updatePreferences } from '../api/localPatchApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchPreferencesAPI } from '../api/localGetApis.ts';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
+
+type Section = 'notifications' | 'channels';
 
 export const NotificationSettings = () => {
   const { colors } = useTheme();
-  const [_isLoading, setIsLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [prefs, setPrefs] = useState<userPreferences | null>(null);
-  const handleToggle = async (
-    section: 'notifications' | 'channels',
-    key: string,
-  ) => {
-    if (!prefs) return;
-    setIsLoading(true);
+  // Toggles with a save in flight; ignored until it settles.
+  const pending = useRef(new Set<string>());
 
-    const sectionData = prefs[section];
-    if (!sectionData) return;
-
-    const previousValue = sectionData[key as keyof typeof sectionData];
-    const newValue = !previousValue;
-
-    const updated = {
-      ...prefs,
-      [section]: { ...prefs[section], [key]: newValue },
-    };
-    setPrefs(updated);
-
-    const dbUpdate = {
-      [`${section}.${key}`]: newValue,
-    };
-
-    console.log('Pressed Toggle: ', dbUpdate);
-    const result = await updatePreferences(dbUpdate);
-
-    if (!result.success) {
-      const rollback = {
-        ...prefs,
-        [section]: { ...prefs[section], [key]: previousValue },
-      };
-      setPrefs(rollback);
-    }
-    setIsLoading(false);
-  };
-  useEffect(() => {
-    const fetchPreferences = async () => {
-      try {
-        setIsLoading(true);
-        const result = await fetchPreferencesAPI();
-        if (result.success && result.preferences) {
-          setPrefs(result.preferences);
-        }
-      } catch (error) {
-        console.error('Failed to load preferences:', error);
-      } finally {
-        setIsLoading(false);
+  const loadPreferences = useCallback(async () => {
+    setLoadState('loading');
+    try {
+      const result = await fetchPreferencesAPI();
+      if (result.success && result.preferences) {
+        setPrefs(result.preferences);
+        setLoadState('ready');
+      } else {
+        setLoadState('error');
       }
-    };
-
-    fetchPreferences();
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+      setLoadState('error');
+    }
   }, []);
 
+  useEffect(() => {
+    loadPreferences();
+  }, [loadPreferences]);
+
+  const handleToggle = async (section: Section, key: string) => {
+    const pendingKey = `${section}.${key}`;
+    if (!prefs || pending.current.has(pendingKey)) return;
+    const previousValue = !!(prefs[section] as any)?.[key];
+    const newValue = !previousValue;
+    pending.current.add(pendingKey);
+
+    const apply = (value: boolean) =>
+      setPrefs(prev =>
+        prev ? { ...prev, [section]: { ...(prev[section] as any), [key]: value } } : prev,
+      );
+    apply(newValue);
+
+    const result = await updatePreferences({ [section]: { [key]: newValue } } as any);
+    if (!result.success) {
+      apply(previousValue);
+    } else if (result.data?.notifications && result.data?.channels) {
+      // The server's saved copy is the truth.
+      setPrefs(result.data);
+    }
+    pending.current.delete(pendingKey);
+  };
+
+  const row = (section: Section, key: string, icon: string, title: string, subtitle?: string) => (
+    <SettingItem
+      icon={icon}
+      title={title}
+      subtitle={subtitle}
+      toggle
+      value={!!(prefs?.[section] as any)?.[key]}
+      onValueChange={() => handleToggle(section, key)}
+    />
+  );
+
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader title="Notification Settings" />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 30 }}
-      >
-        <SectionHeader title="Alert Categories" />
-        <View style={styles.section}>
-          <SettingItem
-            icon="school"
-            title="Classroom"
-            subtitle="Assignments, grades, and lectures"
-            toggle
-            value={prefs?.notifications?.classroom}
-            onPress={() => handleToggle('notifications', 'classroom')}
-            onValueChange={() => handleToggle('notifications', 'classroom')}
-          />
-          <SettingItem
-            icon="account-balance-wallet"
-            title="Finance"
-            subtitle="iCash transfers and withdrawals"
-            toggle={true}
-            value={prefs?.notifications?.finance}
-            onPress={() => handleToggle('notifications', 'finance')}
-            onValueChange={() => handleToggle('notifications', 'finance')}
-          />
-          <SettingItem
-            icon="groups"
-            title="Social"
-            subtitle="Likes, followers, and mentions"
-            toggle={true}
-            value={prefs?.notifications?.social}
-            onPress={() => handleToggle('notifications', 'social')}
-            onValueChange={() => handleToggle('notifications', 'social')}
-          />
+      {loadState === 'loading' && !prefs ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading your settings…</Text>
         </View>
-        {/* CHANNELS SECTION */}
-        <SectionHeader title="Channels" />
-        <View style={styles.section}>
-          <SettingItem
-            icon="notifications-active"
-            title="Push Notifications"
-            toggle={true}
-            value={prefs?.channels?.push}
-            onPress={() => handleToggle('channels', 'push')}
-            onValueChange={() => handleToggle('channels', 'push')}
-          />
-          <SettingItem
-            icon="mail-outline"
-            title="Email Alerts"
-            toggle={true}
-            value={prefs?.channels?.email}
-            onPress={() => handleToggle('channels', 'email')}
-            onValueChange={() => handleToggle('channels', 'email')}
-          />
-        </View>
-      </ScrollView>
+      ) : loadState === 'error' && !prefs ? (
+        <EmptyState
+          iconName="cloud-off"
+          title="Couldn't load your settings"
+          subtitle="Check your connection and try again."
+          buttonText="Try again"
+          buttonIcon="refresh"
+          onPress={loadPreferences}
+        />
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 30 }}
+        >
+          <SectionHeader title="Alert Categories" />
+          <View style={styles.section}>
+            {row('notifications', 'classroom', 'school', 'Classroom', 'Assignments, grades, lectures and reminders')}
+            {row('notifications', 'finance', 'account-balance-wallet', 'Finance', 'Payments, payouts and withdrawals')}
+            {row('notifications', 'store', 'storefront', 'Store', 'Orders, deliveries and reviews')}
+            {row('notifications', 'social', 'groups', 'Social', 'Likes, followers, and mentions')}
+          </View>
+          <SectionHeader title="Channels" />
+          <View style={styles.section}>
+            {row('channels', 'push', 'notifications-active', 'Push Notifications')}
+            {row('channels', 'email', 'mail-outline', 'Email Alerts')}
+          </View>
+          <Text style={[styles.footnote, { color: colors.text }]}>
+            Security alerts such as new sign-ins are always sent.
+          </Text>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -137,4 +123,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderColor: PRIMARY_COLOR_TINT,
   },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  loadingText: { fontSize: 13, opacity: 0.75 },
+  footnote: { fontSize: 12, opacity: 0.65, marginTop: 14, textAlign: 'center' },
 });

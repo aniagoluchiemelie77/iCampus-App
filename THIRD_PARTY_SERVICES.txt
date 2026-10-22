@@ -1,0 +1,195 @@
+iCampus: THIRD-PARTY SERVICES YOU PAY FOR (OR MAY PAY FOR) TO RUN THE APP
+=========================================================================
+Compiled from the code in this repo (iCampus) and iCampus-backendscripts,
+22 Oct 2026. Prices are approximate public list prices from memory, in USD,
+and change often: confirm on each vendor's pricing page before budgeting.
+
+Legend
+  [REQUIRED]  the app breaks or a core feature is missing without it
+  [FEATURE]   needed only for the feature named
+  [OPTIONAL]  nice to have / has a free fallback
+  Env vars    where the key is configured (BE = backend .env, FE = app .env)
+
+
+-------------------------------------------------------------------------
+1. HOSTING & INFRASTRUCTURE
+-------------------------------------------------------------------------
+
+Google Cloud – App Engine Flexible   [REQUIRED – current deploy target]
+  Used for:  runs the Node/Express + Socket.IO backend (app.yaml, Dockerfile).
+  Cost:      pay per instance-hour. app.yaml keeps min_num_instances: 1
+             (1 vCPU / 2 GB), so at least one instance is always billed,
+             roughly $40–60/month, more when it scales (max 5).
+  Note:      every running instance also runs the cron jobs (lecture
+             reminders etc.); the reminder job is safe to run on several.
+
+Render (alternative to App Engine)   [OPTIONAL – only if you move there]
+  Used for:  same backend, simpler deploy. Not configured in the repo yet.
+  Cost:      web service from ~$7/month (Starter); background workers and
+             more RAM cost extra. Free instances sleep, which breaks
+             sockets and crons, so use a paid instance.
+
+Firebase (Google)   [REQUIRED]  Blaze (pay-as-you-go) plan
+  Used for:  Firestore (the main database), Cloud Storage (course materials,
+             assignment files), Authentication, Cloud Messaging (push).
+  Cost:      Firestore ~$0.06 per 100k reads, ~$0.18 per 100k writes,
+             ~$0.18/GB stored/month, after a free daily quota (50k reads,
+             20k writes). Storage ~$0.026/GB/month + download bandwidth.
+             FCM push notifications are free.
+  Env vars:  BE FIREBASE_SERVICE_ACCOUNT, FIREBASE_STORAGE_BUCKET
+             FE APIKEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET,
+                MESSAGING_SENDER_ID, APP_ID, MEASUREMENT_ID
+  Watch:     school analytics and the gradebook read many documents per
+             request; this is your most likely cost to grow with users.
+
+Upstash Redis   [REQUIRED]
+  Used for:  caching (users list, feed data), idempotency keys.
+  Cost:      free tier (~500k commands/month), then ~$0.20 per 100k
+             commands; fixed plans from ~$10/month.
+  Env vars:  BE UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+
+Upstash QStash   [REQUIRED for queued email]
+  Used for:  background email jobs (workers/emailWorker.js).
+  Cost:      free tier (~500 messages/day), then ~$1 per 100k messages.
+  Env vars:  BE QSTASH_TOKEN
+
+Cloudinary   [FEATURE – post media uploads]
+  Used for:  images/videos attached to posts (CloudinaryPresetHelper.ts;
+             the code comments say "development purposes only").
+  Cost:      free plan (25 monthly credits), paid from ~$89/month. Consider
+             moving post media to Firebase Storage to drop this bill.
+  Env vars:  FE CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET
+
+
+-------------------------------------------------------------------------
+2. PAYMENTS & MONEY
+-------------------------------------------------------------------------
+
+Flutterwave   [REQUIRED – checkout, subscriptions, exceptions, payouts]
+  Used for:  card/bank payments, subscription upgrades, paid lecture
+             exceptions, seller/agent payouts, webhooks.
+  Cost:      no monthly fee; per-transaction fees (~1.4% for local
+             Nigerian cards, capped; ~3.8% international) plus payout
+             transfer fees. Fees come out of each transaction.
+  Env vars:  BE FLW_SECRET_KEY, FLUTTERWAVE_CLIENT_SECRET, FLW_WEBHOOK_HASH
+             FE FLUTTERWAVE_PUBLIC_KEY
+
+ExchangeRate-API   [REQUIRED – currency conversion]
+  Used for:  converting prices between buyer/seller currencies.
+  Cost:      free tier (1,500 requests/month), paid from ~$10/month.
+             The backend caches rates; the app also calls it directly.
+  Env vars:  BE EXCHANGERATE_API_KEY   FE EXCHANGERATE_API_KEY
+
+APIVerve – BIN lookup   [OPTIONAL]
+  Used for:  fallback card-brand lookup when adding a card.
+  Cost:      free tier, paid plans from a few dollars/month.
+  Env vars:  FE VERVE_SEARCH_API_KEY
+
+
+-------------------------------------------------------------------------
+3. COMMUNICATION
+-------------------------------------------------------------------------
+
+Postmark   [REQUIRED – all transactional email]
+  Used for:  sign-up/OTP, receipts, statements, notifications by email.
+  Cost:      from ~$15/month for 10k emails; overages ~$1.80 per 1k.
+  Env vars:  BE POSTMARK_API_KEY, POSTMARK_SENDER_SIGNATURE,
+                INDIVIDUAL_TEMPLATE_ID, ENTERPRISE_TEMPLATE_ID
+
+Twilio (WhatsApp / SMS)   [FEATURE – phone-number verification]
+  Used for:  WhatsApp OTP codes on the Phone Numbers screen.
+  Cost:      per message (Twilio fee ~$0.005) + Meta's WhatsApp
+             conversation fee (authentication category, varies by country,
+             often $0.01–0.05). You also need an approved WhatsApp sender
+             and template.
+  Env vars:  BE TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER,
+                TWILIO_WHATSAPP_NUMBER, TWILIO_CONTENT_SID
+
+
+-------------------------------------------------------------------------
+4. LIVE CLASSES, AI & VERIFICATION
+-------------------------------------------------------------------------
+
+Agora (RTC)   [REQUIRED – online live classes]
+  Used for:  lecturer video/audio broadcast, screen share, students given
+             the floor (useAgoraClass.ts; tokens from /v1/auth/agora-token).
+  Cost:      10,000 free minutes/month, then ~$0.99 per 1,000 audio
+             minutes and ~$3.99 per 1,000 HD video minutes. Minutes are
+             counted per participant: a 1-hour class with 50 students is
+             about 3,000 minutes.
+  Env vars:  BE AGORA_APP_ID, AGORA_APP_CERTIFICATE (enable "App
+             Certificate" in the Agora console; the app needs nothing).
+
+Deepgram   [FEATURE – live class transcription]
+  Used for:  real-time captions in live classes.
+  Cost:      pay-as-you-go streaming, ~$0.0043–0.0077/minute depending on
+             model; $200 free credit for new accounts.
+  Env vars:  BE DEEPGRAM_API_KEY
+
+Google Gemini API   [REQUIRED – AI features]
+  Used for:  course-form extraction, face matching for attendance/tests
+             (including random proctoring snapshots), short-answer grading,
+             iAssistant.
+  Cost:      per token/image. Flash models are cheap (fractions of a cent
+             per request), but each proctored test sends ~4–10 images.
+  Env vars:  BE GEMINI_API_KEY, GEMINI_MODEL   FE GEMINI_API_KEY
+  WARNING:   the FE key is bundled into the app and can be extracted.
+             Restrict it in Google Cloud (Android/iOS app restriction) or
+             move those calls to the backend.
+
+Google Cloud Vision   [FEATURE – image moderation]
+  Used for:  scanning uploaded post images (postActions.js, visionAi.js).
+  Cost:      first 1,000 units/month free, then ~$1.50 per 1,000.
+  Env vars:  uses the Google service account credentials.
+
+Google Places API   [FEATURE – drop-off station addresses]
+  Used for:  address/places lookup for stations.
+  Cost:      pay per request after Google Maps Platform's monthly free usage.
+  Env vars:  BE GOOGLE_PLACES_API_KEY
+
+Persona   [FEATURE – identity verification ("Get verified")]
+  Used for:  KYC inquiries for verified badges and payouts.
+  Cost:      quote-based; roughly $1–2+ per verification at low volume.
+  Env vars:  BE PERSONA_API_KEY, PERSONA_ENV, PERSONA_WEBHOOK_SECRET
+
+
+-------------------------------------------------------------------------
+5. FREE (BUT NEED ACCOUNTS/KEYS)
+-------------------------------------------------------------------------
+
+Firebase Cloud Messaging – push notifications (free).
+Google Sign-In – FE/BE WEB_CLIENT_ID (free).
+GitHub OAuth – FE GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET (free).
+  WARNING: the client secret is bundled into the app. Move the code-for-
+  token exchange to the backend.
+GIPHY – BE GIPHY_API_KEY, free with "Powered by GIPHY" attribution.
+geoip-lite – offline IP→location database, no account needed.
+
+
+-------------------------------------------------------------------------
+6. STORES, DOMAIN & ACCOUNTS
+-------------------------------------------------------------------------
+
+Apple Developer Program – $99/year (to publish on the App Store).
+Google Play Console – $25 one-time (to publish on Google Play).
+Domain (useicampus.io) + DNS – ~$30–60/year for a .io domain.
+Email domain for Postmark sender signature/DKIM – uses the same domain.
+
+
+-------------------------------------------------------------------------
+INSTALLED BUT NOT USED AT RUNTIME (no bill)
+-------------------------------------------------------------------------
+mongoose (schema definitions only, no MongoDB connection), redis and
+amqplib (no client is created). You can remove these packages.
+
+
+-------------------------------------------------------------------------
+ROUGH MONTHLY FLOOR AT LAUNCH (small user base)
+-------------------------------------------------------------------------
+  App Engine (1 instance)        ~$40–60
+  Postmark                        ~$15
+  Firebase / Upstash / Agora /
+  Deepgram / Gemini / Vision      ~$0–30 (mostly inside free tiers)
+  ------------------------------------------
+  ≈ $55–105 / month, plus Flutterwave and Twilio per-use fees, Persona
+  per verification, and the yearly store/domain fees.

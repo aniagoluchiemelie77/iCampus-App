@@ -855,6 +855,21 @@ export interface SchoolMetrics {
     testSubmissionsCount: number;
     attendanceSyncVolume: number;
   };
+  // Tiered analytics (utils/schoolAnalytics.js). Optional so older servers
+  // that only send the legacy fields above still render.
+  institution?: {
+    schoolCode: string;
+    name: string;
+    logo: string | null;
+    tier: 'free' | 'pro' | 'premium';
+    tierLabel: string;
+  };
+  access?: { basic: boolean; professional: boolean; enterprise: boolean };
+  locked?: { tier: string; label: string; features: string[] }[];
+  generatedAt?: string;
+  basic?: any;
+  professional?: any | null;
+  enterprise?: any | null;
 }
 
 export type SignupResponse = {
@@ -886,8 +901,30 @@ export interface Review {
     accuracy: number;
     clarity: number;
   },
-  createdAt: Date
+  createdAt: Date;
+  id?: string;
+  reviewId?: string;
+  /** What was reviewed, resolved by the seller-reviews endpoint. */
+  subject?: ReviewSubject;
 };
+export interface ReviewSubject {
+  type: "product" | "seller" | "agent" | "course" | "lecturer" | "file";
+  id: string | null;
+  title: string;
+  image: string | null;
+  price: number | null;
+  orderId: string | null;
+  quantity: number | null;
+  /** e.g. "Blue · M" from the order. */
+  variant: string | null;
+  /** The buyer rated the store (via an order), not the listing itself. */
+  isStoreReview: boolean;
+}
+export interface ReviewSummary {
+  total: number;
+  averageRating: number;
+  distribution: Record<1 | 2 | 3 | 4 | 5, number>;
+}
 export interface ChatMessage {
   id: string;
   text?: string; 

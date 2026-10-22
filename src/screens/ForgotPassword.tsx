@@ -12,7 +12,7 @@ import {
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { StackNavigationProp } from '@react-navigation/stack';
-import SweetAlertModal from '../components/alertscomponent';
+import { useToastAlert } from '../utils/toastAlert';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
@@ -45,11 +45,7 @@ export default function ForgotPasswordScreen() {
   const [isVerifying, setVerifying] = useState(false);
   const [timeLeft, setTimeLeft] = useState(900);
 
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
+  const { setAlertVisible, setAlertType, setAlertMessage } = useToastAlert();
 
   useEffect(() => {
     return () => {
@@ -286,22 +282,6 @@ export default function ForgotPasswordScreen() {
             )}
           </View>
         </ScrollView>
-
-        <SweetAlertModal
-          visible={alertVisible}
-          onConfirm={() => setAlertVisible(false)}
-          title={
-            alertType === 'success'
-              ? 'Success!'
-              : alertType === 'error'
-                ? 'Oops!'
-                : alertType === 'warning'
-                  ? 'Warning!'
-                  : 'Notice'
-          }
-          message={alertMessage}
-          type={alertType}
-        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

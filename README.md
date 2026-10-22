@@ -1,99 +1,157 @@
-# iCash Mobile – Fintech and EdTech Solutions
+# iCampus – Mobile App
 
-> iCash is a modern mobile financial hub designed for seamless P2P transfers, iCash purchasing, and automated transaction management. It features a robust dashboard with real-time statistics and a paginated financial history system.
+iCampus is a campus super-app for students, lecturers, institutions and the wider community. It combines a social feed, a classroom (courses, live classes, attendance, tests, gradebook), a campus marketplace with escrowed delivery, and tiered analytics that institutions subscribe to.
 
-## Key Features
+This repo is the **React Native app** (Android and iOS). The API lives in the companion repo [`iCampus-backendscripts`](../iCampus-backendscripts).
 
-1. Financial Dashboard: Real-time balance updates and quick action shortcuts for buying and withdrawing iCash.
+---
 
-2. P2P Transfers: Secure peer-to-peer transfers using unique user tags (iTags).
+## Features
 
-3. Transaction Hub: Advanced history with infinite scrolling, server-side search, and date filtering.
+**Classroom**
+- Courses from an uploaded course form (AI extraction) or manual entry
+- Lecture scheduling with repeat weeks, edit/postpone, and push reminders 45 min before class
+- **Physical attendance over Bluetooth LE**: the lecturer's phone broadcasts a beacon, and students in the room check in with fingerprint or a selfie face match
+- **Live online classes on Agora**: video, screen share (Android), raise hand / give the floor, live captions (Deepgram), chat; attendance recorded automatically
+- Proctored tests: randomised questions, random identity snapshots, look-away / multiple-face detection, app-switch strikes, call handling, auto-submit
+- Exceptions (excused absences, paid after the monthly allowance), assignments, course materials, syllabus
+- **Grade Accelerator**: a per-course gradebook combining attendance and test scores with lecturer-set weights, exportable as PDF
 
-4. Analytics & Statistics: Visualized data insights using Pie Charts for income vs. expenditure tracking.
+**Social**
+- Feed with posts, polls, jobs and events, mentions, reposts, bookmarks, comments
+- Background post upload with a progress card
+- School-only memos for institution admins
 
-5. Statement Export: Generate and email professional PDF transaction statements.
+**Marketplace**
+- Listings, cart, favourites, checkout through Flutterwave
+- Home delivery or drop-off stations; the buyer's QR code releases funds to the seller
+- Sales Hub: orders, inventory, payouts, reviews
 
-6. Security First: JWT-based authentication and secure PIN resets for financial operations.
-   
-7. Online Class sessions: Online class sessions for student, lecturers (instructors) and guest users.
+**Accounts & admin**
+- Student, lecturer, enterprise and general accounts; Free / Pro / Premium subscriptions
+- Identity verification (Persona), WhatsApp phone verification, 2FA, sessions
+- Admin dashboard: platform finance and health for staff; **tiered school analytics** (Basic, Professional, Enterprise) for school administrators
 
-8. Attendance Tracking: Using Bluetooth Low Energy (BLE) for physical lectures attendance tracking.
+---
 
-9. Recorded Lecture Session: Includes pre recorded video lectures capabilities for enhanced learning.
-    
-11. Lectures create/edit/maintain/tracking: Included capabilities for Lecturers (instuctors) to manage lectures and students enrolled.
+## Tech stack
 
-12. Create Paid Lectures: Pro and Premium tier students, instructors or guestusers can create paid courses and tracking analysis on iCampus.
+| Area | Library |
+| --- | --- |
+| Framework | React Native 0.86 (TypeScript), React Navigation |
+| State | Redux Toolkit + React context (`EventContext`, `ThemeContext`, `PostUploadContext`) |
+| Realtime | Socket.IO client |
+| Live video | `react-native-agora` (tokens issued by the backend) |
+| Push | `@react-native-firebase/messaging` (FCM) |
+| Bluetooth | `react-native-ble-manager` (scan), `react-native-ble-peripheral` (advertise) |
+| Camera / face | `react-native-vision-camera`, `react-native-biometrics` |
+| Local cache | `react-native-quick-sqlite` (product catalog) |
+| Payments | Flutterwave (pay sheet), server-verified |
 
-13. Posts create/delete/edit/view/comment/like: Provided users with the listed post capabilities.
+---
 
-14. Store purchases: Users can sell softwares, courses, and physical goods on the app, with free shipping for premium users.
+## Project structure
 
-15. Ranking: Users (students, lecturers, guestusers) are ranked/graded fairly based on given app procedures and activities.
+```
+App.tsx                  Navigation stack, providers, session bootstrap
+src/
+  api/                   REST clients (localGetApis, localPostApis, localPatchApis, …)
+  components/            Feature components (PostCard, CourseActionsComponent, live class, …)
+  screens/               Route screens
+  context/               Redux slices + React contexts
+  hooks/                 useAgoraClass, useLiveSession, useSocket, useSQLiteDb, …
+  utils/                 Helpers (lectureTime, attendance, notificationNavigation, …)
+  types/firebase.d.ts    Shared data types
+android/ ios/            Native projects
+patches/                 patch-package fixes for native libraries
+THIRD_PARTY_SERVICES.txt Paid services needed to run iCampus, with rough costs
+```
 
-## Tech Stack
-Frontend:
+---
 
-1. React Native (TypeScript)
+## Getting started
 
-2. React Navigation (Stack & Tabs)
+### Prerequisites
+- Node 20+, JDK 17, Android Studio (SDK + an emulator or device)
+- Xcode 15+ and CocoaPods for iOS
+- The backend running locally or deployed (see the backend README)
+- A Firebase project with `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
 
-3. Redux Toolkit (State Management)
+### Install
 
-4. React Native Paper / Vector Icons (UI Components)
-
-Backend:
-
-1. Node.js & Express.js
-
-2. Firebase Firestore.
-
-3. Socket.io (for real time front end and backend communtication).
-
-4. AsyncStorage (Local Session Management).
-
-5. PostMark & PDFKit (For Statement Generation and emails).
-
-
-## Installation & Setup
-
-1. Clone the repository
-   
 ```sh
 git clone https://github.com/aniagoluchiemelie77/iCampus-App.git
-cd iCampus-App
+cd iCampus
+npm install          # also applies patches/ via patch-package
+cd ios && pod install && cd ..
 ```
-2. Install Dependencies
-   
+
+### Environment variables
+
+Create `.env` in the project root (read through `react-native-dotenv` as `@env`):
+
 ```sh
-cd frontend && npm install
+# Backend
+BACKEND_URL=https://your-backend.example.com/   # trailing slash required
+INBOUND_SUPPORT_URL=
 
-# For Backend
-cd backend && npm install
+# Firebase web SDK (Cloud Storage uploads)
+APIKEY=
+AUTH_DOMAIN=
+PROJECT_ID=
+STORAGE_BUCKET=
+MESSAGING_SENDER_ID=
+APP_ID=
+MEASUREMENT_ID=
+
+# Sign-in
+WEB_CLIENT_ID=            # Google Sign-In web client id
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=     # see security note below
+ICAMPUS_APPLE_ID=
+
+# Payments & money
+FLUTTERWAVE_PUBLIC_KEY=
+EXCHANGERATE_API_KEY=
+VERVE_SEARCH_API_KEY=     # optional BIN lookup fallback
+
+# Media & AI
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_UPLOAD_PRESET=
+GEMINI_API_KEY=
+
+# Bluetooth attendance: any UUID, must match on every device
+SERVICE_UUID=
 ```
-3. Environment Variables
-   Create a .env file:
+
+Live classes need **no app-side Agora key**. The backend returns the App ID and a short-lived token for each class, so you only set `AGORA_APP_ID` and `AGORA_APP_CERTIFICATE` in the backend `.env`.
+
+> **Security:** everything in this `.env` is bundled into the app and can be extracted. `GITHUB_CLIENT_SECRET` and `GEMINI_API_KEY` should be moved behind the backend; until then, restrict the Gemini key to your Android/iOS app in Google Cloud.
+
+### Run
+
 ```sh
-#Frontend
-PORT=5000
-EXCHANGERATE_API_KEY=your_exchangerate_api_key
-SERVICE_UUID=your_service_uuid_key
-FLUTTERWAVE_CLIENT_EKEY=your_flutterwave_ekey
-WEB_CLIENT_ID=your_webclient_id
-WEB_CLIENT_SECRET=your_webclient_secret_key
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secretkey
-GEMINI_API_KEY=your_germini_api_key
-VERVE_SEARCH_API_KEY=your_verve_search_key
-FLUTTERWAVE_CLIENT_ID=your_flutterwave_client_id
-ANDROID_HOME=your_androidsdk_local_urlroute
+npx react-native start
+npx react-native run-android     # or: npx react-native run-ios
 ```
 
-4. Run the Project
+Bluetooth attendance and live video need **real devices**. Emulators can't advertise BLE beacons, and their camera support is limited.
+
+### Type-check and lint
+
 ```sh
-# Using npm
-npx react-native run-android # or run-ios
+npx tsc --noEmit
+npx eslint src
 ```
 
+---
 
+## Notes for contributors
+
+- **Dates:** Firestore timestamps reach the app as ISO strings or `{_seconds}` objects. Use `parseFirestoreDate` / `safeParseDate` (`utils/dateFormatter.ts`), and use `resolveLectureTime` (`utils/lectureTime.ts`) for lecture start and end times.
+- **Notification taps:** routing for every notification type lives in `utils/notificationNavigation.ts`, shared by the Notifications list and push taps.
+- **Attendance entry points:** shared in `utils/attendance.ts` (Classroom tab "Today" card, schedule, ongoing-class sheet, push).
+- **Native permissions:** camera, microphone, Bluetooth and the screen-share foreground service are declared in `AndroidManifest.xml` and `Info.plist`. Rebuild the native app after changing them.
+
+## Costs
+See [`THIRD_PARTY_SERVICES.txt`](THIRD_PARTY_SERVICES.txt) for every external service the app and backend depend on, what each is used for, and approximate pricing.

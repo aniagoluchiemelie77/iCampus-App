@@ -8,7 +8,7 @@ import DeviceInfo from 'react-native-device-info';
 import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload, PostComment, User} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
-import { fetchWithAuth} from '../utils/userTokenAuth';
+import { fetchWithAuth, refreshSessionToken } from '../utils/userTokenAuth';
 import { clearSession } from '../utils/session';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
@@ -76,6 +76,9 @@ interface VerifyFaceResponse {
   similarity?: number;
   /** True when verification could not run (network/server/avatar issue), as opposed to a face mismatch. */
   isError?: boolean;
+  faceCount?: number | null;
+  lookingAtScreen?: boolean | null;
+  suspicious?: string | null;
 }
 interface ApiResponse {
   success: boolean;
@@ -232,68 +235,6 @@ export const revokeDeviceSession = async (
     return { success: false, message: error?.message };
   }
 };
-export const toggleBlockUser = async (
-  targetId: string,
-  signal?: AbortSignal
-): Promise<{ success: boolean; action?: 'blocked' | 'unblocked'; message?: string }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const response = await fetchWithAuth(`${baseUrl}users/block/toggle`, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({ targetUserId: targetId }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      const errorMessage = data?.error || data?.message || 'Failed to update block status';
-      Toast.show({
-        type: 'error',
-        text1: 'Block Error',
-        text2: errorMessage,
-      });
-      return { success: false, message: errorMessage };
-    }
-
-    Toast.show({
-      type: 'success',
-      text1: data.action === 'blocked' ? 'User Blocked' : 'User Unblocked',
-      text2: data.action === 'blocked' 
-        ? 'You will no longer see this user.' 
-        : 'You can now see this user\'s profile.',
-    });
-
-    return { success: true, action: data.action };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'Block request timed out.' });
-      return { success: false, message: 'Request timed out.' };
-    }
-
-    console.error("Toggle Block Utility Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: error?.message || 'Check your internet connection',
-    });
-    return { success: false, message: error?.message };
-  }
-};
 export const askIAssistantAgent = async (
   params: {
     message: string;
@@ -305,8 +246,30 @@ export const askIAssistantAgent = async (
   signal?: AbortSignal
 ): Promise<{ success: boolean; reply?: string; ticketId?: string; error?: string }> => {
   const { message, history, contextType, contextData } = params;
-  const TIMEOUT_MS = await getAdaptiveTimeout();
+  // AI replies (especially with attachments) regularly take 20–40s; the
+  // generic adaptive timeout aborted them.
+  const TIMEOUT_MS = Math.max(await getAdaptiveTimeout(), 60000);
   const controller = new AbortController();
+  // Only the small descriptive fields: callers pass whole lecture lists or
+  // course objects, which pushed the body past the server's 100kb limit and
+  // made every request fail.
+  const pick = (v: any) =>
+    typeof v === 'string' || typeof v === 'number' ? String(v).slice(0, 300) : undefined;
+  const safeContext = contextData
+    ? Object.fromEntries(
+        Object.entries({
+          id: pick(contextData.id),
+          title: pick(contextData.title),
+          name: pick(contextData.name),
+          courseCode: pick(contextData.courseCode ?? contextData.course?.courseCode),
+          courseTitle: pick(contextData.courseTitle ?? contextData.course?.courseTitle),
+          topicName: pick(contextData.topicName),
+          attachmentUrl: pick(contextData.attachmentUrl),
+        }).filter(([, v]) => v !== undefined),
+      )
+    : {};
+  // The last 12 turns are plenty of context and keep the payload small.
+  const recentHistory = Array.isArray(history) ? history.slice(-12) : [];
 
   if (signal) {
     signal.addEventListener('abort', () => controller.abort());
@@ -320,24 +283,35 @@ export const askIAssistantAgent = async (
       method: 'POST',
       body: JSON.stringify({
         message,
-        history: Array.isArray(history) ? history.map(msg => ({
+        history: recentHistory.map(msg => ({
           role: msg.role,
-          parts: [{ text: msg.content }]
-        })) : [],
+          parts: [{ text: String(msg.content || '').slice(0, 4000) }],
+        })),
         context: {
           type: contextType,
-          data: contextData, 
+          data: safeContext,
         },
       }),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
-    const data = await response.json();
-    
+    // A non-JSON error page (e.g. 413) used to throw here.
+    let data: any = {};
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+
     if (!response.ok || !data.success) {
-      const errorMsg = data?.error || 'Failed to fetch academic response';
-      Toast.show({ type: 'error', text1: 'AI Assistant Error', text2: errorMsg });
+      const errorMsg =
+        data?.error ||
+        (response.status === 413
+          ? 'That message is too long. Try a shorter one.'
+          : response.status === 429
+            ? 'The assistant is busy right now. Try again in a moment.'
+            : 'The assistant could not answer. Try again.');
       return { success: false, error: errorMsg };
     }
     
@@ -345,14 +319,12 @@ export const askIAssistantAgent = async (
   } catch (error: any) {
     clearTimeout(timeoutId);
 
+    // The chat screen shows these inline with a retry, so no toast here.
     if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'AI assistant request timed out.' });
-      return { success: false, error: 'Request timed out.' };
+      return { success: false, error: 'That took too long. Tap retry to try again.' };
     }
-
-    console.error("Ask AI Assistant Error:", error);
-    Toast.show({ type: 'error', text1: 'Network Error', text2: error.message || 'Failed to reach AI assistant' });
-    return { success: false, error: error.message };
+    console.error('Ask AI Assistant Error:', error);
+    return { success: false, error: "Couldn't reach the assistant. Check your connection." };
   }
 };
 export const handleLogout = async (navigation: any) => {
@@ -457,6 +429,8 @@ export const verifySignupEmailCode = async (email: string, code: string) => {
       success: true,
       message: data?.message || 'Email verified successfully',
       email: data.email,
+      // Signed proof the server requires when creating a password account.
+      emailProof: data.emailProof as string | undefined,
       status: response.status,
     };
   } catch (error: any) {
@@ -2011,6 +1985,10 @@ export const verifyFacialIdentity = async (
       verified: response.ok && result.verified === true,
       message: result.message,
       similarity: result.similarity,
+      // Attention signals (used by test proctoring snapshots).
+      faceCount: typeof result.faceCount === 'number' ? result.faceCount : null,
+      lookingAtScreen: typeof result.lookingAtScreen === 'boolean' ? result.lookingAtScreen : null,
+      suspicious: result.suspicious || null,
     };
   } catch (error: any) {
     if (error.name === 'AbortError') return { verified: false, isError: true, message: 'Request cancelled.' };
@@ -2196,30 +2174,85 @@ export const extractCourseFormAPI = async (
   onProgress: (percent: number) => void,
   signal?: AbortSignal
 ) => {
-  const token = await AsyncStorage.getItem('accessToken');
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  
-  const formData = new FormData();
-  formData.append('file', {
-    uri: fileParam.uri,
-    type: fileParam.type,
-    name: fileParam.name,
-  } as any);
-  return await axios.post(
-    `${cleanBaseUrl}/users/course/extract-course-details-from-uploads`,
-    formData,
-    {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'X-Idempotency-Key': uuidv4(),
-      },
-      signal, 
-      onUploadProgress: (progressEvent) => {
-        const percentCompleted = (progressEvent.loaded || 0) / (progressEvent.total || 1);
-        onProgress(percentCompleted);
-      },
-    }
-  );
+  const url = `${cleanBaseUrl}/users/course/extract-course-details-from-uploads`;
+  // One key per upload, reused on the post-refresh retry.
+  const idempotencyKey = uuidv4();
+
+  // Plain XHR: axios 1.x mangles React Native FormData (no multipart
+  // boundary / "Network Error" on Android), and XHR reports upload progress.
+  const send = (token: string | null) =>
+    new Promise<{ status: number; data: any }>((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: fileParam.uri,
+        type: fileParam.type,
+        name: fileParam.name,
+      } as any);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('X-Idempotency-Key', idempotencyKey);
+      xhr.setRequestHeader('Accept', 'application/json');
+      // Reading the form with AI can take a while on a cold server.
+      xhr.timeout = 150000;
+
+      xhr.upload.onprogress = event => {
+        if (event.lengthComputable && event.total > 0) {
+          onProgress(Math.min(1, event.loaded / event.total));
+        }
+      };
+      xhr.upload.onload = () => onProgress(1);
+      xhr.onload = () => {
+        let data: any = {};
+        try {
+          data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        } catch {
+          data = { message: 'The server sent an unexpected response.' };
+        }
+        resolve({ status: xhr.status, data });
+      };
+      xhr.onerror = () =>
+        reject(new Error('Upload failed. Check your connection and try again.'));
+      xhr.ontimeout = () =>
+        reject(new Error('Reading your form took too long. Please try again.'));
+
+      if (signal) {
+        if (signal.aborted) {
+          reject(new Error('Upload cancelled.'));
+          return;
+        }
+        signal.addEventListener('abort', () => {
+          xhr.abort();
+          reject(new Error('Upload cancelled.'));
+        });
+      }
+      xhr.send(formData);
+    });
+
+  let response = await send(await AsyncStorage.getItem('accessToken'));
+  if (response.status === 401) {
+    // Expired access token: refresh once and resend.
+    const freshToken = await refreshSessionToken();
+    response = await send(freshToken);
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    const message =
+      response.data?.message ||
+      response.data?.error ||
+      (response.status === 413
+        ? 'File is too large. Upload a file under 15MB.'
+        : response.status === 415
+          ? 'Upload your course form as a PDF or a photo.'
+          : 'We could not read your course form. Please try again.');
+    // Same shape as an axios error so callers can read err.response.data.
+    const error: any = new Error(message);
+    error.response = response;
+    throw error;
+  }
+  return response;
 };
 export const createManualCourseAPI = async (
   courseData: ManualCoursePayload,

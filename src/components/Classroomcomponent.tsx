@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Dimensions,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -23,21 +23,17 @@ import {
 import { createManualCourseAPI } from '../api/localPostApis.ts';
 import { initialState } from '../context/UserSlice.ts';
 import { useTheme } from '../context/ThemeContext';
-import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { CourseSearchCard } from './SearchScreenComponents.tsx';
 import { useMediaPicker } from '../hooks/useMediaPicker.ts';
 import {
   CourseModal,
   UploadProgressModal,
   ManualCourseModal,
-  SelectionModal,
 } from './ClassroomScreenComponents.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { EmptyState } from './EmptyFlatlistComponent';
+import { TodayAttendanceCard } from './TodayAttendanceCard';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
-import { generateSessions } from '../utils/courseHelper.ts';
 interface DashboardProps {
   user: User;
   userRole: 'student' | 'lecturer';
@@ -46,13 +42,17 @@ interface ClassroomProps {
   userRole: 'student' | 'lecturer';
 }
 
-const SESSIONS = generateSessions();
+// One request for every course; a student's or lecturer's list is small.
+const ALL_COURSES_LIMIT = 200;
+
+type LoadState = 'idle' | 'loading' | 'refreshing' | 'loaded' | 'error';
 
 export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [isLoading, setLoading] = useState(false);
+  const [loadState, setLoadState] = useState<LoadState>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -62,32 +62,80 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('All');
-  const [selectedSession, setSelectedSession] = useState('All');
-  const isFiltered = selectedSemester !== 'All' || selectedSession !== 'All';
 
   const [isManualModalVisible, setIsManualModalVisible] = useState(false);
-  const [isSessionModalVisible, setSessionModalVisible] = useState(false);
-  const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
     useState(false);
 
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [page, setPage] = useState(1);
-
-  const stateRef = useRef({ hasMore, isFetchingMore, page });
-  stateRef.current = { hasMore, isFetchingMore, page };
+  const fetchingRef = useRef(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { pickImage, pickDocument, pickImageFromCamera } = useMediaPicker();
+
+  /** Loads every course in one go (no filters, no paging). */
+  const loadCourses = useCallback(
+    async (mode: 'initial' | 'refresh' = 'initial') => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+      setLoadState(mode === 'refresh' ? 'refreshing' : 'loading');
+      try {
+        const fetcher = userRole === 'lecturer' ? fetchLecturerCoursesAPI : fetchMyCoursesAPI;
+        const result = await fetcher({
+          semester: 'All',
+          session: 'All',
+          page: 1,
+          limit: ALL_COURSES_LIMIT,
+        });
+        if (result.success) {
+          setCourses(Array.isArray(result.courses) ? result.courses : []);
+          setErrorMessage('');
+          setLoadState('loaded');
+        } else {
+          setErrorMessage(result.message || 'We could not load your courses.');
+          setLoadState('error');
+        }
+      } catch (error: any) {
+        console.error('Course fetch error:', error);
+        setErrorMessage(error?.message || 'Check your connection and try again.');
+        setLoadState('error');
+      } finally {
+        fetchingRef.current = false;
+      }
+    },
+    [userRole],
+  );
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    loadCourses('initial');
+  }, [user?.uid, loadCourses]);
+
+  /** Real MIME type from the file extension; the pickers only say "image"/"file". */
+  const mimeFromName = (name: string) => {
+    const extension = name.split('?')[0].split('.').pop()?.toLowerCase() || '';
+    const mimeByExtension: Record<string, string> = {
+      pdf: 'application/pdf',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      heic: 'image/heic',
+      heif: 'image/heif',
+    };
+    return mimeByExtension[extension];
+  };
+
+  /** Photo from gallery/camera: name it after its real extension (the crop picker can return PNG). */
+  const photoUpload = (uri: string, prefix: string) => {
+    const mime = mimeFromName(uri) || 'image/jpeg';
+    const extension = mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1];
+    return { uri, type: mime, name: `${prefix}_${Date.now()}.${extension}` };
+  };
+
   const handlePickImage = async () => {
     try {
       const fileData = await pickImage();
       if (fileData) {
-        await uploadAndExtractCourseFile({
-          uri: fileData.uri,
-          type: fileData.type === 'image' ? 'image/jpeg' : fileData.type,
-          name: fileData.name || `gallery_image_${Date.now()}.jpg`,
-        });
+        await uploadAndExtractCourseFile(photoUpload(fileData.uri, 'course_form'));
       }
     } catch (err) {
       console.log('Image picker window dismissed');
@@ -99,16 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       if (fileData) {
         // The picker allows any file; only PDFs and images can be read.
         const name = fileData.name || `document_${Date.now()}.pdf`;
-        const extension = name.split('.').pop()?.toLowerCase() || '';
-        const mimeByExtension: Record<string, string> = {
-          pdf: 'application/pdf',
-          jpg: 'image/jpeg',
-          jpeg: 'image/jpeg',
-          png: 'image/png',
-          webp: 'image/webp',
-          heic: 'image/heic',
-        };
-        const mimeType = mimeByExtension[extension];
+        const mimeType = mimeFromName(name);
         if (!mimeType) {
           Toast.show({
             type: 'error',
@@ -127,108 +166,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     try {
       const fileData = await pickImageFromCamera();
       if (fileData) {
-        await uploadAndExtractCourseFile({
-          uri: fileData.uri,
-          type: fileData.type || 'image/jpeg',
-          name: fileData.name || `camera_snap_${Date.now()}.jpg`,
-        });
+        // fileData.type is "image", which the server rejects as a MIME type.
+        await uploadAndExtractCourseFile(photoUpload(fileData.uri, 'course_form_camera'));
       }
     } catch (err) {
       console.log('Camera window dismissed');
     }
   };
-  const fetchMyCourses = useCallback(
-    async (
-      semester: string = 'All',
-      session: string = 'All',
-      pageNumber: number = 1,
-    ) => {
-      const { hasMore, isFetchingMore } = stateRef.current;
-      if (pageNumber > 1 && (!hasMore || isFetchingMore)) return;
-
-      setLoading(pageNumber === 1);
-      setIsFetchingMore(true);
-      try {
-        const result = await fetchMyCoursesAPI({
-          semester,
-          session,
-          page: pageNumber,
-          limit: 10,
-        });
-
-        if (result.success) {
-          setCourses(result.courses);
-          setPage(pageNumber);
-          setHasMore(result.courses.length === 10);
-        } else {
-          Toast.show({
-            type: 'error',
-            text1: 'Fetch Error',
-            text2: result.message,
-          });
-        }
-      } catch (error) {
-        console.error(error);
-        Toast.show({
-          type: 'error',
-          text1: 'Failed to fetch courses',
-          position: 'bottom',
-          bottomOffset: 5,
-        });
-      } finally {
-        setLoading(false);
-        setIsFetchingMore(false);
-      }
-    },
-    [],
-  );
-
-  const fetchLecturerCourses = useCallback(
-    async (semester: string, session: string, pageNumber: number = 1) => {
-      const { hasMore, isFetchingMore } = stateRef.current;
-      if (pageNumber > 1 && (!hasMore || isFetchingMore)) return;
-
-      setLoading(pageNumber === 1);
-      setIsFetchingMore(true);
-      try {
-        const result = await fetchLecturerCoursesAPI({
-          semester,
-          session,
-          page: pageNumber,
-          limit: 10,
-        });
-
-        if (result.success) {
-          setCourses(result.courses);
-          setHasMore(result.courses.length === 10);
-          setPage(pageNumber);
-        } else {
-          Toast.show({
-            type: 'error',
-            text1: 'Fetch Error',
-            text2: result.message,
-          });
-        }
-      } catch (error) {
-        console.error('Lecturer Fetch Error:', error);
-        Toast.show({
-          type: 'error',
-          text1: 'Failed to fetch your assigned courses',
-          position: 'bottom',
-        });
-      } finally {
-        setLoading(false);
-        setIsFetchingMore(false);
-      }
-    },
-    [],
-  );
 
   const uploadAndExtractCourseFile = async (fileData: {
     uri: string;
     type: string;
     name: string;
   }) => {
+    if (uploading) return;
     setUploading(true);
     setStatus('Uploading document...');
     setProgress(0);
@@ -236,32 +187,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     try {
       const response = await extractCourseFormAPI(fileData, percent => {
         setProgress(percent);
-        if (percent === 1) {
-          setStatus('Course extraction in progress...');
+        if (percent >= 1) {
+          setStatus('Reading your courses...');
         }
       });
 
-      const { message, courses: extractedCourses } = response.data;
+      const { message, courses: extractedCourses } = response.data || {};
 
       if (extractedCourses && extractedCourses.length > 0) {
-        const { semester, session } = extractedCourses[0];
-        setSelectedSemester(String(semester));
-        setSelectedSession(session);
-        if (userRole === 'lecturer') {
-          fetchLecturerCourses(String(semester), session);
-        } else {
-          fetchMyCourses(String(semester), session);
-        }
+        loadCourses('refresh');
         Toast.show({
           type: 'success',
-          text1: message,
+          text1: 'Courses added',
+          text2: message,
           position: 'bottom',
           bottomOffset: 5,
         });
       } else {
         Toast.show({
-          type: 'error',
-          text1: 'File processed, but no courses were detected. Please retry.',
+          type: 'warning',
+          text1: 'No courses found',
+          text2: 'The file was read, but no courses were detected. Try a clearer copy.',
           position: 'bottom',
           bottomOffset: 5,
         });
@@ -275,6 +221,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         text1: 'Could not process your form',
         text2:
           err?.response?.data?.message ||
+          err?.message ||
           'Please check your connection and try again.',
         position: 'bottom',
         bottomOffset: 5,
@@ -300,11 +247,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           text1: 'Success',
           text2: response.message,
         });
-        if (userRole === 'lecturer') {
-          fetchLecturerCourses(selectedSemester, selectedSession);
-        } else {
-          fetchMyCourses(selectedSemester, selectedSession);
-        }
+        loadCourses('refresh');
       } else {
         Toast.show({
           type: 'error',
@@ -320,229 +263,172 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     }
   };
 
-  useEffect(() => {
-    if (!user?.uid || !selectedSession || !selectedSemester) return;
+  const isBusy = loadState === 'loading' || loadState === 'refreshing';
 
-    if (userRole === 'lecturer') {
-      fetchLecturerCourses(selectedSemester, selectedSession);
-    } else {
-      fetchMyCourses(selectedSemester, selectedSession);
+  const renderHeader = () => (
+    <View>
+      {isStudent && (
+        <View style={styles.actionRow}>
+          <ActionTile
+            icon="cloud-upload"
+            label={'Upload\nForm'}
+            onPress={() => setIsAttachmentModalVisible(true)}
+            colors={colors}
+          />
+          <ActionTile
+            icon="keyboard"
+            label={'Manual\nEntry'}
+            onPress={() => setIsManualModalVisible(true)}
+            colors={colors}
+          />
+        </View>
+      )}
+
+      {isInstructor && (
+        <View style={styles.actionRow}>
+          <ActionTile
+            icon="cloud-upload"
+            label={'Upload\nAllocation Form'}
+            onPress={() => setIsAttachmentModalVisible(true)}
+            colors={colors}
+          />
+          <ActionTile
+            icon="keyboard"
+            label={'Manual\nEntry'}
+            onPress={() => setIsManualModalVisible(true)}
+            colors={colors}
+          />
+          <ActionTile
+            icon="video-call"
+            label={'Quick Online\nClass'}
+            onPress={() =>
+              navigation.navigate('CourseSubPage', {
+                title: 'QuickPublicClass',
+                userRole: user.usertype,
+              })
+            }
+            colors={colors}
+          />
+        </View>
+      )}
+
+      <TodayAttendanceCard role={userRole} refreshKey={refreshKey} />
+
+      <View style={styles.headerContainer}>
+        <View>
+          <Text style={[styles.title, { color: colors.textDarker }]}>
+            {isStudent ? 'Enrolled Courses' : 'Manage Courses'}
+          </Text>
+          {loadState === 'loaded' && courses.length > 0 && (
+            <Text style={[styles.titleCount, { color: colors.text }]}>
+              {courses.length} {courses.length === 1 ? 'course' : 'courses'}
+            </Text>
+          )}
+        </View>
+        <CustomButton
+          title="View All"
+          onPress={() => navigation.navigate('ViewAllCourses')}
+          style={styles.ctaBtn}
+        />
+      </View>
+    </View>
+  );
+
+  const renderEmpty = () => {
+    if (loadState === 'idle' || loadState === 'loading') {
+      return (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.text }]}>
+            Loading your courses…
+          </Text>
+        </View>
+      );
     }
-  }, [
-    selectedSession,
-    selectedSemester,
-    userRole,
-    user?.uid,
-    fetchMyCourses,
-    fetchLecturerCourses,
-  ]);
+    if (loadState === 'error') {
+      return (
+        <EmptyState
+          iconName="wifi-off"
+          title="Couldn't load your courses"
+          subtitle={errorMessage || 'Check your internet connection, then try again.'}
+          buttonText="Try again"
+          buttonIcon="refresh"
+          buttonLoading={isBusy}
+          onPress={() => loadCourses('refresh')}
+          style={styles.emptyState}
+        />
+      );
+    }
+    return (
+      <EmptyState
+        illustration={{
+          uri: isStudent
+            ? 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549467/The_Little_Things_-_Exam_Studying_wdspiv.png'
+            : 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549420/Fresh_Folk_-_Teaching_y1k0ov.png',
+        }}
+        title={isStudent ? 'No courses yet' : 'No courses assigned yet'}
+        subtitle={
+          isStudent
+            ? 'Upload your course registration form and we’ll fill in your courses for you. Already did? Check again.'
+            : 'Upload your course allocation form to prepare your syllabus and lectures. Already did? Check again.'
+        }
+        buttonText="Check again"
+        buttonIcon="refresh"
+        buttonLoading={isBusy}
+        onPress={() => loadCourses('refresh')}
+        chipsLabel="Or add your courses"
+        chips={[
+          {
+            label: isStudent ? 'Upload course form' : 'Upload allocation form',
+            icon: 'cloud-upload',
+            onPress: () => setIsAttachmentModalVisible(true),
+          },
+          {
+            label: 'Add manually',
+            icon: 'keyboard',
+            onPress: () => setIsManualModalVisible(true),
+          },
+        ]}
+        style={styles.emptyState}
+      />
+    );
+  };
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['left', 'right']}
     >
-      <View style={{ flex: 1, marginHorizontal: 15 }}>
-        {isStudent && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.btn, { borderColor: colors.primary }]}
-              onPress={() => setIsAttachmentModalVisible(true)}
-            >
-              <MaterialIcons
-                name="cloud-upload"
-                size={32}
-                color={colors.primary}
-              />
-              <Text style={[styles.btnText, { color: colors.primary }]}>
-                Upload{'\n'}Form
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btn, { borderColor: colors.primary }]}
-              onPress={() => setIsManualModalVisible(true)}
-            >
-              <MaterialIcons name="keyboard" size={32} color={colors.primary} />
-              <Text style={[styles.btnText, { color: colors.primary }]}>
-                Manual{'\n'}Entry
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {isInstructor && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.btn, { borderColor: colors.primary }]}
-              onPress={() => setIsAttachmentModalVisible(true)}
-            >
-              <MaterialIcons
-                name="cloud-upload"
-                size={32}
-                color={colors.primary}
-              />
-              <Text style={[styles.btnText, { color: colors.primary }]}>
-                Upload{'\n'}Course{'\n'}Allocation Form
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btn, { borderColor: colors.primary }]}
-              onPress={() => setIsManualModalVisible(true)}
-            >
-              <MaterialIcons name="keyboard" size={32} color={colors.primary} />
-              <Text style={[styles.btnText, { color: colors.primary }]}>
-                Manual{'\n'}Entry
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btn, { borderColor: colors.primary }]}
-              onPress={() =>
-                navigation.navigate('CourseSubPage', {
-                  title: 'QuickPublicClass',
-                  userRole: user.usertype,
-                })
-              }
-            >
-              <MaterialIcons
-                name="people-line"
-                size={32}
-                color={colors.primary}
-              />
-              <Text style={[styles.btnText, { color: colors.primary }]}>
-                Schedule{'\n'}Quick Online{'\n'}Class
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        <View style={styles.headerContainer}>
-          <Text style={[styles.title, { color: colors.textDarker }]}>
-            {isStudent ? 'Enrolled Courses' : 'Manage Courses'}
-          </Text>
-          <CustomButton
-            title="View All"
-            onPress={() => navigation.navigate('ViewAllCourses')}
-            disabled={isLoading}
-            isLoading={isLoading}
-            style={styles.ctaBtn}
+      <FlatList
+        data={loadState === 'error' ? [] : courses}
+        keyExtractor={item => item.courseId}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loadState === 'refreshing'}
+            onRefresh={() => {
+              setRefreshKey(k => k + 1);
+              loadCourses('refresh');
+            }}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
-        </View>
-
-        <View style={styles.filterContainer}>
-          <TouchableOpacity
-            style={[styles.selectorButton, { borderColor: colors.primary }]}
-            onPress={() => setSessionModalVisible(true)}
-          >
-            <View style={styles.selectorTextContainer}>
-              <Text style={[styles.selectorLabel, { color: colors.text }]}>
-                Session
-              </Text>
-              {selectedSession && (
-                <Text style={[styles.selectorValue, { color: colors.primary }]}>
-                  {selectedSession}
-                </Text>
-              )}
-            </View>
-            <MaterialIcons
-              name="keyboard-arrow-down"
-              size={24}
-              color={colors.textDarker}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.selectorButton, { borderColor: colors.primary }]}
-            onPress={() => setSemesterModalVisible(true)}
-          >
-            <View style={styles.selectorTextContainer}>
-              <Text style={[styles.selectorLabel, { color: colors.text }]}>
-                Semester
-              </Text>
-              <Text style={[styles.selectorValue, { color: colors.primary }]}>
-                {selectedSemester || 'All'}
-              </Text>
-            </View>
-            <MaterialIcons
-              name="keyboard-arrow-down"
-              size={24}
-              color={colors.textDarker}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Content Area: Loader, Empty State, or Course List */}
-        {isLoading && courses.length === 0 ? (
-          <ActivityIndicator
-            size="small"
-            color={colors.primary}
-            style={{ flex: 1, marginTop: 40 }}
-          />
-        ) : courses.length === 0 ? (
-          isFiltered ? (
-            <EmptyState
-              iconName="event-busy"
-              title="No courses for this term"
-              subtitle={`Nothing found for ${
-                selectedSession === 'All' ? 'any session' : selectedSession
-              }${
-                selectedSemester === 'All'
-                  ? ''
-                  : `, ${selectedSemester} semester`
-              }.`}
-              buttonText="Show all courses"
-              buttonIcon="filter-alt-off"
-              onPress={() => {
-                setHasMore(true);
-                setPage(1);
-                setSelectedSession('All');
-                setSelectedSemester('All');
-              }}
-              secondaryButtonText={isStudent ? 'Add a course manually' : 'Add a course'}
-              onSecondaryPress={() => setIsManualModalVisible(true)}
-              style={styles.emptyState}
-            />
-          ) : (
-            <EmptyState
-              illustration={{
-                uri: isStudent
-                  ? 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549467/The_Little_Things_-_Exam_Studying_wdspiv.png'
-                  : 'https://res.cloudinary.com/dbdw3zftx/image/upload/v1788549420/Fresh_Folk_-_Teaching_y1k0ov.png',
-              }}
-              title={
-                isStudent ? 'Get started with iCampus' : 'Set up your teaching load'
-              }
-              subtitle={
-                isStudent
-                  ? 'Upload your course registration form and we’ll fill in your courses for you.'
-                  : 'Upload your course allocation form to prepare your syllabus and lectures.'
-              }
-              buttonText={isStudent ? 'Upload course form' : 'Upload allocation form'}
-              buttonIcon="cloud-upload"
-              onPress={() => setIsAttachmentModalVisible(true)}
-              secondaryButtonText="Or add courses manually"
-              onSecondaryPress={() => setIsManualModalVisible(true)}
-              style={styles.emptyState}
-            />
-          )
-        ) : (
-          <FlatList
-            data={courses}
-            contentContainerStyle={{ paddingBottom: 40 }}
-            keyExtractor={item => item.courseId}
-            renderItem={({ item }) => {
-              return (
-                <CourseSearchCard
-                  item={item}
-                  navigation={navigation}
-                  colors={colors}
-                  onPress={() => {
-                    setSelectedCourse(item);
-                    setModalVisible(true);
-                  }}
-                />
-              );
+        }
+        renderItem={({ item }) => (
+          <CourseSearchCard
+            item={item}
+            navigation={navigation}
+            colors={colors}
+            onPress={() => {
+              setSelectedCourse(item);
+              setModalVisible(true);
             }}
           />
         )}
-      </View>
+      />
 
       {selectedCourse && (
         <CourseModal
@@ -573,35 +459,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         onSubmit={handleManualCourseSubmit}
         colors={colors}
       />
-
-      <SelectionModal
-        title="Select Session"
-        visible={isSessionModalVisible}
-        options={[...SESSIONS]}
-        selectedValue={selectedSession}
-        onSelect={val => {
-          setHasMore(true);
-          setPage(1);
-          setSelectedSession(val);
-        }}
-        onClose={() => setSessionModalVisible(false)}
-      />
-
-      <SelectionModal
-        title="Select Semester"
-        visible={isSemesterModalVisible}
-        options={['All', 'First', 'Second']}
-        selectedValue={selectedSemester}
-        onSelect={val => {
-          setHasMore(true);
-          setPage(1);
-          setSelectedSemester(val);
-        }}
-        onClose={() => setSemesterModalVisible(false)}
-      />
     </SafeAreaView>
   );
 };
+
+const ActionTile = ({
+  icon,
+  label,
+  onPress,
+  colors,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  colors: any;
+}) => (
+  <TouchableOpacity
+    style={[
+      styles.btn,
+      { borderColor: colors.primary + '55', backgroundColor: colors.backgroundSecondary },
+    ]}
+    onPress={onPress}
+    activeOpacity={0.8}
+    accessibilityRole="button"
+    accessibilityLabel={label.replace(/\n/g, ' ')}
+  >
+    <View style={[styles.btnIcon, { backgroundColor: colors.primary + '1A' }]}>
+      <MaterialIcons name={icon} size={24} color={colors.primary} />
+    </View>
+    <Text style={[styles.btnText, { color: colors.textDarker }]}>{label}</Text>
+  </TouchableOpacity>
+);
+
 const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
   const { colors: themeColors } = useTheme();
   const user = useAppSelector(state => state.user) || initialState;
@@ -621,95 +510,56 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
 };
 
 const styles = StyleSheet.create({
-  typeText: {
-    fontSize: 11,
-    color: PRIMARY_COLOR,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  discoverWrapper: {
-    marginVertical: 15,
-  },
-  sectionTitleText: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 15,
-  },
-  productCardWrapper: {
-    width: CARD_WIDTH,
-    marginBottom: 15,
-  },
-  ctaBtnText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   container: { flex: 1 },
+  listContent: { paddingHorizontal: 15, paddingBottom: 110, flexGrow: 1 },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 10,
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 6,
   },
   btn: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    marginHorizontal: 4,
+  },
+  btnIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnText: {
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginTop: 8,
+    lineHeight: 16,
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 19,
+    fontWeight: '800',
   },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 4,
-  },
+  titleCount: { fontSize: 12.5, marginTop: 2, opacity: 0.75 },
   ctaBtn: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     height: 36,
     width: 'auto',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  selectorButton: {
-    flex: 1,
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 4,
-  },
-  selectorTextContainer: {
-    flex: 1,
-  },
-  selectorLabel: {
-    fontSize: 10,
-    opacity: 0.7,
-  },
-  selectorValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
+  loadingBox: { alignItems: 'center', paddingTop: 48, gap: 10 },
+  loadingText: { fontSize: 13, opacity: 0.75 },
   emptyState: {
     flex: 1,
     justifyContent: 'center',

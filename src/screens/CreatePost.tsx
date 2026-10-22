@@ -20,9 +20,7 @@ import {
 } from 'react-native-image-picker';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { fetchUserConnections } from '../api/localGetApis';
-import { submitOrUpdatePostService } from '../api/localPostApis';
 import { PageHeader } from '../components/PageHeader';
 import { MentionUserModal } from '../components/MentionUserModal';
 import { useTheme } from '../context/ThemeContext';
@@ -31,7 +29,7 @@ import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import { usePicker } from '../hooks/useDropDownPicker';
 import { JobTypePicker } from '../components/InputGroup';
 import { HorizontalScrollableMediaPreviewList } from '../components/MediaPreview';
-import { useAppDataContext } from '../context/EventContext';
+import { usePostUpload } from '../context/PostUploadContext';
 import { PostAudience } from '../types/firebase';
 import {
   applyMentionAwareChange,
@@ -99,16 +97,13 @@ export const CreatePost = ({ route, navigation }: Props) => {
       : [],
   );
 
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const { startPostUpload, isUploading } = usePostUpload();
   const { pickerMode, showPicker, hidePicker, formatDate, formatTime } =
     useDateTimePicker();
 
   const { value: jobType, selectType } = usePicker(jobMetadata.type);
 
   const currentUser = useAppSelector(state => state.user) || {};
-  const { upsertPost } = useAppDataContext();
   // Institution admins can address a memo to their own school only (its
   // students and lecturers). The server enforces this too.
   const canPostToSchool =
@@ -286,54 +281,43 @@ export const CreatePost = ({ route, navigation }: Props) => {
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(0);
-    let finalMediaUrls: string[] = [];
-    let lastMediaType: 'image' | 'video' | null = null;
-    const combinedStart = new Date(
-      `${eventMetadata.date}T${eventMetadata.startTime}:00Z`,
-    ).toISOString();
-    const combinedEnd = new Date(
-      `${eventMetadata.date}T${eventMetadata.endTime}:00Z`,
-    ).toISOString();
+    if (isUploading) {
+      Toast.show({
+        type: 'info',
+        text1: 'Upload in progress',
+        text2: 'Please wait for your current post to finish uploading.',
+      });
+      return;
+    }
 
-    try {
-      const newMediaToUpload = mediaList.filter(item => !item.isExisting);
-      const existingMediaUrls = mediaList
-        .filter(item => item.isExisting)
-        .map(item => item.uri);
+    const toIso = (date: string | Date, time: string | Date) => {
+      const d = new Date(`${date}T${time}:00Z`);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    };
+    const combinedStart = toIso(eventMetadata.date, eventMetadata.startTime);
+    const combinedEnd = toIso(eventMetadata.date, eventMetadata.endTime);
 
-      for (let i = 0; i < newMediaToUpload.length; i++) {
-        const item = newMediaToUpload[i];
-        const currentProgress = Math.round((i / newMediaToUpload.length) * 100);
-        setUploadProgress(currentProgress);
-        const targetUri = item.uri[0];
+    const newMedia = mediaList
+      .filter(item => !item.isExisting && !!item.uri[0])
+      .map(item => ({ uri: item.uri[0], type: item.type }));
+    const existingUrls = mediaList
+      .filter(item => item.isExisting)
+      .flatMap(item => item.uri);
 
-        if (targetUri) {
-          const downloadUrl = await uploadToCloudinary(
-            targetUri,
-            `posts/${currentUser.uid}`,
-          );
-          finalMediaUrls.push(downloadUrl);
-          lastMediaType = item.type;
-        }
-      }
-
-      const combinedMediaUrls = [...existingMediaUrls, ...finalMediaUrls];
-      if (mediaList.length > 0 && !lastMediaType) {
-        lastMediaType = mediaList[0].type;
-      }
-
-      setUploadProgress(100);
-      const postData = {
+    // Snapshot everything now: the upload keeps running after this screen
+    // closes, in PostUploadProvider.
+    const buildPostData = (
+      mediaUrls: string[],
+      mediaType: 'image' | 'video' | null,
+    ) => ({
         content: content,
         postType: postType,
         audience: canPostToSchool ? audience : 'public',
         media:
-          combinedMediaUrls.length > 0
+          mediaUrls.length > 0
             ? {
-                url: combinedMediaUrls,
-                mediaType: lastMediaType,
+                url: mediaUrls,
+                mediaType,
               }
             : null,
         poll:
@@ -361,40 +345,23 @@ export const CreatePost = ({ route, navigation }: Props) => {
                 endTime: combinedEnd,
               }
             : null,
-      };
+    });
 
-      const result = await submitOrUpdatePostService(
-        postData,
-        isEditMode,
-        editPostData?.postId,
-      );
-      if (!result.success) return;
-      // New posts come back in feed shape; show them at the top right away.
-      if (!isEditMode && result.data?.postId) {
-        upsertPost(result.data);
-      }
+    const started = startPostUpload({
+      newMedia,
+      existingUrls,
+      fallbackMediaType: mediaList[0]?.type ?? null,
+      folder: `posts/${currentUser.uid}`,
+      isEditMode,
+      postId: editPostData?.postId,
+      buildPostData,
+    });
+    if (!started) return;
 
-      setIsSuccess(true);
-      Toast.show({
-        type: 'success',
-        text2: isEditMode
-          ? 'Post updated successfully!'
-          : 'Post created successfully!',
-      });
-
-      setTimeout(() => {
-        navigation.goBack();
-      }, 1500);
-    } catch (error) {
-      console.error('Post processing failed', error);
-      Toast.show({
-        type: 'error',
-        text2: 'Upload failed, please retry',
-        position: 'bottom',
-      });
-    } finally {
-      setIsUploading(false);
-    }
+    // Back to where the user came from (Home for new posts); the progress
+    // card stays on top until the post is live.
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Home' as any);
   };
 
   return (
@@ -416,8 +383,8 @@ export const CreatePost = ({ route, navigation }: Props) => {
         rightElement={
           <CustomButton
             title={isEditMode ? 'Save' : 'Post'}
-            style={[styles.postBtn, !canPost() && styles.disabledBtn]}
-            disabled={!canPost()}
+            style={[styles.postBtn, (!canPost() || isUploading) && styles.disabledBtn]}
+            disabled={!canPost() || isUploading}
             onPress={handleCreateOrUpdatePost}
           />
         }
@@ -854,56 +821,6 @@ export const CreatePost = ({ route, navigation }: Props) => {
           onClose={() => setIsMentionModalVisible(false)}
         />
 
-        {/* Upload Status Overlay */}
-        {isUploading && (
-          <View
-            style={[
-              styles.bottomToastContainer,
-              { backgroundColor: colors.background },
-            ]}
-          >
-            <View style={styles.toastHeader}>
-              <Text
-                style={[
-                  styles.toastTitle,
-                  isSuccess
-                    ? { color: colors.success }
-                    : { color: colors.text },
-                ]}
-              >
-                {isSuccess
-                  ? 'Successfully Published!'
-                  : `Uploading... ${uploadProgress}%`}
-              </Text>
-              {isSuccess && (
-                <MaterialIcons
-                  name="check-circle"
-                  size={24}
-                  color={colors.success}
-                />
-              )}
-            </View>
-            {!isSuccess && (
-              <View
-                style={[
-                  styles.progressBarBackground,
-                  { backgroundColor: colors.border },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${uploadProgress}%`,
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-          </View>
-        )}
-
         {pickerMode && (
           <DateTimePicker
             value={new Date()}
@@ -1060,36 +977,6 @@ const styles = StyleSheet.create({
   toolbarActionText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  bottomToastContainer: {
-    position: 'absolute',
-    bottom: 70,
-    left: 16,
-    right: 16,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  toastHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  toastTitle: { fontSize: 14, fontWeight: '600' },
-  progressBarBackground: {
-    height: 6,
-    borderRadius: 3,
-    marginTop: 12,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
   },
 });
 

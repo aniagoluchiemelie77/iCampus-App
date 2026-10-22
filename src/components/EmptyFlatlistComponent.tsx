@@ -11,6 +11,7 @@ import {
   Animated,
   Easing,
   AccessibilityInfo,
+  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
@@ -29,6 +30,8 @@ interface EmptyStateProps {
   buttonText?: string;
   buttonIcon?: string;
   onPress?: () => void;
+  /** Shows a spinner in the primary button and ignores presses (e.g. while retrying). */
+  buttonLoading?: boolean;
   /** Optional lower-emphasis action shown under the primary button. */
   secondaryButtonText?: string;
   onSecondaryPress?: () => void;
@@ -83,6 +86,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   buttonText,
   buttonIcon,
   onPress,
+  buttonLoading = false,
   secondaryButtonText,
   onSecondaryPress,
   illustration,
@@ -147,12 +151,23 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
       {!!buttonText && !!onPress && (
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.btnColor }]}
+          style={[
+            styles.button,
+            { backgroundColor: colors.btnColor },
+            buttonLoading && styles.buttonBusy,
+          ]}
           onPress={onPress}
+          disabled={buttonLoading}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityState={{ busy: buttonLoading, disabled: buttonLoading }}
         >
-          {!!buttonIcon && (
-            <MaterialIcons name={buttonIcon} size={18} color={colors.btnTextColor} />
+          {buttonLoading ? (
+            <ActivityIndicator size="small" color={colors.btnTextColor} />
+          ) : (
+            !!buttonIcon && (
+              <MaterialIcons name={buttonIcon} size={18} color={colors.btnTextColor} />
+            )
           )}
           <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>
             {buttonText}
@@ -258,6 +273,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 24,
   },
+  buttonBusy: { opacity: 0.8 },
   buttonText: {
     fontSize: 15,
     fontWeight: '700',

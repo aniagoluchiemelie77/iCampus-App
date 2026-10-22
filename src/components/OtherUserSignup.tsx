@@ -11,15 +11,18 @@ import { CountryPicker } from 'react-native-country-codes-picker';
 import { useEffect, useState } from 'react';
 import { IconOutline } from '@ant-design/icons-react-native';
 import { useNavigation } from '@react-navigation/native';
-import SweetAlertModal from './alertscomponent';
 import Toast from 'react-native-toast-message';
 import { selectImage } from './SelectImage';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { WEB_CLIENT_ID } from '@env';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../context/UserSlice';
+import {
+  completeSignup,
+  describeSignupFailure,
+  safeUpload,
+  signupError,
+} from '../utils/signupFlow';
 import { ProgressBar } from './SignupComponents';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -72,7 +75,8 @@ const OtherUserSignup = () => {
   const [orgName, setOrgName] = useState('');
   const [website, setWebsite] = useState('');
   const [jobTitle, setJobTitle] = useState('');
-  const [timer, setTimer] = useState(900);
+  // Starts when a code is actually sent (verifyEmail / resendCode).
+  const [timer, setTimer] = useState(0);
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
@@ -83,25 +87,24 @@ const OtherUserSignup = () => {
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [alertVisible, setAlertVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [idToken, setIdToken] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>(
-    'success',
-  );
-  const [alertMessage, setAlertMessage] = useState('');
+  // Signed by the server when the email code checks out; required to register.
+  const [emailProof, setEmailProof] = useState('');
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
   // Add this near your other useState hooks
   const [socialProvider, setSocialProvider] = useState<
     'google' | 'github' | 'password'
   >('password');
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, 8));
-  //const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
   const { hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength } =
     getPasswordRequirements(password);
+  const normalizedEmail = email.trim().toLowerCase();
 
   const isProfessionalEmail = (em: string) => {
     const forbiddenDomains = [
@@ -115,102 +118,73 @@ const OtherUserSignup = () => {
   };
   const canProceed = isValidEmail(email) && isProfessionalEmail(email);
   const verifyEmail = async () => {
-    let message;
+    if (verifying) return;
+    setVerifying(true);
     try {
-      const response = await verifySignupEmail(email);
+      const response = await verifySignupEmail(normalizedEmail);
       if (response.success) {
+        // The countdown used to start on mount, before any code was sent.
+        setTimer(900);
+        setEmailCode('');
+        Toast.show({ type: 'info', text1: 'Code sent', text2: `Check ${normalizedEmail} for a 6-digit code.` });
         nextStep();
       } else {
-        message =
-          response.message || 'Email verification failed, please retry.';
-        console.log('❌ ', message);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
+        signupError(response.message || 'Email verification failed, please retry.');
       }
     } catch (error) {
-      message = (error as Error).message;
-      console.error('Verification error:', message);
-      setAlertType('error');
-      setAlertMessage(message);
-      setAlertVisible(true);
+      signupError((error as Error).message);
     } finally {
       setVerifying(false);
     }
   };
   const resendCode = async () => {
-    let message;
     try {
-      const response = await verifySignupEmail(email);
+      const response = await verifySignupEmail(normalizedEmail);
       if (response.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Email verification resent successfully!',
-          position: 'bottom',
-          bottomOffset: 5,
-          visibilityTime: 3000,
-        });
+        Toast.show({ type: 'success', text1: 'New code sent', text2: 'Check your inbox and spam folder.' });
         setTimer(900);
         setEmailCode('');
       } else {
-        message =
-          response?.message ||
-          'Error resending email verification code, please retry.';
-        console.log('❌ ', message);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
+        signupError(response?.message || 'Could not resend the code, please retry.');
       }
     } catch (err) {
-      message = (err as Error).message;
-      console.error('Verification error:', message);
-      setAlertType('error');
-      setAlertMessage(message);
-      setAlertVisible(true);
+      signupError((err as Error).message);
     }
   };
   const verifyCode = async () => {
-    let message;
+    if (checkingCode) return;
+    setCheckingCode(true);
     try {
-      const response = await verifySignupEmailCode(email, emailCode);
-      if (response.verified) {
-        Toast.show({
-          type: 'success',
-          text1: 'Email verified successfully!',
-          position: 'bottom',
-          bottomOffset: 5,
-          visibilityTime: 3000,
-        });
-        nextStep();
+      const response = await verifySignupEmailCode(normalizedEmail, emailCode.trim());
+      if (response.verified && response.emailProof) {
+        setEmailProof(response.emailProof);
         setVerifiedEmail(true);
+        Toast.show({ type: 'success', text1: 'Email verified' });
+        nextStep();
       } else {
-        message = response.message || 'Invalid or expired verification code';
-        console.log('❌ ', message);
         setVerifiedEmail(false);
-        setAlertMessage(message);
-        setAlertType('error');
-        setAlertVisible(true);
+        signupError(response.message || 'Invalid or expired verification code', 'Wrong code');
       }
     } catch (err) {
-      message = (err as Error).message;
-      console.error('Verification error:', message);
-      setAlertType('error');
       setVerifiedEmail(false);
-      setAlertMessage(message);
-      setAlertVisible(true);
+      signupError((err as Error).message);
+    } finally {
+      setCheckingCode(false);
     }
   };
   const handleImageUpdate = async () => {
-    const imageUri = await selectImage();
-
-    if (imageUri) {
-      const imageUrl = await uploadToCloudinary(imageUri);
-
+    if (pickingPhoto) return;
+    setPickingPhoto(true);
+    try {
+      const imageUri = await selectImage();
+      if (!imageUri) return;
+      const imageUrl = await safeUpload(() => uploadToCloudinary(imageUri));
       if (imageUrl) {
-        console.log('Uploaded to Cloudinary:', imageUrl);
         setSelectedImage(imageUrl);
         setShowModal(true);
       }
+    } finally {
+      setPickingPhoto(false);
     }
   };
   const confirmUpload = async () => {
@@ -232,75 +206,47 @@ const OtherUserSignup = () => {
     }
   };
   const handleSubmit = async () => {
+    if (creating) return;
     setCreating(true);
     try {
       const deviceId = await DeviceInfo.getUniqueId();
       const deviceName = DeviceInfo.getModel();
       const brand = DeviceInfo.getBrand();
-      const registrationData = {
-        currentIScore: 5,
-        usertype: subType === 'enterprise' ? 'enterprise' : 'otherUser',
-        firstname: subType === 'enterprise' ? '' : firstname,
-        lastname: subType === 'enterprise' ? '' : lastname,
-        email: email.toLowerCase().trim(),
+      const isEnterprise = subType === 'enterprise';
+      // Enterprise: "Your Full Name" was typed into `firstname` but sent as
+      // ''; keep it, split into first/last for the representative.
+      const [repFirst, ...repRest] = firstname.trim().split(/\s+/);
+      const response: any = await handleRegisterUser({
+        usertype: isEnterprise ? 'enterprise' : 'otherUser',
+        firstname: isEnterprise ? repFirst || '' : firstname.trim(),
+        lastname: isEnterprise ? repRest.join(' ') : lastname.trim(),
+        email: normalizedEmail,
         deviceId,
         deviceName: `${brand} ${deviceName}`,
-        password: isSocialSignup ? 'SOCIAL_AUTH' : password,
+        password: isSocialSignup ? undefined : password,
         providerId: isSocialSignup ? socialProvider : 'password',
-        idToken,
-        isSocialSignup,
+        idToken: isSocialSignup ? idToken : undefined,
+        emailProof: isSocialSignup ? undefined : emailProof,
         country: country || '',
-        organizationName: subType === 'enterprise' ? orgName : '',
-        website: subType === 'enterprise' ? website : '',
-        jobTitle: subType === 'enterprise' ? jobTitle : '',
-        createdAt: new Date().toISOString(),
-        profilePic: [avatar || ''],
-      };
-      const response = await handleRegisterUser(registrationData);
-      if (response.status === 409) {
-        setCreating(false);
-        setAlertType('error');
-        setAlertMessage(
-          response.message || 'User or Enterprise already exists.',
+        organizationName: isEnterprise ? orgName.trim() : '',
+        website: isEnterprise ? website.trim() : '',
+        jobTitle: isEnterprise ? jobTitle.trim() : '',
+        profilePic: avatar ? [avatar] : [],
+      });
+      if (response.success && response.accessToken) {
+        await completeSignup(
+          response,
+          dispatch,
+          navigation,
+          isEnterprise ? 'Your organization account is ready.' : 'Your account is ready.',
         );
-        setAlertVisible(true);
         return;
       }
-      if (response.success) {
-        setAlertType('success');
-        const message =
-          subType === 'enterprise'
-            ? 'Enterprise account created successfully!'
-            : 'Account created successfully!';
-        setAlertMessage(message);
-        const { accessToken, refreshToken, user: newUser } = response;
-        await AsyncStorage.setItem('hasLaunched', 'true');
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshToken);
-        await AsyncStorage.setItem('user', JSON.stringify(newUser));
-
-        dispatch(
-          setUser({
-            ...newUser,
-            accessToken,
-            tokenCreatedAt: Date.now().toString(),
-          }),
-        );
-
-        setCreating(false);
-        navigation.navigate('Home', { activeTab: 'home' });
-      } else {
-        console.warn('Signup failed:', response.message);
-        setAlertType('error');
-        setAlertMessage(response.message || 'Account creation failed.');
-        setCreating(false);
-      }
-      setAlertVisible(true);
+      describeSignupFailure(response);
     } catch (error) {
-      console.error('Error:', error);
-      setAlertType('error');
-      setAlertMessage('Network error. Please check your connection.');
-      setAlertVisible(true);
+      console.error('Signup error:', error);
+      signupError('Check your internet connection and try again.', 'Network error');
+    } finally {
       setCreating(false);
     }
   };
@@ -373,9 +319,7 @@ const OtherUserSignup = () => {
       if (isCancelled) return;
 
       console.error(`${provider} Auth Error:`, error);
-      setAlertMessage(`Could not connect to ${provider}. Please try again.`);
-      setAlertType('error');
-      setAlertVisible(true);
+      signupError(`Could not connect to ${provider === 'google' ? 'Google' : 'GitHub'}. Please try again.`);
     }
   };
 
@@ -588,32 +532,38 @@ const OtherUserSignup = () => {
                 {email}
               </Text>
               {/* Code Input */}
-              <TextInput
-                placeholder="Enter 6‑digit code"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                value={emailCode}
-                onChangeText={setEmailCode}
-                maxLength={6}
-                style={styles.input}
-              />
+              <View style={styles.passwordInput}>
+                <MaterialIcons name="pin" size={20} color={PRIMARY_COLOR_TINT} style={{ marginRight: 7 }} />
+                <TextInput
+                  placeholder="Enter 6‑digit code"
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  value={emailCode}
+                  onChangeText={t => setEmailCode(t.replace(/\D/g, ''))}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="sms-otp"
+                  maxLength={6}
+                  style={[styles.input2, styles.codeInput]}
+                />
+              </View>
               <View style={styles.rowDiv2}>
                 <Text style={styles.rowDivText}>
-                  Code expires in {formatSignupTime(timer)}
+                  {timer > 0 ? `Code expires in ${formatSignupTime(timer)}` : 'Code expired'}
                 </Text>
-                {/* Resend Code Button */}
                 <TouchableOpacity onPress={resendCode}>
-                  <Text style={styles.rowDivBtn}>Resend Code?</Text>
+                  <Text style={styles.rowDivBtn}>Resend code</Text>
                 </TouchableOpacity>
               </View>
-              {/* NEXT BUTTON — only appears when code is 6 digits */}
-              {emailCode.length === 6 && (
-                <CustomButton
-                  title={verifying ? 'Verifying...' : 'Verify'}
-                  disabled={verifying}
-                  onPress={verifyCode}
-                  style={styles.nextButton}
-                />
-              )}
+              <CustomButton
+                title={checkingCode ? 'Verifying…' : 'Verify'}
+                disabled={emailCode.length !== 6 || checkingCode}
+                isLoading={checkingCode}
+                onPress={verifyCode}
+                style={[
+                  styles.nextButton,
+                  { backgroundColor: emailCode.length === 6 ? PRIMARY_COLOR : PRIMARY_COLOR_TINT },
+                ]}
+              />
             </Animated.View>
           )}
 
@@ -930,28 +880,65 @@ const OtherUserSignup = () => {
               style={{ width: '100%' }}
             >
               <Text style={styles.inputHeader}>Login Credentials</Text>
-              <TextInput
-                placeholder="Official Business Email"
-                placeholderTextColor={PRIMARY_COLOR_TINT}
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-              />
+              <View style={styles.passwordInput}>
+                <MaterialIcons name="email" size={20} color={PRIMARY_COLOR_TINT} style={{ marginRight: 7 }} />
+                <TextInput
+                  placeholder="Official Business Email"
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  style={styles.input2}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+              {email.length > 0 && isValidEmail(email) && !isProfessionalEmail(email) && (
+                <Text style={styles.errorText}>
+                  Use your organization's email, not a personal Gmail/Yahoo/Outlook address.
+                </Text>
+              )}
+              {/* Enterprise accounts had no password step, so they were
+                  created with no way to log in. */}
+              <View style={styles.passwordInput}>
+                <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+                  <MaterialIcons
+                    name={showPassword ? 'visibility-off' : 'visibility'}
+                    size={20}
+                    color={PRIMARY_COLOR_TINT}
+                    style={{ marginRight: 7 }}
+                  />
+                </TouchableOpacity>
+                <TextInput
+                  placeholder="Create a password"
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  style={styles.input2}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+              </View>
+              <View style={styles.strengthBarContainer}>
+                {[hasUppercase, hasLowercase, hasNumber, hasSymbol, hasMinLength].map((ok, i) => (
+                  <View
+                    key={i}
+                    style={[styles.strengthSegment, { backgroundColor: ok ? PRIMARY_COLOR : '#929191' }]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.passwordHint}>
+                10+ characters with upper and lower case, a number and a symbol.
+              </Text>
               <CustomButton
-                title="Verify Email"
-                onPress={verifyEmail} // Use your existing verification logic
-                disabled={
-                  !isValidEmail(email) ||
-                  !isProfessionalEmail(email) ||
-                  !canProceed
-                }
+                title={verifying ? 'Sending code…' : 'Verify Email'}
+                onPress={verifyEmail}
+                isLoading={verifying}
+                disabled={!canProceed || !isValidPassword(password) || verifying}
                 style={[
                   styles.nextButton,
                   {
-                    backgroundColor: canProceed
-                      ? PRIMARY_COLOR
-                      : PRIMARY_COLOR_TINT,
+                    backgroundColor:
+                      canProceed && isValidPassword(password) ? PRIMARY_COLOR : PRIMARY_COLOR_TINT,
                   },
                 ]}
               />
@@ -968,29 +955,37 @@ const OtherUserSignup = () => {
                 Enter the 6‑digit verification code that has been sent to:{' '}
                 {email}
               </Text>
-              <TextInput
-                placeholder="6‑digit code"
-                value={emailCode}
-                onChangeText={setEmailCode}
-                maxLength={6}
-                style={styles.input}
-              />
+              <View style={styles.passwordInput}>
+                <MaterialIcons name="pin" size={20} color={PRIMARY_COLOR_TINT} style={{ marginRight: 7 }} />
+                <TextInput
+                  placeholder="6‑digit code"
+                  placeholderTextColor={PRIMARY_COLOR_TINT}
+                  value={emailCode}
+                  onChangeText={t => setEmailCode(t.replace(/\D/g, ''))}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  maxLength={6}
+                  style={[styles.input2, styles.codeInput]}
+                />
+              </View>
               <View style={styles.rowDiv2}>
                 <Text style={styles.rowDivText}>
-                  Code expires in {formatSignupTime(timer)}
+                  {timer > 0 ? `Code expires in ${formatSignupTime(timer)}` : 'Code expired'}
                 </Text>
-                {/* Resend Code Button */}
                 <TouchableOpacity onPress={resendCode}>
-                  <Text style={styles.rowDivBtn}>Resend Code?</Text>
+                  <Text style={styles.rowDivBtn}>Resend code</Text>
                 </TouchableOpacity>
               </View>
-              {emailCode.length === 6 && (
-                <CustomButton
-                  title="Verify & Continue"
-                  style={[styles.nextButton]}
-                  onPress={verifyCode}
-                />
-              )}
+              <CustomButton
+                title={checkingCode ? 'Verifying…' : 'Verify & Continue'}
+                disabled={emailCode.length !== 6 || checkingCode}
+                isLoading={checkingCode}
+                onPress={verifyCode}
+                style={[
+                  styles.nextButton,
+                  { backgroundColor: emailCode.length === 6 ? PRIMARY_COLOR : PRIMARY_COLOR_TINT },
+                ]}
+              />
             </Animated.View>
           )}
           {subType === 'enterprise' && step === 5 && (
@@ -1047,21 +1042,6 @@ const OtherUserSignup = () => {
           </View>
         )}
       </View>
-      <SweetAlertModal
-        visible={alertVisible}
-        onConfirm={() => setAlertVisible(false)}
-        title={
-          alertType === 'success'
-            ? 'Success!'
-            : alertType === 'error'
-              ? 'Oops!'
-              : alertType === 'info'
-                ? 'Warning!'
-                : 'Notice'
-        }
-        message={alertMessage}
-        type={alertType}
-      />
       <ImageConfirmationModal
         isVisible={showModal}
         imageUri={selectedImage}
@@ -1170,6 +1150,8 @@ const styles = StyleSheet.create({
     color: '#222',
     backgroundColor: 'transparent',
   },
+  codeInput: { fontSize: 20, fontWeight: '700', letterSpacing: 6 },
+  passwordHint: { fontSize: 12, color: '#555', marginBottom: 6, width: '100%' },
   strengthBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',

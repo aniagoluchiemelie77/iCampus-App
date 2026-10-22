@@ -19,7 +19,6 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppDataContext } from '../context/EventContext';
-import ExpandableFAB from './ExpandableFAB';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -61,7 +60,8 @@ const TAB_TO_API_CATEGORY: Record<string, string> = {
   'Health and Beauty': 'Health & Beauty',
 };
 
-const getCategoryParam = (tab: string): string => TAB_TO_API_CATEGORY[tab] ?? '';
+const getCategoryParam = (tab: string): string =>
+  TAB_TO_API_CATEGORY[tab] ?? '';
 
 export const HeaderActionButton = ({
   onPress,
@@ -89,7 +89,6 @@ export const StoreScreen = () => {
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedTab, setSelectedTab] = useState('All');
-  const [isFabVisible, setIsFabVisible] = useState(false);
   const { syncCatalogToDatabase, syncUsersToDatabase } = useAppDataContext();
 
   const [tabData, setTabData] = useState<
@@ -270,17 +269,6 @@ export const StoreScreen = () => {
           }
         />
       )}
-      <TouchableOpacity
-        style={styles.storeFab}
-        onPress={() => setIsFabVisible(prev => !prev)}
-      >
-        <MaterialIcons name="add" size={26} color="#FFFFFF" />
-      </TouchableOpacity>
-      <ExpandableFAB
-        isVisible={isFabVisible}
-        onClose={() => setIsFabVisible(false)}
-        actions={['View Cart', 'View Favorites', 'Sales Hub']}
-      />
     </View>
   );
 };
@@ -342,22 +330,5 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  storeFab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: PRIMARY_COLOR,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    zIndex: 200,
   },
 });

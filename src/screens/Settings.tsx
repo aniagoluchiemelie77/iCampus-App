@@ -116,11 +116,6 @@ export const Settings = () => {
             onPress={() => navigation.navigate('LinkedDevicesScreen')}
           />
           <SettingItem
-            icon="block"
-            title="Blocked Users"
-            onPress={() => navigation.navigate('BlockedUsers')}
-          />
-          <SettingItem
             icon="verified"
             title="Subscription"
             subtitle="Manage your Premium plan"

@@ -282,14 +282,14 @@ export const PhoneScreen = () => {
                   ]}
                   withShadow={false}
                   autoFocus
-                  textInputStyle={{
-                    color: colors.text,
-                    fontSize: 14,
-                    backgroundColor: 'transparent',
-                  }}
-                  codeTextStyle={{ color: colors.text }}
+                  textInputStyle={[styles.phoneTextInput, { color: colors.text }]}
+                  codeTextStyle={[styles.phoneCodeText, { color: colors.text }]}
                   textInputProps={{
                     placeholderTextColor: colors.inputTextHolder || '#999',
+                    // Android adds extra font padding that clipped the digits.
+                    ...({ includeFontPadding: false } as any),
+                    textAlignVertical: 'center',
+                    selectionColor: colors.primary,
                   }}
                   renderDropdownImage={
                     <MaterialIcons
@@ -513,14 +513,36 @@ const styles = StyleSheet.create({
   },
   phoneInputContainer: {
     width: '100%',
-    height: 50,
+    height: 54,
     borderRadius: 12,
     borderWidth: 1,
     marginBottom: 10,
     overflow: 'hidden',
+    alignItems: 'center',
   },
+  // The library's default vertical padding squeezed the input inside the
+  // fixed-height box, cutting off the digits being typed.
   phoneTextContainer: {
     backgroundColor: 'transparent',
+    paddingVertical: 0,
+    paddingHorizontal: 8,
+    height: '100%',
+    alignItems: 'center',
+  },
+  phoneTextInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    margin: 0,
+    backgroundColor: 'transparent',
+    letterSpacing: 0.5,
+  },
+  phoneCodeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   flagButtonStyle: {
     borderTopLeftRadius: 12,
@@ -533,12 +555,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 50,
+    height: 54,
     marginBottom: 12,
   },
   textInput: {
     flex: 1,
-    fontSize: 14,
+    height: '100%',
+    fontSize: 18,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   primaryButton: {
     height: 48,

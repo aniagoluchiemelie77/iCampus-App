@@ -27,17 +27,25 @@ export const ProductCard = ({
   const { colors } = useTheme();
   const { handleToggleFavorite, handleCartItemToggle, currentUser } =
     useAppDataContext();
-
-  if (!product) return null;
-
+  // Hooks must run before any early return.
   const favScale = React.useRef(new Animated.Value(1)).current;
   const cartScale = React.useRef(new Animated.Value(1)).current;
-  const isFavorited =
-    currentUser?.favorites?.includes(product.productId) ?? false;
-  const cartItem = currentUser?.cart?.find(
-    item => item.productId === product.productId,
+  const buyerNationality = currentUser?.country || 'Nigeria';
+  const { convertedValue } = useConvertedPrice(
+    Number(product?.price) || 0,
+    product?.nationalityOfSeller,
+    buyerNationality,
   );
-  const isInCart = !!cartItem;
+
+  const productId = product?.productId;
+  const isFavorited =
+    !!productId && Array.isArray(currentUser?.favorites)
+      ? currentUser.favorites.includes(productId)
+      : false;
+  const isInCart =
+    !!productId &&
+    Array.isArray(currentUser?.cart) &&
+    currentUser.cart.some(item => item?.productId === productId);
 
   const pulse = (anim: Animated.Value) => {
     Animated.sequence([
@@ -55,6 +63,7 @@ export const ProductCard = ({
   };
 
   const handleFavoritePress = useCallback(() => {
+    if (!product) return;
     pulse(favScale);
     handleToggleFavorite(product.productId);
     Toast.show({
@@ -64,9 +73,11 @@ export const ProductCard = ({
       visibilityTime: 2500,
       bottomOffset: 60,
     });
-  }, [handleToggleFavorite, product.productId, isFavorited]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleToggleFavorite, productId, isFavorited]);
 
   const handleCartPress = useCallback(() => {
+    if (!product) return;
     pulse(cartScale);
     handleCartItemToggle(product);
     Toast.show({
@@ -78,29 +89,21 @@ export const ProductCard = ({
     });
   }, [handleCartItemToggle, product, isInCart]);
 
-  const buyerNationality = currentUser?.country || 'Nigeria';
-  const { convertedValue } = useConvertedPrice(
-    product.price,
-    product.nationalityOfSeller,
-    buyerNationality,
-  );
+  if (!product) return null;
 
-  // `ratings` may arrive as a raw JSON string (e.g. products read straight
-  // from SQLite without `parseProductRow`), so normalise it to an array
-  // before calling `.reduce` — otherwise this throws `undefined is not a
-  // function` on every card render.
-  const rawRatings = product.ratings;
-  const ratings: any[] = Array.isArray(rawRatings)
-    ? rawRatings
-    : typeof rawRatings === 'string'
-      ? (() => {
-          try {
-            return JSON.parse(rawRatings || '[]');
-          } catch {
-            return [];
-          }
-        })()
-      : [];
+  // `ratings` may arrive as a raw JSON string from SQLite, including the
+  // string "null" (JSON.parse gives null, and `.length` on it crashed the
+  // "More by this seller" list). Always end up with an array.
+  const rawRatings: any = product.ratings;
+  let parsedRatings: any = rawRatings;
+  if (typeof rawRatings === 'string') {
+    try {
+      parsedRatings = JSON.parse(rawRatings || '[]');
+    } catch {
+      parsedRatings = [];
+    }
+  }
+  const ratings: any[] = Array.isArray(parsedRatings) ? parsedRatings : [];
   const avgRating =
     ratings.length > 0
       ? (

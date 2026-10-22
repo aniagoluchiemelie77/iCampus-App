@@ -55,18 +55,6 @@ const userSlice = createSlice({
     updateUserSessions(state, action: PayloadAction<any[]>) {
       state.sessions = action.payload;
     },
-    updateBlockedUsers(state, action: PayloadAction<{ targetUid: string; action: 'blocked' | 'unblocked' }>) {
-      if (!state.blockedUsers) {
-        state.blockedUsers = [];
-      }   
-      if (action.payload.action === 'blocked') {
-        if (!state.blockedUsers.includes(action.payload.targetUid)) {
-          state.blockedUsers.push(action.payload.targetUid);
-        }
-      } else {
-        state.blockedUsers = state.blockedUsers.filter(uid => uid !== action.payload.targetUid);
-      }
-    },
     updatePhoneNumbersData: (state, action: PayloadAction<{ phoneNumbers: any[] }>) => {
       state.phoneNumbers = action.payload.phoneNumbers;
     },
@@ -85,5 +73,5 @@ const userSlice = createSlice({
   },
 });
 export const { 
-  updateThemeState, setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, updateBlockedUsers, patchUser} = userSlice.actions;
+  updateThemeState, setUser, clearUser, updateUserImage, updatePhoneNumbersData, updateEmailData, updateUserSessions, patchUser} = userSlice.actions;
 export default userSlice.reducer;

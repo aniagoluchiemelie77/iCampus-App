@@ -44,7 +44,8 @@ export const patchUserProfile = async (
     clearTimeout(timeoutId);
     const result = await response.json();
 
-    if (!response.ok || !result.success) {
+    // Field errors (e.g. username taken) are shown inline by the screen.
+    if ((!response.ok || !result.success) && !result?.field) {
       const errorMessage = result?.message || 'Failed to update profile';
       Toast.show({
         type: 'error',
