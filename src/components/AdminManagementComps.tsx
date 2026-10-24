@@ -7,6 +7,7 @@ import {
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
@@ -21,6 +22,7 @@ import {
 } from '../api/localGetApis';
 import { deleteAdminApi } from '../api/localDeleteApis';
 import { useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 import { TabName, TAB_TO_CATEGORY } from '../constants/inAppConstants.ts';
 import { Notification, SchoolMetrics } from '../types/firebase';
 import { SchoolAnalyticsView } from './SchoolAnalyticsView';
@@ -31,6 +33,7 @@ import { navigate } from '../context/navigationContext.ts';
 import { SchoolDetailModal } from './schoolDetailsModal.tsx';
 import { DropOffStationDetailModal } from './dropOffStationModal.tsx';
 import { ActionModal } from './LogoutModal.tsx';
+import { EmptyState } from './EmptyFlatlistComponent';
 import {
   DashboardSummary,
   EntityPreviewSection,
@@ -74,6 +77,8 @@ export interface DashboardStats {
 export const AdminManagementSection = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const columns = width >= 1200 ? 3 : width >= 768 ? 2 : 1;
   const currentUser = useAppSelector(state => state.admin);
   const [admins, setAdmins] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -97,10 +102,18 @@ export const AdminManagementSection = () => {
 
     try {
       setIsDeleting(true);
-      await deleteAdminApi(selectedAdmin.uid);
+      const result = await deleteAdminApi(selectedAdmin.uid);
+      if (result?.success === false) {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete Failed',
+          text2: result.error || 'Failed to delete administrator.',
+        });
+        return;
+      }
       setDeleteModalVisible(false);
       setSelectedAdmin(null);
-      handleRefresh();
+      await handleRefresh();
     } catch (error) {
       console.error('Failed to delete admin:', error);
     } finally {
@@ -115,52 +128,54 @@ export const AdminManagementSection = () => {
   const isSuperAdmin = currentUser.adminType === 'super_admin';
 
   const renderAdminItem = ({ item }: { item: any }) => (
-    <View
-      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
-    >
-      <View style={styles.infoRow}>
-        <UserAvatar
-          profilePic={item.profilePic}
-          firstName={item.firstname}
-          lastName={item.lastname}
-          style={styles.avatar}
-        />
-        <View style={styles.textContainer}>
-          <UserIdentity
-            firstname={item.firstname}
-            lastname={item.lastname}
-            isVerified={item.isVerified}
-            size={'medium'}
+    <View style={[styles.adminCardWrapper, { width: `${100 / columns}%` }]}>
+      <View
+        style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+      >
+        <View style={styles.infoRow}>
+          <UserAvatar
+            profilePic={item.profilePic}
+            firstName={item.firstname}
+            lastName={item.lastname}
+            style={styles.avatar}
           />
-          <Text style={[styles.adminType, { color: colors.text }]}>
-            {item.adminType.replace('_', ' ').toUpperCase()}
-          </Text>
-          <Text style={[styles.lastAccessed, { color: colors.text }]}>
-            Last accessed: {new Date(item.lastAccessed).toLocaleDateString()}
-          </Text>
+          <View style={styles.textContainer}>
+            <UserIdentity
+              firstname={item.firstname}
+              lastname={item.lastname}
+              isVerified={item.isVerified}
+              size={'medium'}
+            />
+            <Text style={[styles.adminType, { color: colors.text }]}>
+              {item.adminType.replace('_', ' ').toUpperCase()}
+            </Text>
+            <Text style={[styles.lastAccessed, { color: colors.text }]}>
+              Last accessed: {new Date(item.lastAccessed).toLocaleDateString()}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {isSuperAdmin && (
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() =>
-              navigation.navigate('AdminFormPage', { admin: item })
-            }
-          >
-            <MaterialIcons name="edit" size={22} color={colors.primary} />
-          </TouchableOpacity>
-          {item.uid !== currentUser.uid && (
+        {isSuperAdmin && (
+          <View style={styles.actionRow}>
             <TouchableOpacity
-              style={styles.removeBtn}
-              onPress={() => handleRemoveAdmin(item.uid)}
+              style={styles.editBtn}
+              onPress={() =>
+                navigation.navigate('AdminFormPage', { admin: item })
+              }
             >
-              <MaterialIcons name="delete" size={22} color={colors.primary} />
+              <MaterialIcons name="edit" size={22} color={colors.primary} />
             </TouchableOpacity>
-          )}
-        </View>
-      )}
+            {item.uid !== currentUser.uid && (
+              <TouchableOpacity
+                style={styles.removeBtn}
+                onPress={() => handleRemoveAdmin(item.uid)}
+              >
+                <MaterialIcons name="delete" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
   useEffect(() => {
@@ -174,7 +189,9 @@ export const AdminManagementSection = () => {
   return (
     <View style={styles.container}>
       <FlatList
+        key={columns}
         data={admins}
+        numColumns={columns}
         keyExtractor={item => item.uid}
         renderItem={renderAdminItem}
         ListHeaderComponent={
@@ -208,6 +225,9 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
   const [logs, setLogs] = useState<Notification[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const activeTabRef = useRef(activeTab);
+  const requestIdRef = useRef(0);
+  const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
   const admin = useAppSelector(state => state.admin);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -215,24 +235,39 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
 
   const fetchLogs = useCallback(
     async (pageNum: number, isNewTab: boolean = false) => {
-      if (loading || (!hasMore && !isNewTab)) return;
+      if (!isNewTab && (loadingRef.current || !hasMoreRef.current)) return;
 
+      const requestId = ++requestIdRef.current;
+      loadingRef.current = true;
       setLoading(true);
-      const data = await getNotifications({
-        tabName: activeTab as TabName,
-        page: pageNum,
-      });
+      try {
+        const data = await getNotifications({
+          tabName: activeTab as TabName,
+          page: pageNum,
+        });
+        if (requestId !== requestIdRef.current) return;
 
-      if (data.length < 20) setHasMore(false);
-
-      setLogs(prev => (isNewTab ? data : [...prev, ...data]));
-      setLoading(false);
+        hasMoreRef.current = data.length >= 20;
+        setHasMore(hasMoreRef.current);
+        setPage(pageNum);
+        setLogs(prev => (isNewTab ? data : [...prev, ...data]));
+      } catch (error) {
+        if (requestId === requestIdRef.current) {
+          console.error('Failed to load admin activity logs:', error);
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
+      }
     },
-    [activeTab, loading, hasMore],
+    [activeTab],
   );
   useEffect(() => {
     setPage(1);
     setHasMore(true);
+    hasMoreRef.current = true;
     fetchLogs(1, true);
   }, [activeTab, fetchLogs]);
 
@@ -390,11 +425,8 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
         />
       )}
       onEndReached={() => {
-        if (hasMore && !loading) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          fetchLogs(nextPage);
-        }
+        if (hasMore && !loading && !loadingRef.current)
+          fetchLogs(page + 1);
       }}
       onEndReachedThreshold={0.5}
       ListFooterComponent={loading ? <ActivityIndicator /> : null}
@@ -404,12 +436,17 @@ export const SystemActivityLogs = ({ activeTab }: { activeTab: string }) => {
 export const SupportTicketSection = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const columns = width >= 768 ? 2 : 1;
   const [tickets, setTickets] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [ticketError, setTicketError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const fetchInitialTickets = async () => {
+    setTicketError(null);
     try {
       const response = await fetchTicketsAPI({ limit: 20, cursor: '' });
 
@@ -417,28 +454,42 @@ export const SupportTicketSection = () => {
         setTickets(response.tickets);
         setNextCursor(response.nextCursor);
       } else {
-        console.error('Failed to load tickets:', response.message);
+        setTicketError(response.message || 'Could not load support tickets.');
       }
     } catch (error) {
       console.error('Error fetching initial tickets:', error);
+      setTicketError('Check your connection, then try again.');
+    } finally {
+      setIsLoadingInitial(false);
     }
   };
   const loadMoreTickets = async () => {
     if (!nextCursor || isLoadingMore) return;
 
     setIsLoadingMore(true);
-    const response = await fetchTicketsAPI({ limit: 20, cursor: nextCursor });
-
-    if (response.success) {
-      setTickets(prev => [...prev, ...response.tickets]);
-      setNextCursor(response.nextCursor);
+    setTicketError(null);
+    try {
+      const response = await fetchTicketsAPI({ limit: 20, cursor: nextCursor });
+      if (response.success) {
+        setTickets(prev => [...prev, ...response.tickets]);
+        setNextCursor(response.nextCursor);
+      } else {
+        setTicketError(response.message || 'Could not load more tickets.');
+      }
+    } catch (error) {
+      console.error('Error fetching more tickets:', error);
+      setTicketError('Check your connection, then try again.');
+    } finally {
+      setIsLoadingMore(false);
     }
-    setIsLoadingMore(false);
   };
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchInitialTickets();
-    setIsRefreshing(false);
+    try {
+      await fetchInitialTickets();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
   useEffect(() => {
     fetchInitialTickets();
@@ -473,13 +524,14 @@ export const SupportTicketSection = () => {
   };
 
   const renderTicketItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
-      onPress={() =>
-        navigation.navigate('TicketResolveScreen', { ticket: item })
-      }
-      activeOpacity={0.7}
-    >
+    <View style={[styles.ticketCardWrapper, { width: `${100 / columns}%` }]}>
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+        onPress={() =>
+          navigation.navigate('TicketResolveScreen', { ticket: item })
+        }
+        activeOpacity={0.7}
+      >
       <View style={styles.cardHeader}>
         <Text style={[styles.ticketRef, { color: colors.text }]}>
           #{item.ticketRefId}
@@ -526,13 +578,16 @@ export const SupportTicketSection = () => {
         </Text>
         <MaterialIcons name="chevron-right" size={22} color={colors.text} />
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <View style={styles.container}>
       <FlatList
+        key={columns}
         data={tickets}
+        numColumns={columns}
         keyExtractor={item => item.id || item.ticketRefId}
         renderItem={renderTicketItem}
         ListHeaderComponent={
@@ -545,13 +600,53 @@ export const SupportTicketSection = () => {
         }
         onEndReached={loadMoreTickets}
         onEndReachedThreshold={0.5}
+        ListEmptyComponent={
+          isLoadingInitial ? (
+            <ActivityIndicator color={colors.primary} style={{ margin: 24 }} />
+          ) : ticketError ? (
+            <EmptyState
+              iconName="wifi-off"
+              title="Couldn't load support tickets"
+              subtitle={ticketError}
+              buttonText="Try again"
+              buttonIcon="refresh"
+              onPress={() => {
+                setIsLoadingInitial(true);
+                fetchInitialTickets();
+              }}
+            />
+          ) : (
+            <EmptyState
+              iconName="support-agent"
+              title="No support tickets"
+              subtitle="New support requests will appear here."
+            />
+          )
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator color={colors.primary} style={{ margin: 16 }} />
+          ) : ticketError && tickets.length > 0 ? (
+            <TouchableOpacity
+              style={styles.retryTickets}
+              onPress={loadMoreTickets}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>
+                Couldn't load more tickets. Tap to retry.
+              </Text>
+            </TouchableOpacity>
+          ) : null
+        }
       />
     </View>
   );
 };
 export const Overview = () => {
   const admin = useAppSelector(state => state.admin);
+  const { colors } = useTheme();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [dropOffModalVisible, setdropOffModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -559,6 +654,7 @@ export const Overview = () => {
   const fetchStats = async () => {
     const data = await getAdminMetricsAPI();
     setStats(data);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -576,76 +672,84 @@ export const Overview = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <DashboardSummary stats={stats} />
-      {canViewSystem && (
-        <SystemHealthSection
-          latency={stats?.latencyData || 0}
-          locations={stats?.locationStats || []}
-        />
-      )}
-      {canViewFinance && stats && (
-        <FinanceSection
-          trendData={
-            stats.liquidityTrend || { labels: [], inFlow: [], outFlow: [] }
-          }
-        />
-      )}
-      {canViewSchoolMetrics && (
-        <AdsPreviewSection
-          title="Advertisement Banners"
-          onViewAll={() => navigate('ViewAllAds')}
-        />
-      )}
-      {canViewFinance && (
-        <TaxEntryPreviewSection
-          title="iCampus Tax Entries"
-          items={stats?.recentTaxes!}
-          onViewAll={() => navigate('ViewAllTaxEntries')}
-        />
-      )}
-      {canViewInstitutions && (
+      {isLoading ? (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
         <>
-          <EntityPreviewSection
-            title="iCampus Authorized Institutions"
-            items={stats?.recentSchools?.items || []}
-            total={stats?.recentSchools?.total || 0}
-            onViewAll={() => navigate('ViewAllSchools')}
-            onItemPress={item => {
-              setSelectedId(item.id ? item.id : null);
-              setModalVisible(true);
-            }}
+          <DashboardSummary stats={stats} />
+          {canViewSystem && (
+            <SystemHealthSection
+              latency={stats?.latencyData || 0}
+              locations={stats?.locationStats || []}
+            />
+          )}
+          {canViewFinance && stats && (
+            <FinanceSection
+              trendData={
+                stats.liquidityTrend || { labels: [], inFlow: [], outFlow: [] }
+              }
+            />
+          )}
+          {canViewSchoolMetrics && (
+            <AdsPreviewSection
+              title="Advertisement Banners"
+              onViewAll={() => navigate('ViewAllAds')}
+            />
+          )}
+          {canViewFinance && (
+            <TaxEntryPreviewSection
+              title="iCampus Tax Entries"
+              items={stats?.recentTaxes!}
+              onViewAll={() => navigate('ViewAllTaxEntries')}
+            />
+          )}
+          {canViewInstitutions && (
+            <>
+              <EntityPreviewSection
+                title="iCampus Authorized Institutions"
+                items={stats?.recentSchools?.items || []}
+                total={stats?.recentSchools?.total || 0}
+                onViewAll={() => navigate('ViewAllSchools')}
+                onItemPress={item => {
+                  setSelectedId(item.id ? item.id : null);
+                  setModalVisible(true);
+                }}
+              />
+              <EntityPreviewSection
+                title="Recent Drop Off Stations"
+                items={stats?.recentStations?.items || []}
+                total={stats?.recentStations?.total || 0}
+                onViewAll={() => navigate('ViewAllDropStations')}
+                onItemPress={item => {
+                  setSelectedId(item.id ? item.id : null);
+                  setdropOffModalVisible(true);
+                }}
+              />
+            </>
+          )}
+          {canViewSchoolMetrics &&
+            stats?.schoolMetrics &&
+            (stats.schoolMetrics.basic ? (
+              // Tiered view (Basic / Professional / Enterprise by school plan).
+              <SchoolAnalyticsView metrics={stats.schoolMetrics} />
+            ) : (
+              // Older servers only send the flat legacy fields.
+              <SchoolAdminDashboardView metrics={stats.schoolMetrics} />
+            ))}
+          <SchoolDetailModal
+            visible={modalVisible}
+            onClose={() => setModalVisible(false)}
+            schoolId={selectedId}
           />
-          <EntityPreviewSection
-            title="Recent Drop Off Stations"
-            items={stats?.recentStations?.items || []}
-            total={stats?.recentStations?.total || 0}
-            onViewAll={() => navigate('ViewAllDropStations')}
-            onItemPress={item => {
-              setSelectedId(item.id ? item.id : null);
-              setdropOffModalVisible(true);
-            }}
+          <DropOffStationDetailModal
+            visible={dropOffModalVisible}
+            onClose={() => setdropOffModalVisible(false)}
+            stationId={selectedId}
           />
         </>
       )}
-      {canViewSchoolMetrics &&
-        stats?.schoolMetrics &&
-        (stats.schoolMetrics.basic ? (
-          // Tiered view (Basic / Professional / Enterprise by school plan).
-          <SchoolAnalyticsView metrics={stats.schoolMetrics} />
-        ) : (
-          // Older servers only send the flat legacy fields.
-          <SchoolAdminDashboardView metrics={stats.schoolMetrics} />
-        ))}
-      <SchoolDetailModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        schoolId={selectedId}
-      />
-      <DropOffStationDetailModal
-        visible={dropOffModalVisible}
-        onClose={() => setdropOffModalVisible(false)}
-        stationId={selectedId}
-      />
     </View>
   );
 };
@@ -653,7 +757,14 @@ export const Overview = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', padding: 20 },
-  card: { padding: 15, borderRadius: 15, marginBottom: 15 },
+  card: { flex: 1, padding: 15, borderRadius: 15, marginBottom: 15 },
+  adminCardWrapper: { paddingHorizontal: 6 },
+  ticketCardWrapper: { paddingHorizontal: 6 },
+  retryTickets: {
+    alignItems: 'center',
+    padding: 14,
+    marginBottom: 12,
+  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',

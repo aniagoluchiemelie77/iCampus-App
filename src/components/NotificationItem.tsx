@@ -13,7 +13,12 @@ export const NotificationItem = ({
   handleNotificationPress: (item: any) => void;
 }) => {
   const { colors } = useTheme();
+  const isWelcomeNotification = item.actionType === 'WELCOME_USER';
   const getIcon = () => {
+    if (isWelcomeNotification) {
+      return { name: 'celebration' };
+    }
+
     switch (item.category) {
       case 'finance':
         return { name: 'account-balance' };
@@ -84,30 +89,53 @@ export const NotificationItem = ({
       onPress={handleNotificationPress}
       style={[
         styles.card,
-        !item.isRead
-          ? { backgroundColor: '#fadccc' }
-          : { backgroundColor: colors.background },
+        isWelcomeNotification
+          ? {
+              ...styles.welcomeCard,
+              backgroundColor: colors.backgroundSecondary,
+              borderColor: colors.primaryTint,
+            }
+          : !item.isRead
+            ? { backgroundColor: '#fadccc' }
+            : { backgroundColor: colors.background },
       ]}
     >
-      <View style={styles.iconContainer}>
+      <View
+        style={[
+          styles.iconContainer,
+          isWelcomeNotification && {
+            ...styles.welcomeIconContainer,
+            backgroundColor: colors.primary,
+          },
+        ]}
+      >
         <MaterialIcons
           name={iconConfig.name}
-          size={24}
-          color={colors.primary}
+          size={isWelcomeNotification ? 25 : 24}
+          color={isWelcomeNotification ? '#fff' : colors.primary}
         />
       </View>
 
       <View style={styles.content}>
+        {isWelcomeNotification && (
+          <Text style={[styles.welcomeEyebrow, { color: colors.primary }]}>
+            YOUR ACCOUNT IS READY
+          </Text>
+        )}
         <Text
-          style={[styles.title, { color: colors.text }]}
-          numberOfLines={1}
+          style={[
+            styles.title,
+            isWelcomeNotification && styles.welcomeTitle,
+            { color: colors.text },
+          ]}
+          numberOfLines={isWelcomeNotification ? 2 : 1}
           ellipsizeMode="tail"
         >
           {item.title}
         </Text>
         <Text
           style={[styles.message, { color: colors.text }]}
-          numberOfLines={1}
+          numberOfLines={isWelcomeNotification ? 3 : 1}
           ellipsizeMode="tail"
         >
           {formatNotificationMessage(item)}
@@ -132,8 +160,29 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   iconContainer: { marginRight: 12, justifyContent: 'center' },
+  welcomeCard: {
+    borderWidth: 1,
+    padding: 18,
+    borderRadius: 16,
+    elevation: 2,
+  },
+  welcomeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
   content: { flex: 1 },
   title: { fontWeight: 'bold', fontSize: 14, marginBottom: 4 },
+  welcomeEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginBottom: 5,
+  },
+  welcomeTitle: { fontSize: 17, marginBottom: 7 },
   time: { fontSize: 11 },
-  message: { fontSize: 12, marginBottom: 8 },
+  message: { fontSize: 12, lineHeight: 18, marginBottom: 8 },
 });

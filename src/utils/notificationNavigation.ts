@@ -1,6 +1,9 @@
 // Where a notification leads. Shared by the Notifications list and push taps
 // (FCM delivers the same actionType/payload fields, flattened to strings).
 
+import { Alert } from 'react-native';
+import { openLecturerAttendance } from './lectureAttendance';
+
 export interface NotificationLike {
   actionType?: string;
   payload?: Record<string, any>;
@@ -31,6 +34,75 @@ export const notificationGroupKey = (item: NotificationLike) => {
     item.notificationId ||
     item.id;
   return `${item.actionType || 'unknown'}_${entityId}`;
+};
+
+export const showLectureReminderPrompt = (
+  navigation: any,
+  item: NotificationLike,
+  user: { uid?: string; usertype?: string },
+) => {
+  if (item.actionType !== 'LECTURE_REMINDER') return false;
+
+  const payload = item.payload || {};
+  const lectureId = payload.lectureId;
+  const courseId = payload.courseId;
+  if (!lectureId || !courseId) return false;
+
+  const normalizedType = String(payload.lectureType || '').toLowerCase();
+  if (normalizedType === 'recorded') return false;
+  const lectureType =
+    normalizedType === 'online' ? 'Online' : 'Physical';
+  const reminderMessage =
+    item.message ||
+    `Your ${lectureType.toLowerCase()} lecture "${payload.topicName || 'Lecture'}" is starting soon.`;
+
+  if (lectureType === 'Online') {
+    Alert.alert('Online lecture reminder', reminderMessage, [
+      { text: 'Later', style: 'cancel' },
+      {
+        text: 'Join lecture',
+        onPress: () =>
+          navigation.navigate('LiveClassSessions', { lectureId, courseId }),
+      },
+    ]);
+    return true;
+  }
+
+  if (
+    user.usertype === 'lecturer' ||
+    payload.isLecturer === true ||
+    payload.isLecturer === 'true'
+  ) {
+    const lecture = {
+      id: lectureId,
+      courseId,
+      topicName: payload.topicName || 'Lecture',
+      lectureType: 'Physical' as const,
+      location: payload.location || '',
+      startTime: payload.startTime || new Date().toISOString(),
+      endTime: payload.endTime || payload.startTime || new Date().toISOString(),
+      date: payload.date || payload.startTime || new Date().toISOString(),
+      status: 'scheduled' as const,
+      isTaught: false,
+    };
+    Alert.alert(
+      'Physical lecture starting soon',
+      `${reminderMessage}\n\nWould you like to take attendance online?`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Start attendance',
+          onPress: () => {
+            void openLecturerAttendance(navigation, lecture);
+          },
+        },
+      ],
+    );
+    return true;
+  }
+
+  Alert.alert('Physical lecture reminder', reminderMessage, [{ text: 'OK' }]);
+  return true;
 };
 
 export const navigateForNotification = (
@@ -98,18 +170,10 @@ export const navigateForNotification = (
     case 'LECTURE_TYPE_CHANGE':
     case 'LECTURE_SCHEDULED':
     case 'LECTURE_REMINDER':
-      // Online class reminder: go straight into the class (it shows a
-      // waiting screen until the lecturer goes live).
       if (
         item.actionType === 'LECTURE_REMINDER' &&
-        payload.lectureId &&
-        payload.courseId &&
-        String(payload.lectureType || '').toLowerCase() === 'online'
+        showLectureReminderPrompt(navigation, item, user)
       ) {
-        navigation.navigate('LiveClassSessions', {
-          lectureId: payload.lectureId,
-          courseId: payload.courseId,
-        });
         return;
       }
       navigation.navigate('CourseSubPage', {

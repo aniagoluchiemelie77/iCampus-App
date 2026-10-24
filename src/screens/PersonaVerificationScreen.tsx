@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
 import { useTheme } from '../context/ThemeContext';
+import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { CustomButton } from '../assets/components/AppUIComponents';
 
 export const PersonaVerificationScreen = () => {
@@ -34,7 +35,6 @@ export const PersonaVerificationScreen = () => {
               text2: 'We are processing your ID. This usually takes a minute.',
             });
             navigation.navigate('ProfileScreen', { identifier: user?.uid });
-            // dispatch(fetchUserProfile());
           }
         })
         .onCanceled(() => {
@@ -43,7 +43,6 @@ export const PersonaVerificationScreen = () => {
             type: 'error',
             text2: 'Verification cancelled.',
           });
-          console.log('User exited');
         })
         .onError(error => {
           setLoading(false);
@@ -66,53 +65,51 @@ export const PersonaVerificationScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView>
-        <MaterialIcons
-          name={isEnterprise ? 'business' : 'verified-user'}
-          size={60}
-          color={colors.primary}
-        />
-        <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 15 }}>
-          <Text style={[styles.title, { color: colors.textDarker }]}>
-            {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
-          </Text>
-          <Text style={[styles.description, { color: colors.text }]}>
-            {isEnterprise
-              ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
-              : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
-          </Text>
-
-          <View style={styles.featureList}>
-            <View style={[styles.featureItem, { borderColor: colors.primary }]}>
-              <MaterialIcons
-                name="check-circle"
-                size={30}
-                color={colors.primary}
-              />
-              <Text style={[styles.featureText, { color: colors.primary }]}>
-                {isEnterprise
-                  ? 'Official Business Review'
-                  : 'Secure & Encrypted'}
-              </Text>
-            </View>
-            <View style={[styles.featureItem, { borderColor: colors.primary }]}>
-              <MaterialIcons
-                name="check-circle"
-                size={30}
-                color={colors.primary}
-              />
-              <Text style={[styles.featureText, { color: colors.primary }]}>
-                Takes less than 2 minutes
-              </Text>
-            </View>
-          </View>
-          <CustomButton
-            title="Start Verification"
-            style={[styles.button, { backgroundColor: colors.btnColor }]}
-            onPress={handleStartVerification}
-            disabled={loading}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.iconWrap}>
+          <MaterialIcons
+            name={isEnterprise ? 'business' : 'verified-user'}
+            size={72}
+            color={PRIMARY_COLOR}
           />
         </View>
+        <Text style={[styles.title, { color: colors.textDarker }]}>
+          {isEnterprise ? 'Business Verification' : 'Verify Your Identity'}
+        </Text>
+        <Text style={[styles.description, { color: colors.text }]}>
+          {isEnterprise
+            ? 'To join iCampus as an organisation, we need to verify your business credentials. Please have your Tax ID and registration info ready.'
+            : 'To keep iCampus safe, we use Persona to verify your identity. Please have a valid ID ready.'}
+        </Text>
+
+        <View style={styles.featureList}>
+          <View style={[styles.featureItem, { borderColor: colors.primary }]}>
+            <MaterialIcons
+              name="check-circle"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={[styles.featureText, { color: colors.primary }]}>
+              {isEnterprise ? 'Official Business Review' : 'Secure & Encrypted'}
+            </Text>
+          </View>
+          <View style={[styles.featureItem, { borderColor: colors.primary }]}>
+            <MaterialIcons
+              name="check-circle"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={[styles.featureText, { color: colors.primary }]}>
+              Takes less than 2 minutes
+            </Text>
+          </View>
+        </View>
+        <CustomButton
+          title="Start Verification"
+          style={[styles.button, { backgroundColor: colors.btnColor }]}
+          onPress={handleStartVerification}
+          disabled={loading}
+        />
       </ScrollView>
     </View>
   );
@@ -121,37 +118,57 @@ export const PersonaVerificationScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: 24,
+  },
+  scrollContent: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    gap: 20,
+  },
+  iconWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 15,
+    backgroundColor: '#FDF2E9',
+    marginBottom: 16,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 25,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   description: {
-    fontSize: 14,
-    marginBottom: 20,
-    lineHeight: 20,
+    fontSize: 15,
     textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+    width: '100%',
   },
   featureList: {
-    marginBottom: 25,
-    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 32,
   },
   featureItem: {
     alignItems: 'center',
-    padding: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderRadius: 15,
+    borderRadius: 16,
+    flex: 1,
+    marginHorizontal: 6,
   },
-  featureText: { marginTop: 10, fontSize: 12 },
+  featureText: { marginTop: 8, fontSize: 13, fontWeight: '600' },
   button: {
-    paddingHorizontal: 15,
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  buttonText: { fontSize: 14, fontWeight: '600' },
+  buttonText: { fontSize: 16, fontWeight: '700' },
 });

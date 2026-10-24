@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { PageHeader } from '../components/PageHeader';
@@ -23,6 +24,8 @@ dayjs.extend(relativeTime);
 
 export const ViewAllSupportInquiriesScreen = () => {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const columns = width >= 768 ? 2 : 1;
   const navigation = useNavigation<any>();
   const {
     emailSupportTickets,
@@ -64,7 +67,9 @@ export const ViewAllSupportInquiriesScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader title="Support Inquiries" />
+      <View style={styles.headerFrame}>
+        <PageHeader title="Support Inquiries" />
+      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -104,7 +109,9 @@ export const ViewAllSupportInquiriesScreen = () => {
         />
       ) : (
         <FlatList
+          key={columns}
           data={filteredTickets}
+          numColumns={columns}
           keyExtractor={item => item.ticketRefId}
           renderItem={({ item }) => {
             const lastMessage =
@@ -114,72 +121,82 @@ export const ViewAllSupportInquiriesScreen = () => {
             const isOpen = item.status === 'open' || item.status === 'pending';
 
             return (
-              <TouchableOpacity
+              <View
                 style={[
-                  styles.ticketCard,
-                  { backgroundColor: colors.backgroundSecondary },
+                  styles.ticketCardWrapper,
+                  { width: `${100 / columns}%` },
                 ]}
-                onPress={() => handleTicketPress(item)}
-                activeOpacity={0.7}
               >
-                <View style={styles.cardHeader}>
-                  <View style={styles.senderInfo}>
-                    <UserAvatar firstName={senderEmail} style={styles.avatar} />
-                    <View style={styles.senderTextContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.ticketCard,
+                    { backgroundColor: colors.backgroundSecondary },
+                  ]}
+                  onPress={() => handleTicketPress(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={styles.senderInfo}>
+                      <UserAvatar
+                        firstName={senderEmail}
+                        style={styles.avatar}
+                      />
+                      <View style={styles.senderTextContainer}>
+                        <Text
+                          style={[
+                            styles.senderEmail,
+                            { color: colors.textDarker },
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {senderEmail}
+                        </Text>
+                        <Text
+                          style={[styles.ticketIdText, { color: colors.text }]}
+                          numberOfLines={1}
+                        >
+                          Ref: {item.ticketRefId}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.statusBadge}>
                       <Text
                         style={[
-                          styles.senderEmail,
-                          { color: colors.textDarker },
+                          styles.statusText,
+                          {
+                            color: isOpen
+                              ? colors.pendingDelivery
+                              : colors.success,
+                          },
                         ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
                       >
-                        {senderEmail}
-                      </Text>
-                      <Text
-                        style={[styles.ticketIdText, { color: colors.text }]}
-                        numberOfLines={1}
-                      >
-                        Ref: {item.ticketRefId}
+                        {item.status}
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.statusBadge]}>
+                  {item.summary && (
                     <Text
-                      style={[
-                        styles.statusText,
-                        {
-                          color: isOpen
-                            ? colors.pendingDelivery
-                            : colors.success,
-                        },
-                      ]}
+                      style={[styles.subjectText, { color: colors.text }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
-                      {item.status}
+                      {item.summary || 'External Support Inquiry'}
                     </Text>
-                  </View>
-                </View>
-                {item.summary && (
+                  )}
+
                   <Text
-                    style={[styles.subjectText, { color: colors.text }]}
-                    numberOfLines={1}
+                    style={[styles.messageSnippet, { color: colors.text }]}
+                    numberOfLines={2}
                     ellipsizeMode="tail"
                   >
-                    {item.summary || 'External Support Inquiry'}
+                    {lastMessage}
                   </Text>
-                )}
-
-                <Text
-                  style={[styles.messageSnippet, { color: colors.text }]}
-                  numberOfLines={2}
-                  ellipsizeMode="tail"
-                >
-                  {lastMessage}
-                </Text>
-                <Text style={[styles.timestampText, { color: colors.text }]}>
-                  {dayjs(item.updatedAt || item.createdAt).fromNow()}
-                </Text>
-              </TouchableOpacity>
+                  <Text style={[styles.timestampText, { color: colors.text }]}>
+                    {dayjs(item.updatedAt || item.createdAt).fromNow()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             );
           }}
           ListEmptyComponent={
@@ -206,7 +223,12 @@ export const ViewAllSupportInquiriesScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, width: '100%' },
+  headerFrame: {
+    width: '100%',
+    maxWidth: 1280,
+    alignSelf: 'center',
+  },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,7 +241,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabText: { fontSize: 14, fontWeight: '600' },
-  listContent: { paddingBottom: 30, marginHorizontal: 15 },
+  listContent: {
+    paddingBottom: 30,
+    paddingHorizontal: 9,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
+  ticketCardWrapper: { paddingHorizontal: 6 },
   ticketCard: {
     padding: 15,
     borderRadius: 15,

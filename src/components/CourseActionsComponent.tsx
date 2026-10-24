@@ -39,7 +39,6 @@ import {
   Question,
   CreateLecturePayload,
   CreateTestPayload,
-  User,
 } from '../types/firebase';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -50,7 +49,6 @@ import {
 import { create, all } from 'mathjs';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import Toast from 'react-native-toast-message';
-import { baseUrl } from './HomeScreenComponents';
 import { errorCodes, isErrorWithCode } from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 import { PermissionsAndroid, Platform, Linking } from 'react-native';
@@ -699,6 +697,14 @@ export const AddExceptionModal = ({
   const [reason, setReason] = useState('');
   const [lectureId, setLectureId] = useState('');
   const credits = Number(user?.exceptionCredits) || 0;
+  const currentPlan =
+    user?.tier &&
+    Object.prototype.hasOwnProperty.call(EXCEPTION_ACCOUNT_LIMITS, user.tier)
+      ? user.tier
+      : 'free';
+  const refillQuantity =
+    EXCEPTION_ACCOUNT_LIMITS[currentPlan] ??
+    EXCEPTION_ACCOUNT_LIMITS.free;
   if (!course) {
     return null;
   }
@@ -770,12 +776,24 @@ export const AddExceptionModal = ({
             <View
               style={[
                 CourseActionStyles.pickerContainer,
-                { borderColor: colors.border },
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.backgroundSecondary,
+                },
               ]}
             >
               <Picker
                 selectedValue={lectureId}
                 onValueChange={itemValue => setLectureId(itemValue)}
+                style={{
+                  color: colors.text,
+                  backgroundColor: colors.backgroundSecondary,
+                }}
+                itemStyle={{
+                  color: colors.text,
+                  backgroundColor: colors.backgroundSecondary,
+                }}
+                dropdownIconColor={colors.primary}
               >
                 <Picker.Item
                   label="Select lecture..."
@@ -792,6 +810,16 @@ export const AddExceptionModal = ({
                 ))}
               </Picker>
             </View>
+            {futureLectures.length === 0 && (
+              <Text
+                style={[
+                  CourseActionStyles.emptyLectureMessage,
+                  { color: colors.text },
+                ]}
+              >
+                There are no upcoming lectures available for this course.
+              </Text>
+            )}
             <Text style={[CourseActionStyles.label, { color: colors.text }]}>
               Reason Category
             </Text>
@@ -810,7 +838,11 @@ export const AddExceptionModal = ({
                   style={[
                     CourseActionStyles.catBtn,
                     { borderColor: colors.border },
-                    category === cat && CourseActionStyles.catBtnActive,
+                    category === cat && {
+                      ...CourseActionStyles.catBtnActive,
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary,
+                    },
                   ]}
                   onPress={() => setCategory(cat)}
                 >
@@ -826,9 +858,9 @@ export const AddExceptionModal = ({
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+              </View>
 
-            <TextInput
+              <TextInput
               style={[CourseActionStyles.textArea, { color: colors.text, borderColor: colors.border }]}
               placeholder="Explain your reason in detail..."
               multiline
@@ -853,8 +885,8 @@ export const AddExceptionModal = ({
                 style={[CourseActionStyles.costText, { color: colors.primary, flex: 1 }]}
               >
                 {credits > 0
-                  ? `Free while you have allowance left this month; otherwise 1 of your ${credits} extra exception${credits === 1 ? '' : 's'} is used.`
-                  : `Free while you have allowance left this month. After that, you'll be asked to pay $${EXCEPTION_COST_USD} in your currency.`}
+                  ? `Free while your monthly allowance remains; otherwise one of your ${credits} replenished requests is used. A refill restores ${refillQuantity} requests.`
+                  : `Free while your monthly allowance remains. After that, you can replenish it with ${refillQuantity} requests; the total price is shown before payment.`}
               </Text>
             </View>
 
@@ -1969,19 +2001,22 @@ export const RenderStudentExceptions = ({
   const user = useAppSelector(state => state.user);
   const safeExceptions = Array.isArray(exceptions) ? exceptions : [];
   const currentPlan =
-    user?.tier && (EXCEPTION_ACCOUNT_LIMITS as any)[user.tier] != null
+    user?.tier &&
+    Object.prototype.hasOwnProperty.call(EXCEPTION_ACCOUNT_LIMITS, user.tier)
       ? user.tier
       : 'free';
-  const planLimit = (EXCEPTION_ACCOUNT_LIMITS as any)[currentPlan] ?? 2;
+  const planLimit =
+    EXCEPTION_ACCOUNT_LIMITS[currentPlan] ?? EXCEPTION_ACCOUNT_LIMITS.free;
   const credits = Number(user?.exceptionCredits) || 0;
-  // Display price only; the server charges the same USD price at its live rate.
+  const refillQuantity = planLimit;
+  // Display estimate only; the server prices the full refill at its live rate.
   const { exchangeData, ready } = useExchangeRate(user?.country || 'Nigeria');
-  const localPrice = ready
-    ? `${exchangeData.symbol}${(EXCEPTION_COST_USD * exchangeData.rate).toLocaleString(undefined, {
+  const refillPrice = ready
+    ? `${exchangeData.symbol}${(EXCEPTION_COST_USD * refillQuantity * exchangeData.rate).toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`
-    : `$${EXCEPTION_COST_USD.toFixed(2)}`;
+    : `$${(EXCEPTION_COST_USD * refillQuantity).toFixed(2)}`;
   const [searchQuery, setSearchQuery] = useState('');
   const shouldShowSearch = true;
 
@@ -1995,20 +2030,6 @@ export const RenderStudentExceptions = ({
     );
   });
 
-  const usedThisMonth = safeExceptions.filter(e => {
-    const d = safeParseDate((e as any)?.createdAt);
-    if (!d) return false;
-    const now = new Date();
-    return (
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear()
-    );
-  }).length;
-
-  // Only this course's exceptions are loaded here, so this is a hint; the
-  // server counts every course and asks for payment when it's needed.
-  const isOverTierLimit = usedThisMonth >= planLimit;
-
   return (
     <FlatList
       data={filteredData}
@@ -2020,7 +2041,7 @@ export const RenderStudentExceptions = ({
         <>
           <PageHeader
             title="My Lecture Exceptions"
-            subtitle={`${planLimit} free each month${credits > 0 ? ` · ${credits} extra available` : ''}`}
+            subtitle={`${planLimit} free each month${credits > 0 ? ` · ${credits} replenished requests available` : ''}`}
             rightElement={
               <CustomButton
                 title="Request Exception"
@@ -2039,13 +2060,13 @@ export const RenderStudentExceptions = ({
           >
             <MaterialIcons name="info-outline" size={19} color={colors.primary} />
             <Text style={[CourseActionStyles.costText, { color: colors.text, flex: 1 }]}>
-              {isOverTierLimit && credits === 0
-                ? `You've used this month's free exceptions. Extra ones cost ${localPrice} each.`
-                : `After your free ones, extra exceptions cost ${localPrice} each.`}
+              {credits > 0
+                ? `Each refill restores ${refillQuantity} exception requests for ${refillPrice}. You have ${credits} replenished requests available.`
+                : `Once your free monthly allowance is used, replenish it with ${refillQuantity} exception requests for ${refillPrice}.`}
             </Text>
             {onBuyPress && (
               <TouchableOpacity onPress={onBuyPress} hitSlop={8}>
-                <Text style={{ color: colors.primary, fontWeight: '700' }}>Buy</Text>
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>Refill</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -3251,78 +3272,63 @@ export const RenderLecturerTestManage = ({
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        presentationStyle="fullScreen"
+        transparent
+        onRequestClose={() => setIsModalVisible(false)}
       >
-        <SafeAreaView
-          style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
-        >
-          <Text
-            style={[
-              CourseActionStyles.headerTitle,
-              { color: colors.textDarker },
-            ]}
-          >
-            Build Assessment
-          </Text>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
+          {/* Header row with cancel */}
+          <View style={CourseActionStyles.testBuildHeader}>
+            <TouchableOpacity onPress={() => setIsModalVisible(false)} style={CourseActionStyles.cancelPress}>
+              <MaterialIcons name="close" size={22} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[CourseActionStyles.buildTitle, { color: colors.textDarker }]}>
+              Build Assessment
+            </Text>
+          </View>
+
           <ScrollView
-            style={CourseActionStyles.modalBody}
+            style={CourseActionStyles.testBuildScroll}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={CourseActionStyles.testBuildContent}
           >
-            <View style={CourseActionStyles.settingsCard}>
+            {/* Title */}
+            <View style={CourseActionStyles.testBuildFormGroup}>
               <TextInput
-                style={[CourseActionStyles.titleInput, { color: colors.text }]}
+                style={[CourseActionStyles.testBuildTitleInput, { color: colors.text }]}
                 placeholder="Assessment Title (e.g. Test 1)"
                 placeholderTextColor={colors.inputTextHolder}
                 value={testForm.title}
                 onChangeText={t => setTestForm({ ...testForm, title: t })}
               />
-              <View style={CourseActionStyles.settingsRow}>
-                <View style={CourseActionStyles.settingItem}>
-                  <Text
-                    style={[
-                      CourseActionStyles.microLabel2,
-                      { color: colors.text },
-                    ]}
-                  >
-                    Duration (Minutes)
-                  </Text>
-                  <TextInput
-                    style={[
-                      CourseActionStyles.settingInput,
-                      { color: colors.text },
-                    ]}
-                    keyboardType="numeric"
-                    value={testForm.duration}
-                    onChangeText={val =>
-                      setTestForm({ ...testForm, duration: val })
-                    }
-                    placeholder="eg. 30"
-                    placeholderTextColor={colors.inputTextHolder}
-                  />
-                </View>
-                <View style={CourseActionStyles.settingItem}>
-                  <Text
-                    style={[
-                      CourseActionStyles.microLabel2,
-                      { color: colors.text },
-                    ]}
-                  >
-                    Total Marks
-                  </Text>
-                  <TextInput
-                    style={[
-                      CourseActionStyles.settingInput,
-                      { color: colors.text },
-                    ]}
-                    keyboardType="numeric"
-                    placeholder="eg. 30"
-                    value={testForm.totalMarks}
-                    onChangeText={val =>
-                      setTestForm({ ...testForm, totalMarks: val })
-                    }
-                    placeholderTextColor={colors.inputTextHolder}
-                  />
-                </View>
+            </View>
+
+            {/* Duration + Total Marks side by side */}
+            <View style={CourseActionStyles.testBuildDeadlineRow}>
+              <View style={CourseActionStyles.testBuildDeadlineBox}>
+                <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                  Duration (Minutes)
+                </Text>
+                <TextInput
+                  style={[CourseActionStyles.testBuildDeadlineInput, { color: colors.text }]}
+                  keyboardType="numeric"
+                  value={testForm.duration}
+                  onChangeText={val => setTestForm({ ...testForm, duration: val })}
+                  placeholder="eg. 30"
+                  placeholderTextColor={colors.inputTextHolder}
+                />
+              </View>
+              <View style={CourseActionStyles.testBuildDeadlineBox}>
+                <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                  Total Marks
+                </Text>
+                <TextInput
+                  style={[CourseActionStyles.testBuildDeadlineInput, { color: colors.text }]}
+                  keyboardType="numeric"
+                  placeholder="eg. 30"
+                  value={testForm.totalMarks}
+                  onChangeText={val => setTestForm({ ...testForm, totalMarks: val })}
+                  placeholderTextColor={colors.inputTextHolder}
+                />
               </View>
             </View>
             {testForm.questions.map((q, idx) => (
@@ -3492,127 +3498,75 @@ export const RenderLecturerTestManage = ({
                 )}
               </View>
             ))}
-            <View style={CourseActionStyles.settingsCard}>
-              <Text
-                style={[CourseActionStyles.labelTitle, { color: colors.text }]}
-              >
+            {/* Set Deadline */}
+            <View style={CourseActionStyles.testBuildFormGroup}>
+              <Text style={[CourseActionStyles.testBuildSectionLabel, { color: colors.textDarker }]}>
                 Set Deadline
               </Text>
-            </View>
-            <View style={CourseActionStyles.dateTimeRow}>
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.dateTimeBox,
-                  { borderColor: colors.border },
-                ]}
-                onPress={() => showPicker('date')}
-              >
-                <MaterialIcons
-                  name="calendar-month"
-                  size={24}
-                  color={colors.text}
-                />
-                <Text
-                  style={[
-                    CourseActionStyles.microLabel,
-                    { color: colors.text },
-                  ]}
-                >
-                  Date
-                </Text>
-                <Text
-                  style={[
-                    CourseActionStyles.dateTimeText,
-                    { color: colors.text },
-                  ]}
-                >
-                  {testForm.dueDate instanceof Date
-                    ? formatPickeDate(testForm.dueDate)
-                    : testForm.dueDate || '00:00'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.dateTimeBox,
-                  { borderColor: colors.border },
-                ]}
-                onPress={() => showPicker('startTime')}
-              >
-                <MaterialIcons name="schedule" size={24} color={colors.text} />
-                <Text
-                  style={[
-                    CourseActionStyles.microLabel,
-                    { color: colors.text },
-                  ]}
-                >
-                  Start Time
-                </Text>
-                <Text
-                  style={[
-                    CourseActionStyles.dateTimeText,
-                    { color: colors.text },
-                  ]}
-                >
-                  {testForm.scheduledStart instanceof Date
-                    ? formatTime(testForm.scheduledStart)
-                    : testForm.scheduledStart || '00:00'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.dateTimeBox,
-                  { borderColor: colors.border },
-                ]}
-                onPress={() => showPicker('endTime')}
-              >
-                <MaterialIcons name="schedule" size={24} color={colors.text} />
-                <Text
-                  style={[
-                    CourseActionStyles.microLabel,
-                    { color: colors.text },
-                  ]}
-                >
-                  Ends
-                </Text>
-                <Text
-                  style={[
-                    CourseActionStyles.dateTimeText,
-                    { color: colors.text },
-                  ]}
-                >
-                  {testForm.endTime instanceof Date
-                    ? formatTime(testForm.endTime)
-                    : testForm.endTime || '00:00'}
-                </Text>
-              </TouchableOpacity>
+              <View style={CourseActionStyles.testBuildDeadlineRow}>
+                <View style={CourseActionStyles.testBuildDeadlineBox}>
+                  <MaterialIcons name="calendar-today" size={22} color={colors.primary} />
+                  <View style={CourseActionStyles.testBuildDeadlineInner}>
+                    <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                      Date
+                    </Text>
+                    <Text style={[CourseActionStyles.testBuildDeadlineValue, { color: colors.textDarker }]}>
+                      {testForm.dueDate instanceof Date
+                        ? formatPickeDate(testForm.dueDate)
+                        : testForm.dueDate || '00:00'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={CourseActionStyles.testBuildDeadlineBox}>
+                  <MaterialIcons name="access-time" size={22} color={colors.primary} />
+                  <View style={CourseActionStyles.testBuildDeadlineInner}>
+                    <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                      Start Time
+                    </Text>
+                    <Text style={[CourseActionStyles.testBuildDeadlineValue, { color: colors.textDarker }]}>
+                      {testForm.scheduledStart instanceof Date
+                        ? formatTime(testForm.scheduledStart)
+                        : testForm.scheduledStart || '00:00'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={CourseActionStyles.testBuildDeadlineBox}>
+                  <MaterialIcons name="access-time" size={22} color={colors.primary} />
+                  <View style={CourseActionStyles.testBuildDeadlineInner}>
+                    <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                      Ends
+                    </Text>
+                    <Text style={[CourseActionStyles.testBuildDeadlineValue, { color: colors.textDarker }]}>
+                      {testForm.endTime instanceof Date
+                        ? formatTime(testForm.endTime)
+                        : testForm.endTime || '00:00'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
 
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.addBtn2,
-                { borderColor: colors.btnColor },
-              ]}
-              onPress={addQuestion}
-            >
-              <MaterialIcons name="add" size={22} color={colors.primary} />
-              <Text
-                style={[
-                  CourseActionStyles.addBtnText3,
-                  { color: colors.primary },
-                ]}
+            {/* Add Question + Publish */}
+            <View style={CourseActionStyles.testBuildActions}>
+              <TouchableOpacity
+                style={[CourseActionStyles.testBuildAddQuestionBtn, { borderColor: colors.primary }]}
+                onPress={addQuestion}
               >
-                Add Question
-              </Text>
-            </TouchableOpacity>
-            <CustomButton
-              title="Publish"
-              onPress={() => handleFinalize(true)}
-              disabled={loading}
-              iconName="add"
-              iconColor="#fff"
-              style={CourseActionStyles.publishHeaderBtn}
-            />
-            <View style={{ height: 30 }} />
+                <MaterialIcons name="add" size={20} color={colors.primary} />
+                <Text style={[CourseActionStyles.testBuildAddQuestionText, { color: colors.primary }]}>
+                  Add Question
+                </Text>
+              </TouchableOpacity>
+              <CustomButton
+                title={loading ? 'Publishing...' : 'Publish'}
+                onPress={() => handleFinalize(true)}
+                disabled={loading}
+                iconName="add"
+                iconColor="#fff"
+                style={CourseActionStyles.testBuildPublishBtn}
+              />
+            </View>
+            <View style={{ height: 24 }} />
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -6317,6 +6271,116 @@ export const CourseActionStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: PRIMARY_COLOR, // Bold red for danger
   },
+  /* ===== Test Build Styles ===== */
+  testBuildHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: PRIMARY_COLOR_TINT,
+  },
+  cancelPress: {
+    position: 'absolute',
+    left: 12,
+    padding: 8,
+    zIndex: 1,
+  },
+  buildTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  testBuildScroll: {
+    flex: 1,
+  },
+  testBuildContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  testBuildFormGroup: {
+    marginBottom: 20,
+  },
+  testBuildTitleInput: {
+    minHeight: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 12,
+    fontSize: 16,
+  },
+  testBuildDeadlineRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  testBuildDeadlineBox: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 12,
+  },
+  testBuildDeadlineInner: {
+    flex: 1,
+    minWidth: 0,
+  },
+  testBuildDeadlineLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  testBuildDeadlineInput: {
+    minWidth: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 8,
+    fontSize: 14,
+  },
+  testBuildDeadlineValue: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  testBuildSectionLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  testBuildActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  testBuildAddQuestionBtn: {
+    padding: 10,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: PRIMARY_COLOR,
+    backgroundColor: 'transparent',
+  },
+  testBuildAddQuestionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: PRIMARY_COLOR,
+  },
+  testBuildPublishBtn: {
+    height: 50,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    backgroundColor: PRIMARY_COLOR,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
   completedTopicText: {
     color: PRIMARY_COLOR,
   },
@@ -6612,6 +6676,12 @@ export const CourseActionStyles = StyleSheet.create({
     padding: 3,
     borderWidth: 0.8,
     borderRadius: 10,
+  },
+  emptyLectureMessage: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -12,
+    marginBottom: 20,
   },
   pickerContainer2: {
     borderTopLeftRadius: 25,
@@ -8073,4 +8143,3 @@ export const CourseActionStyles = StyleSheet.create({
     flex: 1,
   },
 });
-

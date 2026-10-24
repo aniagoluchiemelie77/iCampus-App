@@ -194,21 +194,11 @@ export const CourseModal = ({
           setAllExceptions(exceptionsRes.data);
         } else {
           setAllExceptions([]);
-          Toast.show({
-            type: 'error',
-            text2: exceptionsRes.error || 'No exceptions found',
-          });
         }
         if (lecturesRes.success && lecturesRes.data) {
           setAllLectures(lecturesRes.data);
         } else {
           setAllLectures([]);
-          Toast.show({
-            type: 'error',
-            text2:
-              lecturesRes.error ||
-              `No lectures found for ${course.courseTitle}`,
-          });
         }
       } catch (error) {
         console.error('Critical Error fetching data dependencies:', error);
@@ -408,7 +398,7 @@ export const CourseModal = ({
                         course,
                         userRole: currentUser.usertype,
                         exceptions: allExceptions,
-                        lectures: null,
+                        lectures,
                       });
                     }}
                   />
@@ -475,6 +465,19 @@ export const CourseModal = ({
                 </View>
                 <View style={styles.iconGrid}>
                   <GridItem
+                    label="Course Contents"
+                    iconName="format-list-bulleted"
+                    count={course.courseContents?.length}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Course Contents',
+                        course: course,
+                        userRole: currentUser.usertype,
+                      });
+                    }}
+                  />
+                  <GridItem
                     label="Upload Materials"
                     iconName="cloud-upload"
                     onPress={() => {
@@ -484,7 +487,7 @@ export const CourseModal = ({
                         course,
                         userRole: currentUser.usertype,
                         exceptions: null,
-                        lectures: null,
+                        lectures,
                       });
                     }}
                   />

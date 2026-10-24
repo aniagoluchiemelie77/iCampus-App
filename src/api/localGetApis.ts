@@ -13,11 +13,6 @@ interface ApiRequestOptions {
 interface FetchPreferencesParams {
   signal?: AbortSignal;
 }
-interface CheckITagResponse {
-  success: boolean;
-  available: boolean;
-  message?: string;
-}
 interface OngoingLectureResponse {
   success: boolean;
   ongoing: boolean;
@@ -122,20 +117,12 @@ interface AdminFetchUserDetailsParams extends ApiRequestOptions {
 interface GetCourseExceptionsParams extends ApiRequestOptions {
   courseId: string;
 }
-interface GetBlockedUsersParams extends ApiRequestOptions {
-  userId: string;
-}
 interface GetCourseAssessmentsParams extends ApiRequestOptions {
   courseId: string;
 }
 interface FetchTicketsParams extends ApiRequestOptions {
   limit?: number;
   cursor?: string;
-}
-interface GetTransactionsParams extends ApiRequestOptions {
-  page: number;
-  limit: number;
-  searchQuery?: string;
 }
 interface GetLectureExceptionsParams extends ApiRequestOptions {
   lectureId: string;
@@ -1772,11 +1759,11 @@ export const getAllAdmins = async (): Promise<any[]> => {
     
     const result = await response.json();
     
-    if (!response.ok) {
+    if (!response.ok || result?.success === false) {
       Toast.show({
         type: 'error',
         text1: 'Fetch Error',
-        text2: result.message || 'Failed to fetch administrator list',
+        text2: result?.message || 'Failed to fetch administrator list',
       });
       return [];
     }
@@ -1810,11 +1797,11 @@ export const getNotifications = async ({
     
     const result = await response.json();
     
-    if (!response.ok) {
+    if (!response.ok || result?.success === false) {
       Toast.show({
         type: 'error',
         text1: 'Fetch Error',
-        text2: result.message || `Failed to fetch ${tabName} notifications`,
+        text2: result?.message || `Failed to fetch ${tabName} notifications`,
       });
       return [];
     }
@@ -1840,7 +1827,8 @@ export const fetchPostsAPI = async ({
   signal,
 }: FetchPostsParams = {}) => {
   try {
-    const url = `${baseUrl}posts/fetchPosts?limit=${limit}&cursor=${cursor}`;
+    const params = new URLSearchParams({ limit: String(limit), cursor });
+    const url = `${baseUrl}posts/fetchPosts?${params}`;
     const headers = { 'Content-Type': 'application/json' };
     const response = await fetchWithAuth(url, {
       method: 'GET',
@@ -1852,6 +1840,12 @@ export const fetchPostsAPI = async ({
       return {
         success: false,
         message: data?.message || 'Failed to fetch posts',
+      };
+    }
+    if (data?.success === false) {
+      return {
+        success: false,
+        message: data.message || 'Failed to fetch posts',
       };
     }
     return {
@@ -1937,7 +1931,11 @@ export const fetchTicketsAPI = async ({
   signal,
 }: FetchTicketsParams = {}) => {
   try {
-    const url = `${baseUrl}support/tickets/fetch-all?limit=${limit}&cursor=${cursor}`;
+    const params = new URLSearchParams({
+      limit: String(limit),
+      cursor,
+    });
+    const url = `${baseUrl}support/tickets/fetch-all?${params}`;
     const headers = { 'Content-Type': 'application/json' };
     
     const response = await fetchWithAuth(url, {
@@ -1948,7 +1946,7 @@ export const fetchTicketsAPI = async ({
     
     const data = await response.json();
     
-    if (!response.ok) {
+    if (!response.ok || data?.success === false) {
       return {
         success: false,
         message: data?.message || 'Failed to fetch support tickets',
@@ -2023,7 +2021,7 @@ export const adminFetchUserNotifications = async ({
     
     const data = await response.json();
     
-    if (!response.ok) {
+    if (!response.ok || data?.success === false) {
       Toast.show({
         type: 'error',
         text1: 'Fetch Error',
@@ -2357,7 +2355,7 @@ export const fetchSupportTicketByRefIdAPI = async ({
     
     const data = await response.json();
     
-    if (!response.ok) {
+    if (!response.ok || data?.success === false) {
       return {
         success: false,
         message: data?.message || 'Failed to fetch support ticket',

@@ -97,8 +97,10 @@ export const AdminFormPage = ({ route }: { route: any }) => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (isEditing) await updateAdminApi(adminToEdit.uid, formData);
-      else await createAdminApi(formData);
+      const result = isEditing
+        ? await updateAdminApi(adminToEdit.uid, formData)
+        : await createAdminApi(formData);
+      if (!result || result.success === false) return;
       navigation.navigate('AdminDashboard');
     } catch (e) {
       Toast.show({
@@ -189,5 +191,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   btnText: { fontSize: 14, fontWeight: 'bold' },
-  content: { paddingBottom: 20, paddingHorizontal: 15 },
+  content: {
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+    paddingBottom: 20,
+    paddingHorizontal: 15,
+  },
 });

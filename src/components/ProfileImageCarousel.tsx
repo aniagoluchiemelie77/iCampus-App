@@ -168,58 +168,55 @@ export const ProfileImageCarousel = ({
     }
   };
 
-  if (normalizedImages.length === 0) {
-    const initials = getInitials(user);
+  const initials = getInitials(user);
 
-    return (
-      <View style={CarouselStyles.wrapper}>
+  const emptyState = (
+    <View
+      style={[
+        CarouselStyles.container,
+        { backgroundColor: colors.backgroundSecondary },
+      ]}
+    >
+      <View
+        style={[
+          CarouselStyles.emptyContainer,
+          { backgroundColor: PRIMARY_COLOR + '15' },
+        ]}
+      >
+        <View
+          style={[
+            CarouselStyles.initialsCircle,
+            { backgroundColor: PRIMARY_COLOR },
+          ]}
+        >
+          <Text style={CarouselStyles.initialsText}>{initials}</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={[
+          CarouselStyles.cameraButton,
+          { backgroundColor: PRIMARY_COLOR },
+        ]}
+        onPress={handleTriggerPick}
+        disabled={isUploading}
+        activeOpacity={0.8}
+      >
+        <MaterialIcons name="camera-alt" size={18} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={CarouselStyles.wrapper}>
+      {normalizedImages.length === 0 ? emptyState : (
         <View
           style={[
             CarouselStyles.container,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
-          <View
-            style={[
-              CarouselStyles.emptyContainer,
-              { backgroundColor: PRIMARY_COLOR + '15' },
-            ]}
-          >
-            <View
-              style={[
-                CarouselStyles.initialsCircle,
-                { backgroundColor: PRIMARY_COLOR },
-              ]}
-            >
-              <Text style={CarouselStyles.initialsText}>{initials}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              CarouselStyles.cameraButton,
-              { backgroundColor: PRIMARY_COLOR },
-            ]}
-            onPress={handleTriggerPick}
-            disabled={isUploading}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="camera-alt" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={CarouselStyles.wrapper}>
-      <View
-        style={[
-          CarouselStyles.container,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        <FlatList
+          <FlatList
           data={normalizedImages}
           horizontal
           pagingEnabled
@@ -273,7 +270,7 @@ export const ProfileImageCarousel = ({
             color="#fff"
           />
         </TouchableOpacity>
-      </View>
+      </View>)}
       <ImageConfirmationModal
         isVisible={isModalVisible}
         imageUri={selectedUri}

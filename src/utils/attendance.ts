@@ -9,10 +9,8 @@ import {
 } from 'react-native-permissions';
 import Toast from 'react-native-toast-message';
 import { Lecture } from '../types/firebase';
-import {
-  getAllExceptionsForOngoingLecture,
-  getCourseDetailsForOngoingLecture,
-} from '../api/localGetApis';
+import { openLecturerAttendance } from './lectureAttendance';
+export { openLecturerAttendance } from './lectureAttendance';
 
 // ---------------------------------------------------------------------------
 // Beacon naming
@@ -117,43 +115,6 @@ export const ensureBluetoothOn = async (purpose: string) => {
 // ---------------------------------------------------------------------------
 // Entry points (schedule, Classroom tab, ongoing-lecture modal, push)
 // ---------------------------------------------------------------------------
-/** Lecturer: loads the course + approved exceptions, then opens the manager. */
-export const openLecturerAttendance = async (navigation: any, lecture: Lecture) => {
-  const courseId =
-    typeof (lecture as any).courseId === 'object'
-      ? (lecture as any).courseId?.courseId
-      : lecture.courseId;
-  try {
-    const [courseResult, exceptionsResult] = await Promise.all([
-      getCourseDetailsForOngoingLecture({ courseId }),
-      getAllExceptionsForOngoingLecture({ lectureId: lecture.id }),
-    ]);
-    if (!courseResult.success || !courseResult.data) {
-      Toast.show({
-        type: 'error',
-        text1: 'Could not open attendance',
-        text2: courseResult.error || 'Course details failed to load. Try again.',
-      });
-      return false;
-    }
-    navigation.navigate('PhysicalAttendanceManager', {
-      lecture: { ...lecture, courseId },
-      course: courseResult.data,
-      // Exceptions are optional; attendance still works without them.
-      exceptions: exceptionsResult.success ? exceptionsResult.data || [] : [],
-    });
-    return true;
-  } catch (err) {
-    console.error('openLecturerAttendance failed', err);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection error',
-      text2: 'Could not load the lecture. Check your connection.',
-    });
-    return false;
-  }
-};
-
 /** Student: opens the scanner for a lecture. */
 export const openStudentAttendance = (navigation: any, lecture: Lecture) => {
   navigation.navigate('StudentAttendanceScanner', { lecture });

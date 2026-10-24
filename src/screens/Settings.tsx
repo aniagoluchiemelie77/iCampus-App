@@ -56,8 +56,7 @@ export const Settings = () => {
   const navigation = useNavigation<any>();
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
-  const version = DeviceInfo.getVersion();
-  const buildNumber = DeviceInfo.getBuildNumber();
+  const readableVersion = DeviceInfo.getReadableVersion();
   const options = {
     AppleAppID: ICAMPUS_APPLE_ID,
     GooglePackageName: 'com.icampus',
@@ -303,8 +302,7 @@ export const Settings = () => {
         />
 
         <Text style={[styles.versionText, { color: colors.text }]}>
-          App Version: {version}
-          {buildNumber}
+          App Version: {readableVersion}
         </Text>
       </ScrollView>
       <LogoutModal

@@ -688,8 +688,16 @@ export const updateTicketStatus = async (
       clearTimeout(timeoutId);
       const data = await response.json();
       
-      if (!response.ok) {
+      if (!response.ok || data?.success === false) {
         if (response.status >= 400 && response.status < 500) {
+          Toast.show({
+            type: 'error',
+            text1: 'Update Failed',
+            text2: data?.message || 'Could not update the ticket status.',
+          });
+          return { success: false };
+        }
+        if (data?.success === false) {
           Toast.show({
             type: 'error',
             text1: 'Update Failed',

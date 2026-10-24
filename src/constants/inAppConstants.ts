@@ -11,8 +11,7 @@ export const USD_SUBSCRIPTION_PRICES = {
   Premium: 3.69,
   Free: 0,
 } as const;
-/** Price of one lecture exception beyond the monthly free allowance. Shown in
- * the student's currency at the live rate; the server charges the same. */
+/** Per-request price used to calculate the monthly exception refill bundle. */
 export const EXCEPTION_COST_USD = 1.5 as const;
 export const TRANSACTION_TAX_RATE = 0.15 as const;
 export const WATERMARK_TEXT = 'iCampus' as const;
@@ -44,7 +43,7 @@ export const CATEGORY_MAX_PRICES: Record<ItemCategory, number> = {
   physical: 1000000,
 } as const;
 
-export const CATEGORY_ACCESS: Record<string, readonly AdminRole[]> = {
+export const CATEGORY_ACCESS = {
   'Overview': ['super_admin', 'finance', 'support', 'moderator', 'analyst', "school_administrator"],
   'Tickets': ['super_admin', 'support'],
   'Security Alerts': ['super_admin'],
@@ -54,11 +53,11 @@ export const CATEGORY_ACCESS: Record<string, readonly AdminRole[]> = {
   'Subscriptions': ['super_admin'],
   'Store': ['super_admin', 'finance'],
   'Access Control': ['super_admin', 'finance', 'support', 'moderator', 'analyst', "school_administrator"]
-} as const;
+} as const satisfies Record<string, readonly AdminRole[]>;
 
 export const TAB_TO_CATEGORY = {
   'Security Alerts': 'security',
-  'Financial Events': 'finance',
+  Financial: 'finance',
   'User Operations': 'social',
   'Admin Actions': 'profile',
   'Subscriptions': 'subscription',

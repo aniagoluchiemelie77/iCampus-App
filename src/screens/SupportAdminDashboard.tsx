@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { UserAvatar } from '../components/UserAvatar';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -26,11 +27,11 @@ import {
   Overview,
 } from '../components/AdminManagementComps.tsx';
 
-const allTabs = [
+const allTabs: CategoryKey[] = [
   'Overview',
   'Tickets',
   'Security Alerts',
-  'Finance',
+  'Financial',
   'User Operations',
   'Admin Actions',
   'Subscriptions',
@@ -49,8 +50,6 @@ const TABS = {
   'Access Control': AdminManagementSection,
 };
 
-type TabKey = keyof typeof TABS;
-
 const DashboardSkeleton = () => {
   const { colors: themeColors } = useTheme();
   return (
@@ -64,41 +63,45 @@ const DashboardSkeleton = () => {
 };
 export const AdminDashboard = () => {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= 768;
   const currentUser = useAppSelector(state => state.admin);
   const { unreadEmailSupportCount } = useAppDataContext();
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeTab, setActiveTab] = useState<CategoryKey>('Overview');
   const navigation = useNavigation<any>();
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
-  const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
-  const visibleTabs = allTabs.filter((tab): tab is CategoryKey => {
-    if (!(tab in CATEGORY_ACCESS)) return true;
-    const roles = CATEGORY_ACCESS[tab as CategoryKey];
-    return roles.includes(currentUser.adminType as any);
-  });
-  const ActiveComponent = TABS[activeTab as TabKey];
+  const toggleFab = () => setFabMenuVisible(prev => !prev);
+  const visibleTabs = allTabs.filter(tab =>
+    CATEGORY_ACCESS[tab].some(role => role === currentUser.adminType),
+  );
+  const ActiveComponent = TABS[activeTab];
   const canViewFabWidgets =
     currentUser.adminType === 'super_admin' ||
     currentUser.adminType === 'support';
+  const canManageAdmins = currentUser.adminType === 'super_admin';
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader
-        title="Admin Dashboard"
-        subtitle="Manage system administrators and team access"
-        rightElement={
-          canViewFabWidgets ? (
-            <CustomButton
-              title="Add Admin"
-              onPress={() => navigation.navigate('AdminFormPage')}
-              style={styles.topBtn}
-              iconName="admin-panel-settings"
-              iconColor="#fff"
-            />
-          ) : null
-        }
-      />
+      <View style={styles.headerFrame}>
+        <PageHeader
+          title="Admin Dashboard"
+          subtitle="Manage system administrators and team access"
+          rightElement={
+            canManageAdmins ? (
+              <CustomButton
+                title="Add Admin"
+                onPress={() => navigation.navigate('AdminFormPage')}
+                style={styles.topBtn}
+                iconName="admin-panel-settings"
+                iconColor="#fff"
+              />
+            ) : null
+          }
+        />
+      </View>
       <View
         style={[
           styles.profileCard,
+          { width: Math.min(1200, width - 30) },
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
@@ -108,7 +111,7 @@ export const AdminDashboard = () => {
           lastName={currentUser?.lastname}
           style={styles.merchantAvatar}
         />
-        <View style={{ marginLeft: 10, flex: 1 }}>
+        <View style={styles.profileIdentity}>
           <UserIdentity
             firstname={currentUser?.firstname!}
             lastname={currentUser?.lastname}
@@ -118,46 +121,59 @@ export const AdminDashboard = () => {
           />
         </View>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabBarScrollContainer}
-        style={[
-          styles.tabBarWrapper,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
-      >
-        {visibleTabs.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab
-                  ? { color: colors.primary }
-                  : { color: colors.text },
-              ]}
+      <View style={styles.tabBarFrame}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabBarScrollContainer}
+          style={[
+            styles.tabBarWrapper,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          {visibleTabs.map(tab => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
             >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab
+                    ? { color: colors.primary }
+                    : { color: colors.text },
+                ]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+      <View style={styles.contentFrame}>
         <Suspense fallback={<DashboardSkeleton />}>
-          {ActiveComponent ? (
-            <ActiveComponent activeTab={activeTab} />
+          {activeTab === 'Overview' ? (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.overviewContent}
+            >
+              <Overview />
+            </ScrollView>
           ) : (
-            <ActivityIndicator size={'large'} color={colors.primary} />
+            <ActiveComponent activeTab={activeTab} />
           )}
         </Suspense>
-      </ScrollView>
+      </View>
       {!isFabMenuVisible && (
         <TouchableOpacity
-          style={styles.fab}
+          style={[
+            styles.fab,
+            isLargeScreen && {
+              right: Math.max(24, (width - 1280) / 2 + 24),
+              bottom: 96,
+            },
+          ]}
           onPress={() => {
             if (canViewFabWidgets) {
               setFabMenuVisible(true);
@@ -173,12 +189,14 @@ export const AdminDashboard = () => {
           />
         </TouchableOpacity>
       )}
-      <AdminExpandableFAB
-        isVisible={isFabMenuVisible}
-        onClose={toggleFab}
-        actions={['Search', 'Support Inquiries']}
-        unreadSupportCount={unreadEmailSupportCount}
-      />
+      {canViewFabWidgets && (
+        <AdminExpandableFAB
+          isVisible={isFabMenuVisible}
+          onClose={toggleFab}
+          actions={['Search', 'Support Inquiries']}
+          unreadSupportCount={unreadEmailSupportCount}
+        />
+      )}
     </View>
   );
 };
@@ -187,12 +205,23 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerFrame: {
+    width: '100%',
+    maxWidth: 1280,
+    alignSelf: 'center',
+  },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
     marginBottom: 20,
-    marginHorizontal: 15,
+    borderRadius: 12,
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
+  profileIdentity: {
+    marginLeft: 10,
+    flex: 1,
   },
   tab: {
     paddingVertical: 10,
@@ -212,14 +241,26 @@ export const styles = StyleSheet.create({
   },
   tabBarWrapper: {
     marginBottom: 15,
+    flexGrow: 0,
   },
-  content: {
-    marginHorizontal: 15,
+  tabBarFrame: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
+  contentFrame: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingHorizontal: 15,
   },
   tabBarScrollContainer: {
-    marginHorizontal: 15,
-    marginBottom: 20,
+    paddingHorizontal: 15,
     alignItems: 'center',
+  },
+  overviewContent: {
+    paddingBottom: 110,
   },
   merchantAvatar: {
     width: 80,

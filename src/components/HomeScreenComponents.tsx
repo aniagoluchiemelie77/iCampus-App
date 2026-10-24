@@ -314,6 +314,11 @@ export function FeedTab() {
       } catch (error) {
         console.error('Fetch error:', error);
         setLoadError(stateRef.current.posts.length ? 'more' : 'initial');
+        Toast.show({
+          type: 'error',
+          text1: 'Could not load posts',
+          text2: 'Check your connection and try again.',
+        });
       } finally {
         fetchingRef.current = false;
         setHasLoadedOnce(true);
@@ -528,8 +533,11 @@ const styles = StyleSheet.create({
   },
   postsDiv: {
     position: 'relative',
-    marginHorizontal: 15,
     flex: 1,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    paddingHorizontal: 15,
   },
   emptyContent: { flexGrow: 1 },
   footerSpinner: { margin: 20 },
@@ -1456,5 +1464,3 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
 });
-
-

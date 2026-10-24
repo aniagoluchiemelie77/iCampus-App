@@ -8,7 +8,7 @@ import {
   FlatList,
   ActivityIndicator,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { PostCard } from '../components/PostCard';
 import { UserAvatar } from '../components/UserAvatar';
@@ -35,9 +35,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { Course } from '../types/firebase';
 import { CourseModal } from './ClassroomScreenComponents.tsx';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
 
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
 const CATEGORIES = ['people', 'posts', 'courses', 'resources', 'store'];
@@ -81,12 +78,14 @@ const TAB_META: Record<
 
 export const SearchScreen = () => {
   const navigation = useNavigation<any>();
+  const { width } = useWindowDimensions();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const { colors } = useTheme();
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const currentUser = useAppSelector(state => state.user) || initialState;
   const [activeTab, setActiveTab] = useState<SearchTab>('people');
+  const productColumns = activeTab === 'market' ? (width >= 768 ? 4 : 2) : 1;
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -186,7 +185,12 @@ export const SearchScreen = () => {
 
       case 'market':
         return (
-          <View style={styles.productWrapper}>
+          <View
+            style={[
+              styles.productWrapper,
+              { width: `${100 / productColumns}%` },
+            ]}
+          >
             <ProductCard
               product={item}
               onPress={() =>
@@ -291,6 +295,7 @@ export const SearchScreen = () => {
               </View>
             ) : searchResults.length > 0 ? (
               <FlatList
+                key={`${activeTab}-${productColumns}`}
                 data={searchResults}
                 keyExtractor={item =>
                   item.postId ||
@@ -301,6 +306,7 @@ export const SearchScreen = () => {
                   item.id
                 }
                 renderItem={renderItemCard}
+                numColumns={productColumns}
                 contentContainerStyle={{
                   paddingBottom: 40,
                   marginHorizontal: 15,
@@ -354,6 +360,9 @@ export const SearchScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 1000,
+    alignSelf: 'center',
   },
   activeSearchHeader: {
     borderRadius: 8,
@@ -407,7 +416,8 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   productWrapper: {
-    width: CARD_WIDTH,
+    maxWidth: 300,
+    paddingHorizontal: 6,
     marginBottom: 15,
   },
   tabBarScrollContainer: {

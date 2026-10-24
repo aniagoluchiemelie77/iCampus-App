@@ -10,7 +10,6 @@ import Toast from 'react-native-toast-message';
 import axios from 'axios';
 import type {
   Posts,
-  User,
   CourseException,
   Lecture,
   Course,

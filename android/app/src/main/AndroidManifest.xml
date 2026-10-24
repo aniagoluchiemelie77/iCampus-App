@@ -45,7 +45,12 @@
       android:usesCleartextTraffic="true"
       android:supportsRtl="true">
       <!-- Small icon for pushes the system draws while the app is closed
-           (channel id and colour come from firebase.json). -->
+           (channel id comes from firebase.json; the colour is set here because
+           the library module cannot resolve the app's @color resources). -->
+      <meta-data
+  android:name="com.google.firebase.messaging.default_notification_color"
+  android:resource="@color/notification_color"
+  tools:replace="android:resource" />
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_icon"
         android:resource="@drawable/ic_notification" />

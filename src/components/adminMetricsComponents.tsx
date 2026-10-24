@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { CurrencyDisplay } from './CurrencyFormatter';
@@ -144,11 +145,15 @@ export const EntityPreviewSection = ({
 };
 export const DashboardSummary = ({ stats }: { stats: any }) => {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const cardWidth = width >= 768 ? '32%' : '48%';
+  const safeStats = stats ?? {};
   return (
     <View style={styles.summaryContainer}>
       <View
         style={[
           styles.card,
+          { width: cardWidth },
           {
             backgroundColor: colors.backgroundSecondary,
             borderColor: colors.border,
@@ -157,12 +162,13 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
       >
         <Text style={[styles.label, { color: colors.text }]}>Active Users</Text>
         <Text style={[styles.value, { color: colors.textDarker }]}>
-          {stats.activeUsers}
+          {safeStats.activeUsers ?? 0}
         </Text>
       </View>
       <View
         style={[
           styles.card,
+          { width: cardWidth },
           {
             backgroundColor: colors.backgroundSecondary,
             borderColor: colors.border,
@@ -173,12 +179,12 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
           Total Liquidity
         </Text>
         <CurrencyDisplay
-          value={stats.platformLiquidity}
+          value={safeStats.platformLiquidity ?? 0}
           size="large"
         />
         <View style={styles.sparklineWrapper}>
           <Sparkline
-            data={stats.liquidityTrend}
+            data={safeStats.liquidityTrend?.inFlow || []}
             color={colors.success}
             bgFrom={colors.backgroundSecondary}
             bgTo={colors.backgroundSecondary}
@@ -188,6 +194,7 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
       <View
         style={[
           styles.card,
+          { width: cardWidth },
           {
             backgroundColor: colors.backgroundSecondary,
             borderColor: colors.border,
@@ -196,11 +203,11 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
       >
         <Text style={[styles.label, { color: colors.text }]}>Open Tickets</Text>
         <Text style={[styles.value, { color: colors.textDarker }]}>
-          {stats.pendingTickets}
+          {safeStats.pendingTickets ?? 0}
         </Text>
         <View style={styles.sparklineWrapper}>
           <Sparkline
-            data={stats.ticketTrend}
+            data={safeStats.ticketTrend}
             color={colors.primary}
             bgFrom={colors.backgroundSecondary}
             bgTo={colors.backgroundSecondary}
@@ -212,6 +219,8 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
 };
 export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const chartWidth = Math.min(width - 60, 900);
   const totalIn = trendData.inFlow.reduce((sum, val) => sum + val, 0);
   const totalOut = trendData.outFlow.reduce((sum, val) => sum + val, 0);
 
@@ -229,6 +238,7 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
         <View
           style={[
             styles.card,
+            { width: '48%' },
             {
               backgroundColor: colors.backgroundSecondary,
               borderColor: colors.border,
@@ -241,6 +251,7 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
         <View
           style={[
             styles.card,
+            { width: '48%' },
             {
               backgroundColor: colors.backgroundSecondary,
               borderColor: colors.border,
@@ -267,7 +278,7 @@ export const FinanceSection = ({ trendData }: FinanceSectionProps) => {
             },
           ],
         }}
-        width={320}
+        width={chartWidth}
         height={180}
         chartConfig={{
           backgroundGradientFrom: colors.backgroundSecondary,
@@ -635,6 +646,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 15,
   },
   card: {

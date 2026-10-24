@@ -108,6 +108,7 @@ interface ManualCourseResponse {
   courseId?: string;
 }
 interface SystemNotificationPayload {
+  ticketRefId: string;
   recipientId: string;
   title: string;
   message: string;
@@ -341,6 +342,13 @@ export const handleLogout = async (navigation: any) => {
   } finally {
     // Session keys only: keep app flags such as hasLaunched.
     await clearSession();
+    // Reset Redux user state so stale data does not bleed into the next login.
+    try {
+      const storeModule = await import('../context/store');
+      storeModule.store.dispatch({ type: 'user/clearUser' });
+    } catch (dispatchErr) {
+      console.warn('Could not dispatch clearUser on logout:', dispatchErr);
+    }
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
@@ -2408,7 +2416,7 @@ export const sendSystemNotification = async (notificationData: SystemNotificatio
     
     const data = await response.json();
     
-    if (!response.ok) {
+    if (!response.ok || data?.success === false) {
       Toast.show({
         type: 'error',
         text1: 'Notification Failed',
@@ -2838,6 +2846,7 @@ export const confirmPaymentAPI = (txRef: string, transactionId: string) =>
     tier?: string;
     subscriptionExpiresAt?: string;
     exceptionCredits?: number;
+    exceptionCreditsAdded?: number;
     transactionId?: string;
   }>('/users/payments/confirm', { txRef, transactionId });
 

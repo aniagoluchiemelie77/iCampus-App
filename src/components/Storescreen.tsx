@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Dimensions,
   View,
   FlatList,
   TouchableOpacity,
@@ -8,6 +7,7 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from './ProductCard';
@@ -19,9 +19,6 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppDataContext } from '../context/EventContext';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
 
 interface IconButtonProps {
   onPress: () => void;
@@ -84,7 +81,9 @@ export const HeaderActionButton = ({
 
 export const StoreScreen = () => {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const navigation = useNavigation<any>();
+  const productColumns = width >= 768 ? 4 : 2;
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -228,11 +227,17 @@ export const StoreScreen = () => {
         <ActivityIndicator size="large" color={colors.primary} />
       ) : (
         <FlatList
+          key={productColumns}
           data={currentTabData.products}
           keyExtractor={(item, index) => `${item.productId}-${index}`}
-          numColumns={2}
+          numColumns={productColumns}
           renderItem={({ item }) => (
-            <View style={styles.cardWrapper}>
+            <View
+              style={[
+                styles.cardWrapper,
+                { width: `${100 / productColumns}%` },
+              ]}
+            >
               <ProductCard
                 product={item}
                 onPress={() =>
@@ -273,7 +278,13 @@ export const StoreScreen = () => {
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 15 },
+  container: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingHorizontal: 15,
+  },
   searchInput: {
     fontSize: 14,
     padding: 10,
@@ -300,10 +311,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cardWrapper: {
-    width: CARD_WIDTH,
-    maxWidth: 220,
+    width: '25%',
+    maxWidth: 300,
+    paddingHorizontal: 6,
     marginBottom: 15,
-    marginHorizontal: '1.5%',
   },
   tabBarScrollContainer: {
     paddingHorizontal: 10,

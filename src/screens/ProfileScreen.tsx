@@ -52,8 +52,9 @@ import moment from 'moment';
 import { parseFirestoreDate } from '../utils/dateFormatter';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.7;
-const CARD_HEIGHT = 190;
+const CARD_WIDTH = width * 0.82;
+const CARD_HEIGHT = 200;
+const CARD_GAP = 16;
 const POPULAR_SKILLS = [
   'Programming',
   'Graphic Design',
@@ -76,87 +77,95 @@ const CourseCard = ({ item }: { item: any }) => {
   return (
     <>
       <TouchableOpacity
-        style={styles.courseCard}
-        activeOpacity={0.9}
+        style={[styles.courseCard, { borderColor: colors.border }]}
+        activeOpacity={0.85}
         onPress={() => setModalVisible(true)}
       >
-        {isProfessional ? (
-          <>
+        {/* Visual thumbnail area */}
+        <View style={styles.thumbnailArea}>
+          {isProfessional ? (
             <Image
               source={{ uri: item.thumbnailUrl }}
               style={styles.thumbnail}
               resizeMode="cover"
             />
-            <View style={styles.proInfo}>
-              <Text
-                style={[styles.courseName, { color: colors.text }]}
-                numberOfLines={1}
-              >
-                {item.courseTitle}
-              </Text>
-              <Text
-                style={[styles.description, { color: colors.text }]}
-                numberOfLines={2}
-              >
-                {item.description || 'No description available.'}
-              </Text>
-              <View style={styles.rowDiv}>
-                <View style={styles.ratingRow}>
-                  <MaterialIcons name="star" size={12} color={colors.text} />
-                  <Text style={[styles.ratingText, { color: colors.text }]}>
-                    {item.rating || '4.5'}
-                  </Text>
-                </View>
-                <View style={styles.ratingRow}>
-                  <MaterialIcons
-                    name="access-time"
-                    size={12}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.durationText, { color: colors.text }]}>
-                    {formatTime(item.courseDuration)}
-                  </Text>
-                </View>
-              </View>
+          ) : (
+            <View style={styles.academicPlaceholder}>
+              <MaterialIcons
+                name="auto-stories"
+                size={32}
+                color={colors.primary}
+              />
             </View>
-          </>
-        ) : (
-          // --- ACADEMIC STYLE LAYOUT ---
-          <>
-            <MaterialIcons
-              name="auto-stories"
-              size={24}
-              color={colors.text}
-              style={{ alignSelf: 'center' }}
-            />
-            <View style={styles.courseInfo}>
-              <Text
-                style={[styles.courseName, { color: colors.text }]}
-                numberOfLines={2}
-              >
-                {item.courseTitle}
+          )}
+          {/* Active status corner chip */}
+          {item.isActive !== false && (
+            <View style={styles.statusBadge}>
+              <Text style={[styles.statusText, { color: colors.btnTextColor }]}>
+                Active
               </Text>
-              {item.courseCode && (
-                <Text style={[styles.courseCode, { color: colors.text }]}>
-                  {item.courseCode}
+            </View>
+          )}
+        </View>
+
+        {/* Details body */}
+        <View style={styles.courseBody}>
+          <Text
+            style={[styles.courseName, { color: colors.text }]}
+            numberOfLines={2}
+          >
+            {item.courseTitle}
+          </Text>
+          {item.courseCode && (
+            <Text style={[styles.courseCode, { color: colors.textDarker }]}>
+              {item.courseCode}
+            </Text>
+          )}
+          {!isProfessional && item.session && item.semester && (
+            <View style={styles.courseMeta}>
+              <Text
+                style={[styles.courseMetaText, { color: colors.textDarker }]}
+              >
+                {item.session}
+              </Text>
+              <Text
+                style={[
+                  styles.courseMetaSeparator,
+                  { color: colors.textDarker },
+                ]}
+              >
+                |
+              </Text>
+              <Text
+                style={[styles.courseMetaText, { color: colors.textDarker }]}
+              >
+                {item.semester}
+              </Text>
+            </View>
+          )}
+          {isProfessional && (
+            <View style={styles.courseMeta}>
+              <View style={styles.ratingRow}>
+                <MaterialIcons name="star" size={14} color={colors.primary} />
+                <Text style={[styles.ratingText, { color: colors.textDarker }]}>
+                  {item.rating || '4.5'}
                 </Text>
-              )}
-              <View style={styles.courseMeta}>
-                <Text style={[styles.courseMetaText, { color: colors.text }]}>
-                  {item.session}
-                </Text>
+              </View>
+              <View style={styles.ratingRow}>
+                <MaterialIcons
+                  name="access-time"
+                  size={14}
+                  color={colors.primary}
+                />
                 <Text
-                  style={[styles.courseMetaSeparator, { color: colors.text }]}
+                  style={[styles.durationText, { color: colors.textDarker }]}
                 >
-                  |
-                </Text>
-                <Text style={[styles.courseMetaText, { color: colors.text }]}>
-                  {item.semester}
+                  {formatTime(item.courseDuration)}
                 </Text>
               </View>
             </View>
-          </>
-        )}
+          )}
+        </View>
       </TouchableOpacity>
       <Modal
         isVisible={modalVisible}
@@ -271,12 +280,15 @@ export const CoursesView = ({
         renderItem={({ item }) => <CourseCard item={item} />}
         horizontal
         showsHorizontalScrollIndicator={false}
-        snapToInterval={CARD_WIDTH + 20}
+        snapToInterval={courses.length > 1 ? CARD_WIDTH + CARD_GAP : 0}
         decelerationRate="fast"
-        contentContainerStyle={{ paddingHorizontal: 20 }}
+        contentContainerStyle={{
+          paddingHorizontal: courses.length > 1 ? 16 : 0,
+          paddingRight: courses.length > 1 ? 16 : 0,
+        }}
         getItemLayout={(data, index) => ({
-          length: CARD_WIDTH + 20,
-          offset: (CARD_WIDTH + 20) * index,
+          length: CARD_WIDTH + CARD_GAP,
+          offset: (CARD_WIDTH + CARD_GAP) * index,
           index,
         })}
       />
@@ -310,21 +322,35 @@ const ProfileTabSection = ({
   );
 
   if (loading && items.length === 0) {
-    return <ActivityIndicator style={{ marginVertical: 24 }} color={colors.primary} />;
+    return (
+      <ActivityIndicator
+        style={{ marginVertical: 24 }}
+        color={colors.primary}
+      />
+    );
   }
   if (error && items.length === 0) {
     return (
       <TouchableOpacity style={styles.tabState} onPress={reload}>
         <Text style={[styles.emptyText, { color: colors.text }]}>{error}</Text>
-        <Text style={[styles.tabRetry, { color: colors.primary }]}>Tap to retry</Text>
+        <Text style={[styles.tabRetry, { color: colors.primary }]}>
+          Tap to retry
+        </Text>
       </TouchableOpacity>
     );
   }
   if (items.length === 0) {
     return (
       <View style={styles.tabState}>
-        <MaterialIcons name={isMedia ? 'photo-library' : 'article'} size={30} color={colors.text} style={{ opacity: 0.5 }} />
-        <Text style={[styles.emptyText, { color: colors.text }]}>{emptyText}</Text>
+        <MaterialIcons
+          name={isMedia ? 'photo-library' : 'article'}
+          size={30}
+          color={colors.text}
+          style={{ opacity: 0.5 }}
+        />
+        <Text style={[styles.emptyText, { color: colors.text }]}>
+          {emptyText}
+        </Text>
       </View>
     );
   }
@@ -334,7 +360,11 @@ const ProfileTabSection = ({
         <View style={styles.mediaGrid}>
           {items.map(item => (
             // Three per row inside the 12px side padding.
-            <MediaGridItem key={item.postId} post={item} size={(width - 24) / 3 - 2} />
+            <MediaGridItem
+              key={item.postId}
+              post={item}
+              size={(width - 24) / 3 - 2}
+            />
           ))}
         </View>
       ) : (
@@ -344,10 +374,23 @@ const ProfileTabSection = ({
         <TouchableOpacity
           activeOpacity={0.8}
           style={[styles.viewAllBtn, { borderColor: colors.border }]}
-          onPress={() => navigation.navigate('ProfileContentList', { identifier: uid, tab, title: tab, isMedia })}
+          onPress={() =>
+            navigation.navigate('ProfileContentList', {
+              identifier: uid,
+              tab,
+              title: tab,
+              isMedia,
+            })
+          }
         >
-          <Text style={[styles.viewAllText, { color: colors.primary }]}>View all {tab.toLowerCase()}</Text>
-          <MaterialIcons name="chevron-right" size={18} color={colors.primary} />
+          <Text style={[styles.viewAllText, { color: colors.primary }]}>
+            View all {tab.toLowerCase()}
+          </Text>
+          <MaterialIcons
+            name="chevron-right"
+            size={18}
+            color={colors.primary}
+          />
         </TouchableOpacity>
       )}
     </View>
@@ -361,9 +404,13 @@ const ProfileTabSection = ({
 const buildDefaultAbout = (p: any): string => {
   const first = p.firstname || p.username || 'This member';
   const where = p.country ? ` based in ${p.country}` : '';
-  const joinedDate = p.createdAt ? moment(parseFirestoreDate(p.createdAt)) : null;
+  const joinedDate = p.createdAt
+    ? moment(parseFirestoreDate(p.createdAt))
+    : null;
   const joined =
-    joinedDate && joinedDate.isValid() ? ` Joined iCampus in ${joinedDate.format('MMMM YYYY')}.` : '';
+    joinedDate && joinedDate.isValid()
+      ? ` Joined iCampus in ${joinedDate.format('MMMM YYYY')}.`
+      : '';
   const dept = p.department ? ` in ${p.department}` : '';
   const school = p.schoolName ? ` at ${p.schoolName}` : '';
 
@@ -389,7 +436,17 @@ const ROLE_META: Record<string, { label: string; icon: string }> = {
   otherUser: { label: 'Member', icon: 'person' },
 };
 
-const MetaChip = ({ icon, label, onPress, colors }: { icon: string; label: string; onPress?: () => void; colors: any }) => (
+const MetaChip = ({
+  icon,
+  label,
+  onPress,
+  colors,
+}: {
+  icon: string;
+  label: string;
+  onPress?: () => void;
+  colors: any;
+}) => (
   <TouchableOpacity
     disabled={!onPress}
     onPress={onPress}
@@ -397,13 +454,31 @@ const MetaChip = ({ icon, label, onPress, colors }: { icon: string; label: strin
     style={[styles.metaChip, { backgroundColor: colors.background }]}
   >
     <MaterialIcons name={icon} size={14} color={colors.primary} />
-    <Text style={[styles.metaChipText, { color: onPress ? colors.primary : colors.text }]} numberOfLines={1}>
+    <Text
+      style={[
+        styles.metaChipText,
+        { color: onPress ? colors.primary : colors.text },
+      ]}
+      numberOfLines={1}
+    >
       {label}
     </Text>
   </TouchableOpacity>
 );
 
-const StatTile = ({ value, label, onPress, loading, colors }: { value: number; label: string; onPress?: () => void; loading?: boolean; colors: any }) => (
+const StatTile = ({
+  value,
+  label,
+  onPress,
+  loading,
+  colors,
+}: {
+  value: number;
+  label: string;
+  onPress?: () => void;
+  loading?: boolean;
+  colors: any;
+}) => (
   <TouchableOpacity
     disabled={!onPress || loading}
     onPress={onPress}
@@ -415,7 +490,9 @@ const StatTile = ({ value, label, onPress, loading, colors }: { value: number; l
     {loading ? (
       <ActivityIndicator size="small" color={colors.primary} />
     ) : (
-      <Text style={[styles.statTileValue, { color: colors.textDarker }]}>{formatCount(value || 0)}</Text>
+      <Text style={[styles.statTileValue, { color: colors.textDarker }]}>
+        {formatCount(value || 0)}
+      </Text>
     )}
     <Text style={[styles.statTileLabel, { color: colors.text }]}>{label}</Text>
   </TouchableOpacity>
@@ -477,13 +554,24 @@ export const ProfileScreen = ({ route }: any) => {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const payload: any = modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
+      const payload: any =
+        modalType === 'about' ? { bio: tempBio } : { skills: tempSkills };
       await patchUserProfile(payload);
-      updateLocalProfile((prev: any) => (prev ? { ...prev, ...payload } : null));
+      updateLocalProfile((prev: any) =>
+        prev ? { ...prev, ...payload } : null,
+      );
       setEditModalVisible(false);
-      Toast.show({ type: 'success', text1: 'Update Successful', text2: 'Your profile has been updated.' });
+      Toast.show({
+        type: 'success',
+        text1: 'Update Successful',
+        text2: 'Your profile has been updated.',
+      });
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: 'Update Failed', text2: 'Could not update profile.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: 'Could not update profile.',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -496,7 +584,10 @@ export const ProfileScreen = ({ route }: any) => {
   const openConnections = async (type: 'followers' | 'following') => {
     if (!profileData?.uid || connections.loading) return;
     setConnections(c => ({ ...c, loading: type }));
-    const res = await fetchProfileConnectionsAPI({ uid: profileData.uid, type });
+    const res = await fetchProfileConnectionsAPI({
+      uid: profileData.uid,
+      type,
+    });
     if (!res.success) {
       Toast.show({ type: 'error', text2: `Could not load ${type}.` });
       setConnections({ type: null, data: [], loading: null });
@@ -524,7 +615,9 @@ export const ProfileScreen = ({ route }: any) => {
   const shareProfile = async () => {
     setMoreMenuVisible(false);
     try {
-      await Share.share({ message: `Check out ${profileData?.firstname || 'this profile'} on iCampus: ${profileLink}` });
+      await Share.share({
+        message: `Check out ${profileData?.firstname || 'this profile'} on iCampus: ${profileLink}`,
+      });
     } catch {
       // Share sheet dismissed.
     }
@@ -541,14 +634,24 @@ export const ProfileScreen = ({ route }: any) => {
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
         await AsyncStorage.setItem('admin', JSON.stringify(admin));
-        dispatch(setAdmin({ ...admin, accessToken, tokenCreatedAt: Date.now() }));
-        Toast.show({ type: 'success', text1: 'Welcome', text2: 'Successfully switched to Institution Admin dashboard.' });
+        dispatch(
+          setAdmin({ ...admin, accessToken, tokenCreatedAt: Date.now() }),
+        );
+        Toast.show({
+          type: 'success',
+          text1: 'Welcome',
+          text2: 'Successfully switched to Institution Admin dashboard.',
+        });
         navigation.navigate('AdminDashboard');
       } catch (storageError) {
         console.error('Storage/Navigation Error during switch:', storageError);
       }
     } else {
-      Toast.show({ type: 'error', text1: 'Switch Failed', text2: result?.error || 'Could not switch to administrator mode.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Switch Failed',
+        text2: result?.error || 'Could not switch to administrator mode.',
+      });
     }
   };
 
@@ -560,9 +663,16 @@ export const ProfileScreen = ({ route }: any) => {
       }
       setIsLoading(true);
       try {
-        const response = await fetch(`https://api.datamuse.com/words?ml=${skillInput}&max=10`);
+        const response = await fetch(
+          `https://api.datamuse.com/words?ml=${skillInput}&max=10`,
+        );
         const data = await response.json();
-        setApiSuggestions(data.map((item: any) => item.word.charAt(0).toUpperCase() + item.word.slice(1)));
+        setApiSuggestions(
+          data.map(
+            (item: any) =>
+              item.word.charAt(0).toUpperCase() + item.word.slice(1),
+          ),
+        );
       } catch (error) {
         console.error('Skill API error:', error);
       } finally {
@@ -578,11 +688,18 @@ export const ProfileScreen = ({ route }: any) => {
       title="Profile"
       rightElement={
         <View style={styles.headerRightDiv}>
-          <TouchableOpacity onPress={() => setIsSearchFocused(true)} style={{ marginRight: 6 }} accessibilityLabel="Search people">
+          <TouchableOpacity
+            onPress={() => setIsSearchFocused(true)}
+            style={{ marginRight: 6 }}
+            accessibilityLabel="Search people"
+          >
             <MaterialIcons name="search" size={23} color={colors.primary} />
           </TouchableOpacity>
           {isOwner && (
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} accessibilityLabel="Settings">
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityLabel="Settings"
+            >
               <MaterialIcons name="settings" size={23} color={colors.primary} />
             </TouchableOpacity>
           )}
@@ -687,7 +804,9 @@ export const ProfileScreen = ({ route }: any) => {
   const headline =
     profileData.headline || builtHeadline || 'iCampus community member';
   const hasOwnBio = !!profileData.bio?.trim();
-  const aboutText = hasOwnBio ? profileData.bio : buildDefaultAbout(profileData);
+  const aboutText = hasOwnBio
+    ? profileData.bio
+    : buildDefaultAbout(profileData);
   const websiteLabel = profileData.website
     ?.replace(/^https?:\/\//, '')
     .replace(/\/$/, '');
@@ -966,7 +1085,11 @@ export const ProfileScreen = ({ route }: any) => {
                 style={styles.writeOwnBtn}
                 accessibilityRole="button"
               >
-                <MaterialIcons name="edit-note" size={18} color={colors.primary} />
+                <MaterialIcons
+                  name="edit-note"
+                  size={18}
+                  color={colors.primary}
+                />
                 <Text style={[styles.seeMoreText, { color: colors.primary }]}>
                   This is a default description. Write your own
                 </Text>
@@ -1316,8 +1439,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   identityTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  identityName: { paddingHorizontal: 0, paddingTop: 0, backgroundColor: 'transparent' },
-  iconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  identityName: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    backgroundColor: 'transparent',
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   metaChip: {
     flexDirection: 'row',
@@ -1337,12 +1470,24 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  statTile: { flex: 1, alignItems: 'center', paddingVertical: 2, minHeight: 40, justifyContent: 'center' },
+  statTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
   statTileValue: { fontSize: 18, fontWeight: '800' },
   statTileLabel: { fontSize: 12, marginTop: 2, opacity: 0.8 },
   statDivider: { width: StyleSheet.hairlineWidth, height: 28 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  fillBtn: { flex: 1, width: 'auto', height: 44, borderRadius: 22, paddingHorizontal: 12 },
+  fillBtn: {
+    flex: 1,
+    width: 'auto',
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 12,
+  },
   outlineBtn: {
     flex: 1,
     height: 44,
@@ -1366,9 +1511,26 @@ const styles = StyleSheet.create({
   tabState: { alignItems: 'center', paddingVertical: 28, gap: 6 },
   tabRetry: { fontSize: 13, fontWeight: '700' },
   mediaGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
-  sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+  },
   sheetText: { fontSize: 15.5, fontWeight: '600' },
   blockedContainer: {
     position: 'relative',
@@ -1410,48 +1572,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     fontWeight: '700',
   },
-  thumbnail: {
-    width: '100%',
-    height: '45%',
-  },
   proInfo: {
     padding: 10,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  durationText: {
-    fontSize: 12,
-    marginLeft: 4,
   },
   description: {
     fontSize: 12,
     marginVertical: 5,
-  },
-  courseName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  courseCode: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  courseMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  courseMetaText: {
-    fontSize: 12,
-  },
-  courseMetaSeparator: {
-    marginHorizontal: 5,
   },
   modalOverlay: {
     flex: 1,
@@ -1481,16 +1607,82 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     borderRadius: 16,
-    marginRight: 15,
+    marginRight: CARD_GAP,
     overflow: 'hidden',
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  courseInfo: {
-    padding: 15,
+  thumbnailArea: {
+    width: '100%',
+    height: 115,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#F5F5F5',
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  academicPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
+  },
+  courseBody: {
+    padding: 12,
+    paddingTop: 10,
+  },
+  courseName: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  courseCode: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: PRIMARY_COLOR,
+    marginBottom: 6,
+  },
+  courseMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  courseMetaText: {
+    fontSize: 11,
+    color: '#666',
+  },
+  courseMetaSeparator: {
+    fontSize: 11,
+    color: '#999',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
+  durationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
   },
   modalStatsRow: {
     flexDirection: 'row',
@@ -1703,7 +1895,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   defaultAboutText: { opacity: 0.8 },
-  writeOwnBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  writeOwnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
   seeMoreText: {
     fontWeight: '600',
   },

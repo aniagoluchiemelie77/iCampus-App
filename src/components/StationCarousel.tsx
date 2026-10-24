@@ -2,8 +2,7 @@ import React, {useState, useEffect, useMemo} from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {getDistanceInMiles} from '../utils/distanceCalculator';
-import {DropOffStation} from '../types/firebase';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { DropOffStation } from '../types/firebase';
 
 interface StationCarouselProps {
   stations: DropOffStation[];

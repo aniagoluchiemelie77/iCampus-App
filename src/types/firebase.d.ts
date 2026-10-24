@@ -119,7 +119,11 @@ type LectureReminderPayload = {
   lectureId: string;
   topicName: string;
   startTime: Date | string;
-  location: string;
+  endTime?: Date | string;
+  date?: Date | string;
+  location?: string;
+  lectureType: 'Physical' | 'Online' | 'Recorded';
+  isLecturer?: boolean;
   userName: string;
 };
 type SubscriptionUpgradedPayload = { 

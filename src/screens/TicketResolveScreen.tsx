@@ -12,7 +12,11 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { NotificationItem } from '../components/NotificationItem';
 import { updateTicketStatus } from '../api/localPatchApis';
-import { adminFetchUserDetails, adminFetchUserNotifications } from '../api/localGetApis';
+import {
+  adminFetchUserDetails,
+  adminFetchUserNotifications,
+  fetchSupportTicketByRefIdAPI,
+} from '../api/localGetApis';
 import Toast from 'react-native-toast-message';
 import { PageHeader } from '../components/PageHeader';
 import { UserAvatar } from '../components/UserAvatar';
@@ -30,6 +34,7 @@ export const TicketResolveScreen = () => {
 
   const { ticket } = route.params;
 
+  const [ticketDetails, setTicketDetails] = useState<any>(ticket);
   const [affectedUser, setAffectedUser] = useState<any>(null);
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,28 +47,44 @@ export const TicketResolveScreen = () => {
   useEffect(() => {
     const loadContextData = async () => {
       try {
-        const [userData, userNotifs] = await Promise.all([
-          adminFetchUserDetails(ticket.userId),
-          adminFetchUserNotifications({ userId: ticket.userId, limit: 10 }),
+        const [userData, userNotifs, ticketResult] = await Promise.all([
+          adminFetchUserDetails(ticketDetails.userId),
+          adminFetchUserNotifications({ userId: ticketDetails.userId, limit: 10 }),
+          fetchSupportTicketByRefIdAPI({
+            ticketRefId: ticketDetails.ticketRefId,
+          }),
         ]);
         setAffectedUser(userData);
         setRecentNotifications(userNotifs);
+        if (ticketResult.success && ticketResult.ticket) {
+          setTicketDetails(ticketResult.ticket);
+        } else {
+          Toast.show({
+            type: 'error',
+            text1: 'Ticket Refresh Failed',
+            text2: ticketResult.message || 'Showing the ticket list snapshot.',
+          });
+        }
       } catch (error) {
         Toast.show({
           type: 'error',
-          text2: 'Failed to load user context',
+          text2: 'Failed to load ticket details',
         });
       } finally {
         setIsLoading(false);
       }
     };
     loadContextData();
-  }, [ticket.userId]);
+  }, [ticketDetails.ticketRefId, ticketDetails.userId]);
 
   const handleSetResolved = async () => {
     try {
       setIsResolving(true);
-      await updateTicketStatus(ticket.ticketRefId, 'resolved');
+      const result = await updateTicketStatus(
+        ticketDetails.ticketRefId,
+        'resolved',
+      );
+      if (!result.success) return;
       setResolveModalVisible(false);
       navigation.goBack();
     } catch (error) {
@@ -242,28 +263,63 @@ export const TicketResolveScreen = () => {
           <View style={styles.rowBetweenDiv}>
             <Text style={[styles.textLabel, { color: colors.text }]}>
               Ref:{' '}
-              <Text style={{ fontWeight: 'bold' }}>#{ticket.ticketRefId}</Text>
+              <Text style={{ fontWeight: 'bold' }}>
+                #{ticketDetails.ticketRefId}
+              </Text>
             </Text>
             <Text style={[styles.textLabel, { color: colors.text }]}>
-              {ticket.category.charAt(0).toUpperCase() +
-                ticket.category.slice(1)}
+              {ticketDetails.category
+                ? ticketDetails.category.charAt(0).toUpperCase() +
+                  ticketDetails.category.slice(1)
+                : 'General'}
             </Text>
             <Text
               style={[
                 styles.textLabel,
-                { color: getSeverityColor(ticket.severity) },
+                { color: getSeverityColor(ticketDetails.severity || 'low') },
               ]}
             >
               {' '}
-              {ticket.severity.toUpperCase()}
+              {(ticketDetails.severity || 'low').toUpperCase()}
             </Text>
           </View>
-          {ticket.summary && (
+          {ticketDetails.summary && (
             <Text style={[styles.summaryText, { color: colors.text }]}>
-              {ticket.summary}
+              {ticketDetails.summary}
             </Text>
           )}
-          {ticket.originalMessage && (
+          {Array.isArray(ticketDetails.thread) &&
+          ticketDetails.thread.length > 0 ? (
+            <View style={styles.thread}>
+              <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+                Conversation
+              </Text>
+              {ticketDetails.thread.map((entry: any, index: number) => {
+                const sender =
+                  entry.sender ===
+                  (ticketDetails.guestEmail || ticketDetails.userId)
+                    ? 'User'
+                    : 'Support';
+                return (
+                  <View key={`${entry.timestamp || 'message'}-${index}`}>
+                    <Text style={[styles.threadSender, { color: colors.text }]}>
+                      {sender}
+                    </Text>
+                    <View
+                      style={[
+                        styles.messageBox,
+                        { borderLeftColor: colors.primary },
+                      ]}
+                    >
+                      <Text style={[styles.messageText, { color: colors.text }]}>
+                        {entry.message || 'Attachment'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : ticketDetails.originalMessage ? (
             <View
               style={[styles.messageBox, { borderLeftColor: colors.primary }]}
             >
@@ -273,10 +329,10 @@ export const TicketResolveScreen = () => {
                   { color: colors.text, fontStyle: 'italic' },
                 ]}
               >
-                "{ticket.originalMessage}"
+                "{ticketDetails.originalMessage}"
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* AFFECTED USER DETAILS */}
@@ -406,7 +462,7 @@ export const TicketResolveScreen = () => {
       <SendNotificationModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
-        ticket={ticket}
+        ticket={ticketDetails}
         navigation={navigation}
       />
       <EditUserModalContent
@@ -433,7 +489,15 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: { flex: 1, position: 'relative' },
-  scrollContent: { paddingBottom: 40, marginHorizontal: 15 },
+  scrollContent: {
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
+    paddingBottom: 40,
+    paddingHorizontal: 15,
+  },
+  thread: { marginTop: 12, gap: 8 },
+  threadSender: { fontSize: 12, fontWeight: '700', marginBottom: 4 },
   section: { padding: 15, borderRadius: 15, marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   rowBetween: {

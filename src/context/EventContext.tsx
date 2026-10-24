@@ -10,7 +10,6 @@ import React, {
 import type {
   User,
   Posts,
-  Comment,
   Product,
   CartItem,
   MarketplaceOrder,
@@ -158,8 +157,17 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   // The provider receives `user` as a prop; useState only reads it once, so
   // without this a fresh login left currentUser empty and every like,
   // bookmark, repost and vote acted as a signed-out user.
+  // When the user changes (logout → new login), clear all user-scoped
+  // state so data from the previous account never leaks into the new one.
+  const prevUserRef = useRef(user);
   useEffect(() => {
-    setCurrentUser(user);
+    if (prevUserRef.current?.uid !== user?.uid) {
+      setPosts([]);
+      setCursor(null);
+      setPendingOrders([]);
+      setCurrentUser(user);
+    }
+    prevUserRef.current = user;
   }, [user]);
 
   /** Applies an update to one post in the shared list (no-op if absent). */

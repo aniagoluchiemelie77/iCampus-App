@@ -2,6 +2,7 @@ import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import PagerView from 'react-native-pager-view';
 import {
   View,
+  Text,
   TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
@@ -22,7 +23,10 @@ import {
   onNotificationOpenedApp,
   getInitialNotification,
 } from '@react-native-firebase/messaging';
-import { navigateForNotification } from '../utils/notificationNavigation';
+import {
+  navigateForNotification,
+  showLectureReminderPrompt,
+} from '../utils/notificationNavigation';
 import {
   useSocketConnection,
   SocketContext,
@@ -106,27 +110,46 @@ export const SocketProvider = ({
 const TabBarItem = React.memo(
   ({
     icon,
+    label,
     active,
+    showLabel,
     onPress,
   }: {
     icon: string;
+    label: string;
     active: boolean;
+    showLabel: boolean;
     onPress: () => void;
   }) => {
     const { colors } = useTheme();
     return (
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={label}
         onPress={onPress}
         style={[
           styles.iconItem,
+          showLabel && styles.desktopIconItem,
           active && { backgroundColor: colors.backgroundSecondary },
         ]}
       >
         <MaterialIcons
           name={icon}
-          size={29}
+          size={showLabel ? 24 : 29}
           color={active ? colors.primary : colors.textDarker}
         />
+        {showLabel && (
+          <View>
+            <Text
+              style={[
+                styles.desktopTabLabel,
+                { color: active ? colors.primary : colors.textDarker },
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   },
@@ -286,7 +309,7 @@ const HomeScreen = () => {
       setLoading(false);
     }
   };
-  const isModalVisible = isLargeScreen ? true : isProfilePopupVisible;
+  const isModalVisible = isProfilePopupVisible;
   // No client-side "24h since login" logout here: it signed active users out
   // even with valid tokens. Expiry is handled by the token refresh in
   // fetchWithAuth, which logs out only when the server rejects the session.
@@ -302,6 +325,15 @@ const HomeScreen = () => {
       async (remoteMessage: any) => {
         playNotificationSound();
         console.log('A new FCM message arrived in foreground!', remoteMessage);
+        const data = remoteMessage?.data || {};
+        if (data.actionType === 'LECTURE_REMINDER') {
+          showLectureReminderPrompt(
+            navigation,
+            { actionType: data.actionType, payload: data, message: remoteMessage.notification?.body },
+            { uid: user?.uid, usertype: user?.usertype },
+          );
+          return;
+        }
         Toast.show({
           type: 'info',
           text1: remoteMessage.notification?.title || 'New Notification',
@@ -311,7 +343,7 @@ const HomeScreen = () => {
     );
 
     return unsubscribe;
-  }, []);
+  }, [navigation, user?.uid, user?.usertype]);
   // Tapping a push (app in background, or launched from a quit state) should
   // land on the same screen as tapping it in the Notifications list.
   const handledInitialPushRef = useRef(false);
@@ -396,46 +428,62 @@ const HomeScreen = () => {
   return (
     <>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <PageHeader
-          title={getHeaderTitle()}
-          showBackButton={false}
-          leftElement={
-            <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
-              <UserAvatar
-                profilePic={user?.profilePic}
-                firstName={user?.firstname}
-                lastName={user?.lastname}
-                organizationName={user?.organizationName}
-                style={styles.headerProfilePic}
-              />
-            </TouchableOpacity>
-          }
-          rightElement={getHeaderRightElement()}
-        />
+        <View style={styles.headerFrame}>
+          <PageHeader
+            title={getHeaderTitle()}
+            showBackButton={false}
+            leftElement={
+              <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
+                <UserAvatar
+                  profilePic={user?.profilePic}
+                  firstName={user?.firstname}
+                  lastName={user?.lastname}
+                  organizationName={user?.organizationName}
+                  style={styles.headerProfilePic}
+                />
+              </TouchableOpacity>
+            }
+            rightElement={getHeaderRightElement()}
+          />
+        </View>
         <PagerView
           style={styles.centerContent}
           initialPage={0}
           ref={pagerRef}
           onPageSelected={handlePageSelected}
         >
-          <View key="0">
-            <FeedTab />
+          <View key="0" style={styles.page}>
+            <View style={[styles.pageContent, styles.feedPageContent]}>
+              <FeedTab />
+            </View>
           </View>
-          <View key="1">
-            <ClassroomScreenComponent
-              userRole={rawRole as 'student' | 'lecturer'}
-            />
+          <View key="1" style={styles.page}>
+            <View style={[styles.pageContent, styles.classroomPageContent]}>
+              <ClassroomScreenComponent
+                userRole={rawRole as 'student' | 'lecturer'}
+              />
+            </View>
           </View>
-          <View key="2">
-            <SearchScreen />
+          <View key="2" style={styles.page}>
+            <View style={styles.pageContent}>
+              <SearchScreen />
+            </View>
           </View>
-          <View key="3">
-            <StoreScreen />
+          <View key="3" style={styles.page}>
+            <View style={styles.pageContent}>
+              <StoreScreen />
+            </View>
           </View>
         </PagerView>
         {fabConfig && !isFabMenuVisible && (
           <TouchableOpacity
-            style={styles.fab}
+            style={[
+              styles.fab,
+              isLargeScreen && {
+                right: Math.max(24, (width - 1280) / 2 + 24),
+                bottom: 96,
+              },
+            ]}
             onPress={() => setFabMenuVisible(true)}
           >
             <MaterialIcons
@@ -461,32 +509,45 @@ const HomeScreen = () => {
         <View
           style={[
             styles.iconBar,
+            isLargeScreen && styles.desktopIconBar,
             {
               backgroundColor: colors.background,
               borderColor: colors.border,
+              ...(isLargeScreen && {
+                left: Math.max(16, (width - 440) / 2),
+                right: Math.max(16, (width - 440) / 2),
+              }),
             },
           ]}
         >
           <TabBarItem
             icon="home"
+            label="Home"
             active={activeIcon === 'home'}
+            showLabel={isLargeScreen}
             onPress={() => handleTabPress('home')}
           />
           {isClassroomAllowed && (
             <TabBarItem
               icon="groups"
+              label="Classroom"
               active={activeIcon === 'classroom'}
+              showLabel={isLargeScreen}
               onPress={() => handleTabPress('classroom')}
             />
           )}
           <TabBarItem
             icon="search"
+            label="Search"
             active={activeIcon === 'search'}
+            showLabel={isLargeScreen}
             onPress={() => handleTabPress('search')}
           />
           <TabBarItem
             icon="shopping-cart"
+            label="Store"
             active={activeIcon === 'store'}
+            showLabel={isLargeScreen}
             onPress={() => handleTabPress('store')}
           />
         </View>
@@ -573,9 +634,30 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
   },
+  headerFrame: {
+    width: '100%',
+    maxWidth: 1280,
+    alignSelf: 'center',
+  },
   centerContent: {
     flex: 1,
     paddingBottom: 90,
+  },
+  page: {
+    flex: 1,
+    width: '100%',
+  },
+  pageContent: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
+  feedPageContent: {
+    maxWidth: 760,
+  },
+  classroomPageContent: {
+    maxWidth: 1000,
   },
   iconBar: {
     flexDirection: 'row',
@@ -596,10 +678,25 @@ const styles = StyleSheet.create({
     zIndex: 90,
     padding: 2,
   },
+  desktopIconBar: {
+    height: 62,
+    bottom: 16,
+    borderRadius: 31,
+    padding: 4,
+  },
   iconItem: {
     alignItems: 'center',
     flex: 1,
     borderRadius: 25,
+    justifyContent: 'center',
+  },
+  desktopIconItem: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  desktopTabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   activeIconLabel: {
     fontWeight: 'bold',

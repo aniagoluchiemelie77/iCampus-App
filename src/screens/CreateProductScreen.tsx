@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   View,
   Text,
@@ -277,8 +278,9 @@ export const CreateProductScreen = ({ route }: any) => {
 
       if (savedProduct) {
         saveProductToLocalDb({
-          productId: savedProduct.productId || savedProduct.id || productId,
-          id: savedProduct.id || savedProduct._id,
+          productId:
+            savedProduct.productId || savedProduct.id || productId || uuidv4(),
+          id: savedProduct.id || savedProduct._id || uuidv4(),
           title: savedProduct.title,
           description: savedProduct.description,
           price: savedProduct.price,

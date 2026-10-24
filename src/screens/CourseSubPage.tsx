@@ -82,7 +82,9 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   const [activeTest, setActiveTest] = useState<any | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [, setStartGateTick] = useState(0);
-  const [allLectures, setAllLectures] = useState<any[]>([]);
+  const [allLectures, setAllLectures] = useState<any[]>(
+    Array.isArray(lectures) ? lectures : [],
+  );
   const [lecturersLectureTimeline, setLecturersLectureTimeline] = useState<
     any[]
   >([]);
@@ -299,7 +301,14 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     (result: PaymentConfirmation) => {
       setIsBuyingException(false);
       dispatch(patchUser({ exceptionCredits: result.exceptionCredits ?? 1 }));
-      Toast.show({ type: 'success', text1: 'Payment received', position: 'bottom' });
+      Toast.show({
+        type: 'success',
+        text1: 'Allowance replenished',
+        text2: result.exceptionCreditsAdded
+          ? `${result.exceptionCreditsAdded} exception requests added.`
+          : 'Your exception requests were added.',
+        position: 'bottom',
+      });
       if (pendingException.current) {
         handleSaveException(pendingException.current);
       } else {
@@ -540,8 +549,13 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   }, [title, userRole, fetchTimeline, fetchLecturerLectureTimeline]);
 
   useEffect(() => {
-    if (title === 'Exceptions') handleFetchCourseLectures();
-  }, [title, handleFetchCourseLectures]);
+    if (
+      title === 'Exceptions' &&
+      (!Array.isArray(lectures) || lectures.length === 0)
+    ) {
+      handleFetchCourseLectures();
+    }
+  }, [title, lectures, handleFetchCourseLectures]);
 
   useEffect(() => {
     if (
@@ -772,11 +786,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           pendingException.current = null;
         }}
         request={{ purpose: 'exception' }}
-        title="Buy an extra exception"
+        title="Replenish exception allowance"
         subtitle={
           pendingException.current
-            ? "You've used this month's free exceptions. Your request is sent as soon as payment completes."
-            : 'Use it on your next exception request. Not refunded if the lecturer rejects it.'
+            ? "Your refill restores your monthly allowance. The pending request will be sent as soon as payment completes."
+            : 'Restore your monthly exception allowance for use after your free requests are exhausted.'
         }
         onPaid={handleExceptionPaid}
       />

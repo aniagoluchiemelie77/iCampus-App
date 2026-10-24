@@ -27,22 +27,25 @@ export const SendNotificationModal = ({
     if (!message.trim()) return;
     setIsSubmitting(true);
 
-    const notifRes = await sendSystemNotification({
-      recipientId: ticket.userId,
-      title: `Update on Ticket #${ticket.ticketRefId}`,
-      message,
-      category: 'system',
-    });
+    try {
+      const notifRes = await sendSystemNotification({
+        ticketRefId: ticket.ticketRefId,
+        recipientId: ticket.userId,
+        title: `Update on Ticket #${ticket.ticketRefId}`,
+        message,
+        category: 'system',
+      });
 
-    if (notifRes.success) {
-      const statusRes = await updateTicketStatus(ticket.ticketRefId, 'pending');
-      if (statusRes.success) {
-        onClose();
-        navigation.goBack();
+      if (notifRes.success) {
+        const statusRes = await updateTicketStatus(ticket.ticketRefId, 'pending');
+        if (statusRes.success) {
+          onClose();
+          navigation.goBack();
+        }
       }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   };
 
   return (

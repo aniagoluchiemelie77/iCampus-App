@@ -81,6 +81,12 @@ const Notifications = () => {
       if (!matchesTab(notif, activeTabRef.current)) return;
       const key = notificationGroupKey(notif);
       setNotifications(prev => {
+        if (
+          notif.actionType === 'LECTURE_REMINDER' &&
+          prev.some(n => n.notificationId === notif.notificationId)
+        ) {
+          return prev;
+        }
         const existing = prev.find(n => notificationGroupKey(n) === key);
         const rest = prev.filter(n => notificationGroupKey(n) !== key);
         const payload = notif.payload || {};
