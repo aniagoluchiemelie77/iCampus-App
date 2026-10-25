@@ -68,6 +68,8 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
   const [loadingAds, setLoadingAds] = useState(true);
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
+  const drawerWidth = isLargeScreen ? 320 : width * 0.8;
+  const adBannerWidth = Math.max(0, drawerWidth - 30);
   useEffect(() => {
     const fetchAdvertisements = async () => {
       setLoadingAds(true);
@@ -101,8 +103,9 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
         ]}
       >
         <ScrollView
+          style={styles.drawerMenuScroll}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={styles.drawerMenuContent}
         >
           <TouchableOpacity
             style={styles.userInfo}
@@ -188,9 +191,11 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            {!loadingAds && ads.length > 0 && <AdBanner ads={ads} />}
           </View>
         </ScrollView>
+        {!loadingAds && ads.length > 0 && (
+          <AdBanner ads={ads} width={adBannerWidth} />
+        )}
       </View>
     </Modal>
   );
@@ -307,7 +312,8 @@ export function FeedTab() {
             Toast.show({
               type: 'error',
               text1: 'Could not load posts',
-              text2: response?.message || 'Check your connection and try again.',
+              text2:
+                response?.message || 'Check your connection and try again.',
             });
           }
         }
@@ -343,6 +349,7 @@ export function FeedTab() {
     );
   }, [publishedVersion]);
   const handleEndReached = useCallback(() => {
+    console.log('Reached end...');
     // After a failed page, wait for an explicit retry instead of hammering the
     // server on every scroll event.
     if (loadError) return;
@@ -354,7 +361,8 @@ export function FeedTab() {
 
     currentSocket.on('new_post', (newPost: Posts) => {
       // Your own posts are inserted at the top by the upload flow already.
-      if (newPost?.originalAuthor && newPost.originalAuthor === currentUser.uid) return;
+      if (newPost?.originalAuthor && newPost.originalAuthor === currentUser.uid)
+        return;
       setPendingPosts(prev => {
         if (prev.find(p => p.postId === newPost.postId)) return prev;
         return [newPost, ...prev];
@@ -440,9 +448,16 @@ export function FeedTab() {
   };
   const renderFooter = () => {
     if (loadingMore) {
-      return <ActivityIndicator style={styles.footerSpinner} color={colors.primary} />;
+      console.log('Loading More...');
+      return (
+        <ActivityIndicator
+          style={styles.footerSpinner}
+          color={colors.primary}
+        />
+      );
     }
     if (loadError === 'more') {
+      console.log('Load error...');
       return (
         <TouchableOpacity
           style={[styles.retryMore, { borderColor: colors.primary }]}
@@ -1413,6 +1428,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     borderTopRightRadius: 20,
     padding: 15,
+  },
+  drawerMenuScroll: {
+    flex: 1,
+  },
+  drawerMenuContent: {
+    flexGrow: 1,
   },
   mobileDrawer: {
     width: '80%',

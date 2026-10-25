@@ -1,10 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
-import { Course } from '../types/firebase';
+import { Course, Lecture } from '../types/firebase';
 import { useAppSelector } from '../hooks/hooks';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import {
@@ -44,12 +50,6 @@ import { useTheme } from '../context/ThemeContext';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { RootStackParamList } from '../../App';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useDispatch } from 'react-redux';
-import { patchUser } from '../context/UserSlice';
-import {
-  FlutterwavePaySheet,
-  PaymentConfirmation,
-} from '../components/FlutterwavePaySheet';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CourseSubPage'>;
 
@@ -64,11 +64,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     userRole,
     exceptions: initialExceptions,
   } = route.params;
-  const dispatch = useDispatch();
   const [isModalVisible, setModalVisible] = useState(false);
-  const [isBuyingException, setIsBuyingException] = useState(false);
-  // An exception request waiting on payment for an extra exception.
-  const pendingException = useRef<Partial<any> | null>(null);
+  const [selectedExceptionLecture, setSelectedExceptionLecture] =
+    useState<Lecture | null>(null);
+  const [selectedExceptionCourse, setSelectedExceptionCourse] =
+    useState<Course | null>(null);
   const [loading, setLoading] = useState(false);
   const [localExceptions, setLocalExceptions] = useState<any[]>(
     initialExceptions || [],
@@ -258,9 +258,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
       setLoading(true);
       try {
         const result = await submitLectureException(newException);
-        if (typeof result.exceptionCredits === 'number') {
-          dispatch(patchUser({ exceptionCredits: result.exceptionCredits }));
-        }
         if (result.success && result.exception) {
           Toast.show({
             type: 'success',
@@ -269,12 +266,8 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
           });
           setLocalExceptions(prev => [result.exception, ...prev]);
           setModalVisible(false);
-          pendingException.current = null;
-        } else if (result.code === 'EXCEPTION_PAYMENT_REQUIRED') {
-          // Free allowance used up: pay, then this request is sent again.
-          pendingException.current = newException;
-          setModalVisible(false);
-          setIsBuyingException(true);
+          setSelectedExceptionLecture(null);
+          setSelectedExceptionCourse(null);
         } else {
           Toast.show({
             type: 'error',
@@ -294,28 +287,41 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
         setLoading(false);
       }
     },
-    [dispatch],
+    [],
   );
-
-  const handleExceptionPaid = useCallback(
-    (result: PaymentConfirmation) => {
-      setIsBuyingException(false);
-      dispatch(patchUser({ exceptionCredits: result.exceptionCredits ?? 1 }));
-      Toast.show({
-        type: 'success',
-        text1: 'Allowance replenished',
-        text2: result.exceptionCreditsAdded
-          ? `${result.exceptionCreditsAdded} exception requests added.`
-          : 'Your exception requests were added.',
-        position: 'bottom',
-      });
-      if (pendingException.current) {
-        handleSaveException(pendingException.current);
-      } else {
-        setModalVisible(true);
+  const handleRequestException = useCallback(
+    async (lecture: Lecture) => {
+      let exceptionCourse = course;
+      if (!exceptionCourse || exceptionCourse.courseId !== lecture.courseId) {
+        try {
+          const result = await getCourseDetails({
+            courseId: lecture.courseId,
+          });
+          if (!result.success || !result.course) {
+            Toast.show({
+              type: 'error',
+              text1: 'Course Details Unavailable',
+              text2: result.message || 'Could not load lecture course details.',
+            });
+            return;
+          }
+          exceptionCourse = result.course;
+        } catch (error) {
+          Toast.show({
+            type: 'error',
+            text1: 'Course Details Unavailable',
+            text2: 'Could not load lecture course details.',
+          });
+          console.error('Failed to load lecture course details:', error);
+          return;
+        }
       }
+
+      setSelectedExceptionLecture(lecture);
+      setSelectedExceptionCourse(exceptionCourse);
+      setModalVisible(true);
     },
-    [dispatch, handleSaveException],
+    [course],
   );
 
   // Resolves true when the backend recorded the submission so the test screen
@@ -533,7 +539,11 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
   }, [tests, title, userRole, specificAssessmentId, fetchStudentTest]);
 
   useEffect(() => {
-    if (title === 'Assessments' && userRole === 'student' && specificAssessmentId) {
+    if (
+      title === 'Assessments' &&
+      userRole === 'student' &&
+      specificAssessmentId
+    ) {
       fetchStudentTest(specificAssessmentId);
     }
   }, [title, userRole, specificAssessmentId, fetchStudentTest]);
@@ -612,11 +622,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
               exceptions={localExceptions}
               refreshing={loading}
               onRefresh={fetchExceptions}
-              onAddPress={() => setModalVisible(true)}
-              onBuyPress={() => {
-                pendingException.current = null;
-                setIsBuyingException(true);
-              }}
             />
           ))}
         {title === 'Set Lecture Schedule' && (
@@ -767,34 +772,35 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
             <RenderViewLectureSchedule
               lectures={displayLectures}
               onPress={handleLecturePress}
+              onRequestException={handleRequestException}
+              onViewExceptions={
+                userRole === 'student'
+                  ? () =>
+                      navigation.push('CourseSubPage', {
+                        title: 'Exceptions',
+                        course,
+                        userRole,
+                        exceptions: localExceptions,
+                        lectures: displayLectures,
+                      })
+                  : undefined
+              }
             />
           ))}
       </View>
 
       <AddExceptionModal
         visible={isModalVisible}
-        onClose={() => setModalVisible(false)}
-        course={course!}
-        lectures={allLectures}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedExceptionLecture(null);
+          setSelectedExceptionCourse(null);
+        }}
+        course={selectedExceptionCourse!}
+        selectedLecture={selectedExceptionLecture}
         onSave={handleSaveException}
         isSaving={loading}
       />
-      <FlutterwavePaySheet
-        visible={isBuyingException}
-        onClose={() => {
-          setIsBuyingException(false);
-          pendingException.current = null;
-        }}
-        request={{ purpose: 'exception' }}
-        title="Replenish exception allowance"
-        subtitle={
-          pendingException.current
-            ? "Your refill restores your monthly allowance. The pending request will be sent as soon as payment completes."
-            : 'Restore your monthly exception allowance for use after your free requests are exhausted.'
-        }
-        onPaid={handleExceptionPaid}
-      />
-
       <Modal visible={showSuccessModal} transparent animationType="slide">
         <View style={CourseActionStyles.successOverlay}>
           <View

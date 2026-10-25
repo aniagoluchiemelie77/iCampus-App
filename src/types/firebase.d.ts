@@ -126,6 +126,19 @@ type LectureReminderPayload = {
   isLecturer?: boolean;
   userName: string;
 };
+type AssessmentReminderPayload = {
+  courseId: string;
+  assessmentId: string;
+  testTitle: string;
+  reminderType: 'start' | 'deadline';
+  scheduledStart?: Date | string;
+  dueDate?: Date | string;
+  course?: {
+    courseId: string;
+    courseTitle?: string;
+    courseCode?: string;
+  };
+};
 type SubscriptionUpgradedPayload = { 
   userName: string;
   tier: UserTier,
@@ -164,6 +177,7 @@ type ActionPayloadMap = {
   PASSWORD_RESET_CODE: PasswordResetCodePayload;
   EMAIL_VERIFICATION: EmailVerificationPayload;
   LECTURE_REMINDER: LectureReminderPayload;
+  ASSESSMENT_REMINDER: AssessmentReminderPayload;
   SUBSCRIPTION_UPGRADED: SubscriptionUpgradedPayload;
   ICASH_PIN_RESET: IcashPinResetPayload;
   // ... add all other types here
@@ -257,8 +271,6 @@ export interface User {
     accountName?: string | null;
     currency?: string;
   };
-  /** Paid lecture exceptions not yet used. */
-  exceptionCredits?: number;
   subscriptionExpiresAt?: any;
   headline?: string;
   sessions?: UserSession[];

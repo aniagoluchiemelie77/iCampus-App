@@ -4,6 +4,12 @@
 <dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>iCampus requires access to your photo library to let you upload profile pictures.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>iCampus needs calendar access to add scheduled lectures to your device calendar.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>iCampus needs calendar access to add scheduled lectures to your device calendar.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>iCampus needs calendar access to add scheduled lectures to your device calendar.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>iCampus needs camera access to scan iTag QR codes for instant iCash transfers or to take a new profile photo.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>

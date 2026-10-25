@@ -25,6 +25,7 @@ import {
 } from '@react-native-firebase/messaging';
 import {
   navigateForNotification,
+  showAssessmentReminderPrompt,
   showLectureReminderPrompt,
 } from '../utils/notificationNavigation';
 import {
@@ -184,7 +185,7 @@ const HomeScreen = () => {
   const handlePageSelected = (e: any) => {
     setFabMenuVisible(false);
     const index = e.nativeEvent.position;
-    setActiveIcon(screens[index]);
+    setActiveIcon(screens[index] || 'home');
   };
   const getHeaderTitle = () => {
     switch (activeIcon) {
@@ -314,10 +315,16 @@ const HomeScreen = () => {
   // even with valid tokens. Expiry is handled by the token refresh in
   // fetchWithAuth, which logs out only when the server rejects the session.
   useEffect(() => {
-    if (route.params?.activeTab) {
-      setActiveIcon(route.params.activeTab);
-    }
-  }, [route.params?.activeTab]);
+    const requestedTab = route.params?.activeTab;
+    if (!requestedTab) return;
+    const pageOrder = isClassroomAllowed
+      ? ['home', 'classroom', 'search', 'store']
+      : ['home', 'search', 'store'];
+    const pageIndex = pageOrder.indexOf(requestedTab);
+    if (pageIndex === -1) return;
+    setActiveIcon(requestedTab);
+    pagerRef.current?.setPage(pageIndex);
+  }, [route.params?.activeTab, isClassroomAllowed]);
   useEffect(() => {
     const messagingInstance = getMessaging();
     const unsubscribe = onMessage(
@@ -330,6 +337,19 @@ const HomeScreen = () => {
           showLectureReminderPrompt(
             navigation,
             { actionType: data.actionType, payload: data, message: remoteMessage.notification?.body },
+            { uid: user?.uid, usertype: user?.usertype },
+          );
+          return;
+        }
+        if (data.actionType === 'ASSESSMENT_REMINDER') {
+          showAssessmentReminderPrompt(
+            navigation,
+            {
+              actionType: data.actionType,
+              payload: data,
+              message: remoteMessage.notification?.body,
+              title: remoteMessage.notification?.title,
+            },
             { uid: user?.uid, usertype: user?.usertype },
           );
           return;
@@ -452,28 +472,32 @@ const HomeScreen = () => {
           ref={pagerRef}
           onPageSelected={handlePageSelected}
         >
-          <View key="0" style={styles.page}>
-            <View style={[styles.pageContent, styles.feedPageContent]}>
-              <FeedTab />
+          {screens.map(screen => (
+            <View key={screen} style={styles.page}>
+              <View
+                style={[
+                  styles.pageContent,
+                  screen === 'home'
+                    ? styles.feedPageContent
+                    : screen === 'classroom'
+                      ? styles.classroomPageContent
+                      : undefined,
+                ]}
+              >
+                {screen === 'home' ? (
+                  <FeedTab />
+                ) : screen === 'classroom' ? (
+                  <ClassroomScreenComponent
+                    userRole={rawRole as 'student' | 'lecturer'}
+                  />
+                ) : screen === 'search' ? (
+                  <SearchScreen />
+                ) : (
+                  <StoreScreen />
+                )}
+              </View>
             </View>
-          </View>
-          <View key="1" style={styles.page}>
-            <View style={[styles.pageContent, styles.classroomPageContent]}>
-              <ClassroomScreenComponent
-                userRole={rawRole as 'student' | 'lecturer'}
-              />
-            </View>
-          </View>
-          <View key="2" style={styles.page}>
-            <View style={styles.pageContent}>
-              <SearchScreen />
-            </View>
-          </View>
-          <View key="3" style={styles.page}>
-            <View style={styles.pageContent}>
-              <StoreScreen />
-            </View>
-          </View>
+          ))}
         </PagerView>
         {fabConfig && !isFabMenuVisible && (
           <TouchableOpacity

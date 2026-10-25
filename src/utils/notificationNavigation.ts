@@ -105,6 +105,42 @@ export const showLectureReminderPrompt = (
   return true;
 };
 
+export const showAssessmentReminderPrompt = (
+  navigation: any,
+  item: NotificationLike,
+  user: { uid?: string; usertype?: string },
+) => {
+  if (item.actionType !== 'ASSESSMENT_REMINDER') return false;
+
+  const payload = item.payload || {};
+  const assessmentId =
+    payload.assessmentId ||
+    (item.relatedEntity?.entityType === 'assessment'
+      ? item.relatedEntity.entityId
+      : null);
+  const course = resolveCourse(item);
+  if (!assessmentId || !course) return false;
+
+  Alert.alert(
+    item.title || 'Assessment reminder',
+    item.message || 'An assessment is coming up.',
+    [
+      { text: 'Later', style: 'cancel' },
+      {
+        text: 'Open assessment',
+        onPress: () =>
+          navigation.navigate('CourseSubPage', {
+            title: 'Assessments',
+            course,
+            userRole: user.usertype,
+            assessmentId,
+          }),
+      },
+    ],
+  );
+  return true;
+};
+
 export const navigateForNotification = (
   navigation: any,
   item: NotificationLike,
@@ -223,6 +259,16 @@ export const navigateForNotification = (
           item.relatedEntity?.entityType === 'assessment'
             ? item.relatedEntity.entityId
             : payload.assessmentId,
+      });
+      return;
+
+    case 'ASSESSMENT_REMINDER':
+      openCoursePage('Assessments', {
+        assessmentId:
+          payload.assessmentId ||
+          (item.relatedEntity?.entityType === 'assessment'
+            ? item.relatedEntity.entityId
+            : undefined),
       });
       return;
 

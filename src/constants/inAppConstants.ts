@@ -11,8 +11,6 @@ export const USD_SUBSCRIPTION_PRICES = {
   Premium: 3.69,
   Free: 0,
 } as const;
-/** Per-request price used to calculate the monthly exception refill bundle. */
-export const EXCEPTION_COST_USD = 1.5 as const;
 export const TRANSACTION_TAX_RATE = 0.15 as const;
 export const WATERMARK_TEXT = 'iCampus' as const;
 export const DELIVERY_FEES = {
@@ -28,11 +26,6 @@ export const DELIVERY_FEES = {
     home_delivery: 0.03, 
     drop_off: 0.02,      
   },
-} as const;
-export const EXCEPTION_ACCOUNT_LIMITS = {
-  free: 2,
-  pro: 3,
-  premium: 4,
 } as const;
 export const TIER_COLORS: Record<string, string> = {
   pro: PRO_BADGE_COLOR,     

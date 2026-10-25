@@ -17,12 +17,8 @@ import { useFocusEffect } from '@react-navigation/native';
 export const FavoritesScreen = () => {
   const { colors } = useTheme();
   const currentUser = useAppSelector((state: { user: User }) => state.user);
-  const {
-    handleToggleFavorite,
-    handleAddAllFavoritesToCart,
-    handleDeleteAllFavorites,
-    catalogSyncVersion,
-  } = useAppDataContext();
+  const { handleToggleFavorite, handleDeleteAllFavorites, catalogSyncVersion } =
+    useAppDataContext();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [focusRefreshKey, setFocusRefreshKey] = useState(0);
@@ -102,21 +98,6 @@ export const FavoritesScreen = () => {
           />
         }
       />
-
-      {favoriteItems.length > 0 && (
-        <View
-          style={[
-            styles.footer,
-            { backgroundColor: colors.backgroundSecondary },
-          ]}
-        >
-          <CustomButton
-            title="Add all to cart"
-            style={styles.checkoutBtn}
-            onPress={handleAddAllFavoritesToCart}
-          />
-        </View>
-      )}
       <ActionModal
         visible={deleteModalVisible}
         onClose={() => {

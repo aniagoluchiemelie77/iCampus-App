@@ -19,6 +19,7 @@ import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppDataContext } from '../context/EventContext';
+import { useProductUpload } from '../context/ProductUploadContext';
 
 interface IconButtonProps {
   onPress: () => void;
@@ -84,6 +85,7 @@ export const StoreScreen = () => {
   const { width } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const productColumns = width >= 768 ? 4 : 2;
+  const { pendingProduct, publishedVersion } = useProductUpload();
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -155,6 +157,33 @@ export const StoreScreen = () => {
   useEffect(() => {
     fetchProducts(selectedTab, searchQuery, searchQuery !== '');
   }, [selectedTab, searchQuery]);
+  useEffect(() => {
+    if (publishedVersion > 0) {
+      fetchProducts(selectedTab, searchQuery, true);
+    }
+    // Refresh the active store tab when the background publish completes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publishedVersion]);
+
+  const pendingMatchesTab =
+    pendingProduct &&
+    (selectedTab === 'All' ||
+      selectedTab === 'Popular' ||
+      pendingProduct.niche === getCategoryParam(selectedTab));
+  const pendingMatchesSearch =
+    pendingProduct &&
+    (!searchQuery ||
+      `${pendingProduct.title} ${pendingProduct.description || ''}`
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()));
+  const visibleProducts =
+    pendingMatchesTab &&
+    pendingMatchesSearch &&
+    !currentTabData.products.some(
+      product => product.productId === pendingProduct.productId,
+    )
+      ? [pendingProduct, ...currentTabData.products]
+      : currentTabData.products;
 
   const loadMore = async () => {
     if (isFetchingMore || !currentTabData.hasMore || !currentTabData.cursor)
@@ -223,12 +252,12 @@ export const StoreScreen = () => {
           );
         })}
       </ScrollView>
-      {loading && !isFetchingMore ? (
+      {loading && !isFetchingMore && visibleProducts.length === 0 ? (
         <ActivityIndicator size="large" color={colors.primary} />
       ) : (
         <FlatList
           key={productColumns}
-          data={currentTabData.products}
+          data={visibleProducts}
           keyExtractor={(item, index) => `${item.productId}-${index}`}
           numColumns={productColumns}
           renderItem={({ item }) => (

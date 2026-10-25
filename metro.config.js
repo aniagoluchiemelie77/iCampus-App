@@ -19,3 +19,4 @@ const config = {
 module.exports = mergeConfig(getDefaultConfig(__dirname), config);
 //npx eas-cli@latest build --profile production
 //npx eas-cli build --platform ios --profile preview
+//npx eas-cli build --platform android --profile preview --clear-cache

@@ -94,26 +94,56 @@ export const UploadProgressModal = ({
 }: UploadProgressModalProps) => {
   const { colors: themeColors } = useTheme();
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {}}
+    >
       <View style={styles.overlay}>
         <View
           style={[
             styles.containerModal,
-            { backgroundColor: themeColors.backgroundSecondary },
+            {
+              backgroundColor: themeColors.backgroundSecondary,
+              borderColor: themeColors.border,
+            },
           ]}
         >
+          <View
+            style={[
+              styles.uploadIconCircle,
+              { backgroundColor: themeColors.primary + '1A' },
+            ]}
+          >
+            <MaterialIcons
+              name="cloud-upload"
+              size={28}
+              color={themeColors.primary}
+            />
+          </View>
+          <Text style={[styles.uploadTitle, { color: themeColors.textDarker }]}>
+            Adding your courses
+          </Text>
           <Progress.Circle
-            size={80}
+            size={82}
             progress={progress}
             indeterminate={progress === 0 || progress === 1}
             color={themeColors.primary}
-            borderWidth={2}
-            thickness={4}
+            unfilledColor={themeColors.primaryTint}
+            borderWidth={0}
+            thickness={6}
             showsText={progress > 0 && progress < 1}
             formatText={() => `${Math.round(progress * 100)}%`}
           />
           <Text style={[styles.statusText, { color: themeColors.primary }]}>
             {statusText}
+          </Text>
+          <Text
+            style={[styles.uploadHint, { color: themeColors.text }]}
+            numberOfLines={2}
+          >
+            Keep this screen open while we process your file.
           </Text>
         </View>
       </View>
@@ -388,20 +418,22 @@ export const CourseModal = ({
                       });
                     }}
                   />
-                  <GridItem
-                    label="Exceptions"
-                    iconName="verified-user"
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Exceptions',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: allExceptions,
-                        lectures,
-                      });
-                    }}
-                  />
+                  {!isStudent && (
+                    <GridItem
+                      label="Exceptions"
+                      iconName="verified-user"
+                      onPress={() => {
+                        onClose();
+                        navigation.navigate('CourseSubPage', {
+                          title: 'Exceptions',
+                          course,
+                          userRole: currentUser.usertype,
+                          exceptions: allExceptions,
+                          lectures,
+                        });
+                      }}
+                    />
+                  )}
                   <GridItem
                     label="Instructors"
                     iconName="person-pin"
@@ -924,15 +956,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   containerModal: {
-    padding: 30,
-    borderRadius: 15,
+    paddingHorizontal: 24,
+    paddingVertical: 26,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-    width: '90%',
+    width: '88%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 12,
   },
-  statusText: {
-    marginTop: 20,
-    fontSize: 14,
-    fontWeight: 'bold',
+  uploadIconCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  uploadTitle: { fontSize: 17, fontWeight: '800', marginBottom: 18 },
+  statusText: { marginTop: 16, fontSize: 14, fontWeight: '700' },
+  uploadHint: {
+    marginTop: 7,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
+    opacity: 0.75,
   },
   header: {
     flexDirection: 'row',

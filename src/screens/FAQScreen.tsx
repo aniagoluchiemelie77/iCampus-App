@@ -4,10 +4,6 @@ import { PageHeader } from '../components/PageHeader';
 import { FAQItem } from '../components/MyQRCodeSection';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import {
-  EXCEPTION_ACCOUNT_LIMITS,
-  EXCEPTION_COST_USD,
-} from '../constants/inAppConstants';
 
 interface FAQItemType {
   id: string | number;
@@ -35,8 +31,9 @@ const FAQ_DATA: FAQItemType[] = [
   },
   {
     id: 'acad-2',
-    question: 'How many free Lecture Exceptions do I get each month?',
-    answer: `Your monthly free lecture exception allotment depends on your subscription tier: \n Free Tier: ${EXCEPTION_ACCOUNT_LIMITS['free']} free exception per month.\n• Pro Tier: ${EXCEPTION_ACCOUNT_LIMITS['pro']} free exceptions per month.\n• Premium Tier: ${EXCEPTION_ACCOUNT_LIMITS['premium']} free exceptions per month.`,
+    question: 'Are Lecture Exception requests free?',
+    answer:
+      'Lecture exception requests are free and are not limited by a monthly allowance. You can submit a request for an upcoming lecture, and your lecturer will review it.',
   },
   {
     id: 'test-2',
@@ -52,8 +49,9 @@ const FAQ_DATA: FAQItemType[] = [
   },
   {
     id: 'acad-3',
-    question: 'What happens if I exhaust my free monthly lecture exceptions?',
-    answer: `Once you have used your free monthly allowance, you can replenish it with a bundle of exception requests. The bundle restores the number of requests in your monthly allowance. Its total is calculated at $${EXCEPTION_COST_USD} (US dollars) per request and charged in your local currency at the current exchange rate. You pay by card, bank transfer or USSD through Flutterwave. Replenished requests are used one at a time, and are not refunded if a lecturer rejects an exception.`,
+    question: 'How are Lecture Exception requests reviewed?',
+    answer:
+      'After you submit a free request for an upcoming lecture, it is sent to the lecturer for review. You can check the request status in My Lecture Exceptions.',
   },
   {
     id: 'acad-4',

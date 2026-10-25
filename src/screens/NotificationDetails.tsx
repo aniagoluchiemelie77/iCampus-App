@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -18,12 +19,20 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { parseFirestoreDate } from '../utils/dateFormatter';
 import dayjs from 'dayjs';
 
+const HIDDEN_PAYLOAD_KEYS = new Set([
+  'primaryuser',
+  'otherscount',
+  'unreadcount',
+]);
+
 export default function NotificationDetails() {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<any, 'NotificationDetails'>>();
   const { notificationId, notification: passedNotification } =
     route.params || {};
+  const isCompact = width < 600;
 
   const [notification, setNotification] = useState<any>(
     passedNotification || null,
@@ -87,57 +96,131 @@ export default function NotificationDetails() {
   };
 
   const parsedDate = parseFirestoreDate(notification?.createdAt);
+  const payload =
+    notification?.payload && typeof notification.payload === 'object'
+      ? notification.payload
+      : {};
+  const payloadEntries = Object.entries(payload).filter(([key, value]) => {
+    return (
+      !HIDDEN_PAYLOAD_KEYS.has(key.toLowerCase()) &&
+      key.toLowerCase() !== 'pdfurl' &&
+      value !== null &&
+      typeof value !== 'object' &&
+      String(value).trim() !== ''
+    );
+  });
 
   return (
     <ScrollView
+      style={styles.scrollView}
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: colors.background },
+        {
+          backgroundColor: colors.background,
+          paddingHorizontal: isCompact ? 16 : 32,
+        },
       ]}
+      showsVerticalScrollIndicator={false}
     >
-      <PageHeader title="Notification Detail" />
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : notification ? (
-        <View
-          style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
-        >
-          <View style={styles.headerRow}>
-            <View
-              style={[styles.badge, { backgroundColor: colors.primary + '15' }]}
-            >
-              <MaterialIcons
-                name={getCategoryIcon(notification.category)}
-                size={14}
-                color={colors.primary}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.badgeText, { color: colors.primary }]}>
-                {notification.category
-                  ? notification.category.toUpperCase()
-                  : 'GENERAL'}
-              </Text>
-            </View>
-            <Text style={[styles.timeText, { color: colors.text }]}>
-              {parsedDate
-                ? dayjs(parsedDate).format('MMM D, YYYY • h:mm A')
-                : 'Recent'}
-            </Text>
+      <View style={styles.pageContent}>
+        <PageHeader title="Notification Detail" />
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
+        ) : notification ? (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border,
+                padding: isCompact ? 20 : 32,
+              },
+            ]}
+          >
+            <View style={styles.headerRow}>
+              <View style={styles.badgeRow}>
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: colors.primary + '18' },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={getCategoryIcon(notification.category)}
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.badgeText, { color: colors.primary }]}>
+                    {notification.category
+                      ? notification.category
+                          .replace(/([A-Z])/g, ' $1')
+                          .toUpperCase()
+                      : 'GENERAL'}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.readBadge,
+                    {
+                      backgroundColor: notification.isRead
+                        ? colors.background
+                        : colors.primary + '18',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.readDot,
+                      {
+                        backgroundColor: notification.isRead
+                          ? colors.textDarker
+                          : colors.primary,
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.readBadgeText,
+                      {
+                        color: notification.isRead
+                          ? colors.textDarker
+                          : colors.primary,
+                      },
+                    ]}
+                  >
+                    {notification.isRead ? 'Read' : 'Unread'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.dateRow}>
+                <MaterialIcons
+                  name="schedule"
+                  size={16}
+                  color={colors.textDarker}
+                />
+                <Text style={[styles.timeText, { color: colors.textDarker }]}>
+                  {parsedDate
+                    ? dayjs(parsedDate).format('MMM D, YYYY · h:mm A')
+                    : 'Recent'}
+                </Text>
+              </View>
+            </View>
 
-          {/* Title & Main Message */}
-          <Text style={[styles.title, { color: colors.text }]}>
-            {notification.title}
-          </Text>
-          <Text style={[styles.message, { color: colors.text }]}>
-            {notification.message}
-          </Text>
+            <Text
+              style={[
+                styles.title,
+                { color: colors.text, fontSize: isCompact ? 24 : 30 },
+              ]}
+            >
+              {notification.title}
+            </Text>
+            <Text style={[styles.message, { color: colors.text }]}>
+              {notification.message}
+            </Text>
 
-          {/* Structured Payload Info (if available e.g., Order details) */}
-          {notification.payload &&
-            Object.keys(notification.payload).length > 0 && (
+            {payloadEntries.length > 0 && (
               <View
                 style={[
                   styles.payloadContainer,
@@ -147,17 +230,41 @@ export default function NotificationDetails() {
                   },
                 ]}
               >
-                {Object.entries(notification.payload).map(([key, value]) => {
-                  if (typeof value === 'object' || key === 'pdfUrl')
-                    return null;
+                <Text style={[styles.detailsHeading, { color: colors.text }]}>
+                  More details
+                </Text>
+                {payloadEntries.map(([key, value], index) => {
                   return (
-                    <View key={key} style={styles.payloadRow}>
-                      <Text style={[styles.payloadKey, { color: colors.text }]}>
-                        {key.replace(/([A-Z])/g, ' $1').toUpperCase()}
+                    <View
+                      key={key}
+                      style={[
+                        styles.payloadRow,
+                        {
+                          borderBottomColor: colors.border,
+                          borderBottomWidth:
+                            index === payloadEntries.length - 1
+                              ? 0
+                              : StyleSheet.hairlineWidth,
+                          flexDirection: isCompact ? 'column' : 'row',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.payloadKey,
+                          { color: colors.textDarker },
+                        ]}
+                      >
+                        {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
                       </Text>
                       <Text
-                        style={[styles.payloadValue, { color: colors.text }]}
-                        numberOfLines={2}
+                        style={[
+                          styles.payloadValue,
+                          {
+                            color: colors.text,
+                            textAlign: isCompact ? 'left' : 'right',
+                          },
+                        ]}
                       >
                         {String(value)}
                       </Text>
@@ -167,189 +274,205 @@ export default function NotificationDetails() {
               </View>
             )}
 
-          {/* Security Warning Box */}
-          {isSecurityAlert && (
-            <View
-              style={[
-                styles.securityWarningBox,
-                { backgroundColor: '#FF3B3015', borderColor: '#FF3B30' },
-              ]}
-            >
-              <MaterialIcons
-                name="warning"
-                size={18}
-                color="#FF3B30"
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={[styles.securityWarningText, { color: colors.text }]}
+            {isSecurityAlert && (
+              <View
+                style={[
+                  styles.securityWarningBox,
+                  { backgroundColor: '#FF3B3015', borderColor: '#FF3B30' },
+                ]}
               >
-                If this wasn't you, please immediately contact{' '}
+                <MaterialIcons
+                  name="warning"
+                  size={20}
+                  color="#FF3B30"
+                  style={styles.warningIcon}
+                />
                 <Text
-                  style={{ color: colors.primary, fontWeight: 'bold' }}
-                  onPress={() => Linking.openURL('mailto:support@icampus.com')}
+                  style={[styles.securityWarningText, { color: colors.text }]}
                 >
-                  support@icampus.com
+                  If this wasn't you, please immediately contact{' '}
+                  <Text
+                    style={{ color: colors.primary, fontWeight: 'bold' }}
+                    onPress={() =>
+                      Linking.openURL('mailto:support@icampus.com')
+                    }
+                  >
+                    support@icampus.com
+                  </Text>
                 </Text>
-              </Text>
-            </View>
-          )}
-          {isBtnVisible && (
-            <CustomButton
-              title="View Details"
-              onPress={handleAction}
-              iconName="arrow-forward"
-              iconColor="#fff"
-              style={{ width: 'auto' }}
-            />
-          )}
-        </View>
-      ) : (
-        <EmptyState
-          title="Notification not found, please retry."
-          iconName="notifications-none"
-        />
-      )}
+              </View>
+            )}
+            {isBtnVisible && (
+              <CustomButton
+                title="View Details"
+                onPress={handleAction}
+                iconName="arrow-forward"
+                iconColor="#fff"
+                style={styles.actionButton}
+              />
+            )}
+          </View>
+        ) : (
+          <EmptyState
+            title="Notification not found, please retry."
+            iconName="notifications-none"
+          />
+        )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
   container: {
-    padding: 16,
     flexGrow: 1,
+    paddingTop: 12,
+    paddingBottom: 40,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    marginTop: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
+  pageContent: {
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
   },
   loaderContainer: {
-    flex: 1,
+    minHeight: 260,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 100,
   },
   card: {
-    borderRadius: 16,
-    padding: 20,
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 3,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 26,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    marginBottom: 14,
+    gap: 8,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
   },
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.7,
+  },
+  readBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  readDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  readBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 7,
   },
   timeText: {
-    fontSize: 12,
+    fontSize: 13,
     opacity: 0.7,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontSize: 28,
+    lineHeight: 36,
+    fontWeight: '800',
+    marginBottom: 12,
   },
   message: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 16,
-    opacity: 0.9,
+    fontSize: 16,
+    lineHeight: 26,
+    marginBottom: 24,
+    opacity: 0.92,
   },
   payloadContainer: {
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 24,
+  },
+  detailsHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   payloadRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(150,150,150,0.15)',
+    gap: 12,
+    paddingVertical: 13,
   },
   payloadKey: {
     fontSize: 12,
-    opacity: 0.6,
+    opacity: 0.75,
     fontWeight: '600',
-    flex: 1,
+    flex: 0.9,
+    textTransform: 'capitalize',
   },
   payloadValue: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     flex: 1,
-    textAlign: 'right',
+    lineHeight: 20,
+    overflow: 'hidden',
   },
   securityWarningBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 12,
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    marginBottom: 16,
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  warningIcon: {
+    marginRight: 10,
   },
   securityWarningText: {
-    fontSize: 13,
+    fontSize: 14,
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 21,
   },
   actionButton: {
-    flexDirection: 'row',
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  actionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 120,
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: '500',
-    opacity: 0.7,
+    width: 'auto',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 24,
+    borderRadius: 14,
   },
 });

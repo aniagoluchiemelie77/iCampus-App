@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Toast from 'react-native-toast-message';
 import { Lecture } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -9,7 +10,14 @@ import {
   getStudentLecturesTimeline,
 } from '../api/localGetApis';
 import { openLecturerAttendance, openStudentAttendance } from '../utils/attendance';
-import { formatClock, lectureDayKey, resolveLectureTime, todayKey } from '../utils/lectureTime';
+import { addLectureToCalendar } from '../utils/lectureCalendar';
+import {
+  formatClock,
+  isLectureWithinScheduledTime,
+  lectureDayKey,
+  resolveLectureTime,
+  todayKey,
+} from '../utils/lectureTime';
 
 /**
  * Classroom tab shortcut for today's classes: physical lectures get a one-tap
@@ -28,6 +36,7 @@ export const TodayAttendanceCard = ({
   const navigation = useNavigation<any>();
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [clock, setClock] = useState(Date.now());
 
   const load = useCallback(async () => {
     const fetcher = role === 'lecturer' ? getLecturersLecturesTimeline : getStudentLecturesTimeline;
@@ -45,6 +54,11 @@ export const TodayAttendanceCard = ({
     const unsubscribe = navigation.addListener('focus', load);
     return unsubscribe;
   }, [load, navigation, refreshKey]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const today = todayKey();
   const todays = useMemo(
@@ -69,6 +83,14 @@ export const TodayAttendanceCard = ({
 
   const handleOpen = async (lecture: Lecture) => {
     if (lecture.lectureType !== 'Physical') {
+      if (!isLectureWithinScheduledTime(lecture)) {
+        Toast.show({
+          type: 'info',
+          text1: "This class hasn't started yet",
+          text2: "You'll be able to join during its scheduled time.",
+        });
+        return;
+      }
       // Students wait inside the class screen until the lecturer goes live.
       navigation.navigate('LiveClassSessions', {
         lectureId: lecture.id,
@@ -82,6 +104,28 @@ export const TodayAttendanceCard = ({
       setOpeningId(null);
     } else {
       openStudentAttendance(navigation, lecture);
+    }
+  };
+
+  const handleAddToCalendar = async (lecture: Lecture) => {
+    try {
+      const result = await addLectureToCalendar(lecture);
+      Toast.show({
+        type: result === 'added' ? 'success' : 'info',
+        text1:
+          result === 'added'
+            ? 'Lecture added to calendar'
+            : 'Lecture is already in your calendar',
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not add lecture',
+        text2:
+          error instanceof Error
+            ? error.message
+            : 'Please check calendar permissions and try again.',
+      });
     }
   };
 
@@ -104,9 +148,17 @@ export const TodayAttendanceCard = ({
       {todays.map(lecture => {
         const start = resolveLectureTime(lecture, 'start');
         const isOnline = lecture.lectureType !== 'Physical';
+        const withinScheduledTime = isLectureWithinScheduledTime(lecture, clock);
         const open = isOnline
-          ? lecture.status === 'ongoing' || !!lecture.isLive
+          ? (lecture.status === 'ongoing' || !!lecture.isLive) &&
+            withinScheduledTime
           : !!(lecture as any).attendanceOpen;
+        const showClassAction = !isOnline || withinScheduledTime;
+        const canAddToCalendar =
+          !!start &&
+          start.getTime() > clock &&
+          lecture.status !== 'cancelled' &&
+          lecture.status !== 'completed';
         const buttonLabel = isOnline
           ? role === 'lecturer'
             ? open ? 'Rejoin' : 'Start'
@@ -142,19 +194,38 @@ export const TodayAttendanceCard = ({
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={() => handleOpen(lecture)}
-              disabled={openingId === lecture.id}
-              style={[styles.button, { backgroundColor: colors.btnColor }]}
-              accessibilityRole="button"
-              accessibilityLabel={`${buttonLabel} ${isOnline ? 'online class' : 'attendance'} for ${lecture.topicName}`}
-            >
-              {openingId === lecture.id ? (
-                <ActivityIndicator size="small" color={colors.btnTextColor} />
-              ) : (
-                <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>{buttonLabel}</Text>
-              )}
-            </TouchableOpacity>
+            {showClassAction && (
+              <TouchableOpacity
+                onPress={() => handleOpen(lecture)}
+                disabled={openingId === lecture.id}
+                style={[styles.button, { backgroundColor: colors.btnColor }]}
+                accessibilityRole="button"
+                accessibilityLabel={`${buttonLabel} ${isOnline ? 'online class' : 'attendance'} for ${lecture.topicName}`}
+              >
+                {openingId === lecture.id ? (
+                  <ActivityIndicator size="small" color={colors.btnTextColor} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: colors.btnTextColor }]}>{buttonLabel}</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            {canAddToCalendar && (
+              <TouchableOpacity
+                onPress={() => handleAddToCalendar(lecture)}
+                style={[
+                  styles.calendarButton,
+                  { backgroundColor: colors.primary + '14' },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Add ${lecture.topicName} to calendar`}
+              >
+                <MaterialIcons
+                  name="event-available"
+                  size={19}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         );
       })}
@@ -187,5 +258,6 @@ const styles = StyleSheet.create({
   venueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   venue: { fontSize: 12, opacity: 0.75, flexShrink: 1 },
   button: { minWidth: 76, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  calendarButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   buttonText: { fontSize: 13, fontWeight: '800' },
 });

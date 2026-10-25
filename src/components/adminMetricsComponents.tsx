@@ -27,7 +27,7 @@ interface SchoolAdminDashboardViewProps {
 }
 
 interface SparklineProps {
-  data: number[];
+  data?: number[];
   color: string;
   bgFrom?: string;
   bgTo?: string;
@@ -67,16 +67,21 @@ interface SystemHealthProps {
 }
 
 export const Sparkline = ({
-  data,
+  data = [],
   color,
   bgFrom = '#ffffff',
   bgTo = '#ffffff',
 }: SparklineProps) => {
+  const chartData = Array.isArray(data)
+    ? data.filter(value => Number.isFinite(value))
+    : [];
+  const safeData = chartData.length > 0 ? chartData : [0];
+
   return (
     <LineChart
       data={{
-        labels: data.map(() => ''),
-        datasets: [{ data }],
+        labels: safeData.map(() => ''),
+        datasets: [{ data: safeData }],
       }}
       width={80}
       height={30}
@@ -207,7 +212,7 @@ export const DashboardSummary = ({ stats }: { stats: any }) => {
         </Text>
         <View style={styles.sparklineWrapper}>
           <Sparkline
-            data={safeStats.ticketTrend}
+            data={safeStats.ticketTrend || []}
             color={colors.primary}
             bgFrom={colors.backgroundSecondary}
             bgTo={colors.backgroundSecondary}

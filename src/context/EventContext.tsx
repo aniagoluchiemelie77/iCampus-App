@@ -48,7 +48,7 @@ import {
 } from '../api/localGetApis';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { bulkAddToCartApi, cancelOrderAPI } from '../api/localPostApis';
+import { cancelOrderAPI } from '../api/localPostApis';
 import { setUser } from './UserSlice';
 import { useDispatch } from 'react-redux';
 interface AppDataContextType {
@@ -91,7 +91,6 @@ interface AppDataContextType {
   upsertPost: (post: Posts) => void;
   handleClearCart: () => Promise<void>;
   handleDeleteAllFavorites: () => Promise<void>;
-  handleAddAllFavoritesToCart: () => Promise<void>;
   fetchPendingOrders: (loadMore?: boolean) => Promise<void>;
   handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
   unreadEmailSupportCount: number;
@@ -366,66 +365,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       Toast.show({
         type: 'error',
         text2: 'Could not update favorites, please retry.',
-      });
-    }
-  };
-  const handleAddAllFavoritesToCart = async () => {
-    const favoriteIds = currentUser?.favorites ?? [];
-    if (favoriteIds.length === 0) return;
-
-    const productsMap = new Map<string, any>(
-      fetchProductsByIdsFromLocalDb(favoriteIds).map((product: any) => [
-        product.productId,
-        product,
-      ]),
-    );
-
-    const itemsToAdd: CartItem[] = favoriteIds.map(id => {
-      const physical = productsMap.get(id)?.physicalDetails;
-      return {
-        productId: id,
-        quantity: 1,
-        selectedColor: physical?.colors?.[0] || undefined,
-        selectedSize: physical?.sizes?.[0] || undefined,
-      };
-    });
-
-    const existingCart = currentUser?.cart ?? [];
-    const updatedCart = [...existingCart];
-
-    itemsToAdd.forEach(newItem => {
-      const exists = updatedCart.some(
-        item => item.productId === newItem.productId,
-      );
-      if (!exists) {
-        updatedCart.push(newItem);
-      }
-    });
-
-    const updatedUser = { ...currentUser, cart: updatedCart };
-    setCurrentUser(updatedUser);
-    dispatch(setUser(updatedUser));
-    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-
-    try {
-      const result = await bulkAddToCartApi(itemsToAdd);
-      if (!result.success) throw new Error();
-
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: 'All favorites moved to cart!',
-      });
-    } catch (error) {
-      const rollbackUser = { ...currentUser, cart: existingCart };
-      setCurrentUser(rollbackUser);
-      dispatch(setUser(rollbackUser));
-      await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
-
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Could not move favorites to cart.',
       });
     }
   };
@@ -737,7 +676,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         upsertPost,
         handleClearCart,
         handleDeleteAllFavorites,
-        handleAddAllFavoritesToCart,
         pendingOrders,
         fetchPendingOrders,
         isOrdersLoading,

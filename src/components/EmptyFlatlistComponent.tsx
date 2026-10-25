@@ -95,27 +95,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   style,
 }) => {
   const { colors } = useTheme();
-  const float = useFloatAnimation();
 
   return (
     <View style={[styles.container, style]}>
-      <Animated.View style={{ transform: [{ translateY: float }] }}>
-        {illustration ? (
-          <Image source={illustration} style={styles.illustration} />
-        ) : (
-          <View style={styles.halo}>
-            <View
-              style={[styles.haloRing, styles.haloOuter, { backgroundColor: colors.primary }]}
-            />
-            <View
-              style={[styles.haloRing, styles.haloInner, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.iconBadge, { backgroundColor: colors.primary }]}>
-              <MaterialIcons name={iconName} size={34} color="#fff" />
-            </View>
-          </View>
-        )}
-      </Animated.View>
+      {illustration ? (
+        <FloatingIllustration source={illustration} />
+      ) : (
+        <FloatingSuccessIcon iconName={iconName} />
+      )}
 
       <Text style={[styles.title, { color: colors.textDarker }]}>{title}</Text>
       {!!subtitle && (
@@ -186,6 +173,53 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 };
 
 const HALO = 128;
+
+const FloatingIllustration = ({
+  source,
+}: {
+  source: ImageSourcePropType;
+}) => {
+  const float = useFloatAnimation();
+  return (
+    <Animated.View style={{ transform: [{ translateY: float }] }}>
+      <Image source={source} style={styles.illustration} />
+    </Animated.View>
+  );
+};
+
+export const FloatingSuccessIcon = ({
+  iconName = 'check-circle',
+  size = 42,
+}: {
+  iconName?: string;
+  size?: number;
+}) => {
+  const { colors } = useTheme();
+  const float = useFloatAnimation();
+  return (
+    <Animated.View style={{ transform: [{ translateY: float }] }}>
+      <View style={styles.halo}>
+        <View
+          style={[
+            styles.haloRing,
+            styles.haloOuter,
+            { backgroundColor: colors.primary },
+          ]}
+        />
+        <View
+          style={[
+            styles.haloRing,
+            styles.haloInner,
+            { backgroundColor: colors.primary },
+          ]}
+        />
+        <View style={[styles.iconBadge, { backgroundColor: colors.primary }]}>
+          <MaterialIcons name={iconName} size={size} color="#fff" />
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {

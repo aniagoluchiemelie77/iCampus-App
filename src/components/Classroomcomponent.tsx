@@ -183,12 +183,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     setUploading(true);
     setStatus('Uploading document...');
     setProgress(0);
+    let processingStarted = false;
+    const phaseTimers: ReturnType<typeof setTimeout>[] = [];
 
     try {
       const response = await extractCourseFormAPI(fileData, percent => {
         setProgress(percent);
-        if (percent >= 1) {
-          setStatus('Reading your courses...');
+        if (percent >= 1 && !processingStarted) {
+          processingStarted = true;
+          setStatus('Reading file contents...');
+          phaseTimers.push(
+            setTimeout(
+              () => setStatus('Extracting course details...'),
+              3000,
+            ),
+          );
+          phaseTimers.push(
+            setTimeout(() => setStatus('Finalizing...'), 9000),
+          );
+        } else if (!processingStarted) {
+          setStatus('Uploading file...');
         }
       });
 
@@ -227,6 +241,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
         bottomOffset: 5,
       });
     } finally {
+      phaseTimers.forEach(clearTimeout);
       setUploading(false);
       setProgress(0);
     }

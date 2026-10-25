@@ -5,11 +5,11 @@ import {
   View, 
   Image, 
   TouchableOpacity, 
-  Dimensions, 
   ScrollView, 
   NativeSyntheticEvent, 
   NativeScrollEvent,
-  Linking
+  Linking,
+  useWindowDimensions,
 } from 'react-native';
 import Video from 'react-native-video'; 
 import { useTheme } from '../context/ThemeContext';
@@ -27,14 +27,15 @@ export interface AdItem {
 
 interface AdBannerProps {
   ads: AdItem[];
+  width?: number;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CONTAINER_WIDTH = SCREEN_WIDTH - 32; 
 const AUTOPLAY_INTERVAL = 6000; 
 
-export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
+export const AdBanner: React.FC<AdBannerProps> = ({ ads, width }) => {
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const containerWidth = width ?? Math.max(0, screenWidth - 32);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -45,7 +46,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
       setCurrentIndex(prevIndex => {
         const nextIndex = (prevIndex + 1) % ads.length;
         scrollViewRef.current?.scrollTo({
-          x: nextIndex * CONTAINER_WIDTH,
+          x: nextIndex * containerWidth,
           animated: true,
         });
         return nextIndex;
@@ -53,11 +54,11 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
     }, AUTOPLAY_INTERVAL);
 
     return () => clearInterval(timer);
-  }, [ads.length]);
+  }, [ads.length, containerWidth]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffsetX / CONTAINER_WIDTH);
+    const index = Math.round(contentOffsetX / containerWidth);
     if (index !== currentIndex && index >= 0 && index < ads.length) {
       setCurrentIndex(index);
     }
@@ -85,11 +86,19 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
 
   if (!ads || ads.length === 0) return null;
   return (
-    <View style={[styles.wrapper, { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.wrapper,
+        { backgroundColor: colors.background, width: containerWidth },
+      ]}
+    >
       <View
         style={[
           styles.container,
-          { backgroundColor: colors.backgroundSecondary },
+          {
+            backgroundColor: colors.backgroundSecondary,
+            width: containerWidth,
+          },
         ]}
       >
         <ScrollView
@@ -99,14 +108,14 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleScroll}
           scrollEventThrottle={16}
-          style={styles.scrollView}
+          style={[styles.scrollView, { width: containerWidth }]}
         >
           {ads.map((ad, index) => (
             <TouchableOpacity
               key={ad.id}
               activeOpacity={0.95}
               onPress={() => handleAdPress(ad.targetUrl)}
-              style={styles.slideCard}
+              style={[styles.slideCard, { width: containerWidth }]}
             >
               {ad.type === 'video' ? (
                 <Video
@@ -177,12 +186,10 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads }) => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    width: '100%',
     marginVertical: 12,
     alignItems: 'center',
   },
   container: {
-    width: CONTAINER_WIDTH,
     height: 210,
     borderRadius: 20,
     overflow: 'hidden',
@@ -193,11 +200,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   scrollView: {
-    width: CONTAINER_WIDTH,
     height: '100%',
   },
   slideCard: {
-    width: CONTAINER_WIDTH,
     height: '100%',
     position: 'relative',
   },

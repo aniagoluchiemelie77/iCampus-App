@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import {
   View,
   Text,
@@ -26,10 +25,8 @@ import {
   GeolocationPosition,
   GeolocationError,
 } from '../types/firebase';
-import { useNavigation } from '@react-navigation/native';
-import { saveProductApiCall } from '../api/localPostApis';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { fetchDropOffStationsAPI } from '../api/localGetApis';
-import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { useTheme } from '../context/ThemeContext';
@@ -38,8 +35,6 @@ import { useLocationServices } from '../hooks/useLocationService.ts';
 import {
   getDraftFromLocalDb,
   saveDraftToLocalDb,
-  saveProductToLocalDb,
-  clearDraftFromLocalDb,
 } from '../hooks/useSQLiteDb.ts';
 import {
   StepHeader,
@@ -50,6 +45,7 @@ import { toPercentLabel } from '../screens/Checkout.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { TRANSACTION_TAX_RATE } from '../constants/inAppConstants.ts';
 import { MediaPreviewList } from '../components/MediaPreview.tsx';
+import { useProductUpload } from '../context/ProductUploadContext';
 
 const nicheToTypeMap: Record<Product['niche'], Product['type']> = {
   Electronics: 'physical',
@@ -74,6 +70,7 @@ export const CreateProductScreen = ({ route }: any) => {
   const productId = existingProduct?.productId || existingProduct?._id;
   const isEditing = !!productId;
   const navigation = useNavigation<any>();
+  const { startProductUpload, isUploading } = useProductUpload();
   const [activeStep, setActiveStep] = useState(1);
   const initialFormInputs = useMemo<CompleteFormInputs>(
     () => ({
@@ -112,8 +109,6 @@ export const CreateProductScreen = ({ route }: any) => {
   const [_loading, setLoading] = useState<boolean>(true);
   const [colorInput, setColorInput] = useState('');
   const [sizeInput, setSizeInput] = useState('');
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isNicheModalOpen, setIsNicheModalOpen] = useState(false);
   const [formInputs, setFormInputs] =
     useState<CompleteFormInputs>(initialFormInputs);
@@ -212,7 +207,7 @@ export const CreateProductScreen = ({ route }: any) => {
     !formInputs.price ||
     Number(formInputs.price) <= 0 ||
     !formInputs.niche;
-  const handlePublishProduct = async () => {
+  const handlePublishProduct = () => {
     const { title, description, price, niche, physicalDetails, mediaUrls } =
       formInputs;
 
@@ -237,101 +232,69 @@ export const CreateProductScreen = ({ route }: any) => {
       }
     }
 
-    try {
-      setIsSubmitting(true);
-      setUploadProgress(10);
-      const thumbnails: string[] = mediaUrls || [];
-      let finalThumbnails: string[] = [];
-      if (thumbnails.length > 0) {
-        const localUris = mediaUrls.filter(
-          uri => uri.startsWith('file://') || !uri.startsWith('http'),
-        );
-        const remoteUrls = mediaUrls.filter(uri => uri.startsWith('http'));
-        if (localUris.length > 0) {
-          const uploadedUrls = await Promise.all(
-            localUris.map(uri => uploadToCloudinary(uri, 'product-thumbnails')),
-          );
-          finalThumbnails = [...remoteUrls, ...uploadedUrls];
-        } else {
-          finalThumbnails = remoteUrls;
-        }
-      }
-      setUploadProgress(30);
-
-      const formPayload = {
-        title: title.trim(),
-        description: description.trim(),
-        type,
-        price: Number(price),
-        mediaUrls: finalThumbnails,
-        niche,
-        physicalDetails,
-      };
-      const apiResponse = await saveProductApiCall(
-        formPayload,
-        productId,
-        progress => {
-          setUploadProgress(30 + Math.round(progress / 2));
-        },
-      );
-      const savedProduct = apiResponse?.data || apiResponse;
-
-      if (savedProduct) {
-        saveProductToLocalDb({
-          productId:
-            savedProduct.productId || savedProduct.id || productId || uuidv4(),
-          id: savedProduct.id || savedProduct._id || uuidv4(),
-          title: savedProduct.title,
-          description: savedProduct.description,
-          price: savedProduct.price,
-          sellerId: savedProduct.sellerId || user?.uid,
-          type: savedProduct.type || type,
-          niche: savedProduct.niche || formPayload.niche,
-          category: savedProduct.category || formPayload.niche,
-          currency: savedProduct.currency || 'NGN',
-          amountInStock:
-            savedProduct.amountInStock ||
-            savedProduct.physicalDetails?.inStock ||
-            0,
-          mediaUrls: savedProduct.mediaUrls,
-          physicalDetails: savedProduct.physicalDetails,
-          nationalityOfSeller:
-            savedProduct.nationalityOfSeller || user?.country || '',
-          schoolName: savedProduct.schoolName || user?.schoolName,
-          favCount: savedProduct.favCount || 0,
-          impressions: savedProduct.impressions || 0,
-          sales: savedProduct.sales || 0,
-          ratings: savedProduct.ratings || [],
-          isAvailable: savedProduct.isAvailable ?? true,
-          createdAt: savedProduct.createdAt || new Date().toISOString(),
-        });
-      }
-      clearDraftFromLocalDb(draftKey);
-      setIsSubmitting(false);
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'ProductPublishSuccess',
-            params: {
-              productName: formPayload.title,
-              type: formPayload.type,
-              isEditing: isEditing,
-            },
-          },
-        ],
-      });
-    } catch (error: any) {
-      setIsSubmitting(false);
-      console.error('Upload stalled or failed:', error);
+    if (!user?.uid) {
       Toast.show({
         type: 'error',
-        text1: 'Upload Failed',
-        text2:
-          error?.message ||
-          'Something went wrong while pushing assets to the server.',
+        text1: 'Sign in required',
+        text2: 'Sign in before publishing a product.',
       });
+      return;
     }
+
+    const formPayload = {
+      title: title.trim(),
+      description: description.trim(),
+      type,
+      price: Number(price),
+      mediaUrls: mediaUrls || [],
+      niche: niche as Product['niche'],
+      physicalDetails,
+    };
+
+    saveDraftToLocalDb(draftKey, formInputs);
+    const started = startProductUpload({
+      payload: formPayload,
+      productId,
+      draftKey,
+      sellerId: user.uid,
+      currency: 'NGN',
+      nationalityOfSeller: user.country || '',
+      schoolName: user.schoolName,
+      existingProduct,
+      onSuccess: () => {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'ProductPublishSuccess',
+                params: {
+                  productName: formPayload.title,
+                  productType: formPayload.type,
+                  isEditing,
+                },
+              },
+            ],
+          }),
+        );
+      },
+    });
+
+    if (!started) {
+      Toast.show({
+        type: 'info',
+        text1: 'Publish in progress',
+        text2: 'Please wait for the current listing to finish.',
+      });
+      return;
+    }
+
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Home', params: { activeTab: 'store' } }],
+      }),
+    );
   };
   useEffect(() => {
     const getNearbyStations = async () => {
@@ -924,49 +887,9 @@ export const CreateProductScreen = ({ route }: any) => {
           title="Publish Product"
           style={styles.submitButton}
           onPress={handlePublishProduct}
-          disabled={isSubmitting || cannotSubmit}
+          disabled={isUploading || cannotSubmit}
         />
       </ScrollView>
-      <Modal
-        visible={isSubmitting}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {}}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
-              Publishing Product
-            </Text>
-            <View
-              style={[
-                styles.progressBarTrack,
-                { backgroundColor: colors.primaryTint },
-              ]}
-            >
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${uploadProgress}%`,
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.progressText, { color: colors.text }]}>
-              {uploadProgress < 100
-                ? `Uploading Listing... ${uploadProgress}%`
-                : 'Processing metadata and finalizing layout...'}
-            </Text>
-          </View>
-        </View>
-      </Modal>
       <Modal
         visible={isNicheModalOpen}
         transparent={true}
@@ -1342,43 +1265,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 25,
   },
-  modalContent: {
-    width: '100%',
-    borderTopRightRadius: 25,
-    borderTopLeftRadius: 25,
-    padding: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: PRIMARY_COLOR_TINT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   modalTitleSecond: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 25,
     alignSelf: 'center',
-  },
-  progressBarTrack: {
-    height: 8,
-    width: '80%',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginVertical: 15,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   videoPreviewWrapper: {
     position: 'relative',

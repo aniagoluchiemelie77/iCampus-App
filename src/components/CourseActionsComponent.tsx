@@ -77,22 +77,25 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { updateCourseContent, updateLectureDetails } from '../api/localPutApis';
 import {
   createCourseContent,
+  extractCourseContentFromImage,
   verifyFacialIdentity,
 } from '../api/localPostApis';
 import { deleteCourseContent, deleteAssignment } from '../api/localDeleteApis';
 import { useTheme } from '../context/ThemeContext';
-import { formatDate, parseFirestoreDate, safeParseDate, getDateKey, safeFormatDate, safeToISOString } from '../utils/dateFormatter';
+import {
+  formatDate,
+  parseFirestoreDate,
+  safeParseDate,
+  getDateKey,
+  safeFormatDate,
+  safeToISOString,
+} from '../utils/dateFormatter';
 import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import {
   fetchAllAssignments,
   getAssessmentAnalysisUrl,
   fetchCourseGradebook,
 } from '../api/localGetApis';
-import {
-  EXCEPTION_ACCOUNT_LIMITS,
-  EXCEPTION_COST_USD,
-} from '../constants/inAppConstants';
-import { useExchangeRate } from '../hooks/useExchangeRate';
 const { width } = Dimensions.get('window');
 import {
   getCourseDetailsForOngoingLecture,
@@ -103,8 +106,17 @@ import { PageHeader } from './PageHeader';
 import { StudentGradeCard } from './MyQRCodeSection';
 import moment from 'moment';
 import { LectureDayHeader, LectureScheduleCard } from './LectureScheduleCard';
-import { lectureDayKey, resolveLectureTime, todayKey } from '../utils/lectureTime';
-import { openLecturerAttendance, openStudentAttendance } from '../utils/attendance';
+import {
+  isLectureWithinScheduledTime,
+  lectureDayKey,
+  resolveLectureTime,
+  todayKey,
+} from '../utils/lectureTime';
+import {
+  openLecturerAttendance,
+  openStudentAttendance,
+} from '../utils/attendance';
+import { addLectureToCalendar } from '../utils/lectureCalendar';
 
 type PageType =
   | 'Course Contents'
@@ -149,9 +161,6 @@ interface RenderScheduleProps {
 }
 interface StudentExceptionsProps {
   exceptions: CourseException[];
-  onAddPress: () => void;
-  /** Opens the purchase sheet for an extra exception. */
-  onBuyPress?: () => void;
   refreshing: boolean;
   onRefresh: () => void;
 }
@@ -161,7 +170,7 @@ interface AddExceptionProps {
   course: Course;
   onSave: (data: Partial<CourseException>) => void;
   isSaving: boolean;
-  lectures: Lecture[];
+  selectedLecture: Lecture | null;
 }
 interface HeaderProps {
   onBack?: () => void;
@@ -445,7 +454,10 @@ const CreateAssignmentModal = ({
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
-      formData.append('dueDate', safeToISOString(date) ?? new Date().toISOString());
+      formData.append(
+        'dueDate',
+        safeToISOString(date) ?? new Date().toISOString(),
+      );
       formData.append('submissionMethod', 'Physical');
       formData.append('submissionInfo', submissionInfo.trim());
       if (cloudStorageUrl) {
@@ -500,180 +512,180 @@ const CreateAssignmentModal = ({
               Create New Assignment
             </Text>
 
-          <TextInput
-            style={[
-              CourseActionStyles.input,
-              { color: colors.text, borderColor: colors.border },
-            ]}
-            placeholder="Assignment Title (e.g. Mid-term Project)"
-            value={title}
-            multiline
-            onChangeText={setTitle}
-            placeholderTextColor={colors.inputTextHolder}
-          />
-          <Text style={[CourseActionStyles.label, { color: colors.text }]}>
-            Description:
-          </Text>
-          <TextInput
-            style={[
-              CourseActionStyles.input,
-              { color: colors.text, borderColor: colors.border },
-            ]}
-            placeholder="Instructions / Description (Optional)"
-            multiline
-            value={description}
-            onChangeText={setDescription}
-            placeholderTextColor={colors.inputTextHolder}
-          />
-
-          {/* Submission Info Input Field */}
-          <Text style={[CourseActionStyles.label, { color: colors.text }]}>
-            Submission Routing Instructions:
-          </Text>
-          <TextInput
-            style={[
-              CourseActionStyles.input,
-              { color: colors.text, borderColor: colors.border },
-            ]}
-            placeholder="e.g. Submit to your course rep"
-            value={submissionInfo}
-            onChangeText={setSubmissionInfo}
-            placeholderTextColor={colors.inputTextHolder}
-          />
-
-          <TouchableOpacity
-            style={[
-              CourseActionStyles.dateSelector,
-              { backgroundColor: colors.btnColor },
-            ]}
-            onPress={() => setOpen(true)}
-          >
-            <MaterialIcons
-              name="calendar-month"
-              size={20}
-              color={colors.btnTextColor}
-            />
-            <Text
+            <TextInput
               style={[
-                CourseActionStyles.dateText,
-                { color: colors.btnTextColor },
+                CourseActionStyles.input,
+                { color: colors.text, borderColor: colors.border },
               ]}
-            >
-              Due: {date.toDateString()}
+              placeholder="Assignment Title (e.g. Mid-term Project)"
+              value={title}
+              multiline
+              onChangeText={setTitle}
+              placeholderTextColor={colors.inputTextHolder}
+            />
+            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
+              Description:
             </Text>
-          </TouchableOpacity>
+            <TextInput
+              style={[
+                CourseActionStyles.input,
+                { color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="Instructions / Description (Optional)"
+              multiline
+              value={description}
+              onChangeText={setDescription}
+              placeholderTextColor={colors.inputTextHolder}
+            />
 
-          <DatePicker
-            modal
-            open={open}
-            date={date}
-            mode="datetime"
-            minimumDate={new Date()}
-            onConfirm={datei => {
-              setOpen(false);
-              setDate(datei);
-            }}
-            onCancel={() => setOpen(false)}
-          />
+            {/* Submission Info Input Field */}
+            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
+              Submission Routing Instructions:
+            </Text>
+            <TextInput
+              style={[
+                CourseActionStyles.input,
+                { color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="e.g. Submit to your course rep"
+              value={submissionInfo}
+              onChangeText={setSubmissionInfo}
+              placeholderTextColor={colors.inputTextHolder}
+            />
 
-          {/* Fixed Submission Mode View */}
-          <Text style={[CourseActionStyles.label, { color: colors.text }]}>
-            Submission Method:
-          </Text>
-          <Text
-            style={[
-              CourseActionStyles.methodBtnText,
-              { color: colors.primary },
-            ]}
-          >
-            Physical Submission Only
-          </Text>
-
-          {/* Asset Attachment Actions Panel */}
-          <Text style={[CourseActionStyles.label, { color: colors.text }]}>
-            Attachment Brief (Optional):
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 15 }}>
             <TouchableOpacity
               style={[
-                CourseActionStyles.filePickerBtn,
-                { borderColor: colors.primary },
+                CourseActionStyles.dateSelector,
+                { backgroundColor: colors.btnColor },
               ]}
-              onPress={handlePickFile}
+              onPress={() => setOpen(true)}
             >
               <MaterialIcons
-                name="insert-drive-file"
-                size={18}
-                color={colors.primary}
+                name="calendar-month"
+                size={20}
+                color={colors.btnTextColor}
               />
               <Text
                 style={[
-                  CourseActionStyles.filePickerText,
-                  { color: colors.primary },
+                  CourseActionStyles.dateText,
+                  { color: colors.btnTextColor },
                 ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
               >
-                {selectedFile && selectedFile.type.includes('application')
-                  ? selectedFile.name
-                  : 'Pick Document'}
+                Due: {date.toDateString()}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.filePickerBtn,
-                { borderColor: colors.primary },
-              ]}
-              onPress={handlePickImage}
-            >
-              <MaterialIcons name="image" size={18} color={colors.primary} />
-              <Text
-                style={[
-                  CourseActionStyles.filePickerText,
-                  { color: colors.primary },
-                ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {selectedFile && selectedFile.type.includes('image')
-                  ? selectedFile.name
-                  : 'Pick Image'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={CourseActionStyles.modalActions}>
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.cancelBtn,
-                { borderColor: colors.primary },
-              ]}
-              onPress={onClose}
-              disabled={isSaving || isUploadingMedia}
-            >
-              <Text
-                style={[
-                  CourseActionStyles.cancelBtnText,
-                  { color: colors.primary },
-                ]}
-              >
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            <CustomButton
-              title={
-                isUploadingMedia
-                  ? 'Uploading Asset...'
-                  : isSaving
-                    ? 'Creating...'
-                    : 'Add Assignment'
-              }
-              onPress={handleCreate}
-              disabled={isSaving}
-              isLoading={isSaving}
-              style={CourseActionStyles.saveBtn}
+            <DatePicker
+              modal
+              open={open}
+              date={date}
+              mode="datetime"
+              minimumDate={new Date()}
+              onConfirm={datei => {
+                setOpen(false);
+                setDate(datei);
+              }}
+              onCancel={() => setOpen(false)}
             />
+
+            {/* Fixed Submission Mode View */}
+            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
+              Submission Method:
+            </Text>
+            <Text
+              style={[
+                CourseActionStyles.methodBtnText,
+                { color: colors.primary },
+              ]}
+            >
+              Physical Submission Only
+            </Text>
+
+            {/* Asset Attachment Actions Panel */}
+            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
+              Attachment Brief (Optional):
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 15 }}>
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.filePickerBtn,
+                  { borderColor: colors.primary },
+                ]}
+                onPress={handlePickFile}
+              >
+                <MaterialIcons
+                  name="insert-drive-file"
+                  size={18}
+                  color={colors.primary}
+                />
+                <Text
+                  style={[
+                    CourseActionStyles.filePickerText,
+                    { color: colors.primary },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {selectedFile && selectedFile.type.includes('application')
+                    ? selectedFile.name
+                    : 'Pick Document'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.filePickerBtn,
+                  { borderColor: colors.primary },
+                ]}
+                onPress={handlePickImage}
+              >
+                <MaterialIcons name="image" size={18} color={colors.primary} />
+                <Text
+                  style={[
+                    CourseActionStyles.filePickerText,
+                    { color: colors.primary },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {selectedFile && selectedFile.type.includes('image')
+                    ? selectedFile.name
+                    : 'Pick Image'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={CourseActionStyles.modalActions}>
+              <TouchableOpacity
+                style={[
+                  CourseActionStyles.cancelBtn,
+                  { borderColor: colors.primary },
+                ]}
+                onPress={onClose}
+                disabled={isSaving || isUploadingMedia}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.cancelBtnText,
+                    { color: colors.primary },
+                  ]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <CustomButton
+                title={
+                  isUploadingMedia
+                    ? 'Uploading Asset...'
+                    : isSaving
+                      ? 'Creating...'
+                      : 'Add Assignment'
+                }
+                onPress={handleCreate}
+                disabled={isSaving}
+                isLoading={isSaving}
+                style={CourseActionStyles.saveBtn}
+              />
             </View>
           </ScrollView>
         </View>
@@ -687,7 +699,7 @@ export const AddExceptionModal = ({
   course,
   onSave,
   isSaving,
-  lectures,
+  selectedLecture,
 }: AddExceptionProps) => {
   // Hooks must run on every render, so the `course` guard comes after them.
   const user = useAppSelector(state => state.user);
@@ -695,33 +707,21 @@ export const AddExceptionModal = ({
   const [category, setCategory] =
     useState<CourseException['reasonCategory']>('Personal');
   const [reason, setReason] = useState('');
-  const [lectureId, setLectureId] = useState('');
-  const credits = Number(user?.exceptionCredits) || 0;
-  const currentPlan =
-    user?.tier &&
-    Object.prototype.hasOwnProperty.call(EXCEPTION_ACCOUNT_LIMITS, user.tier)
-      ? user.tier
-      : 'free';
-  const refillQuantity =
-    EXCEPTION_ACCOUNT_LIMITS[currentPlan] ??
-    EXCEPTION_ACCOUNT_LIMITS.free;
-  if (!course) {
+  useEffect(() => {
+    if (visible) {
+      setCategory('Personal');
+      setReason('');
+    }
+  }, [visible, selectedLecture?.id]);
+  if (!course || !selectedLecture) {
     return null;
   }
-  const futureLectures =
-    (Array.isArray(lectures) ? lectures : []).filter(l => {
-      const lectureDate = safeParseDate((l as any)?.date);
-      if (!lectureDate) return false;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return lectureDate >= today;
-    }) || [];
 
   const handleSubmit = () => {
-    if (!reason.trim() || !lectureId) {
+    if (!reason.trim()) {
       return Toast.show({
         type: 'error',
-        text1: 'Please select a lecture and provide a reason.',
+        text1: 'Please provide a reason for your request.',
         position: 'bottom',
       });
     }
@@ -737,7 +737,7 @@ export const AddExceptionModal = ({
         courseCode: course.courseCode,
       },
       courseId: course.courseId,
-      lectureId: lectureId,
+      lectureId: selectedLecture.id,
       reasonCategory: category,
       reason: reason,
       status: 'pending',
@@ -748,7 +748,10 @@ export const AddExceptionModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <Pressable style={CourseActionStyles.upgradedModalOverlay} onPress={onClose}>
+      <Pressable
+        style={CourseActionStyles.upgradedModalOverlay}
+        onPress={onClose}
+      >
         <TouchableWithoutFeedback>
           <View
             style={[
@@ -758,162 +761,170 @@ export const AddExceptionModal = ({
           >
             <View style={CourseActionStyles.upgradedSheetHeader}>
               <View>
-                <Text style={[CourseActionStyles.upgradedSheetTitle, { color: colors.textDarker }]}>
+                <Text
+                  style={[
+                    CourseActionStyles.upgradedSheetTitle,
+                    { color: colors.textDarker },
+                  ]}
+                >
                   Request Exception
                 </Text>
-                <Text style={[CourseActionStyles.upgradedSheetSubtitle, { color: colors.text }]}>
-                  Course Title: {course.courseTitle}
+                <Text
+                  style={[
+                    CourseActionStyles.upgradedSheetSubtitle,
+                    { color: colors.text },
+                  ]}
+                >
+                  Exception request for {course.courseTitle}
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose}>
                 <MaterialIcons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
-            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
-              Which lecture will you be missing?
-            </Text>
-            <View
-              style={[
-                CourseActionStyles.pickerContainer,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.backgroundSecondary,
-                },
-              ]}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 30 }}
             >
-              <Picker
-                selectedValue={lectureId}
-                onValueChange={itemValue => setLectureId(itemValue)}
-                style={{
-                  color: colors.text,
-                  backgroundColor: colors.backgroundSecondary,
-                }}
-                itemStyle={{
-                  color: colors.text,
-                  backgroundColor: colors.backgroundSecondary,
-                }}
-                dropdownIconColor={colors.primary}
-              >
-                <Picker.Item
-                  label="Select lecture..."
-                  value=""
-                  color={colors.inputTextHolder}
-                />
-                {futureLectures.map(l => (
-                  <Picker.Item
-                    key={String((l as any)?.id ?? Math.random())}
-                    label={`${(l as any)?.topicName ?? 'Lecture'} (${safeFormatDate((l as any)?.date)})`}
-                    value={(l as any)?.id ?? ''}
-                    color={colors.text}
-                  />
-                ))}
-              </Picker>
-            </View>
-            {futureLectures.length === 0 && (
-              <Text
+              <View
                 style={[
-                  CourseActionStyles.emptyLectureMessage,
-                  { color: colors.text },
+                  CourseActionStyles.selectedExceptionLecture,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
                 ]}
               >
-                There are no upcoming lectures available for this course.
-              </Text>
-            )}
-            <Text style={[CourseActionStyles.label, { color: colors.text }]}>
-              Reason Category
-            </Text>
-            <View style={CourseActionStyles.categoryGrid}>
-              {(
-                [
-                  'Medical',
-                  'Family Emergency',
-                  'Technical Issue',
-                  'Personal',
-                  'Other',
-                ] as const
-              ).map(cat => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    CourseActionStyles.catBtn,
-                    { borderColor: colors.border },
-                    category === cat && {
-                      ...CourseActionStyles.catBtnActive,
-                      backgroundColor: colors.primary,
-                      borderColor: colors.primary,
-                    },
-                  ]}
-                  onPress={() => setCategory(cat)}
-                >
+                <MaterialIcons
+                  name="event"
+                  size={22}
+                  color={colors.primary}
+                  style={CourseActionStyles.selectedExceptionIcon}
+                />
+                <View style={CourseActionStyles.selectedExceptionDetails}>
                   <Text
                     style={[
-                      CourseActionStyles.catBtnText,
-                      category === cat
-                        ? { color: '#fff' }
-                        : { color: colors.text },
+                      CourseActionStyles.selectedExceptionTopic,
+                      { color: colors.textDarker },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {selectedLecture.topicName}
+                  </Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.selectedExceptionDate,
+                      { color: colors.text },
                     ]}
                   >
-                    {cat}
+                    {safeFormatDate(selectedLecture.date)}
                   </Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+                <MaterialIcons
+                  name="check-circle"
+                  size={20}
+                  color={colors.success}
+                />
+              </View>
+              <Text style={[CourseActionStyles.label, { color: colors.text }]}>
+                Reason Category
+              </Text>
+              <View style={CourseActionStyles.categoryGrid}>
+                {(
+                  [
+                    'Medical',
+                    'Family Emergency',
+                    'Technical Issue',
+                    'Personal',
+                    'Other',
+                  ] as const
+                ).map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      CourseActionStyles.catBtn,
+                      { borderColor: colors.border },
+                      category === cat && {
+                        ...CourseActionStyles.catBtnActive,
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                      },
+                    ]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text
+                      style={[
+                        CourseActionStyles.catBtnText,
+                        category === cat
+                          ? { color: '#fff' }
+                          : { color: colors.text },
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
               <TextInput
-              style={[CourseActionStyles.textArea, { color: colors.text, borderColor: colors.border }]}
-              placeholder="Explain your reason in detail..."
-              multiline
-              numberOfLines={5}
-              value={reason}
-              onChangeText={setReason}
-              placeholderTextColor={colors.inputTextHolder}
-            />
-
-            <View
-              style={[
-                CourseActionStyles.costWarning,
-                { borderLeftColor: colors.primary },
-              ]}
-            >
-              <MaterialIcons
-                name="info-outline"
-                size={19}
-                color={colors.primary}
-              />
-              <Text
-                style={[CourseActionStyles.costText, { color: colors.primary, flex: 1 }]}
-              >
-                {credits > 0
-                  ? `Free while your monthly allowance remains; otherwise one of your ${credits} replenished requests is used. A refill restores ${refillQuantity} requests.`
-                  : `Free while your monthly allowance remains. After that, you can replenish it with ${refillQuantity} requests; the total price is shown before payment.`}
-              </Text>
-            </View>
-
-            <View style={CourseActionStyles.modalActions}>
-              <TouchableOpacity
                 style={[
-                  CourseActionStyles.cancelBtn,
-                  { borderColor: colors.primary },
+                  CourseActionStyles.textArea,
+                  { color: colors.text, borderColor: colors.border },
                 ]}
-                onPress={onClose}
+                placeholder="Explain your reason in detail..."
+                multiline
+                numberOfLines={5}
+                value={reason}
+                onChangeText={setReason}
+                placeholderTextColor={colors.inputTextHolder}
+              />
+
+              <View
+                style={[
+                  CourseActionStyles.costWarning,
+                  { borderLeftColor: colors.primary },
+                ]}
               >
+                <MaterialIcons
+                  name="info-outline"
+                  size={19}
+                  color={colors.primary}
+                />
                 <Text
                   style={[
-                    CourseActionStyles.cancelBtnText,
-                    { color: colors.primary },
+                    CourseActionStyles.costText,
+                    { color: colors.primary, flex: 1 },
                   ]}
                 >
-                  Cancel
+                  Exception requests are free. Explain your reason and your
+                  lecturer will review the request.
                 </Text>
-              </TouchableOpacity>
-              <CustomButton
-                title={isSaving ? 'Submitting...' : 'Submit Request'}
-                onPress={handleSubmit}
-                disabled={isSaving}
-                isLoading={isSaving}
-                style={CourseActionStyles.saveBtn}
-              />
+              </View>
+
+              <View style={CourseActionStyles.modalActions}>
+                <TouchableOpacity
+                  style={[
+                    CourseActionStyles.cancelBtn,
+                    { borderColor: colors.primary },
+                  ]}
+                  onPress={onClose}
+                >
+                  <Text
+                    style={[
+                      CourseActionStyles.cancelBtnText,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <CustomButton
+                  title={isSaving ? 'Submitting...' : 'Submit Request'}
+                  onPress={handleSubmit}
+                  disabled={isSaving}
+                  isLoading={isSaving}
+                  style={CourseActionStyles.saveBtn}
+                />
               </View>
             </ScrollView>
           </View>
@@ -991,10 +1002,6 @@ export const RenderContents = ({
   course: Course | null;
   onRefresh: () => void;
 }) => {
-  if (!course) {
-    console.log('Course details missing.');
-    return null;
-  }
   const currentUser = useAppSelector(state => state.user);
   const userRole = currentUser?.usertype;
   const { colors } = useTheme();
@@ -1007,6 +1014,11 @@ export const RenderContents = ({
   const [isModalVisible, setModalVisible] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [isExtractingContent, setIsExtractingContent] = useState(false);
+  const [selectedImageName, setSelectedImageName] = useState<string | null>(
+    null,
+  );
+  const { pickImage } = useMediaPicker();
   const shouldShowSearch = !(userRole === 'student' || false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedCourseContent, setSelectedCourseContent] = useState<{
@@ -1014,6 +1026,11 @@ export const RenderContents = ({
     topicName: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  if (!course) {
+    console.log('Course details missing.');
+    return null;
+  }
 
   const filteredData = contents.filter((item: string) =>
     item.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -1023,7 +1040,43 @@ export const RenderContents = ({
   const openModal = (index: number | null = null) => {
     setEditingIndex(index);
     setCurrentText(index !== null ? contents[index] : '');
+    setSelectedImageName(null);
     setModalVisible(true);
+  };
+  const handleExtractFromImage = async () => {
+    try {
+      const image = await pickImage();
+      if (!image) return;
+      setIsExtractingContent(true);
+      setSelectedImageName(image.name);
+      const result = await extractCourseContentFromImage(course.courseId, {
+        uri: image.uri,
+        name: image.name,
+        type: 'image/jpeg',
+      });
+      if (!result.success || !result.content) {
+        setSelectedImageName(null);
+        Toast.show({
+          type: 'error',
+          text1: 'Could not extract course content',
+          text2:
+            result.error || 'Try a clearer image that relates to this course.',
+          position: 'bottom',
+          bottomOffset: insets.bottom || 20,
+        });
+        return;
+      }
+      setCurrentText(result.content);
+      Toast.show({
+        type: 'success',
+        text1: 'Content extracted',
+        text2: 'Review the extracted text before saving it.',
+        position: 'bottom',
+        bottomOffset: insets.bottom || 20,
+      });
+    } finally {
+      setIsExtractingContent(false);
+    }
   };
   const handleDeletePress = (index: number) => {
     setSelectedCourseContent({
@@ -1227,18 +1280,68 @@ export const RenderContents = ({
                   ]}
                 >
                   {editingIndex !== null
-                    ? 'Edit Existing Topic'
-                    : 'Add New Topic'}
+                    ? 'Edit Course Content'
+                    : 'Create Course Content'}
                 </Text>
+                <TouchableOpacity
+                  onPress={handleExtractFromImage}
+                  disabled={isExtractingContent}
+                  style={{
+                    minHeight: 44,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 14,
+                    marginBottom: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    opacity: isExtractingContent ? 0.65 : 1,
+                  }}
+                >
+                  {isExtractingContent ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <MaterialIcons
+                      name="document-scanner"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  )}
+                  <Text style={{ color: colors.primary, fontWeight: '700' }}>
+                    {isExtractingContent
+                      ? 'Checking and extracting image...'
+                      : 'Extract content from image'}
+                  </Text>
+                </TouchableOpacity>
+                {!!selectedImageName && (
+                  <Text
+                    style={{
+                      color: colors.text,
+                      fontSize: 12,
+                      marginBottom: 8,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {selectedImageName}
+                  </Text>
+                )}
                 <TextInput
                   style={[
                     CourseActionStyles.input,
-                    { color: colors.text, borderColor: colors.border },
+                    {
+                      color: colors.text,
+                      borderColor: colors.border,
+                      minHeight: 140,
+                      maxHeight: 260,
+                      textAlignVertical: 'top',
+                    },
                   ]}
                   value={currentText}
                   onChangeText={setCurrentText}
-                  placeholder="Enter topic name..."
-                  autoFocus
+                  placeholder="Enter course content..."
+                  multiline
                   placeholderTextColor={colors.primaryTint}
                 />
                 <View style={CourseActionStyles.modalActions}>
@@ -1259,9 +1362,12 @@ export const RenderContents = ({
                     </Text>
                   </TouchableOpacity>
                   <CustomButton
-                    title="Save Changes"
+                    title={
+                      editingIndex !== null ? 'Save Changes' : 'Create Content'
+                    }
                     onPress={handleSave}
                     style={CourseActionStyles.saveBtn}
+                    disabled={isExtractingContent}
                   />
                 </View>
               </View>
@@ -1319,7 +1425,10 @@ export const RenderMaterials: React.FC<RenderMaterialsProps> = ({
       ? Object.values(rawResources)
       : [];
   const formattedResources: CourseResource[] = resourceArray
-    .filter(res => res != null && (typeof res === 'string' || typeof res === 'object'))
+    .filter(
+      res =>
+        res != null && (typeof res === 'string' || typeof res === 'object'),
+    )
     .map((res: any, index) => {
       if (typeof res === 'string') {
         return {
@@ -1332,10 +1441,17 @@ export const RenderMaterials: React.FC<RenderMaterialsProps> = ({
       }
       return {
         resourceId: String(res.resourceId ?? res.id ?? `res_${index}`),
-        resourceTitle: String(res.resourceTitle ?? res.title ?? res.name ?? 'Untitled Document'),
+        resourceTitle: String(
+          res.resourceTitle ?? res.title ?? res.name ?? 'Untitled Document',
+        ),
         resourceUrl: String(res.resourceUrl ?? res.url ?? ''),
         resourceSize: (res.resourceSize ?? res.size ?? 'Unknown size') as any,
-        resourceMimetype: String(res.resourceMimetype ?? res.mimetype ?? res.type ?? 'application/octet-stream'),
+        resourceMimetype: String(
+          res.resourceMimetype ??
+            res.mimetype ??
+            res.type ??
+            'application/octet-stream',
+        ),
       } as CourseResource;
     })
     .filter(r => !!r.resourceUrl);
@@ -1483,8 +1599,12 @@ export const RenderMaterials: React.FC<RenderMaterialsProps> = ({
   };
   const filteredData = formattedResources.filter(
     item =>
-      item?.resourceTitle?.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-      item?.resourceUrl?.toLowerCase().includes((searchQuery || '').toLowerCase()),
+      item?.resourceTitle
+        ?.toLowerCase()
+        .includes((searchQuery || '').toLowerCase()) ||
+      item?.resourceUrl
+        ?.toLowerCase()
+        .includes((searchQuery || '').toLowerCase()),
   );
   const formatBytes = (bytes?: number | string) => {
     if (!bytes || typeof bytes !== 'number') return '';
@@ -1559,8 +1679,7 @@ export const RenderMaterials: React.FC<RenderMaterialsProps> = ({
           { paddingBottom: insets.bottom + 24 },
         ]}
         renderItem={({ item }) => {
-          const fileName =
-            item?.resourceUrl?.split('/').pop() || 'document';
+          const fileName = item?.resourceUrl?.split('/').pop() || 'document';
           const formattedSize = formatBytes(item.resourceSize as number);
 
           return (
@@ -1931,7 +2050,8 @@ export const RenderAssignments = ({ course }: { course: Course | null }) => {
                       : { color: colors.text },
                   ]}
                 >
-                  {overdue ? 'Past Due: ' : 'Due: '} {safeFormatDate(item?.dueDate)}
+                  {overdue ? 'Past Due: ' : 'Due: '}{' '}
+                  {safeFormatDate(item?.dueDate)}
                 </Text>
               </View>
               {userRole === 'lecturer' && !overdue && (
@@ -1941,7 +2061,10 @@ export const RenderAssignments = ({ course }: { course: Course | null }) => {
                     { backgroundColor: colors.btnColor },
                   ]}
                   onPress={() =>
-                    handleAssignmentDeletePress(item?.id, item?.title ?? 'Assignment')
+                    handleAssignmentDeletePress(
+                      item?.id,
+                      item?.title ?? 'Assignment',
+                    )
                   }
                 >
                   <MaterialIcons
@@ -1992,31 +2115,11 @@ export const RenderAssignments = ({ course }: { course: Course | null }) => {
 };
 export const RenderStudentExceptions = ({
   exceptions,
-  onAddPress,
-  onBuyPress,
   refreshing,
   onRefresh,
 }: StudentExceptionsProps) => {
   const { colors } = useTheme();
-  const user = useAppSelector(state => state.user);
   const safeExceptions = Array.isArray(exceptions) ? exceptions : [];
-  const currentPlan =
-    user?.tier &&
-    Object.prototype.hasOwnProperty.call(EXCEPTION_ACCOUNT_LIMITS, user.tier)
-      ? user.tier
-      : 'free';
-  const planLimit =
-    EXCEPTION_ACCOUNT_LIMITS[currentPlan] ?? EXCEPTION_ACCOUNT_LIMITS.free;
-  const credits = Number(user?.exceptionCredits) || 0;
-  const refillQuantity = planLimit;
-  // Display estimate only; the server prices the full refill at its live rate.
-  const { exchangeData, ready } = useExchangeRate(user?.country || 'Nigeria');
-  const refillPrice = ready
-    ? `${exchangeData.symbol}${(EXCEPTION_COST_USD * refillQuantity * exchangeData.rate).toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`
-    : `$${(EXCEPTION_COST_USD * refillQuantity).toFixed(2)}`;
   const [searchQuery, setSearchQuery] = useState('');
   const shouldShowSearch = true;
 
@@ -2041,16 +2144,7 @@ export const RenderStudentExceptions = ({
         <>
           <PageHeader
             title="My Lecture Exceptions"
-            subtitle={`${planLimit} free each month${credits > 0 ? ` · ${credits} replenished requests available` : ''}`}
-            rightElement={
-              <CustomButton
-                title="Request Exception"
-                onPress={onAddPress}
-                iconName="add"
-                iconColor="#fff"
-                style={CourseActionStyles.addButton}
-              />
-            }
+            subtitle="Track requests submitted for your lectures"
           />
           <View
             style={[
@@ -2058,17 +2152,20 @@ export const RenderStudentExceptions = ({
               { borderLeftColor: colors.primary, marginHorizontal: 15 },
             ]}
           >
-            <MaterialIcons name="info-outline" size={19} color={colors.primary} />
-            <Text style={[CourseActionStyles.costText, { color: colors.text, flex: 1 }]}>
-              {credits > 0
-                ? `Each refill restores ${refillQuantity} exception requests for ${refillPrice}. You have ${credits} replenished requests available.`
-                : `Once your free monthly allowance is used, replenish it with ${refillQuantity} exception requests for ${refillPrice}.`}
+            <MaterialIcons
+              name="info-outline"
+              size={19}
+              color={colors.primary}
+            />
+            <Text
+              style={[
+                CourseActionStyles.costText,
+                { color: colors.text, flex: 1 },
+              ]}
+            >
+              Exception requests are free. Your lecturer will review each
+              submission.
             </Text>
-            {onBuyPress && (
-              <TouchableOpacity onPress={onBuyPress} hitSlop={8}>
-                <Text style={{ color: colors.primary, fontWeight: '700' }}>Refill</Text>
-              </TouchableOpacity>
-            )}
           </View>
           {shouldShowSearch && (
             <CourseSearchBar
@@ -2325,7 +2422,8 @@ export const RenderScheduleLecture = ({
       topicName: form.topicName!,
       lectureType: form.lectureType as 'Physical' | 'Online',
       location: isOnline ? '' : form.location,
-      startTime: safeParseDate(`${form.date}T${form.startTime}:00`) ?? new Date(),
+      startTime:
+        safeParseDate(`${form.date}T${form.startTime}:00`) ?? new Date(),
       endTime: safeParseDate(`${form.date}T${form.endTime}:00`) ?? new Date(),
       date: safeParseDate(form.date!) ?? new Date(),
       repeatWeeks: repeatWeeks,
@@ -2976,6 +3074,14 @@ export const RenderLecturerTestManage = ({
       });
       return;
     }
+    if (testForm.scheduledStart >= testForm.endTime) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Assessment Time',
+        text2: 'The assessment must end after its scheduled start time.',
+      });
+      return;
+    }
     setLoading(true);
     const currentCourse = Array.isArray(course) ? course[0] : course;
     const finalPayload: CreateTestPayload = {
@@ -3054,19 +3160,48 @@ export const RenderLecturerTestManage = ({
     formatTime,
     formatDate: formatPickeDate,
   } = useDateTimePicker();
+  const mergeDateAndTime = (date: Date, time: Date) => {
+    const merged = new Date(date);
+    merged.setHours(
+      time.getHours(),
+      time.getMinutes(),
+      time.getSeconds(),
+      time.getMilliseconds(),
+    );
+    return merged;
+  };
   const handleConfirm = (event: any, selectedDate?: Date) => {
     hidePicker();
     if (event.type === 'set' && selectedDate) {
       if (pickerMode === 'date') {
-        const dateString = selectedDate;
-        setTestForm(prev => ({ ...prev, date: dateString }));
+        setTestForm(prev => ({
+          ...prev,
+          dueDate: prev.endTime
+            ? mergeDateAndTime(selectedDate, prev.endTime)
+            : selectedDate,
+          scheduledStart: prev.scheduledStart
+            ? mergeDateAndTime(selectedDate, prev.scheduledStart)
+            : prev.scheduledStart,
+          endTime: prev.endTime
+            ? mergeDateAndTime(selectedDate, prev.endTime)
+            : prev.endTime,
+        }));
       } else if (pickerMode === 'startTime') {
         setTestForm(prev => ({
           ...prev,
-          scheduledStart: selectedDate,
+          scheduledStart: mergeDateAndTime(
+            prev.dueDate || selectedDate,
+            selectedDate,
+          ),
         }));
       } else if (pickerMode === 'endTime') {
-        setTestForm(prev => ({ ...prev, dueDate: selectedDate }));
+        setTestForm(prev => {
+          const deadline = mergeDateAndTime(
+            prev.dueDate || selectedDate,
+            selectedDate,
+          );
+          return { ...prev, dueDate: deadline, endTime: deadline };
+        });
       }
     }
   };
@@ -3275,13 +3410,23 @@ export const RenderLecturerTestManage = ({
         transparent
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
+        <SafeAreaView
+          style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
+        >
           {/* Header row with cancel */}
           <View style={CourseActionStyles.testBuildHeader}>
-            <TouchableOpacity onPress={() => setIsModalVisible(false)} style={CourseActionStyles.cancelPress}>
+            <TouchableOpacity
+              onPress={() => setIsModalVisible(false)}
+              style={CourseActionStyles.cancelPress}
+            >
               <MaterialIcons name="close" size={22} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[CourseActionStyles.buildTitle, { color: colors.textDarker }]}>
+            <Text
+              style={[
+                CourseActionStyles.buildTitle,
+                { color: colors.textDarker },
+              ]}
+            >
               Build Assessment
             </Text>
           </View>
@@ -3294,7 +3439,14 @@ export const RenderLecturerTestManage = ({
             {/* Title */}
             <View style={CourseActionStyles.testBuildFormGroup}>
               <TextInput
-                style={[CourseActionStyles.testBuildTitleInput, { color: colors.text }]}
+                style={[
+                  CourseActionStyles.testBuildTitleInput,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.backgroundSecondary,
+                  },
+                ]}
                 placeholder="Assessment Title (e.g. Test 1)"
                 placeholderTextColor={colors.inputTextHolder}
                 value={testForm.title}
@@ -3304,35 +3456,80 @@ export const RenderLecturerTestManage = ({
 
             {/* Duration + Total Marks side by side */}
             <View style={CourseActionStyles.testBuildDeadlineRow}>
-              <View style={CourseActionStyles.testBuildDeadlineBox}>
-                <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+              <View
+                style={[
+                  CourseActionStyles.testBuildMetricBox,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.testBuildDeadlineLabel,
+                    { color: colors.text },
+                  ]}
+                >
                   Duration (Minutes)
                 </Text>
                 <TextInput
-                  style={[CourseActionStyles.testBuildDeadlineInput, { color: colors.text }]}
+                  style={[
+                    CourseActionStyles.testBuildMetricInput,
+                    { color: colors.text, borderColor: colors.border },
+                  ]}
                   keyboardType="numeric"
                   value={testForm.duration}
-                  onChangeText={val => setTestForm({ ...testForm, duration: val })}
+                  onChangeText={val =>
+                    setTestForm({ ...testForm, duration: val })
+                  }
                   placeholder="eg. 30"
                   placeholderTextColor={colors.inputTextHolder}
                 />
               </View>
-              <View style={CourseActionStyles.testBuildDeadlineBox}>
-                <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+              <View
+                style={[
+                  CourseActionStyles.testBuildMetricBox,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    CourseActionStyles.testBuildDeadlineLabel,
+                    { color: colors.text },
+                  ]}
+                >
                   Total Marks
                 </Text>
                 <TextInput
-                  style={[CourseActionStyles.testBuildDeadlineInput, { color: colors.text }]}
+                  style={[
+                    CourseActionStyles.testBuildMetricInput,
+                    { color: colors.text, borderColor: colors.border },
+                  ]}
                   keyboardType="numeric"
                   placeholder="eg. 30"
                   value={testForm.totalMarks}
-                  onChangeText={val => setTestForm({ ...testForm, totalMarks: val })}
+                  onChangeText={val =>
+                    setTestForm({ ...testForm, totalMarks: val })
+                  }
                   placeholderTextColor={colors.inputTextHolder}
                 />
               </View>
             </View>
             {testForm.questions.map((q, idx) => (
-              <View key={q.id} style={CourseActionStyles.questionCard}>
+              <View
+                key={q.id}
+                style={[
+                  CourseActionStyles.questionCard,
+                  {
+                    backgroundColor: colors.backgroundSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
                 <View style={CourseActionStyles.qHeader}>
                   <Text
                     style={[
@@ -3352,7 +3549,14 @@ export const RenderLecturerTestManage = ({
                   </TouchableOpacity>
                 </View>
                 <TextInput
-                  style={[CourseActionStyles.qInput, { color: colors.text }]}
+                  style={[
+                    CourseActionStyles.qInput,
+                    {
+                      color: colors.text,
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
                   placeholder="Type your question here..."
                   multiline
                   value={q.questionText}
@@ -3500,43 +3704,114 @@ export const RenderLecturerTestManage = ({
             ))}
             {/* Set Deadline */}
             <View style={CourseActionStyles.testBuildFormGroup}>
-              <Text style={[CourseActionStyles.testBuildSectionLabel, { color: colors.textDarker }]}>
+              <Text
+                style={[
+                  CourseActionStyles.testBuildSectionLabel,
+                  { color: colors.textDarker },
+                ]}
+              >
                 Set Deadline
               </Text>
               <View style={CourseActionStyles.testBuildDeadlineRow}>
-                <View style={CourseActionStyles.testBuildDeadlineBox}>
-                  <MaterialIcons name="calendar-today" size={22} color={colors.primary} />
+                <View
+                  style={[
+                    CourseActionStyles.testBuildDeadlineBox,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={22}
+                    color={colors.primary}
+                  />
                   <View style={CourseActionStyles.testBuildDeadlineInner}>
-                    <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testBuildDeadlineLabel,
+                        { color: colors.text },
+                      ]}
+                    >
                       Date
                     </Text>
-                    <Text style={[CourseActionStyles.testBuildDeadlineValue, { color: colors.textDarker }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testBuildDeadlineValue,
+                        { color: colors.textDarker },
+                      ]}
+                    >
                       {testForm.dueDate instanceof Date
                         ? formatPickeDate(testForm.dueDate)
                         : testForm.dueDate || '00:00'}
                     </Text>
                   </View>
                 </View>
-                <View style={CourseActionStyles.testBuildDeadlineBox}>
-                  <MaterialIcons name="access-time" size={22} color={colors.primary} />
+                <View
+                  style={[
+                    CourseActionStyles.testBuildDeadlineBox,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="access-time"
+                    size={22}
+                    color={colors.primary}
+                  />
                   <View style={CourseActionStyles.testBuildDeadlineInner}>
-                    <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testBuildDeadlineLabel,
+                        { color: colors.text },
+                      ]}
+                    >
                       Start Time
                     </Text>
-                    <Text style={[CourseActionStyles.testBuildDeadlineValue, { color: colors.textDarker }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testBuildDeadlineValue,
+                        { color: colors.textDarker },
+                      ]}
+                    >
                       {testForm.scheduledStart instanceof Date
                         ? formatTime(testForm.scheduledStart)
                         : testForm.scheduledStart || '00:00'}
                     </Text>
                   </View>
                 </View>
-                <View style={CourseActionStyles.testBuildDeadlineBox}>
-                  <MaterialIcons name="access-time" size={22} color={colors.primary} />
+                <View
+                  style={[
+                    CourseActionStyles.testBuildDeadlineBox,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="access-time"
+                    size={22}
+                    color={colors.primary}
+                  />
                   <View style={CourseActionStyles.testBuildDeadlineInner}>
-                    <Text style={[CourseActionStyles.testBuildDeadlineLabel, { color: colors.text }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testBuildDeadlineLabel,
+                        { color: colors.text },
+                      ]}
+                    >
                       Ends
                     </Text>
-                    <Text style={[CourseActionStyles.testBuildDeadlineValue, { color: colors.textDarker }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testBuildDeadlineValue,
+                        { color: colors.textDarker },
+                      ]}
+                    >
                       {testForm.endTime instanceof Date
                         ? formatTime(testForm.endTime)
                         : testForm.endTime || '00:00'}
@@ -3549,11 +3824,19 @@ export const RenderLecturerTestManage = ({
             {/* Add Question + Publish */}
             <View style={CourseActionStyles.testBuildActions}>
               <TouchableOpacity
-                style={[CourseActionStyles.testBuildAddQuestionBtn, { borderColor: colors.primary }]}
+                style={[
+                  CourseActionStyles.testBuildAddQuestionBtn,
+                  { borderColor: colors.primary },
+                ]}
                 onPress={addQuestion}
               >
                 <MaterialIcons name="add" size={20} color={colors.primary} />
-                <Text style={[CourseActionStyles.testBuildAddQuestionText, { color: colors.primary }]}>
+                <Text
+                  style={[
+                    CourseActionStyles.testBuildAddQuestionText,
+                    { color: colors.primary },
+                  ]}
+                >
                   Add Question
                 </Text>
               </TouchableOpacity>
@@ -3692,7 +3975,9 @@ export const RenderStudentTest = ({
   const snapshotBusyRef = useRef(false);
   const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attentionWarningsRef = useRef(0);
-  const [awayNotice, setAwayNotice] = useState<{ seconds: number } | null>(null);
+  const [awayNotice, setAwayNotice] = useState<{ seconds: number } | null>(
+    null,
+  );
 
   const goTo = useCallback((next: TestPhase) => {
     phaseRef.current = next;
@@ -3822,7 +4107,8 @@ export const RenderStudentTest = ({
         const cleanCorrect = correctAnswer
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '');
-        isCorrect = cleanCorrect.length > 0 && cleanStudent.includes(cleanCorrect);
+        isCorrect =
+          cleanCorrect.length > 0 && cleanStudent.includes(cleanCorrect);
       }
 
       const pointsEarned = isCorrect ? pointsPerQuestion : 0;
@@ -3902,13 +4188,23 @@ export const RenderStudentTest = ({
   // different person can't sit the test and hand back for the final check,
   // and so looking away / extra people in frame are noticed.
   const takeProctorSnapshot = async (reason: ProctorSnapshot['reason']) => {
-    if (snapshotBusyRef.current || !cameraRef.current || !user.schoolAvatarUrl) return;
+    if (snapshotBusyRef.current || !cameraRef.current || !user.schoolAvatarUrl)
+      return;
     if (phaseRef.current !== 'active' || appState.current !== 'active') return;
     snapshotBusyRef.current = true;
     const at = new Date().toISOString();
     try {
-      const photo = await cameraRef.current.takePhoto({ flash: 'off', enableShutterSound: false });
-      const resized = await ImageResizer.createResizedImage(photo.path, 640, 640, 'JPEG', 70);
+      const photo = await cameraRef.current.takePhoto({
+        flash: 'off',
+        enableShutterSound: false,
+      });
+      const resized = await ImageResizer.createResizedImage(
+        photo.path,
+        640,
+        640,
+        'JPEG',
+        70,
+      );
       const base64Image = await RNFS.readFile(resized.path, 'base64');
       const res = await verifyFacialIdentity(base64Image, user.schoolAvatarUrl);
       if (res.isError) {
@@ -3967,7 +4263,13 @@ export const RenderStudentTest = ({
   const scheduleNextSnapshot = () => {
     if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
     const p = phaseRef.current;
-    if (p === 'done' || p === 'rejected' || p === 'submitting' || p === 'verifying') return;
+    if (
+      p === 'done' ||
+      p === 'rejected' ||
+      p === 'submitting' ||
+      p === 'verifying'
+    )
+      return;
     // Roughly one check every ~8 minutes (3–8 per test), at random offsets.
     const targetChecks = hasTimeLimit
       ? Math.min(8, Math.max(3, Math.round(durationMinutes / 8)))
@@ -3975,7 +4277,10 @@ export const RenderStudentTest = ({
     const averageGap = hasTimeLimit
       ? (durationMinutes * 60 * 1000) / (targetChecks + 1)
       : 3 * 60 * 1000;
-    const delay = Math.max(MIN_SNAPSHOT_GAP_MS, averageGap * (0.5 + Math.random()));
+    const delay = Math.max(
+      MIN_SNAPSHOT_GAP_MS,
+      averageGap * (0.5 + Math.random()),
+    );
     snapshotTimerRef.current = setTimeout(async () => {
       await takeSnapshotRef.current('random');
       scheduleNextSnapshotRef.current();
@@ -4016,8 +4321,7 @@ export const RenderStudentTest = ({
     verifyAttemptsRef.current += 1;
 
     const identity = await captureIdentity();
-    const canRetry =
-      !forced && verifyAttemptsRef.current < MAX_VERIFY_ATTEMPTS;
+    const canRetry = !forced && verifyAttemptsRef.current < MAX_VERIFY_ATTEMPTS;
     if (identity.outcome === 'mismatch' && canRetry) {
       setVerifyMessage(identity.message || null);
       submitLockRef.current = false;
@@ -4088,16 +4392,22 @@ export const RenderStudentTest = ({
           deviceId: submissionMetadata?.deviceId || 'Unknown Device',
           entrySelfieUrl: identity.label,
           // Times the student actually left the app (strikes).
-          tabSwitchCount: interruptionsRef.current.filter(i => i.counted).length,
+          tabSwitchCount: interruptionsRef.current.filter(i => i.counted)
+            .length,
           totalStrikes: cheatingCount,
           ipAddress: user.ipAddress?.[0] || '',
           // Every interruption, including brief ones such as an incoming
           // call screen, so the lecturer can judge them.
           interruptions: interruptionsRef.current,
           snapshots: snapshotsRef.current,
-          identityMismatches: snapshotsRef.current.filter(s => s.outcome === 'mismatch').length,
-          multipleFaceCount: snapshotsRef.current.filter(s => s.outcome === 'multipleFaces').length,
-          lookAwayCount: snapshotsRef.current.filter(s => s.outcome === 'away').length,
+          identityMismatches: snapshotsRef.current.filter(
+            s => s.outcome === 'mismatch',
+          ).length,
+          multipleFaceCount: snapshotsRef.current.filter(
+            s => s.outcome === 'multipleFaces',
+          ).length,
+          lookAwayCount: snapshotsRef.current.filter(s => s.outcome === 'away')
+            .length,
         },
         startTime:
           safeParseDate((submissionMetadata as any)?.startTime) ?? undefined,
@@ -4222,7 +4532,8 @@ export const RenderStudentTest = ({
 
       const awayMs = Date.now() - leftAtRef.current;
       leftAtRef.current = null;
-      const brief = !reachedBackgroundRef.current && awayMs < BRIEF_INTERRUPTION_MS;
+      const brief =
+        !reachedBackgroundRef.current && awayMs < BRIEF_INTERRUPTION_MS;
       interruptionsRef.current.push({
         at: new Date().toISOString(),
         seconds: Math.round(awayMs / 1000),
@@ -4230,7 +4541,9 @@ export const RenderStudentTest = ({
         counted: !brief,
       });
       if (deadlineRef.current) {
-        setTimeLeft(Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000)));
+        setTimeLeft(
+          Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000)),
+        );
       }
       if (brief) return;
 
@@ -4264,7 +4577,9 @@ export const RenderStudentTest = ({
     if (!hasTimeLimit || !isTestLive) return;
     const tick = () => {
       if (deadlineRef.current) {
-        setTimeLeft(Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000)));
+        setTimeLeft(
+          Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000)),
+        );
       }
     };
     tick();
@@ -4392,10 +4707,21 @@ export const RenderStudentTest = ({
               <View style={CourseActionStyles.testInstructionBox}>
                 <View style={CourseActionStyles.testInsBlock}>
                   <View style={CourseActionStyles.testInsBadge}>
-                    <MaterialIcons name="verified-user" size={14} color="#fff" />
+                    <MaterialIcons
+                      name="verified-user"
+                      size={14}
+                      color="#fff"
+                    />
                   </View>
-                  <Text style={[CourseActionStyles.testInsText, { color: colors.text }]}>
-                    <Text style={CourseActionStyles.boldText}>Identity checks: </Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.testInsText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    <Text style={CourseActionStyles.boldText}>
+                      Identity checks:{' '}
+                    </Text>
                     Your front camera stays on. Photos are taken at random times
                     and when you submit, and matched against your school profile
                     picture. Only you should be in view.
@@ -4405,34 +4731,61 @@ export const RenderStudentTest = ({
                   <View style={CourseActionStyles.testInsBadge}>
                     <MaterialIcons name="wb-sunny" size={14} color="#fff" />
                   </View>
-                  <Text style={[CourseActionStyles.testInsText, { color: colors.text }]}>
-                    <Text style={CourseActionStyles.boldText}>Be visible: </Text>
+                  <Text
+                    style={[
+                      CourseActionStyles.testInsText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    <Text style={CourseActionStyles.boldText}>
+                      Be visible:{' '}
+                    </Text>
                     Sit in good lighting and keep your face uncovered and in
                     view of the camera.
                   </Text>
                 </View>
                 <View style={CourseActionStyles.testInsBlock}>
                   <View style={CourseActionStyles.testInsBadge}>
-                    <MaterialIcons name="screen-lock-portrait" size={14} color="#fff" />
+                    <MaterialIcons
+                      name="screen-lock-portrait"
+                      size={14}
+                      color="#fff"
+                    />
                   </View>
-                  <Text style={[CourseActionStyles.testInsText, { color: colors.text }]}>
+                  <Text
+                    style={[
+                      CourseActionStyles.testInsText,
+                      { color: colors.text },
+                    ]}
+                  >
                     <Text style={CourseActionStyles.boldText}>
                       Stay in the app:{' '}
                     </Text>
                     Leaving or minimizing the app, or repeatedly looking away,
                     counts as a strike. {MAX_GRACES} strikes and your test
                     auto-submits. The timer keeps running while you're away, and
-                    being away for over {Math.round(MAX_AWAY_MS / 60000)} minutes
-                    submits your test.
+                    being away for over {Math.round(MAX_AWAY_MS / 60000)}{' '}
+                    minutes submits your test.
                   </Text>
                 </View>
                 <View style={CourseActionStyles.testInsBlock}>
                   <View style={CourseActionStyles.testInsBadge}>
-                    <MaterialIcons name="phone-disabled" size={14} color="#fff" />
+                    <MaterialIcons
+                      name="phone-disabled"
+                      size={14}
+                      color="#fff"
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[CourseActionStyles.testInsText, { color: colors.text }]}>
-                      <Text style={CourseActionStyles.boldText}>Phone calls: </Text>
+                    <Text
+                      style={[
+                        CourseActionStyles.testInsText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      <Text style={CourseActionStyles.boldText}>
+                        Phone calls:{' '}
+                      </Text>
                       Turn on Do Not Disturb first. A call screen that you
                       dismiss quickly is only logged, but answering a call takes
                       you out of the test and counts as a strike. Every
@@ -4441,26 +4794,42 @@ export const RenderStudentTest = ({
                     {Platform.OS === 'android' && (
                       <TouchableOpacity
                         onPress={() =>
-                          Linking.sendIntent('android.settings.ZEN_MODE_SETTINGS').catch(() =>
-                            Linking.openSettings(),
-                          )
+                          Linking.sendIntent(
+                            'android.settings.ZEN_MODE_SETTINGS',
+                          ).catch(() => Linking.openSettings())
                         }
                         style={CourseActionStyles.testDndBtn}
                         accessibilityRole="button"
                       >
-                        <MaterialIcons name="do-not-disturb-on" size={15} color={colors.primary} />
-                        <Text style={[CourseActionStyles.testLinkText, { color: colors.primary }]}>
+                        <MaterialIcons
+                          name="do-not-disturb-on"
+                          size={15}
+                          color={colors.primary}
+                        />
+                        <Text
+                          style={[
+                            CourseActionStyles.testLinkText,
+                            { color: colors.primary },
+                          ]}
+                        >
                           Turn on Do Not Disturb
                         </Text>
                       </TouchableOpacity>
                     )}
                   </View>
                 </View>
-                <View style={[CourseActionStyles.testInsBlock, { marginBottom: 0 }]}>
+                <View
+                  style={[CourseActionStyles.testInsBlock, { marginBottom: 0 }]}
+                >
                   <View style={CourseActionStyles.testInsBadge}>
                     <MaterialIcons name="celebration" size={14} color="#fff" />
                   </View>
-                  <Text style={[CourseActionStyles.testInsText, { color: colors.text, fontWeight: '700' }]}>
+                  <Text
+                    style={[
+                      CourseActionStyles.testInsText,
+                      { color: colors.text, fontWeight: '700' },
+                    ]}
+                  >
                     Good luck, you've got this!
                   </Text>
                 </View>
@@ -4535,7 +4904,9 @@ export const RenderStudentTest = ({
           </View>
 
           <View style={CourseActionStyles.testProgressRow}>
-            <Text style={[CourseActionStyles.testProgress, { color: colors.text }]}>
+            <Text
+              style={[CourseActionStyles.testProgress, { color: colors.text }]}
+            >
               Question {currentIndex + 1} of {totalQuestions}
             </Text>
             <Text
@@ -4620,19 +4991,33 @@ export const RenderStudentTest = ({
                     Q{currentIndex + 1}
                   </Text>
                 </View>
-                <Text style={[CourseActionStyles.testQType, { color: colors.primary }]}>
+                <Text
+                  style={[
+                    CourseActionStyles.testQType,
+                    { color: colors.primary },
+                  ]}
+                >
                   {currentQuestion.type === 'TrueFalse'
                     ? 'TRUE / FALSE'
                     : currentQuestion.type === 'MCQ'
                       ? 'MULTIPLE CHOICE'
                       : 'SHORT ANSWER'}
                 </Text>
-                <Text style={[CourseActionStyles.testQPoints, { color: colors.text }]}>
-                  {pointsPerQuestion} {pointsPerQuestion === 1 ? 'mark' : 'marks'}
+                <Text
+                  style={[
+                    CourseActionStyles.testQPoints,
+                    { color: colors.text },
+                  ]}
+                >
+                  {pointsPerQuestion}{' '}
+                  {pointsPerQuestion === 1 ? 'mark' : 'marks'}
                 </Text>
               </View>
               <Text
-                style={[CourseActionStyles.testQText, { color: colors.textDarker }]}
+                style={[
+                  CourseActionStyles.testQText,
+                  { color: colors.textDarker },
+                ]}
               >
                 {currentQuestion.questionText}
               </Text>
@@ -4653,7 +5038,8 @@ export const RenderStudentTest = ({
                         <View
                           style={[
                             CourseActionStyles.testOptionLetter,
-                            selected && CourseActionStyles.testOptionLetterSelected,
+                            selected &&
+                              CourseActionStyles.testOptionLetterSelected,
                           ]}
                         >
                           <Text
@@ -4669,7 +5055,8 @@ export const RenderStudentTest = ({
                           style={[
                             CourseActionStyles.testOptionText,
                             { color: colors.text },
-                            selected && CourseActionStyles.testOptionTextSelected,
+                            selected &&
+                              CourseActionStyles.testOptionTextSelected,
                           ]}
                         >
                           {option}
@@ -4710,7 +5097,11 @@ export const RenderStudentTest = ({
                   currentIndex === 0 && { opacity: 0.4 },
                 ]}
               >
-                <MaterialIcons name="chevron-left" size={22} color={colors.text} />
+                <MaterialIcons
+                  name="chevron-left"
+                  size={22}
+                  color={colors.text}
+                />
                 <Text
                   style={[
                     CourseActionStyles.testNavSecondaryText,
@@ -4767,7 +5158,10 @@ export const RenderStudentTest = ({
                 : 'Submitting your answers'}
             </Text>
             <Text
-              style={[CourseActionStyles.testStatusText, { color: colors.text }]}
+              style={[
+                CourseActionStyles.testStatusText,
+                { color: colors.text },
+              ]}
             >
               {phase === 'verifying'
                 ? 'Hold still and look at the camera.'
@@ -4777,7 +5171,11 @@ export const RenderStudentTest = ({
         </View>
       </Modal>
 
-      <Modal visible={phase === 'retryVerify'} transparent animationType="slide">
+      <Modal
+        visible={phase === 'retryVerify'}
+        transparent
+        animationType="slide"
+      >
         <View style={CourseActionStyles.testModalOverlay}>
           <View
             style={[
@@ -4796,7 +5194,12 @@ export const RenderStudentTest = ({
             >
               We couldn't confirm it's you
             </Text>
-            <Text style={[CourseActionStyles.testAdviceText, { color: colors.text }]}>
+            <Text
+              style={[
+                CourseActionStyles.testAdviceText,
+                { color: colors.text },
+              ]}
+            >
               Face the camera directly, in good lighting, with nothing covering
               your face. Your answers are saved.
             </Text>
@@ -4813,7 +5216,9 @@ export const RenderStudentTest = ({
             <View style={CourseActionStyles.testAttemptPill}>
               <Text style={CourseActionStyles.testAttemptText}>
                 {MAX_VERIFY_ATTEMPTS - verifyAttemptsRef.current} attempt
-                {MAX_VERIFY_ATTEMPTS - verifyAttemptsRef.current === 1 ? '' : 's'}{' '}
+                {MAX_VERIFY_ATTEMPTS - verifyAttemptsRef.current === 1
+                  ? ''
+                  : 's'}{' '}
                 left
               </Text>
             </View>
@@ -4827,7 +5232,12 @@ export const RenderStudentTest = ({
               style={CourseActionStyles.testLinkBtn}
               onPress={() => goTo('active')}
             >
-              <Text style={[CourseActionStyles.testLinkText, { color: colors.primary }]}>
+              <Text
+                style={[
+                  CourseActionStyles.testLinkText,
+                  { color: colors.primary },
+                ]}
+              >
                 Back to questions
               </Text>
             </TouchableOpacity>
@@ -4860,7 +5270,12 @@ export const RenderStudentTest = ({
             >
               Welcome back
             </Text>
-            <Text style={[CourseActionStyles.testAdviceText, { color: colors.text }]}>
+            <Text
+              style={[
+                CourseActionStyles.testAdviceText,
+                { color: colors.text },
+              ]}
+            >
               You left the test for {awayNotice?.seconds ?? 0} seconds. That
               counts as a strike: {warningCount}{' '}
               {warningCount === 1 ? 'strike remains' : 'strikes remain'} before
@@ -4880,7 +5295,11 @@ export const RenderStudentTest = ({
         </View>
       </Modal>
 
-      <Modal visible={phase === 'submitFailed'} transparent animationType="slide">
+      <Modal
+        visible={phase === 'submitFailed'}
+        transparent
+        animationType="slide"
+      >
         <View style={CourseActionStyles.testModalOverlay}>
           <View
             style={[
@@ -4899,7 +5318,12 @@ export const RenderStudentTest = ({
             >
               Submission didn't go through
             </Text>
-            <Text style={[CourseActionStyles.testAdviceText, { color: colors.text }]}>
+            <Text
+              style={[
+                CourseActionStyles.testAdviceText,
+                { color: colors.text },
+              ]}
+            >
               Your answers are safe on this device. Check your connection and
               try again.
             </Text>
@@ -4935,7 +5359,10 @@ export const RenderStudentTest = ({
                   Submission Flagged
                 </Text>
                 <Text
-                  style={[CourseActionStyles.testAdviceText, { color: colors.text }]}
+                  style={[
+                    CourseActionStyles.testAdviceText,
+                    { color: colors.text },
+                  ]}
                 >
                   {verifyMessage ||
                     'Your identity could not be verified against your profile picture.'}
@@ -4970,19 +5397,34 @@ export const RenderStudentTest = ({
                       { color: colors.primaryTint },
                     ]}
                   >
-                    {' '}/ {finalResult.total}
+                    {' '}
+                    / {finalResult.total}
                   </Text>
                 </View>
                 <View style={CourseActionStyles.testResultStats}>
                   <View style={CourseActionStyles.testStatPill}>
-                    <MaterialIcons name="percent" size={14} color={PRIMARY_COLOR} />
-                    <Text style={[CourseActionStyles.testStatText, { color: colors.text }]}>
+                    <MaterialIcons
+                      name="percent"
+                      size={14}
+                      color={PRIMARY_COLOR}
+                    />
+                    <Text
+                      style={[
+                        CourseActionStyles.testStatText,
+                        { color: colors.text },
+                      ]}
+                    >
                       {percent}%
                     </Text>
                   </View>
                   <View style={CourseActionStyles.testStatPill}>
                     <MaterialIcons name="check" size={14} color="#4CAF50" />
-                    <Text style={[CourseActionStyles.testStatText, { color: colors.text }]}>
+                    <Text
+                      style={[
+                        CourseActionStyles.testStatText,
+                        { color: colors.text },
+                      ]}
+                    >
                       {finalResult.correct}/{totalQuestions} correct
                     </Text>
                   </View>
@@ -5066,11 +5508,17 @@ const groupLecturesByDay = (lectures: Lecture[]): LectureListRow[] => {
     const key = lectureDayKey(lecture);
     (groups[key] = groups[key] || []).push(lecture);
   });
-  const startMs = (l: Lecture) => resolveLectureTime(l, 'start')?.getTime() ?? 0;
+  const startMs = (l: Lecture) =>
+    resolveLectureTime(l, 'start')?.getTime() ?? 0;
   return Object.keys(groups)
     .sort()
     .flatMap(key => [
-      { type: 'HEADER' as const, title: key, id: `header-${key}`, count: groups[key].length },
+      {
+        type: 'HEADER' as const,
+        title: key,
+        id: `header-${key}`,
+        count: groups[key].length,
+      },
       ...groups[key]
         .sort((a, b) => startMs(a) - startMs(b))
         .map(item => ({ ...item, type: 'ITEM' as const })),
@@ -5078,8 +5526,10 @@ const groupLecturesByDay = (lectures: Lecture[]): LectureListRow[] => {
 };
 
 /** Today's header, or the next day that has lectures. */
-const findTodayOrNextIndex = (rows: { type: string; title?: string }[], today: string) =>
-  rows.findIndex(row => row.type === 'HEADER' && (row.title || '') >= today);
+const findTodayOrNextIndex = (
+  rows: { type: string; title?: string }[],
+  today: string,
+) => rows.findIndex(row => row.type === 'HEADER' && (row.title || '') >= today);
 
 /** Rows have variable heights; scroll near the target, then retry. */
 const scrollToIndexFallback = (
@@ -5097,18 +5547,50 @@ const scrollToIndexFallback = (
 
 const lectureListContent = { paddingBottom: 110, flexGrow: 1 };
 
+const handleAddLectureToCalendar = async (lecture: Lecture) => {
+  try {
+    const result = await addLectureToCalendar(lecture);
+    Toast.show({
+      type: result === 'added' ? 'success' : 'info',
+      text1:
+        result === 'added'
+          ? 'Lecture added to calendar'
+          : 'Lecture is already in your calendar',
+    });
+  } catch (error) {
+    Toast.show({
+      type: 'error',
+      text1: 'Could not add lecture',
+      text2:
+        error instanceof Error
+          ? error.message
+          : 'Please check calendar permissions and try again.',
+    });
+  }
+};
+
 export const RenderViewLectureSchedule = ({
   lectures,
+  onRequestException,
+  onViewExceptions,
 }: {
   lectures: Lecture[];
   onPress: (item: Lecture) => void;
+  onRequestException?: (lecture: Lecture) => void;
+  onViewExceptions?: () => void;
 }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
+  const [clock, setClock] = useState(Date.now());
   const user = useAppSelector(state => state.user) || {};
   const flatListRef = useRef<FlatList>(null);
   const today = todayKey();
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   type FlatListItem =
     | { type: 'HEADER'; title: string; id: string; count: number }
@@ -5148,22 +5630,51 @@ export const RenderViewLectureSchedule = ({
   };
 
   const renderLectureItem = ({ item }: { item: Lecture }) => {
-    const isOngoing = item.status === 'ongoing';
+    const withinScheduledTime = isLectureWithinScheduledTime(item, clock);
+    const isOngoing = item.status === 'ongoing' && withinScheduledTime;
     const isPhysical = item.lectureType === 'Physical';
-    const isFinished = item.status === 'completed' || item.status === 'cancelled';
-    const canMarkAttendance = isPhysical && lectureDayKey(item) === today && !isFinished;
+    const isFinished =
+      item.status === 'completed' || item.status === 'cancelled';
+    const canMarkAttendance =
+      isPhysical && lectureDayKey(item) === today && !isFinished;
+    const start = resolveLectureTime(item, 'start');
+    const canAddToCalendar = !!start && start.getTime() > clock && !isFinished;
+    const canRequestException =
+      user.usertype === 'student' &&
+      !!onRequestException &&
+      !!start &&
+      start.getTime() > clock &&
+      !isFinished;
     return (
       <LectureScheduleCard
         lecture={item}
         primaryAction={
-          canMarkAttendance
+          isOngoing && !isPhysical
             ? {
-                label: 'Mark attendance',
-                icon: 'how-to-reg',
-                highlight: !!(item as any).attendanceOpen,
-                onPress: () => openStudentAttendance(navigation, item),
+                label: 'Join live class',
+                icon: 'login',
+                onPress: () => setOngoingLecture(item),
+              }
+            : canMarkAttendance
+              ? {
+                  label: 'Mark attendance',
+                  icon: 'how-to-reg',
+                  highlight: !!(item as any).attendanceOpen,
+                  onPress: () => openStudentAttendance(navigation, item),
+                }
+              : undefined
+        }
+        secondaryAction={
+          canRequestException
+            ? {
+                label: 'Request exception',
+                icon: 'event-busy',
+                onPress: () => onRequestException?.(item),
               }
             : undefined
+        }
+        calendarAction={
+          canAddToCalendar ? () => handleAddLectureToCalendar(item) : undefined
         }
         onPress={
           isOngoing && !isPhysical
@@ -5204,7 +5715,35 @@ export const RenderViewLectureSchedule = ({
         onScrollToIndexFailed={info => scrollToIndexFallback(flatListRef, info)}
         contentContainerStyle={lectureListContent}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<PageHeader title="My Lectures Schedule" />}
+        ListHeaderComponent={
+          <PageHeader
+            title="My Lectures Schedule"
+            rightElement={
+              onViewExceptions ? (
+                <TouchableOpacity
+                  onPress={onViewExceptions}
+                  style={CourseActionStyles.myExceptionsButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="View my exception requests"
+                >
+                  <MaterialIcons
+                    name="assignment"
+                    size={17}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[
+                      CourseActionStyles.myExceptionsButtonText,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    My requests
+                  </Text>
+                </TouchableOpacity>
+              ) : undefined
+            }
+          />
+        }
         ListEmptyComponent={
           <EmptyState
             title="No lectures scheduled yet"
@@ -5255,8 +5794,14 @@ export const LecturerLectureScheduleView = ({
   >('Physical');
   const [editLocation, setEditLocation] = useState('');
   const [editDate, setEditDate] = useState(new Date());
+  const [clock, setClock] = useState(Date.now());
   const flatListRef = useRef<FlatList>(null);
   const today = todayKey();
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const flatListData = useMemo(() => groupLecturesByDay(lectures), [lectures]);
 
@@ -5342,22 +5887,28 @@ export const LecturerLectureScheduleView = ({
   };
 
   const renderLecturerItem = ({ item }: { item: Lecture }) => {
-    const isOngoing = item.status === 'ongoing';
-    // A lecture only becomes "ongoing" when its host goes live / opens
-    // attendance, so the host needs a way in before that happens.
-    const isFinished = item.status === 'completed' || item.status === 'cancelled';
+    const withinScheduledTime = isLectureWithinScheduledTime(item, clock);
+    const isOngoing = item.status === 'ongoing' && withinScheduledTime;
+    const isFinished =
+      item.status === 'completed' || item.status === 'cancelled';
     const isToday = lectureDayKey(item) === today;
-    const primaryAction =
-      !isToday || isFinished
-        ? undefined
-        : item.lectureType === 'Physical'
+    const start = resolveLectureTime(item, 'start');
+    const canAddToCalendar = !!start && start.getTime() > clock && !isFinished;
+    const primaryAction = isFinished
+      ? undefined
+      : item.lectureType === 'Physical'
+        ? isToday
           ? {
-              label: (item as any).attendanceOpen ? 'Continue attendance' : 'Take attendance',
+              label: (item as any).attendanceOpen
+                ? 'Continue attendance'
+                : 'Take attendance',
               icon: 'how-to-reg',
               highlight: true,
               onPress: () => openLecturerAttendance(navigation, item),
             }
-          : {
+          : undefined
+        : withinScheduledTime
+          ? {
               label: isOngoing ? 'Rejoin live class' : 'Start live class',
               icon: isOngoing ? 'login' : 'videocam',
               onPress: () =>
@@ -5365,7 +5916,8 @@ export const LecturerLectureScheduleView = ({
                   lectureId: item.id,
                   courseId: item.courseId,
                 }),
-            };
+            }
+          : undefined;
     return (
       <LectureScheduleCard
         lecture={item}
@@ -5375,6 +5927,9 @@ export const LecturerLectureScheduleView = ({
             : undefined
         }
         primaryAction={primaryAction}
+        calendarAction={
+          canAddToCalendar ? () => handleAddLectureToCalendar(item) : undefined
+        }
         onEdit={isFinished ? undefined : () => handleOpenEditModal(item)}
         onDelete={() => {
           setSelectedLecture(item);
@@ -5742,7 +6297,17 @@ export const AssessmentReportScreen = ({ route }: any) => {
 };
 // Nigerian 5-point scale bands on a percentage.
 const gradeFor = (pct: number) =>
-  pct >= 70 ? 'A' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : pct >= 45 ? 'D' : pct >= 40 ? 'E' : 'F';
+  pct >= 70
+    ? 'A'
+    : pct >= 60
+      ? 'B'
+      : pct >= 50
+        ? 'C'
+        : pct >= 45
+          ? 'D'
+          : pct >= 40
+            ? 'E'
+            : 'F';
 
 /**
  * Lecturer gradebook: combines attendance % (present + approved exceptions
@@ -5778,12 +6343,13 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     const computed = data.map(s => {
       // Normalise so a missing component doesn't cap the final score.
       const pct = weightTotal
-        ? ((s.attendancePct ?? 0) * attW + (s.testPct ?? 0) * testW) / weightTotal
+        ? ((s.attendancePct ?? 0) * attW + (s.testPct ?? 0) * testW) /
+          weightTotal
         : 0;
       return {
         ...s,
         finalPct: Math.round(pct * 10) / 10,
-        finalScaled: Math.round(((pct / 100) * scale) * 100) / 100,
+        finalScaled: Math.round((pct / 100) * scale * 100) / 100,
         grade: gradeFor(pct),
       };
     });
@@ -5791,7 +6357,9 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
   }, [data, attW, testW, weightTotal, scale]);
 
   const classAverage = rows.length
-    ? Math.round((rows.reduce((sum, r) => sum + r.finalPct, 0) / rows.length) * 10) / 10
+    ? Math.round(
+        (rows.reduce((sum, r) => sum + r.finalPct, 0) / rows.length) * 10,
+      ) / 10
     : 0;
   const passCount = rows.filter(r => r.finalPct >= 40).length;
   const gradeCounts = rows.reduce((acc: Record<string, number>, r) => {
@@ -5822,7 +6390,13 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     }
     setDownloading(true);
     const esc = (v: any) =>
-      String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as any)[c]);
+      String(v ?? '').replace(
+        /[&<>"]/g,
+        c =>
+          (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }) as any)[
+            c
+          ],
+      );
     const tableRows = rows
       .map(
         (s, i) => `
@@ -5872,7 +6446,10 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
         directory: 'Documents',
       });
       if (file?.filePath) {
-        await Share.share({ url: `file://${file.filePath}`, title: 'Gradebook report' });
+        await Share.share({
+          url: `file://${file.filePath}`,
+          title: 'Gradebook report',
+        });
       }
     } catch (error) {
       console.error('Export Error:', error);
@@ -5882,10 +6459,20 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
     }
   };
 
-  const weightInput = (label: string, value: string, onChange: (v: string) => void, hint: string) => (
+  const weightInput = (
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    hint: string,
+  ) => (
     <View style={gradeUi.weightBox}>
       <Text style={[gradeUi.weightLabel, { color: colors.text }]}>{label}</Text>
-      <View style={[gradeUi.weightField, { borderColor: colors.border, backgroundColor: colors.background }]}>
+      <View
+        style={[
+          gradeUi.weightField,
+          { borderColor: colors.border, backgroundColor: colors.background },
+        ]}
+      >
         <TextInput
           value={value}
           onChangeText={v => onChange(v.replace(/[^0-9.]/g, ''))}
@@ -5893,17 +6480,29 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
           style={[gradeUi.weightInput, { color: colors.textDarker }]}
           maxLength={5}
         />
-        <Text style={[gradeUi.weightSuffix, { color: colors.text }]}>{hint}</Text>
+        <Text style={[gradeUi.weightSuffix, { color: colors.text }]}>
+          {hint}
+        </Text>
       </View>
     </View>
   );
 
   const header = (
     <View>
-      <View style={[gradeUi.card, { backgroundColor: colors.backgroundSecondary }]}>
-        <Text style={[gradeUi.cardTitle, { color: colors.textDarker }]}>Weighting</Text>
+      <View
+        style={[gradeUi.card, { backgroundColor: colors.backgroundSecondary }]}
+      >
+        <Text style={[gradeUi.cardTitle, { color: colors.textDarker }]}>
+          Weighting
+        </Text>
         <View style={gradeUi.weightRow}>
-          {hasAttendance && weightInput('Attendance', attendanceWeight, setAttendanceWeight, '%')}
+          {hasAttendance &&
+            weightInput(
+              'Attendance',
+              attendanceWeight,
+              setAttendanceWeight,
+              '%',
+            )}
           {hasTests && weightInput('Tests', testWeight, setTestWeight, '%')}
           {weightInput('Score out of', scaleTo, setScaleTo, 'pts')}
         </View>
@@ -5913,8 +6512,10 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
           </Text>
         )}
         <Text style={[gradeUi.meta, { color: colors.text }]}>
-          {summary?.lecturesHeld ?? 0} lectures held · {summary?.testsCount ?? 0} published{' '}
-          {summary?.testsCount === 1 ? 'test' : 'tests'} ({summary?.totalTestMarks ?? 0} marks)
+          {summary?.lecturesHeld ?? 0} lectures held ·{' '}
+          {summary?.testsCount ?? 0} published{' '}
+          {summary?.testsCount === 1 ? 'test' : 'tests'} (
+          {summary?.totalTestMarks ?? 0} marks)
         </Text>
       </View>
 
@@ -5925,9 +6526,19 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
             { label: 'Passed (40%+)', value: `${passCount}/${rows.length}` },
             { label: 'A grades', value: String(gradeCounts.A || 0) },
           ].map(stat => (
-            <View key={stat.label} style={[gradeUi.statTile, { backgroundColor: colors.backgroundSecondary }]}>
-              <Text style={[gradeUi.statValue, { color: colors.textDarker }]}>{stat.value}</Text>
-              <Text style={[gradeUi.statLabel, { color: colors.text }]}>{stat.label}</Text>
+            <View
+              key={stat.label}
+              style={[
+                gradeUi.statTile,
+                { backgroundColor: colors.backgroundSecondary },
+              ]}
+            >
+              <Text style={[gradeUi.statValue, { color: colors.textDarker }]}>
+                {stat.value}
+              </Text>
+              <Text style={[gradeUi.statLabel, { color: colors.text }]}>
+                {stat.label}
+              </Text>
             </View>
           ))}
         </View>
@@ -5947,10 +6558,19 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
   );
 
   return (
-    <View style={[CourseActionStyles.container, { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        CourseActionStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
       <PageHeader title="Grade Accelerator" />
       {loading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={{ marginTop: 40 }}
+        />
       ) : loadError ? (
         <EmptyState
           iconName="cloud-off"
@@ -5980,49 +6600,93 @@ export const GradeAccelerator = ({ courseId }: { courseId: string }) => {
           renderItem={({ item, index }) => {
             const expanded = expandedId === item._id;
             const gradeColor =
-              item.finalPct >= 50 ? colors.success : item.finalPct >= 40 ? colors.pendingDelivery : colors.primary;
+              item.finalPct >= 50
+                ? colors.success
+                : item.finalPct >= 40
+                  ? colors.pendingDelivery
+                  : colors.primary;
             return (
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => setExpandedId(expanded ? null : item._id)}
-                style={[gradeUi.rowCard, { backgroundColor: colors.backgroundSecondary }]}
+                style={[
+                  gradeUi.rowCard,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
               >
                 <View style={gradeUi.rowTop}>
-                  <Text style={[gradeUi.rank, { color: colors.text }]}>{index + 1}</Text>
+                  <Text style={[gradeUi.rank, { color: colors.text }]}>
+                    {index + 1}
+                  </Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[gradeUi.name, { color: colors.textDarker }]} numberOfLines={1}>
+                    <Text
+                      style={[gradeUi.name, { color: colors.textDarker }]}
+                      numberOfLines={1}
+                    >
                       {item.studentName}
                     </Text>
-                    <Text style={[gradeUi.matric, { color: colors.text }]}>{item.matricNumber}</Text>
+                    <Text style={[gradeUi.matric, { color: colors.text }]}>
+                      {item.matricNumber}
+                    </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={[gradeUi.score, { color: colors.textDarker }]}>
                       {item.finalScaled}
-                      <Text style={[gradeUi.scoreOf, { color: colors.text }]}> / {scale}</Text>
+                      <Text style={[gradeUi.scoreOf, { color: colors.text }]}>
+                        {' '}
+                        / {scale}
+                      </Text>
                     </Text>
                   </View>
-                  <View style={[gradeUi.gradePill, { backgroundColor: gradeColor + '1F' }]}>
-                    <Text style={[gradeUi.gradeText, { color: gradeColor }]}>{item.grade}</Text>
+                  <View
+                    style={[
+                      gradeUi.gradePill,
+                      { backgroundColor: gradeColor + '1F' },
+                    ]}
+                  >
+                    <Text style={[gradeUi.gradeText, { color: gradeColor }]}>
+                      {item.grade}
+                    </Text>
                   </View>
                 </View>
                 {expanded && (
-                  <View style={[gradeUi.breakdown, { borderTopColor: colors.border + '66' }]}>
+                  <View
+                    style={[
+                      gradeUi.breakdown,
+                      { borderTopColor: colors.border + '66' },
+                    ]}
+                  >
                     {hasAttendance && (
-                      <Text style={[gradeUi.breakdownText, { color: colors.text }]}>
-                        Attendance: {item.attendancePct ?? 0}% ({item.presentCount} present
-                        {item.excusedCount ? `, ${item.excusedCount} excused` : ''} of{' '}
-                        {summary?.lecturesHeld ?? 0})
+                      <Text
+                        style={[gradeUi.breakdownText, { color: colors.text }]}
+                      >
+                        Attendance: {item.attendancePct ?? 0}% (
+                        {item.presentCount} present
+                        {item.excusedCount
+                          ? `, ${item.excusedCount} excused`
+                          : ''}{' '}
+                        of {summary?.lecturesHeld ?? 0})
                       </Text>
                     )}
                     {hasTests && (
-                      <Text style={[gradeUi.breakdownText, { color: colors.text }]}>
-                        Tests: {item.testPct ?? 0}% ({item.testScore} of {summary?.totalTestMarks} marks,{' '}
-                        {item.testsTaken}/{summary?.testsCount} taken)
+                      <Text
+                        style={[gradeUi.breakdownText, { color: colors.text }]}
+                      >
+                        Tests: {item.testPct ?? 0}% ({item.testScore} of{' '}
+                        {summary?.totalTestMarks} marks, {item.testsTaken}/
+                        {summary?.testsCount} taken)
                       </Text>
                     )}
                     {item.flaggedTests > 0 && (
-                      <Text style={[gradeUi.breakdownText, { color: colors.primary }]}>
-                        {item.flaggedTests} flagged test {item.flaggedTests === 1 ? 'submission' : 'submissions'} to review
+                      <Text
+                        style={[
+                          gradeUi.breakdownText,
+                          { color: colors.primary },
+                        ]}
+                      >
+                        {item.flaggedTests} flagged test{' '}
+                        {item.flaggedTests === 1 ? 'submission' : 'submissions'}{' '}
+                        to review
                       </Text>
                     )}
                   </View>
@@ -6041,7 +6705,12 @@ const gradeUi = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 10 },
   weightRow: { flexDirection: 'row', gap: 10 },
   weightBox: { flex: 1 },
-  weightLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, opacity: 0.8 },
+  weightLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    opacity: 0.8,
+  },
   weightField: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -6055,20 +6724,42 @@ const gradeUi = StyleSheet.create({
   warning: { fontSize: 12.5, fontWeight: '700', marginTop: 10 },
   meta: { fontSize: 12, marginTop: 10, opacity: 0.75 },
   statRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  statTile: { flex: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center' },
+  statTile: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
   statValue: { fontSize: 18, fontWeight: '800' },
   statLabel: { fontSize: 11, marginTop: 2, opacity: 0.75 },
   downloadBtn: { marginBottom: 14, height: 46, borderRadius: 23 },
   rowCard: { borderRadius: 16, padding: 12, marginBottom: 8 },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rank: { width: 22, fontSize: 13, fontWeight: '800', textAlign: 'center', opacity: 0.6 },
+  rank: {
+    width: 22,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+    opacity: 0.6,
+  },
   name: { fontSize: 14.5, fontWeight: '700' },
   matric: { fontSize: 12, marginTop: 2, opacity: 0.7 },
   score: { fontSize: 16, fontWeight: '800' },
   scoreOf: { fontSize: 11.5, fontWeight: '600' },
-  gradePill: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  gradePill: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   gradeText: { fontSize: 15, fontWeight: '900' },
-  breakdown: { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 6 },
+  breakdown: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+  },
   breakdownText: { fontSize: 12.5, lineHeight: 18 },
 });
 export const CourseActionStyles = StyleSheet.create({
@@ -6300,21 +6991,40 @@ export const CourseActionStyles = StyleSheet.create({
     paddingBottom: 32,
   },
   testBuildFormGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   testBuildTitleInput: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    minHeight: 54,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 12,
+    borderRadius: 15,
     fontSize: 16,
   },
   testBuildDeadlineRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 8,
+    gap: 10,
+    marginBottom: 16,
+  },
+  testBuildMetricBox: {
+    flex: 1,
+    minWidth: 0,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 14,
+  },
+  testBuildMetricInput: {
+    width: '100%',
+    minHeight: 40,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 10,
+    fontSize: 14,
   },
   testBuildDeadlineBox: {
     flex: 1,
@@ -6322,19 +7032,20 @@ export const CourseActionStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   testBuildDeadlineInner: {
     flex: 1,
     minWidth: 0,
   },
   testBuildDeadlineLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   testBuildDeadlineInput: {
     minWidth: 0,
@@ -6347,34 +7058,43 @@ export const CourseActionStyles = StyleSheet.create({
   },
   testBuildDeadlineValue: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    flexShrink: 1,
   },
   testBuildSectionLabel: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   testBuildActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16,
+    gap: 12,
+    paddingTop: 8,
   },
   testBuildAddQuestionBtn: {
-    padding: 10,
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: PRIMARY_COLOR,
     backgroundColor: 'transparent',
   },
   testBuildAddQuestionText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: PRIMARY_COLOR,
   },
   testBuildPublishBtn: {
     height: 50,
-    paddingHorizontal: 20,
+    width: 'auto',
+    flexShrink: 0,
+    paddingHorizontal: 18,
     borderRadius: 25,
     backgroundColor: PRIMARY_COLOR,
     alignItems: 'center',
@@ -6620,6 +7340,41 @@ export const CourseActionStyles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 16,
+  },
+  selectedExceptionLecture: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 14,
+    marginBottom: 20,
+  },
+  selectedExceptionIcon: {
+    marginRight: 2,
+  },
+  selectedExceptionDetails: {
+    flex: 1,
+  },
+  selectedExceptionTopic: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  selectedExceptionDate: {
+    fontSize: 12,
+  },
+  myExceptionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  myExceptionsButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   modalSubtitle: {
     fontSize: 14,
@@ -6897,13 +7652,25 @@ export const CourseActionStyles = StyleSheet.create({
   questionCard: {
     marginBottom: 15,
     padding: 15,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 14,
   },
   qNumber: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 5,
   },
-  qInput: { fontSize: 14, marginBottom: 15 },
+  qInput: {
+    minHeight: 76,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR_TINT,
+    borderRadius: 10,
+    fontSize: 14,
+    marginBottom: 15,
+    textAlignVertical: 'top',
+  },
   optionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   radio: {
     width: 18,
@@ -7510,235 +8277,418 @@ export const CourseActionStyles = StyleSheet.create({
     elevation: 3,
   },
   testTimerChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
     backgroundColor: 'rgba(245,75,2,0.10)',
   },
   testTimerChipUrgent: { backgroundColor: PRIMARY_COLOR },
   testTimer: {
-    fontSize: 16, fontWeight: '800', letterSpacing: 0.5,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
     fontVariant: ['tabular-nums'],
   },
   testGracePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
     backgroundColor: 'rgba(245,75,2,0.08)',
   },
   testGracePillDanger: { backgroundColor: 'rgba(229,57,53,0.14)' },
   testGraceText: { fontSize: 12, fontWeight: '800' },
   testCalcBtn: {
-    marginLeft: 'auto', width: 38, height: 38, borderRadius: 19,
-    alignItems: 'center', justifyContent: 'center',
+    marginLeft: 'auto',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(245,75,2,0.10)',
   },
   testProgressRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   testProgress: { fontSize: 13, fontWeight: '700' },
   testAnsweredText: { fontSize: 12, fontWeight: '800' },
   testProgressTrack: {
-    height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 12,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 12,
   },
   testProgressFill: {
-    height: '100%', borderRadius: 3, backgroundColor: PRIMARY_COLOR,
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: PRIMARY_COLOR,
   },
   testNavigator: { gap: 8, paddingBottom: 14, paddingRight: 8, paddingTop: 2 },
   testNavDot: {
-    width: 36, height: 36, borderRadius: 18, borderWidth: 1.5,
-    alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   testNavDotAnswered: {
-    backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR,
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
   },
   testNavDotCurrent: { borderColor: PRIMARY_COLOR, borderWidth: 2.5 },
   testNavDotText: { fontSize: 13, fontWeight: '800' },
   testBodyScroll: { paddingBottom: 180 },
   testQuestionCard: {
-    borderRadius: 20, padding: 18, marginBottom: 16,
-    borderWidth: 1, elevation: 3,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    elevation: 3,
   },
   testQMetaRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
   },
   testQBadge: {
-    backgroundColor: PRIMARY_COLOR, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   testQBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   testQType: { flex: 1, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   testQPoints: { fontSize: 11, fontWeight: '700', opacity: 0.7 },
-  testQText: { fontSize: 17, fontWeight: '700', lineHeight: 25, marginBottom: 18 },
+  testQText: {
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 25,
+    marginBottom: 18,
+  },
   testOptions: { gap: 12 },
   testOptionBtn: {
-    borderWidth: 1.5, width: '100%', borderRadius: 14,
-    paddingVertical: 13, paddingHorizontal: 14, gap: 12,
-    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5,
+    width: '100%',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderColor: 'rgba(120,120,120,0.28)',
   },
   testOptionSelected: {
     borderColor: PRIMARY_COLOR,
-    backgroundColor: 'rgba(245,75,2,0.10)', borderWidth: 2,
+    backgroundColor: 'rgba(245,75,2,0.10)',
+    borderWidth: 2,
   },
   testOptionLetter: {
-    width: 32, height: 32, borderRadius: 16, borderWidth: 1.5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: 'rgba(120,120,120,0.35)',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   testOptionLetterSelected: {
-    backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR,
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
   },
   testOptionLetterText: { fontSize: 13, fontWeight: '800' },
   testOptionText: { fontSize: 15, lineHeight: 22, flex: 1 },
   testOptionTextSelected: { fontWeight: '700' },
   testAnswerInput: {
-    minHeight: 130, borderWidth: 1.5, borderRadius: 14,
-    padding: 14, fontSize: 15, lineHeight: 22, textAlignVertical: 'top',
+    minHeight: 130,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlignVertical: 'top',
   },
   testNavRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
   },
   testNavSecondary: {
-    flex: 1, height: 50, borderRadius: 14, borderWidth: 1.5,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flex: 1,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   testNavSecondaryText: { fontSize: 15, fontWeight: '700' },
-  testNavBtn: { paddingHorizontal: 15, width: 'auto', flex: 1, borderRadius: 14 },
+  testNavBtn: {
+    paddingHorizontal: 15,
+    width: 'auto',
+    flex: 1,
+    borderRadius: 14,
+  },
   testModalOverlay: {
-    flex: 1, backgroundColor: 'rgba(10,6,3,0.72)',
-    alignItems: 'center', justifyContent: 'center', padding: 20,
+    flex: 1,
+    backgroundColor: 'rgba(10,6,3,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   testModalCard: {
-    width: '92%', maxHeight: '88%', borderRadius: 24,
-    padding: 24, elevation: 10,
+    width: '92%',
+    maxHeight: '88%',
+    borderRadius: 24,
+    padding: 24,
+    elevation: 10,
   },
   testModalScroll: { alignItems: 'center', paddingBottom: 6 },
   testModalIconWrap: {
-    width: 68, height: 68, borderRadius: 34,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
     elevation: 5,
   },
   testModalTitle: {
-    fontSize: 22, fontWeight: '800', marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 12,
     textAlign: 'center',
   },
   testModalSubtitle: {
-    fontSize: 14, textAlign: 'center', marginBottom: 16, opacity: 0.8,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    opacity: 0.8,
   },
-  testSummaryRow: { flexDirection: 'row', gap: 8, width: '100%', marginBottom: 16 },
+  testSummaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+    marginBottom: 16,
+  },
   testSummaryChip: {
-    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 14,
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 14,
     backgroundColor: 'rgba(245,75,2,0.08)',
   },
   testSummaryValue: { fontSize: 17, fontWeight: '800', color: PRIMARY_COLOR },
-  testSummaryLabel: { fontSize: 11, fontWeight: '700', marginTop: 2, opacity: 0.75 },
+  testSummaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    opacity: 0.75,
+  },
   testInstructionBox: {
-    width: '100%', marginBottom: 18, borderRadius: 16,
-    padding: 14, backgroundColor: 'rgba(245,75,2,0.07)',
-    borderWidth: 1, borderColor: 'rgba(245,75,2,0.16)',
+    width: '100%',
+    marginBottom: 18,
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: 'rgba(245,75,2,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,75,2,0.16)',
   },
   testInsBlock: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    marginBottom: 12, width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    width: '100%',
   },
   testInsBadge: {
-    width: 26, height: 26, borderRadius: 13,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: 10, marginTop: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 1,
   },
   testInsText: { flex: 1, fontSize: 14, lineHeight: 22 },
   testStartBtn: { paddingHorizontal: 15, borderRadius: 14 },
   testFullWidthBtn: { width: '100%', paddingHorizontal: 15, borderRadius: 14 },
   testStatusCard: {
-    width: '82%', borderRadius: 24, paddingVertical: 30,
-    paddingHorizontal: 22, alignItems: 'center', elevation: 10, gap: 10,
+    width: '82%',
+    borderRadius: 24,
+    paddingVertical: 30,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    elevation: 10,
+    gap: 10,
   },
   testStatusTitle: {
-    fontSize: 18, fontWeight: '800', textAlign: 'center', marginTop: 6,
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 6,
   },
   testStatusText: {
-    fontSize: 14, lineHeight: 20, textAlign: 'center', opacity: 0.8,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    opacity: 0.8,
   },
   testResultCard: {
-    width: '95%', borderRadius: 24, padding: 26,
-    alignItems: 'center', elevation: 8,
+    width: '95%',
+    borderRadius: 24,
+    padding: 26,
+    alignItems: 'center',
+    elevation: 8,
   },
   testSuccessIconWrap: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#4CAF50',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 6, elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    elevation: 4,
   },
   testBlockedIconWrap: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 6, elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    elevation: 4,
   },
   testWarnIconWrap: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#F9A825',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 6, elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    elevation: 4,
   },
   testAttemptPill: {
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-    backgroundColor: 'rgba(245,75,2,0.10)', marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245,75,2,0.10)',
+    marginBottom: 16,
   },
   testAttemptText: { fontSize: 12, fontWeight: '800', color: PRIMARY_COLOR },
   testLinkBtn: { paddingVertical: 12, marginTop: 4 },
   testDndBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingVertical: 4,
   },
   testLinkText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   testScoreCircle: {
-    flexDirection: 'row', alignItems: 'baseline',
-    marginVertical: 16, paddingHorizontal: 26, paddingVertical: 12,
-    borderRadius: 20, backgroundColor: 'rgba(245,75,2,0.08)',
-    borderWidth: 1, borderColor: 'rgba(245,75,2,0.2)',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginVertical: 16,
+    paddingHorizontal: 26,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245,75,2,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,75,2,0.2)',
   },
   testScoreBig: { fontSize: 44, fontWeight: '800' },
   testScoreSmall: { fontSize: 20, fontWeight: '700', opacity: 0.75 },
   testResultStats: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   testStatPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     backgroundColor: 'rgba(120,120,120,0.12)',
   },
   testStatText: { fontSize: 12, fontWeight: '800' },
   testScoreTitle: {
-    fontSize: 20, fontWeight: '800', marginBottom: 8,
-    width: '100%', textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+    width: '100%',
+    textAlign: 'center',
   },
   testAdviceText: {
-    marginBottom: 20, fontSize: 14, lineHeight: 21,
-    fontWeight: '500', width: '100%', textAlign: 'center',
+    marginBottom: 20,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '500',
+    width: '100%',
+    textAlign: 'center',
   },
   testResultBtns: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', width: '100%', gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 10,
   },
-  testResultBtn: { flex: 1, width: 'auto', paddingHorizontal: 10, borderRadius: 14 },
+  testResultBtn: {
+    flex: 1,
+    width: 'auto',
+    paddingHorizontal: 10,
+    borderRadius: 14,
+  },
   testMiniCamera: {
-    position: 'absolute', bottom: 24, right: 16,
-    width: 104, height: 138, borderRadius: 18,
-    overflow: 'hidden', borderWidth: 2, borderColor: '#fff',
-    zIndex: 999, elevation: 8, backgroundColor: '#000',
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    width: 104,
+    height: 138,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#fff',
+    zIndex: 999,
+    elevation: 8,
+    backgroundColor: '#000',
   },
   testCameraLive: {
-    position: 'absolute', top: 6, left: 6,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
-    paddingHorizontal: 6, paddingVertical: 2,
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   testCameraLiveDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: '#E53935',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E53935',
   },
   testCameraLiveText: {
-    color: '#fff', fontSize: 8, fontWeight: '800', letterSpacing: 0.6,
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   btnContainer: {
     flexDirection: 'row',

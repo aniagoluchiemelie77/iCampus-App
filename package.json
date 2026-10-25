@@ -54,6 +54,7 @@
     "react-native-ble-manager": "^12.5.1",
     "react-native-ble-peripheral": "^2.0.1",
     "react-native-blob-util": "^0.24.10",
+    "react-native-calendar-events": "^2.2.0",
     "react-native-camera-kit": "^18.0.0",
     "react-native-chart-kit": "^7.0.2",
     "react-native-country-codes-picker": "^2.3.5",

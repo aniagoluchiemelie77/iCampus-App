@@ -127,6 +127,7 @@ import { useAppSelector } from './src/hooks/hooks.ts';
 import { BACKEND_URL } from '@env';
 import { AppDataProvider } from './src/context/EventContext.tsx';
 import { PostUploadProvider } from './src/context/PostUploadContext.tsx';
+import { ProductUploadProvider } from './src/context/ProductUploadContext.tsx';
 import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
 import { setAdmin } from './src/context/AdminSlice';
@@ -412,9 +413,10 @@ function MainApp() {
         <NavigationContainer linking={linking} ref={navigationRef}>
           {/* Without initialRouteName the stack always opened its first
               screen (SignUp), ignoring the session restored above. */}
-          {/* Post uploads run here, outside any screen, so CreatePost can
-              close while the upload finishes in the background. */}
-          <PostUploadProvider>
+          {/* Keep publishing overlays outside screen routes so their uploads
+              continue while the user returns to the store or feed. */}
+          <ProductUploadProvider>
+            <PostUploadProvider>
           <Stack.Navigator initialRouteName={initialRoute}>
             <Stack.Screen
               name="SignUp"
@@ -728,7 +730,8 @@ function MainApp() {
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
-          </PostUploadProvider>
+            </PostUploadProvider>
+          </ProductUploadProvider>
           <Toast config={toastConfig} />
         </NavigationContainer>
       </AppDataProvider>

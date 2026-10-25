@@ -27,11 +27,6 @@ interface SubmitExceptionResponse {
   success: boolean;
   exception?: CourseException;
   message?: string;
-  /** 'EXCEPTION_PAYMENT_REQUIRED' when the free allowance is used up. */
-  code?: string;
-  exceptionCredits?: number;
-  usedThisMonth?: number;
-  freeLimit?: number;
 }
 interface ApiOptions {
   endpoint: string;
@@ -1238,74 +1233,6 @@ export const toggleCommentLikeAPI = async (
     return { success: false, message: error.name === 'AbortError' ? 'Request timed out' : 'Connection to server failed' };
   }
 };
-export const bulkAddToCartApi = async (
-  items: { productId: string; quantity: number }[],
-  maxRetries = 3
-) => {
-  const idempotencyKey = uuidv4();
-  let attempt = 0;
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-
-  while (attempt < maxRetries) {
-    attempt++;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-      const response = await fetchWithAuth(`${cleanBaseUrl}/store/favorites-to-cart/bulk-add`, {
-        method: 'POST',
-        headers: {
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify({ items }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const result = await response.json();
-
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          Toast.show({
-            type: 'error',
-            text1: 'Failed to Add Items',
-            text2: result.error || 'Check your selection and try again.'
-          });
-          return null;
-        }
-        throw new Error(result.error || `Server error: ${response.status}`);
-      }
-
-      Toast.show({
-        type: 'success',
-        text1: 'Cart Updated',
-        text2: 'Items added successfully.'
-      });
-      return result;
-
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-
-      const isTimeout = error.name === 'AbortError';
-      const errorMessage = isTimeout ? 'Request timed out.' : (error.message || 'Network error.');
-
-      if (attempt >= maxRetries) {
-        Toast.show({
-          type: 'error',
-          text1: 'Connection Error',
-          text2: errorMessage
-        });
-        return null;
-      }
-      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
-      console.warn(`Bulk add attempt ${attempt} failed. Retrying in ${backoffDelay}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-    }
-  }
-  return null;
-};
 export const completeOrderDelivery = async (orderId: string, maxRetries = 3) => {
   const idempotencyKey = uuidv4();
   let attempt = 0;
@@ -1476,25 +1403,29 @@ export const requestPayoutAPI = async (amount: number) => {
   return result;
 };
 export const saveProductApiCall = async (
-  payload: any, 
-  productId?: string, 
-  onProgress?: (percentage: number) => void
+  payload: any,
+  productId?: string,
+  onProgress?: (percentage: number) => void,
+  requestIdempotencyKey?: string,
 ) => {
   const isEditing = !!productId;
   const token = await AsyncStorage.getItem('accessToken');
-  const idempotencyKey = uuidv4();
+  const idempotencyKey = requestIdempotencyKey || uuidv4();
+  const productType = payload.productType || payload.type;
 
   const multipartFields: any[] = [
     { name: 'title', data: String(payload.title) },
     { name: 'description', data: String(payload.description) },
-    { name: 'productType', data: String(payload.productType) },
+    { name: 'productType', data: String(productType) },
     { name: 'price', data: String(payload.price) },
+    { name: 'niche', data: String(payload.niche || payload.category || '') },
+    { name: 'category', data: String(payload.category || payload.niche || '') },
   ];
 
-  if (payload.productType === 'physical') {
+  if (productType === 'physical') {
     multipartFields.push(
-      { name: 'weightKg', data: String(payload.physicalDetails?.weightKg || '') },
-      { name: 'inStock', data: String(payload.physicalDetails?.inStock || '') },
+      { name: 'weightKg', data: String(payload.physicalDetails?.weightKg ?? '') },
+      { name: 'inStock', data: String(payload.physicalDetails?.inStock ?? '') },
       { name: 'colors', data: JSON.stringify(payload.physicalDetails?.colors || []) },
       { name: 'sizes', data: JSON.stringify(payload.physicalDetails?.sizes || []) },
       { name: 'sellerGateways', data: JSON.stringify(payload.physicalDetails?.sellerGateways || []) },
@@ -1537,6 +1468,17 @@ export const saveProductApiCall = async (
     });
 
     const result = await response.json();
+    const status = response.info().status;
+    if (status < 200 || status >= 300) {
+      return {
+        success: false,
+        message:
+          result?.message ||
+          result?.error ||
+          `The server could not save your listing (${status}).`,
+        data: result?.data,
+      };
+    }
     return result;
   } catch (error: any) {
     console.error("saveProductApiCall Error:", error);
@@ -1776,17 +1718,12 @@ export const submitLectureException = async (
     if (!response.ok) {
       return {
         success: false,
-        code: result.code,
-        exceptionCredits: result.exceptionCredits,
         message: result.message || 'Failed to submit exception report',
       };
     }
     return {
       success: true,
       exception: result.exception,
-      exceptionCredits: result.exceptionCredits,
-      usedThisMonth: result.usedThisMonth,
-      freeLimit: result.freeLimit,
     };
 
   } catch (error: any) {
@@ -2069,6 +2006,50 @@ export const createCourseContent = async (
   } catch (error: any) {
     if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
     return { success: false, error: error.message || 'Network error occurred' };
+  }
+};
+export const extractCourseContentFromImage = async (
+  courseId: string,
+  image: { uri: string; name: string; type: string },
+): Promise<{ success: boolean; content?: string; error?: string }> => {
+  try {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const formData = new FormData();
+    formData.append('image', {
+      uri: image.uri,
+      name: image.name,
+      type: image.type,
+    } as any);
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/users/lecturers/class/courses/extractCourseContent/${courseId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': undefined as any,
+        },
+        body: formData,
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Could not extract course content from this image.',
+      };
+    }
+    if (typeof result.content !== 'string' || !result.content.trim()) {
+      return {
+        success: false,
+        error: 'The content extractor returned no readable text.',
+      };
+    }
+    return { success: true, content: result.content };
+  } catch (error: any) {
+    console.error('Course Content Image Extraction Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error occurred.',
+    };
   }
 };
 export const createAssignment = async (courseId: string, formData: FormData): Promise<ApiResponse> => {
@@ -2783,7 +2764,7 @@ export const saveTokenToDatabase = async (
   }
 };
 
-export type PaymentPurpose = 'checkout' | 'subscription' | 'exception';
+export type PaymentPurpose = 'checkout' | 'subscription';
 
 export interface PaymentIntent {
   txRef: string;
@@ -2829,7 +2810,6 @@ const postJson = async <T,>(path: string, body: any, idempotent = false): Promis
 export const createPaymentIntentAPI = (
   body:
     | { purpose: 'subscription'; tier: string }
-    | { purpose: 'exception' }
     | { purpose: 'checkout'; items: any[]; shippingContact?: { phone?: string; address?: string } },
 ) => postJson<PaymentIntent>('/users/payments/intent', body);
 
@@ -2845,8 +2825,6 @@ export const confirmPaymentAPI = (txRef: string, transactionId: string) =>
     orders?: any[];
     tier?: string;
     subscriptionExpiresAt?: string;
-    exceptionCredits?: number;
-    exceptionCreditsAdded?: number;
     transactionId?: string;
   }>('/users/payments/confirm', { txRef, transactionId });
 

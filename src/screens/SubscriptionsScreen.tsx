@@ -23,7 +23,6 @@ import { patchUser } from '../context/UserSlice';
 import {
   USD_SUBSCRIPTION_PRICES,
   DELIVERY_FEES,
-  EXCEPTION_ACCOUNT_LIMITS,
 } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
 import { useExchangeRate } from '../hooks/useExchangeRate.ts';
@@ -52,7 +51,7 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
     features: [
       'Basic Profile',
       '1x Post Impression Boost',
-      `${EXCEPTION_ACCOUNT_LIMITS.free} free lecture exceptions per month`,
+      'Unlimited free lecture exception requests',
       `Standard shipping fees (${toPercentLabel(
         DELIVERY_FEES.free.home_delivery,
       )} Home Deivery / ${toPercentLabel(
@@ -67,7 +66,7 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
     features: [
       'Subscribed Badge',
       '2x Post Impression Boost',
-      `${EXCEPTION_ACCOUNT_LIMITS.pro} Free Lectures Exceptions Per Month`,
+      'Unlimited free lecture exception requests',
       `Discounted shipping (${toPercentLabel(
         DELIVERY_FEES.pro.home_delivery,
       )} Home Delivery / ${toPercentLabel(
@@ -84,7 +83,7 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
     features: [
       'Premium Badge',
       '5x Post Impression Boost',
-      `${EXCEPTION_ACCOUNT_LIMITS.premium} free lecture exceptions per month`,
+      'Unlimited free lecture exception requests',
       `Lowest shipping fees (${toPercentLabel(
         DELIVERY_FEES.premium.home_delivery,
       )} Home Delivery / ${toPercentLabel(

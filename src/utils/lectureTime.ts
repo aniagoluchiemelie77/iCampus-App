@@ -37,6 +37,15 @@ export const resolveLectureTime = (lecture: any, which: 'start' | 'end'): Date |
   return new Date(instant.getTime() + weeks * WEEK_MS);
 };
 
+export const isLectureWithinScheduledTime = (
+  lecture: any,
+  now = Date.now(),
+): boolean => {
+  const start = resolveLectureTime(lecture, 'start')?.getTime();
+  const end = resolveLectureTime(lecture, 'end')?.getTime();
+  return start !== undefined && end !== undefined && now >= start && now <= end;
+};
+
 export const formatClock = (date: Date | null) => (date ? moment(date).format('h:mm A') : '--:--');
 
 /** "1h 30m", "45m", "2h". */

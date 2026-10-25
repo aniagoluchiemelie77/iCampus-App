@@ -53,7 +53,7 @@ import { parseFirestoreDate } from '../utils/dateFormatter';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.82;
-const CARD_HEIGHT = 200;
+const CARD_HEIGHT = 220;
 const CARD_GAP = 16;
 const POPULAR_SKILLS = [
   'Programming',
@@ -77,7 +77,13 @@ const CourseCard = ({ item }: { item: any }) => {
   return (
     <>
       <TouchableOpacity
-        style={[styles.courseCard, { borderColor: colors.border }]}
+        style={[
+          styles.courseCard,
+          {
+            backgroundColor: colors.backgroundSecondary,
+            borderColor: colors.border,
+          },
+        ]}
         activeOpacity={0.85}
         onPress={() => setModalVisible(true)}
       >
@@ -90,17 +96,27 @@ const CourseCard = ({ item }: { item: any }) => {
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.academicPlaceholder}>
+            <View
+              style={[
+                styles.academicPlaceholder,
+                { backgroundColor: colors.tint },
+              ]}
+            >
               <MaterialIcons
                 name="auto-stories"
-                size={32}
+                size={40}
                 color={colors.primary}
               />
             </View>
           )}
           {/* Active status corner chip */}
           {item.isActive !== false && (
-            <View style={styles.statusBadge}>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: colors.primary },
+              ]}
+            >
               <Text style={[styles.statusText, { color: colors.btnTextColor }]}>
                 Active
               </Text>
@@ -626,10 +642,25 @@ export const ProfileScreen = ({ route }: any) => {
   const handleSwitchToInstitutionAdmin = async () => {
     if (isSwitching) return;
     setIsSwitching(true);
-    const result = await switchToAdminApi(currentUser.uid);
-    setIsSwitching(false);
-    if (result && result.success) {
-      const { accessToken, refreshToken, admin } = result.data;
+    try {
+      const result = await switchToAdminApi(currentUser.uid);
+      if (
+        !result?.success ||
+        !result.data?.uid ||
+        !result.accessToken ||
+        !result.refreshToken
+      ) {
+        Toast.show({
+          type: 'error',
+          text1: 'Switch Failed',
+          text2:
+            result?.error ||
+            'The administrator session could not be created. Please try again.',
+        });
+        return;
+      }
+
+      const { data: admin, accessToken, refreshToken } = result;
       try {
         await AsyncStorage.setItem('accessToken', accessToken);
         await AsyncStorage.setItem('refreshToken', refreshToken);
@@ -645,13 +676,21 @@ export const ProfileScreen = ({ route }: any) => {
         navigation.navigate('AdminDashboard');
       } catch (storageError) {
         console.error('Storage/Navigation Error during switch:', storageError);
+        Toast.show({
+          type: 'error',
+          text1: 'Switch Failed',
+          text2: 'Could not save the administrator session. Please try again.',
+        });
       }
-    } else {
+    } catch (error) {
+      console.error('Error during switch to institution admin:', error);
       Toast.show({
         type: 'error',
         text1: 'Switch Failed',
-        text2: result?.error || 'Could not switch to administrator mode.',
+        text2: 'Could not switch to administrator mode.',
       });
+    } finally {
+      setIsSwitching(false);
     }
   };
 
@@ -1606,26 +1645,24 @@ const styles = StyleSheet.create({
   courseCard: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 16,
+    borderRadius: 20,
     marginRight: CARD_GAP,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E8E8E8',
     backgroundColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 3,
   },
   thumbnailArea: {
     width: '100%',
-    height: 115,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    height: 120,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F4F2EF',
   },
   thumbnail: {
     width: '100%',
@@ -1636,23 +1673,25 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F4F2EF',
   },
   courseBody: {
-    padding: 12,
-    paddingTop: 10,
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   courseName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
-    lineHeight: 20,
+    marginBottom: 5,
+    lineHeight: 21,
   },
   courseCode: {
     fontSize: 12,
     fontWeight: '600',
     color: PRIMARY_COLOR,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   courseMeta: {
     flexDirection: 'row',
@@ -1663,6 +1702,7 @@ const styles = StyleSheet.create({
   courseMetaText: {
     fontSize: 11,
     color: '#666',
+    fontWeight: '500',
   },
   courseMetaSeparator: {
     fontSize: 11,
@@ -1698,14 +1738,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    elevation: 2,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   userType: {
     fontSize: 12,
