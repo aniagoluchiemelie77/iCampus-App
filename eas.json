@@ -17,7 +17,7 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "gradleCommand": ":app:bundleRelease --stacktrace --info -Dorg.gradle.workers.max=2"
+        "gradleCommand": "assembleRelease --stacktrace --info -Dorg.gradle.workers.max=2"
       }
     }
   },
