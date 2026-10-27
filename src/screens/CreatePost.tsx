@@ -8,6 +8,7 @@ import {
   Platform,
   StyleSheet,
   ScrollView,
+  PermissionsAndroid,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -16,7 +17,9 @@ import { useAppSelector } from '../hooks/hooks';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   launchImageLibrary,
-  ImageLibraryOptions,
+  launchCamera,
+  Asset,
+  ImagePickerResponse,
 } from 'react-native-image-picker';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -28,7 +31,7 @@ import { RootStackParamList } from '../../App';
 import { useDateTimePicker } from '../hooks/useDateTimePicker';
 import { usePicker } from '../hooks/useDropDownPicker';
 import { JobTypePicker } from '../components/InputGroup';
-import { HorizontalScrollableMediaPreviewList } from '../components/MediaPreview';
+import { MediaGrid } from '../components/MediaPreview';
 import { usePostUpload } from '../context/PostUploadContext';
 import { PostAudience } from '../types/firebase';
 import {
@@ -42,7 +45,10 @@ interface MediaItem {
   uri: string[];
   type: 'image' | 'video';
   isExisting?: boolean;
+  duration?: number;
 }
+const MAX_MEDIA = 4;
+const MAX_VIDEO_SECONDS = 180;
 type Props = NativeStackScreenProps<RootStackParamList, 'CreatePost'>;
 
 export const CreatePost = ({ route, navigation }: Props) => {
@@ -84,16 +90,16 @@ export const CreatePost = ({ route, navigation }: Props) => {
 
   const [mediaList, setMediaList] = useState<MediaItem[]>(
     editPostData?.media?.url
-      ? [
-          {
-            uri: (Array.isArray(editPostData.media.url)
-              ? editPostData.media.url
-              : [editPostData.media.url]) as string[],
-            type: (editPostData.media?.mediaType || 'image') as
-              'image' | 'video',
-            isExisting: true,
-          },
-        ]
+      ? (
+          (Array.isArray(editPostData.media.url)
+            ? editPostData.media.url
+            : [editPostData.media.url]) as string[]
+        ).map(url => ({
+          uri: [url],
+          type: (editPostData.media?.mediaType || 'image') as
+            'image' | 'video',
+          isExisting: true,
+        }))
       : [],
   );
 
@@ -224,22 +230,89 @@ export const CreatePost = ({ route, navigation }: Props) => {
     setPollOptions(prev => prev.filter((_, i) => i !== index));
   };
 
-  const pickMedia = async () => {
-    const options: ImageLibraryOptions = {
-      mediaType: 'mixed',
-      selectionLimit: 4 - mediaList.length,
-    };
-    const result = await launchImageLibrary(options);
+  const remainingSlots = MAX_MEDIA - mediaList.length;
 
-    if (result.assets) {
-      const newAssets: MediaItem[] = result.assets.map(asset => ({
-        uri: [asset.uri || ''],
+  const addAssets = (result: ImagePickerResponse) => {
+    if (result.didCancel) return;
+    if (result.errorCode) {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not add media',
+        text2:
+          result.errorCode === 'camera_unavailable'
+            ? 'No camera is available on this device.'
+            : result.errorMessage || 'Please try again.',
+      });
+      return;
+    }
+    const assets = (result.assets || []).filter((a: Asset) => !!a.uri);
+    const tooLong = assets.filter(
+      a => a.type?.includes('video') && (a.duration ?? 0) > MAX_VIDEO_SECONDS,
+    );
+    if (tooLong.length) {
+      Toast.show({
+        type: 'info',
+        text1: 'Video too long',
+        text2: `Videos can be up to ${MAX_VIDEO_SECONDS / 60} minutes.`,
+      });
+    }
+    const newAssets: MediaItem[] = assets
+      .filter(a => !tooLong.includes(a))
+      .map(asset => ({
+        uri: [asset.uri as string],
         type: asset.type?.includes('video') ? 'video' : 'image',
         isExisting: false,
+        duration: asset.duration,
       }));
-
-      setMediaList(prev => [...prev, ...newAssets].slice(0, 4));
+    if (mediaList.length + newAssets.length > MAX_MEDIA) {
+      Toast.show({
+        type: 'info',
+        text1: `Up to ${MAX_MEDIA} photos or videos per post`,
+      });
     }
+    setMediaList(prev => [...prev, ...newAssets].slice(0, MAX_MEDIA));
+  };
+
+  const pickFromGallery = async () => {
+    if (remainingSlots <= 0) return;
+    // Opens the system photo picker (Android 13+ / iOS PHPicker): no storage
+    // permission needed, and photos and videos can be picked together.
+    const result = await launchImageLibrary({
+      mediaType: 'mixed',
+      selectionLimit: remainingSlots,
+      quality: 0.8,
+      videoQuality: 'high',
+      formatAsMp4: true,
+      assetRepresentationMode: 'current',
+      presentationStyle: 'pageSheet',
+    });
+    addAssets(result);
+  };
+
+  const captureWithCamera = async (mediaType: 'photo' | 'video') => {
+    if (remainingSlots <= 0) return;
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Toast.show({
+          type: 'info',
+          text1: 'Camera access needed',
+          text2: 'Allow camera access in Settings to take photos or videos.',
+        });
+        return;
+      }
+    }
+    const result = await launchCamera({
+      mediaType,
+      quality: 0.8,
+      videoQuality: 'high',
+      durationLimit: MAX_VIDEO_SECONDS,
+      saveToPhotos: false,
+      formatAsMp4: true,
+    });
+    addAssets(result);
   };
 
   const hasValidTextOrMedia = content.trim().length > 0 || mediaList.length > 0;
@@ -493,17 +566,12 @@ export const CreatePost = ({ route, navigation }: Props) => {
               ))}
             </TextInput>
 
-            {mediaList.length > 0 && (
-              <HorizontalScrollableMediaPreviewList
-                mediaList={mediaList}
-                colors={colors}
-                disabled={postType === 'poll' || mediaList.length >= 4}
-                onPickMedia={pickMedia}
-                onRemove={index =>
-                  setMediaList(prev => prev.filter((_, i) => i !== index))
-                }
-              />
-            )}
+            <MediaGrid
+              mediaList={mediaList}
+              onRemove={index =>
+                setMediaList(prev => prev.filter((_, i) => i !== index))
+              }
+            />
           </View>
 
           {/* Dynamic Post Types */}
@@ -789,26 +857,53 @@ export const CreatePost = ({ route, navigation }: Props) => {
               },
             ]}
           >
-            <TouchableOpacity
-              style={styles.toolbarActionBtn}
-              onPress={pickMedia}
-            >
-              <View
-                style={[
-                  styles.toolbarIconCircle,
-                  { backgroundColor: colors.primary + '15' },
-                ]}
-              >
-                <MaterialIcons
-                  name="photo-library"
-                  size={20}
-                  color={colors.primary}
-                />
-              </View>
-              <Text style={[styles.toolbarActionText, { color: colors.text }]}>
-                Photo/Video
-              </Text>
-            </TouchableOpacity>
+            {(
+              [
+                { icon: 'photo-library', label: 'Gallery', onPress: pickFromGallery },
+                {
+                  icon: 'photo-camera',
+                  label: 'Camera',
+                  onPress: () => captureWithCamera('photo'),
+                },
+                {
+                  icon: 'videocam',
+                  label: 'Video',
+                  onPress: () => captureWithCamera('video'),
+                },
+              ] as const
+            ).map(action => {
+              const disabled = remainingSlots <= 0 || isUploading;
+              return (
+                <TouchableOpacity
+                  key={action.label}
+                  style={[
+                    styles.toolbarChip,
+                    {
+                      backgroundColor: colors.primary + '12',
+                      opacity: disabled ? 0.4 : 1,
+                    },
+                  ]}
+                  onPress={action.onPress}
+                  disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add from ${action.label}`}
+                >
+                  <MaterialIcons
+                    name={action.icon}
+                    size={19}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[styles.toolbarChipText, { color: colors.primary }]}
+                  >
+                    {action.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            <Text style={[styles.mediaCount, { color: colors.text }]}>
+              {mediaList.length}/{MAX_MEDIA}
+            </Text>
           </View>
         )}
 
@@ -962,21 +1057,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     alignItems: 'center',
   },
-  toolbarActionBtn: {
+  toolbarChip: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  toolbarIconCircle: {
-    width: 36,
-    height: 36,
+    gap: 6,
     borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 36,
     marginRight: 8,
   },
-  toolbarActionText: {
-    fontSize: 14,
+  toolbarChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  mediaCount: {
+    marginLeft: 'auto',
+    fontSize: 12.5,
     fontWeight: '600',
+    opacity: 0.7,
   },
 });
 

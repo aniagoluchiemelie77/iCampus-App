@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // sent returning users back through onboarding).
 const SESSION_KEYS = ['accessToken', 'refreshToken', 'user', 'sessionType'];
 
-export type SessionType = 'user' | 'admin';
+export type SessionType = 'user';
 
 export const saveSession = async ({
   accessToken,

@@ -161,24 +161,3 @@ export const updateLectureDetails = async (
     };
   }
 };
-export const updateAdminApi = async (uid: string, updateData: any) => {
-  try {
-    const response = await fetchWithAuth(`${baseUrl}admins/${uid}/update`, {
-      method: 'PUT',
-      headers: { 
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(updateData),
-    });
-    
-    const result = await response.json();
-    if (!response.ok) {
-      Toast.show({ type: 'error', text1: 'Update Error', text2: result.error || 'Failed to update admin' });
-      return;
-    }
-    return result;
-  } catch (error: any) {
-    Toast.show({ type: 'error', text1: 'Update Error', text2: error.message });
-    return;
-  }
-};

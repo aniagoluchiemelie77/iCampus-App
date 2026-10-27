@@ -41,7 +41,6 @@ import {
 import {
   submitLectureException,
   createLectureSchedule,
-  saveCourseAssessment,
   submitStudentTest,
 } from '../api/localPostApis';
 import { updateExceptionStatus } from '../api/localPatchApis';
@@ -422,43 +421,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     [course?.courseId],
   );
 
-  const handleCreateTest = useCallback(
-    async (testData: any, isSilent: boolean = false) => {
-      if (!course?.courseId) return;
-      if (!isSilent) setLoading(true);
-      try {
-        const result = await saveCourseAssessment(course.courseId, testData);
-        if (result.success) {
-          if (!isSilent) {
-            Toast.show({
-              type: 'success',
-              text1: testData.isPublished
-                ? 'Assessment Published!'
-                : 'Draft Saved',
-              text2: `Successfully stored "${testData.title}"`,
-            });
-          }
-          fetchTests();
-        } else {
-          Toast.show({
-            type: 'error',
-            text1: 'Save Failed',
-            text2: result.error || 'Check your connection',
-          });
-        }
-      } catch (error: any) {
-        Toast.show({
-          type: 'error',
-          text1: 'Network Error',
-          text2: error.message,
-        });
-      } finally {
-        if (!isSilent) setLoading(false);
-      }
-    },
-    [course?.courseId, fetchTests],
-  );
-
   const handleDeleteLecture = useCallback(async (lectureId: string) => {
     setLoading(true);
     try {
@@ -509,6 +471,23 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     if (title === 'Exceptions') fetchExceptions();
     if (title === 'Assessments') fetchTests();
   }, [title, fetchExceptions, fetchTests]);
+
+  // Lecturers come back here from the assessment builder screen.
+  useEffect(() => {
+    if (title !== 'Assessments' || userRole !== 'lecturer') return;
+    let wasBlurred = false;
+    const offBlur = navigation.addListener('blur', () => {
+      wasBlurred = true;
+    });
+    const offFocus = navigation.addListener('focus', () => {
+      if (wasBlurred) fetchTests();
+      wasBlurred = false;
+    });
+    return () => {
+      offBlur();
+      offFocus();
+    };
+  }, [navigation, title, userRole, fetchTests]);
 
   useEffect(() => {
     if (
@@ -642,7 +621,6 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
               refreshing={loading}
               tests={tests}
               onRefresh={fetchTests}
-              onSaveTest={handleCreateTest}
             />
           ) : hasSubmitted ? (
             <View

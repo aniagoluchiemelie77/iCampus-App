@@ -510,6 +510,20 @@ export const CourseModal = ({
                     }}
                   />
                   <GridItem
+                    label="Create Lecture"
+                    iconName="add-box"
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('CourseSubPage', {
+                        title: 'Set Lecture Schedule',
+                        course,
+                        userRole: currentUser.usertype,
+                        exceptions: null,
+                        lectures: null,
+                      });
+                    }}
+                  />
+                  <GridItem
                     label="Upload Materials"
                     iconName="cloud-upload"
                     onPress={() => {

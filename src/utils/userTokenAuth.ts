@@ -6,6 +6,7 @@ import '@react-native-firebase/messaging'; // ensures it initializes
 import { PermissionsAndroid, Platform } from 'react-native';
 import {
   AuthorizationStatus,
+  deleteToken,
   getMessaging,
   getToken,
   onTokenRefresh,
@@ -15,7 +16,35 @@ import { clearSession } from './session';
 import { navigationRef } from '../context/navigationContext';
 
 let customNavigationRef: any = null;
+let unsubscribeTokenRefresh: (() => void) | null = null;
+
+/** The device's current push token, or null when it can't be read. */
+export const getCurrentPushToken = async () => {
+  try {
+    return (await getToken(getMessaging())) || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Detaches this device from the signed-out account's pushes. Stops the
+ * token-refresh listener (it would keep re-saving the token under the old
+ * uid) and deletes the token, so the old account's stored token goes dead
+ * and the next login on this phone registers a fresh one.
+ */
+export const teardownPushNotifications = async () => {
+  unsubscribeTokenRefresh?.();
+  unsubscribeTokenRefresh = null;
+  try {
+    await deleteToken(getMessaging());
+  } catch (error) {
+    console.warn('Could not delete FCM token on logout:', error);
+  }
+};
+
 const handleLogout = async () => {
+  await teardownPushNotifications();
   await clearSession();
   // Fall back to the app-wide container ref (setNavigationRef is optional).
   const ref = customNavigationRef || navigationRef;
@@ -107,7 +136,6 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}): Pro
   return response;
 };
 const FCM_SAVE_RETRY_DELAYS_MS = [5000, 20000, 60000];
-let unsubscribeTokenRefresh: (() => void) | null = null;
 
 /** Saves the token, retrying with backoff (a cold server often times out). */
 const saveTokenWithRetry = async (uid: string, fcmToken: string) => {

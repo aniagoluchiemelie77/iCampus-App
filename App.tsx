@@ -13,12 +13,11 @@ import type {
   CourseException,
   Lecture,
   Course,
+  CreateTestPayload,
   MarketplaceOrder,
   Product,
-  SupportTicket,
 } from './src/types/firebase';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AdminLogin } from './src/screens/AdminLogin.tsx';
 const linking = {
   prefixes: [
     'https://useicampus.io',
@@ -29,9 +28,7 @@ const linking = {
   config: {
     screens: {
       Home: 'home',
-      AdminDashboard: 'admin-hub',
       Login: 'login',
-      AdminLogin: 'administrator/login/auth',
       SignUp: 'signup',
       TransactionDetail: 'transaction/:transactionId',
       PostDetailScreen: 'post/:postId',
@@ -73,6 +70,7 @@ import NotificationDetails from './src/screens/NotificationDetails';
 import PostDetailScreen from './src/screens/PostDetailsScreen';
 import CreatePost from './src/screens/CreatePost';
 import { CourseSubPage } from './src/screens/CourseSubPage';
+import { CreateAssessmentScreen } from './src/screens/CreateAssessmentScreen.tsx';
 import { LiveClassSessions } from './src/screens/LiveClassSession.tsx';
 import BleManager from 'react-native-ble-manager';
 import { PhysicalAttendanceManager } from './src/screens/PhysicalClassGetAttendanceScreen.tsx';
@@ -103,25 +101,12 @@ import { getToastConfig } from './src/components/ToastConfig.tsx';
 import { TransactionDetailScreen } from './src/screens/TransactionDetailScreen.tsx';
 import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 import { initialState } from './src/context/UserSlice.ts';
-import { AdminDashboard } from './src/screens/SupportAdminDashboard.tsx';
-import { AdminFormPage } from './src/screens/AdminCreateOrEditScreen.tsx';
-import { TicketResolveScreen } from './src/screens/TicketResolveScreen.tsx';
-import { ViewAllSchoolsScreen } from './src/screens/ViewAllSchoolsScreen.tsx';
-import { ViewAllDropStations } from './src/screens/ViewAllDropStations.tsx';
-import { SchoolAorEScreen } from './src/screens/SchoolAorE.tsx';
-import { StationAorEScreen } from './src/screens/StationAorE.tsx';
 import { RegisterStationScreen } from './src/screens/RegisterDropOffStation.tsx';
 import { SocketProvider } from './src/screens/HomeScreen.tsx';
 import { ViewAllCoursesScreen } from './src/screens/ViewAllCourses.tsx';
-import { AdminSearchScreen } from './src/screens/AdminSearchScreen.tsx';
 import { TermsScreen } from './src/screens/TermsScreen.tsx';
 import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
-import { AllTaxEntriesScreen } from './src/screens/ViewAllTaxEntries.tsx';
 import { ProfileContentListScreen } from './src/screens/ProfileContentListScreen.tsx';
-import { ViewAllAdsScreen } from './src/screens/ViewAllAds.tsx';
-import { AdAorEScreen } from './src/screens/AdsCreateOrEditScreen.tsx';
-import { ViewAllSupportInquiriesScreen } from './src/screens/SupportInquiriesScreen.tsx';
-import { SupportChatScreen } from './src/screens/SupportEmailsChat.tsx';
 import { refreshAccessToken } from './src/api/localPostApis.ts';
 import { useAppSelector } from './src/hooks/hooks.ts';
 import { BACKEND_URL } from '@env';
@@ -130,7 +115,6 @@ import { PostUploadProvider } from './src/context/PostUploadContext.tsx';
 import { ProductUploadProvider } from './src/context/ProductUploadContext.tsx';
 import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
-import { setAdmin } from './src/context/AdminSlice';
 import { clearSession } from './src/utils/session';
 import { requestUserPermissionAndGetToken } from './src/utils/userTokenAuth.ts';
 
@@ -138,30 +122,10 @@ const baseUrl = BACKEND_URL;
 
 export type RootStackParamList = {
   SignUp: undefined;
-  SupportChat: {
-    ticketRefId: string;
-  };
-  AdAorE: {
-    item?: any;
-  };
-  AdminLogin: undefined;
-  ViewAllSupportInquiries: undefined;
   RegisterStation: undefined;
-  ViewAllTaxEntries: undefined;
-  ViewAllAds: undefined;
-  AdminSearchScreen: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
   ViewAllCourses: undefined;
-  AdminDashboard: undefined;
-  ViewAllSchools: undefined;
-  ViewAllDropStations: undefined;
-  StationAorEScreen: {
-    station?: any;
-  };
-  SchoolAorE: {
-    item?: any;
-  };
   FlutterwavePayment: {
     amount: number;
     iCashToCredit: number;
@@ -169,13 +133,9 @@ export type RootStackParamList = {
     email: string;
     firstname: string;
   };
-  AdminFormPage: { admin?: any };
   CreatePost: {
     type?: 'post' | 'poll' | 'job' | 'event';
     post?: Posts;
-  };
-  TicketResolveScreen: {
-    ticket: SupportTicket;
   };
   TransactionDetail: {
     transactionId: string;
@@ -226,6 +186,10 @@ export type RootStackParamList = {
     userRole: 'student' | 'lecturer' | 'otherUser';
     lectures?: Lecture[];
     exceptions?: CourseException[];
+  };
+  CreateAssessment: {
+    course: Course;
+    test?: CreateTestPayload;
   };
   Assistant: {
     contextType: 'course' | 'lecture' | 'general';
@@ -299,7 +263,7 @@ function MainApp() {
   const dispatch = useDispatch();
   const [isInitializing, setIsInitializing] = useState(true);
   const [initialRoute, setInitialRoute] = useState<
-    'SignUp' | 'Login' | 'Home' | 'SuspendedScreen' | 'AdminDashboard'
+    'SignUp' | 'Login' | 'Home' | 'SuspendedScreen'
   >('SignUp');
   const user = useAppSelector(state => state.user) || initialState;
   const toastConfig = getToastConfig(colors);
@@ -365,14 +329,9 @@ function MainApp() {
           // first API call will refresh the token once the network is back.
         }
 
-        // Admin sessions predating `sessionType` are recognisable by adminType.
-        const isAdmin =
-          sessionType === 'admin' || (!sessionType && !!user.adminType);
-        if (isAdmin) {
-          dispatch(
-            setAdmin({ ...user, accessToken, tokenCreatedAt: Date.now() }),
-          );
-          setInitialRoute('AdminDashboard');
+        if (sessionType === 'admin' || (!sessionType && !!user.adminType)) {
+          await clearSession();
+          setInitialRoute('Login');
           return;
         }
 
@@ -424,41 +383,6 @@ function MainApp() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="ViewAllSupportInquiries"
-              component={ViewAllSupportInquiriesScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AdAorE"
-              component={AdAorEScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="SupportChat"
-              component={SupportChatScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ViewAllSchools"
-              component={ViewAllSchoolsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ViewAllAds"
-              component={ViewAllAdsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AdminSearchScreen"
-              component={AdminSearchScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ViewAllTaxEntries"
-              component={AllTaxEntriesScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="ProfileContentList"
               component={ProfileContentListScreen}
               options={{ headerShown: false }}
@@ -466,11 +390,6 @@ function MainApp() {
             <Stack.Screen
               name="PrivacyPolicy"
               component={PrivacyScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AdminLogin"
-              component={AdminLogin}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -486,26 +405,6 @@ function MainApp() {
             <Stack.Screen
               name="RegisterStation"
               component={RegisterStationScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="StationAorEScreen"
-              component={StationAorEScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AdminDashboard"
-              component={AdminDashboard}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ViewAllDropStations"
-              component={ViewAllDropStations}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="SchoolAorE"
-              component={SchoolAorEScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -531,16 +430,6 @@ function MainApp() {
             <Stack.Screen
               name="SellerProducts"
               component={SellerProductsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AdminFormPage"
-              component={AdminFormPage}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="TicketResolveScreen"
-              component={TicketResolveScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -698,6 +587,11 @@ function MainApp() {
                 title: route.params.title,
                 headerShown: false,
               })}
+            />
+            <Stack.Screen
+              name="CreateAssessment"
+              component={CreateAssessmentScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ForgotPasswordScreen"

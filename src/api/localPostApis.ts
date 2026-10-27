@@ -8,7 +8,12 @@ import DeviceInfo from 'react-native-device-info';
 import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload, PostComment, User} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import axios from 'axios';
-import { fetchWithAuth, refreshSessionToken } from '../utils/userTokenAuth';
+import {
+  fetchWithAuth,
+  refreshSessionToken,
+  getCurrentPushToken,
+  teardownPushNotifications,
+} from '../utils/userTokenAuth';
 import { clearSession } from '../utils/session';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 
@@ -326,15 +331,21 @@ export const askIAssistantAgent = async (
 export const handleLogout = async (navigation: any) => {
   try {
     const currentDeviceId = await DeviceInfo.getUniqueId();
+    // Sent so the server unlinks this phone from the account's pushes;
+    // otherwise the next user to sign in here receives them.
+    const fcmToken = await getCurrentPushToken();
     await fetchWithAuth(`${baseUrl}users/revoke-session`, {
       method: 'POST',
-      body: JSON.stringify({  
-        deviceIdToRevoke: currentDeviceId 
+      body: JSON.stringify({
+        deviceIdToRevoke: currentDeviceId,
+        fcmToken,
       }),
     });
   } catch (error) {
     console.error("Logout action failed", error);
   } finally {
+    // After the revoke call (it needs the token value), and even if it failed.
+    await teardownPushNotifications();
     // Session keys only: keep app flags such as hasLaunched.
     await clearSession();
     // Reset Redux user state so stale data does not bleed into the next login.
@@ -826,72 +837,6 @@ export const loginUser = async (credentials: any, maxRetries = 3) => {
       }
       const backoffDelay = Math.pow(2, attempt - 1) * 1000;
       console.warn(`Login attempt ${attempt} failed (${errorMessage}). Retrying in ${backoffDelay}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-    }
-  }
-
-  return {
-    success: false,
-    message: 'Network error. Please check your connection.',
-  };
-};
-export const loginAdmin = async (credentials: any, maxRetries = 3) => {
-  const idempotencyKey = uuidv4();
-  let attempt = 0;
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-
-  while (attempt < maxRetries) {
-    attempt++;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const response = await fetch(`${baseUrl}users/admin-login`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify({ credentials }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          Toast.show({ type: 'error', text1: 'Login Failed', text2: data.message || data.error });
-          return { success: false, message: data.message || data.error, status: response.status };
-        }
-        throw new Error(data.message || data.error || `Server error: ${response.status}`);
-      }
-
-      return {
-        success: true,
-        accessToken: data.accessToken, 
-        refreshToken: data.refreshToken,
-        user: data.admin,
-        message: data.message || 'Admin login successful',
-        status: response.status,
-      };
-
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-
-      const isTimeout = error.name === 'AbortError';
-      const errorMessage = isTimeout 
-        ? 'Request timed out. Check your connection.' 
-        : (error.message || 'Network error.');
-
-      if (attempt >= maxRetries) {
-        Toast.show({ type: 'error', text1: 'Login Failed', text2: errorMessage });
-        return {
-          success: false,
-          message: errorMessage,
-        };
-      }
-      const backoffDelay = Math.pow(2, attempt - 1) * 1000;
       await new Promise((resolve) => setTimeout(resolve, backoffDelay));
     }
   }
@@ -1409,66 +1354,59 @@ export const saveProductApiCall = async (
   requestIdempotencyKey?: string,
 ) => {
   const isEditing = !!productId;
-  const token = await AsyncStorage.getItem('accessToken');
   const idempotencyKey = requestIdempotencyKey || uuidv4();
   const productType = payload.productType || payload.type;
+  const physical = payload.physicalDetails || {};
 
-  const multipartFields: any[] = [
-    { name: 'title', data: String(payload.title) },
-    { name: 'description', data: String(payload.description) },
-    { name: 'productType', data: String(productType) },
-    { name: 'price', data: String(payload.price) },
-    { name: 'niche', data: String(payload.niche || payload.category || '') },
-    { name: 'category', data: String(payload.category || payload.niche || '') },
-  ];
-
+  // Images are already on Cloudinary by now, so this is plain JSON. It used to
+  // be multipart, which the backend never parses (express.json only), so
+  // req.body arrived undefined and the controller crashed.
+  const body: Record<string, any> = {
+    title: String(payload.title ?? '').trim(),
+    description: String(payload.description ?? '').trim(),
+    type: productType,
+    productType,
+    price: Number(payload.price),
+    niche: payload.niche || payload.category || '',
+    category: payload.category || payload.niche || '',
+    mediaUrls: Array.isArray(payload.mediaUrls)
+      ? payload.mediaUrls.filter(Boolean)
+      : payload.mediaUrls
+        ? [String(payload.mediaUrls)]
+        : [],
+  };
   if (productType === 'physical') {
-    multipartFields.push(
-      { name: 'weightKg', data: String(payload.physicalDetails?.weightKg ?? '') },
-      { name: 'inStock', data: String(payload.physicalDetails?.inStock ?? '') },
-      { name: 'colors', data: JSON.stringify(payload.physicalDetails?.colors || []) },
-      { name: 'sizes', data: JSON.stringify(payload.physicalDetails?.sizes || []) },
-      { name: 'sellerGateways', data: JSON.stringify(payload.physicalDetails?.sellerGateways || []) },
-      { name: 'dropOffAddress', data: JSON.stringify(payload.physicalDetails?.dropOffAddress || []) }
-    );
+    body.amountInStock = Number(physical.inStock) || 0;
+    body.weightKg = Number(physical.weightKg) || 0;
+    body.inStock = Number(physical.inStock) || 0;
+    body.colors = physical.colors || [];
+    body.sizes = physical.sizes || [];
+    body.sellerGateways = physical.sellerGateways || [];
+    body.dropOffAddress = physical.dropOffAddress || [];
   }
 
-  if (payload.mediaUrls) {
-    const thumbnailData = Array.isArray(payload.mediaUrls)
-      ? JSON.stringify(payload.mediaUrls)
-      : String(payload.mediaUrls);
-      
-    multipartFields.push({ name: 'mediaUrls', data: thumbnailData });
-  }
-
-  const method = isEditing ? 'PUT' : 'POST'; 
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const endpoint = isEditing 
-    ? `${cleanBaseUrl}/store/products/edit/${productId}` 
+  const endpoint = isEditing
+    ? `${cleanBaseUrl}/store/products/edit/${productId}`
     : `${cleanBaseUrl}/store/products/create`;
 
   try {
-    const response = await ReactNativeBlobUtil.config({
-      fileCache: true,
-    })
-    .fetch(
-      method,
-      endpoint,
-      {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data',
-        'Idempotency-Key': idempotencyKey,
-      },
-      multipartFields
-    )
-    .uploadProgress({ interval: 250 }, (written, total) => {
-      if (onProgress && total > 0) {
-        onProgress(Math.round((written / total) * 100));
-      }
+    onProgress?.(10);
+    const response = await fetchWithAuth(endpoint, {
+      method: isEditing ? 'PUT' : 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(body),
     });
+    onProgress?.(100);
 
-    const result = await response.json();
-    const status = response.info().status;
+    const status = response.status;
+    const raw = await response.text();
+    let result: any = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      result = { message: `The server sent an unexpected response (${status}).` };
+    }
     if (status < 200 || status >= 300) {
       return {
         success: false,
@@ -2279,28 +2217,6 @@ export const createManualCourseAPI = async (
     };
   }
 };
-export const createAdminApi = async (adminData: any) => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/create`, {
-      method: 'POST',
-      headers: { 
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(adminData),
-    });
-    
-    const result = await response.json();
-    if (!response.ok) {
-      Toast.show({ type: 'error', text1: 'Create Error', text2: result.error || 'Failed to create admin' });
-      return;
-    }
-    return result;
-  } catch (error: any) {
-    Toast.show({ type: 'error', text1: 'Create Error', text2: error.message });
-    return;
-  }
-};
 export const createSupportTicketApi = async (
   ticketData: { 
     message: string; 
@@ -2496,47 +2412,6 @@ export const createPublicMeeting = async (
     error: 'Network error occurred. Please check your connection.',
   };
 };
-export const createInstitutionApi = async (institutionData: any, signal?: AbortSignal) => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/institutions/create`, {
-      method: 'POST',
-      headers: { 
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(institutionData),
-      signal,
-    });
-
-    const data = await response.json();
-    return response.ok ? { success: true, data } : { success: false, error: data.message };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
-    return { success: false, error: 'Network error.' };
-  }
-};
-export const createStationApi = async (stationData: any, signal?: AbortSignal) => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/stations/create`, {
-      method: 'POST',
-      headers: { 
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(stationData),
-      signal,
-    });
-
-    const data = await response.json();
-    return response.ok 
-      ? { success: true, data: data.station } 
-      : { success: false, error: data.message || 'Failed to create station.' };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
-    console.error("Create Station API Error:", error);
-    return { success: false, error: 'Network error occurred.' };
-  }
-};
 export const requestDropStationApi = async (
   stationData: {
     name: string;
@@ -2602,120 +2477,6 @@ export const requestDropStationApi = async (
   }
 
   return { success: false, error: 'Network error occurred.' };
-};
-export const createAdApi = async (
-  adData: {
-    type: 'image' | 'video';
-    mediaUrl: string;
-    targetUrl?: string;
-    advertiserLogo: string;
-    advertiserName: string;
-    tagline?: string;
-  },
-  signal?: AbortSignal
-) => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/ads/create`, {
-      method: 'POST',
-      headers: { 
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(adData),
-      signal,
-    });
-
-    const data = await response.json();
-    return response.ok 
-      ? { success: true, data: data } 
-      : { success: false, error: data.message || 'Failed to create advertisement.' };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
-    console.error("Create Ad API Error:", error);
-    return { success: false, error: 'Network error occurred.' };
-  }
-};
-export const sendSupportMessageApi = async (
-  ticketRefId: string, 
-  messageData: {
-    message: string;
-    attachments?: { url: string; type: 'image' | 'file'; fileName?: string }[];
-  },
-  signal?: AbortSignal
-) => {
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/admins/support-tickets/${ticketRefId}/reply`, {
-      method: 'POST',
-      headers: { 
-        'X-Idempotency-Key': uuidv4(),
-      },
-      body: JSON.stringify(messageData),
-      signal,
-    });
-
-    const data = await response.json();
-    return response.ok 
-      ? { success: true, data: data } 
-      : { success: false, error: data.message || 'Failed to send support message.' };
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      return { success: false, error: 'Request cancelled.' };
-    }
-    console.error("Send Support Message API Error:", error);
-    return { success: false, error: 'Network error occurred.' };
-  }
-};
-export const switchToAdminApi = async (userId: string, deviceId?: string, deviceName?: string) => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-
-  try {
-    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const response = await fetchWithAuth(`${cleanBaseUrl}/users/switch-to-admin`, {
-      method: 'POST',
-      headers: { 
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({ uid: userId, deviceId, deviceName }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const result = await response.json();
-    
-    if (!response.ok) {
-      Toast.show({ 
-        type: 'error', 
-        text1: 'Switch Error', 
-        text2: result?.error || 'Failed to switch to admin dashboard' 
-      });
-      return { success: false, error: result?.error || 'Failed to switch' };
-    }
-
-    return { 
-      success: true, 
-      data: result?.admin || result?.data, 
-      accessToken: result?.accessToken, 
-      refreshToken: result?.refreshToken 
-    };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'Switch request timed out.' });
-      return { success: false, error: 'Request timed out.' };
-    }
-
-    Toast.show({ 
-      type: 'error', 
-      text1: 'Network Error', 
-      text2: error?.message || 'An unexpected error occurred' 
-    });
-    return { success: false, error: error?.message || 'Network error' };
-  }
 };
 export const saveTokenToDatabase = async (
   uid: string,

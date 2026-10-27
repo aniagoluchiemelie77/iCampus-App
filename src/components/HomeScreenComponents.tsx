@@ -47,6 +47,102 @@ const dedupePosts = (list: Posts[]): Posts[] => {
   });
 };
 
+// ---- TEMP feed crash diagnostics -------------------------------------------
+// Filter with: adb logcat -v time ReactNativeJS:V ReactNative:V AndroidRuntime:E libc:F DEBUG:F *:S
+// Flip to false (or delete this block and its calls) once the crash is found.
+const FEED_DEBUG = true;
+const feedLog = (...args: any[]) => {
+  if (FEED_DEBUG) console.log('[FeedDebug]', ...args);
+};
+
+/** One-line description of a post: enough to spot bad media without dumping it. */
+const describePost = (post: any) => {
+  const media = post?.media;
+  const urls = media?.url;
+  const urlList = Array.isArray(urls) ? urls : urls ? [urls] : [];
+  return {
+    id: getPostId(post) || 'NO_ID',
+    type: post?.postType,
+    mediaType: media?.mediaType ?? null,
+    urlCount: urlList.length,
+    badUrls: urlList.filter(
+      (u: any) => typeof u !== 'string' || !/^https?:\/\//.test(u),
+    ).length,
+    firstUrl:
+      typeof urlList[0] === 'string' ? urlList[0].slice(0, 80) : urlList[0],
+    hasPoll: !!post?.poll,
+    isRepost: !!post?.originalAuthor || !!post?.repostOf,
+  };
+};
+
+const summarizePosts = (list: any[]) => {
+  const ids = list.map(p => getPostId(p));
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
+  ids.forEach(id => {
+    if (!id) return;
+    if (seen.has(id)) duplicates.push(id);
+    seen.add(id);
+  });
+  return {
+    count: list.length,
+    missingIds: ids.filter(id => !id).length,
+    duplicates,
+    videos: list.filter(p => p?.media?.mediaType === 'video').length,
+    images: list.filter(p => p?.media?.mediaType === 'image').length,
+  };
+};
+
+/**
+ * A render error in one PostCard otherwise unmounts the whole app in release
+ * builds. This logs which post broke (and the component stack) and drops the
+ * row instead.
+ */
+class FeedItemBoundary extends React.Component<
+  { postId: string; index: number; children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: any, info: { componentStack?: string | null }) {
+    console.error(
+      '[FeedDebug] PostCard render crash',
+      `index=${this.props.index}`,
+      `postId=${this.props.postId}`,
+      error?.message,
+      '\n',
+      error?.stack,
+      '\ncomponentStack:',
+      info?.componentStack,
+    );
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+/** Logs mount/unmount: the last row mounted before a native crash is the suspect. */
+const FeedRowTracer = ({
+  post,
+  index,
+  children,
+}: {
+  post: Posts;
+  index: number;
+  children: React.ReactNode;
+}) => {
+  useEffect(() => {
+    if (!FEED_DEBUG) return;
+    feedLog('row mount', index, describePost(post));
+    return () => feedLog('row unmount', index, getPostId(post));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <>{children}</>;
+};
+// ---------------------------------------------------------------------------
+
 import { BACKEND_URL } from '@env';
 export const baseUrl = BACKEND_URL;
 interface Props {
@@ -284,26 +380,79 @@ export function FeedTab() {
   const loadPosts = useCallback(
     async (isRefreshing = false) => {
       const { cursor, posts } = stateRef.current;
-      if (fetchingRef.current) return;
+      feedLog('loadPosts called', {
+        isRefreshing,
+        cursor,
+        postsInState: posts.length,
+        alreadyFetching: fetchingRef.current,
+      });
+      if (fetchingRef.current) {
+        feedLog('loadPosts skipped: a fetch is already running');
+        return;
+      }
       // Reached the end of the feed.
-      if (!isRefreshing && cursor === null && posts.length > 0) return;
+      if (!isRefreshing && cursor === null && posts.length > 0) {
+        feedLog('loadPosts skipped: end of feed (cursor is null)');
+        return;
+      }
       const currentCursor = isRefreshing ? '' : cursor || '';
 
       fetchingRef.current = true;
       if (isRefreshing) setRefreshing(true);
       else setLoadingMore(true);
 
+      const startedAt = Date.now();
       try {
+        feedLog('fetchPostsAPI request', { cursor: currentCursor, limit: 10 });
         const response = await fetchPostsAPI({
           limit: 10,
           cursor: currentCursor,
         });
-        if (response && response.success) {
-          setPosts(prev =>
-            isRefreshing
-              ? dedupePosts(response.posts)
-              : dedupePosts([...prev, ...response.posts]),
+        feedLog('fetchPostsAPI response', {
+          ms: Date.now() - startedAt,
+          success: response?.success,
+          message: (response as any)?.message,
+          postsIsArray: Array.isArray(response?.posts),
+          nextCursor: response?.nextCursor,
+          sameCursorReturned:
+            !!currentCursor && response?.nextCursor === currentCursor,
+          page: Array.isArray(response?.posts)
+            ? summarizePosts(response.posts)
+            : typeof response?.posts,
+        });
+        if (Array.isArray(response?.posts)) {
+          response.posts.forEach((p: any, i: number) =>
+            feedLog('page item', i, describePost(p)),
           );
+        }
+        if (response && response.success) {
+          setPosts(prev => {
+            // Runs during React's update; a throw here is outside the
+            // try/catch below, so log around it.
+            try {
+              const merged = isRefreshing
+                ? dedupePosts(response.posts)
+                : dedupePosts([...prev, ...response.posts]);
+              feedLog('setPosts merge', {
+                before: prev.length,
+                incoming: response.posts?.length,
+                after: merged.length,
+                droppedAsDuplicates:
+                  (isRefreshing ? 0 : prev.length) +
+                  (response.posts?.length ?? 0) -
+                  merged.length,
+                mergedSummary: summarizePosts(merged),
+              });
+              return merged;
+            } catch (mergeError: any) {
+              console.error(
+                '[FeedDebug] setPosts merge threw',
+                mergeError?.message,
+                mergeError?.stack,
+              );
+              throw mergeError;
+            }
+          });
           setCursor(response.nextCursor);
           setLoadError(null);
         } else {
@@ -317,8 +466,12 @@ export function FeedTab() {
             });
           }
         }
-      } catch (error) {
-        console.error('Fetch error:', error);
+      } catch (error: any) {
+        console.error(
+          '[FeedDebug] loadPosts threw',
+          error?.message,
+          error?.stack,
+        );
         setLoadError(stateRef.current.posts.length ? 'more' : 'initial');
         Toast.show({
           type: 'error',
@@ -326,6 +479,7 @@ export function FeedTab() {
           text2: 'Check your connection and try again.',
         });
       } finally {
+        feedLog('loadPosts finished', { ms: Date.now() - startedAt });
         fetchingRef.current = false;
         setHasLoadedOnce(true);
         setLoadingMore(false);
@@ -348,13 +502,25 @@ export function FeedTab() {
       flatListRef.current?.scrollToOffset({ animated: true, offset: 0 }),
     );
   }, [publishedVersion]);
-  const handleEndReached = useCallback(() => {
-    console.log('Reached end...');
-    // After a failed page, wait for an explicit retry instead of hammering the
-    // server on every scroll event.
-    if (loadError) return;
-    loadPosts(false);
-  }, [loadError, loadPosts]);
+  const handleEndReached = useCallback(
+    (info?: { distanceFromEnd: number }) => {
+      feedLog('onEndReached', {
+        distanceFromEnd: info?.distanceFromEnd,
+        loadError,
+        posts: stateRef.current.posts.length,
+        cursor: stateRef.current.cursor,
+      });
+      // After a failed page, wait for an explicit retry instead of hammering
+      // the server on every scroll event.
+      if (loadError) return;
+      loadPosts(false);
+    },
+    [loadError, loadPosts],
+  );
+  // Every change to the list, including socket updates landing mid-scroll.
+  useEffect(() => {
+    feedLog('posts state changed', summarizePosts(posts));
+  }, [posts]);
   useEffect(() => {
     const currentSocket = socket?.current;
     if (!currentSocket) return;
@@ -372,6 +538,7 @@ export function FeedTab() {
     currentSocket.on(
       'post_stats_updated',
       (data: { postId: string; stats: any }) => {
+        feedLog('socket post_stats_updated', data?.postId);
         setPosts(prevPosts =>
           prevPosts.map(post => {
             if (post.postId === data.postId) {
@@ -406,7 +573,13 @@ export function FeedTab() {
         }
       });
       if (viewableItems.length > 0 && viewableItems[0].item) {
-        setActivePostId(getPostId(viewableItems[0].item));
+        const nextActive = getPostId(viewableItems[0].item);
+        // The active post is the one whose video plays.
+        feedLog('active post', nextActive, {
+          index: viewableItems[0].index,
+          mediaType: viewableItems[0].item?.media?.mediaType ?? null,
+        });
+        setActivePostId(nextActive);
       }
     },
   ).current;
@@ -448,7 +621,7 @@ export function FeedTab() {
   };
   const renderFooter = () => {
     if (loadingMore) {
-      console.log('Loading More...');
+      feedLog('footer: spinner');
       return (
         <ActivityIndicator
           style={styles.footerSpinner}
@@ -457,7 +630,7 @@ export function FeedTab() {
       );
     }
     if (loadError === 'more') {
-      console.log('Load error...');
+      feedLog('footer: retry button (load error)');
       return (
         <TouchableOpacity
           style={[styles.retryMore, { borderColor: colors.primary }]}
@@ -498,11 +671,15 @@ export function FeedTab() {
           keyExtractor={(item, index) =>
             getPostId(item) || `post-index-${index}`
           }
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              isVisible={getPostId(item) === activePostId}
-            />
+          renderItem={({ item, index }) => (
+            <FeedItemBoundary postId={getPostId(item) || 'NO_ID'} index={index}>
+              <FeedRowTracer post={item} index={index}>
+                <PostCard
+                  post={item}
+                  isVisible={getPostId(item) === activePostId}
+                />
+              </FeedRowTracer>
+            </FeedItemBoundary>
           )}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}

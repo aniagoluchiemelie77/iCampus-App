@@ -2,7 +2,6 @@ import { User, CreateTestPayload, DropOffStation, Notification, Lecture, Course,
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {fetchWithAuth} from '../utils/userTokenAuth';
-import { TAB_TO_CATEGORY, TabName } from '../constants/inAppConstants.ts';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../hooks/useSQLiteDb.ts';
@@ -82,10 +81,6 @@ interface ApiResponse {
   data?: any;
   error?: string;
 }
-interface AdminFetchUserNotificationsParams extends ApiRequestOptions {
-  userId: string;
-  limit?: number;
-}
 interface GetTransactionByIdParams extends ApiRequestOptions {
   transactionId: string;
 }
@@ -96,11 +91,6 @@ interface TransactionStatsParams extends ApiRequestOptions {
   month?: number;
   year?: number;
 }
-interface GetNotificationsParams extends ApiRequestOptions {
-  tabName: TabName;
-  page?: number;
-  limit?: number;
-}
 interface SearchUserParams {
   q?: string;
   uid?: string;
@@ -108,21 +98,11 @@ interface SearchUserParams {
   viewerRole: string;
 }
 interface FetchMyCoursesParams extends FetchStudentCoursesParams, ApiRequestOptions {};
-interface FetchSupportTicketParams extends ApiRequestOptions {
-  ticketRefId: string;
-}
-interface AdminFetchUserDetailsParams extends ApiRequestOptions {
-  userId: string;
-}
 interface GetCourseExceptionsParams extends ApiRequestOptions {
   courseId: string;
 }
 interface GetCourseAssessmentsParams extends ApiRequestOptions {
   courseId: string;
-}
-interface FetchTicketsParams extends ApiRequestOptions {
-  limit?: number;
-  cursor?: string;
 }
 interface GetLectureExceptionsParams extends ApiRequestOptions {
   lectureId: string;
@@ -1749,78 +1729,6 @@ export const getDeepgramTemporalToken = async (
     return null;
   }
 };
-export const getAllAdmins = async (): Promise<any[]> => {
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(`${baseUrl}admins/fetch-all`, {
-      method: 'GET',
-      headers,
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok || result?.success === false) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result?.message || 'Failed to fetch administrator list',
-      });
-      return [];
-    }
-    const list = Array.isArray(result) ? result : result.data;
-    return Array.isArray(list) ? list : [];
-  } catch (error: any) {
-    console.error('AdminListService Error:', error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not connect to the server',
-    });
-    return [];
-  }
-};
-export const getNotifications = async ({
-  tabName,
-  page = 1,
-  limit = 20,
-  signal,
-}: GetNotificationsParams): Promise<any[]> => {
-  try {
-    const category = TAB_TO_CATEGORY[tabName];
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(`${baseUrl}admins/get-notifications?category=${category}&page=${page}&limit=${limit}`, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok || result?.success === false) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: result?.message || `Failed to fetch ${tabName} notifications`,
-      });
-      return [];
-    }
-    
-    const list = Array.isArray(result) ? result : result.data;
-    return Array.isArray(list) ? list : [];
-    
-  } catch (error: any) {
-    if (error.name === 'AbortError') return [];
-
-    console.error('NotificationService Error:', error);
-    Toast.show({
-      type: 'error',
-      text1: 'Connection Error',
-      text2: 'Could not connect to the notification server',
-    });
-    return [];
-  }
-};
 export const fetchPostsAPI = async ({
   limit = 10,
   cursor = '',
@@ -1925,253 +1833,6 @@ export const fetchPostByIdAPI = async (postId: string) => {
     };
   }
 };
-export const fetchTicketsAPI = async ({
-  limit = 10,
-  cursor = '',
-  signal,
-}: FetchTicketsParams = {}) => {
-  try {
-    const params = new URLSearchParams({
-      limit: String(limit),
-      cursor,
-    });
-    const url = `${baseUrl}support/tickets/fetch-all?${params}`;
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok || data?.success === false) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to fetch support tickets',
-      };
-    }
-    
-    return {
-      success: true,
-      tickets: data.tickets || data.data || [], 
-      nextCursor: data.nextCursor || null,
-    };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, tickets: [], message: 'Request cancelled.' };
-
-    console.error("fetchTicketsAPI Error:", error);
-    return { 
-      success: false, 
-      tickets: [], 
-      message: 'Failed to connect to server' 
-    };
-  }
-};
-export const adminFetchUserDetails = async ({
-  userId,
-  signal,
-}: AdminFetchUserDetailsParams) => {
-  try {
-    const url = `${baseUrl}admins/fetch-user/${userId}`; 
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const data = await response.json();
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: data?.message || 'Failed to fetch user details'
-      });
-      return [];
-    }
-    return data.user || data; 
-  } catch (error: any) {
-    if (error.name === 'AbortError') return [];
-
-    console.error("adminFetchUserDetails Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: 'Check your connection and retry.'
-    });
-    throw error;
-  }
-};
-export const adminFetchUserNotifications = async ({
-  userId,
-  limit = 10,
-  signal,
-}: AdminFetchUserNotificationsParams) => {
-  try {
-    const url = `${baseUrl}admins/fetch-notifications/${userId}?limit=${limit}`;
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok || data?.success === false) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: data?.message || 'Failed to fetch user notifications'
-      });
-      return []; 
-    }
-    return data.notifications || data || []; 
-  } catch (error: any) {
-    if (error.name === 'AbortError') return [];
-
-    console.error("adminFetchUserNotifications Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: 'Check your connection and retry.'
-    });
-    return []; 
-  }
-};
-export const getAdminMetricsAPI = async () => {
-  try {
-    const url = `${baseUrl}admins/get-overview`; 
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Dashboard Error',
-        text2: data?.message || 'Failed to fetch admin metrics'
-      });
-      return null;
-    }
-    
-    return data; 
-  } catch (error) {
-    console.error("getAdminMetricsAPI Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: 'Could not connect to server.'
-    });
-    return null;
-  }
-};
-export const getInstitutionsAPI = async (page: number, limit: number = 20) => {
-  try {
-    const url = `${baseUrl}admins/get-institutions?page=${page}&limit=${limit}`;
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: data?.message || 'Failed to fetch institutions'
-      });
-      return [];
-    }
-    
-    return data; 
-  } catch (error) {
-    console.error("getInstitutionsAPI Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: 'Could not connect to server.'
-    });
-    return [];
-  }
-};
-export const getDropOffStationsAPI = async (page: number, limit: number = 20) => {
-  try {
-    const url = `${baseUrl}admins/get-drop-off-stations?page=${page}&limit=${limit}`;
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      Toast.show({
-        type: 'error',
-        text1: 'Fetch Error',
-        text2: data?.message || 'Failed to fetch drop-off stations'
-      });
-      return [];
-    }
-    
-    return data;
-  } catch (error) {
-    console.error("getDropOffStationsAPI Error:", error);
-    Toast.show({
-      type: 'error',
-      text1: 'Network Error',
-      text2: 'Could not connect to server.'
-    });
-    return [];
-  }
-};
-export const getSchoolStatsApi = async (schoolId: string, signal?: AbortSignal) => {
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(`${baseUrl}admins/institutions/${schoolId}/get-details`, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-
-    const data = await response.json();
-    return response.ok 
-      ? { success: true, data } 
-      : { success: false, error: data.message || 'Failed to fetch statistics.' };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
-    console.error("Fetch Stats API Error:", error);
-    return { success: false, error: 'Network error.' };
-  }
-};
-export const getStationDetailsApi = async (stationId: string, signal?: AbortSignal) => {
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(`${baseUrl}admins/stations/${stationId}/details`, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    const data = await response.json();
-    return response.ok ? { success: true, data } : { success: false, error: data.message };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, error: 'Request cancelled.' };
-    return { success: false, error: 'Network error.' };
-  }
-};
 export interface AgoraJoinInfo {
   appId: string;
   channel: string;
@@ -2238,77 +1899,6 @@ export const fetchCourseGradebook = async (
     };
   }
 };
-export const fetchTaxReport = async (month: string, year: string, signal?: AbortSignal) => {
-  try {
-    const url = `${baseUrl}admins/tax-entries/download?month=${month}&year=${year}`; 
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const result = await response.json();
-    
-    if (response.ok && result.success) {
-      return {
-        success: true,
-        data: result.data, 
-        message: 'Tax report downloaded successfully',
-      };
-    }
-
-    return {
-      success: false,
-      message: result?.message || 'Failed to download tax report',
-    };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, message: 'Request cancelled.' };
-    console.error("Tax Download API Error:", error);
-    return {
-      success: false,
-      message: 'Network error while downloading tax report',
-    };
-  }
-};
-export const fetchTaxEntries = async (page: number = 1, limit: number = 10, signal?: AbortSignal) => {
-  try {
-    const url = `${baseUrl}admins/tax-entries/fetch?page=${page}&limit=${limit}`; 
-    const headers = { 'Content-Type': 'application/json' };
-    
-    const response = await fetchWithAuth(url, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const result = await response.json();
-    
-    if (response.ok && result.success) {
-      return {
-        success: true,
-        data: result.data, 
-        totalPages: result.totalPages || 1,
-        message: 'Tax entries loaded successfully',
-      };
-    }
-
-    return {
-      success: false,
-      data: [],
-      message: result?.message || 'Failed to fetch tax entries',
-    };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, data: [], message: 'Request cancelled.' };
-    console.error("Tax Entries API Error:", error);
-    return {
-      success: false,
-      data: [],
-      message: 'Network error while fetching tax entries',
-    };
-  }
-};
 export const getAds = async (
   options?: ApiRequestOptions
 ): Promise<{ success: boolean; data: AdItem[] }> => {
@@ -2339,43 +1929,6 @@ export const getAds = async (
 
     console.error("Fetch Ads Error:", error);
     return { success: false, data: [] };
-  }
-};
-export const fetchSupportTicketByRefIdAPI = async ({
-  ticketRefId,
-  signal,
-}: FetchSupportTicketParams) => {
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    const response = await fetchWithAuth(`${baseUrl}admins/support-tickets/${ticketRefId}/fetch`, {
-      method: 'GET',
-      headers,
-      signal,
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok || data?.success === false) {
-      return {
-        success: false,
-        message: data?.message || 'Failed to fetch support ticket',
-      };
-    }
-    
-    return {
-      success: true,
-      ticket: data.ticket || data.data || data,
-      message: 'Success',
-    };
-  } catch (error: any) {
-    if (error.name === 'AbortError') return { success: false, ticket: null, message: 'Request cancelled.' };
-
-    console.error("fetchSupportTicketByRefIdAPI Error:", error);
-    return { 
-      success: false, 
-      ticket: null, 
-      message: 'Connection to server failed' 
-    };
   }
 };
 export const fetchPreferencesAPI = async ({ signal }: FetchPreferencesParams = {}) => {

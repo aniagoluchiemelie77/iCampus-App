@@ -15,7 +15,6 @@ import type {
   MarketplaceOrder,
   ProductSale,
   Review,
-  SupportTicket,
 } from '../types/firebase';
 import Toast from 'react-native-toast-message';
 import { baseUrl } from '../components/HomeScreenComponents';
@@ -43,7 +42,6 @@ import {
   fetchSellerSalesAPI,
   fetchPendingOrdersAPI,
   fetchUserReviewsAPI,
-  fetchTicketsAPI,
   fetchAllUsersAPI,
 } from '../api/localGetApis';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
@@ -72,7 +70,6 @@ interface AppDataContextType {
   /** Full local product cache, used by Checkout to resolve cart entries. */
   allProducts: Product[];
   deleteProductLocal: (productId: string) => Promise<void>;
-  emailSupportTickets: SupportTicket[];
   setAllReviews: React.Dispatch<React.SetStateAction<any[]>>;
   refreshReviews: () => Promise<void>;
   handleDeletePost: (postId: string) => Promise<void>;
@@ -93,12 +90,7 @@ interface AppDataContextType {
   handleDeleteAllFavorites: () => Promise<void>;
   fetchPendingOrders: (loadMore?: boolean) => Promise<void>;
   handleCancelOrder: (orderId: string, reason: string) => Promise<void>;
-  unreadEmailSupportCount: number;
-  isEmailSupportLoading: boolean;
   isDeletingPost: boolean;
-  isFetchingMore: boolean;
-  nextCursor: string | null;
-  fetchEmailSupportTickets: (cursor?: string, limit?: number) => Promise<void>;
 }
 
 interface AppDataProviderProps {
@@ -128,12 +120,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
   const [allReviews, setAllReviews] = useState<Review[]>([]);
-  const [emailSupportTickets, setEmailSupportTickets] = useState<
-    SupportTicket[]
-  >([]);
-  const [isEmailSupportLoading, setIsEmailSupportLoading] = useState(false);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [catalogSyncVersion, setCatalogSyncVersion] = useState(0);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
@@ -599,47 +585,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       throw error;
     }
   };
-  // Stable identity matters: screens call this from a mount effect that lists
-  // it as a dependency. A new function per provider render re-ran that effect
-  // after every fetch (each fetch re-renders the provider): an endless loop.
-  const emailTicketsInFlightRef = useRef(false);
-  const fetchEmailSupportTickets = useCallback(
-    async (cursor: string = '', limit: number = 15) => {
-      if (emailTicketsInFlightRef.current) return;
-      emailTicketsInFlightRef.current = true;
-      if (cursor) {
-        setIsFetchingMore(true);
-      } else {
-        setIsEmailSupportLoading(true);
-      }
-
-      try {
-        const result = await fetchTicketsAPI({ limit, cursor });
-
-        if (result.success) {
-          const externalInquiries = result.tickets.filter(
-            (ticket: any) => ticket.source === 'email' || ticket.guestEmail,
-          );
-
-          setEmailSupportTickets(prevTickets => {
-            return cursor
-              ? [...prevTickets, ...externalInquiries]
-              : externalInquiries;
-          });
-          setNextCursor(result.nextCursor);
-        }
-      } finally {
-        emailTicketsInFlightRef.current = false;
-        setIsEmailSupportLoading(false);
-        setIsFetchingMore(false);
-      }
-    },
-    [],
-  );
-  const unreadEmailSupportCount = emailSupportTickets.filter(
-    (ticket: any) => ticket.status === 'open',
-  ).length;
-
   useEffect(() => {
     setupDatabase();
     syncUsersToDatabase();
@@ -680,12 +625,6 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         fetchPendingOrders,
         isOrdersLoading,
         handleCancelOrder,
-        emailSupportTickets,
-        unreadEmailSupportCount,
-        isEmailSupportLoading,
-        fetchEmailSupportTickets,
-        nextCursor,
-        isFetchingMore,
         isFetchingMoreOrders,
         isDeletingPost,
       }}
@@ -694,4 +633,3 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     </AppDataContext.Provider>
   );
 };
-

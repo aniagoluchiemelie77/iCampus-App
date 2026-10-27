@@ -117,6 +117,17 @@ import {
   openStudentAttendance,
 } from '../utils/attendance';
 import { addLectureToCalendar } from '../utils/lectureCalendar';
+import {
+  FormCard,
+  FieldLabel,
+  FormInput,
+  PickerTile,
+  SegmentedControl,
+  InfoBanner,
+  timeToMinutes,
+  describeDuration,
+  pickerValueFrom,
+} from './FormKit';
 
 type PageType =
   | 'Course Contents'
@@ -138,21 +149,11 @@ interface LecturerManageProps {
     status: 'approved' | 'rejected',
   ) => Promise<void>;
 }
-interface TestFormState {
-  title: string;
-  duration: string;
-  dueDate: Date | null;
-  scheduledStart: Date | null;
-  endTime: Date | null;
-  totalMarks: string;
-  questions: Question[];
-}
 interface LecturerTestManageProps {
   course: Course;
   refreshing: boolean;
   onRefresh: () => void;
   tests: CreateTestPayload[];
-  onSaveTest: (data: CreateTestPayload) => void;
 }
 interface RenderScheduleProps {
   course: Course;
@@ -2238,6 +2239,22 @@ export const RenderStudentExceptions = ({
     />
   );
 };
+type ExceptionFilter = 'pending' | 'approved' | 'rejected' | 'all';
+const EXCEPTION_CATEGORY_ICONS: Record<string, string> = {
+  Medical: 'local-hospital',
+  'Family Emergency': 'family-restroom',
+  'Technical Issue': 'wifi-off',
+  Personal: 'person-outline',
+  Other: 'more-horiz',
+};
+const initialsOf = (name?: string) =>
+  (name || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('') || '?';
+
 export const RenderLecturerExceptionsManage = ({
   exceptions,
   onUpdateStatus,
@@ -2246,16 +2263,61 @@ export const RenderLecturerExceptionsManage = ({
 }: LecturerManageProps) => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const shouldShowSearch = true;
+  const [filter, setFilter] = useState<ExceptionFilter>('pending');
+  const [updating, setUpdating] = useState<{
+    id: string;
+    status: 'approved' | 'rejected';
+  } | null>(null);
+
+  const statusColor = (status: CourseException['status']) =>
+    status === 'approved'
+      ? colors.success
+      : status === 'rejected'
+        ? colors.criticalSeverity
+        : colors.pendingDelivery;
+
+  const counts = useMemo(
+    () => ({
+      pending: exceptions.filter(e => e.status === 'pending').length,
+      approved: exceptions.filter(e => e.status === 'approved').length,
+      rejected: exceptions.filter(e => e.status === 'rejected').length,
+      all: exceptions.length,
+    }),
+    [exceptions],
+  );
+
+  const query = searchQuery.trim().toLowerCase();
   const filteredData = exceptions.filter(item => {
-    const title = item.courseInfo?.courseTitle?.toLowerCase() ?? '';
-    const code = item.courseInfo?.courseCode?.toLowerCase() ?? '';
-    const category = item.reasonCategory?.toLowerCase() ?? '';
-    const query = searchQuery.toLowerCase();
-    return (
-      title.includes(query) || code.includes(query) || category.includes(query)
-    );
+    if (filter !== 'all' && item.status !== filter) return false;
+    if (!query) return true;
+    return [
+      item.studentInfo?.fullname,
+      item.studentInfo?.matricNumber,
+      item.courseInfo?.courseTitle,
+      item.courseInfo?.courseCode,
+      item.reasonCategory,
+      item.reason,
+    ].some(value => value?.toLowerCase().includes(query));
   });
+
+  const handleUpdate = async (
+    id: string,
+    status: 'approved' | 'rejected',
+  ) => {
+    setUpdating({ id, status });
+    try {
+      await onUpdateStatus(id, status);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const filters: { key: ExceptionFilter; label: string }[] = [
+    { key: 'pending', label: 'Pending' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'all', label: 'All' },
+  ];
 
   return (
     <FlatList
@@ -2263,499 +2325,786 @@ export const RenderLecturerExceptionsManage = ({
       refreshing={refreshing}
       onRefresh={onRefresh}
       keyExtractor={item => item.id}
-      renderItem={({ item }) => (
-        <View
-          style={[
-            CourseActionStyles.manageCard,
-            {
-              backgroundColor: colors.backgroundSecondary,
-              borderBottomColor: colors.border,
-            },
-          ]}
-        >
-          <View style={CourseActionStyles.rowBetween}>
-            <Text
-              style={[
-                CourseActionStyles.studentName,
-                { color: colors.textDarker },
-              ]}
-            >
-              {item.studentInfo.fullname || 'Unknown Student'}
-            </Text>
-            <Text
-              style={[CourseActionStyles.matricText, { color: colors.text }]}
-            >
-              {item.studentInfo.matricNumber}
-            </Text>
-          </View>
-
-          {item.reasonCategory && (
-            <Text
-              style={[
-                CourseActionStyles.categoryLabel,
-                { color: colors.primary },
-              ]}
-            >
-              {item.reasonCategory}
-            </Text>
-          )}
-
-          <Text style={[CourseActionStyles.reasonBody, { color: colors.text }]}>
-            {item.reason}
-          </Text>
-
-          {item.status === 'pending' ? (
-            <View style={CourseActionStyles.actionRow2}>
-              <CustomButton
-                title="Approve"
-                onPress={() => onUpdateStatus(item.id, 'approved')}
-                iconName="check-circle"
-                iconColor="#fff"
-                style={CourseActionStyles.approveBtn}
-              />
-              <CustomButton
-                title="Reject"
-                onPress={() => onUpdateStatus(item.id, 'rejected')}
-                iconName="cancel"
-                iconColor="#fff"
-                style={CourseActionStyles.approveBtn}
-              />
-            </View>
-          ) : (
-            <View style={CourseActionStyles.finalStatusContainer}>
-              <MaterialIcons
-                name={item.status === 'approved' ? 'check-circle' : 'cancel'}
-                size={22}
-                color={colors.primary}
-                style={{ marginRight: 8 }}
-              />
-              <Text
+      contentContainerStyle={exceptionUi.list}
+      renderItem={({ item }) => {
+        const tone = statusColor(item.status);
+        const submitted = moment(item.createdAt || item.date);
+        const isBusy = updating?.id === item.id;
+        return (
+          <View
+            style={[
+              exceptionUi.card,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border + '40',
+              },
+            ]}
+          >
+            <View style={exceptionUi.headerRow}>
+              <View
                 style={[
-                  CourseActionStyles.finalStatusText,
-                  { color: colors.primary },
+                  exceptionUi.avatar,
+                  { backgroundColor: colors.primary + '18' },
                 ]}
               >
-                {item.status === 'approved' ? 'Approved' : 'Rejected'}
-              </Text>
+                <Text style={[exceptionUi.avatarText, { color: colors.primary }]}>
+                  {initialsOf(item.studentInfo?.fullname)}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  numberOfLines={1}
+                  style={[exceptionUi.name, { color: colors.textDarker }]}
+                >
+                  {item.studentInfo?.fullname || 'Unknown Student'}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[exceptionUi.subline, { color: colors.text }]}
+                >
+                  {[item.studentInfo?.matricNumber, item.courseInfo?.courseCode]
+                    .filter(Boolean)
+                    .join('  ·  ') || 'No matric number'}
+                </Text>
+              </View>
+              <View style={[exceptionUi.statusPill, { backgroundColor: tone + '1F' }]}>
+                <View style={[exceptionUi.statusDot, { backgroundColor: tone }]} />
+                <Text style={[exceptionUi.statusText, { color: tone }]}>
+                  {item.status}
+                </Text>
+              </View>
             </View>
-          )}
-        </View>
-      )}
+
+            <View style={exceptionUi.metaRow}>
+              {item.reasonCategory && (
+                <View
+                  style={[
+                    exceptionUi.categoryChip,
+                    { backgroundColor: colors.primary + '12' },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={
+                      EXCEPTION_CATEGORY_ICONS[item.reasonCategory] ||
+                      'label-outline'
+                    }
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[exceptionUi.categoryText, { color: colors.primary }]}
+                  >
+                    {item.reasonCategory}
+                  </Text>
+                </View>
+              )}
+              {submitted.isValid() && (
+                <Text style={[exceptionUi.timeText, { color: colors.text }]}>
+                  {submitted.fromNow()}
+                </Text>
+              )}
+            </View>
+
+            {!!item.reason && (
+              <View
+                style={[
+                  exceptionUi.reasonBox,
+                  { backgroundColor: colors.background },
+                ]}
+              >
+                <Text style={[exceptionUi.reasonText, { color: colors.text }]}>
+                  {item.reason}
+                </Text>
+              </View>
+            )}
+
+            {!!item.attachmentUrl && (
+              <TouchableOpacity
+                style={exceptionUi.attachmentRow}
+                onPress={() => Linking.openURL(item.attachmentUrl!)}
+              >
+                <MaterialIcons name="attach-file" size={16} color={colors.primary} />
+                <Text style={[exceptionUi.attachmentText, { color: colors.primary }]}>
+                  View supporting document
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {item.status === 'pending' && (
+              <View style={exceptionUi.actionRow}>
+                <TouchableOpacity
+                  disabled={isBusy}
+                  onPress={() => handleUpdate(item.id, 'rejected')}
+                  style={[
+                    exceptionUi.actionBtn,
+                    { borderColor: colors.criticalSeverity, opacity: isBusy ? 0.6 : 1 },
+                  ]}
+                >
+                  {isBusy && updating?.status === 'rejected' ? (
+                    <ActivityIndicator size="small" color={colors.criticalSeverity} />
+                  ) : (
+                    <>
+                      <MaterialIcons
+                        name="close"
+                        size={18}
+                        color={colors.criticalSeverity}
+                      />
+                      <Text
+                        style={[
+                          exceptionUi.actionText,
+                          { color: colors.criticalSeverity },
+                        ]}
+                      >
+                        Reject
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={isBusy}
+                  onPress={() => handleUpdate(item.id, 'approved')}
+                  style={[
+                    exceptionUi.actionBtn,
+                    {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary,
+                      opacity: isBusy ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  {isBusy && updating?.status === 'approved' ? (
+                    <ActivityIndicator size="small" color={colors.btnTextColor} />
+                  ) : (
+                    <>
+                      <MaterialIcons
+                        name="check"
+                        size={18}
+                        color={colors.btnTextColor}
+                      />
+                      <Text
+                        style={[
+                          exceptionUi.actionText,
+                          { color: colors.btnTextColor },
+                        ]}
+                      >
+                        Approve
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+      }}
       ListEmptyComponent={
         <EmptyState
           iconName="done-all"
-          title="All Caught Up!"
-          subtitle="There are no pending student exceptions requiring your approval right now."
-          style={{ marginTop: 80 }}
+          title={filter === 'pending' ? 'All Caught Up!' : 'Nothing here'}
+          subtitle={
+            query
+              ? `No exceptions match "${searchQuery}".`
+              : filter === 'pending'
+                ? 'There are no pending student exceptions requiring your approval right now.'
+                : `No ${filter === 'all' ? '' : filter + ' '}exceptions yet.`
+          }
+          style={{ marginTop: 60 }}
         />
       }
-
       ListHeaderComponent={
         <>
           <PageHeader title="Manage Lecture Exceptions" />
-          {shouldShowSearch && (
-            <CourseSearchBar
-              shouldShowSearch={shouldShowSearch}
-              textInput={searchQuery}
-              setTextInput={setSearchQuery}
-              placeholder="Search assignments..."
-              colors={colors}
-              CourseActionStyles={CourseActionStyles}
-            />
-          )}
+          <CourseSearchBar
+            shouldShowSearch
+            textInput={searchQuery}
+            setTextInput={setSearchQuery}
+            placeholder="Search student, matric or reason..."
+            colors={colors}
+            CourseActionStyles={CourseActionStyles}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={exceptionUi.filterRow}
+          >
+            {filters.map(f => {
+              const selected = filter === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
+                  style={[
+                    exceptionUi.filterChip,
+                    {
+                      borderColor: selected ? colors.primary : colors.border + '80',
+                      backgroundColor: selected ? colors.primary : 'transparent',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      exceptionUi.filterText,
+                      { color: selected ? colors.btnTextColor : colors.text },
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                  <View
+                    style={[
+                      exceptionUi.filterCount,
+                      {
+                        backgroundColor: selected
+                          ? 'rgba(255,255,255,0.25)'
+                          : colors.primary + '15',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        exceptionUi.filterCountText,
+                        { color: selected ? colors.btnTextColor : colors.primary },
+                      ]}
+                    >
+                      {counts[f.key]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </>
       }
     />
   );
 };
+const exceptionUi = StyleSheet.create({
+  list: { paddingBottom: 40 },
+  filterRow: { gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingLeft: 12,
+    paddingRight: 6,
+    paddingVertical: 5,
+  },
+  filterText: { fontSize: 13, fontWeight: '700' },
+  filterCount: {
+    minWidth: 22,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  filterCountText: { fontSize: 11, fontWeight: '800' },
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 15, fontWeight: '800' },
+  name: { fontSize: 15, fontWeight: '700' },
+  subline: { fontSize: 12, marginTop: 2, opacity: 0.8 },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11.5, fontWeight: '800', textTransform: 'capitalize' },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  categoryText: { fontSize: 12, fontWeight: '700' },
+  timeText: { fontSize: 12, opacity: 0.7 },
+  reasonBox: { borderRadius: 12, padding: 12, marginTop: 10 },
+  reasonText: { fontSize: 13.5, lineHeight: 20 },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  attachmentText: { fontSize: 13, fontWeight: '600' },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  actionBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  actionText: { fontSize: 14, fontWeight: '700' },
+});
+
+const todayString = () => moment().format('YYYY-MM-DD');
+const prettyDate = (date: string) =>
+  moment(date, 'YYYY-MM-DD').isValid()
+    ? moment(date, 'YYYY-MM-DD').format('ddd, D MMM YYYY')
+    : '';
+
 export const RenderScheduleLecture = ({
   course,
   onSave,
   isLoading,
 }: RenderScheduleProps) => {
   const { colors } = useTheme();
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const insets = useSafeAreaInsets();
   const [repeatWeeks, setRepeatWeeks] = useState(1);
-  const getPlaceholder = () => {
-    switch (form.lectureType) {
-      case 'Online':
-        return 'Auto generating icampus link...';
-      case 'Physical':
-      default:
-        return 'e.g. Lecture Hall 1, Room 302';
-    }
-  };
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
   const [form, setForm] = useState({
     topicName: '',
-    lectureType: 'Physical',
+    lectureType: 'Physical' as 'Physical' | 'Online',
     location: '',
-    startTime: new Date().toISOString(),
-    endTime: new Date().toISOString(),
-    date: new Date().toISOString().split('T')[0],
+    startTime: '08:00',
+    endTime: '10:00',
+    date: todayString(),
   });
-  const validateAndSave = () => {
-    const { topicName, location, date, startTime, endTime } = form;
-    const venueValue = location;
-    const isOnline = form.lectureType === 'Online';
+  const { pickerMode, showPicker, hidePicker, formatTime } =
+    useDateTimePicker();
+  const isOnline = form.lectureType === 'Online';
+  const topics = course?.courseContents || [];
+  const startMinutes = timeToMinutes(form.startTime);
+  const endMinutes = timeToMinutes(form.endTime);
+  const lengthMinutes =
+    startMinutes !== null && endMinutes !== null ? endMinutes - startMinutes : 0;
 
-    if (!topicName || !date || !startTime || !endTime || !venueValue) {
-      setErrorMessage(
-        "All fields are required. Please ensure you've selected a topic, date, and venue/link.",
-      );
-      setShowErrorModal(true);
+  const validateAndSave = () => {
+    if (!form.topicName) {
+      Toast.show({
+        type: 'error',
+        text1: 'Pick a topic',
+        text2: 'Choose the syllabus topic this lecture covers.',
+      });
       return;
     }
-
-    const startVal = parseInt(startTime.replace(':', ''), 10);
-    const endVal = parseInt(endTime.replace(':', ''), 10);
-
-    if (endVal <= startVal) {
-      setErrorMessage(
-        'The end time cannot be earlier than or equal to the start time.',
-      );
-      setShowErrorModal(true);
+    if (!isOnline && !form.location.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Add a venue',
+        text2: 'Tell students where the lecture holds.',
+      });
+      return;
+    }
+    if (lengthMinutes <= 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Check the time',
+        text2: 'The lecture must end after it starts.',
+      });
       return;
     }
     const payload: CreateLecturePayload = {
       courseId: course.courseId,
-      topicName: form.topicName!,
-      lectureType: form.lectureType as 'Physical' | 'Online',
-      location: isOnline ? '' : form.location,
+      topicName: form.topicName,
+      lectureType: form.lectureType,
+      location: isOnline ? '' : form.location.trim(),
       startTime:
         safeParseDate(`${form.date}T${form.startTime}:00`) ?? new Date(),
       endTime: safeParseDate(`${form.date}T${form.endTime}:00`) ?? new Date(),
-      date: safeParseDate(form.date!) ?? new Date(),
-      repeatWeeks: repeatWeeks,
+      date: safeParseDate(form.date) ?? new Date(),
+      repeatWeeks,
     };
     onSave(payload);
   };
-  const getLabel = () => {
-    switch (form.lectureType) {
-      case 'Online':
-        return 'Meeting Link';
-      case 'Physical':
-      default:
-        return 'Physical Venue';
-    }
-  };
-  const [showTopicPicker, setShowTopicPicker] = useState(false);
-  const {
-    pickerMode,
-    showPicker,
-    hidePicker,
-    formatDate: formatPickerDate,
-    formatTime,
-  } = useDateTimePicker();
-  const handleConfirm = (event: any, selectedDate?: Date) => {
-    hidePicker();
-    if (!selectedDate) return;
 
-    if (pickerMode === 'date') {
-      setForm({ ...form, date: formatPickerDate(selectedDate) });
-    } else if (pickerMode === 'startTime') {
-      const time = formatTime(selectedDate);
-      setForm({ ...form, startTime: time });
-    } else if (pickerMode === 'endTime') {
-      const time = formatTime(selectedDate);
-      setForm({ ...form, endTime: time });
+  const handleConfirm = (event: any, selectedDate?: Date) => {
+    const mode = pickerMode;
+    hidePicker();
+    if (event?.type === 'dismissed' || !selectedDate) return;
+    if (mode === 'date') {
+      setForm(prev => ({
+        ...prev,
+        date: moment(selectedDate).format('YYYY-MM-DD'),
+      }));
+    } else if (mode === 'startTime') {
+      setForm(prev => ({ ...prev, startTime: formatTime(selectedDate) }));
+    } else if (mode === 'endTime') {
+      setForm(prev => ({ ...prev, endTime: formatTime(selectedDate) }));
     }
   };
-  useEffect(() => {
-    if (course?.courseId) {
-      setForm(prev => ({ ...prev, courseId: course.courseId }));
-    }
-  }, [course?.courseId]);
+
+  const weekday = moment(form.date, 'YYYY-MM-DD').format('dddd');
+  const summary =
+    repeatWeeks > 1
+      ? `Every ${weekday}, ${form.startTime}–${form.endTime}, for ${repeatWeeks} weeks`
+      : `${prettyDate(form.date)}, ${form.startTime}–${form.endTime}`;
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        CourseActionStyles.container,
-        { backgroundColor: colors.backgroundSecondary },
-      ]}
-    >
-      <Text
-        style={[CourseActionStyles.labelMain, { color: colors.textDarker }]}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <PageHeader
+        title="Create Lecture"
+        subtitle={course?.courseCode || course?.courseTitle}
+      />
+      <ScrollView
+        contentContainerStyle={lectureFormUi.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        Set Lecture Schedule
-      </Text>
-      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
-        Select Lecture Topic
-      </Text>
-      <TouchableOpacity
-        style={[CourseActionStyles.textInput, { borderColor: colors.border }]}
-        onPress={() => setShowTopicPicker(true)}
-      >
-        <Text
-          style={[
-            CourseActionStyles.textInputText,
-            { color: form.topicName ? colors.inputTextHolder : colors.text },
-          ]}
-        >
-          {form.topicName || 'Choose a topic from syllabus'}
-        </Text>
-        <MaterialIcons name="expand-more" size={20} color={colors.text} />
-      </TouchableOpacity>
+        <FormCard title="What are you teaching?" icon="menu-book">
+          <PickerTile
+            icon="topic"
+            label="Syllabus topic"
+            value={form.topicName}
+            placeholder="Choose a topic from the syllabus"
+            onPress={() => setShowTopicPicker(true)}
+          />
+        </FormCard>
 
-      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
-        Lecture Type
-      </Text>
-      <View style={CourseActionStyles.typeToggleContainer}>
-        {(['Physical', 'Online'] as const).map(type => (
-          <TouchableOpacity
-            key={type}
-            style={[
-              CourseActionStyles.typeOption,
-              form.lectureType === type && { backgroundColor: colors.btnColor },
+        <FormCard title="Format" icon="co-present">
+          <SegmentedControl
+            value={form.lectureType}
+            onChange={type => setForm(prev => ({ ...prev, lectureType: type }))}
+            options={[
+              { value: 'Physical', label: 'In person', icon: 'apartment' },
+              { value: 'Online', label: 'Online', icon: 'videocam' },
             ]}
-            onPress={() => setForm({ ...form, lectureType: type })}
+          />
+          {isOnline ? (
+            <InfoBanner
+              icon="link"
+              text="An iCampus meeting link is generated automatically and shared with your students."
+            />
+          ) : (
+            <>
+              <FieldLabel>Venue</FieldLabel>
+              <FormInput
+                icon="place"
+                placeholder="e.g. Lecture Hall 1, Room 302"
+                value={form.location}
+                onChangeText={val => setForm(prev => ({ ...prev, location: val }))}
+                containerStyle={{ marginBottom: 0 }}
+              />
+            </>
+          )}
+        </FormCard>
+
+        <FormCard
+          title="When"
+          icon="event"
+          rightElement={
+            lengthMinutes > 0 ? (
+              <View
+                style={[
+                  lectureFormUi.durationChip,
+                  { backgroundColor: colors.primary + '15' },
+                ]}
+              >
+                <Text style={[lectureFormUi.durationText, { color: colors.primary }]}>
+                  {describeDuration(lengthMinutes)}
+                </Text>
+              </View>
+            ) : null
+          }
+        >
+          <PickerTile
+            icon="calendar-month"
+            label="Date"
+            value={prettyDate(form.date)}
+            onPress={() => showPicker('date')}
+            style={{ marginBottom: 10 }}
+          />
+          <View style={lectureFormUi.row}>
+            <PickerTile
+              icon="schedule"
+              label="Starts"
+              value={form.startTime}
+              onPress={() => showPicker('startTime')}
+            />
+            <PickerTile
+              icon="schedule"
+              label="Ends"
+              value={form.endTime}
+              onPress={() => showPicker('endTime')}
+            />
+          </View>
+        </FormCard>
+
+        <FormCard
+          title="Repeat weekly"
+          subtitle="Create the same lecture for the following weeks"
+          icon="repeat"
+        >
+          <View
+            style={[
+              lectureFormUi.stepper,
+              { backgroundColor: colors.background, borderColor: colors.border + '80' },
+            ]}
           >
-            <Text
+            <TouchableOpacity
+              onPress={() => setRepeatWeeks(w => Math.max(1, w - 1))}
+              disabled={repeatWeeks <= 1}
               style={[
-                CourseActionStyles.typeOptionText,
-                form.lectureType === type
-                  ? { color: colors.btnTextColor }
-                  : { color: colors.text },
+                lectureFormUi.stepBtn,
+                { backgroundColor: colors.primary + '15', opacity: repeatWeeks <= 1 ? 0.4 : 1 },
               ]}
             >
-              {type}
+              <MaterialIcons name="remove" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <Text style={[lectureFormUi.stepValue, { color: colors.textDarker }]}>
+              {repeatWeeks} {repeatWeeks > 1 ? 'weeks' : 'week'}
             </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
-        {getLabel()}
-      </Text>
+            <TouchableOpacity
+              onPress={() => setRepeatWeeks(w => Math.min(12, w + 1))}
+              disabled={repeatWeeks >= 12}
+              style={[
+                lectureFormUi.stepBtn,
+                { backgroundColor: colors.primary + '15', opacity: repeatWeeks >= 12 ? 0.4 : 1 },
+              ]}
+            >
+              <MaterialIcons name="add" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </FormCard>
+
+        <InfoBanner icon="event-available" text={summary} />
+      </ScrollView>
+
       <View
         style={[
-          CourseActionStyles.inputContainer,
-          { borderColor: colors.border },
-          form.lectureType === 'Online' && {
-            backgroundColor: colors.btnColor,
+          lectureFormUi.footer,
+          {
+            paddingBottom: Math.max(insets.bottom, 12),
+            backgroundColor: colors.background,
+            borderTopColor: colors.border + '40',
           },
         ]}
       >
-        <TextInput
-          style={[
-            CourseActionStyles.textInput,
-            form.lectureType === 'Online' && {
-              color: colors.btnTextColor,
-            },
-            { color: colors.text },
-          ]}
-          placeholder={getPlaceholder()}
-          value={form.location}
-          editable={form.lectureType !== 'Online'}
-          onChangeText={val => {
-            setForm({ ...form, location: val });
-          }}
-          placeholderTextColor={colors.inputTextHolder}
+        <CustomButton
+          title={isLoading ? 'Saving...' : 'Create Lecture'}
+          onPress={validateAndSave}
+          isLoading={isLoading}
+          disabled={isLoading}
+          iconName="check"
         />
-        {form.lectureType === 'Online' && (
-          <MaterialIcons
-            name="check-circle"
-            size={16}
-            color={colors.btnTextColor}
-          />
-        )}
       </View>
 
-      <View style={CourseActionStyles.dateTimeRow}>
-        <TouchableOpacity
-          style={[
-            CourseActionStyles.dateTimeBox,
-            { borderColor: colors.border },
-          ]}
-          onPress={() => showPicker('date')}
-        >
-          <MaterialIcons name="calendar-month" size={24} color={colors.text} />
-          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
-            Date
-          </Text>
-          <Text
-            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
-          >
-            {form.date || 'Select Date'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            CourseActionStyles.dateTimeBox,
-            { borderColor: colors.border },
-          ]}
-          onPress={() => showPicker('startTime')}
-        >
-          <MaterialIcons name="schedule" size={24} color={colors.text} />
-          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
-            Start Time
-          </Text>
-          <Text
-            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
-          >
-            {form.startTime || '00:00'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            CourseActionStyles.dateTimeBox,
-            { borderColor: colors.border },
-          ]}
-          onPress={() => showPicker('endTime')}
-        >
-          <MaterialIcons name="schedule" size={24} color={colors.text} />
-          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
-            Ends
-          </Text>
-          <Text
-            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
-          >
-            {form.endTime || '00:00'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={[CourseActionStyles.inputLabel, { color: colors.text }]}>
-        Set Recursion?
-      </Text>
-      <View style={CourseActionStyles.repeatCounter}>
-        <TouchableOpacity
-          onPress={() => setRepeatWeeks(Math.max(1, repeatWeeks - 1))}
-        >
-          <MaterialIcons name="remove" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={[CourseActionStyles.repeatValue, { color: colors.text }]}>
-          {repeatWeeks} {repeatWeeks > 1 ? 'Weeks' : 'Week'}
-        </Text>
-        <TouchableOpacity
-          onPress={() => setRepeatWeeks(Math.min(12, repeatWeeks + 1))}
-        >
-          <MaterialIcons name="add" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-      <CustomButton
-        title="Save Lecture Schedule"
-        onPress={validateAndSave}
-        disabled={isLoading}
-        iconName="add"
-        iconColor="#fff"
-        style={CourseActionStyles.submitButton}
-      />
-      <Modal visible={showTopicPicker} transparent animationType="fade">
+      <Modal
+        visible={showTopicPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTopicPicker(false)}
+      >
         <Pressable
           style={CourseActionStyles.modalOverlayEnd}
           onPress={() => setShowTopicPicker(false)}
         >
-          <View
+          <Pressable
             style={[
-              CourseActionStyles.pickerContainer2,
-              { backgroundColor: colors.backgroundSecondary },
+              lectureFormUi.sheet,
+              {
+                backgroundColor: colors.backgroundSecondary,
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
             ]}
           >
-            <Text
-              style={[
-                CourseActionStyles.pickerTitle,
-                { color: colors.textDarker },
-              ]}
-            >
+            <View
+              style={[lectureFormUi.grabber, { backgroundColor: colors.primaryTint }]}
+            />
+            <Text style={[lectureFormUi.sheetTitle, { color: colors.textDarker }]}>
               Course Syllabus
             </Text>
             <FlatList
-              data={course.courseContents || []}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={CourseActionStyles.pickerItem}
-                  onPress={() => {
-                    setForm({ ...form, topicName: item });
-                    setShowTopicPicker(false);
-                  }}
-                >
-                  <Text
+              data={topics}
+              keyExtractor={(item, index) => `${index}-${item}`}
+              renderItem={({ item, index }) => {
+                const selected = form.topicName === item;
+                return (
+                  <TouchableOpacity
                     style={[
-                      CourseActionStyles.pickerItemText,
-                      { color: colors.text },
+                      lectureFormUi.topicRow,
+                      selected && { backgroundColor: colors.primary + '12' },
                     ]}
+                    onPress={() => {
+                      setForm(prev => ({ ...prev, topicName: item }));
+                      setShowTopicPicker(false);
+                    }}
                   >
-                    {item}
-                  </Text>
-                  {form.topicName === item && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={18}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              )}
+                    <Text style={[lectureFormUi.topicIndex, { color: colors.primary }]}>
+                      {index + 1}
+                    </Text>
+                    <Text style={[lectureFormUi.topicText, { color: colors.text }]}>
+                      {item}
+                    </Text>
+                    {selected && (
+                      <MaterialIcons name="check-circle" size={20} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
               ListEmptyComponent={
                 <EmptyState
                   iconName="search-off"
                   title="No syllabus topics found."
-                  subtitle={`Please add topics to the course curriculum first.`}
+                  subtitle="Please add topics to the course curriculum first."
                 />
               }
             />
-          </View>
+          </Pressable>
         </Pressable>
-      </Modal>
-      <Modal visible={showErrorModal} transparent animationType="fade">
-        <View style={CourseActionStyles.alertOverlay}>
-          <View
-            style={[
-              CourseActionStyles.alertBox,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <MaterialIcons
-              name="error-outline"
-              size={50}
-              color={colors.primary}
-            />
-            <Text
-              style={[
-                CourseActionStyles.alertTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Missing Information
-            </Text>
-            <Text
-              style={[CourseActionStyles.alertText, { color: colors.text }]}
-            >
-              {errorMessage}
-            </Text>
-            <TouchableOpacity
-              style={[
-                CourseActionStyles.alertButton,
-                { backgroundColor: colors.btnColor },
-              ]}
-              onPress={() => setShowErrorModal(false)}
-            >
-              <Text
-                style={[
-                  CourseActionStyles.alertButtonText,
-                  { color: colors.btnTextColor },
-                ]}
-              >
-                Got it
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
       {pickerMode && (
         <DateTimePicker
-          value={new Date()}
+          value={pickerValueFrom(
+            form.date,
+            pickerMode === 'date'
+              ? undefined
+              : pickerMode === 'startTime'
+                ? form.startTime
+                : form.endTime,
+          )}
           mode={pickerMode === 'date' ? 'date' : 'time'}
+          minimumDate={pickerMode === 'date' ? new Date() : undefined}
           is24Hour={true}
           display="default"
           onChange={handleConfirm}
         />
       )}
-    </ScrollView>
+    </View>
   );
 };
+const lectureFormUi = StyleSheet.create({
+  scroll: { paddingHorizontal: 16, paddingBottom: 30 },
+  row: { flexDirection: 'row', gap: 10 },
+  durationChip: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  durationText: { fontSize: 12, fontWeight: '800' },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 6,
+  },
+  stepBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepValue: { fontSize: 15, fontWeight: '700' },
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    maxHeight: '70%',
+  },
+  grabber: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  sheetTitle: { fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  topicIndex: { width: 22, fontSize: 13, fontWeight: '800' },
+  topicText: { flex: 1, fontSize: 14.5 },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: { fontSize: 17, fontWeight: '800' },
+  heroText: { fontSize: 13, lineHeight: 19, marginTop: 4, opacity: 0.85 },
+  successCard: {
+    width: '88%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+  },
+  successIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  successTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  successText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 16,
+    opacity: 0.85,
+  },
+  linkBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 4,
+    marginBottom: 16,
+  },
+  linkText: { flex: 1, fontSize: 13, fontWeight: '600' },
+  copyBtn: { padding: 10 },
+  successActions: { flexDirection: 'row', gap: 10, width: '100%' },
+  secondaryBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: { fontSize: 14, fontWeight: '700' },
+});
+
 export const QuickPublicMeeting = () => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [saving, setIsSaving] = useState(false);
   const [successData, setSuccessData] = useState<{ link: string } | null>(null);
@@ -2763,196 +3112,243 @@ export const QuickPublicMeeting = () => {
     topicName: '',
     startTime: '08:00',
     endTime: '10:00',
-    date: new Date().toISOString().split('T')[0],
+    date: todayString(),
   });
-  const {
-    pickerMode,
-    showPicker,
-    hidePicker,
-    formatDate: formatPickerDate,
-    formatTime,
-  } = useDateTimePicker();
+  const { pickerMode, showPicker, hidePicker, formatTime } =
+    useDateTimePicker();
+  const startMinutes = timeToMinutes(form.startTime);
+  const endMinutes = timeToMinutes(form.endTime);
+  const lengthMinutes =
+    startMinutes !== null && endMinutes !== null ? endMinutes - startMinutes : 0;
 
   const handleSave = async () => {
     if (!form.topicName.trim()) {
-      Alert.alert('Missing Input', 'Please enter a meeting topic.');
+      Toast.show({
+        type: 'error',
+        text1: 'Missing topic',
+        text2: 'Give your class a topic so people know what it is about.',
+      });
+      return;
+    }
+    if (lengthMinutes <= 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Check the time',
+        text2: 'The class must end after it starts.',
+      });
       return;
     }
 
     setIsSaving(true);
-    const result = await createPublicMeeting(form);
+    const result = await createPublicMeeting({
+      ...form,
+      topicName: form.topicName.trim(),
+    });
     setIsSaving(false);
 
     if (result.success && result.meeting) {
       setSuccessData({ link: result.meeting.location });
     } else {
-      Alert.alert('Error', result.error || 'Could not create meeting.');
+      Toast.show({
+        type: 'error',
+        text1: 'Could not schedule class',
+        text2: result.error || 'Please try again.',
+      });
     }
   };
   const handleConfirm = (event: any, selectedDate?: Date) => {
+    const mode = pickerMode;
     hidePicker();
-    if (!selectedDate) return;
-
-    if (pickerMode === 'date') {
-      setForm({ ...form, date: formatPickerDate(selectedDate) });
-    } else if (pickerMode === 'startTime') {
-      const time = formatTime(selectedDate);
-      setForm({ ...form, startTime: time });
-    } else if (pickerMode === 'endTime') {
-      const time = formatTime(selectedDate);
-      setForm({ ...form, endTime: time });
+    if (event?.type === 'dismissed' || !selectedDate) return;
+    if (mode === 'date') {
+      setForm(prev => ({
+        ...prev,
+        date: moment(selectedDate).format('YYYY-MM-DD'),
+      }));
+    } else if (mode === 'startTime') {
+      setForm(prev => ({ ...prev, startTime: formatTime(selectedDate) }));
+    } else if (mode === 'endTime') {
+      setForm(prev => ({ ...prev, endTime: formatTime(selectedDate) }));
     }
+  };
+  const finish = () => {
+    setSuccessData(null);
+    navigation.navigate('Home', { activeTab: 'classroom' });
   };
 
   return (
-    <View
-      style={{
-        paddingHorizontal: 15,
-        flex: 1,
-        backgroundColor: colors.background,
-      }}
-    >
-      <PageHeader title={'Schedule Quick Online Class'} />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <PageHeader title="Quick Online Class" />
+      <ScrollView
+        contentContainerStyle={lectureFormUi.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <FormCard>
+          <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+            <View
+              style={[lectureFormUi.heroIcon, { backgroundColor: colors.primary + '15' }]}
+            >
+              <MaterialIcons name="video-call" size={28} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[lectureFormUi.heroTitle, { color: colors.textDarker }]}>
+                Host a public class
+              </Text>
+              <Text style={[lectureFormUi.heroText, { color: colors.text }]}>
+                Not tied to a course. Anyone with the link can join, so share
+                it with exactly who you want.
+              </Text>
+            </View>
+          </View>
+        </FormCard>
 
-      <TextInput
-        placeholder="Class Topic (e.g., Project Sync)"
-        placeholderTextColor={colors.inputTextHolder}
+        <FormCard title="Topic" icon="title">
+          <FormInput
+            icon="edit"
+            placeholder="e.g. Project sync, Revision session"
+            value={form.topicName}
+            onChangeText={val => setForm(prev => ({ ...prev, topicName: val }))}
+            maxLength={120}
+            containerStyle={{ marginBottom: 0 }}
+          />
+        </FormCard>
+
+        <FormCard
+          title="When"
+          icon="event"
+          rightElement={
+            lengthMinutes > 0 ? (
+              <View
+                style={[
+                  lectureFormUi.durationChip,
+                  { backgroundColor: colors.primary + '15' },
+                ]}
+              >
+                <Text style={[lectureFormUi.durationText, { color: colors.primary }]}>
+                  {describeDuration(lengthMinutes)}
+                </Text>
+              </View>
+            ) : null
+          }
+        >
+          <PickerTile
+            icon="calendar-month"
+            label="Date"
+            value={prettyDate(form.date)}
+            onPress={() => showPicker('date')}
+            style={{ marginBottom: 10 }}
+          />
+          <View style={lectureFormUi.row}>
+            <PickerTile
+              icon="schedule"
+              label="Starts"
+              value={form.startTime}
+              onPress={() => showPicker('startTime')}
+            />
+            <PickerTile
+              icon="schedule"
+              label="Ends"
+              value={form.endTime}
+              onPress={() => showPicker('endTime')}
+            />
+          </View>
+        </FormCard>
+      </ScrollView>
+
+      <View
         style={[
-          CourseActionStyles.textInput2,
+          lectureFormUi.footer,
           {
-            color: colors.text,
-            borderColor: colors.border,
-            marginVertical: 20,
-            backgroundColor: colors.backgroundSecondary,
+            paddingBottom: Math.max(insets.bottom, 12),
+            backgroundColor: colors.background,
+            borderTopColor: colors.border + '40',
           },
         ]}
-        value={form.topicName}
-        onChangeText={val => setForm({ ...form, topicName: val })}
-      />
-
-      <View style={CourseActionStyles.dateTimeRow}>
-        <TouchableOpacity
-          style={[
-            CourseActionStyles.dateTimeBox,
-            { borderColor: colors.border },
-          ]}
-          onPress={() => showPicker('date')}
-        >
-          <MaterialIcons name="calendar-month" size={24} color={colors.text} />
-          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
-            Date
-          </Text>
-          <Text
-            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
-          >
-            {form.date || 'Select Date'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            CourseActionStyles.dateTimeBox,
-            { borderColor: colors.border },
-          ]}
-          onPress={() => showPicker('startTime')}
-        >
-          <MaterialIcons name="schedule" size={24} color={colors.text} />
-          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
-            Start Time
-          </Text>
-          <Text
-            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
-          >
-            {form.startTime || '00:00'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            CourseActionStyles.dateTimeBox,
-            { borderColor: colors.border },
-          ]}
-          onPress={() => showPicker('endTime')}
-        >
-          <MaterialIcons name="schedule" size={24} color={colors.text} />
-          <Text style={[CourseActionStyles.microLabel, { color: colors.text }]}>
-            Ends
-          </Text>
-          <Text
-            style={[CourseActionStyles.dateTimeText, { color: colors.text }]}
-          >
-            {form.endTime || '00:00'}
-          </Text>
-        </TouchableOpacity>
+      >
+        <CustomButton
+          title={saving ? 'Scheduling...' : 'Schedule Class'}
+          onPress={handleSave}
+          isLoading={saving}
+          disabled={saving}
+          iconName="video-call"
+        />
       </View>
-      <CustomButton
-        title="Schedule Meeting"
-        onPress={handleSave}
-        disabled={saving}
-        iconName="add"
-        iconColor="#fff"
-        style={CourseActionStyles.submitButton}
-      />
-      <Modal visible={!!successData} transparent animationType="slide">
-        <View style={CourseActionStyles.modalOverlay}>
+
+      <Modal
+        visible={!!successData}
+        transparent
+        animationType="fade"
+        onRequestClose={finish}
+      >
+        <View style={CourseActionStyles.alertOverlay}>
           <View
             style={[
-              CourseActionStyles.alertBox,
+              lectureFormUi.successCard,
               { backgroundColor: colors.backgroundSecondary },
             ]}
           >
-            <MaterialIcons
-              name="check-circle"
-              color={colors.success}
-              size={60}
-            />
-            <Text
+            <View
+              style={[lectureFormUi.successIcon, { backgroundColor: colors.success + '1F' }]}
+            >
+              <MaterialIcons name="check" size={38} color={colors.success} />
+            </View>
+            <Text style={[lectureFormUi.successTitle, { color: colors.textDarker }]}>
+              Class scheduled
+            </Text>
+            <Text style={[lectureFormUi.successText, { color: colors.text }]}>
+              {form.topicName.trim()} · {prettyDate(form.date)}, {form.startTime}–
+              {form.endTime}
+            </Text>
+            <View
               style={[
-                CourseActionStyles.alertTitle,
-                {
-                  color: colors.textDarker,
-                },
+                lectureFormUi.linkBox,
+                { borderColor: colors.border + '80', backgroundColor: colors.background },
               ]}
             >
-              Class Successfully Scheduled
-            </Text>
-
-            <TextInput
-              value={successData?.link}
-              editable={false}
-              style={[
-                CourseActionStyles.classLink,
-                {
-                  borderColor: colors.border,
-                  color: colors.success,
-                },
-              ]}
-            />
-
-            <View style={CourseActionStyles.rowDiv}>
+              <MaterialIcons name="link" size={18} color={colors.primary} />
+              <Text
+                numberOfLines={1}
+                selectable
+                style={[lectureFormUi.linkText, { color: colors.text }]}
+              >
+                {successData?.link}
+              </Text>
+              <TouchableOpacity
+                style={lectureFormUi.copyBtn}
+                accessibilityLabel="Copy link"
+                onPress={() => {
+                  Clipboard.setString(successData?.link || '');
+                  Toast.show({ type: 'success', text1: 'Link copied' });
+                }}
+              >
+                <MaterialIcons name="content-copy" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={lectureFormUi.successActions}>
+              <TouchableOpacity
+                onPress={finish}
+                style={[lectureFormUi.secondaryBtn, { borderColor: colors.primary }]}
+              >
+                <Text style={[lectureFormUi.secondaryBtnText, { color: colors.primary }]}>
+                  Done
+                </Text>
+              </TouchableOpacity>
               <CustomButton
-                title="Copy Link"
-                onPress={() => Clipboard.setString(successData?.link || '')}
-                iconName="content-copy"
-                iconColor="#fff"
-                style={CourseActionStyles.classActionBtns}
-              />
-              <CustomButton
-                title="Share Link"
+                title="Share"
+                iconName="share"
+                style={{ flex: 1, width: 'auto', height: 48 }}
                 onPress={async () => {
                   try {
                     await Share.share({
-                      message: `Join my meeting: ${successData?.link}`,
+                      message: `Join my class "${form.topicName.trim()}": ${successData?.link}`,
                       url: successData?.link,
-                      title: 'Meeting Link',
+                      title: 'Class Link',
                     });
-                    setSuccessData(null);
-                    navigation.navigate('Home', { activeTab: 'classroom' });
                   } catch (error) {
                     console.error('Error sharing:', error);
                   }
                 }}
-                iconName="share"
-                iconColor="#fff"
-                style={CourseActionStyles.classActionBtns}
               />
             </View>
           </View>
@@ -2960,8 +3356,16 @@ export const QuickPublicMeeting = () => {
       </Modal>
       {pickerMode && (
         <DateTimePicker
-          value={new Date()}
+          value={pickerValueFrom(
+            form.date,
+            pickerMode === 'date'
+              ? undefined
+              : pickerMode === 'startTime'
+                ? form.startTime
+                : form.endTime,
+          )}
           mode={pickerMode === 'date' ? 'date' : 'time'}
+          minimumDate={pickerMode === 'date' ? new Date() : undefined}
           is24Hour={true}
           display="default"
           onChange={handleConfirm}
@@ -2974,237 +3378,18 @@ export const RenderLecturerTestManage = ({
   course,
   refreshing,
   onRefresh,
-  onSaveTest,
   tests,
 }: LecturerTestManageProps) => {
   const { colors } = useTheme();
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const initialFormState = {
-    title: '',
-    duration: '30',
-    dueDate: null,
-    scheduledStart: null,
-    endTime: null,
-    totalMarks: '0',
-    questions: [
-      {
-        id: Date.now().toString(),
-        type: 'MCQ' as const,
-        questionText: '',
-        options: ['', '', '', ''],
-        correctAnswer: '',
-      },
-    ],
-  };
-  const [testForm, setTestForm] = useState<TestFormState>(initialFormState);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
   const shouldShowSearch = true;
   const filteredTests = tests.filter(t =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-  const formRef = useRef(testForm);
-  useEffect(() => {
-    formRef.current = testForm;
-  }, [testForm]);
-  const openEditModal = (test: CreateTestPayload) => {
-    setTestForm({
-      title: test.title,
-      duration: (test.duration ?? 0).toString(),
-      dueDate: safeParseDate((test as any)?.dueDate),
-      totalMarks: (test.totalMarks ?? 0).toString(),
-      questions: test.questions ?? [],
-      scheduledStart: safeParseDate((test as any)?.scheduledStart),
-      endTime: safeParseDate((test as any)?.endTime),
-    });
-    setEditingId(test.id ?? null);
-    setIsModalVisible(true);
-  };
-  const addQuestion = () => {
-    setTestForm({
-      ...testForm,
-      questions: [
-        ...testForm.questions,
-        {
-          id: (Date.now() + Math.random()).toString(),
-          type: 'MCQ' as const,
-          questionText: '',
-          options: ['', '', '', ''],
-          correctAnswer: '',
-        },
-      ],
-    });
-  };
-  const updateQuestion = (id: string, updates: Partial<Question>) => {
-    setTestForm(prev => ({
-      ...prev,
-      questions: prev.questions.map(q =>
-        q.id === id ? { ...q, ...updates } : q,
-      ),
-    }));
-  };
-  const updateOption = (qId: string, optIdx: number, val: string) => {
-    setTestForm(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === qId) {
-          const newOpts = [...(q.options ?? ['', '', '', ''])];
-          newOpts[optIdx] = val;
-          return { ...q, options: newOpts };
-        }
-        return q;
-      }),
-    }));
-  };
-  const handleFinalize = (isPublished: boolean) => {
-    if (
-      !testForm.title ||
-      !testForm.dueDate ||
-      !testForm.endTime ||
-      !testForm.scheduledStart ||
-      !testForm.questions ||
-      !testForm.duration ||
-      !testForm.totalMarks
-    ) {
-      Toast.show({
-        type: 'error',
-        text1: 'Required Fields',
-        text2: 'Please provide all details for your assessment creation.',
-      });
-      return;
-    }
-    if (testForm.scheduledStart >= testForm.endTime) {
-      Toast.show({
-        type: 'error',
-        text1: 'Invalid Assessment Time',
-        text2: 'The assessment must end after its scheduled start time.',
-      });
-      return;
-    }
-    setLoading(true);
-    const currentCourse = Array.isArray(course) ? course[0] : course;
-    const finalPayload: CreateTestPayload = {
-      id: editingId || undefined,
-      courseId: currentCourse.courseId,
-      title: testForm.title,
-      duration: Number(testForm.duration),
-      totalMarks: Number(testForm.totalMarks),
-      questions: testForm.questions as Question[],
-      isPublished,
-      status: isPublished ? 'published' : 'draft',
-      createdAt: new Date().toISOString(),
-      scheduledStart: testForm.scheduledStart,
-      dueDate: testForm.dueDate,
-      endTime: testForm.endTime,
-    };
-    onSaveTest(finalPayload);
-    setLoading(false);
-    setIsModalVisible(false);
-    setTestForm(initialFormState);
-    setEditingId(null);
-  };
-  const autoSaveDraft = useCallback(async () => {
-    try {
-      const currentForm = formRef.current;
-      const payload: CreateTestPayload = {
-        ...currentForm,
-        courseId: Array.isArray(course) ? course[0]?.courseId : course.courseId,
-        status: 'draft',
-        isPublished: false,
-        createdAt: new Date().toISOString(),
-        duration: Number(currentForm.duration),
-        totalMarks: Number(currentForm.totalMarks),
-        questions: currentForm.questions as Question[],
-        dueDate: currentForm.dueDate ?? new Date(),
-        scheduledStart: currentForm.scheduledStart ?? new Date(),
-        endTime: currentForm.endTime ?? new Date(),
-      };
-      onSaveTest(payload);
-    } catch (err: any) {
-      console.error('Auto-save sync failure', err);
-    }
-  }, [course, onSaveTest]);
-  const removeQuestion = (id: string) => {
-    setTestForm(prev => ({
-      ...prev,
-      questions: prev.questions.filter(q => q.id !== id),
-    }));
-  };
-  const addOption = (qId: string) => {
-    setTestForm(prev => ({
-      ...prev,
-      questions: prev.questions.map(q =>
-        q.id === qId ? { ...q, options: [...(q.options ?? []), ''] } : q,
-      ),
-    }));
-  };
-  const removeOption = (qId: string, optIdx: number) => {
-    setTestForm(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === qId) {
-          const newOpts = (q.options ?? []).filter(
-            (_, index) => index !== optIdx,
-          );
-          return { ...q, options: newOpts };
-        }
-        return q;
-      }),
-    }));
-  };
-  const {
-    pickerMode,
-    showPicker,
-    hidePicker,
-    formatTime,
-    formatDate: formatPickeDate,
-  } = useDateTimePicker();
-  const mergeDateAndTime = (date: Date, time: Date) => {
-    const merged = new Date(date);
-    merged.setHours(
-      time.getHours(),
-      time.getMinutes(),
-      time.getSeconds(),
-      time.getMilliseconds(),
-    );
-    return merged;
-  };
-  const handleConfirm = (event: any, selectedDate?: Date) => {
-    hidePicker();
-    if (event.type === 'set' && selectedDate) {
-      if (pickerMode === 'date') {
-        setTestForm(prev => ({
-          ...prev,
-          dueDate: prev.endTime
-            ? mergeDateAndTime(selectedDate, prev.endTime)
-            : selectedDate,
-          scheduledStart: prev.scheduledStart
-            ? mergeDateAndTime(selectedDate, prev.scheduledStart)
-            : prev.scheduledStart,
-          endTime: prev.endTime
-            ? mergeDateAndTime(selectedDate, prev.endTime)
-            : prev.endTime,
-        }));
-      } else if (pickerMode === 'startTime') {
-        setTestForm(prev => ({
-          ...prev,
-          scheduledStart: mergeDateAndTime(
-            prev.dueDate || selectedDate,
-            selectedDate,
-          ),
-        }));
-      } else if (pickerMode === 'endTime') {
-        setTestForm(prev => {
-          const deadline = mergeDateAndTime(
-            prev.dueDate || selectedDate,
-            selectedDate,
-          );
-          return { ...prev, dueDate: deadline, endTime: deadline };
-        });
-      }
-    }
-  };
+  const currentCourse = Array.isArray(course) ? course[0] : course;
+  const openBuilder = (test?: CreateTestPayload) =>
+    navigation.navigate('CreateAssessment', { course: currentCourse, test });
   const downloadAssessmentReport = async (
     testId: string,
     testTitle: string,
@@ -3277,15 +3462,6 @@ export const RenderLecturerTestManage = ({
       });
     }
   };
-  useEffect(() => {
-    if (testForm.title.trim().length === 0) return;
-
-    const delayDebounceFn = setTimeout(() => {
-      autoSaveDraft();
-    }, 2000);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [testForm.title, testForm.questions.length, autoSaveDraft]);
 
   return (
     <View
@@ -3300,26 +3476,36 @@ export const RenderLecturerTestManage = ({
         onRefresh={onRefresh}
         keyExtractor={(item, index) => item.id || item._id || index.toString()}
         ListEmptyComponent={
-          <EmptyState
-            iconName="text-box-search-outline"
-            title="No Assessments Found"
-            subtitle={`No results found matching "${searchQuery}". Try a different search term.`}
-            buttonText="Clear Search"
-            onPress={() => setSearchQuery('')}
-          />
+          searchQuery ? (
+            <EmptyState
+              iconName="text-box-search-outline"
+              title="No Assessments Found"
+              subtitle={`No results found matching "${searchQuery}". Try a different search term.`}
+              buttonText="Clear Search"
+              onPress={() => setSearchQuery('')}
+            />
+          ) : (
+            <EmptyState
+              iconName="quiz"
+              title="No assessments yet"
+              subtitle="Upload a question paper and iCampus will turn it into a test you can review and publish."
+              buttonText="Create Assessment"
+              onPress={() => openBuilder()}
+            />
+          )
         }
         renderItem={({ item }) => {
-          const isPastDue = (() => {
-            const d = safeParseDate((item as any)?.dueDate);
-            if (!d) return false;
-            return new Date() > d;
-          })();
+          const due = safeParseDate((item as any)?.dueDate);
+          const start = safeParseDate((item as any)?.scheduledStart);
+          const isPastDue = !!due && new Date() > due;
+          // Drafts stay editable; only a finished published test is locked.
+          const isLocked = isPastDue && item.isPublished;
           return (
             <View style={CourseActionStyles.pastTestCard}>
               <TouchableOpacity
                 style={{ flex: 1 }}
-                onPress={() => !isPastDue && openEditModal(item)}
-                activeOpacity={isPastDue ? 1 : 0.7}
+                onPress={() => !isLocked && openBuilder(item)}
+                activeOpacity={isLocked ? 1 : 0.7}
               >
                 <Text
                   style={[
@@ -3332,11 +3518,12 @@ export const RenderLecturerTestManage = ({
                 <Text style={CourseActionStyles.testMeta}>
                   {item.questions.length} Questions •{' '}
                   {item.isPublished ? 'Published' : 'Draft'}
+                  {start ? ` • ${moment(start).format('D MMM, HH:mm')}` : ''}
                 </Text>
               </TouchableOpacity>
               {isPastDue && item.isPublished ? (
                 <CustomButton
-                  title="Download Assessment Report"
+                  title="Report"
                   onPress={() =>
                     downloadAssessmentReport(item.id!, item.title!)
                   }
@@ -3345,10 +3532,16 @@ export const RenderLecturerTestManage = ({
                   style={CourseActionStyles.downloadTestBtn}
                 />
               ) : (
-                <View style={[CourseActionStyles.downloadTestBtn]}>
+                <TouchableOpacity
+                  onPress={() => !isLocked && openBuilder(item)}
+                  style={[
+                    CourseActionStyles.downloadTestBtn,
+                    { flexDirection: 'row', alignItems: 'center' },
+                  ]}
+                >
                   <MaterialIcons
-                    name="access-time"
-                    size={20}
+                    name={isLocked ? 'access-time' : 'edit'}
+                    size={18}
                     color={colors.primary}
                   />
                   <Text
@@ -3357,34 +3550,21 @@ export const RenderLecturerTestManage = ({
                       { color: colors.primary },
                     ]}
                   >
-                    Report pending
+                    {isLocked ? 'Report pending' : 'Edit'}
                   </Text>
-                </View>
+                </TouchableOpacity>
               )}
             </View>
           );
         }}
-
         ListHeaderComponent={
           <>
             <PageHeader
               title="Assessments"
               rightElement={
                 <CustomButton
-                  title="Create Assessment"
-                  onPress={() => {
-                    setEditingId(null);
-                    setTestForm({
-                      title: '',
-                      duration: '',
-                      dueDate: null,
-                      totalMarks: '',
-                      questions: [],
-                      scheduledStart: null,
-                      endTime: null,
-                    });
-                    setIsModalVisible(true);
-                  }}
+                  title="Create"
+                  onPress={() => openBuilder()}
                   iconName="add"
                   iconColor="#fff"
                   style={CourseActionStyles.createCard}
@@ -3404,464 +3584,6 @@ export const RenderLecturerTestManage = ({
           </>
         }
       />
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <SafeAreaView
-          style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
-        >
-          {/* Header row with cancel */}
-          <View style={CourseActionStyles.testBuildHeader}>
-            <TouchableOpacity
-              onPress={() => setIsModalVisible(false)}
-              style={CourseActionStyles.cancelPress}
-            >
-              <MaterialIcons name="close" size={22} color={colors.text} />
-            </TouchableOpacity>
-            <Text
-              style={[
-                CourseActionStyles.buildTitle,
-                { color: colors.textDarker },
-              ]}
-            >
-              Build Assessment
-            </Text>
-          </View>
-
-          <ScrollView
-            style={CourseActionStyles.testBuildScroll}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={CourseActionStyles.testBuildContent}
-          >
-            {/* Title */}
-            <View style={CourseActionStyles.testBuildFormGroup}>
-              <TextInput
-                style={[
-                  CourseActionStyles.testBuildTitleInput,
-                  {
-                    color: colors.text,
-                    borderColor: colors.border,
-                    backgroundColor: colors.backgroundSecondary,
-                  },
-                ]}
-                placeholder="Assessment Title (e.g. Test 1)"
-                placeholderTextColor={colors.inputTextHolder}
-                value={testForm.title}
-                onChangeText={t => setTestForm({ ...testForm, title: t })}
-              />
-            </View>
-
-            {/* Duration + Total Marks side by side */}
-            <View style={CourseActionStyles.testBuildDeadlineRow}>
-              <View
-                style={[
-                  CourseActionStyles.testBuildMetricBox,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.testBuildDeadlineLabel,
-                    { color: colors.text },
-                  ]}
-                >
-                  Duration (Minutes)
-                </Text>
-                <TextInput
-                  style={[
-                    CourseActionStyles.testBuildMetricInput,
-                    { color: colors.text, borderColor: colors.border },
-                  ]}
-                  keyboardType="numeric"
-                  value={testForm.duration}
-                  onChangeText={val =>
-                    setTestForm({ ...testForm, duration: val })
-                  }
-                  placeholder="eg. 30"
-                  placeholderTextColor={colors.inputTextHolder}
-                />
-              </View>
-              <View
-                style={[
-                  CourseActionStyles.testBuildMetricBox,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    CourseActionStyles.testBuildDeadlineLabel,
-                    { color: colors.text },
-                  ]}
-                >
-                  Total Marks
-                </Text>
-                <TextInput
-                  style={[
-                    CourseActionStyles.testBuildMetricInput,
-                    { color: colors.text, borderColor: colors.border },
-                  ]}
-                  keyboardType="numeric"
-                  placeholder="eg. 30"
-                  value={testForm.totalMarks}
-                  onChangeText={val =>
-                    setTestForm({ ...testForm, totalMarks: val })
-                  }
-                  placeholderTextColor={colors.inputTextHolder}
-                />
-              </View>
-            </View>
-            {testForm.questions.map((q, idx) => (
-              <View
-                key={q.id}
-                style={[
-                  CourseActionStyles.questionCard,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={CourseActionStyles.qHeader}>
-                  <Text
-                    style={[
-                      CourseActionStyles.qNumber,
-                      { color: colors.textDarker },
-                    ]}
-                  >
-                    Question {idx + 1}
-                  </Text>
-                  <TouchableOpacity onPress={() => removeQuestion(q.id)}>
-                    <MaterialIcons
-                      name="cancel"
-                      size={22}
-                      color={colors.primary}
-                      style={{ padding: 10 }}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <TextInput
-                  style={[
-                    CourseActionStyles.qInput,
-                    {
-                      color: colors.text,
-                      borderColor: colors.border,
-                      backgroundColor: colors.background,
-                    },
-                  ]}
-                  placeholder="Type your question here..."
-                  multiline
-                  value={q.questionText}
-                  onChangeText={t => updateQuestion(q.id, { questionText: t })}
-                  placeholderTextColor={colors.inputTextHolder}
-                />
-                <View style={CourseActionStyles.typeGroup}>
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.typeBtn,
-                      q.type === 'MCQ' && {
-                        backgroundColor: colors.btnColor,
-                      },
-                    ]}
-                    onPress={() =>
-                      updateQuestion(q.id, {
-                        type: 'MCQ',
-                        options: ['', '', '', ''],
-                      })
-                    }
-                  >
-                    <Text
-                      style={[
-                        CourseActionStyles.typeText,
-                        q.type === 'MCQ'
-                          ? { color: colors.btnTextColor }
-                          : { color: colors.text },
-                      ]}
-                    >
-                      Multiple Choice Options
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      CourseActionStyles.typeBtn,
-                      q.type === 'ShortAnswer' && {
-                        backgroundColor: colors.btnColor,
-                      },
-                    ]}
-                    onPress={() =>
-                      updateQuestion(q.id, {
-                        type: 'ShortAnswer',
-                        options: [],
-                      })
-                    }
-                  >
-                    <Text
-                      style={[
-                        CourseActionStyles.typeText,
-                        q.type === 'ShortAnswer'
-                          ? { color: colors.btnTextColor }
-                          : { color: colors.text },
-                      ]}
-                    >
-                      Text
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                {q.type === 'MCQ' ? (
-                  <>
-                    {(q.options ?? []).map((opt, oIdx) => (
-                      <View key={oIdx} style={CourseActionStyles.optionRow}>
-                        <TouchableOpacity
-                          onPress={() =>
-                            updateQuestion(q.id, { correctAnswer: opt })
-                          }
-                          style={[
-                            CourseActionStyles.radio,
-                            q.correctAnswer === opt &&
-                              CourseActionStyles.radioActive,
-                          ]}
-                        >
-                          {q.correctAnswer === opt && (
-                            <View style={CourseActionStyles.radioInner} />
-                          )}
-                        </TouchableOpacity>
-                        <TextInput
-                          style={[
-                            CourseActionStyles.optInput,
-                            { color: colors.text },
-                          ]}
-                          placeholder={`Option ${oIdx + 1} value...`}
-                          value={opt}
-                          placeholderTextColor={colors.inputTextHolder}
-                          onChangeText={v => updateOption(q.id, oIdx, v)}
-                        />
-                        {(q.options?.length ?? 0) > 3 && (
-                          <TouchableOpacity
-                            onPress={() => removeOption(q.id, oIdx)}
-                          >
-                            <MaterialIcons
-                              name="cancel"
-                              size={22}
-                              color={colors.primary}
-                              style={{ padding: 10 }}
-                            />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    ))}
-                    <TouchableOpacity
-                      onPress={() => addOption(q.id)}
-                      style={[
-                        CourseActionStyles.addOptionBtn,
-                        { backgroundColor: colors.btnColor },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          CourseActionStyles.addOptionText,
-                          { color: colors.btnTextColor },
-                        ]}
-                      >
-                        Add More Options
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <View style={CourseActionStyles.shortAnswerPreview}>
-                      <Text
-                        style={[
-                          CourseActionStyles.previewLabel,
-                          { color: colors.text },
-                        ]}
-                      >
-                        Expected Answer
-                      </Text>
-                      <TextInput
-                        style={[
-                          CourseActionStyles.correctAnswerInput,
-                          { color: colors.text },
-                        ]}
-                        placeholder="Set correct answer/keywords (optional for auto-grade)"
-                        placeholderTextColor={colors.inputTextHolder}
-                        value={q.correctAnswer}
-                        onChangeText={t =>
-                          updateQuestion(q.id, { correctAnswer: t })
-                        }
-                      />
-                    </View>
-                  </>
-                )}
-              </View>
-            ))}
-            {/* Set Deadline */}
-            <View style={CourseActionStyles.testBuildFormGroup}>
-              <Text
-                style={[
-                  CourseActionStyles.testBuildSectionLabel,
-                  { color: colors.textDarker },
-                ]}
-              >
-                Set Deadline
-              </Text>
-              <View style={CourseActionStyles.testBuildDeadlineRow}>
-                <View
-                  style={[
-                    CourseActionStyles.testBuildDeadlineBox,
-                    {
-                      backgroundColor: colors.backgroundSecondary,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="calendar-today"
-                    size={22}
-                    color={colors.primary}
-                  />
-                  <View style={CourseActionStyles.testBuildDeadlineInner}>
-                    <Text
-                      style={[
-                        CourseActionStyles.testBuildDeadlineLabel,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Date
-                    </Text>
-                    <Text
-                      style={[
-                        CourseActionStyles.testBuildDeadlineValue,
-                        { color: colors.textDarker },
-                      ]}
-                    >
-                      {testForm.dueDate instanceof Date
-                        ? formatPickeDate(testForm.dueDate)
-                        : testForm.dueDate || '00:00'}
-                    </Text>
-                  </View>
-                </View>
-                <View
-                  style={[
-                    CourseActionStyles.testBuildDeadlineBox,
-                    {
-                      backgroundColor: colors.backgroundSecondary,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="access-time"
-                    size={22}
-                    color={colors.primary}
-                  />
-                  <View style={CourseActionStyles.testBuildDeadlineInner}>
-                    <Text
-                      style={[
-                        CourseActionStyles.testBuildDeadlineLabel,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Start Time
-                    </Text>
-                    <Text
-                      style={[
-                        CourseActionStyles.testBuildDeadlineValue,
-                        { color: colors.textDarker },
-                      ]}
-                    >
-                      {testForm.scheduledStart instanceof Date
-                        ? formatTime(testForm.scheduledStart)
-                        : testForm.scheduledStart || '00:00'}
-                    </Text>
-                  </View>
-                </View>
-                <View
-                  style={[
-                    CourseActionStyles.testBuildDeadlineBox,
-                    {
-                      backgroundColor: colors.backgroundSecondary,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="access-time"
-                    size={22}
-                    color={colors.primary}
-                  />
-                  <View style={CourseActionStyles.testBuildDeadlineInner}>
-                    <Text
-                      style={[
-                        CourseActionStyles.testBuildDeadlineLabel,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Ends
-                    </Text>
-                    <Text
-                      style={[
-                        CourseActionStyles.testBuildDeadlineValue,
-                        { color: colors.textDarker },
-                      ]}
-                    >
-                      {testForm.endTime instanceof Date
-                        ? formatTime(testForm.endTime)
-                        : testForm.endTime || '00:00'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Add Question + Publish */}
-            <View style={CourseActionStyles.testBuildActions}>
-              <TouchableOpacity
-                style={[
-                  CourseActionStyles.testBuildAddQuestionBtn,
-                  { borderColor: colors.primary },
-                ]}
-                onPress={addQuestion}
-              >
-                <MaterialIcons name="add" size={20} color={colors.primary} />
-                <Text
-                  style={[
-                    CourseActionStyles.testBuildAddQuestionText,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Add Question
-                </Text>
-              </TouchableOpacity>
-              <CustomButton
-                title={loading ? 'Publishing...' : 'Publish'}
-                onPress={() => handleFinalize(true)}
-                disabled={loading}
-                iconName="add"
-                iconColor="#fff"
-                style={CourseActionStyles.testBuildPublishBtn}
-              />
-            </View>
-            <View style={{ height: 24 }} />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-      {pickerMode && (
-        <DateTimePicker
-          value={new Date()}
-          mode={pickerMode === 'date' ? 'date' : 'time'}
-          is24Hour={true}
-          display="default"
-          onChange={handleConfirm}
-        />
-      )}
     </View>
   );
 };

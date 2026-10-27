@@ -41,10 +41,6 @@ import { useTheme } from '../context/ThemeContext';
 import { CurrencyDisplay } from '../components/CurrencyFormatter';
 import { useProfileData } from '../hooks/useProfileData.ts';
 import { useProfileEditing } from '../hooks/useProfileEditing.ts';
-import { switchToAdminApi } from '../api/localPostApis.ts';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useDispatch } from 'react-redux';
-import { setAdmin } from '../context/AdminSlice.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { useProfileTab } from '../hooks/useProfileTab.ts';
 import { fetchProfileConnectionsAPI } from '../api/localGetApis.ts';
@@ -518,7 +514,6 @@ export const ProfileScreen = ({ route }: any) => {
   const { colors } = useTheme();
   const { identifier } = route.params || {};
   const currentUser = useAppSelector((state: any) => state.user) || {};
-  const dispatch = useDispatch();
 
   const {
     profileData,
@@ -560,7 +555,6 @@ export const ProfileScreen = ({ route }: any) => {
   const [skillInput, setSkillInput] = useState('');
   const [apiSuggestions, setApiSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSwitching, setIsSwitching] = useState(false);
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
   const onTextLayout = (e: any) => {
@@ -636,61 +630,6 @@ export const ProfileScreen = ({ route }: any) => {
       });
     } catch {
       // Share sheet dismissed.
-    }
-  };
-
-  const handleSwitchToInstitutionAdmin = async () => {
-    if (isSwitching) return;
-    setIsSwitching(true);
-    try {
-      const result = await switchToAdminApi(currentUser.uid);
-      if (
-        !result?.success ||
-        !result.data?.uid ||
-        !result.accessToken ||
-        !result.refreshToken
-      ) {
-        Toast.show({
-          type: 'error',
-          text1: 'Switch Failed',
-          text2:
-            result?.error ||
-            'The administrator session could not be created. Please try again.',
-        });
-        return;
-      }
-
-      const { data: admin, accessToken, refreshToken } = result;
-      try {
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshToken);
-        await AsyncStorage.setItem('admin', JSON.stringify(admin));
-        dispatch(
-          setAdmin({ ...admin, accessToken, tokenCreatedAt: Date.now() }),
-        );
-        Toast.show({
-          type: 'success',
-          text1: 'Welcome',
-          text2: 'Successfully switched to Institution Admin dashboard.',
-        });
-        navigation.navigate('AdminDashboard');
-      } catch (storageError) {
-        console.error('Storage/Navigation Error during switch:', storageError);
-        Toast.show({
-          type: 'error',
-          text1: 'Switch Failed',
-          text2: 'Could not save the administrator session. Please try again.',
-        });
-      }
-    } catch (error) {
-      console.error('Error during switch to institution admin:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Switch Failed',
-        text2: 'Could not switch to administrator mode.',
-      });
-    } finally {
-      setIsSwitching(false);
     }
   };
 
@@ -812,11 +751,6 @@ export const ProfileScreen = ({ route }: any) => {
   }
 
   const isVerified = profileData.isVerified === true;
-  const canSwitchToInstitutionAdmin =
-    currentUser.isInstitutionAdmin &&
-    isOwner &&
-    currentUser.isVerified &&
-    currentUser.usertype === 'enterprise';
   const role = ROLE_META[profileData.usertype] || ROLE_META.otherUser;
 
   // "Lecturer • Petroleum Eng. at FUPRE" with empty parts left out (it used
@@ -993,15 +927,6 @@ export const ProfileScreen = ({ route }: any) => {
                   iconName="verified"
                   style={styles.fillBtn}
                   onPress={() => navigation.navigate('PersonaVerify')}
-                />
-              )}
-              {canSwitchToInstitutionAdmin && (
-                <CustomButton
-                  title="Switch to admin"
-                  iconName="admin-panel-settings"
-                  style={styles.fillBtn}
-                  onPress={handleSwitchToInstitutionAdmin}
-                  isLoading={isSwitching}
                 />
               )}
             </View>
