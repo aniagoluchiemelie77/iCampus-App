@@ -1,4 +1,4 @@
-import { User, CreateTestPayload, DropOffStation, Notification, Lecture, Course, CourseException, AdItem, PostComment, GifResult} from '../types/firebase';
+import { User, CreateTestPayload, DropOffStation, Notification, Lecture, Course, CourseException, AdItem, PostComment, GifResult, ReviewSummary} from '../types/firebase';
 import { baseUrl } from '../components/HomeScreenComponents';
 import Toast from 'react-native-toast-message';
 import {fetchWithAuth} from '../utils/userTokenAuth';
@@ -697,6 +697,52 @@ export const fetchUserReviewsAPI = async (page = 1, limit = 10, signal?: AbortSi
     return { success: false, data: [], pagination: { hasMore: false }, message: 'Network error fetching reviews' };
   }
 };
+export interface ProductReview {
+  id: string;
+  rating: number;
+  comment: string;
+  mediaUrls: string[];
+  isVerifiedPurchase: boolean;
+  createdAt: string | null;
+  reviewerDetails: {
+    firstname: string;
+    lastname?: string;
+    username?: string | null;
+    profilePic?: string | null;
+    isVerified?: boolean;
+    organizationName?: string | null;
+  };
+}
+/** Public reviews of one listing (newest first), for the product page. */
+export const fetchProductReviewsAPI = async (
+  productId: string,
+  limit = 20,
+  signal?: AbortSignal,
+): Promise<{
+  success: boolean;
+  data: ProductReview[];
+  summary: ReviewSummary | null;
+}> => {
+  try {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const response = await fetchWithAuth(
+      `${cleanBaseUrl}/reviews/product/${encodeURIComponent(productId)}?limit=${limit}`,
+      { method: 'GET', signal },
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      return { success: false, data: [], summary: null };
+    }
+    return {
+      success: true,
+      data: Array.isArray(result.data) ? result.data : [],
+      summary: result.summary || null,
+    };
+  } catch {
+    // Reviews are secondary on the product page; fail quietly.
+    return { success: false, data: [], summary: null };
+  }
+};
 export const fetchPayoutHistoryAPI = async (lastCreatedAt?: string, maxRetries = 3) => {
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();
@@ -876,7 +922,11 @@ export const fetchUserConnections = async (
 export const fetchSupportedBanks = async ({
   countryCode,
   signal,
-}: FetchSupportedBanksParams): Promise<{ label: string; value: string }[]> => {
+}: FetchSupportedBanksParams): Promise<{
+  banks: { label: string; value: string }[];
+  /** Set when the list couldn't be loaded, so the UI can offer a retry. */
+  error?: string;
+}> => {
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const response = await fetchWithAuth(`${cleanBaseUrl}/users/payments/banks/${countryCode}`, {
@@ -884,21 +934,24 @@ export const fetchSupportedBanks = async ({
       signal,
     });
 
-    const json = await response.json();
+    const json = await response.json().catch(() => ({}));
 
     if (json.status === 'success' && Array.isArray(json.data)) {
-      return json.data.map((bank: any) => ({
-        label: bank.name,
-        value: bank.code,
-      }));
+      const banks = json.data
+        .filter((bank: any) => bank?.name && bank?.code)
+        .map((bank: any) => ({ label: String(bank.name).trim(), value: String(bank.code) }))
+        .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
+      return { banks };
     }
 
-    return [];
+    // The backend passes Flutterwave's error through (e.g. "Invalid
+    // authorization key" when the server's secret key is wrong).
+    console.error('Bank fetch failed:', response.status, json?.message);
+    return { banks: [], error: 'We could not load the list of banks. Please try again.' };
   } catch (err: any) {
-    if (err.name === 'AbortError') return [];
-    
+    if (err.name === 'AbortError') return { banks: [] };
     console.error('Bank fetch failed:', err);
-    return [];
+    return { banks: [], error: 'Check your internet connection and try again.' };
   }
 };
 export const fetchNotificationDetails = async (
@@ -2105,7 +2158,14 @@ export const resolveBankAccountAPI = async (
   bankCode: string,
   accountNumber: string,
   signal?: AbortSignal,
-): Promise<{ success: boolean; accountName?: string | null; message?: string }> => {
+): Promise<{
+  success: boolean;
+  accountName?: string | null;
+  /** False when the account isn't in the user's (or organization's) name. */
+  nameMatches?: boolean;
+  expectedName?: string;
+  message?: string;
+}> => {
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const query = `bankCode=${encodeURIComponent(bankCode)}&accountNumber=${encodeURIComponent(accountNumber)}`;
@@ -2117,7 +2177,12 @@ export const resolveBankAccountAPI = async (
     if (!response.ok) {
       return { success: false, message: result?.message || 'Could not verify the account.' };
     }
-    return { success: true, accountName: result.accountName ?? null };
+    return {
+      success: true,
+      accountName: result.accountName ?? null,
+      nameMatches: result.nameMatches,
+      expectedName: result.expectedName,
+    };
   } catch (error: any) {
     if (error?.name === 'AbortError') return { success: false };
     return { success: false, message: 'Check your internet connection.' };

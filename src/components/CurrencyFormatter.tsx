@@ -9,6 +9,8 @@ interface CurrencyDisplayProps {
   containerStyle?: ViewStyle;
   /** Renders the amount in the theme's success colour (e.g. money received). */
   isSuccess?: boolean;
+  /** Overrides the colour, e.g. white text on a filled card. */
+  color?: string;
 }
 
 export const CurrencyDisplay = ({
@@ -16,6 +18,7 @@ export const CurrencyDisplay = ({
   size = 'medium',
   containerStyle,
   isSuccess = false,
+  color,
 }: CurrencyDisplayProps) => {
   const { colors } = useTheme();
   const { country } = useAppSelector(state => state.user);
@@ -39,7 +42,7 @@ export const CurrencyDisplay = ({
     decimal: decSize,
     spacing,
   } = config[size];
-  const activeColor = isSuccess ? colors.success : colors.primary;
+  const activeColor = color || (isSuccess ? colors.success : colors.primary);
   return (
     <View style={[styles.balanceContainer, containerStyle]}>
       <Text

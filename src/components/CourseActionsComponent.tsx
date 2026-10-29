@@ -5615,6 +5615,10 @@ export const LecturerLectureScheduleView = ({
       item.status === 'completed' || item.status === 'cancelled';
     const isToday = lectureDayKey(item) === today;
     const start = resolveLectureTime(item, 'start');
+    const end = resolveLectureTime(item, 'end');
+    // A lecture whose end time is behind us can no longer be edited or deleted.
+    const hasPassed =
+      isFinished || (!isOngoing && !!(end ?? start) && (end ?? start)!.getTime() < clock);
     const canAddToCalendar = !!start && start.getTime() > clock && !isFinished;
     const primaryAction = isFinished
       ? undefined
@@ -5652,11 +5656,15 @@ export const LecturerLectureScheduleView = ({
         calendarAction={
           canAddToCalendar ? () => handleAddLectureToCalendar(item) : undefined
         }
-        onEdit={isFinished ? undefined : () => handleOpenEditModal(item)}
-        onDelete={() => {
-          setSelectedLecture(item);
-          setShowDeleteModal(true);
-        }}
+        onEdit={hasPassed ? undefined : () => handleOpenEditModal(item)}
+        onDelete={
+          hasPassed
+            ? undefined
+            : () => {
+                setSelectedLecture(item);
+                setShowDeleteModal(true);
+              }
+        }
       />
     );
   };

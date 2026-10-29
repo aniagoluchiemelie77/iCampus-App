@@ -5,12 +5,11 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLiveSession } from '../hooks/useLiveSession';
 import { LecturerLiveClassSession } from '../components/LecturerLiveClassSession';
 import { StudentLiveClassSession } from '../components/StudentLiveClassSession';
 import { AccessDeniedScreen } from '../components/AccessDeniedScreen';
-import { ActivityIndicator } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 import { submitOnlineClassAttendanceAPI } from '../api/localPostApis';
 import { searchUsers } from '../api/localGetApis';
@@ -109,7 +108,12 @@ export const LiveClassSessions = ({ route }: any) => {
     return {
       ...activeHostUser,
       displayName:
-        `${activeHostUser.firstname} ${activeHostUser.lastname}`.trim(),
+        [activeHostUser.firstname, activeHostUser.lastname]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        activeHostUser.username ||
+        'Lecturer',
       profilePic: activeHostUser?.profilePic || [],
       isMuted: lecture?.isLecturerMuted ?? false,
       isCameraOn: lecture?.isLecturerCameraOn ?? false,
@@ -209,7 +213,8 @@ export const LiveClassSessions = ({ route }: any) => {
           viewerTier: user.tier,
           viewerRole: user.usertype,
         });
-        setLecturerUser(data);
+        // The uid search returns a one-item array.
+        setLecturerUser(Array.isArray(data) ? data[0] ?? null : data);
       } catch (err) {
         console.error('Failed to fetch host:', err);
       }

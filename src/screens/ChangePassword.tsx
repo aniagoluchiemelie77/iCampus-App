@@ -22,6 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { FloatingSuccessIcon } from '../components/EmptyFlatlistComponent';
 
 type ChangePasswordParams = {
   email: string;
@@ -118,11 +119,7 @@ export default function ChangePasswordScreen() {
           bounces={false}
         >
           <View style={styles.cardContainer}>
-            <MaterialIcons
-              name="lock-outline"
-              size={60}
-              color={PRIMARY_COLOR}
-            />
+            <FloatingSuccessIcon iconName="lock" size={30} haloSize={92} />
             <Text style={styles.mainHeader}>Change Password</Text>
 
             <Text style={[styles.inputLabel, { color: colors.text }]}>
@@ -218,10 +215,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     maxWidth: 400,
     width: '100%',
-    padding: 25,
+    padding: 22,
     backgroundColor: '#fff',
     zIndex: 10,
-    borderRadius: 15,
+    borderRadius: 20,
     shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -231,12 +228,12 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 15,
+    marginBottom: 8,
     width: '100%',
   },
   input2: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     backgroundColor: 'transparent',
     color: '#222',
   },
@@ -246,8 +243,9 @@ const styles = StyleSheet.create({
   validationText: {
     color: PRIMARY_COLOR,
     fontSize: 12,
-    marginBottom: 15,
+    marginBottom: 10,
     width: '100%',
+    marginTop: -6,
   },
   submitBtn: {
     paddingHorizontal: 15,
@@ -258,22 +256,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   mainHeader: {
-    fontSize: 25,
+    fontSize: 23,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    marginVertical: 25,
     alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 18,
   },
   passwordInput: {
     width: '100%',
-    borderRadius: 5,
-    borderWidth: 0.8,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-    height: 60,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    height: 52,
   },
   scrollContainer: {
     flexGrow: 1,

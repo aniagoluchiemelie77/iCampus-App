@@ -30,6 +30,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { normalizeIdentifier, passwordAttempts } from '../utils/loginInput';
 import { saveSession } from '../utils/session';
+import { FloatingSuccessIcon } from '../components/EmptyFlatlistComponent';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -216,11 +217,7 @@ const Login = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.container}>
-            <MaterialIcons
-              name="lock-outline"
-              size={60}
-              color={PRIMARY_COLOR}
-            />
+            <FloatingSuccessIcon iconName="lock" size={30} haloSize={92} />
             <Text style={styles.mainHeader}>Login</Text>
             <View style={styles.passwordInput}>
               <MaterialIcons
@@ -335,19 +332,20 @@ const styles = StyleSheet.create({
   toggleBtns: {
     height: 50,
     paddingHorizontal: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     backgroundColor: PRIMARY_COLOR,
-    marginBottom: 20,
+    marginBottom: 14,
   },
   validationText: {
     fontSize: 12,
     color: PRIMARY_COLOR,
     fontWeight: 800,
-    marginBottom: 15,
+    marginBottom: 10,
     width: '100%',
+    marginTop: -6,
   },
   toggleBtnsText: {
     fontSize: 14,
@@ -359,10 +357,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     maxWidth: 400,
     width: '100%',
-    padding: 25,
+    padding: 22,
     backgroundColor: '#fff',
     zIndex: 10,
-    borderRadius: 15,
+    borderRadius: 20,
     shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -370,26 +368,27 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   mainHeader: {
-    fontSize: 25,
+    fontSize: 23,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    marginVertical: 25,
     alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 18,
   },
   passwordInput: {
     width: '100%',
-    borderRadius: 5,
-    borderWidth: 0.8,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-    height: 60,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    height: 52,
   },
   input2: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#222',
     backgroundColor: 'transparent',
   },
@@ -397,21 +396,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 15,
+    padding: 12,
     borderWidth: 0.8,
     borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 10,
+    borderRadius: 14,
   },
   socialButtonRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
-    marginBottom: 30,
+    marginBottom: 16,
   },
   forgotPasswordBtn: {
     alignSelf: 'flex-end',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   forgotPasswordText: {
     fontSize: 14,
@@ -443,7 +442,7 @@ const styles = StyleSheet.create({
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   dividerLine: {
     flex: 1,

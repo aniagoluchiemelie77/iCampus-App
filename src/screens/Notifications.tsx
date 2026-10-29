@@ -22,9 +22,11 @@ import { NotificationItem } from '../components/NotificationItem';
 import { useSocket } from '../hooks/useSocket';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import {
+  LectureReminderInfo,
   navigateForNotification,
   notificationGroupKey,
 } from '../utils/notificationNavigation';
+import { LectureReminderModal } from '../components/LectureReminderModal';
 
 type NotificationTab = 'all' | 'unread' | 'finance';
 const TABS: { id: NotificationTab; label: string }[] = [
@@ -48,6 +50,8 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const [loading, setLoading] = useState(false);
+  const [lectureReminder, setLectureReminder] =
+    useState<LectureReminderInfo | null>(null);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
   // Ignore responses for a tab the user has already left.
@@ -153,7 +157,7 @@ const Notifications = () => {
         console.error('Read error:', err),
       );
     }
-    navigateForNotification(navigation, item, user);
+    navigateForNotification(navigation, item, user, setLectureReminder);
   };
 
   const unreadCount = notifications.filter(n => n.isRead !== true).length;
@@ -258,6 +262,11 @@ const Notifications = () => {
           ]}
         />
       )}
+      <LectureReminderModal
+        info={lectureReminder}
+        navigation={navigation}
+        onClose={() => setLectureReminder(null)}
+      />
     </View>
   );
 };

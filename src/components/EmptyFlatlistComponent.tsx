@@ -187,33 +187,68 @@ const FloatingIllustration = ({
   );
 };
 
-export const FloatingSuccessIcon = ({
-  iconName = 'check-circle',
-  size = 42,
-}: {
-  iconName?: string;
-  size?: number;
-}) => {
-  const { colors } = useTheme();
+/** Wraps any content (e.g. the logo) in the same gentle float. */
+export const FloatingView = ({ children }: { children: React.ReactNode }) => {
   const float = useFloatAnimation();
   return (
     <Animated.View style={{ transform: [{ translateY: float }] }}>
-      <View style={styles.halo}>
+      {children}
+    </Animated.View>
+  );
+};
+
+export const FloatingSuccessIcon = ({
+  iconName = 'check-circle',
+  size = 42,
+  haloSize = HALO,
+}: {
+  iconName?: string;
+  size?: number;
+  /** Outer diameter; the badge scales with it (default 128). */
+  haloSize?: number;
+}) => {
+  const { colors } = useTheme();
+  const float = useFloatAnimation();
+  const scale = haloSize / HALO;
+  const badge = Math.round(68 * scale);
+  return (
+    <Animated.View style={{ transform: [{ translateY: float }] }}>
+      <View style={[styles.halo, { width: haloSize, height: haloSize }]}>
         <View
           style={[
             styles.haloRing,
             styles.haloOuter,
-            { backgroundColor: colors.primary },
+            {
+              width: haloSize,
+              height: haloSize,
+              borderRadius: haloSize / 2,
+              backgroundColor: colors.primary,
+            },
           ]}
         />
         <View
           style={[
             styles.haloRing,
             styles.haloInner,
-            { backgroundColor: colors.primary },
+            {
+              width: haloSize * 0.72,
+              height: haloSize * 0.72,
+              borderRadius: haloSize * 0.36,
+              backgroundColor: colors.primary,
+            },
           ]}
         />
-        <View style={[styles.iconBadge, { backgroundColor: colors.primary }]}>
+        <View
+          style={[
+            styles.iconBadge,
+            {
+              width: badge,
+              height: badge,
+              borderRadius: Math.round(22 * scale),
+              backgroundColor: colors.primary,
+            },
+          ]}
+        >
           <MaterialIcons name={iconName} size={size} color="#fff" />
         </View>
       </View>

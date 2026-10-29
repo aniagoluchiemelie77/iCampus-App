@@ -93,17 +93,48 @@ export const CreateProductScreen = ({ route }: any) => {
     [],
   );
   const nicheItems = [
-    { label: 'Tech Gears & Electronics', value: 'Electronics', icon: 'laptop' },
-    { label: 'Apparel & Wardrobe', value: 'Fashion', icon: 'checkroom' },
-    { label: 'Furniture & Stationery', value: 'Stationery', icon: 'chair' },
+    {
+      label: 'Tech Gears & Electronics',
+      value: 'Electronics',
+      icon: 'laptop',
+      hint: 'Phones, laptops, gadgets',
+    },
+    {
+      label: 'Apparel & Wardrobe',
+      value: 'Fashion',
+      icon: 'checkroom',
+      hint: 'Clothes, bags, accessories',
+    },
+    {
+      label: 'Furniture & Stationery',
+      value: 'Stationery',
+      icon: 'chair',
+      hint: 'Room items, books, supplies',
+    },
     {
       label: 'Quick Bites & Munchies',
       value: 'Snacks and Deserts',
       icon: 'bakery-dining',
+      hint: 'Snacks, pastries, desserts',
     },
-    { label: 'Quick Meals & Refreshments', value: 'Food', icon: 'restaurant' },
-    { label: 'Self-Care & Essentials', value: 'Health & Beauty', icon: 'spa' },
-    { label: 'FootWears', value: 'Footwears', icon: 'shopping-bag' },
+    {
+      label: 'Quick Meals & Refreshments',
+      value: 'Food',
+      icon: 'restaurant',
+      hint: 'Meals, drinks, groceries',
+    },
+    {
+      label: 'Self-Care & Essentials',
+      value: 'Health & Beauty',
+      icon: 'spa',
+      hint: 'Skincare, fragrances, hygiene',
+    },
+    {
+      label: 'FootWears',
+      value: 'Footwears',
+      icon: 'hiking',
+      hint: 'Sneakers, slides, heels',
+    },
   ];
   const [stations, setStations] = useState<DropOffStation[]>([]);
   const [_loading, setLoading] = useState<boolean>(true);
@@ -451,17 +482,29 @@ export const CreateProductScreen = ({ route }: any) => {
                 ]}
                 onPress={() => setIsNicheModalOpen(true)}
               >
-                <Text
-                  style={{
-                    color: formInputs.niche
-                      ? colors.text
-                      : colors.inputTextHolder,
-                    fontSize: 14,
-                  }}
-                >
-                  {nicheItems.find(i => i.value === formInputs.niche)?.label ||
-                    'Select a category'}
-                </Text>
+                <View style={styles.dropdownValue}>
+                  <MaterialIcons
+                    name={
+                      nicheItems.find(i => i.value === formInputs.niche)
+                        ?.icon || 'category'
+                    }
+                    size={18}
+                    color={
+                      formInputs.niche ? colors.primary : colors.inputTextHolder
+                    }
+                  />
+                  <Text
+                    style={{
+                      color: formInputs.niche
+                        ? colors.text
+                        : colors.inputTextHolder,
+                      fontSize: 14,
+                    }}
+                  >
+                    {nicheItems.find(i => i.value === formInputs.niche)
+                      ?.label || 'Select a category'}
+                  </Text>
+                </View>
                 <MaterialIcons
                   name="keyboard-arrow-down"
                   size={20}
@@ -894,32 +937,69 @@ export const CreateProductScreen = ({ route }: any) => {
         visible={isNicheModalOpen}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => setIsNicheModalOpen(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setIsNicheModalOpen(false)}
-        >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setIsNicheModalOpen(false)}
+            accessibilityLabel="Close category picker"
+          />
           <View
             style={[styles.bottomSheet, { backgroundColor: colors.background }]}
           >
-            <Text
-              style={[styles.modalTitleSecond, { color: colors.textDarker }]}
-            >
-              Select Category
-            </Text>
+            <View
+              style={[styles.sheetGrabber, { backgroundColor: colors.border }]}
+            />
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.modalTitleSecond, { color: colors.textDarker }]}
+                >
+                  Choose a category
+                </Text>
+                <Text style={[styles.sheetSubtitle, { color: colors.text }]}>
+                  Buyers browse the store by category, so pick the closest
+                  match.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsNicheModalOpen(false)}
+                hitSlop={10}
+                style={[
+                  styles.sheetClose,
+                  { backgroundColor: colors.backgroundSecondary },
+                ]}
+                accessibilityLabel="Close"
+              >
+                <MaterialIcons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={nicheItems}
               keyExtractor={item => item.value}
+              numColumns={2}
+              columnWrapperStyle={styles.nicheRow}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.nicheGrid}
               renderItem={({ item }) => {
                 const isSelected = formInputs.niche === item.value;
                 return (
                   <Pressable
-                    style={[
-                      styles.nicheOption,
-                      isSelected
-                        ? { backgroundColor: colors.btnColor }
-                        : { backgroundColor: colors.backgroundSecondary },
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: isSelected }}
+                    style={({ pressed }) => [
+                      styles.nicheTile,
+                      {
+                        backgroundColor: isSelected
+                          ? colors.primary + '12'
+                          : colors.backgroundSecondary,
+                        borderColor: isSelected
+                          ? colors.primary
+                          : colors.border + '55',
+                        transform: [{ scale: pressed ? 0.97 : 1 }],
+                      },
                     ]}
                     onPress={() => {
                       setFormInputs(prev => ({ ...prev, niche: item.value }));
@@ -927,41 +1007,53 @@ export const CreateProductScreen = ({ route }: any) => {
                     }}
                   >
                     <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 10,
-                      }}
+                      style={[
+                        styles.nicheIconWrap,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : colors.primary + '1A',
+                        },
+                      ]}
                     >
                       <MaterialIcons
                         name={item.icon}
-                        size={20}
-                        color={
-                          isSelected ? colors.btnTextColor : colors.primary
-                        }
+                        size={22}
+                        color={isSelected ? colors.btnTextColor : colors.primary}
                       />
-                      <Text
-                        style={{
-                          color: isSelected ? colors.btnTextColor : colors.text,
-                          fontSize: 14,
-                        }}
-                      >
-                        {item.label}
-                      </Text>
                     </View>
+                    <Text
+                      style={[styles.nicheLabel, { color: colors.textDarker }]}
+                      numberOfLines={2}
+                    >
+                      {item.label}
+                    </Text>
+                    <Text
+                      style={[styles.nicheHint, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {item.hint}
+                    </Text>
                     {isSelected && (
-                      <MaterialIcons
-                        name="check-circle"
-                        size={20}
-                        color={colors.btnTextColor}
-                      />
+                      <View
+                        style={[
+                          styles.nicheCheck,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      >
+                        <MaterialIcons
+                          name="check"
+                          size={14}
+                          color={colors.btnTextColor}
+                        />
+                      </View>
                     )}
                   </Pressable>
                 );
               }}
             />
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
@@ -1260,17 +1352,68 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    maxHeight: '70%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 25,
+    maxHeight: '85%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
+    paddingHorizontal: 18,
+  },
+  sheetGrabber: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    opacity: 0.6,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  sheetSubtitle: { fontSize: 12.5, lineHeight: 18, marginTop: 4, opacity: 0.75 },
+  sheetClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitleSecond: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 25,
-    alignSelf: 'center',
+    fontSize: 19,
+    fontWeight: '800',
   },
+  nicheGrid: { paddingBottom: 32 },
+  nicheRow: { gap: 12, marginBottom: 12 },
+  nicheTile: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 1.2,
+    padding: 14,
+    minHeight: 128,
+  },
+  nicheIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  nicheLabel: { fontSize: 13.5, fontWeight: '800', lineHeight: 18 },
+  nicheHint: { fontSize: 11.5, marginTop: 4, opacity: 0.7 },
+  nicheCheck: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownValue: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   videoPreviewWrapper: {
     position: 'relative',
     marginTop: 15,
@@ -1299,14 +1442,5 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     opacity: 0.7,
     fontStyle: 'italic',
-  },
-  nicheOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 10,
-    borderBottomWidth: 0.5,
-    borderRadius: 8,
-    marginBottom: 15,
   },
 });

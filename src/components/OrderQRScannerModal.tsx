@@ -31,6 +31,12 @@ export const OrderScannerModal = ({
   const cameraRef = useRef<any>(null);
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
+  // The scanner reports the same code many times a second; hand it over once
+  // per opening so one scan can't start several order completions.
+  const handledRef = useRef(false);
+  useEffect(() => {
+    if (isVisible) handledRef.current = false;
+  }, [isVisible]);
 
   useEffect(() => {
     if (isVisible && !hasPermission) {
@@ -46,9 +52,9 @@ export const OrderScannerModal = ({
   const codeScanner = useCodeScanner({
     codeTypes: ['qr'],
     onCodeScanned: (codes: any[]) => {
-      if (codes.length > 0 && codes[0].value) {
-        onSuccess(codes[0].value);
-      }
+      if (handledRef.current || !codes.length || !codes[0].value) return;
+      handledRef.current = true;
+      onSuccess(String(codes[0].value).trim());
     },
   });
 

@@ -68,18 +68,6 @@ interface StatusCardMiniProps {
   color: string;
   isSuccess?: boolean;
 }
-interface TopBuyerProfile {
-  uid: string;
-  firstname: string;
-  lastname: string;
-  username: string;
-  profilePic: string | string[];
-  tier: UserTier;
-  isVerified: boolean;
-  totalSpent: number;
-  organizationName?: string;
-  displayScore?: number | string;
-}
 const ProductListHeader = ({
   count,
   onAdd,
@@ -1139,91 +1127,151 @@ export const PayoutView = () => {
   };
   const renderHeader = () => {
     const hasPayoutAccount = !!payoutAccount;
+    const account = payoutAccount as
+      | { bankName?: string | null; accountName?: string | null; accountNumber?: string }
+      | null;
+    const last4 = String(account?.accountNumber || '').slice(-4);
+    // The server refuses payouts to Nigerian accounts saved before the
+    // name check (no accountName); prompt a re-link instead of a failed tap.
+    const needsRelink =
+      hasPayoutAccount &&
+      (currentUser?.country || 'Nigeria') === 'Nigeria' &&
+      !account?.accountName;
+    const canWithdraw = currentBalance > 0 && !requesting && !needsRelink;
+    const steps = [
+      { label: 'Verify your identity', done: isVerified },
+      { label: 'Link a bank account in your name', done: hasPayoutAccount && !needsRelink },
+    ];
 
     return (
-      <View
-        style={[
-          styles.balanceCard,
-          { backgroundColor: themeColors.backgroundSecondary },
-        ]}
-      >
-        <Text style={[styles.balanceLabel, { color: themeColors.textDarker }]}>
-          Available for Payout
-        </Text>
-        <CurrencyDisplay value={currentBalance} size="large" />
-        {!isVerified ? (
-          <>
-            <Text style={[styles.warningText, { color: themeColors.primary }]}>
-              Identity verification is required for payout
-            </Text>
-            <CustomButton
-              title="Verify Identity"
-              style={styles.verifyBtn}
-              onPress={() => navigation.navigate('PersonaVerify')}
-            />
-          </>
-        ) : !hasPayoutAccount ? (
-          <>
-            <Text style={[styles.warningText, { color: themeColors.primary }]}>
-              Payout bank account is required to withdraw funds
-            </Text>
-            <CustomButton
-              title="Add Payout Bank"
-              style={styles.verifyBtn}
-              onPress={() => setIsAddBankVisible(true)}
-            />
-          </>
-        ) : (
-          <>
+      <View>
+        <View style={[payoutUi.hero, { backgroundColor: themeColors.primary }]}>
+          <View style={payoutUi.heroBlobLarge} />
+          <View style={payoutUi.heroBlobSmall} />
+          <View style={payoutUi.heroTop}>
+            <Text style={payoutUi.heroLabel}>Available for payout</Text>
+            <View style={payoutUi.heroBadge}>
+              <MaterialIcons name={isVerified ? 'verified' : 'shield'} size={13} color="#fff" />
+              <Text style={payoutUi.heroBadgeText}>{isVerified ? 'Verified' : 'Unverified'}</Text>
+            </View>
+          </View>
+          <CurrencyDisplay value={currentBalance} size="large" color="#fff" />
+          <Text style={payoutUi.heroSub}>
+            {currentBalance > 0
+              ? 'Withdraw your full balance to your bank in one tap.'
+              : 'Completed sales land here, ready to withdraw.'}
+          </Text>
+          {isVerified && hasPayoutAccount && !needsRelink && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[payoutUi.withdrawBtn, !canWithdraw && styles.disabledBtn]}
+              onPress={() => setConfirmVisible(true)}
+              disabled={!canWithdraw}
+            >
+              {requesting ? (
+                <ActivityIndicator color={themeColors.primary} size="small" />
+              ) : (
+                <>
+                  <MaterialIcons name="north-east" size={18} color={themeColors.primary} />
+                  <Text style={[payoutUi.withdrawText, { color: themeColors.primary }]}>
+                    Withdraw funds
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {hasPayoutAccount && (
           <TouchableOpacity
+            activeOpacity={0.8}
             onPress={() => setIsAddBankVisible(true)}
-            style={hub.payoutAccountRow}
+            style={[payoutUi.accountCard, { backgroundColor: themeColors.backgroundSecondary }]}
             accessibilityRole="button"
             accessibilityLabel="Change payout bank account"
           >
-            <MaterialIcons name="account-balance" size={16} color={themeColors.text} />
-            <Text style={[hub.payoutAccountText, { color: themeColors.text }]} numberOfLines={1}>
-              {(payoutAccount as any)?.accountName ||
-                (payoutAccount as any)?.bankName ||
-                'Bank account'}{' '}
-              ••••{String(payoutAccount?.accountNumber || '').slice(-4)}
-            </Text>
-            <Text style={[hub.payoutAccountChange, { color: themeColors.primary }]}>Change</Text>
+            <View style={[payoutUi.accountIcon, { backgroundColor: themeColors.primary + '1A' }]}>
+              <MaterialIcons name="account-balance" size={20} color={themeColors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[payoutUi.accountName, { color: themeColors.textDarker }]} numberOfLines={1}>
+                {account?.accountName || 'Payout account'}
+              </Text>
+              <Text style={[payoutUi.accountMeta, { color: themeColors.text }]} numberOfLines={1}>
+                {account?.bankName || 'Bank'} · •••• {last4}
+              </Text>
+            </View>
+            <View style={[payoutUi.changePill, { borderColor: themeColors.primary }]}>
+              <Text style={[payoutUi.changeText, { color: themeColors.primary }]}>Change</Text>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.withdrawBtn,
-              (currentBalance <= 0 || requesting) && styles.disabledBtn,
-              { backgroundColor: themeColors.btnColor },
-            ]}
-            onPress={() => setConfirmVisible(true)}
-            disabled={currentBalance <= 0 || requesting}
-          >
-            {requesting ? (
-              <ActivityIndicator
-                color={themeColors.btnTextColor}
-                size={'small'}
-              />
-            ) : (
-              <>
-                <MaterialIcons
-                  name="account-balance-wallet"
-                  size={20}
-                  color={themeColors.btnTextColor}
-                />
-                <Text
+        )}
+
+        {(!isVerified || !hasPayoutAccount || needsRelink) && (
+          <View style={[payoutUi.setupCard, { backgroundColor: themeColors.backgroundSecondary }]}>
+            <Text style={[payoutUi.setupTitle, { color: themeColors.textDarker }]}>
+              {needsRelink ? 'Confirm your payout account' : 'Set up payouts'}
+            </Text>
+            <Text style={[payoutUi.setupSub, { color: themeColors.text }]}>
+              {needsRelink
+                ? 'Payouts now only go to accounts in your name. Re-link your account so we can confirm it.'
+                : 'Two quick steps before you can withdraw.'}
+            </Text>
+            {steps.map((step, i) => (
+              <View key={step.label} style={payoutUi.stepRow}>
+                <View
                   style={[
-                    styles.withdrawBtnText,
-                    { color: themeColors.btnTextColor },
+                    payoutUi.stepDot,
+                    step.done
+                      ? { backgroundColor: themeColors.success }
+                      : { borderColor: themeColors.primary, borderWidth: 1.5 },
                   ]}
                 >
-                  Withdraw Funds
+                  {step.done ? (
+                    <MaterialIcons name="check" size={14} color="#fff" />
+                  ) : (
+                    <Text style={[payoutUi.stepNum, { color: themeColors.primary }]}>{i + 1}</Text>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    payoutUi.stepLabel,
+                    { color: themeColors.textDarker, opacity: step.done ? 0.55 : 1 },
+                  ]}
+                >
+                  {step.label}
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
-          </>
+              </View>
+            ))}
+            <CustomButton
+              title={
+                !isVerified
+                  ? 'Verify identity'
+                  : needsRelink
+                    ? 'Re-link bank account'
+                    : 'Add payout bank'
+              }
+              iconName={!isVerified ? 'badge' : 'account-balance'}
+              style={payoutUi.setupBtn}
+              onPress={() =>
+                !isVerified ? navigation.navigate('PersonaVerify') : setIsAddBankVisible(true)
+              }
+            />
+          </View>
         )}
+
+        <View style={payoutUi.historyHeader}>
+          <Text style={[payoutUi.historyTitle, { color: themeColors.textDarker }]}>
+            Payout history
+          </Text>
+          {history.length > 0 && (
+            <Text style={[payoutUi.historyCount, { color: themeColors.text }]}>
+              {history.length}
+              {hasMore ? '+' : ''}
+            </Text>
+          )}
+        </View>
+
         <AddPaymentModal
           visible={isAddBankVisible}
           onClose={() => setIsAddBankVisible(false)}
@@ -1234,7 +1282,7 @@ export const PayoutView = () => {
           onClose={() => setConfirmVisible(false)}
           onContinue={executePayout}
           title="Withdraw your balance?"
-          subtitle={`Your full available balance will be sent to the account ending ${String(payoutAccount?.accountNumber || '').slice(-4)}. Transfers usually arrive within minutes.`}
+          subtitle={`Your full available balance will be sent to ${account?.accountName ? `${account.accountName}, ` : 'the account '}ending ${last4}. Transfers usually arrive within minutes.`}
           continueText="Withdraw"
           loading={requesting}
         />
@@ -1962,6 +2010,115 @@ const pickerSelectStyles = {
     borderRadius: 8,
   },
 };
+
+// Payouts tab.
+const payoutUi = StyleSheet.create({
+  hero: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 12,
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+  },
+  heroBlobLarge: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    top: -80,
+    right: -60,
+  },
+  heroBlobSmall: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    bottom: -50,
+    left: -30,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  heroLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  heroBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  heroSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12.5, marginTop: 6 },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    height: 50,
+    marginTop: 18,
+  },
+  withdrawText: { fontSize: 15, fontWeight: '800' },
+  accountCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  accountIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountName: { fontSize: 14.5, fontWeight: '800' },
+  accountMeta: { fontSize: 12.5, marginTop: 2, opacity: 0.75 },
+  changePill: { borderWidth: 1.2, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5 },
+  changeText: { fontSize: 12.5, fontWeight: '800' },
+  setupCard: { borderRadius: 18, padding: 16, marginBottom: 12 },
+  setupTitle: { fontSize: 16, fontWeight: '800' },
+  setupSub: { fontSize: 12.5, marginTop: 4, marginBottom: 12, lineHeight: 18, opacity: 0.8 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  stepDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNum: { fontSize: 12, fontWeight: '800' },
+  stepLabel: { fontSize: 14, fontWeight: '600' },
+  setupBtn: { marginTop: 8, borderRadius: 14 },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  historyTitle: { fontSize: 16, fontWeight: '800' },
+  historyCount: { fontSize: 12.5, fontWeight: '700', opacity: 0.7 },
+});
 
 // Reviews tab summary card.
 const reviewsUi = StyleSheet.create({

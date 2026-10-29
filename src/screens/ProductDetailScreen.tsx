@@ -30,6 +30,7 @@ import { useConvertedPrice } from '../hooks/useCurrencyConverter';
 import { useFocusEffect } from '@react-navigation/native';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { formatStatNumber } from '../utils/followCountFormatter';
+import { ProductReviewsCarousel } from '../components/ProductReviewsCarousel';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESCRIPTION_LIMIT = 220;
@@ -463,6 +464,9 @@ export const ProductDetailScreen = () => {
           </View>
           <MaterialIcons name="chevron-right" size={22} color={colors.text} />
         </TouchableOpacity>
+
+        {/* Reviews */}
+        <ProductReviewsCarousel productId={productId} />
 
         {/* More by this seller */}
         {moreProducts.length > 0 && (

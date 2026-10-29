@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Socket } from 'socket.io-client';
@@ -18,8 +25,8 @@ import {
   ChatModal,
   AttendeeListModal,
   ConfirmationModal,
-  LecturerTab,
   LiveControlButton,
+  ParticipantStack,
 } from './liveClassComponents';
 
 interface StudentLiveSessionProps {
@@ -32,8 +39,6 @@ interface StudentLiveSessionProps {
 
 type StreamState = 'waiting' | 'connecting' | 'connected' | 'reconnecting';
 
-const MAX_VISIBLE_AVATARS = 6;
-
 export { LiveClassSessionStyles } from './liveClassStyles';
 
 export const StudentLiveClassSession = ({
@@ -45,6 +50,7 @@ export const StudentLiveClassSession = ({
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const chatVisibleRef = useRef(false);
   const startedAtRef = useRef<number>(
@@ -235,6 +241,12 @@ export const StudentLiveClassSession = ({
   };
 
   // ---- Render ----------------------------------------------------------------
+  const hostName = lecturerLiveData?.displayName || 'Lecturer';
+  // The class is the focus: roughly square on phones, capped at half the
+  // screen so the controls stay visible.
+  const stageHeight = Math.round(
+    Math.min(screenHeight * 0.5, Math.max(260, screenWidth - 32)),
+  );
   const hasVideo =
     streamState === 'connected' &&
     agora.hostUid != null &&
@@ -275,7 +287,34 @@ export const StudentLiveClassSession = ({
         </TouchableOpacity>
       </View>
 
-      <View style={S.stage}>
+      <View style={styles.sessionHeader}>
+        <Text style={[styles.sessionTitle, { color: colors.textDarker }]} numberOfLines={2}>
+          {lecture.topicName || 'Untitled Session'}
+        </Text>
+        <View style={styles.sessionMetaRow}>
+          <View style={styles.hostRow}>
+            <UserAvatar
+              profilePic={lecturerLiveData?.profilePic}
+              firstName={lecturerLiveData?.firstname}
+              lastName={lecturerLiveData?.lastname}
+              username={lecturerLiveData?.username}
+              style={styles.hostAvatar}
+            />
+            <Text style={[styles.hostName, { color: colors.textDarker }]} numberOfLines={1}>
+              {hostName}
+            </Text>
+            <View style={[styles.hostBadge, { backgroundColor: colors.primary + '1F' }]}>
+              <Text style={[styles.hostBadgeText, { color: colors.primary }]}>HOST</Text>
+            </View>
+          </View>
+          <ParticipantStack
+            participants={classmates}
+            onPress={() => setAttendeeModalVisible(true)}
+          />
+        </View>
+      </View>
+
+      <View style={[S.stage, { height: stageHeight }]}>
         {hasVideo && agora.hostUid != null && (
           // Agora plays the audio regardless of whether this view is mounted.
           <RtcSurfaceView canvas={{ uid: agora.hostUid, renderMode: isScreenShared ? 2 : 1 }} style={S.stageVideo} />
@@ -287,16 +326,32 @@ export const StudentLiveClassSession = ({
                 <MaterialIcons name="refresh" size={46} color={colors.primary} />
               </TouchableOpacity>
             ) : streamState === 'connected' ? (
-              <LecturerTab
-                lecturer={lecturerLiveData}
-                isCameraOn={false}
-                streamUrl={null}
-              />
+              <View style={styles.stageHostRing}>
+                <UserAvatar
+                  profilePic={lecturerLiveData?.profilePic}
+                  firstName={lecturerLiveData?.firstname}
+                  lastName={lecturerLiveData?.lastname}
+                  username={lecturerLiveData?.username}
+                  style={styles.stageHostAvatar}
+                />
+              </View>
             ) : (
               <MaterialIcons name={stageMessage.icon} size={46} color={colors.primary} />
             )}
             <Text style={S.stageTitle}>{stageMessage.title}</Text>
             <Text style={S.stageHint}>{stageMessage.hint}</Text>
+          </View>
+        )}
+        {streamState === 'connected' && (
+          <View style={styles.nameTag}>
+            <MaterialIcons
+              name={isLecturerMuted ? 'mic-off' : 'mic'}
+              size={13}
+              color={isLecturerMuted ? '#FF8A80' : '#fff'}
+            />
+            <Text style={styles.nameTagText} numberOfLines={1}>
+              {hostName}
+            </Text>
           </View>
         )}
         <View style={S.stageChipsRow}>
@@ -358,41 +413,6 @@ export const StudentLiveClassSession = ({
         )}
 
         <View style={[S.card, { backgroundColor: colors.backgroundSecondary }]}>
-          <Text style={[S.topicText, { color: colors.textDarker }]}>
-            {lecture.topicName || 'Untitled Session'}
-          </Text>
-          <Text style={[S.subtleText, { color: colors.text }]}>
-            with {lecturerLiveData?.displayName || 'your lecturer'} · {classmates.length}{' '}
-            {classmates.length === 1 ? 'student' : 'students'}
-          </Text>
-          {classmates.length > 0 && (
-            <TouchableOpacity
-              style={S.attendeeContainer}
-              onPress={() => setAttendeeModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              {classmates.slice(0, MAX_VISIBLE_AVATARS).map((student, i) => (
-                <UserAvatar
-                  key={student.uid || i}
-                  profilePic={student.profilePic}
-                  firstName={student.firstname}
-                  lastName={student.lastname}
-                  username={student.username}
-                  style={S.attendeeCircle}
-                />
-              ))}
-              {classmates.length > MAX_VISIBLE_AVATARS && (
-                <View style={S.attendeeCount}>
-                  <Text style={S.attendeeCountText}>
-                    +{classmates.length - MAX_VISIBLE_AVATARS}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={[S.card, { backgroundColor: colors.backgroundSecondary }]}>
           <View style={[S.cardLabelRow, { marginBottom: 8 }]}>
             <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
             <Text style={[S.cardLabel, { color: colors.primary }]}>LIVE TRANSCRIPTION</Text>
@@ -432,3 +452,41 @@ export const StudentLiveClassSession = ({
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  sessionHeader: { paddingHorizontal: 16, paddingBottom: 12 },
+  sessionTitle: { fontSize: 18, fontWeight: '800', lineHeight: 24 },
+  sessionMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    gap: 12,
+  },
+  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  hostAvatar: { width: 26, height: 26, borderRadius: 13 },
+  hostName: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
+  hostBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  hostBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  stageHostRing: {
+    padding: 4,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  stageHostAvatar: { width: 104, height: 104, borderRadius: 52 },
+  nameTag: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    maxWidth: '70%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  nameTagText: { color: '#fff', fontSize: 12, fontWeight: '700', flexShrink: 1 },
+});

@@ -36,27 +36,101 @@ export const notificationGroupKey = (item: NotificationLike) => {
   return `${item.actionType || 'unknown'}_${entityId}`;
 };
 
+export interface LectureReminderInfo {
+  lectureId: string;
+  courseId: string;
+  lectureType: 'Online' | 'Physical';
+  topicName: string;
+  courseCode?: string;
+  location?: string;
+  message: string;
+  isLecturer: boolean;
+  start: Date | null;
+  end: Date | null;
+  /** Shape openLecturerAttendance expects. */
+  lecture: any;
+}
+
+const parseInstant = (value: any) => {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/** What a LECTURE_REMINDER is about, or null if it can't be acted on. */
+export const getLectureReminderInfo = (
+  item: NotificationLike,
+  user: { uid?: string; usertype?: string },
+): LectureReminderInfo | null => {
+  if (item.actionType !== 'LECTURE_REMINDER') return null;
+  const payload = item.payload || {};
+  const lectureId = payload.lectureId;
+  const courseId = payload.courseId;
+  if (!lectureId || !courseId) return null;
+
+  const normalizedType = String(payload.lectureType || '').toLowerCase();
+  if (normalizedType === 'recorded') return null;
+  const lectureType = normalizedType === 'online' ? 'Online' : 'Physical';
+  const topicName = payload.topicName || 'Lecture';
+  return {
+    lectureId,
+    courseId,
+    lectureType,
+    topicName,
+    courseCode: payload.courseCode,
+    location: payload.location,
+    message:
+      item.message ||
+      `Your ${lectureType.toLowerCase()} lecture "${topicName}" is starting soon.`,
+    isLecturer:
+      user.usertype === 'lecturer' ||
+      payload.isLecturer === true ||
+      payload.isLecturer === 'true',
+    start: parseInstant(payload.startTime),
+    end: parseInstant(payload.endTime),
+    lecture: {
+      id: lectureId,
+      courseId,
+      topicName,
+      lectureType,
+      location: payload.location || '',
+      startTime: payload.startTime || new Date().toISOString(),
+      endTime: payload.endTime || payload.startTime || new Date().toISOString(),
+      date: payload.date || payload.startTime || new Date().toISOString(),
+      status: 'scheduled' as const,
+      isTaught: false,
+    },
+  };
+};
+
+/**
+ * Reminder for a lecture. Pass `onShow` to present it in your own modal
+ * (LectureReminderModal); otherwise a plain Alert is used. Either way an
+ * online class can't be joined before its start time.
+ */
 export const showLectureReminderPrompt = (
   navigation: any,
   item: NotificationLike,
   user: { uid?: string; usertype?: string },
+  onShow?: (info: LectureReminderInfo) => void,
 ) => {
-  if (item.actionType !== 'LECTURE_REMINDER') return false;
+  const info = getLectureReminderInfo(item, user);
+  if (!info) return false;
+  if (onShow) {
+    onShow(info);
+    return true;
+  }
+  const { lectureId, courseId, lecture, message: reminderMessage } = info;
 
-  const payload = item.payload || {};
-  const lectureId = payload.lectureId;
-  const courseId = payload.courseId;
-  if (!lectureId || !courseId) return false;
-
-  const normalizedType = String(payload.lectureType || '').toLowerCase();
-  if (normalizedType === 'recorded') return false;
-  const lectureType =
-    normalizedType === 'online' ? 'Online' : 'Physical';
-  const reminderMessage =
-    item.message ||
-    `Your ${lectureType.toLowerCase()} lecture "${payload.topicName || 'Lecture'}" is starting soon.`;
-
-  if (lectureType === 'Online') {
+  if (info.lectureType === 'Online') {
+    if (info.start && Date.now() < info.start.getTime()) {
+      Alert.alert(
+        'Class has not started yet',
+        `${reminderMessage}\n\nPlease wait. You can join once the class starts.`,
+        [{ text: 'OK' }],
+      );
+      return true;
+    }
     Alert.alert('Online lecture reminder', reminderMessage, [
       { text: 'Later', style: 'cancel' },
       {
@@ -68,23 +142,7 @@ export const showLectureReminderPrompt = (
     return true;
   }
 
-  if (
-    user.usertype === 'lecturer' ||
-    payload.isLecturer === true ||
-    payload.isLecturer === 'true'
-  ) {
-    const lecture = {
-      id: lectureId,
-      courseId,
-      topicName: payload.topicName || 'Lecture',
-      lectureType: 'Physical' as const,
-      location: payload.location || '',
-      startTime: payload.startTime || new Date().toISOString(),
-      endTime: payload.endTime || payload.startTime || new Date().toISOString(),
-      date: payload.date || payload.startTime || new Date().toISOString(),
-      status: 'scheduled' as const,
-      isTaught: false,
-    };
+  if (info.isLecturer) {
     Alert.alert(
       'Physical lecture starting soon',
       `${reminderMessage}\n\nWould you like to take attendance online?`,
@@ -145,6 +203,7 @@ export const navigateForNotification = (
   navigation: any,
   item: NotificationLike,
   user: { uid?: string; usertype?: string },
+  onLectureReminder?: (info: LectureReminderInfo) => void,
 ) => {
   const payload = item.payload || {};
   const course = resolveCourse(item);
@@ -208,7 +267,7 @@ export const navigateForNotification = (
     case 'LECTURE_REMINDER':
       if (
         item.actionType === 'LECTURE_REMINDER' &&
-        showLectureReminderPrompt(navigation, item, user)
+        showLectureReminderPrompt(navigation, item, user, onLectureReminder)
       ) {
         return;
       }

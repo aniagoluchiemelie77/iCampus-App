@@ -27,6 +27,7 @@ import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { lightPalette } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FloatingSuccessIcon } from '../components/EmptyFlatlistComponent';
 
 type NavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -184,11 +185,7 @@ export default function ForgotPasswordScreen() {
           bounces={false}
         >
           <View style={styles.container}>
-            <MaterialIcons
-              name="lock-outline"
-              size={60}
-              color={PRIMARY_COLOR}
-            />
+            <FloatingSuccessIcon iconName="lock" size={30} haloSize={92} />
             <Text style={styles.mainHeader}>Forgot Password</Text>
 
             {!emailVerified ? (
@@ -292,10 +289,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     maxWidth: 400,
     width: '100%',
-    padding: 25,
+    padding: 22,
     backgroundColor: '#fff',
     zIndex: 10,
-    borderRadius: 15,
+    borderRadius: 20,
     shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -303,41 +300,42 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   mainHeader: {
-    fontSize: 25,
+    fontSize: 23,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    marginVertical: 25,
     alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 18,
   },
   inputHeaderLogin: {
     fontSize: 14,
     color: '#222',
     fontWeight: 'bold',
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   input: {
-    borderWidth: 0.8,
+    borderWidth: 1,
     width: '100%',
     borderColor: PRIMARY_COLOR_TINT,
     color: '#222',
-    borderRadius: 5,
-    marginBottom: 15,
-    fontSize: 14,
-    height: 60,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 14,
+    fontSize: 15,
+    height: 52,
+    paddingHorizontal: 14,
     alignItems: 'center',
   },
   validationText: {
     fontSize: 12,
     color: PRIMARY_COLOR,
     fontWeight: 800,
-    marginBottom: 15,
+    marginBottom: 8,
     width: '100%',
   },
   toggleBtns: {
     paddingHorizontal: 15,
-    marginVertical: 20,
+    marginVertical: 12,
   },
   bkg: {
     flex: 1,
@@ -360,18 +358,18 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     width: '100%',
-    borderRadius: 5,
-    borderWidth: 0.8,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-    height: 60,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    height: 52,
   },
   input2: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#222',
     backgroundColor: 'transparent',
   },

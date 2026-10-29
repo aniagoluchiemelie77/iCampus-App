@@ -24,10 +24,12 @@ import {
   getInitialNotification,
 } from '@react-native-firebase/messaging';
 import {
+  LectureReminderInfo,
   navigateForNotification,
   showAssessmentReminderPrompt,
   showLectureReminderPrompt,
 } from '../utils/notificationNavigation';
+import { LectureReminderModal } from '../components/LectureReminderModal';
 import {
   useSocketConnection,
   SocketContext,
@@ -51,6 +53,11 @@ import { HeaderActionButton } from '../components/Storescreen.tsx';
 import { useAppDataContext } from '../context/EventContext.tsx';
 import { completeOrderDelivery } from '../api/localPostApis';
 import { OrderScannerModal } from '../components/OrderQRScannerModal';
+import {
+  OrderVerificationOverlay,
+  OrderVerificationState,
+  idleVerification,
+} from '../components/OrderVerificationOverlay';
 import ExpandableFAB from '../components/ExpandableFAB.tsx';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -174,7 +181,11 @@ const HomeScreen = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
-  const [_loading, setLoading] = useState(false);
+  const [verification, setVerification] =
+    useState<OrderVerificationState>(idleVerification);
+  const [lectureReminder, setLectureReminder] =
+    useState<LectureReminderInfo | null>(null);
+  const verifyingRef = useRef(false);
   const { pendingOrders } = useAppDataContext();
   const filteredOrders = pendingOrders.filter(
     order => order.buyerId === user?.uid && order.status !== 'completed',
@@ -268,46 +279,64 @@ const HomeScreen = () => {
     }
   };
   const handleCompleteOrder = async (orderId: string) => {
+    // One verification at a time, even if the scanner reports again.
+    if (verifyingRef.current) return;
+    verifyingRef.current = true;
     setIsScannerOpen(false);
-    setLoading(true);
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const advance = (patch: Partial<OrderVerificationState>) =>
+      setVerification(prev => ({ ...prev, ...patch }));
+
+    setVerification({ status: 'working', stage: 'scanning', progress: 12 });
+    // Let "Scanning…" register before the request starts.
+    await wait(650);
+    advance({ stage: 'verifying', progress: 35 });
+    // Creep toward 80% while the server works, so the bar never looks stuck.
+    const creep = setInterval(() => {
+      setVerification(prev =>
+        prev.stage === 'verifying' && prev.progress < 80
+          ? { ...prev, progress: prev.progress + (80 - prev.progress) * 0.12 }
+          : prev,
+      );
+    }, 300);
 
     try {
       const response = await completeOrderDelivery(orderId);
-      if (response.success) {
-        Toast.show({
-          type: 'success',
-          text2:
-            response.message ||
-            'Transaction completed successfully, funds will be released immediately.',
+      clearInterval(creep);
+      if (!response.success) {
+        advance({
+          status: 'error',
+          error: response.message || 'Order verification failed, please retry.',
         });
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: 'OrderVerificationSuccess',
-              params: {
-                orderId: response.orderId,
-                amount: response.settlementAmount,
-                role: response.role,
-                productName: response.productName,
-              },
-            },
-          ],
-        });
-      } else {
-        Toast.show({
-          type: 'error',
-          text2: response.message || 'Order verification failed, please retry.',
-        });
+        return;
       }
+      advance({ stage: 'finalizing', progress: 90 });
+      await wait(800);
+      advance({ stage: 'done', progress: 100 });
+      await wait(550);
+      setVerification(idleVerification);
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'OrderVerificationSuccess',
+            params: {
+              orderId: response.orderId,
+              amount: response.settlementAmount,
+              role: response.role,
+              productName: response.productName,
+            },
+          },
+        ],
+      });
     } catch (err: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Verification Error',
-        text2: err.message || 'Order verification failed, please retry.',
+      clearInterval(creep);
+      advance({
+        status: 'error',
+        error: err?.message || 'Order verification failed, please retry.',
       });
     } finally {
-      setLoading(false);
+      verifyingRef.current = false;
     }
   };
   const isModalVisible = isProfilePopupVisible;
@@ -338,6 +367,7 @@ const HomeScreen = () => {
             navigation,
             { actionType: data.actionType, payload: data, message: remoteMessage.notification?.body },
             { uid: user?.uid, usertype: user?.usertype },
+            setLectureReminder,
           );
           return;
         }
@@ -386,6 +416,7 @@ const HomeScreen = () => {
           message: remoteMessage.notification?.body,
         },
         { uid: user?.uid, usertype: user?.usertype },
+        setLectureReminder,
       );
     };
     const unsubscribe = onNotificationOpenedApp(messagingInstance, openFromPush);
@@ -590,6 +621,19 @@ const HomeScreen = () => {
         isVisible={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onSuccess={handleCompleteOrder}
+      />
+      <OrderVerificationOverlay
+        state={verification}
+        onClose={() => setVerification(idleVerification)}
+        onRetry={() => {
+          setVerification(idleVerification);
+          setIsScannerOpen(true);
+        }}
+      />
+      <LectureReminderModal
+        info={lectureReminder}
+        navigation={navigation}
+        onClose={() => setLectureReminder(null)}
       />
     </>
   );

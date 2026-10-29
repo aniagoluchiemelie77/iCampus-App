@@ -8,9 +8,10 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  Animated
+  Animated,
+  Modal,
+  Pressable,
 } from 'react-native';
-import { Modal, Portal } from 'react-native-paper';
 import { StyleSheet } from 'react-native';
 import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -18,8 +19,34 @@ import { UserIdentity } from './UserIdentity';
 import {UserAvatar} from './UserAvatar';
 import {RTCView } from 'react-native-webrtc';
 import { useTheme } from '../context/ThemeContext';
-import { Avatar } from 'react-native-paper';
 import { CustomButton } from '../assets/components/AppUIComponents';
+
+/**
+ * Bottom sheet on React Native's own Modal. These used react-native-paper's
+ * Portal, which crashes because the app has no Paper Provider.
+ */
+const BottomSheet = ({
+  visible,
+  onDismiss,
+  children,
+}: {
+  visible: boolean;
+  onDismiss: () => void;
+  children: React.ReactNode;
+}) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="slide"
+    statusBarTranslucent
+    onRequestClose={onDismiss}
+  >
+    <View style={styles.bottomOverlay}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+      {children}
+    </View>
+  </Modal>
+);
 
 interface LecturerControlsProps {
   localStream: any;
@@ -397,14 +424,15 @@ export const ChatModal = ({
   }, [messages, visible]);
 
   return (
-    <Portal>
-    <Modal visible={visible} onDismiss={onDismiss} style={styles.bottomOverlay}>
+    <BottomSheet visible={visible} onDismiss={onDismiss}>
       <View
         style={[
           styles.bottomModalContainer,
+          styles.chatSheet,
           { backgroundColor: colors.backgroundSecondary },
         ]}
       >
+        <View style={styles.modalHandle} />
         <Text style={[styles.chatHeader, { color: colors.textDarker }]}>
           Live Class Chat
         </Text>
@@ -432,8 +460,7 @@ export const ChatModal = ({
           colors={colors}
         />
       </View>
-    </Modal>
-    </Portal>
+    </BottomSheet>
   );
 };
 export const AttendeeListModal = ({
@@ -443,8 +470,7 @@ export const AttendeeListModal = ({
   wavers,
   colors,
 }: any) => (
-  <Portal>
-    <Modal visible={visible} onDismiss={onDismiss} style={styles.bottomOverlay}>
+  <BottomSheet visible={visible} onDismiss={onDismiss}>
       <View
         style={[
           styles.bottomModalContainer,
@@ -467,8 +493,7 @@ export const AttendeeListModal = ({
           )}
         />
       </View>
-    </Modal>
-  </Portal>
+  </BottomSheet>
 );
 export const ConfirmationModal = ({
   visible,
@@ -479,12 +504,14 @@ export const ConfirmationModal = ({
   colors,
   islecturer,
 }: any) => (
-  <Portal>
-    <Modal
-      visible={visible}
-      onDismiss={onDismiss}
-      contentContainerStyle={styles.modalOverlay}
-    >
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    statusBarTranslucent
+    onRequestClose={onDismiss}
+  >
+    <View style={styles.modalOverlay}>
       <View
         style={[
           styles.modalContainer,
@@ -523,9 +550,70 @@ export const ConfirmationModal = ({
           />
         </View>
       </View>
-    </Modal>
-  </Portal>
+    </View>
+  </Modal>
 );
+/**
+ * Compact "who's here" chip: a few overlapping avatars (latest profile pic,
+ * or initials) followed by "+N" for everyone else. Kept small on purpose.
+ */
+export const ParticipantStack = ({
+  participants,
+  max = 3,
+  onPress,
+}: {
+  participants: any[];
+  max?: number;
+  onPress?: () => void;
+}) => {
+  const { colors: themeColors } = useTheme();
+  if (participants.length === 0) return null;
+  const shown = participants.slice(0, max);
+  const extra = participants.length - shown.length;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.8}
+      style={styles.stackRow}
+      accessibilityRole="button"
+      accessibilityLabel={`${participants.length} participants`}
+    >
+      {shown.map((p, i) => (
+        <View
+          key={p.uid || i}
+          style={[
+            styles.stackRing,
+            { borderColor: themeColors.background, zIndex: max - i },
+            i > 0 && styles.stackOverlap,
+          ]}
+        >
+          <UserAvatar
+            profilePic={p.profilePic}
+            firstName={p.firstname}
+            lastName={p.lastname}
+            username={p.username}
+            style={styles.stackAvatar}
+          />
+        </View>
+      ))}
+      {extra > 0 && (
+        <View
+          style={[
+            styles.stackRing,
+            styles.stackOverlap,
+            styles.stackMore,
+            { borderColor: themeColors.background },
+          ]}
+        >
+          <Text style={styles.stackMoreText}>
+            +{extra > 99 ? '99' : extra}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
 export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
   const { colors: themeColors } = useTheme();
   return (
@@ -549,12 +637,12 @@ export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
             mirror={false}
           />
         ) : (
-          <Avatar.Image
-            size={80}
-            source={{
-              uri:
-                lecturer?.profilePic?.[0] || 'https://via.placeholder.com/80',
-            }}
+          <UserAvatar
+            profilePic={lecturer?.profilePic}
+            firstName={lecturer?.firstname}
+            lastName={lecturer?.lastname}
+            username={lecturer?.username}
+            style={styles.lecturerTabAvatar}
           />
         )}
       </View>
@@ -626,6 +714,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
+  chatSheet: { height: '70%', paddingBottom: 76 },
+  stackRow: { flexDirection: 'row', alignItems: 'center' },
+  stackRing: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    overflow: 'hidden',
+  },
+  stackOverlap: { marginLeft: -9 },
+  stackAvatar: { width: '100%', height: '100%', borderRadius: 13 },
+  stackMore: {
+    backgroundColor: PRIMARY_COLOR,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stackMoreText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  lecturerTabAvatar: { width: 90, height: 90, borderRadius: 45 },
   bottomModalContainer: {
     padding: 20,
     width: '100%',

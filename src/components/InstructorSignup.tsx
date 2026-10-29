@@ -25,6 +25,7 @@ import {
   signupError,
 } from '../utils/signupFlow';
 import LogoBigger from '../assets/images/Logo';
+import { FloatingView } from './EmptyFlatlistComponent';
 import { ProgressBar } from './SignupComponents';
 import {
   isValidPassword,
@@ -224,7 +225,9 @@ const InstructorSignup = () => {
       <View style={styles.container}>
         <>
           <ProgressBar step={step} setStep={setStep} totalSteps={7} />
-          <LogoBigger />
+          <FloatingView>
+            <LogoBigger />
+          </FloatingView>
           <Text style={styles.mainHeader}>Instructor signup</Text>
           {/* STEP 0 — Select Country */}
           {step === 0 && (
@@ -684,10 +687,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     maxWidth: 400,
     width: '100%',
-    padding: 25,
+    padding: 22,
     backgroundColor: '#fff',
     zIndex: 10,
-    borderRadius: 15,
+    borderRadius: 20,
     shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -695,45 +698,49 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   mainHeader: {
-    fontSize: 25,
+    fontSize: 23,
     color: PRIMARY_COLOR,
     fontWeight: 'bold',
-    marginVertical: 25,
     alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 18,
   },
   inputHeader: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#222',
     fontWeight: 'bold',
-    marginVertical: 12,
+    marginVertical: 8,
     width: '100%',
   },
   selector: {
     width: '100%',
-    padding: 13,
-    borderWidth: 0.8,
+    borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    height: 52,
+    alignItems: 'center',
+    borderRadius: 12,
   },
   selectorHeader2: {
-    fontSize: 14,
+    fontSize: 15,
     color: PRIMARY_COLOR_TINT,
   },
   dropdown: {
     width: '100%',
     paddingHorizontal: 15,
-    paddingVertical: 13,
-    borderWidth: 0.8,
+    borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 13,
+    borderRadius: 12,
     color: '#222',
     fontSize: 14,
+    height: 52,
   },
   nextButton: {
     flex: 1,
     paddingHorizontal: 15,
-    marginTop: 20,
+    marginTop: 16,
   },
   nextButtonText: {
     fontSize: 14,
@@ -749,24 +756,25 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontWeight: '700',
-    marginTop: 10,
+    marginTop: -6,
     color: PRIMARY_COLOR,
     width: '100%',
+    marginBottom: 8,
   },
   passwordInput: {
     width: '100%',
-    borderRadius: 5,
-    borderWidth: 0.8,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: PRIMARY_COLOR_TINT,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-    height: 60,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    height: 52,
   },
   input2: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#222',
     backgroundColor: 'transparent',
   },
@@ -837,6 +845,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.7,
     borderColor: PRIMARY_COLOR_TINT,
     marginVertical: 10,
+    borderRadius: 12,
   },
   termsTitle: {
     fontSize: 14,
@@ -913,7 +922,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginTop: 30
+    marginTop: 18,
   },
   footerDivText: {
     fontSize: 14,

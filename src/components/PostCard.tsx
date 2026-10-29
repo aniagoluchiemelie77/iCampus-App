@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
-import Video from 'react-native-video';
+import Video, { ViewType } from 'react-native-video';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 
@@ -72,6 +72,68 @@ const eventClockTime = (value: any): string => {
 // ---------------------------------------------------------------------------
 // Media
 // ---------------------------------------------------------------------------
+/** Cloudinary renders a still of a video's first frame from the same URL. */
+const videoPosterUrl = (uri: string): string | undefined => {
+  if (!/res\.cloudinary\.com\/.+\/video\/upload\//.test(uri)) return undefined;
+  return uri
+    .replace('/video/upload/', '/video/upload/so_0/')
+    .replace(/(\.[a-z0-9]+)?(\?.*)?$/i, '.jpg');
+};
+
+/**
+ * Feed video. The native player only exists while the card is the active
+ * one: keeping paused ExoPlayer instances alive in a scrolling list, drawn
+ * on a SurfaceView inside a rounded, clipped container, hard-crashed the
+ * app (no JS error) as soon as a video row became active.
+ */
+const FeedVideo = ({ uri, active }: { uri: string; active: boolean }) => {
+  const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
+  const poster = useMemo(() => videoPosterUrl(uri), [uri]);
+
+  useEffect(() => {
+    if (!active) setReady(false);
+  }, [active]);
+
+  return (
+    <View style={styles.postMedia}>
+      {!!poster && (!ready || !active || failed) && (
+        <LazyImage uri={poster} style={StyleSheet.absoluteFill} visible />
+      )}
+      {active && !failed && (
+        <Video
+          source={{ uri }}
+          style={StyleSheet.absoluteFill}
+          // TextureView can be clipped and moved like a normal view;
+          // SurfaceView (the Android default) cannot.
+          viewType={ViewType.TEXTURE}
+          paused={false}
+          repeat
+          muted
+          resizeMode="cover"
+          playInBackground={false}
+          playWhenInactive={false}
+          disableFocus
+          onReadyForDisplay={() => setReady(true)}
+          onError={(e: any) => {
+            console.warn('[PostCard] video failed', uri, e?.error?.errorString || e);
+            setFailed(true);
+          }}
+        />
+      )}
+      {(failed || (!active && !poster)) && (
+        <View style={styles.videoBadgeCenter} pointerEvents="none">
+          <MaterialIcons
+            name={failed ? 'videocam-off' : 'play-circle-filled'}
+            size={44}
+            color="rgba(255,255,255,0.9)"
+          />
+        </View>
+      )}
+    </View>
+  );
+};
+
 export const MediaSection = ({
   post,
   isVisible,
@@ -87,28 +149,13 @@ export const MediaSection = ({
     [post.media?.url],
   );
   const isVideo = post.media?.mediaType === 'video';
-  // Mount the video player only once the card has been on screen, then keep
-  // it (paused) so it doesn't restart.
-  const [hasActivatedVideo, setHasActivatedVideo] = useState(false);
   const isCurrentlyVisible = isVisible !== false;
-  useEffect(() => {
-    if (isCurrentlyVisible && !hasActivatedVideo) setHasActivatedVideo(true);
-  }, [isCurrentlyVisible, hasActivatedVideo]);
 
   if (!mediaUrls.length) return null;
 
   return (
     <View style={styles.mediaContainer}>
-      {isVideo && hasActivatedVideo && (
-        <Video
-          source={{ uri: mediaUrls[0] }}
-          style={styles.postMedia}
-          paused={!isVisible}
-          repeat
-          muted
-          resizeMode="cover"
-        />
-      )}
+      {isVideo && <FeedVideo uri={mediaUrls[0]} active={!!isVisible} />}
       {!isVideo && mediaUrls.length > 1 && (
         <LazyRotatingImages
           urls={mediaUrls}
@@ -947,6 +994,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   postMedia: { width: '100%', height: '100%' },
+  videoBadgeCenter: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
   pollContainer: {
     marginTop: 6,
     marginBottom: 4,

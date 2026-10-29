@@ -1,0 +1,11 @@
+<resources>
+
+    <!-- Same as values/styles.xml, plus API 26+ attributes. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- Android paints autofilled fields (e.g. a saved email/password)
+             yellow; keep inputs on the app's own background. -->
+        <item name="android:autofilledHighlight">@android:color/transparent</item>
+    </style>
+
+</resources>
