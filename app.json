@@ -1,13 +1,13 @@
 {
   "expo": {
     "name": "iCampus",
-    "slug": "campus-app",
+    "slug": "icampus",
     "version": "1.0.0",
     "displayName": "iCampus",
-    "owner": "agolu-tech-services",
+    "owner": "chiboy_aniagolu",
     "extra": {
       "eas": {
-        "projectId": "f07adfc6-795f-4a7e-bcfd-9dfc6e9f9f21"
+        "projectId": "58843852-bf76-4323-aa02-478901aa1335"
       }
     },
     "android": {
