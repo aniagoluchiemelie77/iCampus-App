@@ -19,6 +19,7 @@ import { UserAvatar } from './UserAvatar';
 import { useLiveTranscription } from '../hooks/useLiveTransciption';
 import { useAgoraClass } from '../hooks/useAgoraClass';
 import { useTheme } from '../context/ThemeContext';
+import { useLiveClass } from '../context/LiveClassContext';
 import { formatElapsed, toMillis } from '../utils/liveClassRtc';
 import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
 import {
@@ -27,6 +28,7 @@ import {
   ConfirmationModal,
   LiveControlButton,
   ParticipantStack,
+  LiveMiniPlayerCard,
 } from './liveClassComponents';
 
 interface StudentLiveSessionProps {
@@ -35,6 +37,8 @@ interface StudentLiveSessionProps {
   lecturerLiveData: any;
   /** True once the server has admitted this socket to the lecture room. */
   joined: boolean;
+  /** Shown as the floating mini player while the student is elsewhere. */
+  minimized?: boolean;
 }
 
 type StreamState = 'waiting' | 'connecting' | 'connected' | 'reconnecting';
@@ -46,10 +50,12 @@ export const StudentLiveClassSession = ({
   socket,
   lecturerLiveData,
   joined,
+  minimized = false,
 }: StudentLiveSessionProps) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
+  const { minimize, expand, endLiveClass } = useLiveClass();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const chatVisibleRef = useRef(false);
@@ -237,7 +243,8 @@ export const StudentLiveClassSession = ({
     setIsMicAllowed(false);
     setIsLocalMuted(true);
     setLeaveModalVisible(false);
-    navigation.navigate('Home', { activeTab: 'classroom' });
+    endLiveClass();
+    if (!minimized) navigation.navigate('Home', { activeTab: 'classroom' });
   };
 
   // ---- Render ----------------------------------------------------------------
@@ -265,12 +272,69 @@ export const StudentLiveClassSession = ({
             ? { icon: 'graphic-eq', title: 'Audio-only mode', hint: "The lecturer's connection is weak, so video is paused." }
             : { icon: 'videocam-off', title: "Lecturer's camera is off", hint: 'You can still hear the class.' };
 
+  const leaveModal = (
+    <ConfirmationModal
+      visible={leaveModalVisible}
+      onDismiss={() => setLeaveModalVisible(false)}
+      onConfirm={handleLeaveLecture}
+      title="Leave Live Session?"
+      subText="You can rejoin while the class is still live."
+      colors={colors}
+      islecturer={false}
+    />
+  );
+
+  if (minimized) {
+    return (
+      <>
+        <LiveMiniPlayerCard
+          title={lecture.topicName || hostName}
+          isLive={streamState === 'connected'}
+          onExpand={expand}
+          video={
+            hasVideo && agora.hostUid != null ? (
+              <RtcSurfaceView
+                canvas={{ uid: agora.hostUid, renderMode: isScreenShared ? 2 : 1 }}
+                style={S.stageVideo}
+                zOrderMediaOverlay
+              />
+            ) : streamState === 'connected' ? (
+              <UserAvatar
+                profilePic={lecturerLiveData?.profilePic}
+                firstName={lecturerLiveData?.firstname}
+                lastName={lecturerLiveData?.lastname}
+                username={lecturerLiveData?.username}
+                style={styles.miniHostAvatar}
+              />
+            ) : (
+              <MaterialIcons name={stageMessage.icon} size={30} color="#fff" />
+            )
+          }
+          actions={[
+            ...(isMicAllowed
+              ? [{
+                  icon: isLocalMuted ? 'mic-off' : 'mic',
+                  danger: isLocalMuted,
+                  onPress: () => setIsLocalMuted(m => !m),
+                }]
+              : []),
+            { icon: 'logout', danger: true, onPress: () => setLeaveModalVisible(true) },
+          ]}
+        />
+        {leaveModal}
+      </>
+    );
+  }
+
   return (
     <SafeAreaView
       edges={['top']}
       style={[S.mainContainer, { backgroundColor: colors.background }]}
     >
       <View style={S.topBar}>
+        <TouchableOpacity style={S.topBarIconBtn} onPress={minimize} hitSlop={8}>
+          <MaterialIcons name="keyboard-arrow-down" size={24} color={colors.textDarker} />
+        </TouchableOpacity>
         <View style={[S.livePill, streamState !== 'connected' && S.livePillWaiting]}>
           <View style={S.liveDot} />
           <Text style={S.livePillText}>
@@ -440,15 +504,7 @@ export const StudentLiveClassSession = ({
         wavers={[]}
         colors={colors}
       />
-      <ConfirmationModal
-        visible={leaveModalVisible}
-        onDismiss={() => setLeaveModalVisible(false)}
-        onConfirm={handleLeaveLecture}
-        title="Leave Live Session?"
-        subText="You can rejoin while the class is still live."
-        colors={colors}
-        islecturer={false}
-      />
+      {leaveModal}
     </SafeAreaView>
   );
 };
@@ -475,6 +531,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.25)',
   },
   stageHostAvatar: { width: 104, height: 104, borderRadius: 52 },
+  miniHostAvatar: { width: 52, height: 52, borderRadius: 26 },
   nameTag: {
     position: 'absolute',
     top: 10,

@@ -260,7 +260,7 @@ export interface User {
   bio?: string;
   providerId?: string;
   schoolAvatarUrl?: string;
-  institutionTier?: 'free' | 'pro' | 'premium';
+  institutionTier?: 'basic' | 'pro' | 'enterprise';
   theme: ThemeType;
   subaccountId?: string;
   /** Bank account sellers withdraw to. */
@@ -801,23 +801,6 @@ export interface TestSubmission {
   };
   startTime?: Date
 }
-export interface ITag {
-  userId: string;
-  username: string;
-  cardHolderName: string;
-  cardNumber: string; // Masked or full: "3021 **** **** ****"
-  layoutType: 'modern';
-  tier: 'pro' | 'premium' | 'free';
-  designOptions: {
-    backgroundColor: string; 
-    backgroundImage?: string; 
-    glassmorphismOpacity: number; 
-    accentColor: string; 
-  };
-  cardBrand: 'mastercard' | 'visa' | 'verve' | 'discover' | 'american express';
-  isDefault: boolean;
-  createdAt: Date;
-}
 export interface Attachment {
   url: string;
   type: AttachmentType;
@@ -877,7 +860,7 @@ export interface SchoolMetrics {
     schoolCode: string;
     name: string;
     logo: string | null;
-    tier: 'free' | 'pro' | 'premium';
+    tier: 'basic' | 'pro' | 'enterprise';
     tierLabel: string;
   };
   access?: { basic: boolean; professional: boolean; enterprise: boolean };

@@ -13,10 +13,12 @@ import { AccessDeniedScreen } from '../components/AccessDeniedScreen';
 import Toast from 'react-native-toast-message';
 import { submitOnlineClassAttendanceAPI } from '../api/localPostApis';
 import { searchUsers } from '../api/localGetApis';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { useLiveClass } from '../context/LiveClassContext';
+import { LiveMiniPlayerCard } from '../components/liveClassComponents';
 
 // Students count as present after this long in the class (or at the end).
 const ATTENDANCE_AFTER_MS = 10 * 60 * 1000;
@@ -40,10 +42,15 @@ const LoadingScreen = () => {
   );
 };
 
+/**
+ * The route only anchors the class: the class itself is rendered by
+ * LiveClassProvider above the navigator, full screen while this route is
+ * focused and as a floating mini player once the user moves elsewhere.
+ */
 export const LiveClassSessions = ({ route }: any) => {
   const { colors } = useTheme();
-  const navigation = useNavigation<any>();
-  const { lectureId } = route.params;
+  const { startLiveClass, setExpanded } = useLiveClass();
+  const lectureId: string = route.params?.lectureId;
   // Some entry points (ongoing-lecture modal, /lectures/ongoing) pass the
   // populated course object here; the loaders need the id string.
   const rawCourseId = route.params?.courseId;
@@ -51,6 +58,29 @@ export const LiveClassSessions = ({ route }: any) => {
     rawCourseId && typeof rawCourseId === 'object'
       ? rawCourseId.courseId || rawCourseId.id || ''
       : String(rawCourseId || '');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (lectureId) startLiveClass({ lectureId, courseId });
+      return () => setExpanded(false);
+    }, [lectureId, courseId, startLiveClass, setExpanded]),
+  );
+
+  return <View style={[styles.container, { backgroundColor: colors.background }]} />;
+};
+
+export const LiveClassSessionHost = ({
+  lectureId,
+  courseId,
+  minimized,
+}: {
+  lectureId: string;
+  courseId: string;
+  minimized: boolean;
+}) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation<any>();
+  const { expand, endLiveClass } = useLiveClass();
   const [lecturerUser, setLecturerUser] = useState<any | null>(null);
   const attendanceSavedRef = useRef(false);
 
@@ -187,7 +217,9 @@ export const LiveClassSessions = ({ route }: any) => {
           text1: 'Class Concluded',
           text2: `Session ended. Topic: ${data.summary?.topicName || lecture?.topicName}`,
         });
-        navigation.navigate('Home', { activeTab: 'classroom' });
+        endLiveClass();
+        // From the mini player, leave the student wherever they are.
+        if (!minimized) navigation.navigate('Home', { activeTab: 'classroom' });
       }
     };
     const handleServerError = (data: { action: string; message: string }) => {
@@ -201,7 +233,7 @@ export const LiveClassSessions = ({ route }: any) => {
       socket.off('lecture_ended_by_host', handleLectureEnded);
       socket.off('error_response', handleServerError);
     };
-  }, [socket, lecture?.id, lecture?.topicName, isSchoolCourse, saveAttendance, navigation]);
+  }, [socket, lecture?.id, lecture?.topicName, isSchoolCourse, saveAttendance, navigation, endLiveClass, minimized]);
   useEffect(() => {
     const fetchHostData = async () => {
       const targetId = lecture?.hostId;
@@ -222,6 +254,26 @@ export const LiveClassSessions = ({ route }: any) => {
 
     fetchHostData();
   }, [lecture?.hostId, user]);
+
+  // Backing out of an error / access-denied screen closes the class: there
+  // is nothing to keep running.
+  const cannotEnter = !loading && (!!loadError || !lecture || !course || !user || !canJoin);
+  useEffect(() => {
+    if (minimized && cannotEnter) endLiveClass();
+  }, [minimized, cannotEnter, endLiveClass]);
+
+  if (minimized && cannotEnter) return null;
+  if (minimized && loading) {
+    return (
+      <LiveMiniPlayerCard
+        title={lecture?.topicName || 'Live class'}
+        isLive={false}
+        onExpand={expand}
+        video={<ActivityIndicator color="#fff" />}
+        actions={[{ icon: 'close', onPress: endLiveClass }]}
+      />
+    );
+  }
 
   // Order matters: never show "access denied" while data is still loading.
   if (loading) {
@@ -269,7 +321,7 @@ export const LiveClassSessions = ({ route }: any) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {(!isConnected || !joinState.joined) && (
+      {!minimized && (!isConnected || !joinState.joined) && (
         <View
           style={[
             styles.connectionBanner,
@@ -288,6 +340,7 @@ export const LiveClassSessions = ({ route }: any) => {
           lecture={lecture}
           socket={socket}
           joined={joinState.joined}
+          minimized={minimized}
         />
       ) : (
         <StudentLiveClassSession
@@ -295,6 +348,7 @@ export const LiveClassSessions = ({ route }: any) => {
           lecturerLiveData={hostData}
           socket={socket}
           joined={joinState.joined}
+          minimized={minimized}
         />
       )}
     </View>

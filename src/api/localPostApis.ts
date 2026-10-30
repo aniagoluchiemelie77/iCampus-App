@@ -778,7 +778,13 @@ export const handleForgotPassword = async (email: string) => {
   }
 };
 export const loginUser = async (credentials: any, maxRetries = 3) => {
-  const idempotencyKey = uuidv4();
+  // A throw here (e.g. no crypto.getRandomValues) skipped the request entirely.
+  let idempotencyKey: string;
+  try {
+    idempotencyKey = uuidv4();
+  } catch {
+    idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();
 

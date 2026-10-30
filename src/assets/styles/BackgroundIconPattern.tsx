@@ -32,7 +32,7 @@ export const IconBackground = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="none">
       <View style={styles.grid}>{iconElements}</View>
     </View>
   );

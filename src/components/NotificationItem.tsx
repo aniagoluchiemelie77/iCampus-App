@@ -140,6 +140,17 @@ export const NotificationItem = ({
         >
           {formatNotificationMessage(item)}
         </Text>
+        {Array.isArray(item.payload?.attachments) &&
+        item.payload.attachments.length > 0 ? (
+          <View style={styles.attachmentHint}>
+            <MaterialIcons name="image" size={14} color={colors.primary} />
+            <Text style={[styles.attachmentText, { color: colors.primary }]}>
+              {item.payload.attachments.length === 1
+                ? '1 attachment'
+                : `${item.payload.attachments.length} attachments`}
+            </Text>
+          </View>
+        ) : null}
         <Text style={[styles.time, { color: colors.text }]}>
           {parsedDate
             ? dayjs(parsedDate).format('MMM D, YYYY • h:mm A')
@@ -175,6 +186,13 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   content: { flex: 1 },
+  attachmentHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  attachmentText: { fontSize: 12, fontWeight: '600' },
   title: { fontWeight: 'bold', fontSize: 14, marginBottom: 4 },
   welcomeEyebrow: {
     fontSize: 10,

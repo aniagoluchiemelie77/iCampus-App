@@ -962,3 +962,119 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
 });
+export interface MiniPlayerAction {
+  icon: string;
+  onPress: () => void;
+  danger?: boolean;
+  active?: boolean;
+}
+
+/**
+ * The live class shrunk to a floating player (see LiveClassContext). Tapping
+ * the video expands it again; `actions` are the few controls worth keeping.
+ */
+export const LiveMiniPlayerCard = ({
+  video,
+  isLive,
+  title,
+  onExpand,
+  actions = [],
+}: {
+  video: React.ReactNode;
+  isLive: boolean;
+  title: string;
+  onExpand: () => void;
+  actions?: MiniPlayerAction[];
+}) => {
+  const { colors } = useTheme();
+  return (
+    <View style={miniStyles.container}>
+      <Pressable style={miniStyles.video} onPress={onExpand}>
+        {video}
+        <View style={[miniStyles.livePill, !isLive && miniStyles.livePillWaiting]}>
+          <View style={miniStyles.liveDot} />
+          <Text style={miniStyles.livePillText}>{isLive ? 'LIVE' : 'WAITING'}</Text>
+        </View>
+        <View style={miniStyles.expandBadge}>
+          <MaterialIcons name="open-in-full" size={13} color="#fff" />
+        </View>
+      </Pressable>
+      <View style={miniStyles.strip}>
+        <Text
+          style={[miniStyles.title, { color: colors.textDarker }]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {actions.map(a => (
+          <TouchableOpacity
+            key={a.icon}
+            onPress={a.onPress}
+            hitSlop={6}
+            style={[
+              miniStyles.action,
+              a.danger && { backgroundColor: '#E53935' },
+              a.active && { backgroundColor: PRIMARY_COLOR },
+            ]}
+          >
+            <MaterialIcons
+              name={a.icon}
+              size={17}
+              color={a.danger || a.active ? '#fff' : colors.textDarker}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const miniStyles = StyleSheet.create({
+  container: { flex: 1 },
+  video: {
+    flex: 1,
+    backgroundColor: '#0d0d0f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  livePill: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E53935',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  livePillWaiting: { backgroundColor: 'rgba(120,120,120,0.7)' },
+  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
+  livePillText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
+  expandBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  strip: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    gap: 6,
+  },
+  title: { flex: 1, fontSize: 12, fontWeight: '700' },
+  action: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(120,120,120,0.16)',
+  },
+});

@@ -191,7 +191,10 @@ const FloatingIllustration = ({
 export const FloatingView = ({ children }: { children: React.ReactNode }) => {
   const float = useFloatAnimation();
   return (
-    <Animated.View style={{ transform: [{ translateY: float }] }}>
+    <Animated.View
+      pointerEvents="box-none"
+      style={{ transform: [{ translateY: float }] }}
+    >
       {children}
     </Animated.View>
   );
@@ -212,7 +215,12 @@ export const FloatingSuccessIcon = ({
   const scale = haloSize / HALO;
   const badge = Math.round(68 * scale);
   return (
-    <Animated.View style={{ transform: [{ translateY: float }] }}>
+    // Decorative: its float animation must never swallow a tap meant for the
+    // field or button beside it.
+    <Animated.View
+      pointerEvents="none"
+      style={{ transform: [{ translateY: float }] }}
+    >
       <View style={[styles.halo, { width: haloSize, height: haloSize }]}>
         <View
           style={[

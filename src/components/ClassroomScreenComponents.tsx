@@ -263,7 +263,6 @@ export const CourseModal = ({
       0,
     );
   const assignmentCount = course.assignments?.length || 0;
-  const userPlan = currentUser.tier || 'free';
   const instructorCount = course.lecturerIds?.length || 0;
   const lastInstructor =
     course.lecturerIds && course.lecturerIds.length > 0
@@ -580,7 +579,7 @@ export const CourseModal = ({
                       });
                     }}
                   />
-                  {currentUser.institutionTier !== 'free' && (
+                  {currentUser.institutionTier !== 'basic' && (
                     <>
                       <GridItem
                         label="Create A Test"

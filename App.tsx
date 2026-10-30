@@ -55,6 +55,7 @@ const linking = {
 import { createStackNavigator } from '@react-navigation/stack';
 import { TransitionPresets } from '@react-navigation/stack';
 import { navigationRef, navigate } from './src/context/navigationContext.ts';
+import { LiveClassProvider } from './src/context/LiveClassContext.tsx';
 import SignUpScreen from './src/screens/Signup';
 import SignupPage from './src/screens/SignupPage';
 import HomeScreen from './src/screens/HomeScreen';
@@ -374,6 +375,8 @@ function MainApp() {
               screen (SignUp), ignoring the session restored above. */}
           {/* Keep publishing overlays outside screen routes so their uploads
               continue while the user returns to the store or feed. */}
+          {/* Live classes too: they shrink to a mini player off their screen. */}
+          <LiveClassProvider>
           <ProductUploadProvider>
             <PostUploadProvider>
           <Stack.Navigator initialRouteName={initialRoute}>
@@ -626,6 +629,7 @@ function MainApp() {
           </Stack.Navigator>
             </PostUploadProvider>
           </ProductUploadProvider>
+          </LiveClassProvider>
           <Toast config={toastConfig} />
         </NavigationContainer>
       </AppDataProvider>
@@ -664,5 +668,5 @@ const styles = StyleSheet.create({
 //git reset --soft HEAD~5
 //git reset .env
 //git add .
-//git commit -m "Clean codebase and remove sensitive configuration files"
+//git commit -m "Trying to fix, login and signup functions not being called, made the live class screen persistent (only leaves if the user permits), added image viewing capacities to the Notification details screen, then retrying build"
 //git push origin --force main

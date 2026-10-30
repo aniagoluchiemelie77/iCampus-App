@@ -114,9 +114,14 @@ const Login = () => {
           setAlertMessage(response.message || 'Invalid credentials.');
           setAlertVisible(true);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // loginUser never throws, so anything here failed on the device
+        // (device info, storage, redux): don't report it as a network error.
+        console.error('iCampus: login failed on device:', error);
         setAlertType('error');
-        setAlertMessage('Network error. Please check your connection.');
+        setAlertMessage(
+          `Sign in failed: ${error?.message || 'unexpected error'}. Please try again.`,
+        );
         setAlertVisible(true);
       } finally {
         setIsLoading(false);
@@ -246,7 +251,11 @@ const Login = () => {
             )}
 
             <View style={styles.passwordInput}>
-              <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={10}
+                onPress={() => setShowPassword(prev => !prev)}
+              >
                 <MaterialIcons
                   name={showPassword ? 'visibility-off' : 'visibility'}
                   size={20}
@@ -266,6 +275,8 @@ const Login = () => {
             </View>
 
             <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={8}
               style={styles.forgotPasswordBtn}
               onPress={() => navigation.navigate('ForgotPasswordScreen')}
             >
@@ -289,6 +300,7 @@ const Login = () => {
             </View>
             <View style={styles.socialButtonRow}>
               <TouchableOpacity
+                activeOpacity={0.7}
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('google')}
                 disabled={isLoading}
@@ -297,6 +309,7 @@ const Login = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
+                activeOpacity={0.7}
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('github')}
                 disabled={isLoading}
@@ -308,7 +321,11 @@ const Login = () => {
               <Text style={[styles.footerDivText, { color: '#222' }]}>
                 Don't have an account?
               </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={10}
+                onPress={() => navigation.navigate('SignUp')}
+              >
                 <Text style={styles.footerDivText2}>Signup</Text>
               </TouchableOpacity>
             </View>

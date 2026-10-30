@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Linking,
   useWindowDimensions,
+  Image,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
@@ -23,7 +26,81 @@ const HIDDEN_PAYLOAD_KEYS = new Set([
   'primaryuser',
   'otherscount',
   'unreadcount',
+  'imageurl',
 ]);
+
+type Attachment = { url: string; type?: string; fileName?: string | null };
+
+/** Memo images (and files) attached by school or iCampus admins. */
+function NotificationAttachments({ attachments }: { attachments: Attachment[] }) {
+  const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const [viewing, setViewing] = useState<string | null>(null);
+  const images = attachments.filter(a => a.type !== 'file');
+  const files = attachments.filter(a => a.type === 'file');
+  const single = images.length === 1;
+  return (
+    <View style={styles.attachments}>
+      <View style={styles.imageGrid}>
+        {images.map(image => (
+          <Pressable
+            key={image.url}
+            accessibilityRole="imagebutton"
+            accessibilityLabel="Open attached image"
+            onPress={() => setViewing(image.url)}
+            style={[
+              styles.imageTile,
+              { borderColor: colors.border },
+              single ? styles.imageSingle : styles.imageHalf,
+            ]}
+          >
+            <Image
+              source={{ uri: image.url }}
+              style={styles.image}
+              resizeMode={single ? 'contain' : 'cover'}
+            />
+          </Pressable>
+        ))}
+      </View>
+      {files.map(file => (
+        <Pressable
+          key={file.url}
+          onPress={() => Linking.openURL(file.url)}
+          style={[styles.fileRow, { borderColor: colors.border }]}
+        >
+          <MaterialIcons name="attach-file" size={18} color={colors.primary} />
+          <Text
+            numberOfLines={1}
+            style={[styles.fileName, { color: colors.primary }]}
+          >
+            {file.fileName || 'Open attachment'}
+          </Text>
+        </Pressable>
+      ))}
+      <Modal
+        visible={!!viewing}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewing(null)}
+      >
+        <Pressable
+          accessibilityLabel="Close image"
+          style={styles.viewer}
+          onPress={() => setViewing(null)}
+        >
+          {viewing ? (
+            <Image
+              source={{ uri: viewing }}
+              style={{ width: width - 24, height: '80%' }}
+              resizeMode="contain"
+            />
+          ) : null}
+          <Text style={styles.viewerHint}>Tap anywhere to close</Text>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
 
 export default function NotificationDetails() {
   const { colors } = useTheme();
@@ -100,6 +177,9 @@ export default function NotificationDetails() {
     notification?.payload && typeof notification.payload === 'object'
       ? notification.payload
       : {};
+  const attachments: Attachment[] = Array.isArray(payload.attachments)
+    ? payload.attachments.filter((a: any) => typeof a?.url === 'string')
+    : [];
   const payloadEntries = Object.entries(payload).filter(([key, value]) => {
     return (
       !HIDDEN_PAYLOAD_KEYS.has(key.toLowerCase()) &&
@@ -219,6 +299,10 @@ export default function NotificationDetails() {
             <Text style={[styles.message, { color: colors.text }]}>
               {notification.message}
             </Text>
+
+            {attachments.length > 0 && (
+              <NotificationAttachments attachments={attachments} />
+            )}
 
             {payloadEntries.length > 0 && (
               <View
@@ -419,6 +503,59 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginBottom: 24,
     opacity: 0.92,
+  },
+  attachments: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  imageTile: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    backgroundColor: '#00000008',
+  },
+  imageSingle: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    maxHeight: 640,
+  },
+  imageHalf: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    aspectRatio: 1,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  fileName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  viewer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  viewerHint: {
+    color: '#ffffffaa',
+    fontSize: 13,
   },
   payloadContainer: {
     borderRadius: 18,

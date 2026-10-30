@@ -12,6 +12,7 @@ import { UserAvatar } from './UserAvatar';
 import { useLiveTranscription } from '../hooks/useLiveTransciption';
 import { useAgoraClass } from '../hooks/useAgoraClass';
 import { useTheme } from '../context/ThemeContext';
+import { useLiveClass } from '../context/LiveClassContext';
 import { formatElapsed, toMillis } from '../utils/liveClassRtc';
 import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
 import {
@@ -20,6 +21,7 @@ import {
   ConfirmationModal,
   WavingToast,
   LiveControlButton,
+  LiveMiniPlayerCard,
 } from './liveClassComponents';
 
 interface LecturerLiveSessionProps {
@@ -27,6 +29,8 @@ interface LecturerLiveSessionProps {
   socket: Socket | null;
   /** True once the server has admitted this socket to the lecture room. */
   joined: boolean;
+  /** Shown as the floating mini player while the lecturer is elsewhere. */
+  minimized?: boolean;
 }
 
 const MAX_VISIBLE_AVATARS = 6;
@@ -37,10 +41,12 @@ export const LecturerLiveClassSession = ({
   lecture,
   socket,
   joined,
+  minimized = false,
 }: LecturerLiveSessionProps) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user);
   const navigation = useNavigation<any>();
+  const { minimize, expand, endLiveClass } = useLiveClass();
 
   const attendeesRef = useRef<User[]>([]);
   const chatVisibleRef = useRef(false);
@@ -210,7 +216,8 @@ export const LecturerLiveClassSession = ({
       const ack = await socket.timeout(10000).emitWithAck('end_lecture', { lectureId: lecture.id });
       if (!ack?.ok) throw new Error(ack?.message);
       setEndModalVisible(false);
-      navigation.navigate('Home', { activeTab: 'classroom' });
+      endLiveClass();
+      if (!minimized) navigation.navigate('Home', { activeTab: 'classroom' });
     } catch (err: any) {
       Toast.show({
         type: 'error',
@@ -233,12 +240,59 @@ export const LecturerLiveClassSession = ({
           ? 'Not connected'
           : 'Connecting…';
 
+  const endModal = (
+    <ConfirmationModal
+      visible={endModalVisible}
+      onDismiss={() => setEndModalVisible(false)}
+      onConfirm={handleEndLecture}
+      title={isEnding ? 'Ending class…' : 'End Live Session?'}
+      subText="This stops the stream for all attendees and finalizes attendance records."
+      colors={colors}
+      islecturer={true}
+    />
+  );
+
+  if (minimized) {
+    return (
+      <>
+        <LiveMiniPlayerCard
+          title={lecture.topicName || 'Live class'}
+          isLive={isLiveOnAir}
+          onExpand={expand}
+          video={
+            showCameraPreview ? (
+              <RtcSurfaceView canvas={{ uid: 0 }} style={S.stageVideo} zOrderMediaOverlay />
+            ) : (
+              <MaterialIcons
+                name={isSharingScreen ? 'screen-share' : 'videocam-off'}
+                size={30}
+                color="#fff"
+              />
+            )
+          }
+          actions={[
+            {
+              icon: isLocalMuted ? 'mic-off' : 'mic',
+              danger: isLocalMuted,
+              onPress: () => setIsLocalMuted(m => !m),
+            },
+            { icon: 'call-end', danger: true, onPress: () => setEndModalVisible(true) },
+          ]}
+        />
+        {endModal}
+      </>
+    );
+  }
+
   return (
     <SafeAreaView
       edges={['top']}
       style={[S.mainContainer, { backgroundColor: colors.background }]}
     >
       <View style={S.topBar}>
+        <TouchableOpacity style={S.topBarIconBtn} onPress={minimize} hitSlop={8}>
+          <MaterialIcons name="keyboard-arrow-down" size={24} color={colors.textDarker} />
+        </TouchableOpacity>
         <View style={[S.livePill, !isLiveOnAir && S.livePillWaiting]}>
           <View style={S.liveDot} />
           <Text style={S.livePillText}>{isLiveOnAir ? 'LIVE' : 'OFFLINE'}</Text>
@@ -463,15 +517,7 @@ export const LecturerLiveClassSession = ({
         wavers={wavers}
         colors={colors}
       />
-      <ConfirmationModal
-        visible={endModalVisible}
-        onDismiss={() => setEndModalVisible(false)}
-        onConfirm={handleEndLecture}
-        title={isEnding ? 'Ending class…' : 'End Live Session?'}
-        subText="This stops the stream for all attendees and finalizes attendance records."
-        colors={colors}
-        islecturer={true}
-      />
+      {endModal}
       {wavers.length > 0 && (
         <WavingToast activeUsers={wavers} onHide={noop} />
       )}

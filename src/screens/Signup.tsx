@@ -46,7 +46,11 @@ const SignUpScreen = () => {
       />
 
       {/* Gradient Overlay */}
-      <LinearGradient colors={['#00000000', '#000']} style={styles.gradient} />
+      <LinearGradient
+        colors={['#00000000', '#000']}
+        style={styles.gradient}
+        pointerEvents="none"
+      />
 
       {/* Foreground Content */}
       <View style={styles.textContainer}>
@@ -58,6 +62,7 @@ const SignUpScreen = () => {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={styles.buttonBoxWithBorder}
             onPress={() =>
               navigation.navigate('SignupPage', { role: 'student' })
@@ -67,6 +72,7 @@ const SignUpScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            activeOpacity={0.7}
             style={styles.buttonBoxWithBorder}
             onPress={() =>
               navigation.navigate('SignupPage', { role: 'teacher' })
@@ -76,6 +82,7 @@ const SignUpScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[styles.buttonBox, { borderRightWidth: 0 }]}
             onPress={() => navigation.navigate('SignupPage', { role: 'other' })}
           >
@@ -86,7 +93,11 @@ const SignUpScreen = () => {
           <Text style={[styles.footerDivText, { color: '#fff' }]}>
             Already have an account?
           </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            hitSlop={10}
+            onPress={() => navigation.navigate('Login')}
+          >
             <Text style={styles.footerDivText2}>Login</Text>
           </TouchableOpacity>
         </View>

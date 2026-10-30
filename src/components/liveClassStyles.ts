@@ -50,6 +50,14 @@ export const LiveClassSessionStyles = StyleSheet.create({
     borderRadius: 14,
   },
   topBarActionText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  topBarIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(120,120,120,0.16)',
+  },
 
   // Video stage
   stage: {
