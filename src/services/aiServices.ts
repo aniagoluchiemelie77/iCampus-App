@@ -11,6 +11,7 @@ export const callGeminiAPI = async (prompt: string): Promise<string> => {
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt,
+      config: { thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const text = response.text;
@@ -126,14 +127,15 @@ export const extractAssessmentQuestions = async (
   if (files.length === 0) return [];
 
   const parts: any[] = [];
+  const encodedFiles = await Promise.all(files.map(readAsBase64));
   let totalBytes = 0;
-  for (const file of files) {
-    const data = await readAsBase64(file);
+  for (let index = 0; index < encodedFiles.length; index += 1) {
+    const data = encodedFiles[index];
     totalBytes += Math.ceil((data.length * 3) / 4);
     if (totalBytes > MAX_INLINE_BYTES) {
       throw new Error('These files are too large together. Use fewer pages or compress the PDF (max ~18MB).');
     }
-    parts.push({ inlineData: { mimeType: file.mimeType, data } });
+    parts.push({ inlineData: { mimeType: files[index].mimeType, data } });
   }
   parts.push({ text: EXTRACTION_PROMPT });
 
@@ -142,7 +144,11 @@ export const extractAssessmentQuestions = async (
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: [{ role: 'user', parts }],
-      config: { responseMimeType: 'application/json', temperature: 0.1 },
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
     text = response.text;
   } catch (error: any) {
