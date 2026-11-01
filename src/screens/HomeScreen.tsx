@@ -26,7 +26,6 @@ import {
 import {
   LectureReminderInfo,
   navigateForNotification,
-  showAssessmentReminderPrompt,
   showLectureReminderPrompt,
 } from '../utils/notificationNavigation';
 import { LectureReminderModal } from '../components/LectureReminderModal';
@@ -36,12 +35,8 @@ import {
   useSocket,
 } from '../hooks/useSocket.ts';
 import { initialState } from '../context/UserSlice.ts';
-import { OngoingLectureModal } from '../components/OngoingLiveLecturesModal';
-import { Lecture } from '../types/firebase';
 import { SearchScreen } from '../components/SearchScreen';
 import ClassroomScreenComponent from '../components/Classroomcomponent';
-import { fetchOngoingLecture } from '../api/localGetApis';
-import { openLecturerAttendance, openStudentAttendance } from '../utils/attendance';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
 import {
@@ -59,6 +54,7 @@ import {
   idleVerification,
 } from '../components/OrderVerificationOverlay';
 import ExpandableFAB from '../components/ExpandableFAB.tsx';
+import { usePersistentActions } from '../context/PersistentActionContext';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 interface SocketProviderProps {
@@ -174,7 +170,7 @@ const HomeScreen = () => {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
   const rawRole = user?.usertype || 'student';
-  const [ongoingLecture, setOngoingLecture] = useState<Lecture | null>(null);
+  const { showAssessmentPrompt } = usePersistentActions();
   const isClassroomAllowed = userType === 'student' || userType === 'lecturer';
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
@@ -372,16 +368,14 @@ const HomeScreen = () => {
           return;
         }
         if (data.actionType === 'ASSESSMENT_REMINDER') {
-          showAssessmentReminderPrompt(
-            navigation,
-            {
-              actionType: data.actionType,
-              payload: data,
-              message: remoteMessage.notification?.body,
-              title: remoteMessage.notification?.title,
-            },
-            { uid: user?.uid, usertype: user?.usertype },
-          );
+          if (data.assessmentId && data.courseId) {
+            showAssessmentPrompt({
+              assessmentId: data.assessmentId,
+              course: { courseId: data.courseId, courseTitle: data.courseTitle },
+              title: remoteMessage.notification?.title || data.testTitle || 'Assessment ready',
+              message: remoteMessage.notification?.body || 'Your assessment is ready to start.',
+            });
+          }
           return;
         }
         Toast.show({
@@ -404,6 +398,15 @@ const HomeScreen = () => {
       if (!data.actionType) return;
       const { actionType, category, notificationId, entityId, entityType, ...payload } =
         data;
+      if (actionType === 'ASSESSMENT_REMINDER' && payload.assessmentId && payload.courseId) {
+        showAssessmentPrompt({
+          assessmentId: payload.assessmentId,
+          course: { courseId: payload.courseId, courseTitle: payload.courseTitle },
+          title: remoteMessage.notification?.title || payload.testTitle || 'Assessment ready',
+          message: remoteMessage.notification?.body || 'Your assessment is ready to start.',
+        });
+        return;
+      }
       navigateForNotification(
         navigation,
         {
@@ -427,55 +430,9 @@ const HomeScreen = () => {
         .catch(() => {});
     }
     return unsubscribe;
-  }, [navigation, user?.uid, user?.usertype]);
+  }, [navigation, user?.uid, user?.usertype, showAssessmentPrompt]);
   // Notification permission + FCM token registration happen together in
   // requestUserPermissionAndGetToken (App start, login and signup).
-  useEffect(() => {
-    if (!socket || !user?.uid) return;
-
-    const handleLectureStarted = (lecture: Lecture) => {
-      setOngoingLecture(lecture);
-    };
-
-    socket.on('lecture_started', handleLectureStarted);
-
-    const checkOngoing = async () => {
-      try {
-        const data = await fetchOngoingLecture();
-        if (data.success && data.ongoing) {
-          setOngoingLecture(data.lecture);
-        } else {
-          setOngoingLecture(null);
-        }
-      } catch (err) {
-        console.error('iCampus: Failed to check ongoing status', err);
-      }
-    };
-    checkOngoing();
-    return () => {
-      socket.off('lecture_started', handleLectureStarted);
-    };
-  }, [socket, user?.uid]);
-
-  const handleJoinLecture = async () => {
-    if (!ongoingLecture) return;
-    if (ongoingLecture.lectureType === 'Online') {
-      navigation.navigate('LiveClassSessions', {
-        lectureId: ongoingLecture.id,
-        courseId: ongoingLecture.courseId,
-      });
-      setOngoingLecture(null);
-      return;
-    } else if (ongoingLecture.lectureType === 'Physical') {
-      const lecture = ongoingLecture;
-      setOngoingLecture(null);
-      if (userType === 'lecturer') {
-        await openLecturerAttendance(navigation, lecture);
-      } else if (userType === 'student') {
-        openStudentAttendance(navigation, lecture);
-      }
-    }
-  };
   return (
     <>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -607,12 +564,6 @@ const HomeScreen = () => {
           />
         </View>
       </View>
-      <OngoingLectureModal
-        visible={!!ongoingLecture}
-        lecture={ongoingLecture}
-        onJoin={handleJoinLecture}
-        onDismiss={() => setOngoingLecture(null)}
-      />
       <ProfileModal
         visible={isModalVisible}
         onClose={() => setProfilePopupVisible(false)}

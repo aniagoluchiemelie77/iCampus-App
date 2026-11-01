@@ -114,6 +114,7 @@ import { BACKEND_URL } from '@env';
 import { AppDataProvider } from './src/context/EventContext.tsx';
 import { PostUploadProvider } from './src/context/PostUploadContext.tsx';
 import { ProductUploadProvider } from './src/context/ProductUploadContext.tsx';
+import { PersistentActionProvider } from './src/context/PersistentActionContext.tsx';
 import { useDispatch } from 'react-redux';
 import { setUser } from './src/context/UserSlice';
 import { clearSession } from './src/utils/session';
@@ -187,6 +188,7 @@ export type RootStackParamList = {
     userRole: 'student' | 'lecturer' | 'otherUser';
     lectures?: Lecture[];
     exceptions?: CourseException[];
+    assessmentId?: string;
   };
   CreateAssessment: {
     course: Course;
@@ -379,6 +381,7 @@ function MainApp() {
           <LiveClassProvider>
           <ProductUploadProvider>
             <PostUploadProvider>
+              <PersistentActionProvider>
           <Stack.Navigator initialRouteName={initialRoute}>
             <Stack.Screen
               name="SignUp"
@@ -627,6 +630,7 @@ function MainApp() {
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
+              </PersistentActionProvider>
             </PostUploadProvider>
           </ProductUploadProvider>
           </LiveClassProvider>

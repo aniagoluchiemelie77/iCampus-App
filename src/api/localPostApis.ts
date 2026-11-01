@@ -22,6 +22,26 @@ interface ServiceResponse {
   message: string;
   data?: any;
 }
+export const requestAcademicSessionRecap = async (session: string) => {
+  try {
+    const response = await fetchWithAuth(`${baseUrl}users/academic-session-recap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session }),
+    });
+    const result = await response.json();
+    return {
+      success: response.ok && result.success !== false,
+      message: result.message || 'Session recap requested.',
+      stats: result.stats,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error?.message || 'Could not request your session recap.',
+    };
+  }
+};
 interface P2PTransferPayload {
   recipientId: string;
   recipientiTagName: string;

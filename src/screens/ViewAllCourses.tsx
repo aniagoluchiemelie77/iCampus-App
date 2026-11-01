@@ -175,7 +175,22 @@ export const ViewAllCoursesScreen = () => {
             }}
           />
         )}
-        ListHeaderComponent={filters}
+        ListHeaderComponent={
+          <>
+            {filters}
+            {selectedSession !== 'All' && selectedSession !== SESSIONS[1] && courses.length > 0 ? (
+              <View style={[styles.recap, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' }]}>
+                <MaterialIcons name="celebration" size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.recapTitle, { color: colors.text }]}>Session recap: {selectedSession}</Text>
+                  <Text style={[styles.recapText, { color: colors.text }]}>
+                    You completed {courses.length} course{courses.length === 1 ? '' : 's'} activity in this session. Well done for staying engaged.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </>
+        }
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator
@@ -227,6 +242,18 @@ export const ViewAllCoursesScreen = () => {
   );
 };
 const styles = StyleSheet.create({
+  recap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  recapTitle: { fontSize: 15, fontWeight: '700', marginBottom: 3 },
+  recapText: { fontSize: 13, lineHeight: 18 },
   filterContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

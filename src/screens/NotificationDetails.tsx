@@ -21,6 +21,8 @@ import { CustomButton } from '../assets/components/AppUIComponents';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { parseFirestoreDate } from '../utils/dateFormatter';
 import dayjs from 'dayjs';
+import Toast from 'react-native-toast-message';
+import { requestAcademicSessionRecap } from '../api/localPostApis';
 
 const HIDDEN_PAYLOAD_KEYS = new Set([
   'primaryuser',
@@ -138,7 +140,9 @@ export default function NotificationDetails() {
   }, [notificationId, notification]);
 
   const isSecurityAlert = notification?.category === 'security';
-  const isBtnVisible = notification?.actionType === 'COURSES_EXTRACTED';
+  const isBtnVisible =
+    notification?.actionType === 'COURSES_EXTRACTED' ||
+    notification?.actionType === 'ACADEMIC_SESSION_RECAP';
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -169,6 +173,20 @@ export default function NotificationDetails() {
       case 'COURSES_EXTRACTED':
         navigation.navigate('Home', { activeTab: 'classroom' });
         break;
+      case 'ACADEMIC_SESSION_RECAP': {
+        const previousSession = payload.previousSession;
+        if (!previousSession) {
+          Toast.show({ type: 'error', text1: 'Session information unavailable' });
+          return;
+        }
+        const result = await requestAcademicSessionRecap(previousSession);
+        Toast.show({
+          type: result.success ? 'success' : 'error',
+          text1: result.success ? 'Recap requested' : 'Could not generate recap',
+          text2: result.message,
+        });
+        break;
+      }
     }
   };
 
@@ -388,7 +406,7 @@ export default function NotificationDetails() {
             )}
             {isBtnVisible && (
               <CustomButton
-                title="View Details"
+                title={notification.actionType === 'ACADEMIC_SESSION_RECAP' ? 'Email My Recap' : 'View Details'}
                 onPress={handleAction}
                 iconName="arrow-forward"
                 iconColor="#fff"
