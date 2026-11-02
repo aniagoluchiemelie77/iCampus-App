@@ -7,7 +7,6 @@ import { CommonActions } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
 import { CourseException, Lecture, CreateLecturePayload, CreateTestPayload, PostComment, User} from '../types/firebase';
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import axios from 'axios';
 import {
   fetchWithAuth,
   refreshSessionToken,
@@ -798,18 +797,19 @@ export const handleForgotPassword = async (email: string) => {
   }
 };
 export const loginUser = async (credentials: any, maxRetries = 3) => {
+  console.log(`iCampus login request: ${baseUrl}users/login`);
   // A throw here (e.g. no crypto.getRandomValues) skipped the request entirely.
-  let idempotencyKey: string;
-  try {
-    idempotencyKey = uuidv4();
-  } catch {
-    idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
   let attempt = 0;
   const TIMEOUT_MS = await getAdaptiveTimeout();
 
   while (attempt < maxRetries) {
     attempt++;
+    let idempotencyKey: string;
+    try {
+      idempotencyKey = uuidv4();
+    } catch {
+      idempotencyKey = `${Date.now()}-${attempt}-${Math.random().toString(36).slice(2)}`;
+    }
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -854,6 +854,10 @@ export const loginUser = async (credentials: any, maxRetries = 3) => {
       const errorMessage = isTimeout 
         ? 'Request timed out. Check your connection.' 
         : (error.message || 'Network error.');
+      console.error(
+        `iCampus login request failed at ${baseUrl}users/login:`,
+        error,
+      );
 
       if (attempt >= maxRetries) {
         return {

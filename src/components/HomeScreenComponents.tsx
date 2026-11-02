@@ -144,7 +144,11 @@ const FeedRowTracer = ({
 // ---------------------------------------------------------------------------
 
 import { BACKEND_URL } from '@env';
-export const baseUrl = BACKEND_URL;
+const DEFAULT_BACKEND_URL = 'https://icampus-backendscript.onrender.com/';
+export const baseUrl =
+  typeof BACKEND_URL === 'string' && BACKEND_URL.trim()
+    ? `${BACKEND_URL.trim().replace(/\/+$/, '')}/`
+    : DEFAULT_BACKEND_URL;
 interface Props {
   initialCount?: number;
   uid?: string;
