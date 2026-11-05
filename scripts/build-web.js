@@ -16,6 +16,7 @@ const result = spawnSync(
   path.join(root, 'node_modules', '.bin', 'react-native.cmd'),
   [
     'bundle',
+    '--reset-cache',
     '--platform',
     'web',
     '--dev',

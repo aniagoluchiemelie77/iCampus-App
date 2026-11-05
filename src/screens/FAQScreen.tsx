@@ -12,6 +12,18 @@ interface FAQItemType {
 }
 const FAQ_DATA: FAQItemType[] = [
   {
+    id: 'subscription-1',
+    question: 'Who pays for iCampus subscriptions?',
+    answer:
+      'Students and lecturers receive access through their institution. Their account tier follows the institution tier, so they do not need to purchase an individual subscription. Individual and enterprise account holders may manage their own subscriptions.',
+  },
+  {
+    id: 'subscription-2',
+    question: 'Why can I see a tier but not manage a subscription?',
+    answer:
+      'Student and lecturer tiers are assigned by their school. If the school changes its plan, that new tier is applied to eligible school accounts. Subscription controls are available only to individual other-user accounts and designated enterprise institution administrators.',
+  },
+  {
     id: 'acad-1',
     question: 'What are Lecture Exceptions and how do they work?',
     answer:

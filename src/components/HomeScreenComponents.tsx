@@ -31,6 +31,7 @@ import { AdItem } from '../types/firebase';
 import { initialState } from '../context/UserSlice.ts';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { usePostUpload } from '../context/PostUploadContext';
+import { canManageSubscriptions } from '../utils/subscriptionAccess';
 
 /**
  * Feed pages are ordered by a live ranking score, so a post can show up on
@@ -143,12 +144,8 @@ const FeedRowTracer = ({
 };
 // ---------------------------------------------------------------------------
 
-import { BACKEND_URL } from '@env';
-const DEFAULT_BACKEND_URL = 'https://icampus-backendscript.onrender.com/';
-export const baseUrl =
-  typeof BACKEND_URL === 'string' && BACKEND_URL.trim()
-    ? `${BACKEND_URL.trim().replace(/\/+$/, '')}/`
-    : DEFAULT_BACKEND_URL;
+import { BACKEND_URL } from '../config/environment';
+export const baseUrl = `${BACKEND_URL.trim().replace(/\/+$/, '')}/`;
 interface Props {
   initialCount?: number;
   uid?: string;
@@ -258,7 +255,7 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
                   Sales Hub
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              {canManageSubscriptions(currentUser) && <TouchableOpacity
                 style={styles.item}
                 onPress={() => {
                   onClose();
@@ -272,6 +269,70 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
                 />
                 <Text style={[styles.itemText, { color: colors.text }]}>
                   Manage Subscription
+                </Text>
+              </TouchableOpacity>}
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('Notifications');
+                }}
+              >
+                <MaterialIcons
+                  name="notifications"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  Notifications
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('CartScreen');
+                }}
+              >
+                <MaterialIcons
+                  name="shopping-cart"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  My Cart
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('FavoritesScreen');
+                }}
+              >
+                <MaterialIcons
+                  name="favorite"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  Favorites
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('FAQScreen');
+                }}
+              >
+                <MaterialIcons
+                  name="help-outline"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  Help & FAQs
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity

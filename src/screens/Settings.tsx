@@ -26,6 +26,7 @@ import { useDispatch } from 'react-redux';
 import { updateUserThemePreference } from '../api/localPutApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import { IconOutline } from '@ant-design/icons-react-native';
+import { canManageSubscriptions } from '../utils/subscriptionAccess';
 
 export const SectionHeader = ({ title }: { title: string }) => {
   const { colors } = useTheme();
@@ -114,12 +115,12 @@ export const Settings = () => {
             subtitle="Manage where you're logged in"
             onPress={() => navigation.navigate('LinkedDevicesScreen')}
           />
-          <SettingItem
+          {canManageSubscriptions(user) && <SettingItem
             icon="verified"
             title="Subscription"
             subtitle="Manage your Premium plan"
             onPress={() => navigation.navigate('Subscription')}
-          />
+          />}
           <SettingItem
             icon="lock-reset"
             title="Reset Login Password"

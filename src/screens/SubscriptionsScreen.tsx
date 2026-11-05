@@ -26,6 +26,7 @@ import {
 } from '../constants/inAppConstants';
 import { useTheme } from '../context/ThemeContext';
 import { useExchangeRate } from '../hooks/useExchangeRate.ts';
+import { canManageSubscriptions } from '../utils/subscriptionAccess';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(width * 0.82, 420);
@@ -98,13 +99,25 @@ const PLANS: { id: SubscriptionTier; name: string; features: string[] }[] = [
 export const SubscriptionScreen = ({ route, navigation }: Props) => {
   const { colors } = useTheme();
   const dispatch = useDispatch();
-  const { tier, country } = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user);
+  const { tier, country } = user;
   const [selectedTier, setSelectedTier] = useState(tier);
   const [isPayModalVisible, setPayModalVisible] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const { targetScreen } = route.params || {};
   // Display only: the pay sheet shows the server's price, which is what's charged.
   const { exchangeData } = useExchangeRate(country || 'Nigeria');
+
+  if (!canManageSubscriptions(user)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <PageHeader title="Subscription Plans" />
+        <Text style={[styles.intro, { color: colors.text }]}>
+          Your subscription is covered by your institution.
+        </Text>
+      </View>
+    );
+  }
 
   const getLocalPriceValue = React.useCallback(
     (id: string) => {

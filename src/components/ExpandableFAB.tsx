@@ -14,6 +14,7 @@ import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { Lecture } from '../types/firebase';
 import { useAppSelector } from '../hooks/hooks';
 import { useTheme } from '../context/ThemeContext';
+import { canManageSubscriptions } from '../utils/subscriptionAccess';
 
 interface FABProps {
   isVisible: boolean;
@@ -162,9 +163,10 @@ export const ExpandableFAB = ({
     const config = ACTION_CONFIG[label];
     if (!config) return;
 
-    if (label === 'Create Course' && !user?.hasSubscribed) {
+    const institutionUser = user?.usertype === 'student' || user?.usertype === 'lecturer';
+    if (label === 'Create Course' && !institutionUser && !user?.hasSubscribed && canManageSubscriptions(user)) {
       onClose();
-      navigation.navigate('SubscriptionScreen');
+      navigation.navigate('Subscription');
       return;
     } else if (label === 'Live Chat') {
       onChatOpen?.();
@@ -225,8 +227,13 @@ export const ExpandableFAB = ({
         {actions.map((label: string, index: number) => {
           const config = ACTION_CONFIG[label];
           if (!config) return null;
+          const institutionUser =
+            user?.usertype === 'student' || user?.usertype === 'lecturer';
           const isRestricted =
-            label === 'Create Course' && !user?.hasSubscribed;
+            label === 'Create Course' &&
+            !institutionUser &&
+            !user?.hasSubscribed &&
+            canManageSubscriptions(user);
 
           return (
             <Animated.View
@@ -241,7 +248,7 @@ export const ExpandableFAB = ({
                 onPress={() => {
                   if (isRestricted) {
                     onClose();
-                    navigation.navigate('SubscriptionScreen');
+                    navigation.navigate('Subscription');
                   } else {
                     handleAction(label);
                   }

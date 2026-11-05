@@ -7,6 +7,7 @@ export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'seen' | 'deleted
 export type AttachmentType = 'image' | 'video' | 'file';
 export type DeliveryGateway = 'drop_off' | 'home_delivery';
 export type UserTier = 'free' | 'pro' | 'premium'; 
+export type InstitutionTier = 'basic' | 'pro' | 'premium';
 export type ThemeType = 'light' | 'dark' | 'system';
 export type AdminRole = "super_admin" | "moderator" | "support" | "finance" | "analyst" | 'school_administrator';
 export type SuspiciousActivityType = 
@@ -260,7 +261,7 @@ export interface User {
   bio?: string;
   providerId?: string;
   schoolAvatarUrl?: string;
-  institutionTier?: 'basic' | 'pro' | 'enterprise';
+  institutionTier?: InstitutionTier;
   theme: ThemeType;
   subaccountId?: string;
   /** Bank account sellers withdraw to. */
@@ -860,7 +861,7 @@ export interface SchoolMetrics {
     schoolCode: string;
     name: string;
     logo: string | null;
-    tier: 'basic' | 'pro' | 'enterprise';
+    tier: InstitutionTier;
     tierLabel: string;
   };
   access?: { basic: boolean; professional: boolean; enterprise: boolean };
