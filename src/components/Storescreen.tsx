@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -89,6 +89,8 @@ export const StoreScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const isFetchingMoreRef = useRef(false);
+  const previousSearchQueryRef = useRef('');
   const [selectedTab, setSelectedTab] = useState('All');
   const { syncCatalogToDatabase, syncUsersToDatabase } = useAppDataContext();
 
@@ -155,7 +157,14 @@ export const StoreScreen = () => {
   };
 
   useEffect(() => {
-    fetchProducts(selectedTab, searchQuery, searchQuery !== '');
+    const searchChanged =
+      previousSearchQueryRef.current !== searchQuery;
+    fetchProducts(
+      selectedTab,
+      searchQuery,
+      searchQuery !== '' || searchChanged,
+    );
+    previousSearchQueryRef.current = searchQuery;
   }, [selectedTab, searchQuery]);
   useEffect(() => {
     if (publishedVersion > 0) {
@@ -186,9 +195,15 @@ export const StoreScreen = () => {
       : currentTabData.products;
 
   const loadMore = async () => {
-    if (isFetchingMore || !currentTabData.hasMore || !currentTabData.cursor)
+    if (
+      isFetchingMoreRef.current ||
+      isFetchingMore ||
+      !currentTabData.hasMore ||
+      !currentTabData.cursor
+    )
       return;
 
+    isFetchingMoreRef.current = true;
     setIsFetchingMore(true);
     try {
       const result = await fetchProductsAPI({
@@ -212,6 +227,7 @@ export const StoreScreen = () => {
       console.error('Failed to load more products:', error);
     } finally {
       setIsFetchingMore(false);
+      isFetchingMoreRef.current = false;
     }
   };
   useFocusEffect(
@@ -279,6 +295,7 @@ export const StoreScreen = () => {
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
+          contentContainerStyle={styles.listContent}
           ListFooterComponent={
             isFetchingMore ? (
               <ActivityIndicator color={PRIMARY_COLOR} size="small" />
@@ -354,6 +371,9 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     flexGrow: 0,
     height: 52,
+  },
+  listContent: {
+    paddingBottom: 110,
   },
   tab: {
     paddingVertical: 10,

@@ -581,6 +581,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 0,
     paddingVertical: 20,
+    paddingBottom: 110,
   },
 });
 

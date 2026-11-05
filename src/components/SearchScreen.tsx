@@ -308,7 +308,7 @@ export const SearchScreen = () => {
                 renderItem={renderItemCard}
                 numColumns={productColumns}
                 contentContainerStyle={{
-                  paddingBottom: 40,
+                  paddingBottom: 110,
                   marginHorizontal: 15,
                 }}
               />
@@ -414,6 +414,7 @@ const styles = StyleSheet.create({
   emptyStatePadding: {
     flex: 0,
     marginTop: 24,
+    paddingBottom: 110,
   },
   productWrapper: {
     maxWidth: 300,

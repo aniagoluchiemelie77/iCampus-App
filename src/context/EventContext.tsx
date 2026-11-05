@@ -145,6 +145,11 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
   // When the user changes (logout → new login), clear all user-scoped
   // state so data from the previous account never leaks into the new one.
   const prevUserRef = useRef(user);
+  const currentUserRef = useRef(user);
+  const cartMutationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
   useEffect(() => {
     if (prevUserRef.current?.uid !== user?.uid) {
       setPosts([]);
@@ -232,12 +237,12 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     },
     [patchPost],
   );
-  const handleCartItemToggle = async (
+  const handleCartItemToggleInternal = async (
     product: Product,
     selectedSize?: string,
     selectedColor?: string,
   ) => {
-    const previousCart = currentUser?.cart ?? [];
+    const previousCart = currentUserRef.current?.cart ?? [];
     const existingItem = previousCart.find(
       item => item.productId === product.productId,
     );
@@ -267,7 +272,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
       );
     }
 
-    const updatedUser = { ...currentUser, cart: newCart };
+    const updatedUser = { ...currentUserRef.current, cart: newCart };
+    currentUserRef.current = updatedUser;
     console.log('New cart Item: ', newCart);
     setCurrentUser(updatedUser);
     dispatch(setUser(updatedUser));
@@ -281,7 +287,8 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
     console.log('Toggle cart action result: ', result.data);
 
     if (!result.success) {
-      const rollbackUser = { ...currentUser, cart: previousCart };
+      const rollbackUser = { ...currentUserRef.current, cart: previousCart };
+      currentUserRef.current = rollbackUser;
       setCurrentUser(rollbackUser);
       dispatch(setUser(rollbackUser));
       await AsyncStorage.setItem('user', JSON.stringify(rollbackUser));
@@ -290,7 +297,32 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
         type: 'error',
         text2: 'Could not update cart, please retry.',
       });
+      return;
     }
+
+    if (Array.isArray(result.data)) {
+      const syncedUser = { ...currentUserRef.current, cart: result.data };
+      currentUserRef.current = syncedUser;
+      setCurrentUser(syncedUser);
+      dispatch(setUser(syncedUser));
+      await AsyncStorage.setItem('user', JSON.stringify(syncedUser));
+    }
+  };
+  const handleCartItemToggle = (
+    product: Product,
+    selectedSize?: string,
+    selectedColor?: string,
+  ) => {
+    const operation = cartMutationQueueRef.current
+      .catch(() => undefined)
+      .then(() =>
+        handleCartItemToggleInternal(product, selectedSize, selectedColor),
+      );
+    cartMutationQueueRef.current = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
   };
   const handleClearCart = async () => {
     const previousCart = currentUser?.cart ?? [];
