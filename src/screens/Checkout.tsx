@@ -124,8 +124,10 @@ export const CheckoutScreen = () => {
         phone: formattedValue,
         address: deliveryAddress.trim(),
       },
+      buyerLocation: userCoords,
     };
   }, [
+    userCoords,
     isCheckoutPaymentVisible,
     checkoutItems,
     itemDeliveryMethods,

@@ -61,6 +61,9 @@ import {
   useCameraPermission,
 } from 'react-native-vision-camera';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
+import { precheckSelfie } from '../utils/facePrecheck';
+import { MathSymbolBar, insertAtSelection } from './MathSymbolBar';
+import { matchShortAnswer } from '../utils/answerMatching';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { getUniqueId } from 'react-native-device-info';
 import { callGeminiAPI } from '../services/aiServices';
@@ -3598,7 +3601,9 @@ type TestPhase =
   | 'rejected';
 
 type IdentityCheck = {
-  outcome: 'verified' | 'mismatch' | 'error' | 'skipped';
+  // 'retake': rejected on-device (no face, extra people, looking away)
+  // before anything was uploaded.
+  outcome: 'verified' | 'mismatch' | 'error' | 'skipped' | 'retake';
   // Stored as proctoringData.entrySelfieUrl; the backend keys off the
   // "FRAUD_BLOCKED", "Skipped" and "Failed" markers in this string.
   label: string;
@@ -3614,6 +3619,9 @@ type PendingSubmission = {
 
 const MAX_GRACES = 3;
 const MAX_VERIFY_ATTEMPTS = 3;
+// After this many on-device rejections the photo goes to the server anyway,
+// so a detector misread (bad light, glasses) can't block submission.
+const MAX_LOCAL_FACE_REJECTIONS = 2;
 // Leaving the app briefly without it reaching the background (an incoming
 // call screen, the notification shade) is logged but not a strike.
 const BRIEF_INTERRUPTION_MS = 15 * 1000;
@@ -3682,6 +3690,15 @@ export const RenderStudentTest = ({
   // never send a second submission.
   const submitLockRef = useRef(false);
   const verifyAttemptsRef = useRef(0);
+  const localFaceRejectionsRef = useRef(0);
+  // Cursor position in the short-answer box, for the symbol bar.
+  const answerSelectionRef = useRef<{ start: number; end: number } | null>(
+    null,
+  );
+  // A new question starts with the cursor at the end of its answer.
+  useEffect(() => {
+    answerSelectionRef.current = null;
+  }, [currentIndex]);
   const pendingRef = useRef<PendingSubmission | null>(null);
   const gradedAnswersRef = useRef<any[]>([]);
   const cameraRef = useRef<any>(null);
@@ -3821,16 +3838,17 @@ export const RenderStudentTest = ({
       const sAns = (answers[q.id] || '').trim();
       const correctAnswer = String(q.correctAnswer ?? '');
       let isCorrect = false;
+      // false = let AI grading have the final say (free-text answers).
+      let autoGradeConfident = true;
 
       if (q.type === 'MCQ' || q.type === 'TrueFalse') {
         isCorrect = sAns === correctAnswer;
       } else if (q.type === 'ShortAnswer') {
-        const cleanStudent = sAns.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const cleanCorrect = correctAnswer
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '');
-        isCorrect =
-          cleanCorrect.length > 0 && cleanStudent.includes(cleanCorrect);
+        // Keeps symbols ("-5" ≠ "5") and compares numbers by value
+        // ("1/2" = "0.5" = "½").
+        const match = matchShortAnswer(sAns, correctAnswer);
+        isCorrect = match.isCorrect;
+        autoGradeConfident = match.confident;
       }
 
       const pointsEarned = isCorrect ? pointsPerQuestion : 0;
@@ -3843,13 +3861,16 @@ export const RenderStudentTest = ({
         studentAnswer: sAns,
         isCorrect,
         pointsEarned,
+        autoGradeConfident,
       };
     });
 
     return { gradedAnswers, totalScore };
   }, [activeQuestions, answers, pointsPerQuestion]);
 
-  const captureIdentity = async (): Promise<IdentityCheck> => {
+  const captureIdentity = async ({
+    precheck = true,
+  }: { precheck?: boolean } = {}): Promise<IdentityCheck> => {
     if (!user.schoolAvatarUrl) {
       return {
         outcome: 'skipped',
@@ -3864,14 +3885,25 @@ export const RenderStudentTest = ({
         flash: 'off',
         enableShutterSound: false,
       });
-      // Full-resolution captures are several MB; 800px is plenty for matching.
+      // Full-resolution captures are several MB; 512px is plenty for matching
+      // and uploads much faster.
       const resized = await ImageResizer.createResizedImage(
         photo.path,
-        800,
-        800,
+        512,
+        512,
         'JPEG',
-        80,
+        75,
       );
+      if (precheck) {
+        const local = precheckSelfie(resized.uri || resized.path);
+        if (!local.ok) {
+          return {
+            outcome: 'retake',
+            label: `Retake: ${local.issue}`,
+            message: local.message,
+          };
+        }
+      }
       const base64Image = await RNFS.readFile(resized.path, 'base64');
       const verification = await verifyFacialIdentity(
         base64Image,
@@ -3922,21 +3954,36 @@ export const RenderStudentTest = ({
       });
       const resized = await ImageResizer.createResizedImage(
         photo.path,
-        640,
-        640,
+        512,
+        512,
         'JPEG',
         70,
       );
-      const base64Image = await RNFS.readFile(resized.path, 'base64');
-      const res = await verifyFacialIdentity(base64Image, user.schoolAvatarUrl);
-      if (res.isError) {
-        snapshotsRef.current.push({ at, reason, outcome: 'error' });
-        return;
+      // On-device first: no face / extra people / looking away is recorded
+      // instantly without an upload. Only clean shots go to the server
+      // for the identity match.
+      const local = precheckSelfie(resized.uri || resized.path);
+      let res: Awaited<ReturnType<typeof verifyFacialIdentity>>;
+      if (local.ok) {
+        const base64Image = await RNFS.readFile(resized.path, 'base64');
+        res = await verifyFacialIdentity(base64Image, user.schoolAvatarUrl);
+        if (res.isError) {
+          snapshotsRef.current.push({ at, reason, outcome: 'error' });
+          return;
+        }
+      } else {
+        res = {
+          verified: false,
+          faceCount: local.faceCount,
+          lookingAtScreen: local.issue === 'noFace' ? null : false,
+          suspicious: `On-device check: ${local.issue}`,
+        };
       }
       const noFace = res.faceCount === 0;
       const multipleFaces = (res.faceCount ?? 1) > 1;
       const away = noFace || res.lookingAtScreen === false;
-      const mismatch = !res.verified && !noFace;
+      // A local rejection is never treated as an identity mismatch.
+      const mismatch = local.ok && !res.verified && !noFace;
       const outcome: ProctorSnapshot['outcome'] = mismatch
         ? 'mismatch'
         : multipleFaces
@@ -4042,7 +4089,20 @@ export const RenderStudentTest = ({
     goTo('verifying');
     verifyAttemptsRef.current += 1;
 
-    const identity = await captureIdentity();
+    const identity = await captureIdentity({
+      precheck:
+        !forced && localFaceRejectionsRef.current < MAX_LOCAL_FACE_REJECTIONS,
+    });
+    if (identity.outcome === 'retake') {
+      // Nothing reached the server, so this doesn't use up an attempt.
+      verifyAttemptsRef.current -= 1;
+      localFaceRejectionsRef.current += 1;
+      setVerifyMessage(identity.message || null);
+      submitLockRef.current = false;
+      goTo('retryVerify');
+      scheduleNextSnapshotRef.current();
+      return;
+    }
     const canRetry = !forced && verifyAttemptsRef.current < MAX_VERIFY_ATTEMPTS;
     if (identity.outcome === 'mismatch' && canRetry) {
       setVerifyMessage(identity.message || null);
@@ -4058,10 +4118,12 @@ export const RenderStudentTest = ({
     let finalGradedAnswers: any[] = [...gradedAnswers];
     let finalTotalScore = totalScore;
 
+    // Only answers the auto-grader isn't sure about go to AI. Numbers and
+    // exact matches are final, so AI can't mark "-5" correct for "5".
     const shortAnswersToGrade = gradedAnswers
       .filter(ans => {
         const question = activeQuestions.find(q => q.id === ans.questionId);
-        return question?.type === 'ShortAnswer';
+        return question?.type === 'ShortAnswer' && !ans.autoGradeConfident;
       })
       .map(ans => ({
         questionId: ans.questionId,
@@ -4094,6 +4156,12 @@ export const RenderStudentTest = ({
     const sanitizedScore = flagged
       ? 0
       : Number(Math.min(finalTotalScore, test.totalMarks).toFixed(2));
+    // Internal grading hint; not part of the saved submission.
+    finalGradedAnswers = finalGradedAnswers.map(ans => {
+      const saved = { ...ans };
+      delete saved.autoGradeConfident;
+      return saved;
+    });
     gradedAnswersRef.current = finalGradedAnswers;
 
     pendingRef.current = {
@@ -4802,9 +4870,26 @@ export const RenderStudentTest = ({
                   ]}
                   value={answers[currentQuestion.id] || ''}
                   onChangeText={val => selectAnswer(currentQuestion.id, val)}
+                  onSelectionChange={e => {
+                    answerSelectionRef.current = e.nativeEvent.selection;
+                  }}
                   placeholder="Type your answer here..."
                   multiline
                   placeholderTextColor={colors.inputTextHolder}
+                />
+              )}
+              {currentQuestion.type === 'ShortAnswer' && (
+                <MathSymbolBar
+                  style={CourseActionStyles.testSymbolBar}
+                  onInsert={symbol => {
+                    const { text, selection } = insertAtSelection(
+                      answers[currentQuestion.id] || '',
+                      answerSelectionRef.current,
+                      symbol,
+                    );
+                    answerSelectionRef.current = selection;
+                    selectAnswer(currentQuestion.id, text);
+                  }}
                 />
               )}
             </View>
@@ -8146,6 +8231,11 @@ export const CourseActionStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     textAlignVertical: 'top',
+  },
+  testSymbolBar: {
+    marginTop: 10,
+    borderRadius: 14,
+    borderTopWidth: 0,
   },
   testNavRow: {
     flexDirection: 'row',

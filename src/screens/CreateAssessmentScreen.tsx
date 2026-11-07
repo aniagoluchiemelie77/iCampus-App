@@ -29,6 +29,7 @@ import { Question, CreateTestPayload } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { MathSymbolBar, insertAtSelection } from '../components/MathSymbolBar';
 import {
   FormCard,
   FieldLabel,
@@ -60,29 +61,6 @@ type PickerState = { target: 'start' | 'end'; mode: 'date' | 'time' } | null;
 
 const OPTION_LETTERS = 'ABCDEFGH';
 const SUPPORTED_MIME = /^(application\/pdf|image\/|text\/plain)/;
-
-const SYMBOL_GROUPS: { label: string; symbols: string[] }[] = [
-  {
-    label: 'Math',
-    symbols: ['×', '÷', '±', '−', '≠', '≈', '≤', '≥', '√', '∛', 'π', '∞', '°', '%', '½', '¼', '¾', '∫', '∂', '∑', '∏', 'Δ', '∇', '∠', '⊥', '∥', '|x|'],
-  },
-  {
-    label: 'x²',
-    symbols: ['²', '³', 'ⁿ', '⁻¹', '⁺', '⁻', '⁰', '¹', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '₀', '₁', '₂', '₃', '₄', '₅', 'ₙ', 'ₓ'],
-  },
-  {
-    label: 'Greek',
-    symbols: ['α', 'β', 'γ', 'δ', 'ε', 'θ', 'λ', 'μ', 'ρ', 'σ', 'τ', 'φ', 'ω', 'Ω', 'Σ', 'Φ', 'Γ', 'Λ'],
-  },
-  {
-    label: 'Logic',
-    symbols: ['∈', '∉', '⊂', '⊆', '∪', '∩', '∅', '∀', '∃', '¬', '∧', '∨', '⊕', '⇒', '⇔', '≡', '∴', '∵'],
-  },
-  {
-    label: 'Arrows',
-    symbols: ['→', '←', '↔', '⇌', '↑', '↓', '⟶', '⇒'],
-  },
-];
 
 const newQuestion = (): DraftQuestion => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -147,7 +125,6 @@ export const CreateAssessmentScreen = ({ route, navigation }: Props) => {
   const [extracting, setExtracting] = useState<string | null>(null);
   const [saving, setSaving] = useState<'draft' | 'publish' | null>(null);
   const [focused, setFocused] = useState<FieldTarget | null>(null);
-  const [symbolGroup, setSymbolGroup] = useState(0);
   const [showUploadSheet, setShowUploadSheet] = useState(false);
   const selectionRef = useRef({ start: 0, end: 0 });
   const dirtyRef = useRef(false);
@@ -271,14 +248,12 @@ export const CreateAssessmentScreen = ({ route, navigation }: Props) => {
     const q = questions.find(item => item.id === focused.qid);
     const current = valueOf(focused);
     if (!q || current === null) return;
-    const { start: s, end: e } = selectionRef.current;
-    const from = Math.min(Math.max(0, s), current.length);
-    const to = Math.min(Math.max(from, e), current.length);
-    const next = current.slice(0, from) + symbol + current.slice(to);
-    selectionRef.current = {
-      start: from + symbol.length,
-      end: from + symbol.length,
-    };
+    const { text: next, selection } = insertAtSelection(
+      current,
+      selectionRef.current,
+      symbol,
+    );
+    selectionRef.current = selection;
     if (focused.field === 'text') updateQuestion(q.id, { questionText: next });
     else if (focused.field === 'answer')
       updateQuestion(q.id, { correctAnswer: next, answerSource: 'lecturer' });
@@ -992,55 +967,7 @@ export const CreateAssessmentScreen = ({ route, navigation }: Props) => {
         </ScrollView>
 
         {focused ? (
-          <View
-            style={[
-              ui.symbolBar,
-              { backgroundColor: colors.backgroundSecondary, borderTopColor: colors.border + '40' },
-            ]}
-          >
-            <ScrollView
-              horizontal
-              keyboardShouldPersistTaps="always"
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={ui.symbolTabs}
-            >
-              {SYMBOL_GROUPS.map((group, i) => (
-                <TouchableOpacity
-                  key={group.label}
-                  onPress={() => setSymbolGroup(i)}
-                  style={[
-                    ui.symbolTab,
-                    symbolGroup === i && { backgroundColor: colors.primary },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      ui.symbolTabText,
-                      { color: symbolGroup === i ? colors.btnTextColor : colors.text },
-                    ]}
-                  >
-                    {group.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <ScrollView
-              horizontal
-              keyboardShouldPersistTaps="always"
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={ui.symbolRow}
-            >
-              {SYMBOL_GROUPS[symbolGroup].symbols.map(symbol => (
-                <TouchableOpacity
-                  key={symbol}
-                  onPress={() => insertSymbol(symbol === '|x|' ? '||' : symbol)}
-                  style={[ui.symbolKey, { backgroundColor: colors.background }]}
-                >
-                  <Text style={[ui.symbolText, { color: colors.textDarker }]}>{symbol}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <MathSymbolBar onInsert={insertSymbol} />
         ) : (
           <View
             style={[
@@ -1325,20 +1252,6 @@ const ui = StyleSheet.create({
     justifyContent: 'center',
   },
   draftText: { fontSize: 14, fontWeight: '700' },
-  symbolBar: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 6 },
-  symbolTabs: { gap: 6, paddingHorizontal: 10, paddingBottom: 6 },
-  symbolTab: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 },
-  symbolTabText: { fontSize: 12, fontWeight: '700' },
-  symbolRow: { gap: 6, paddingHorizontal: 10 },
-  symbolKey: {
-    minWidth: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  symbolText: { fontSize: 18, fontWeight: '600' },
   sheetOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

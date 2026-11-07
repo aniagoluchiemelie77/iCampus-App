@@ -16,7 +16,7 @@ import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Rate, { AndroidMarket } from 'react-native-rate';
-import { ICAMPUS_APPLE_ID } from '@env';
+import { ICAMPUS_APPLE_ID } from '../config/environment';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { LogoutModal } from '../components/LogoutModal.tsx';
 import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';

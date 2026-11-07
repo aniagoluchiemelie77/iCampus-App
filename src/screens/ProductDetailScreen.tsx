@@ -405,7 +405,9 @@ export const ProductDetailScreen = () => {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.deliveryTitle, { color: colors.textDarker }]}>Home delivery</Text>
                   <Text style={[styles.statMuted, { color: colors.text }]}>
-                    The seller delivers to your address.
+                    {Number(details.salesRadiusKm) > 0
+                      ? `The seller delivers within ${Number(details.salesRadiusKm)} km of their location.`
+                      : 'The seller delivers to your address.'}
                   </Text>
                 </View>
               </View>

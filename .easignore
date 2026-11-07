@@ -5,6 +5,8 @@
 .DS_Store
 local.properties
 .env.local
+# Web build output (npm run web:build)
+/dist
 
 
 

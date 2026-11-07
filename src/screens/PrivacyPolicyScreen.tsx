@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { INBOUND_SUPPORT_URL } from '@env';
+import { INBOUND_SUPPORT_URL } from '../config/environment';
 
 export const PrivacyScreen = () => {
     const { colors } = useTheme();

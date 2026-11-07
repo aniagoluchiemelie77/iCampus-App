@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_API_KEY } from '@env';
+import { GEMINI_API_KEY } from '../config/environment';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import type { Question } from '../types/firebase';
 

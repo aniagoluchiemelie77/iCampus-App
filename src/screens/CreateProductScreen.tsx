@@ -40,6 +40,8 @@ import {
   StepHeader,
   CompleteFormInputs,
   PriceSectionComponent,
+  SalesRadiusSlider,
+  variantRulesFor,
 } from '../components/CreateProductComponents.tsx';
 import { toPercentLabel } from '../screens/Checkout.tsx';
 import { CustomButton } from '../assets/components/AppUIComponents';
@@ -87,6 +89,7 @@ export const CreateProductScreen = ({ route }: any) => {
         dropOffAddress: [],
         colors: [],
         sizes: [],
+        salesRadiusKm: null,
       },
       mediaUrls: [],
     }),
@@ -145,6 +148,8 @@ export const CreateProductScreen = ({ route }: any) => {
     useState<CompleteFormInputs>(initialFormInputs);
   const type =
     nicheToTypeMap[formInputs.niche as Product['niche']] || 'physical';
+  const variantRules = variantRulesFor(formInputs.niche);
+  const salesRadiusKm = formInputs.physicalDetails.salesRadiusKm ?? null;
   const toggleStep = (step: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveStep(activeStep === step ? 0 : step);
@@ -272,6 +277,18 @@ export const CreateProductScreen = ({ route }: any) => {
       return;
     }
 
+    // The radius is measured from where the seller is, so we need a location.
+    if (salesRadiusKm != null && !userCoords) {
+      Toast.show({
+        type: 'error',
+        text1: 'Location needed',
+        text2:
+          'Turn on location so we can limit this listing to buyers within ' +
+          `${salesRadiusKm} km, or set the distance to Anywhere.`,
+      });
+      return;
+    }
+
     const formPayload = {
       title: title.trim(),
       description: description.trim(),
@@ -279,7 +296,14 @@ export const CreateProductScreen = ({ route }: any) => {
       price: Number(price),
       mediaUrls: mediaUrls || [],
       niche: niche as Product['niche'],
-      physicalDetails,
+      physicalDetails: {
+        ...physicalDetails,
+        // Drop variants the chosen niche doesn't use (e.g. sizes on food).
+        colors: variantRules.colors ? physicalDetails.colors || [] : [],
+        sizes: variantRules.sizes ? physicalDetails.sizes || [] : [],
+        salesRadiusKm,
+      },
+      sellerLocation: salesRadiusKm != null ? userCoords : null,
     };
 
     saveDraftToLocalDb(draftKey, formInputs);
@@ -388,6 +412,7 @@ export const CreateProductScreen = ({ route }: any) => {
             dropOffAddress: [],
             colors: [],
             sizes: [],
+            salesRadiusKm: null,
           };
         }
 
@@ -629,138 +654,151 @@ export const CreateProductScreen = ({ route }: any) => {
                     />
                   </View>
                 </View>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Available Colors (Optional)
-                </Text>
-                <View style={styles.tagInputContainer}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        flex: 1,
-                        width: 'auto',
-                        color: colors.text,
-                        marginBottom: 0,
-                      },
-                    ]}
-                    placeholder="e.g. Red, Blue, Matte Black"
-                    value={colorInput}
-                    placeholderTextColor={colors.inputTextHolder}
-                    onChangeText={setColorInput}
-                    onSubmitEditing={handleAddColor}
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.addTagButton,
-                      { backgroundColor: colors.btnColor },
-                    ]}
-                    onPress={handleAddColor}
-                  >
-                    <Text
-                      style={[
-                        styles.addTagButtonText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Add
+                {variantRules.colors && (
+                  <>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                      Available Colors (Optional)
                     </Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.tagWrapper}>
-                  {(formInputs.physicalDetails?.colors || []).map(
-                    (color, index) => (
+                    <View style={styles.tagInputContainer}>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            flex: 1,
+                            width: 'auto',
+                            color: colors.text,
+                            marginBottom: 0,
+                          },
+                        ]}
+                        placeholder="e.g. Red, Blue, Matte Black"
+                        value={colorInput}
+                        placeholderTextColor={colors.inputTextHolder}
+                        onChangeText={setColorInput}
+                        onSubmitEditing={handleAddColor}
+                      />
                       <TouchableOpacity
-                        key={`color-${index}`}
-                        style={styles.tagBadge}
-                        onPress={() =>
-                          setFormInputs((prev: any) => {
-                            const currentColors =
-                              prev.physicalDetails?.colors || [];
-                            return {
-                              ...prev,
-                              physicalDetails: {
-                                ...prev.physicalDetails,
-                                colors: currentColors.filter(
-                                  (c: string) => c !== color,
-                                ),
-                              },
-                            };
-                          })
-                        }
+                        style={[
+                          styles.addTagButton,
+                          { backgroundColor: colors.btnColor },
+                        ]}
+                        onPress={handleAddColor}
                       >
                         <Text
                           style={[
-                            styles.tagText,
-                            { color: `${color}` || colors.text },
+                            styles.addTagButtonText,
+                            { color: colors.btnTextColor },
                           ]}
                         >
-                          {color}
+                          Add
                         </Text>
                       </TouchableOpacity>
-                    ),
-                  )}
-                </View>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  Available Sizes (Optional)
-                </Text>
-                <View style={styles.tagInputContainer}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      { flex: 1, marginBottom: 0, color: colors.text },
-                    ]}
-                    placeholder="e.g. Medium, XL, 42, 10 inches"
-                    value={sizeInput}
-                    placeholderTextColor={colors.inputTextHolder}
-                    onChangeText={setSizeInput}
-                    onSubmitEditing={handleAddSize}
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.addTagButton,
-                      { backgroundColor: colors.btnColor },
-                    ]}
-                    onPress={handleAddSize}
-                  >
-                    <Text
-                      style={[
-                        styles.addTagButtonText,
-                        { color: colors.btnTextColor },
-                      ]}
-                    >
-                      Add
+                    </View>
+                    <View style={styles.tagWrapper}>
+                      {(formInputs.physicalDetails?.colors || []).map(
+                        (color, index) => (
+                          <TouchableOpacity
+                            key={`color-${index}`}
+                            style={styles.tagBadge}
+                            onPress={() =>
+                              setFormInputs((prev: any) => {
+                                const currentColors =
+                                  prev.physicalDetails?.colors || [];
+                                return {
+                                  ...prev,
+                                  physicalDetails: {
+                                    ...prev.physicalDetails,
+                                    colors: currentColors.filter(
+                                      (c: string) => c !== color,
+                                    ),
+                                  },
+                                };
+                              })
+                            }
+                          >
+                            <Text
+                              style={[
+                                styles.tagText,
+                                { color: `${color}` || colors.text },
+                              ]}
+                            >
+                              {color}
+                            </Text>
+                          </TouchableOpacity>
+                        ),
+                      )}
+                    </View>
+                  </>
+                )}
+                {variantRules.sizes && (
+                  <>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                      {variantRules.sizeLabel || 'Available Sizes (Optional)'}
                     </Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.tagWrapper}>
-                  {(formInputs.physicalDetails?.sizes || []).map(
-                    (size, index) => (
-                      <TouchableOpacity
-                        key={`size-${index}`}
-                        style={[styles.tagBadge]}
-                        onPress={() =>
-                          setFormInputs((prev: any) => {
-                            const currentSizes =
-                              prev.physicalDetails?.sizes || [];
-                            return {
-                              ...prev,
-                              physicalDetails: {
-                                ...prev.physicalDetails,
-                                sizes: currentSizes.filter(
-                                  (s: string) => s !== size,
-                                ),
-                              },
-                            };
-                          })
+                    <View style={styles.tagInputContainer}>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          { flex: 1, marginBottom: 0, color: colors.text },
+                        ]}
+                        placeholder={
+                          variantRules.sizePlaceholder ||
+                          'e.g. Small, Medium, XL'
                         }
+                        value={sizeInput}
+                        placeholderTextColor={colors.inputTextHolder}
+                        onChangeText={setSizeInput}
+                        onSubmitEditing={handleAddSize}
+                      />
+                      <TouchableOpacity
+                        style={[
+                          styles.addTagButton,
+                          { backgroundColor: colors.btnColor },
+                        ]}
+                        onPress={handleAddSize}
                       >
-                        <Text style={[styles.tagText, { color: colors.text }]}>
-                          {size}
+                        <Text
+                          style={[
+                            styles.addTagButtonText,
+                            { color: colors.btnTextColor },
+                          ]}
+                        >
+                          Add
                         </Text>
                       </TouchableOpacity>
-                    ),
-                  )}
-                </View>
+                    </View>
+                    <View style={styles.tagWrapper}>
+                      {(formInputs.physicalDetails?.sizes || []).map(
+                        (size, index) => (
+                          <TouchableOpacity
+                            key={`size-${index}`}
+                            style={[styles.tagBadge]}
+                            onPress={() =>
+                              setFormInputs((prev: any) => {
+                                const currentSizes =
+                                  prev.physicalDetails?.sizes || [];
+                                return {
+                                  ...prev,
+                                  physicalDetails: {
+                                    ...prev.physicalDetails,
+                                    sizes: currentSizes.filter(
+                                      (s: string) => s !== size,
+                                    ),
+                                  },
+                                };
+                              })
+                            }
+                          >
+                            <Text
+                              style={[styles.tagText, { color: colors.text }]}
+                            >
+                              {size}
+                            </Text>
+                          </TouchableOpacity>
+                        ),
+                      )}
+                    </View>
+                  </>
+                )}
                 <Text style={[styles.label, { color: colors.text }]}>
                   Fulfillment / Delivery Options
                 </Text>
@@ -901,6 +939,21 @@ export const CreateProductScreen = ({ route }: any) => {
                     />
                   </>
                 )}
+                <Text style={[styles.label, { color: colors.text }]}>
+                  How far can you sell?
+                </Text>
+                <SalesRadiusSlider
+                  value={salesRadiusKm}
+                  onChange={km =>
+                    setFormInputs(prev => ({
+                      ...prev,
+                      physicalDetails: {
+                        ...prev.physicalDetails,
+                        salesRadiusKm: km,
+                      },
+                    }))
+                  }
+                />
               </>
             </View>
           )}
@@ -955,7 +1008,10 @@ export const CreateProductScreen = ({ route }: any) => {
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
                 <Text
-                  style={[styles.modalTitleSecond, { color: colors.textDarker }]}
+                  style={[
+                    styles.modalTitleSecond,
+                    { color: colors.textDarker },
+                  ]}
                 >
                   Choose a category
                 </Text>
@@ -1019,7 +1075,9 @@ export const CreateProductScreen = ({ route }: any) => {
                       <MaterialIcons
                         name={item.icon}
                         size={22}
-                        color={isSelected ? colors.btnTextColor : colors.primary}
+                        color={
+                          isSelected ? colors.btnTextColor : colors.primary
+                        }
                       />
                     </View>
                     <Text
@@ -1372,7 +1430,12 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
-  sheetSubtitle: { fontSize: 12.5, lineHeight: 18, marginTop: 4, opacity: 0.75 },
+  sheetSubtitle: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 4,
+    opacity: 0.75,
+  },
   sheetClose: {
     width: 34,
     height: 34,
@@ -1413,7 +1476,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dropdownValue: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  dropdownValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   videoPreviewWrapper: {
     position: 'relative',
     marginTop: 15,

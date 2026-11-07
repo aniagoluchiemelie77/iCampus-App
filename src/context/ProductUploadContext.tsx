@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { saveProductApiCall } from '../api/localPostApis';
-import type { Product } from '../types/firebase';
+import type { GeoPoint, Product } from '../types/firebase';
 import { useTheme } from './ThemeContext';
 import { useAppDataContext } from './EventContext';
 import {
@@ -36,6 +36,8 @@ type ProductPayload = {
   niche: Product['niche'];
   physicalDetails: NonNullable<Product['physicalDetails']>;
   mediaUrls: string[];
+  /** Where the sales radius is measured from. Sent to the server only. */
+  sellerLocation?: GeoPoint | null;
 };
 
 interface ProductUploadJob {

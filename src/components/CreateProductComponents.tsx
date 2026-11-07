@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  PanResponder,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
@@ -42,9 +43,212 @@ export interface CompleteFormInputs {
     dropOffAddress: DropOffStation[];
     colors: string[];
     sizes: string[];
+    /** How far from the seller buyers can be. null = anywhere. */
+    salesRadiusKm: number | null;
   };
   mediaUrls: string[];
 }
+
+/** Which variant pickers make sense for each niche. */
+export interface NicheVariantRules {
+  colors: boolean;
+  sizes: boolean;
+  sizeLabel?: string;
+  sizePlaceholder?: string;
+}
+const NO_VARIANTS: NicheVariantRules = { colors: false, sizes: false };
+export const NICHE_VARIANTS: Record<string, NicheVariantRules> = {
+  Electronics: { colors: true, sizes: false },
+  Fashion: { colors: true, sizes: true },
+  Footwears: {
+    colors: true,
+    sizes: true,
+    sizePlaceholder: 'e.g. 40, 42, 44, UK 9',
+  },
+  Stationery: { colors: true, sizes: false },
+  'Health & Beauty': {
+    colors: false,
+    sizes: true,
+    sizeLabel: 'Available Sizes / Volumes (Optional)',
+    sizePlaceholder: 'e.g. 50ml, 100ml, 250g',
+  },
+  'Snacks and Deserts': NO_VARIANTS,
+  Food: NO_VARIANTS,
+};
+export const variantRulesFor = (niche?: string): NicheVariantRules =>
+  (niche && NICHE_VARIANTS[niche]) || NO_VARIANTS;
+
+// ---------------------------------------------------------------------------
+// Sales radius slider (Tinder-style "maximum distance")
+// ---------------------------------------------------------------------------
+export const SALES_RADIUS_MIN_KM = 1;
+export const SALES_RADIUS_MAX_KM = 100;
+// One stop past the max means "Anywhere".
+const ANYWHERE_STOP = SALES_RADIUS_MAX_KM + 1;
+const STOP_SPAN = ANYWHERE_STOP - SALES_RADIUS_MIN_KM;
+const THUMB_SIZE = 26;
+
+const stopFor = (km: number | null) =>
+  km == null
+    ? ANYWHERE_STOP
+    : Math.min(Math.max(km, SALES_RADIUS_MIN_KM), SALES_RADIUS_MAX_KM);
+const kmForStop = (stop: number) => (stop >= ANYWHERE_STOP ? null : stop);
+
+export const formatSalesRadius = (km: number | null | undefined) =>
+  km == null ? 'Anywhere' : `${km} km`;
+
+export const SalesRadiusSlider = ({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (km: number | null) => void;
+}) => {
+  const { colors } = useTheme();
+  const trackRef = useRef<View>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const widthRef = useRef(0);
+  const originRef = useRef(0);
+  const lastStopRef = useRef(stopFor(value));
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  lastStopRef.current = stopFor(value);
+
+  const updateFromX = (x: number) => {
+    const usable = widthRef.current - THUMB_SIZE;
+    if (usable <= 0) return;
+    const fraction = Math.min(Math.max((x - THUMB_SIZE / 2) / usable, 0), 1);
+    const stop = Math.round(SALES_RADIUS_MIN_KM + fraction * STOP_SPAN);
+    if (stop !== lastStopRef.current) {
+      lastStopRef.current = stop;
+      onChangeRef.current(kmForStop(stop));
+    }
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      // Keep the parent ScrollView from stealing the drag.
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: (_evt, gesture) => {
+        const startX = gesture.x0;
+        trackRef.current?.measure((_x, _y, _w, _h, pageX) => {
+          originRef.current = pageX;
+          updateFromX(startX - pageX);
+        });
+      },
+      onPanResponderMove: (_evt, gesture) =>
+        updateFromX(gesture.moveX - originRef.current),
+    }),
+  ).current;
+
+  const fraction = (stopFor(value) - SALES_RADIUS_MIN_KM) / STOP_SPAN;
+  const thumbLeft = fraction * Math.max(trackWidth - THUMB_SIZE, 0);
+  const step = (delta: number) => {
+    const next = Math.min(
+      Math.max(stopFor(value) + delta, SALES_RADIUS_MIN_KM),
+      ANYWHERE_STOP,
+    );
+    onChange(kmForStop(next));
+  };
+
+  return (
+    <View style={sliderStyles.wrapper}>
+      <View style={sliderStyles.headerRow}>
+        <Text style={[sliderStyles.title, { color: colors.text }]}>
+          Maximum distance
+        </Text>
+        <Text style={[sliderStyles.value, { color: colors.primary }]}>
+          {formatSalesRadius(value)}
+        </Text>
+      </View>
+      <View
+        ref={trackRef}
+        style={sliderStyles.touchArea}
+        onLayout={e => {
+          widthRef.current = e.nativeEvent.layout.width;
+          setTrackWidth(e.nativeEvent.layout.width);
+        }}
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel="Maximum selling distance"
+        accessibilityValue={{ text: formatSalesRadius(value) }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={e =>
+          step(e.nativeEvent.actionName === 'increment' ? 5 : -5)
+        }
+        {...panResponder.panHandlers}
+      >
+        <View
+          style={[sliderStyles.track, { backgroundColor: colors.border }]}
+        />
+        <View
+          style={[
+            sliderStyles.trackFill,
+            {
+              width: thumbLeft + THUMB_SIZE / 2,
+              backgroundColor: colors.primary,
+            },
+          ]}
+        />
+        <View
+          style={[
+            sliderStyles.thumb,
+            {
+              left: thumbLeft,
+              backgroundColor: colors.primary,
+              borderColor: colors.background,
+            },
+          ]}
+        />
+      </View>
+      <View style={sliderStyles.scaleRow}>
+        <Text style={[sliderStyles.scaleText, { color: colors.text }]}>
+          {SALES_RADIUS_MIN_KM} km
+        </Text>
+        <Text style={[sliderStyles.scaleText, { color: colors.text }]}>
+          Anywhere
+        </Text>
+      </View>
+      <Text style={[sliderStyles.hint, { color: colors.text }]}>
+        {value == null
+          ? 'Buyers anywhere can see and order this listing.'
+          : `Only buyers within ${value} km of where you are now can see and order this listing, so delivery trips stay short.`}
+      </Text>
+    </View>
+  );
+};
+
+const sliderStyles = StyleSheet.create({
+  wrapper: { marginBottom: 20 },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  title: { fontSize: 13, fontWeight: '600' },
+  value: { fontSize: 15, fontWeight: '800' },
+  touchArea: { height: 40, justifyContent: 'center' },
+  track: { height: 4, borderRadius: 2 },
+  trackFill: { position: 'absolute', left: 0, height: 4, borderRadius: 2 },
+  thumb: {
+    position: 'absolute',
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: THUMB_SIZE / 2,
+    borderWidth: 3,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  scaleRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  scaleText: { fontSize: 11, opacity: 0.6 },
+  hint: { fontSize: 12, lineHeight: 18, marginTop: 8, opacity: 0.8 },
+});
 
 export function PriceSectionComponent({
   userCountry = 'Nigeria',

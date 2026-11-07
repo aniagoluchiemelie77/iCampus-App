@@ -10,6 +10,10 @@ import {
   getStudentLecturesTimeline,
 } from '../api/localGetApis';
 import { openLecturerAttendance, openStudentAttendance } from '../utils/attendance';
+import {
+  hasTakenAttendance,
+  wasAttendanceEndedThisRun,
+} from '../utils/lectureAttendance';
 import { addLectureToCalendar } from '../utils/lectureCalendar';
 import {
   formatClock,
@@ -21,8 +25,10 @@ import {
 
 /**
  * Classroom tab shortcut for today's classes: physical lectures get a one-tap
- * Take / Mark attendance button, online lectures a Start / Join button.
- * Renders nothing when there are no classes today.
+ * attendance button (Start / Continue / Redo for lecturers, Mark for
+ * students) once the class has started; online lectures a Start / Join
+ * button during their scheduled time. Renders nothing when there are no
+ * classes today.
  */
 export const TodayAttendanceCard = ({
   role,
@@ -50,8 +56,12 @@ export const TodayAttendanceCard = ({
 
   useEffect(() => {
     load();
-    // Refresh when Home regains focus (e.g. after taking attendance).
-    const unsubscribe = navigation.addListener('focus', load);
+    // Refresh when Home regains focus (e.g. after taking attendance). The
+    // clock tick re-renders even if the reload fails, so the label updates.
+    const unsubscribe = navigation.addListener('focus', () => {
+      setClock(Date.now());
+      load();
+    });
     return unsubscribe;
   }, [load, navigation, refreshKey]);
 
@@ -149,11 +159,15 @@ export const TodayAttendanceCard = ({
         const start = resolveLectureTime(lecture, 'start');
         const isOnline = lecture.lectureType !== 'Physical';
         const withinScheduledTime = isLectureWithinScheduledTime(lecture, clock);
+        const hasStarted = !!start && start.getTime() <= clock;
+        // A session ended in this run wins over a stale "open" from the server.
         const open = isOnline
           ? (lecture.status === 'ongoing' || !!lecture.isLive) &&
             withinScheduledTime
-          : !!(lecture as any).attendanceOpen;
-        const showClassAction = !isOnline || withinScheduledTime;
+          : !!lecture.attendanceOpen && !wasAttendanceEndedThisRun(lecture.id);
+        const attendanceTaken = !isOnline && hasTakenAttendance(lecture);
+        // Physical: from the start time on (late attendance is allowed).
+        const showClassAction = isOnline ? withinScheduledTime : hasStarted;
         const canAddToCalendar =
           !!start &&
           start.getTime() > clock &&
@@ -164,7 +178,7 @@ export const TodayAttendanceCard = ({
             ? open ? 'Rejoin' : 'Start'
             : 'Join'
           : role === 'lecturer'
-            ? open ? 'Continue' : 'Start'
+            ? open ? 'Continue' : attendanceTaken ? 'Redo' : 'Start'
             : 'Mark';
         return (
           <View key={lecture.id} style={[styles.row, { backgroundColor: colors.backgroundSecondary }]}>

@@ -437,6 +437,10 @@ export interface DropOffStation {
   status: "pending" | "confirmed";
   createdAt:  Date | string;
 }
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
 export interface Product {
   _id?: string;
   id: string;
@@ -462,6 +466,8 @@ export interface Product {
     sellerGateways: DeliveryGateway[];
     isNationalShippingAvailable?: boolean;
     dropOffAddress: DropOffStation[];
+    /** Seller's maximum selling distance in km; null/absent = anywhere. */
+    salesRadiusKm?: number | null;
   };
   ratings: {
     userId: string;
@@ -664,6 +670,10 @@ export interface Lecture {
   resources?: string[];
   attendance?: User.uid[];
   getAttendanceMode?: 'Uploaded' | 'Online'; 
+  /** Physical class: students can check in right now. */
+  attendanceOpen?: boolean;
+  /** Physical class: when the lecturer last finished taking attendance. */
+  attendanceTakenAt?: Date | string;
   isLecturerMuted?: boolean;   
   isLecturerCameraOn?: boolean;
   lecturerCameraUrl?: string; 

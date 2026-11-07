@@ -1413,6 +1413,15 @@ export const saveProductApiCall = async (
     body.sizes = physical.sizes || [];
     body.sellerGateways = physical.sellerGateways || [];
     body.dropOffAddress = physical.dropOffAddress || [];
+    const radius = Number(physical.salesRadiusKm);
+    body.salesRadiusKm =
+      physical.salesRadiusKm != null && radius > 0 ? radius : null;
+    body.sellerLocation =
+      body.salesRadiusKm != null &&
+      Number.isFinite(payload.sellerLocation?.lat) &&
+      Number.isFinite(payload.sellerLocation?.lng)
+        ? { lat: payload.sellerLocation.lat, lng: payload.sellerLocation.lng }
+        : null;
   }
 
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -1875,6 +1884,9 @@ export const verifyFacialIdentity = async (
       },
       body: JSON.stringify({
         selfieBase64: base64Image,
+        // Ignored by current servers, which use the photo on the student's
+        // record (a client-chosen reference could be spoofed). Kept so
+        // older backends still work during a rollout.
         targetImageUrl: schoolAvatarUrl,
       }),
       signal,
@@ -2601,7 +2613,13 @@ const postJson = async <T,>(path: string, body: any, idempotent = false): Promis
 export const createPaymentIntentAPI = (
   body:
     | { purpose: 'subscription'; tier: string }
-    | { purpose: 'checkout'; items: any[]; shippingContact?: { phone?: string; address?: string } },
+    | {
+        purpose: 'checkout';
+        items: any[];
+        shippingContact?: { phone?: string; address?: string };
+        /** Lets the server enforce each seller's sales radius. */
+        buyerLocation?: { lat: number; lng: number } | null;
+      },
 ) => postJson<PaymentIntent>('/users/payments/intent', body);
 
 /**

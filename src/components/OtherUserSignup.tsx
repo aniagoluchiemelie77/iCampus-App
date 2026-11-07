@@ -15,7 +15,7 @@ import Toast from 'react-native-toast-message';
 import { selectImage } from './SelectImage';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { WEB_CLIENT_ID } from '@env';
+import { WEB_CLIENT_ID } from '../config/environment';
 import { useDispatch } from 'react-redux';
 import {
   completeSignup,
@@ -34,7 +34,7 @@ import {
   isValidWebsite,
 } from '../utils/SignupHelpers';
 import { authorize } from 'react-native-app-auth';
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '@env';
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } from '../config/environment';
 import DeviceInfo from 'react-native-device-info';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { formatSignupTime } from '../utils/ChatTimestampFormatter';

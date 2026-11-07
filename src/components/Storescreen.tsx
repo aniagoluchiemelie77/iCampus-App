@@ -20,6 +20,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppDataContext } from '../context/EventContext';
 import { useProductUpload } from '../context/ProductUploadContext';
+import { useLocationServices } from '../hooks/useLocationService.ts';
 
 interface IconButtonProps {
   onPress: () => void;
@@ -93,6 +94,16 @@ export const StoreScreen = () => {
   const previousSearchQueryRef = useRef('');
   const [selectedTab, setSelectedTab] = useState('All');
   const { syncCatalogToDatabase, syncUsersToDatabase } = useAppDataContext();
+  // Sent with every request so the server can hide listings whose seller
+  // doesn't sell as far as this buyer.
+  const { userCoords } = useLocationServices();
+  const userCoordsRef = useRef(userCoords);
+  userCoordsRef.current = userCoords;
+  const locationAppliedRef = useRef(false);
+  const locationParams = () =>
+    userCoordsRef.current
+      ? { lat: userCoordsRef.current.lat, lng: userCoordsRef.current.lng }
+      : {};
 
   const [tabData, setTabData] = useState<
     Record<
@@ -135,6 +146,7 @@ export const StoreScreen = () => {
         category: getCategoryParam(tab),
         cursor: currentCursor,
         limit: 10,
+        ...locationParams(),
       });
 
       if (result.success) {
@@ -166,6 +178,24 @@ export const StoreScreen = () => {
     );
     previousSearchQueryRef.current = searchQuery;
   }, [selectedTab, searchQuery]);
+  // The first page may have loaded before the location did; reload once with
+  // it, and clear the other tabs so they reload with it too.
+  useEffect(() => {
+    if (!userCoords || locationAppliedRef.current) return;
+    locationAppliedRef.current = true;
+    setTabData(prev =>
+      Object.fromEntries(
+        Object.entries(prev).map(([tab, data]) => [
+          tab,
+          tab === selectedTab
+            ? data
+            : { products: [], cursor: null, hasMore: true },
+        ]),
+      ),
+    );
+    fetchProducts(selectedTab, searchQuery, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userCoords]);
   useEffect(() => {
     if (publishedVersion > 0) {
       fetchProducts(selectedTab, searchQuery, true);
@@ -211,6 +241,7 @@ export const StoreScreen = () => {
         category: getCategoryParam(selectedTab),
         cursor: currentTabData.cursor,
         limit: 10,
+        ...locationParams(),
       });
 
       if (result.success) {

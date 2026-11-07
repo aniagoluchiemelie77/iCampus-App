@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../services/firebaseConfig"; 
-import {CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET} from '@env';
+import {CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET} from '../config/environment';
 
 export const uploadToFirebase = async (fileUri: string, folder: string = "uploads") => {
   try {

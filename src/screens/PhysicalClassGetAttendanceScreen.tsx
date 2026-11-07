@@ -11,7 +11,7 @@ import {
 import NativeProperty from 'react-native-ble-peripheral';
 import { useAppSelector } from '../hooks/hooks';
 import { baseUrl } from '../components/HomeScreenComponents';
-import { SERVICE_UUID } from '@env';
+import { SERVICE_UUID } from '../config/environment';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { formatTime } from '../utils/durationFormatter';
@@ -29,6 +29,10 @@ import {
   ensureBluetoothOn,
   ensureBluetoothPermissions,
 } from '../utils/attendance';
+import {
+  markAttendanceSessionEnded,
+  markAttendanceSessionStarted,
+} from '../utils/lectureAttendance';
 import { formatClock, resolveLectureTime } from '../utils/lectureTime';
 
 type AttendanceStatus = 'idle' | 'starting' | 'fetching' | 'completed';
@@ -95,6 +99,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       lectureId: lecture.id,
       lecturerId: user.uid,
     });
+    markAttendanceSessionStarted(lecture.id);
   }, [socketRef, lecture.id, user.uid]);
 
   const beginBroadcast = async (seconds: number) => {
@@ -113,6 +118,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
   const endSession = useCallback(() => {
     stopBeacon();
     socketRef.current?.emit('end_attendance_session', { lectureId: lecture.id });
+    markAttendanceSessionEnded(lecture.id);
     setSecondsLeft(0);
     setStatus('completed');
   }, [socketRef, lecture.id]);
@@ -164,6 +170,7 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       stopBeacon();
       if (statusRef.current === 'fetching') {
         socketRef.current?.emit('end_attendance_session', { lectureId: lecture.id });
+        markAttendanceSessionEnded(lecture.id);
       }
       socketRef.current?.disconnect();
     },

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { EXCHANGERATE_API_KEY, VERVE_SEARCH_API_KEY } from '@env';
+import { EXCHANGERATE_API_KEY, VERVE_SEARCH_API_KEY } from '../config/environment';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CACHE_KEY = 'EXCHANGE_RATE_CACHE';

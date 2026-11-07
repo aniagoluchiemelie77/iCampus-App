@@ -12,6 +12,21 @@ fs.copyFileSync(
   path.join(dist, 'index.html'),
 );
 
+// Icon fonts referenced by @font-face in public/index.html.
+const fonts = path.join(dist, 'fonts');
+fs.mkdirSync(fonts, { recursive: true });
+for (const font of [
+  'react-native-vector-icons/Fonts/MaterialIcons.ttf',
+  'react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf',
+  '@ant-design/icons-react-native/fonts/antfill.ttf',
+  '@ant-design/icons-react-native/fonts/antoutline.ttf',
+]) {
+  fs.copyFileSync(
+    path.join(root, 'node_modules', font),
+    path.join(fonts, path.basename(font)),
+  );
+}
+
 const result = spawnSync(
   path.join(root, 'node_modules', '.bin', 'react-native.cmd'),
   [
@@ -28,7 +43,13 @@ const result = spawnSync(
     '--assets-dest',
     path.join(dist, 'assets'),
   ],
-  { cwd: root, stdio: 'inherit', shell: true },
+  {
+    cwd: root,
+    stdio: 'inherit',
+    shell: true,
+    // Tells metro.config.js to skip native-only startup code (see there).
+    env: { ...process.env, ICAMPUS_WEB_BUILD: '1' },
+  },
 );
 
 if (result.status !== 0) {

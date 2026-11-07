@@ -3,6 +3,7 @@
 .DS_Store
 local.properties
 .env.local
+.env
 # Xcode
 #
 build/
@@ -80,3 +81,6 @@ yarn-error.log
 # Local secrets and debug bundles (the bundle inlines .env values)
 .env
 .tmp_bundle/
+
+# Web build output (npm run web:build)
+/dist

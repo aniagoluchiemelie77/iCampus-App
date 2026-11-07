@@ -322,7 +322,17 @@ export const fetchProductsAPI = async (
     q = '', 
     category = 'all', 
     cursor = '', 
-    limit = 10 
+    limit = 10,
+    lat,
+    lng,
+  }: {
+    q?: string;
+    category?: string;
+    cursor?: string;
+    limit?: number;
+    /** Buyer location: hides listings outside each seller's sales radius. */
+    lat?: number;
+    lng?: number;
   },
   maxRetries = 3
 ) => {
@@ -340,7 +350,9 @@ export const fetchProductsAPI = async (
       const queryParam = encodeURIComponent(q);
       const cursorParam = encodeURIComponent(cursor);
       
-      const url = `${cleanBaseUrl}/store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursorParam}&limit=${limit}`;
+      const locationParam =
+        Number.isFinite(lat) && Number.isFinite(lng) ? `&lat=${lat}&lng=${lng}` : '';
+      const url = `${cleanBaseUrl}/store/get-store-products?q=${queryParam}&category=${categoryParam}&cursor=${cursorParam}&limit=${limit}${locationParam}`;
       const headers = { 'Content-Type': 'application/json' };
       
       const response = await fetchWithAuth(url, {

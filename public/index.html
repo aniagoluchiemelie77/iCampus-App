@@ -12,6 +12,18 @@
         padding: 0;
         overflow-x: hidden;
       }
+      /* React Native Web's app root is flex: 1, so its parent must be flex
+         for the app to fill the window (otherwise it stops part-way down). */
+      #root {
+        display: flex;
+        flex-direction: column;
+      }
+      /* Icon fonts, copied into dist/fonts by scripts/build-web.js. The
+         family names are what the icon libraries use on web. */
+      @font-face { font-family: 'MaterialIcons'; src: url('./fonts/MaterialIcons.ttf') format('truetype'); }
+      @font-face { font-family: 'MaterialCommunityIcons'; src: url('./fonts/MaterialCommunityIcons.ttf') format('truetype'); }
+      @font-face { font-family: 'antfill'; src: url('./fonts/antfill.ttf') format('truetype'); }
+      @font-face { font-family: 'antoutline'; src: url('./fonts/antoutline.ttf') format('truetype'); }
     </style>
   </head>
   <body>

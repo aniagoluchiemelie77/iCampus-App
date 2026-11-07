@@ -23,11 +23,16 @@ import { useAppSelector } from '../hooks/hooks';
 import { SocketContext } from '../hooks/useSocket';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
-import { SERVICE_UUID } from '@env';
+import { SERVICE_UUID } from '../config/environment';
 import { GetAttendanceScreenStyles } from './PhysicalClassGetAttendanceScreen';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { formatTime } from '../utils/durationFormatter';
+import { precheckSelfie } from '../utils/facePrecheck';
+
+// After this many on-device rejections the photo goes to the server anyway,
+// so a detector misread (bad light, glasses) can't lock a student out.
+const MAX_LOCAL_FACE_REJECTIONS = 2;
 import { verifyFacialIdentity } from '../api/localPostApis';
 import Modal from 'react-native-modal';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
@@ -58,6 +63,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
   const [status, setStatus] = useState<Status>('idle');
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const localFaceRejectionsRef = useRef(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(SEARCH_SECONDS);
   const device = useCameraDevice('front');
@@ -113,11 +119,23 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
     setIsProcessingAI(true);
     try {
       const photoFile = await cameraRef.current.takePhoto({ flash: 'off', enableShutterSound: false });
-      const resized = await ImageResizer.createResizedImage(photoFile.path, 800, 800, 'JPEG', 80);
+      // 512px is plenty for a face match and uploads ~2.5x faster than 800px.
+      const resized = await ImageResizer.createResizedImage(photoFile.path, 512, 512, 'JPEG', 75);
+      // Instant on-device check; keeps the camera open for a retake.
+      if (localFaceRejectionsRef.current < MAX_LOCAL_FACE_REJECTIONS) {
+        const precheck = precheckSelfie(resized.uri || resized.path);
+        if (!precheck.ok) {
+          localFaceRejectionsRef.current += 1;
+          setIsProcessingAI(false);
+          Toast.show({ type: 'info', text1: 'Retake your selfie', text2: precheck.message });
+          return;
+        }
+      }
       const base64Image = await RNFS.readFile(resized.path, 'base64');
       const result = await verifyFacialIdentity(base64Image, user.schoolAvatarUrl!);
       setIsProcessingAI(false);
       if (result.verified) {
+        localFaceRejectionsRef.current = 0;
         setShowCamera(false);
         dispatchAttendancePayload();
       } else {

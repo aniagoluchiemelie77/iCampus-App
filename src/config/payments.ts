@@ -1,4 +1,4 @@
-import { FLUTTERWAVE_PUBLIC_KEY } from '@env';
+import { FLUTTERWAVE_PUBLIC_KEY } from './environment';
 
 /**
  * Flutterwave public key (FLWPUBK-...). Safe to ship in the app; the secret
