@@ -941,6 +941,8 @@ export const CreateProductScreen = ({ route }: any) => {
                   How far can you sell?
                 </Text>
                 <SalesRadiusSlider
+                  origin={userCoords}
+                  campus={user?.schoolName}
                   value={salesRadiusKm}
                   onChange={km =>
                     setFormInputs(prev => ({

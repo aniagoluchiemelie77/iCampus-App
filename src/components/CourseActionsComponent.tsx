@@ -57,9 +57,12 @@ import { useAppSelector } from '../hooks/hooks';
 import { Picker } from '@react-native-picker/picker';
 import {
   Camera,
+  CommonResolutions,
   useCameraDevice,
   useCameraPermission,
+  usePhotoOutput,
 } from 'react-native-vision-camera';
+import { LivenessCamera, LivenessResult } from './LivenessCamera';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { precheckSelfie } from '../utils/facePrecheck';
 import { MathSymbolBar, insertAtSelection } from './MathSymbolBar';
@@ -3593,6 +3596,8 @@ export const RenderLecturerTestManage = ({
 type TestPhase =
   | 'intro'
   | 'active'
+  // Final identity check: blink + one random action before the photo.
+  | 'liveness'
   | 'verifying'
   | 'retryVerify'
   | 'submitting'
@@ -3701,7 +3706,22 @@ export const RenderStudentTest = ({
   }, [currentIndex]);
   const pendingRef = useRef<PendingSubmission | null>(null);
   const gradedAnswersRef = useRef<any[]>([]);
-  const cameraRef = useRef<any>(null);
+  // VisionCamera v5 takes photos through a photo output (ref.takePhoto() no
+  // longer exists). Used by the small proctoring camera.
+  const proctorPhotoOutput = usePhotoOutput({
+    targetResolution: CommonResolutions.HD_4_3,
+    qualityPrioritization: 'speed',
+  });
+  const proctorOutputs = useMemo(() => [proctorPhotoOutput], [proctorPhotoOutput]);
+  const captureProctorPhoto = async () =>
+    (
+      await proctorPhotoOutput.capturePhotoToFile(
+        { flashMode: 'off', enableShutterSound: false },
+        {},
+      )
+    ).filePath;
+  const [livenessAttempt, setLivenessAttempt] = useState(0);
+  const livenessResultRef = useRef<LivenessResult | 'skipped'>('skipped');
   const device = useCameraDevice('front');
   const { hasPermission, requestPermission } = useCameraPermission();
   // Wall-clock deadline: JS timers pause in the background, so counting down
@@ -3731,7 +3751,9 @@ export const RenderStudentTest = ({
     (answers[q.id] || '').trim(),
   ).length;
   const isStarted = phase !== 'intro';
-  const isTestLive = phase === 'active' || phase === 'retryVerify';
+  // The clock keeps running during the liveness check.
+  const isTestLive =
+    phase === 'active' || phase === 'retryVerify' || phase === 'liveness';
   const isFinal = phase === 'done' || phase === 'rejected';
   const pointsPerQuestion =
     totalQuestions > 0
@@ -3870,25 +3892,22 @@ export const RenderStudentTest = ({
 
   const captureIdentity = async ({
     precheck = true,
-  }: { precheck?: boolean } = {}): Promise<IdentityCheck> => {
+    photoPath,
+  }: { precheck?: boolean; photoPath?: string } = {}): Promise<IdentityCheck> => {
     if (!user.schoolAvatarUrl) {
       return {
         outcome: 'skipped',
         label: 'Skipped: Missing baseline profile configuration picture.',
       };
     }
-    if (!cameraRef.current) {
-      return { outcome: 'error', label: 'Not Verified / Snap Failed' };
-    }
     try {
-      const photo = await cameraRef.current.takePhoto({
-        flash: 'off',
-        enableShutterSound: false,
-      });
+      // The liveness camera's photo when there is one; otherwise (forced
+      // submit) a silent shot from the proctoring camera.
+      const sourcePath = photoPath ?? (await captureProctorPhoto());
       // Full-resolution captures are several MB; 512px is plenty for matching
       // and uploads much faster.
       const resized = await ImageResizer.createResizedImage(
-        photo.path,
+        sourcePath,
         512,
         512,
         'JPEG',
@@ -3942,18 +3961,14 @@ export const RenderStudentTest = ({
   // different person can't sit the test and hand back for the final check,
   // and so looking away / extra people in frame are noticed.
   const takeProctorSnapshot = async (reason: ProctorSnapshot['reason']) => {
-    if (snapshotBusyRef.current || !cameraRef.current || !user.schoolAvatarUrl)
-      return;
+    if (snapshotBusyRef.current || !user.schoolAvatarUrl) return;
     if (phaseRef.current !== 'active' || appState.current !== 'active') return;
     snapshotBusyRef.current = true;
     const at = new Date().toISOString();
     try {
-      const photo = await cameraRef.current.takePhoto({
-        flash: 'off',
-        enableShutterSound: false,
-      });
+      const photoPath = await captureProctorPhoto();
       const resized = await ImageResizer.createResizedImage(
-        photo.path,
+        photoPath,
         512,
         512,
         'JPEG',
@@ -4083,15 +4098,51 @@ export const RenderStudentTest = ({
   }, [onSubmit, test.totalMarks, goTo]);
 
   const handleFinalSubmit = async (forced = false) => {
-    if (submitLockRef.current) return;
+    // A forced submit (time up, too many violations) may interrupt the
+    // liveness check; anything else waits for the current submit.
+    const interruptingLiveness = forced && phaseRef.current === 'liveness';
+    if (submitLockRef.current && !interruptingLiveness) return;
     submitLockRef.current = true;
     if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    // Interactive liveness check first, so a photo held up to the camera
+    // can't pass. Not on a forced submit: nobody is waiting to do it.
+    if (!forced && user.schoolAvatarUrl && hasPermission && device) {
+      setLivenessAttempt(a => a + 1);
+      goTo('liveness');
+      return;
+    }
+    livenessResultRef.current = 'skipped';
+    await completeFinalSubmit(forced);
+  };
+
+  /** LivenessCamera passed and took the photo. */
+  const handleLivenessCaptured = (photoPath: string, liveness: LivenessResult) => {
+    if (phaseRef.current !== 'liveness') return; // a forced submit took over
+    livenessResultRef.current = liveness;
+    completeFinalSubmit(false, photoPath);
+  };
+
+  /** Liveness check failed or was cancelled: back to the test, no attempt used. */
+  const leaveLiveness = (message?: string) => {
+    if (phaseRef.current !== 'liveness') return;
+    submitLockRef.current = false;
+    if (message) {
+      setVerifyMessage(message);
+      goTo('retryVerify');
+    } else {
+      goTo('active');
+    }
+    scheduleNextSnapshotRef.current();
+  };
+
+  const completeFinalSubmit = async (forced: boolean, photoPath?: string) => {
     goTo('verifying');
     verifyAttemptsRef.current += 1;
 
     const identity = await captureIdentity({
       precheck:
         !forced && localFaceRejectionsRef.current < MAX_LOCAL_FACE_REJECTIONS,
+      photoPath,
     });
     if (identity.outcome === 'retake') {
       // Nothing reached the server, so this doesn't use up an attempt.
@@ -4181,6 +4232,9 @@ export const RenderStudentTest = ({
         proctoringData: {
           deviceId: submissionMetadata?.deviceId || 'Unknown Device',
           entrySelfieUrl: identity.label,
+          // 'passed': blinked etc. on camera before the photo. 'skipped':
+          // forced submit. 'unavailable': device couldn't run the check.
+          liveness: livenessResultRef.current,
           // Times the student actually left the app (strikes).
           tabSwitchCount: interruptionsRef.current.filter(i => i.counted)
             .length,
@@ -4942,6 +4996,36 @@ export const RenderStudentTest = ({
       )}
 
       <Modal
+        visible={phase === 'liveness'}
+        animationType="slide"
+        onRequestClose={() => leaveLiveness()}
+      >
+        <View style={CourseActionStyles.testLivenessContainer}>
+          <Text style={CourseActionStyles.testLivenessTitle}>
+            Confirm it's you
+          </Text>
+          <Text style={CourseActionStyles.testLivenessSub}>
+            Follow the prompts. Your photo is taken automatically.
+          </Text>
+          <LivenessCamera
+            key={livenessAttempt}
+            style={CourseActionStyles.testLivenessCamera}
+            isActive={phase === 'liveness'}
+            onCaptured={handleLivenessCaptured}
+            onFailed={message => leaveLiveness(message)}
+          />
+          <TouchableOpacity
+            style={CourseActionStyles.testLinkBtn}
+            onPress={() => leaveLiveness()}
+          >
+            <Text style={[CourseActionStyles.testLinkText, { color: '#fff' }]}>
+              Back to questions
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      <Modal
         visible={phase === 'verifying' || phase === 'submitting'}
         transparent
         animationType="fade"
@@ -5280,16 +5364,18 @@ export const RenderStudentTest = ({
         buttons={buttons}
         colors={colors}
       />
-      {device != null && hasPermission && isStarted && !isFinal && (
+      {device != null &&
+        hasPermission &&
+        isStarted &&
+        !isFinal &&
+        // The liveness check needs the front camera to itself.
+        phase !== 'liveness' && (
         <View style={CourseActionStyles.testMiniCamera} pointerEvents="none">
           <Camera
-            {...({
-              ref: cameraRef,
-              style: StyleSheet.absoluteFill,
-              device: device,
-              isActive: true,
-              photo: true,
-            } as any)}
+            style={StyleSheet.absoluteFill}
+            device={device}
+            isActive={true}
+            outputs={proctorOutputs}
           />
           <View style={CourseActionStyles.testCameraLive}>
             <View style={CourseActionStyles.testCameraLiveDot} />
@@ -8471,6 +8557,28 @@ export const CourseActionStyles = StyleSheet.create({
     width: 'auto',
     paddingHorizontal: 10,
     borderRadius: 14,
+  },
+  testLivenessContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    paddingTop: 40,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    alignItems: 'center',
+  },
+  testLivenessTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  testLivenessSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  testLivenessCamera: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 520,
+    borderRadius: 24,
   },
   testMiniCamera: {
     position: 'absolute',

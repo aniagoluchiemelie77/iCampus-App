@@ -11,11 +11,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import ReactNativeBiometrics from 'react-native-biometrics';
-import {
-  Camera,
-  useCameraDevice,
-  useCameraPermission,
-} from 'react-native-vision-camera';
+import { useCameraPermission } from 'react-native-vision-camera';
+import { LivenessCamera, LivenessResult } from '../components/LivenessCamera';
 import RNFS from 'react-native-fs';
 import Toast from 'react-native-toast-message';
 import BleManager from 'react-native-ble-manager';
@@ -53,6 +50,10 @@ const SCAN_BURST_SECONDS = 10;
 const SUBMIT_TIMEOUT_MS = 20000;
 
 type Props = StackScreenProps<RootStackParamList, 'StudentAttendanceScanner'>;
+type IdentityCheck =
+  | { method: 'selfie'; liveness: LivenessResult }
+  | { method: 'biometric' };
+
 type Status = 'idle' | 'preparing' | 'scanning' | 'notFound' | 'verifying' | 'submitting' | 'success' | 'error';
 
 export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
@@ -66,9 +67,9 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
   const localFaceRejectionsRef = useRef(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(SEARCH_SECONDS);
-  const device = useCameraDevice('front');
   const { hasPermission, requestPermission } = useCameraPermission();
-  const cameraRef = useRef<any>(null);
+  // Bumped to restart the liveness check (fresh challenges) for a retake.
+  const [cameraAttempt, setCameraAttempt] = useState(0);
   const statusRef = useRef<Status>(status);
   statusRef.current = status;
   const submitTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,7 +83,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
   }, []);
 
   // ---- Submit -------------------------------------------------------------
-  const dispatchAttendancePayload = useCallback(() => {
+  const dispatchAttendancePayload = useCallback((identityCheck: IdentityCheck) => {
     setStatus('submitting');
     if (!socketContext?.socket) {
       fail('You are offline. Check your connection and try again.');
@@ -92,6 +93,9 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       lectureId: lecture.id,
       studentId: user.uid,
       timestamp: new Date().toISOString(),
+      // How identity was confirmed, so the lecturer/server can tell a live
+      // selfie from one taken without the liveness check.
+      identityCheck,
     });
     if (submitTimeout.current) clearTimeout(submitTimeout.current);
     submitTimeout.current = setTimeout(() => {
@@ -111,16 +115,17 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       }
     }
     setStatus('verifying');
+    setCameraAttempt(a => a + 1);
     setShowCamera(true);
   }, [hasPermission, requestPermission, fail]);
 
-  const handleTakeSelfie = async () => {
-    if (!cameraRef.current || isProcessingAI) return;
+  /** Runs after the liveness check passed and LivenessCamera took the photo. */
+  const handleSelfieCaptured = async (photoPath: string, liveness: LivenessResult) => {
+    if (isProcessingAI) return;
     setIsProcessingAI(true);
     try {
-      const photoFile = await cameraRef.current.takePhoto({ flash: 'off', enableShutterSound: false });
       // 512px is plenty for a face match and uploads ~2.5x faster than 800px.
-      const resized = await ImageResizer.createResizedImage(photoFile.path, 512, 512, 'JPEG', 75);
+      const resized = await ImageResizer.createResizedImage(photoPath, 512, 512, 'JPEG', 75);
       // Instant on-device check; keeps the camera open for a retake.
       if (localFaceRejectionsRef.current < MAX_LOCAL_FACE_REJECTIONS) {
         const precheck = precheckSelfie(resized.uri || resized.path);
@@ -128,6 +133,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
           localFaceRejectionsRef.current += 1;
           setIsProcessingAI(false);
           Toast.show({ type: 'info', text1: 'Retake your selfie', text2: precheck.message });
+          setCameraAttempt(a => a + 1);
           return;
         }
       }
@@ -137,7 +143,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
       if (result.verified) {
         localFaceRejectionsRef.current = 0;
         setShowCamera(false);
-        dispatchAttendancePayload();
+        dispatchAttendancePayload({ method: 'selfie', liveness });
       } else {
         fail(result.message || 'We could not match your face to your school photo. Try again in good light.');
       }
@@ -164,7 +170,7 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         promptMessage: 'Verify your identity to mark attendance',
       });
       if (success) {
-        dispatchAttendancePayload();
+        dispatchAttendancePayload({ method: 'biometric' });
       } else {
         Toast.show({ type: 'info', text1: 'Fingerprint not confirmed', text2: 'Take a selfie instead.' });
         await openIdentityCamera();
@@ -390,14 +396,19 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
         style={styles.modalOverride}
       >
         <View style={styles.cameraContainer}>
-          <Text style={[styles.cameraTitleHeader, { color: '#fff' }]}>Take a selfie to verify</Text>
-          {device && hasPermission ? (
-            <Camera ref={cameraRef} style={styles.previewStyle} device={device} isActive={showCamera} />
+          <Text style={[styles.cameraTitleHeader, { color: '#fff' }]}>Verify it's you</Text>
+          {hasPermission ? (
+            <LivenessCamera
+              key={cameraAttempt}
+              style={styles.previewStyle}
+              isActive={showCamera}
+              busy={isProcessingAI}
+              onCaptured={handleSelfieCaptured}
+              onFailed={message => fail(message)}
+            />
           ) : (
             <View style={[styles.errorContainer, { backgroundColor: colors.backgroundSecondary }]}>
-              <Text style={[styles.title, { color: colors.text }]}>
-                {!device ? 'Front camera unavailable.' : 'Camera permission required.'}
-              </Text>
+              <Text style={[styles.title, { color: colors.text }]}>Camera permission required.</Text>
             </View>
           )}
           <View style={[styles.cameraActionTray, { backgroundColor: colors.backgroundSecondary }]}>
@@ -417,14 +428,10 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.captureBtn, { backgroundColor: colors.btnColor }]}
-                  onPress={handleTakeSelfie}
-                  accessibilityLabel="Take selfie"
-                >
-                  <MaterialIcons name="photo-camera" size={18} color={colors.btnTextColor} />
-                  <Text style={[styles.captureText, { color: colors.btnTextColor }]}>Take selfie</Text>
-                </TouchableOpacity>
+                {/* The photo is taken automatically once the checks pass. */}
+                <Text style={[styles.sub, { color: colors.text, marginTop: 0, flex: 1, textAlign: 'right' }]}>
+                  Follow the prompts on screen
+                </Text>
               </>
             )}
           </View>

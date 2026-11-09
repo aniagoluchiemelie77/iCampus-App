@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,13 @@ import { useExchangeRate } from '../hooks/useExchangeRate.ts';
 import { useTheme } from '../context/ThemeContext';
 import { DropOffStation } from '../types/firebase';
 import { formatInputWithCommas } from '../utils/financeFormatter.ts';
+import {
+  SALES_RADIUS_STOPS,
+  describeRadius,
+  formatLandmarkKm,
+  landmarkForRadius,
+  nearbyTowns,
+} from '../utils/radiusLandmarks';
 interface VideoDurationExtractorProps {
   uri: string;
   onDurationExtracted: (duration: number) => void;
@@ -79,20 +86,31 @@ export const variantRulesFor = (niche?: string): NicheVariantRules =>
   (niche && NICHE_VARIANTS[niche]) || NO_VARIANTS;
 
 // ---------------------------------------------------------------------------
-// Sales radius slider (Tinder-style "maximum distance")
+// Sales radius: snaps to meaningful stops, explains each one in plain words
+// and, with the seller's location, names a real town at about that distance.
 // ---------------------------------------------------------------------------
-export const SALES_RADIUS_MIN_KM = 1;
-export const SALES_RADIUS_MAX_KM = 100;
-// One stop past the max means "Anywhere".
-const ANYWHERE_STOP = SALES_RADIUS_MAX_KM + 1;
-const STOP_SPAN = ANYWHERE_STOP - SALES_RADIUS_MIN_KM;
+export const SALES_RADIUS_MIN_KM = SALES_RADIUS_STOPS[0];
+export const SALES_RADIUS_MAX_KM = SALES_RADIUS_STOPS[SALES_RADIUS_STOPS.length - 1];
+// The positions on the track: every stop, then Anywhere (null).
+const RADIUS_POSITIONS: (number | null)[] = [...SALES_RADIUS_STOPS, null];
+const LAST_POSITION = RADIUS_POSITIONS.length - 1;
 const THUMB_SIZE = 26;
 
-const stopFor = (km: number | null) =>
-  km == null
-    ? ANYWHERE_STOP
-    : Math.min(Math.max(km, SALES_RADIUS_MIN_KM), SALES_RADIUS_MAX_KM);
-const kmForStop = (stop: number) => (stop >= ANYWHERE_STOP ? null : stop);
+/** Track position for a value; older listings may hold an in-between km. */
+const positionFor = (km: number | null) => {
+  if (km == null) return LAST_POSITION;
+  let best = 0;
+  let bestDiff = Infinity;
+  SALES_RADIUS_STOPS.forEach((stop, i) => {
+    // Compare on a log scale: 37 km is "closer" to 50 than to 20.
+    const diff = Math.abs(Math.log(Math.max(km, 0.5)) - Math.log(stop));
+    if (diff < bestDiff) {
+      best = i;
+      bestDiff = diff;
+    }
+  });
+  return best;
+};
 
 export const formatSalesRadius = (km: number | null | undefined) =>
   km == null ? 'Anywhere' : `${km} km`;
@@ -100,29 +118,39 @@ export const formatSalesRadius = (km: number | null | undefined) =>
 export const SalesRadiusSlider = ({
   value,
   onChange,
+  origin,
+  campus,
 }: {
   value: number | null;
   onChange: (km: number | null) => void;
+  /** Seller's location, to name a nearby town at the chosen distance. */
+  origin?: { lat: number; lng: number } | null;
+  /** Seller's school, used to describe the shortest distances. */
+  campus?: string | null;
 }) => {
   const { colors } = useTheme();
   const trackRef = useRef<View>(null);
   const [trackWidth, setTrackWidth] = useState(0);
   const widthRef = useRef(0);
-  const originRef = useRef(0);
-  const lastStopRef = useRef(stopFor(value));
+  const originXRef = useRef(0);
+  const position = positionFor(value);
+  const lastPositionRef = useRef(position);
+  lastPositionRef.current = position;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  lastStopRef.current = stopFor(value);
+
+  const setPosition = (next: number) => {
+    const clamped = Math.min(Math.max(next, 0), LAST_POSITION);
+    if (clamped === lastPositionRef.current) return;
+    lastPositionRef.current = clamped;
+    onChangeRef.current(RADIUS_POSITIONS[clamped]);
+  };
 
   const updateFromX = (x: number) => {
     const usable = widthRef.current - THUMB_SIZE;
     if (usable <= 0) return;
     const fraction = Math.min(Math.max((x - THUMB_SIZE / 2) / usable, 0), 1);
-    const stop = Math.round(SALES_RADIUS_MIN_KM + fraction * STOP_SPAN);
-    if (stop !== lastStopRef.current) {
-      lastStopRef.current = stop;
-      onChangeRef.current(kmForStop(stop));
-    }
+    setPosition(Math.round(fraction * LAST_POSITION));
   };
 
   const panResponder = useRef(
@@ -134,24 +162,26 @@ export const SalesRadiusSlider = ({
       onPanResponderGrant: (_evt, gesture) => {
         const startX = gesture.x0;
         trackRef.current?.measure((_x, _y, _w, _h, pageX) => {
-          originRef.current = pageX;
+          originXRef.current = pageX;
           updateFromX(startX - pageX);
         });
       },
       onPanResponderMove: (_evt, gesture) =>
-        updateFromX(gesture.moveX - originRef.current),
+        updateFromX(gesture.moveX - originXRef.current),
     }),
   ).current;
 
-  const fraction = (stopFor(value) - SALES_RADIUS_MIN_KM) / STOP_SPAN;
-  const thumbLeft = fraction * Math.max(trackWidth - THUMB_SIZE, 0);
-  const step = (delta: number) => {
-    const next = Math.min(
-      Math.max(stopFor(value) + delta, SALES_RADIUS_MIN_KM),
-      ANYWHERE_STOP,
-    );
-    onChange(kmForStop(next));
-  };
+  const usable = Math.max(trackWidth - THUMB_SIZE, 0);
+  const xFor = (pos: number) => (pos / LAST_POSITION) * usable;
+  const thumbLeft = xFor(position);
+
+  const towns = useMemo(
+    () => (origin ? nearbyTowns({ lat: origin.lat, lng: origin.lng }) : []),
+    [origin?.lat, origin?.lng], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const description = describeRadius(value, campus);
+  // Towns are a useful yardstick from 5 km up; below that, the campus is.
+  const landmark = value != null && value >= 5 ? landmarkForRadius(towns, value) : null;
 
   return (
     <View style={sliderStyles.wrapper}>
@@ -173,44 +203,95 @@ export const SalesRadiusSlider = ({
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel="Maximum selling distance"
-        accessibilityValue={{ text: formatSalesRadius(value) }}
+        accessibilityValue={{ text: `${formatSalesRadius(value)}, ${description.scope}` }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={e =>
-          step(e.nativeEvent.actionName === 'increment' ? 5 : -5)
+          setPosition(position + (e.nativeEvent.actionName === 'increment' ? 1 : -1))
         }
         {...panResponder.panHandlers}
       >
-        <View
-          style={[sliderStyles.track, { backgroundColor: colors.border }]}
-        />
+        <View style={[sliderStyles.track, { backgroundColor: colors.border }]} />
         <View
           style={[
             sliderStyles.trackFill,
-            {
-              width: thumbLeft + THUMB_SIZE / 2,
-              backgroundColor: colors.primary,
-            },
+            { width: thumbLeft + THUMB_SIZE / 2, backgroundColor: colors.primary },
           ]}
         />
+        {trackWidth > 0 &&
+          RADIUS_POSITIONS.map((_, i) => (
+            <View
+              key={i}
+              pointerEvents="none"
+              style={[
+                sliderStyles.tick,
+                {
+                  left: xFor(i) + THUMB_SIZE / 2 - 3,
+                  backgroundColor: i <= position ? colors.primary : colors.border,
+                },
+              ]}
+            />
+          ))}
         <View
           style={[
             sliderStyles.thumb,
-            {
-              left: thumbLeft,
-              backgroundColor: colors.primary,
-              borderColor: colors.background,
-            },
+            { left: thumbLeft, backgroundColor: colors.primary, borderColor: colors.background },
           ]}
         />
       </View>
-      <View style={sliderStyles.scaleRow}>
-        <Text style={[sliderStyles.scaleText, { color: colors.text }]}>
-          {SALES_RADIUS_MIN_KM} km
-        </Text>
-        <Text style={[sliderStyles.scaleText, { color: colors.text }]}>
-          Anywhere
-        </Text>
+      {/* Tappable stop labels (also how mouse users pick a stop on web). */}
+      <View style={[sliderStyles.labelsRow, { width: trackWidth || undefined }]}>
+        {trackWidth > 0 &&
+          RADIUS_POSITIONS.map((km, i) => (
+            <TouchableOpacity
+              key={i}
+              onPress={() => setPosition(i)}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={km == null ? 'Anywhere' : `${km} kilometres`}
+              style={[sliderStyles.label, { left: xFor(i) + THUMB_SIZE / 2 - LABEL_WIDTH / 2 }]}
+            >
+              <Text
+                style={[
+                  sliderStyles.labelText,
+                  { color: i === position ? colors.primary : colors.text },
+                  i === position && sliderStyles.labelTextActive,
+                ]}
+              >
+                {km == null ? 'Any' : km}
+              </Text>
+            </TouchableOpacity>
+          ))}
       </View>
+
+      <View
+        style={[
+          sliderStyles.contextCard,
+          { backgroundColor: colors.primary + '10', borderColor: colors.primary + '33' },
+        ]}
+        accessibilityLiveRegion="polite"
+      >
+        <View style={[sliderStyles.contextIcon, { backgroundColor: colors.primary + '1F' }]}>
+          <MaterialIcons name={description.icon} size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[sliderStyles.contextScope, { color: colors.textDarker || colors.text }]}>
+            {description.scope}
+          </Text>
+          <Text style={[sliderStyles.contextTravel, { color: colors.text }]}>
+            {description.travel}
+          </Text>
+          {landmark ? (
+            <Text style={[sliderStyles.contextLandmark, { color: colors.primary }]}>
+              About as far as {landmark.name} ({formatLandmarkKm(landmark.km)} from you)
+            </Text>
+          ) : value != null && value >= 5 && !origin ? (
+            <Text style={[sliderStyles.contextHint, { color: colors.text }]}>
+              Turn on location to compare with towns near you.
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
       <Text style={[sliderStyles.hint, { color: colors.text }]}>
         {value == null
           ? 'Buyers anywhere can see and order this listing.'
@@ -219,6 +300,8 @@ export const SalesRadiusSlider = ({
     </View>
   );
 };
+
+const LABEL_WIDTH = 34;
 
 const sliderStyles = StyleSheet.create({
   wrapper: { marginBottom: 20 },
@@ -233,6 +316,7 @@ const sliderStyles = StyleSheet.create({
   touchArea: { height: 40, justifyContent: 'center' },
   track: { height: 4, borderRadius: 2 },
   trackFill: { position: 'absolute', left: 0, height: 4, borderRadius: 2 },
+  tick: { position: 'absolute', width: 6, height: 6, borderRadius: 3 },
   thumb: {
     position: 'absolute',
     width: THUMB_SIZE,
@@ -245,8 +329,30 @@ const sliderStyles = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
   },
-  scaleRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  scaleText: { fontSize: 11, opacity: 0.6 },
+  labelsRow: { height: 22, position: 'relative' },
+  label: { position: 'absolute', width: LABEL_WIDTH, alignItems: 'center' },
+  labelText: { fontSize: 11.5, opacity: 0.75 },
+  labelTextActive: { fontWeight: '800', opacity: 1 },
+  contextCard: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 10,
+  },
+  contextIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contextScope: { fontSize: 14, fontWeight: '800' },
+  contextTravel: { fontSize: 12.5, marginTop: 2, opacity: 0.85 },
+  contextLandmark: { fontSize: 12.5, fontWeight: '700', marginTop: 6 },
+  contextHint: { fontSize: 12, marginTop: 6, opacity: 0.7, fontStyle: 'italic' },
   hint: { fontSize: 12, lineHeight: 18, marginTop: 8, opacity: 0.8 },
 });
 
