@@ -18,7 +18,7 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease --stacktrace -Dorg.gradle.workers.max=2"
+        "gradleCommand": "assembleRelease --stacktrace -Dorg.gradle.workers.max=2"
       }
     },
     "apk": {
