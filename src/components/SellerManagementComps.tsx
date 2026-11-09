@@ -33,11 +33,8 @@ import {
 import { requestPayoutAPI } from '../api/localPostApis';
 import { deleteProductApi } from '../api/localDeleteApis';
 import { markOrderAsDroppedOffAPI } from '../api/localPatchApis';
-import { UserAvatar } from './UserAvatar';
 import { AddPaymentModal } from './AddPaymentMethodModal';
-import { UserIdentity } from './UserIdentity';
 import { useNavigation } from '@react-navigation/native';
-import RNPickerSelect from 'react-native-picker-select';
 import moment from 'moment';
 import { useDispatch } from 'react-redux';
 import { patchUser } from '../context/UserSlice';
@@ -53,7 +50,6 @@ import { ReviewItem, StarRow, ratingTone } from './ReviewItem';
 import { useTheme } from '../context/ThemeContext';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
 import { ActionModal } from './LogoutModal.tsx';
-import { fetchUserWithOfflineFallback } from '../hooks/useUserDetails.ts';
 import { useConvertedCurrency } from '../hooks/useCurrencyConverter';
 import { parseFirestoreDate } from '../utils/dateFormatter.ts';
 interface StatusCardProps {
@@ -173,7 +169,8 @@ export const StatusCardMini = ({
 // ---------------------------------------------------------------------------
 // Sales Orders
 // ---------------------------------------------------------------------------
-type OrderFilter = 'all' | 'pending_delivery' | 'dropped_off' | 'completed' | 'cancelled';
+type OrderFilter =
+  'all' | 'pending_delivery' | 'dropped_off' | 'completed' | 'cancelled';
 
 const useOrderStatusMeta = () => {
   const { colors: themeColors } = useTheme();
@@ -275,10 +272,15 @@ const SellerOrderCard = ({
 
   return (
     <View
-      style={[hub.orderCard, { backgroundColor: themeColors.backgroundSecondary }]}
+      style={[
+        hub.orderCard,
+        { backgroundColor: themeColors.backgroundSecondary },
+      ]}
     >
       <View style={hub.orderTopRow}>
-        <View style={[hub.orderIconTile, { backgroundColor: meta.color + '1F' }]}>
+        <View
+          style={[hub.orderIconTile, { backgroundColor: meta.color + '1F' }]}
+        >
           <MaterialIcons name={meta.icon} size={22} color={meta.color} />
         </View>
         <View style={{ flex: 1 }}>
@@ -289,7 +291,8 @@ const SellerOrderCard = ({
             {order.productName}
           </Text>
           <Text style={[hub.orderMeta, { color: themeColors.text }]}>
-            #{order.orderId} · {order.quantity} {order.quantity === 1 ? 'item' : 'items'}
+            #{order.orderId} · {order.quantity}{' '}
+            {order.quantity === 1 ? 'item' : 'items'}
           </Text>
         </View>
         <View style={[hub.statusPill, { backgroundColor: meta.color + '1F' }]}>
@@ -299,9 +302,13 @@ const SellerOrderCard = ({
         </View>
       </View>
 
-      <View style={[hub.orderStatsRow, { borderColor: themeColors.border + '40' }]}>
+      <View
+        style={[hub.orderStatsRow, { borderColor: themeColors.border + '40' }]}
+      >
         <View style={hub.orderStat}>
-          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>Amount</Text>
+          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>
+            Amount
+          </Text>
           <CurrencyDisplay
             value={convertedValue}
             size="small"
@@ -309,13 +316,17 @@ const SellerOrderCard = ({
           />
         </View>
         <View style={hub.orderStat}>
-          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>Date</Text>
+          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>
+            Date
+          </Text>
           <Text style={[hub.orderStatValue, { color: themeColors.textDarker }]}>
             {createdAt ? moment(createdAt).format('MMM D, YYYY') : '—'}
           </Text>
         </View>
         <View style={hub.orderStat}>
-          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>Delivery</Text>
+          <Text style={[hub.orderStatLabel, { color: themeColors.text }]}>
+            Delivery
+          </Text>
           <Text style={[hub.orderStatValue, { color: themeColors.textDarker }]}>
             {isDropOff ? 'Drop-off' : 'Direct'}
           </Text>
@@ -372,7 +383,9 @@ export const OrdersList = () => {
     return c;
   }, [sellerOrders]);
   const visibleOrders =
-    filter === 'all' ? sellerOrders : sellerOrders.filter(o => o.status === filter);
+    filter === 'all'
+      ? sellerOrders
+      : sellerOrders.filter(o => o.status === filter);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -416,7 +429,8 @@ export const OrdersList = () => {
           >
             {filters.map(f => {
               const isActive = filter === f;
-              const color = f === 'all' ? themeColors.primary : statusMeta[f].color;
+              const color =
+                f === 'all' ? themeColors.primary : statusMeta[f].color;
               return (
                 <TouchableOpacity
                   key={f}
@@ -429,18 +443,28 @@ export const OrdersList = () => {
                   ]}
                 >
                   <Text
-                    style={[hub.filterChipText, { color: isActive ? '#fff' : color }]}
+                    style={[
+                      hub.filterChipText,
+                      { color: isActive ? '#fff' : color },
+                    ]}
                   >
                     {f === 'all' ? 'All' : statusMeta[f].label}
                   </Text>
                   <View
                     style={[
                       hub.filterCount,
-                      { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : color + '1F' },
+                      {
+                        backgroundColor: isActive
+                          ? 'rgba(255,255,255,0.25)'
+                          : color + '1F',
+                      },
                     ]}
                   >
                     <Text
-                      style={[hub.filterCountText, { color: isActive ? '#fff' : color }]}
+                      style={[
+                        hub.filterCountText,
+                        { color: isActive ? '#fff' : color },
+                      ]}
                     >
                       {counts[f] || 0}
                     </Text>
@@ -453,10 +477,15 @@ export const OrdersList = () => {
       }
       ListEmptyComponent={
         isOrdersLoading && sellerOrders.length === 0 ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={themeColors.primary} />
+          <ActivityIndicator
+            style={{ marginTop: 40 }}
+            color={themeColors.primary}
+          />
         ) : (
           <EmptyState
-            iconName={sellerOrders.length === 0 ? 'receipt-long' : 'filter-list-off'}
+            iconName={
+              sellerOrders.length === 0 ? 'receipt-long' : 'filter-list-off'
+            }
             title={
               sellerOrders.length === 0
                 ? 'No orders yet'
@@ -467,12 +496,19 @@ export const OrdersList = () => {
                 ? 'When buyers purchase your listings, their orders appear here.'
                 : 'Try another filter to see the rest of your orders.'
             }
-            buttonText={sellerOrders.length === 0 ? undefined : 'Show all orders'}
-            onPress={sellerOrders.length === 0 ? undefined : () => setFilter('all')}
+            buttonText={
+              sellerOrders.length === 0 ? undefined : 'Show all orders'
+            }
+            onPress={
+              sellerOrders.length === 0 ? undefined : () => setFilter('all')
+            }
           />
         )
       }
-      contentContainerStyle={[hub.listContent, visibleOrders.length === 0 && { flexGrow: 1 }]}
+      contentContainerStyle={[
+        hub.listContent,
+        visibleOrders.length === 0 && { flexGrow: 1 },
+      ]}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -494,14 +530,30 @@ const OverviewStat = ({
 }) => {
   const { colors: themeColors } = useTheme();
   return (
-    <View style={[hub.statTile, { backgroundColor: themeColors.backgroundSecondary }]}>
-      <View style={[hub.statTileIcon, { backgroundColor: themeColors.primary + '1A' }]}>
+    <View
+      style={[
+        hub.statTile,
+        { backgroundColor: themeColors.backgroundSecondary },
+      ]}
+    >
+      <View
+        style={[
+          hub.statTileIcon,
+          { backgroundColor: themeColors.primary + '1A' },
+        ]}
+      >
         <MaterialIcons name={icon} size={18} color={themeColors.primary} />
       </View>
-      <Text style={[hub.statTileValue, { color: themeColors.textDarker }]}>{value}</Text>
-      <Text style={[hub.statTileLabel, { color: themeColors.text }]}>{label}</Text>
+      <Text style={[hub.statTileValue, { color: themeColors.textDarker }]}>
+        {value}
+      </Text>
+      <Text style={[hub.statTileLabel, { color: themeColors.text }]}>
+        {label}
+      </Text>
       {!!hint && (
-        <Text style={[hub.statTileHint, { color: themeColors.text }]}>{hint}</Text>
+        <Text style={[hub.statTileHint, { color: themeColors.text }]}>
+          {hint}
+        </Text>
       )}
     </View>
   );
@@ -516,7 +568,10 @@ export const OverviewsScreenComponent = () => {
     sellerSales,
     catalogSyncVersion,
   } = useAppDataContext();
-  const { sellerProducts } = useSellerProducts(currentUser?.uid, catalogSyncVersion);
+  const { sellerProducts } = useSellerProducts(
+    currentUser?.uid,
+    catalogSyncVersion,
+  );
   const navigation = useNavigation<any>();
   const statusMeta = useOrderStatusMeta();
   // Lifetime successful payouts, from the payout history endpoint.
@@ -586,12 +641,21 @@ export const OverviewsScreenComponent = () => {
       contentContainerStyle={hub.listContent}
     >
       {/* Earnings hero */}
-      <View style={[hub.heroCard, { backgroundColor: themeColors.backgroundSecondary }]}>
+      <View
+        style={[
+          hub.heroCard,
+          { backgroundColor: themeColors.backgroundSecondary },
+        ]}
+      >
         <View style={hub.heroHeader}>
           <Text style={[hub.heroLabel, { color: themeColors.text }]}>
             Total generated
           </Text>
-          <MaterialIcons name="insights" size={20} color={themeColors.primary} />
+          <MaterialIcons
+            name="insights"
+            size={20}
+            color={themeColors.primary}
+          />
         </View>
         {totalPaidOut === null ? (
           <ActivityIndicator
@@ -605,26 +669,48 @@ export const OverviewsScreenComponent = () => {
           Everything you have earned: paid out plus available balance.
         </Text>
 
-        <View style={[hub.heroTrack, { backgroundColor: themeColors.primary + '22' }]}>
+        <View
+          style={[
+            hub.heroTrack,
+            { backgroundColor: themeColors.primary + '22' },
+          ]}
+        >
           <View
             style={[
               hub.heroTrackFill,
-              { width: `${paidOutShare * 100}%`, backgroundColor: themeColors.success },
+              {
+                width: `${paidOutShare * 100}%`,
+                backgroundColor: themeColors.success,
+              },
             ]}
           />
         </View>
         <View style={hub.heroSplitRow}>
           <View style={hub.heroSplit}>
             <View style={hub.heroLegend}>
-              <View style={[hub.legendDot, { backgroundColor: themeColors.success }]} />
-              <Text style={[hub.heroSplitLabel, { color: themeColors.text }]}>Paid out</Text>
+              <View
+                style={[
+                  hub.legendDot,
+                  { backgroundColor: themeColors.success },
+                ]}
+              />
+              <Text style={[hub.heroSplitLabel, { color: themeColors.text }]}>
+                Paid out
+              </Text>
             </View>
             <CurrencyDisplay value={totalPaidOut || 0} size="small" isSuccess />
           </View>
           <View style={[hub.heroSplit, { alignItems: 'flex-end' }]}>
             <View style={hub.heroLegend}>
-              <View style={[hub.legendDot, { backgroundColor: themeColors.primary }]} />
-              <Text style={[hub.heroSplitLabel, { color: themeColors.text }]}>Available</Text>
+              <View
+                style={[
+                  hub.legendDot,
+                  { backgroundColor: themeColors.primary },
+                ]}
+              />
+              <Text style={[hub.heroSplitLabel, { color: themeColors.text }]}>
+                Available
+              </Text>
             </View>
             <CurrencyDisplay value={availableBalance} size="small" />
           </View>
@@ -659,34 +745,64 @@ export const OverviewsScreenComponent = () => {
 
       {/* Orders snapshot */}
       {sellerOrders.length > 0 && (
-        <View style={[hub.sectionCard, { backgroundColor: themeColors.backgroundSecondary }]}>
-          <Text style={[hub.sectionCardTitle, { color: themeColors.textDarker }]}>
+        <View
+          style={[
+            hub.sectionCard,
+            { backgroundColor: themeColors.backgroundSecondary },
+          ]}
+        >
+          <Text
+            style={[hub.sectionCardTitle, { color: themeColors.textDarker }]}
+          >
             Orders
           </Text>
           <View style={hub.ordersSnapshotRow}>
-            {(Object.keys(statusMeta) as Exclude<OrderFilter, 'all'>[]).map(key => {
-              const meta = statusMeta[key];
-              const count = sellerOrders.filter(o => o.status === key).length;
-              return (
-                <View key={key} style={hub.ordersSnapshotItem}>
-                  <View style={[hub.ordersSnapshotIcon, { backgroundColor: meta.color + '1F' }]}>
-                    <MaterialIcons name={meta.icon} size={18} color={meta.color} />
+            {(Object.keys(statusMeta) as Exclude<OrderFilter, 'all'>[]).map(
+              key => {
+                const meta = statusMeta[key];
+                const count = sellerOrders.filter(o => o.status === key).length;
+                return (
+                  <View key={key} style={hub.ordersSnapshotItem}>
+                    <View
+                      style={[
+                        hub.ordersSnapshotIcon,
+                        { backgroundColor: meta.color + '1F' },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={meta.icon}
+                        size={18}
+                        color={meta.color}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        hub.ordersSnapshotCount,
+                        { color: themeColors.textDarker },
+                      ]}
+                    >
+                      {formatStatNumber(count)}
+                    </Text>
+                    <Text
+                      style={[
+                        hub.ordersSnapshotLabel,
+                        { color: themeColors.text },
+                      ]}
+                    >
+                      {meta.label}
+                    </Text>
                   </View>
-                  <Text style={[hub.ordersSnapshotCount, { color: themeColors.textDarker }]}>
-                    {formatStatNumber(count)}
-                  </Text>
-                  <Text style={[hub.ordersSnapshotLabel, { color: themeColors.text }]}>
-                    {meta.label}
-                  </Text>
-                </View>
-              );
-            })}
+                );
+              },
+            )}
           </View>
         </View>
       )}
 
       {/* Tip */}
-      <View style={[hub.tipCard, { backgroundColor: themeColors.primary + '12' }]}>
+      <View
+        style={[hub.tipCard, { backgroundColor: themeColors.primary + '12' }]}
+      >
         <MaterialIcons name="lightbulb" size={18} color={themeColors.primary} />
         <Text style={[hub.tipText, { color: themeColors.text }]}>
           {totalImpressions > 0 && totalSalesCount === 0
@@ -794,7 +910,12 @@ export const ProductList = () => {
         : `${stock} in stock`;
 
     return (
-      <View style={[styles.card, { backgroundColor: themeColors.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: themeColors.backgroundSecondary },
+        ]}
+      >
         <View style={styles.imageContainer}>
           <Image
             source={{
@@ -807,7 +928,10 @@ export const ProductList = () => {
         <View style={styles.infoContainer}>
           {!!item.niche && (
             <View
-              style={[styles.typeBadge, { backgroundColor: themeColors.primary + '15' }]}
+              style={[
+                styles.typeBadge,
+                { backgroundColor: themeColors.primary + '15' },
+              ]}
             >
               <Text style={[styles.typeText, { color: themeColors.primary }]}>
                 {item.niche.toUpperCase()}
@@ -823,7 +947,9 @@ export const ProductList = () => {
           </Text>
 
           <View style={styles.detailsRow}>
-            <View style={[hub.stockPill, { backgroundColor: stockColor + '1A' }]}>
+            <View
+              style={[hub.stockPill, { backgroundColor: stockColor + '1A' }]}
+            >
               <MaterialIcons name="inventory-2" size={13} color={stockColor} />
               <Text style={[hub.stockPillText, { color: stockColor }]}>
                 {stockLabel}
@@ -840,7 +966,9 @@ export const ProductList = () => {
           >
             <TouchableOpacity
               style={styles.actionIconButton}
-              onPress={() => navigation.navigate('CreateProduct', { product: item })}
+              onPress={() =>
+                navigation.navigate('CreateProduct', { product: item })
+              }
             >
               <MaterialIcons name="edit" size={18} color={themeColors.text} />
               <Text style={[styles.actionText, { color: themeColors.text }]}>
@@ -892,11 +1020,20 @@ export const ProductList = () => {
         ListHeaderComponent={
           sellerProducts.length > 0 ? (
             <View
-              style={[hub.inventoryHeader, { backgroundColor: themeColors.backgroundSecondary }]}
+              style={[
+                hub.inventoryHeader,
+                { backgroundColor: themeColors.backgroundSecondary },
+              ]}
             >
               <View>
-                <Text style={[hub.inventoryCount, { color: themeColors.textDarker }]}>
-                  {sellerProducts.length} {sellerProducts.length === 1 ? 'listing' : 'listings'}
+                <Text
+                  style={[
+                    hub.inventoryCount,
+                    { color: themeColors.textDarker },
+                  ]}
+                >
+                  {sellerProducts.length}{' '}
+                  {sellerProducts.length === 1 ? 'listing' : 'listings'}
                 </Text>
                 <Text style={[hub.inventorySub, { color: themeColors.text }]}>
                   {outOfStockCount > 0
@@ -915,7 +1052,10 @@ export const ProductList = () => {
         }
         ListEmptyComponent={
           refreshing ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={themeColors.primary} />
+            <ActivityIndicator
+              style={{ marginTop: 40 }}
+              color={themeColors.primary}
+            />
           ) : (
             <ProductEmptyState onAdd={handleAddNew} />
           )
@@ -989,14 +1129,18 @@ const PayoutHistoryItem = ({
     <TouchableOpacity
       activeOpacity={0.75}
       disabled={!transactionId}
-      onPress={() => navigation.navigate('TransactionDetail', { transactionId })}
+      onPress={() =>
+        navigation.navigate('TransactionDetail', { transactionId })
+      }
       accessibilityRole="button"
       accessibilityLabel={`${item.title || 'Payout'}, ${item.status}. View details`}
       style={[
         styles.historyCard,
         {
           backgroundColor: themeColors.backgroundSecondary,
-          borderLeftColor: isSuccessful ? themeColors.success : statusStyle.text,
+          borderLeftColor: isSuccessful
+            ? themeColors.success
+            : statusStyle.text,
         },
       ]}
     >
@@ -1015,7 +1159,9 @@ const PayoutHistoryItem = ({
         </Text>
         <Text style={[styles.historyDate, { color: themeColors.text }]}>
           {item.createdAt
-            ? moment(parseFirestoreDate(item.createdAt)).format('MMM DD, YYYY • HH:mm')
+            ? moment(parseFirestoreDate(item.createdAt)).format(
+                'MMM DD, YYYY • HH:mm',
+              )
             : 'Recent'}
         </Text>
       </View>
@@ -1036,12 +1182,18 @@ const PayoutHistoryItem = ({
           />
         </View>
         <View style={hub.payoutRightRow}>
-          <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+          <View
+            style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}
+          >
             <Text style={[styles.statusText, { color: statusStyle.text }]}>
               {item.status ? item.status.toUpperCase() : 'UNKNOWN'}
             </Text>
           </View>
-          <MaterialIcons name="chevron-right" size={20} color={themeColors.text} />
+          <MaterialIcons
+            name="chevron-right"
+            size={20}
+            color={themeColors.text}
+          />
         </View>
       </View>
     </TouchableOpacity>
@@ -1067,7 +1219,10 @@ export const PayoutView = () => {
   const payoutAccount =
     currentUser?.payoutAccount ||
     (legacy?.bankCode && legacy?.accountNumber
-      ? { bankCode: legacy.bankCode, accountNumber: String(legacy.accountNumber) }
+      ? {
+          bankCode: legacy.bankCode,
+          accountNumber: String(legacy.accountNumber),
+        }
       : null);
 
   useEffect(() => {
@@ -1127,9 +1282,11 @@ export const PayoutView = () => {
   };
   const renderHeader = () => {
     const hasPayoutAccount = !!payoutAccount;
-    const account = payoutAccount as
-      | { bankName?: string | null; accountName?: string | null; accountNumber?: string }
-      | null;
+    const account = payoutAccount as {
+      bankName?: string | null;
+      accountName?: string | null;
+      accountNumber?: string;
+    } | null;
     const last4 = String(account?.accountNumber || '').slice(-4);
     // The server refuses payouts to Nigerian accounts saved before the
     // name check (no accountName); prompt a re-link instead of a failed tap.
@@ -1140,7 +1297,10 @@ export const PayoutView = () => {
     const canWithdraw = currentBalance > 0 && !requesting && !needsRelink;
     const steps = [
       { label: 'Verify your identity', done: isVerified },
-      { label: 'Link a bank account in your name', done: hasPayoutAccount && !needsRelink },
+      {
+        label: 'Link a bank account in your name',
+        done: hasPayoutAccount && !needsRelink,
+      },
     ];
 
     return (
@@ -1151,15 +1311,21 @@ export const PayoutView = () => {
           <View style={payoutUi.heroTop}>
             <Text style={payoutUi.heroLabel}>Available for payout</Text>
             <View style={payoutUi.heroBadge}>
-              <MaterialIcons name={isVerified ? 'verified' : 'shield'} size={13} color="#fff" />
-              <Text style={payoutUi.heroBadgeText}>{isVerified ? 'Verified' : 'Unverified'}</Text>
+              <MaterialIcons
+                name={isVerified ? 'verified' : 'shield'}
+                size={13}
+                color="#fff"
+              />
+              <Text style={payoutUi.heroBadgeText}>
+                {isVerified ? 'Verified' : 'Unverified'}
+              </Text>
             </View>
           </View>
           <CurrencyDisplay value={currentBalance} size="large" color="#fff" />
           <Text style={payoutUi.heroSub}>
             {currentBalance > 0
               ? 'Withdraw your full balance to your bank in one tap.'
-              : 'Completed sales land here, ready to withdraw.'}
+              : 'Completed sales are visible here, and ready for withdrawal.'}
           </Text>
           {isVerified && hasPayoutAccount && !needsRelink && (
             <TouchableOpacity
@@ -1172,8 +1338,17 @@ export const PayoutView = () => {
                 <ActivityIndicator color={themeColors.primary} size="small" />
               ) : (
                 <>
-                  <MaterialIcons name="north-east" size={18} color={themeColors.primary} />
-                  <Text style={[payoutUi.withdrawText, { color: themeColors.primary }]}>
+                  <MaterialIcons
+                    name="north-east"
+                    size={18}
+                    color={themeColors.primary}
+                  />
+                  <Text
+                    style={[
+                      payoutUi.withdrawText,
+                      { color: themeColors.primary },
+                    ]}
+                  >
                     Withdraw funds
                   </Text>
                 </>
@@ -1186,30 +1361,67 @@ export const PayoutView = () => {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setIsAddBankVisible(true)}
-            style={[payoutUi.accountCard, { backgroundColor: themeColors.backgroundSecondary }]}
+            style={[
+              payoutUi.accountCard,
+              { backgroundColor: themeColors.backgroundSecondary },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Change payout bank account"
           >
-            <View style={[payoutUi.accountIcon, { backgroundColor: themeColors.primary + '1A' }]}>
-              <MaterialIcons name="account-balance" size={20} color={themeColors.primary} />
+            <View
+              style={[
+                payoutUi.accountIcon,
+                { backgroundColor: themeColors.primary + '1A' },
+              ]}
+            >
+              <MaterialIcons
+                name="account-balance"
+                size={20}
+                color={themeColors.primary}
+              />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[payoutUi.accountName, { color: themeColors.textDarker }]} numberOfLines={1}>
+              <Text
+                style={[
+                  payoutUi.accountName,
+                  { color: themeColors.textDarker },
+                ]}
+                numberOfLines={1}
+              >
                 {account?.accountName || 'Payout account'}
               </Text>
-              <Text style={[payoutUi.accountMeta, { color: themeColors.text }]} numberOfLines={1}>
+              <Text
+                style={[payoutUi.accountMeta, { color: themeColors.text }]}
+                numberOfLines={1}
+              >
                 {account?.bankName || 'Bank'} · •••• {last4}
               </Text>
             </View>
-            <View style={[payoutUi.changePill, { borderColor: themeColors.primary }]}>
-              <Text style={[payoutUi.changeText, { color: themeColors.primary }]}>Change</Text>
+            <View
+              style={[
+                payoutUi.changePill,
+                { borderColor: themeColors.primary },
+              ]}
+            >
+              <Text
+                style={[payoutUi.changeText, { color: themeColors.primary }]}
+              >
+                Change
+              </Text>
             </View>
           </TouchableOpacity>
         )}
 
         {(!isVerified || !hasPayoutAccount || needsRelink) && (
-          <View style={[payoutUi.setupCard, { backgroundColor: themeColors.backgroundSecondary }]}>
-            <Text style={[payoutUi.setupTitle, { color: themeColors.textDarker }]}>
+          <View
+            style={[
+              payoutUi.setupCard,
+              { backgroundColor: themeColors.backgroundSecondary },
+            ]}
+          >
+            <Text
+              style={[payoutUi.setupTitle, { color: themeColors.textDarker }]}
+            >
               {needsRelink ? 'Confirm your payout account' : 'Set up payouts'}
             </Text>
             <Text style={[payoutUi.setupSub, { color: themeColors.text }]}>
@@ -1230,13 +1442,20 @@ export const PayoutView = () => {
                   {step.done ? (
                     <MaterialIcons name="check" size={14} color="#fff" />
                   ) : (
-                    <Text style={[payoutUi.stepNum, { color: themeColors.primary }]}>{i + 1}</Text>
+                    <Text
+                      style={[payoutUi.stepNum, { color: themeColors.primary }]}
+                    >
+                      {i + 1}
+                    </Text>
                   )}
                 </View>
                 <Text
                   style={[
                     payoutUi.stepLabel,
-                    { color: themeColors.textDarker, opacity: step.done ? 0.55 : 1 },
+                    {
+                      color: themeColors.textDarker,
+                      opacity: step.done ? 0.55 : 1,
+                    },
                   ]}
                 >
                   {step.label}
@@ -1254,14 +1473,18 @@ export const PayoutView = () => {
               iconName={!isVerified ? 'badge' : 'account-balance'}
               style={payoutUi.setupBtn}
               onPress={() =>
-                !isVerified ? navigation.navigate('PersonaVerify') : setIsAddBankVisible(true)
+                !isVerified
+                  ? navigation.navigate('PersonaVerify')
+                  : setIsAddBankVisible(true)
               }
             />
           </View>
         )}
 
         <View style={payoutUi.historyHeader}>
-          <Text style={[payoutUi.historyTitle, { color: themeColors.textDarker }]}>
+          <Text
+            style={[payoutUi.historyTitle, { color: themeColors.textDarker }]}
+          >
             Payout history
           </Text>
           {history.length > 0 && (

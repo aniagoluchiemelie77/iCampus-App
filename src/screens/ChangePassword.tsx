@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Dimensions,
   Pressable,
 } from 'react-native';
 import { useToastAlert } from '../utils/toastAlert';
@@ -28,7 +27,6 @@ type ChangePasswordParams = {
   email: string;
 };
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ChangePasswordScreen() {
   const { colors } = useTheme();
@@ -207,8 +205,7 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   bkg: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
   },
   cardContainer: {
     alignItems: 'center',

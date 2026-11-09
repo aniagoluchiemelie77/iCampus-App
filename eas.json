@@ -17,7 +17,17 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "gradleCommand": "assembleRelease --stacktrace --info -Dorg.gradle.workers.max=2"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease --stacktrace -Dorg.gradle.workers.max=2"
+      }
+    },
+    "apk": {
+      "extends": "production",
+      "distribution": "internal",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease --stacktrace -Dorg.gradle.workers.max=2"
       }
     }
   },

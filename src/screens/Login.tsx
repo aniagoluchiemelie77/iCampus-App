@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Dimensions,
   ScrollView,
 } from 'react-native';
 import { IconOutline } from '@ant-design/icons-react-native';
@@ -32,7 +31,6 @@ import { normalizeIdentifier, passwordAttempts } from '../utils/loginInput';
 import { saveSession } from '../utils/session';
 import { FloatingSuccessIcon } from '../components/EmptyFlatlistComponent';
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const Login = () => {
   const navigation = useNavigation<any>();
@@ -343,8 +341,7 @@ const styles = StyleSheet.create({
   },
   bkg: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
   },
   toggleBtns: {
     height: 50,

@@ -1,6 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Platform, UIManager, View, Image, StyleSheet } from 'react-native';
+import { Platform, UIManager, View, Image, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/context/store.ts';
 import { Provider } from 'react-redux';
@@ -30,6 +30,7 @@ const linking = {
       Home: 'home',
       Login: 'login',
       SignUp: 'signup',
+      SignupPage: 'signup/:role',
       TransactionDetail: 'transaction/:transactionId',
       PostDetailScreen: 'post/:postId',
       ProductDetails: 'product/:productId',
@@ -382,7 +383,16 @@ function MainApp() {
           <ProductUploadProvider>
             <PostUploadProvider>
               <PersistentActionProvider>
-          <Stack.Navigator initialRouteName={initialRoute}>
+          <Stack.Navigator
+            initialRouteName={initialRoute}
+            // On web the stack otherwise switches a screen to "page overflow"
+            // (min-height: 100%, the browser page scrolls) whenever it happens
+            // to measure the same size as <body>. That's a race: some loads
+            // the feed scrolled the whole page and pushed the tab bar off
+            // screen. 'float' turns that mode off; every screen hides the
+            // stack header anyway.
+            screenOptions={Platform.OS === 'web' ? { headerMode: 'float' } : undefined}
+          >
             <Stack.Screen
               name="SignUp"
               component={SignUpScreen}
@@ -641,14 +651,55 @@ function MainApp() {
   );
 }
 
+/**
+ * Last line of defence: a render/effect error anywhere used to unmount the
+ * whole tree and leave a blank white page (notably on web). Show a way out.
+ */
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: { componentStack?: string | null }) {
+    console.error('[AppErrorBoundary]', error?.message, error?.stack, info?.componentStack);
+  }
+  private reload = () => {
+    const w = (globalThis as any).window;
+    if (Platform.OS === 'web' && w?.location) {
+      w.location.reload();
+    } else {
+      this.setState({ error: null });
+    }
+  };
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <View style={styles.crashContainer}>
+        <Text style={styles.crashTitle}>Something went wrong</Text>
+        <Text style={styles.crashText}>
+          iCampus hit an unexpected error. Reload to continue.
+        </Text>
+        <TouchableOpacity style={styles.crashButton} onPress={this.reload} accessibilityRole="button">
+          <Text style={styles.crashButtonText}>Reload</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+}
+
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Provider store={store}>
-        <ThemeProvider>
-          <MainApp />
-        </ThemeProvider>
-      </Provider>
+      <AppErrorBoundary>
+        <Provider store={store}>
+          <ThemeProvider>
+            <MainApp />
+          </ThemeProvider>
+        </Provider>
+      </AppErrorBoundary>
     </GestureHandlerRootView>
   );
 };
@@ -665,6 +716,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  crashContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: '#f8f0eb',
+  },
+  crashTitle: { fontSize: 20, fontWeight: '800', color: '#222', marginBottom: 8 },
+  crashText: { fontSize: 14, color: '#555', textAlign: 'center', marginBottom: 20 },
+  crashButton: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  crashButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
 
 //Debug: adb logcat *:S ReactNative:V ReactNativeJS:V

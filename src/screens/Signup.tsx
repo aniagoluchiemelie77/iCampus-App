@@ -5,7 +5,7 @@ import {
   ImageBackground,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { SwiperFlatList } from 'react-native-swiper-flatlist';
 import LinearGradient from 'react-native-linear-gradient';
@@ -22,28 +22,110 @@ const images = [
   'https://res.cloudinary.com/dbdw3zftx/image/upload/v1769095199/startimage4_s9d9yi.jpg',
 ];
 
-const screenWidth = Dimensions.get('window').width;
-const { width, height } = Dimensions.get('window');
+// Wide windows (desktop/tablet landscape) get a split layout: full-screen
+// portrait photos crop and blow up badly across a 16:9 screen.
+const WIDE_BREAKPOINT = 900;
+
 const SignUpScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { width, height } = useWindowDimensions();
+  const isWide = width >= WIDE_BREAKPOINT;
+  // The carousel needs explicit page sizes; match the panel it sits in.
+  const slideWidth = isWide ? Math.round(width * 0.55) : width;
+  const slideHeight = height;
+
+  const options = (
+    <>
+      <Text style={[styles.title, isWide && styles.titleWide]}>
+        Get started with <Text style={[styles.titleColored, isWide && styles.titleWide]}>iCampus</Text>
+      </Text>
+
+      <Text style={styles.titleText}>Please select a signup option</Text>
+
+      <View style={[styles.buttonRow, isWide && styles.buttonRowWide]}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={styles.buttonBoxWithBorder}
+          onPress={() => navigation.navigate('SignupPage', { role: 'student' })}
+        >
+          <Text style={styles.buttonText}>Student</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={styles.buttonBoxWithBorder}
+          onPress={() => navigation.navigate('SignupPage', { role: 'teacher' })}
+        >
+          <Text style={styles.buttonText}>Lecturer</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[styles.buttonBox, { borderRightWidth: 0 }]}
+          onPress={() => navigation.navigate('SignupPage', { role: 'other' })}
+        >
+          <Text style={styles.buttonText}>Other</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.footerDiv}>
+        <Text style={[styles.footerDivText, { color: '#fff' }]}>
+          Already have an account?
+        </Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          hitSlop={10}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={styles.footerDivText2}>Login</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const carousel = (
+    <SwiperFlatList
+      // Re-mount on resize so every page matches the new size.
+      key={`${slideWidth}x${slideHeight}`}
+      autoplay
+      autoplayDelay={9}
+      autoplayLoop
+      index={0}
+      showPagination={false}
+      data={images}
+      renderItem={({ item }) => (
+        <ImageBackground
+          source={{ uri: item }}
+          style={{ width: slideWidth, height: slideHeight }}
+          resizeMode="cover"
+        />
+      )}
+    />
+  );
+
+  if (isWide) {
+    return (
+      <View style={styles.wideRoot}>
+        <View style={[styles.widePhoto, { width: slideWidth }]}>
+          {carousel}
+          <LinearGradient
+            colors={['#00000000', '#000000cc']}
+            start={{ x: 0.4, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+        </View>
+        <View style={styles.widePanel}>
+          <View style={styles.widePanelInner}>{options}</View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       {/* Background Carousel */}
-      <SwiperFlatList
-        autoplay
-        autoplayDelay={9}
-        autoplayLoop
-        index={0}
-        showPagination={false}
-        data={images}
-        renderItem={({ item }) => (
-          <ImageBackground
-            source={{ uri: item }}
-            style={styles.background}
-            resizeMode="cover"
-          />
-        )}
-      />
+      {carousel}
 
       {/* Gradient Overlay */}
       <LinearGradient
@@ -53,64 +135,24 @@ const SignUpScreen = () => {
       />
 
       {/* Foreground Content */}
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>
-          Get started with <Text style={styles.titleColored}>iCampus</Text>
-        </Text>
-
-        <Text style={styles.titleText}>Please select a signup option</Text>
-
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.buttonBoxWithBorder}
-            onPress={() =>
-              navigation.navigate('SignupPage', { role: 'student' })
-            }
-          >
-            <Text style={styles.buttonText}>Student</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.buttonBoxWithBorder}
-            onPress={() =>
-              navigation.navigate('SignupPage', { role: 'teacher' })
-            }
-          >
-            <Text style={styles.buttonText}>Lecturer</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.buttonBox, { borderRightWidth: 0 }]}
-            onPress={() => navigation.navigate('SignupPage', { role: 'other' })}
-          >
-            <Text style={styles.buttonText}>Other</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.footerDiv}>
-          <Text style={[styles.footerDivText, { color: '#fff' }]}>
-            Already have an account?
-          </Text>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={10}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.footerDivText2}>Login</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <View style={styles.textContainer}>{options}</View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  background: {
-    width,
-    height,
+  wideRoot: { flex: 1, flexDirection: 'row', backgroundColor: '#000' },
+  widePhoto: { height: '100%', overflow: 'hidden' },
+  widePanel: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    backgroundColor: '#000',
   },
+  widePanelInner: { width: '100%', maxWidth: 440, alignItems: 'center' },
+  titleWide: { fontSize: 34, textAlign: 'center' },
+  buttonRowWide: { width: '100%' },
   gradient: {
     position: 'absolute',
     bottom: 0,

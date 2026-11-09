@@ -14,7 +14,7 @@ import {
   Pressable,
   FlatList,
 } from 'react-native';
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation, { GeoError, GeoPosition } from 'react-native-geolocation-service';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
 import { StationCarousel } from '../components/StationCarousel.tsx';
@@ -22,8 +22,6 @@ import Toast from 'react-native-toast-message';
 import {
   Product,
   DropOffStation,
-  GeolocationPosition,
-  GeolocationError,
 } from '../types/firebase';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { fetchDropOffStationsAPI } from '../api/localGetApis';
@@ -155,7 +153,7 @@ export const CreateProductScreen = ({ route }: any) => {
     setActiveStep(activeStep === step ? 0 : step);
   };
   const { pickProductImages } = useMediaPicker();
-  const { userCoords } = useLocationServices();
+  const { userCoords } = useLocationServices({ prompt: true });
   const handleAddProductImages = async () => {
     const selectedUris = await pickProductImages(5);
 
@@ -363,7 +361,7 @@ export const CreateProductScreen = ({ route }: any) => {
           return;
         }
         Geolocation.getCurrentPosition(
-          async (position: GeolocationPosition) => {
+          async (position: GeoPosition) => {
             const { latitude, longitude } = position.coords;
             const response = await fetchDropOffStationsAPI(latitude, longitude);
             if (response.success) {
@@ -371,7 +369,7 @@ export const CreateProductScreen = ({ route }: any) => {
             }
             setLoading(false);
           },
-          async (error: GeolocationError) => {
+          async (error: GeoError) => {
             console.log('Location error code:', error.code, error.message);
             const response = await fetchDropOffStationsAPI();
             if (response.success) setStations(response.data);

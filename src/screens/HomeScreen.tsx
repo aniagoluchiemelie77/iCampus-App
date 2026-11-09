@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { FeedTab } from '../components/HomeScreenComponents';
@@ -42,6 +43,10 @@ import { PageHeader } from '../components/PageHeader';
 import {
   NotificationBell,
   ProfileModal,
+  ProfileSidebar,
+  HomeRightRail,
+  PROFILE_SIDEBAR_WIDTH,
+  RIGHT_RAIL_WIDTH,
 } from '../components/HomeScreenComponents.tsx';
 import { UserAvatar } from '../components/UserAvatar';
 import { HeaderActionButton } from '../components/Storescreen.tsx';
@@ -174,6 +179,19 @@ const HomeScreen = () => {
   const isClassroomAllowed = userType === 'student' || userType === 'lecturer';
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
+  // Desktop web: LinkedIn-style columns. The profile menu becomes a
+  // permanent left sidebar, and wide windows add a right rail.
+  const showSidebar = Platform.OS === 'web' && width >= 1024;
+  const showRightRail = showSidebar && width >= 1320;
+  const desktop = (() => {
+    if (!showSidebar) return null;
+    const bodyWidth = Math.min(width, BODY_MAX_WIDTH);
+    const outer = (width - bodyWidth) / 2 + BODY_PADDING;
+    const centerLeft = outer + PROFILE_SIDEBAR_WIDTH + COLUMN_GAP;
+    const centerRight = outer + (showRightRail ? RIGHT_RAIL_WIDTH + COLUMN_GAP : 0);
+    const centerWidth = width - centerLeft - centerRight;
+    return { centerLeft, centerRight, centerWidth };
+  })();
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
@@ -351,6 +369,9 @@ const HomeScreen = () => {
     pagerRef.current?.setPage(pageIndex);
   }, [route.params?.activeTab, isClassroomAllowed]);
   useEffect(() => {
+    // Firebase Messaging is a no-op stub on web (see metro.config.js); its
+    // calls return no promises, and a throw here blanked the whole app.
+    if (Platform.OS === 'web') return;
     const messagingInstance = getMessaging();
     const unsubscribe = onMessage(
       messagingInstance,
@@ -374,6 +395,7 @@ const HomeScreen = () => {
               course: { courseId: data.courseId, courseTitle: data.courseTitle },
               title: remoteMessage.notification?.title || data.testTitle || 'Assessment ready',
               message: remoteMessage.notification?.body || 'Your assessment is ready to start.',
+              expiresAt: data.dueDate,
             });
           }
           return;
@@ -392,6 +414,7 @@ const HomeScreen = () => {
   // land on the same screen as tapping it in the Notifications list.
   const handledInitialPushRef = useRef(false);
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const messagingInstance = getMessaging();
     const openFromPush = (remoteMessage: any) => {
       const data = remoteMessage?.data || {};
@@ -404,6 +427,7 @@ const HomeScreen = () => {
           course: { courseId: payload.courseId, courseTitle: payload.courseTitle },
           title: remoteMessage.notification?.title || payload.testTitle || 'Assessment ready',
           message: remoteMessage.notification?.body || 'Your assessment is ready to start.',
+          expiresAt: payload.dueDate,
         });
         return;
       }
@@ -436,12 +460,19 @@ const HomeScreen = () => {
   return (
     <>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.headerFrame}>
+        <View style={[styles.headerFrame, showSidebar && styles.headerFrameWide]}>
           <PageHeader
             title={getHeaderTitle()}
             showBackButton={false}
             leftElement={
-              <TouchableOpacity onPress={() => setProfilePopupVisible(true)}>
+              <TouchableOpacity
+                onPress={() =>
+                  // The sidebar already shows the menu on desktop.
+                  showSidebar
+                    ? navigation.navigate('Profile', { identifier: user?.uid } as any)
+                    : setProfilePopupVisible(true)
+                }
+              >
                 <UserAvatar
                   profilePic={user?.profilePic}
                   firstName={user?.firstname}
@@ -454,8 +485,10 @@ const HomeScreen = () => {
             rightElement={getHeaderRightElement()}
           />
         </View>
+        <View style={[styles.body, showSidebar && styles.bodyWide]}>
+        {showSidebar && <ProfileSidebar showAds={!showRightRail} />}
         <PagerView
-          style={styles.centerContent}
+          style={[styles.centerContent, showSidebar && styles.centerContentWide]}
           initialPage={0}
           ref={pagerRef}
           onPageSelected={handlePageSelected}
@@ -481,18 +514,22 @@ const HomeScreen = () => {
                 ) : screen === 'search' ? (
                   <SearchScreen />
                 ) : (
-                  <StoreScreen />
+                  <StoreScreen isActive={activeIcon === 'store'} />
                 )}
               </View>
             </View>
           ))}
         </PagerView>
+        {showRightRail && <HomeRightRail />}
+        </View>
         {fabConfig && !isFabMenuVisible && (
           <TouchableOpacity
             style={[
               styles.fab,
               isLargeScreen && {
-                right: Math.max(24, (width - 1280) / 2 + 24),
+                right: desktop
+                  ? desktop.centerRight + 16
+                  : Math.max(24, (width - 1280) / 2 + 24),
                 bottom: 96,
               },
             ]}
@@ -525,9 +562,14 @@ const HomeScreen = () => {
             {
               backgroundColor: colors.background,
               borderColor: colors.border,
+              // Centered under the middle column on desktop.
               ...(isLargeScreen && {
-                left: Math.max(16, (width - 440) / 2),
-                right: Math.max(16, (width - 440) / 2),
+                left: desktop
+                  ? desktop.centerLeft + Math.max(0, (desktop.centerWidth - TAB_BAR_WIDTH) / 2)
+                  : Math.max(16, (width - TAB_BAR_WIDTH) / 2),
+                right: desktop
+                  ? desktop.centerRight + Math.max(0, (desktop.centerWidth - TAB_BAR_WIDTH) / 2)
+                  : Math.max(16, (width - TAB_BAR_WIDTH) / 2),
               }),
             },
           ]}
@@ -589,7 +631,31 @@ const HomeScreen = () => {
     </>
   );
 };
+const BODY_MAX_WIDTH = 1440;
+const BODY_PADDING = 20;
+const COLUMN_GAP = 20;
+const TAB_BAR_WIDTH = 440;
+
 const styles = StyleSheet.create({
+  body: {
+    flex: 1,
+  },
+  bodyWide: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: BODY_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: BODY_PADDING,
+    columnGap: COLUMN_GAP,
+    // Room for the floating tab bar under the columns.
+    paddingBottom: 90,
+  },
+  centerContentWide: {
+    paddingBottom: 0,
+  },
+  headerFrameWide: {
+    maxWidth: BODY_MAX_WIDTH,
+  },
   mainWrapper: {
     flex: 1,
     paddingHorizontal: 15,

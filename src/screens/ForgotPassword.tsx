@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   StyleSheet,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import { PRIMARY_COLOR } from '../assets/styles/colors';
 import { CustomButton } from '../assets/components/AppUIComponents';
@@ -34,7 +33,6 @@ type NavigationProp = StackNavigationProp<
   'ForgotPasswordScreen'
 >;
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -339,8 +337,7 @@ const styles = StyleSheet.create({
   },
   bkg: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
   },
   scrollContainer: {
     flexGrow: 1,

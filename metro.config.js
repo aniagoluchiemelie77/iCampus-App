@@ -11,7 +11,6 @@ const isWebBuild = process.env.ICAMPUS_WEB_BUILD === '1';
 const WEB_STUBBED_PACKAGES = [
   '@bam.tech/react-native-image-resizer',
   '@react-native-community/datetimepicker',
-  '@react-native-community/geolocation',
   '@react-native-documents/picker',
   '@react-native-firebase/app',
   '@react-native-firebase/messaging',
@@ -35,7 +34,6 @@ const WEB_STUBBED_PACKAGES = [
   'react-native-sound',
   'react-native-vision-camera',
   'react-native-vision-camera-face-detector',
-  'react-native-webrtc',
 ];
 // Native-only components that wrap content: real web versions instead.
 const WEB_REPLACEMENTS = {

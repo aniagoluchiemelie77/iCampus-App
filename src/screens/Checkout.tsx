@@ -73,7 +73,7 @@ export const CheckoutScreen = () => {
     dropOffItems,
     homeItems,
   } = useCheckout(params, currentUser, allProducts);
-  const { userCoords, locationPermission } = useLocationServices();
+  const { userCoords, locationPermission } = useLocationServices({ prompt: true });
 
   // Convert the grand total to the buyer's currency only when it differs
   // from the seller's currency. useConvertedCurrency returns the base amount

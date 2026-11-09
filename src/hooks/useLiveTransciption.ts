@@ -17,7 +17,7 @@ interface UseLiveTranscriptionProps {
   onTranscriptChunk: (speakerLabel: string, text: string) => void;
 }
 
-// react-native-live-audio-stream emits raw 16-bit PCM at 16 kHz mono, so
+// Agora's recorded-audio frames (useAgoraClass) are raw 16-bit PCM at 16 kHz mono, so
 // Deepgram must be told the encoding explicitly (there is no container header).
 const DEEPGRAM_WS_URL =
   'wss://api.deepgram.com/v1/listen?model=nova-2-general&language=en' +

@@ -27,6 +27,7 @@ import { updateUserThemePreference } from '../api/localPutApis.ts';
 import { useTheme } from '../context/ThemeContext';
 import { IconOutline } from '@ant-design/icons-react-native';
 import { canManageSubscriptions } from '../utils/subscriptionAccess';
+import { centeredColumn } from '../utils/layout';
 
 export const SectionHeader = ({ title }: { title: string }) => {
   const { colors } = useTheme();
@@ -105,7 +106,7 @@ export const Settings = () => {
       <PageHeader title="Settings" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ marginHorizontal: 15, paddingBottom: 40 }}
+        contentContainerStyle={[{ paddingHorizontal: 15, paddingBottom: 40 }, centeredColumn()]}
       >
         <SectionHeader title="Account & Security" />
         <View style={styles.group}>

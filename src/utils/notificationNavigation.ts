@@ -116,6 +116,14 @@ export const showLectureReminderPrompt = (
 ) => {
   const info = getLectureReminderInfo(item, user);
   if (!info) return false;
+  // An old reminder (tapped late, or replayed on launch) must not offer to
+  // join or take attendance for a class that is already over.
+  const endMs = (info.end ?? info.start)?.getTime();
+  const fallbackEnd = info.end ? 0 : 3 * 60 * 60 * 1000;
+  if (endMs !== undefined && Date.now() > endMs + fallbackEnd) {
+    Alert.alert('Lecture has ended', `"${info.topicName}" is already over.`, [{ text: 'OK' }]);
+    return true;
+  }
   if (onShow) {
     onShow(info);
     return true;

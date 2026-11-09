@@ -157,28 +157,197 @@ interface ProfileModalProps {
   visible: boolean;
   onClose: () => void;
 }
-export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
+
+/** Ads shown with the profile menu (drawer, sidebar and right rail). */
+const useMenuAds = () => {
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [loadingAds, setLoadingAds] = useState(true);
+  useEffect(() => {
+    let active = true;
+    getAds().then(result => {
+      if (!active) return;
+      if (result.success) setAds(result.data);
+      setLoadingAds(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  return { ads, loadingAds };
+};
+
+/**
+ * The profile header and menu links. Rendered in the slide-in drawer on
+ * phones (ProfileModal) and as a permanent left sidebar on desktop web
+ * (ProfileSidebar). `onNavigate` runs before each navigation (the drawer
+ * closes itself there).
+ */
+export const ProfileMenu = ({ onNavigate }: { onNavigate?: () => void }) => {
   const { colors } = useTheme();
   const { currentUser } = useAppDataContext();
   const navigation = useNavigation<StackNavigationProp<any>>();
-  const [ads, setAds] = useState<AdItem[]>([]);
-  const [loadingAds, setLoadingAds] = useState(true);
+  return (
+    <>
+      <TouchableOpacity
+        style={styles.userInfo}
+        onPress={() => {
+          onNavigate?.();
+          navigation.navigate('Profile', {
+            identifier: currentUser?.uid,
+          });
+        }}
+      >
+        <UserAvatar
+          profilePic={currentUser?.profilePic}
+          firstName={currentUser.firstname!}
+          lastName={currentUser.lastname!}
+          organizationName={currentUser?.organizationName}
+          style={styles.largeAvatar}
+        />
+        <UserIdentity
+          firstname={currentUser.firstname!}
+          lastname={currentUser.lastname!}
+          username={currentUser.username}
+          tier={currentUser?.tier || 'free'}
+          isVerified={currentUser?.isVerified}
+          size="medium"
+          isOrganization={currentUser?.usertype === 'enterprise'}
+          organizationName={currentUser?.organizationName}
+          containerStyle={{ flex: 1 }}
+        />
+        {currentUser.headline && (
+          <Text style={[styles.userSubtext, { color: colors.textDarker }]}>
+            {currentUser.headline}
+          </Text>
+        )}
+      </TouchableOpacity>
+      <View style={styles.drawerContentDiv}>
+        <View style={{ width: '100%' }}>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('SalesHub');
+            }}
+          >
+            <MaterialIcons
+              name="storefront"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              Sales Hub
+            </Text>
+          </TouchableOpacity>
+          {canManageSubscriptions(currentUser) && <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('Subscription');
+            }}
+          >
+            <MaterialIcons
+              name="verified"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              Manage Subscription
+            </Text>
+          </TouchableOpacity>}
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('Notifications');
+            }}
+          >
+            <MaterialIcons
+              name="notifications"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              Notifications
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('CartScreen');
+            }}
+          >
+            <MaterialIcons
+              name="shopping-cart"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              My Cart
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('FavoritesScreen');
+            }}
+          >
+            <MaterialIcons
+              name="favorite"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              Favorites
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('FAQScreen');
+            }}
+          >
+            <MaterialIcons
+              name="help-outline"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              Help & FAQs
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              onNavigate?.();
+              navigation.navigate('Settings');
+            }}
+          >
+            <MaterialIcons
+              name="settings"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={[styles.itemText, { color: colors.text }]}>
+              Settings
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </>
+  );
+};
+
+export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
+  const { colors } = useTheme();
+  const { ads, loadingAds } = useMenuAds();
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
   const drawerWidth = isLargeScreen ? 320 : width * 0.8;
   const adBannerWidth = Math.max(0, drawerWidth - 30);
-  useEffect(() => {
-    const fetchAdvertisements = async () => {
-      setLoadingAds(true);
-      const result = await getAds();
-      if (result.success) {
-        setAds(result.data);
-      }
-      setLoadingAds(false);
-    };
-
-    fetchAdvertisements();
-  }, []);
   return (
     <Modal
       visible={visible}
@@ -204,155 +373,7 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.drawerMenuContent}
         >
-          <TouchableOpacity
-            style={styles.userInfo}
-            onPress={() => {
-              onClose();
-              navigation.navigate('Profile', {
-                identifier: currentUser?.uid,
-              });
-            }}
-          >
-            <UserAvatar
-              profilePic={currentUser?.profilePic}
-              firstName={currentUser.firstname!}
-              lastName={currentUser.lastname!}
-              organizationName={currentUser?.organizationName}
-              style={styles.largeAvatar}
-            />
-            <UserIdentity
-              firstname={currentUser.firstname!}
-              lastname={currentUser.lastname!}
-              username={currentUser.username}
-              tier={currentUser?.tier || 'free'}
-              isVerified={currentUser?.isVerified}
-              size="medium"
-              isOrganization={currentUser?.usertype === 'enterprise'}
-              organizationName={currentUser?.organizationName}
-              containerStyle={{ flex: 1 }}
-            />
-            {currentUser.headline && (
-              <Text style={[styles.userSubtext, { color: colors.textDarker }]}>
-                {currentUser.headline}
-              </Text>
-            )}
-          </TouchableOpacity>
-          <View style={styles.drawerContentDiv}>
-            <View style={{ width: '100%' }}>
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('SalesHub');
-                }}
-              >
-                <MaterialIcons
-                  name="storefront"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  Sales Hub
-                </Text>
-              </TouchableOpacity>
-              {canManageSubscriptions(currentUser) && <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('Subscription');
-                }}
-              >
-                <MaterialIcons
-                  name="verified"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  Manage Subscription
-                </Text>
-              </TouchableOpacity>}
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('Notifications');
-                }}
-              >
-                <MaterialIcons
-                  name="notifications"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  Notifications
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('CartScreen');
-                }}
-              >
-                <MaterialIcons
-                  name="shopping-cart"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  My Cart
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('FavoritesScreen');
-                }}
-              >
-                <MaterialIcons
-                  name="favorite"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  Favorites
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('FAQScreen');
-                }}
-              >
-                <MaterialIcons
-                  name="help-outline"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  Help & FAQs
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('Settings');
-                }}
-              >
-                <MaterialIcons
-                  name="settings"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={[styles.itemText, { color: colors.text }]}>
-                  Settings
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <ProfileMenu onNavigate={onClose} />
         </ScrollView>
         {!loadingAds && ads.length > 0 && (
           <AdBanner ads={ads} width={adBannerWidth} />
@@ -361,6 +382,76 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
     </Modal>
   );
 };
+
+export const PROFILE_SIDEBAR_WIDTH = 280;
+
+/**
+ * Desktop web: the profile menu as a permanent, scrollable left column
+ * (LinkedIn-style), instead of a drawer behind the avatar.
+ */
+export const ProfileSidebar = ({ showAds = true }: { showAds?: boolean }) => {
+  const { colors } = useTheme();
+  const { ads, loadingAds } = useMenuAds();
+  return (
+    <View
+      style={[
+        styles.sidebar,
+        { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+      ]}
+    >
+      <ScrollView
+        style={styles.drawerMenuScroll}
+        contentContainerStyle={styles.sidebarContent}
+        // A visible scrollbar tells mouse users there is more below.
+        showsVerticalScrollIndicator
+      >
+        <ProfileMenu />
+        {showAds && !loadingAds && ads.length > 0 && (
+          <AdBanner ads={ads} width={PROFILE_SIDEBAR_WIDTH - 36} />
+        )}
+      </ScrollView>
+    </View>
+  );
+};
+
+export const RIGHT_RAIL_WIDTH = 300;
+
+/** Desktop web right rail: sponsored content in its own scroll area. */
+export const HomeRightRail = () => {
+  const { colors } = useTheme();
+  const { ads, loadingAds } = useMenuAds();
+  return (
+    <View style={styles.rightRail}>
+      <ScrollView
+        style={styles.drawerMenuScroll}
+        contentContainerStyle={styles.rightRailContent}
+        showsVerticalScrollIndicator
+      >
+        <View
+          style={[
+            styles.railCard,
+            { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.railTitle, { color: colors.textDarker }]}>Sponsored</Text>
+          {loadingAds ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+          ) : ads.length > 0 ? (
+            <AdBanner ads={ads} width={RIGHT_RAIL_WIDTH - 32} />
+          ) : (
+            <Text style={[styles.railEmpty, { color: colors.text }]}>
+              Nothing to show right now.
+            </Text>
+          )}
+        </View>
+        <Text style={[styles.railFooter, { color: colors.text }]}>
+          iCampus © {new Date().getFullYear()}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+};
+
 export const NotificationBell: React.FC<Props> = ({
   initialCount = 0,
   colors,
@@ -1721,6 +1812,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  sidebar: {
+    width: PROFILE_SIDEBAR_WIDTH,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    marginVertical: 12,
+  },
+  sidebarContent: {
+    padding: 18,
+    paddingBottom: 24,
+  },
+  rightRail: {
+    width: RIGHT_RAIL_WIDTH,
+    marginVertical: 12,
+  },
+  rightRailContent: {
+    paddingBottom: 24,
+  },
+  railCard: {
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    alignItems: 'center',
+  },
+  railTitle: {
+    alignSelf: 'flex-start',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  railEmpty: { fontSize: 13, opacity: 0.7, marginVertical: 16 },
+  railFooter: { fontSize: 11, opacity: 0.6, textAlign: 'center', marginTop: 14 },
   drawerContentDiv: {
     flex: 1,
     justifyContent: 'space-between',

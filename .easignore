@@ -6,7 +6,8 @@
 local.properties
 .env.local
 # Web build output (npm run web:build)
-/dist
+dist/
+public/
 
 
 

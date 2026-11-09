@@ -55,9 +55,12 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * R8 on release builds: removes unused Java/Kotlin code from the bundled SDKs
+ * and unused resources. Keep rules live in proguard-rules.pro. If a release
+ * build crashes with ClassNotFoundException / NoSuchMethodError from a
+ * library, add a -keep rule for that library there (or set this to false).
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -103,8 +106,38 @@ android {
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
-            //shrinkResources enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Agora's "full" SDK bundles optional add-ons as separate native
+            // libraries, each loaded only when its feature is switched on.
+            // Live classes use core video, dual stream and screen sharing
+            // (libagora_screen_capture_extension.so stays), so drop the rest.
+            // Removing one disables just that feature, e.g. putting back
+            // libagora_segmentation_extension.so restores virtual backgrounds.
+            excludes += [
+                "**/libagora_ai_echo_cancellation_extension.so",
+                "**/libagora_ai_echo_cancellation_ll_extension.so",
+                "**/libagora_ai_noise_suppression_extension.so",
+                "**/libagora_ai_noise_suppression_ll_extension.so",
+                "**/libagora_audio_beauty_extension.so",
+                "**/libagora_clear_vision_extension.so",
+                "**/libagora_content_inspect_extension.so",
+                "**/libagora_face_capture_extension.so",
+                "**/libagora_face_detection_extension.so",
+                "**/libagora_lip_sync_extension.so",
+                "**/libagora_segmentation_extension.so",
+                "**/libagora_spatial_audio_extension.so",
+                "**/libagora_video_quality_analyzer_extension.so",
+                "**/libagora_video_av1_encoder_extension.so",
+                "**/libagora_video_av1_decoder_extension.so",
+                "**/libagora_video_encoder_extension.so",
+                "**/libagora_video_decoder_extension.so",
+            ]
         }
     }
 }
@@ -144,4 +177,10 @@ subprojects {
     }
 }
 apply plugin: 'com.google.gms.google-services'
+// Only bundle the icon fonts the app uses (MaterialIcons everywhere,
+// MaterialCommunityIcons via react-native-paper); fonts.gradle copies all 19
+// families otherwise.
+project.ext.vectoricons = [
+    iconFontNames: ["MaterialIcons.ttf", "MaterialCommunityIcons.ttf"]
+]
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")

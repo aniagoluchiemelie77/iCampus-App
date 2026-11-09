@@ -744,6 +744,8 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 1,
+    // flex: 1 alone collapses the button's height on web in column layouts.
+    minHeight: 50,
     paddingHorizontal: 15,
     marginTop: 16,
   },

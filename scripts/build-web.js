@@ -7,10 +7,9 @@ const dist = path.join(root, 'dist');
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
-fs.copyFileSync(
-  path.join(root, 'public', 'index.html'),
-  path.join(dist, 'index.html'),
-);
+for (const file of ['index.html', 'favicon.png']) {
+  fs.copyFileSync(path.join(root, 'public', file), path.join(dist, file));
+}
 
 // Icon fonts referenced by @font-face in public/index.html.
 const fonts = path.join(dist, 'fonts');

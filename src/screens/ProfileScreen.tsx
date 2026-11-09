@@ -46,8 +46,10 @@ import { useProfileTab } from '../hooks/useProfileTab.ts';
 import { fetchProfileConnectionsAPI } from '../api/localGetApis.ts';
 import moment from 'moment';
 import { parseFirestoreDate } from '../utils/dateFormatter';
+import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
 
-const { width } = Dimensions.get('window');
+// Width of the profile column: the screen on phones, capped on desktop.
+const width = Math.min(Dimensions.get('window').width, PAGE_WIDTH);
 const CARD_WIDTH = width * 0.82;
 const CARD_HEIGHT = 220;
 const CARD_GAP = 16;
@@ -797,7 +799,7 @@ export const ProfileScreen = ({ route }: any) => {
       {header}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, centeredColumn(PAGE_WIDTH)]}
       >
         <ProfileImageCarousel
           images={profileData.profilePic}

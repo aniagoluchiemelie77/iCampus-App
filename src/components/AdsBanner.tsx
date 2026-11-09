@@ -10,6 +10,7 @@ import {
   NativeScrollEvent,
   Linking,
   useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import Video from 'react-native-video'; 
 import { useTheme } from '../context/ThemeContext';
@@ -30,14 +31,32 @@ interface AdBannerProps {
   width?: number;
 }
 
-const AUTOPLAY_INTERVAL = 6000; 
+const AUTOPLAY_INTERVAL = 6000;
+// Past this the image upscales and looks blurry on desktop.
+const MAX_BANNER_WIDTH = 760;
 
 export const AdBanner: React.FC<AdBannerProps> = ({ ads, width }) => {
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const containerWidth = width ?? Math.max(0, screenWidth - 32);
+  // Without an explicit width, fit the column we are placed in (not the
+  // whole window, which overflowed narrow columns on desktop).
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const containerWidth = Math.min(
+    width ?? measuredWidth ?? Math.max(0, screenWidth - 32),
+    MAX_BANNER_WIDTH,
+  );
+  // Keep a banner-like shape at any width.
+  const bannerHeight = Math.round(Math.min(300, Math.max(150, containerWidth * 0.42)));
+  const onLayout = (e: LayoutChangeEvent) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w > 0 && w !== measuredWidth) setMeasuredWidth(w);
+  };
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  const goTo = (index: number) => {
+    setCurrentIndex(index);
+    scrollViewRef.current?.scrollTo({ x: index * containerWidth, animated: true });
+  };
 
   useEffect(() => {
     if (!ads || ads.length <= 1) return;
@@ -86,10 +105,11 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads, width }) => {
 
   if (!ads || ads.length === 0) return null;
   return (
+    <View style={styles.measure} onLayout={width ? undefined : onLayout}>
     <View
       style={[
         styles.wrapper,
-        { backgroundColor: colors.background, width: containerWidth },
+        { width: containerWidth },
       ]}
     >
       <View
@@ -98,6 +118,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads, width }) => {
           {
             backgroundColor: colors.backgroundSecondary,
             width: containerWidth,
+            height: bannerHeight,
           },
         ]}
       >
@@ -168,8 +189,13 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads, width }) => {
       {ads.length > 1 && (
         <View style={styles.dotsContainer}>
           {ads.map((_, index) => (
-            <View
+            // Pressable so mouse users (no swipe) can switch ads too.
+            <TouchableOpacity
               key={index}
+              onPress={() => goTo(index)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Show ad ${index + 1} of ${ads.length}`}
               style={[
                 styles.dot,
                 currentIndex === index
@@ -181,16 +207,20 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ads, width }) => {
         </View>
       )}
     </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  measure: {
+    width: '100%',
+    alignItems: 'center',
+  },
   wrapper: {
     marginVertical: 12,
     alignItems: 'center',
   },
   container: {
-    height: 210,
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',

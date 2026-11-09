@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -51,6 +51,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [courses, setCourses] = useState<Course[]>([]);
+  // Session / semester helpers. Every course is loaded at once, so these
+  // filter on the device: instant, and no extra requests.
+  const [sessionFilter, setSessionFilter] = useState<string>(ALL);
+  const [semesterFilter, setSemesterFilter] = useState<string>(ALL);
+  const sessionOptions = useMemo(
+    () =>
+      uniqueValues(courses.map(c => (c as any).session)).sort((a, b) =>
+        b.localeCompare(a, undefined, { numeric: true }),
+      ),
+    [courses],
+  );
+  const semesterOptions = useMemo(
+    () =>
+      uniqueValues(courses.map(c => (c as any).semester)).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true }),
+      ),
+    [courses],
+  );
+  // Drop a selection that no longer exists after a refresh.
+  useEffect(() => {
+    if (sessionFilter !== ALL && !sessionOptions.includes(sessionFilter)) setSessionFilter(ALL);
+    if (semesterFilter !== ALL && !semesterOptions.includes(semesterFilter)) setSemesterFilter(ALL);
+  }, [sessionOptions, semesterOptions, sessionFilter, semesterFilter]);
+  const visibleCourses = useMemo(
+    () =>
+      courses.filter(
+        c =>
+          (sessionFilter === ALL || String((c as any).session ?? '').trim() === sessionFilter) &&
+          (semesterFilter === ALL || String((c as any).semester ?? '').trim() === semesterFilter),
+      ),
+    [courses, sessionFilter, semesterFilter],
+  );
+  const isFiltered = sessionFilter !== ALL || semesterFilter !== ALL;
+  const clearFilters = () => {
+    setSessionFilter(ALL);
+    setSemesterFilter(ALL);
+  };
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -336,7 +373,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           </Text>
           {loadState === 'loaded' && courses.length > 0 && (
             <Text style={[styles.titleCount, { color: colors.text }]}>
-              {courses.length} {courses.length === 1 ? 'course' : 'courses'}
+              {isFiltered
+                ? `${visibleCourses.length} of ${courses.length} courses`
+                : `${courses.length} ${courses.length === 1 ? 'course' : 'courses'}`}
             </Text>
           )}
         </View>
@@ -346,10 +385,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
           style={styles.ctaBtn}
         />
       </View>
+
+      {loadState === 'loaded' && courses.length > 0 && (
+        <View
+          style={[
+            styles.filterCard,
+            { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+          ]}
+        >
+          {sessionOptions.length > 0 && (
+            <FilterRow
+              label="Session"
+              icon="date-range"
+              options={sessionOptions}
+              value={sessionFilter}
+              onChange={setSessionFilter}
+              colors={colors}
+            />
+          )}
+          {semesterOptions.length > 0 && (
+            <FilterRow
+              label="Semester"
+              icon="event-note"
+              options={semesterOptions}
+              value={semesterFilter}
+              onChange={setSemesterFilter}
+              colors={colors}
+              format={semesterLabel}
+            />
+          )}
+          {isFiltered && (
+            <TouchableOpacity
+              onPress={clearFilters}
+              style={styles.clearFilters}
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="filter-alt-off" size={16} color={colors.primary} />
+              <Text style={[styles.clearFiltersText, { color: colors.primary }]}>Clear filters</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 
   const renderEmpty = () => {
+    if (loadState === 'loaded' && courses.length > 0 && isFiltered) {
+      return (
+        <EmptyState
+          iconName="filter-alt-off"
+          title="No courses match these filters"
+          subtitle="Try another session or semester."
+          buttonText="Clear filters"
+          buttonIcon="close"
+          onPress={clearFilters}
+          style={styles.emptyState}
+        />
+      );
+    }
     if (loadState === 'idle' || loadState === 'loading') {
       return (
         <View style={styles.loadingBox}>
@@ -415,7 +508,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       edges={['left', 'right']}
     >
       <FlatList
-        data={loadState === 'error' ? [] : courses}
+        data={loadState === 'error' ? [] : visibleCourses}
         keyExtractor={item => item.courseId}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
@@ -477,6 +570,74 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
     </SafeAreaView>
   );
 };
+
+const ALL = 'All';
+
+const uniqueValues = (values: any[]) =>
+  Array.from(
+    new Set(
+      values
+        .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
+        .map(v => String(v).trim()),
+    ),
+  );
+
+const semesterLabel = (value: string) =>
+  /^\d+$/.test(value) ? `Semester ${value}` : `${value} semester`;
+
+/** A labelled row of choice chips ("All" first). Wraps instead of scrolling sideways. */
+const FilterRow = ({
+  label,
+  icon,
+  options,
+  value,
+  onChange,
+  colors,
+  format = (v: string) => v,
+}: {
+  label: string;
+  icon: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  colors: any;
+  format?: (v: string) => string;
+}) => (
+  <View style={styles.filterRow}>
+    <View style={styles.filterLabelRow}>
+      <MaterialIcons name={icon} size={15} color={colors.primary} />
+      <Text style={[styles.filterLabel, { color: colors.textDarker }]}>{label}</Text>
+    </View>
+    <View style={styles.chipWrap}>
+      {[ALL, ...options].map(option => {
+        const selected = option === value;
+        return (
+          <TouchableOpacity
+            key={option}
+            onPress={() => onChange(option)}
+            style={[
+              styles.chip,
+              selected
+                ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                : { borderColor: colors.border, backgroundColor: colors.background },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                { color: selected ? colors.btnTextColor || '#fff' : colors.textDarker },
+              ]}
+            >
+              {option === ALL ? 'All' : format(option)}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  </View>
+);
 
 const ActionTile = ({
   icon,
@@ -573,6 +734,26 @@ const styles = StyleSheet.create({
     height: 36,
     width: 'auto',
   },
+  filterCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  filterRow: { gap: 6 },
+  filterLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  filterLabel: { fontSize: 12.5, fontWeight: '800', letterSpacing: 0.2 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipText: { fontSize: 12.5, fontWeight: '700' },
+  clearFilters: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  clearFiltersText: { fontSize: 12.5, fontWeight: '700' },
   loadingBox: { alignItems: 'center', paddingTop: 48, gap: 10 },
   loadingText: { fontSize: 13, opacity: 0.75 },
   emptyState: {

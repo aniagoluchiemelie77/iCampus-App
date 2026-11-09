@@ -17,7 +17,7 @@ export const RegisterStationScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
-  const { userCoords } = useLocationServices();
+  const { userCoords } = useLocationServices({ prompt: true });
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',

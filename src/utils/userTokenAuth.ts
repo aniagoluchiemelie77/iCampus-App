@@ -20,6 +20,7 @@ let unsubscribeTokenRefresh: (() => void) | null = null;
 
 /** The device's current push token, or null when it can't be read. */
 export const getCurrentPushToken = async () => {
+  if (Platform.OS === 'web') return null;
   try {
     return (await getToken(getMessaging())) || null;
   } catch {
@@ -181,6 +182,8 @@ const ensureNotificationPermission = async (messagingInstance: ReturnType<typeof
 };
 
 export async function requestUserPermissionAndGetToken(uid: string) {
+  // No FCM in the browser build (the package is stubbed on web).
+  if (Platform.OS === 'web') return;
   try {
     const messagingInstance = getMessaging();
     const allowed = await ensureNotificationPermission(messagingInstance);

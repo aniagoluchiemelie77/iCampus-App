@@ -23,6 +23,7 @@ import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { usePostComments } from '../hooks/usePostComments';
 import { getPostId } from '../utils/postHelpers';
 import { formatCount } from '../utils/followCountFormatter';
+import { centeredColumn, READING_WIDTH } from '../utils/layout';
 
 export const PostDetailScreen = ({ route }: any) => {
   const { colors } = useTheme();
@@ -155,7 +156,7 @@ export const PostDetailScreen = ({ route }: any) => {
           data={comments}
           keyExtractor={item => item.commentId}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, centeredColumn(READING_WIDTH)]}
           ListHeaderComponent={
             <>
               <PostCard post={post} isVisible variant="detail" onCommentPress={focusComposer} />
@@ -217,6 +218,7 @@ export const PostDetailScreen = ({ route }: any) => {
             loadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} /> : null
           }
         />
+        <View style={centeredColumn(READING_WIDTH)}>
         <CommentComposer
           ref={inputRef}
           replyingTo={replyingTo}
@@ -225,6 +227,7 @@ export const PostDetailScreen = ({ route }: any) => {
           onSendMedia={sendMedia}
           currentUser={currentUser}
         />
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -19,6 +19,7 @@ import { useMediaPicker } from '../hooks/useMediaPicker';
 import { ImageConfirmationModal } from './ImageConfirmationModal';
 import { useTheme } from '../context/ThemeContext';
 import { LazyImage } from './LazyImage';
+import { PAGE_WIDTH } from '../utils/layout';
 
 interface ProfileImageCarouselProps {
   images: string | string[] | null | undefined;
@@ -31,8 +32,9 @@ interface ProfileImageCarouselProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CAROUSEL_WIDTH = SCREEN_WIDTH - 32;
-const CAROUSEL_HEIGHT = 220;
+// Matches the profile column (capped on desktop, see utils/layout).
+const CAROUSEL_WIDTH = Math.min(SCREEN_WIDTH, PAGE_WIDTH) - 32;
+const CAROUSEL_HEIGHT = SCREEN_WIDTH >= 768 ? 260 : 220;
 
 const getInitials = (user?: {
   firstName?: string;

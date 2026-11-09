@@ -1,22 +1,5 @@
-// Shared WebRTC settings for live classes.
-//
-// Topology: the lecturer holds one RTCPeerConnection per student (mesh), and
-// the Socket.IO server only relays offers/answers/ICE candidates between them.
-// That keeps infrastructure free but caps a class at roughly 10-15 viewers,
-// because the lecturer uploads one copy of the stream per viewer.
-//
-// STUN alone fails on symmetric NAT (common on mobile carriers). Add a TURN
-// server here (e.g. coturn or a hosted TURN service) before relying on this
-// outside a single Wi-Fi network:
-//   { urls: 'turn:turn.example.com:3478', username: '...', credential: '...' }
-export const LIVE_CLASS_ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-];
-
-export const createLiveClassPeerConnectionConfig = () => ({
-  iceServers: LIVE_CLASS_ICE_SERVERS,
-});
+// Time helpers for live classes. (Live video runs on Agora; the old
+// WebRTC mesh config that lived here was removed with react-native-webrtc.)
 
 /** Accepts Firestore Timestamps (serialized or live), ISO strings and Dates. */
 export const toMillis = (value: any): number | null => {

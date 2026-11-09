@@ -9,6 +9,7 @@ import {
   TextInput,
   Platform,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -63,11 +64,18 @@ interface ManualCourseModalProps {
   }) => Promise<void>;
   colors: any;
 }
+const WIDE_MODAL_BREAKPOINT = 768;
+
 const GridItem = ({ label, iconName, count, onPress }: GridItemProps) => {
   const { colors: themeColors } = useTheme();
+  const { width } = useWindowDimensions();
   return (
     <TouchableOpacity
-      style={[styles.gridBtn, { borderColor: themeColors.primary }]}
+      style={[
+        styles.gridBtn,
+        width >= WIDE_MODAL_BREAKPOINT && styles.gridBtnWide,
+        { borderColor: themeColors.primary },
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -202,6 +210,8 @@ export const CourseModal = ({
   }
   const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
+  // Tablets / desktop: a centered dialog instead of a full-width bottom sheet.
+  const isWide = useWindowDimensions().width >= WIDE_MODAL_BREAKPOINT;
   const id = currentUser?.uid;
   const userRole = currentUser?.usertype;
   const navigation = useNavigation<any>();
@@ -278,9 +288,15 @@ export const CourseModal = ({
   console.log('Selected Course: ', course);
 
   return (
-    <Modal visible={isVisible} animationType="slide" transparent>
+    <Modal
+      visible={isVisible}
+      animationType={isWide ? 'fade' : 'slide'}
+      transparent
+      onRequestClose={onClose}
+    >
       <TouchableOpacity
-        style={styles.modalOverlay}
+        style={[styles.modalOverlay, isWide && styles.modalOverlayCentered]}
+        activeOpacity={1}
         onPress={() => {
           onClose();
         }}
@@ -289,18 +305,31 @@ export const CourseModal = ({
           activeOpacity={1}
           style={[
             styles.modalContent,
+            isWide && styles.modalContentDialog,
             {
-              maxHeight: '75%',
+              maxHeight: isWide ? '86%' : '75%',
               backgroundColor: themeColors.backgroundSecondary,
             },
           ]}
         >
-          <View
-            style={[
-              styles.modalGrabber,
-              { backgroundColor: themeColors.primaryTint },
-            ]}
-          />
+          {isWide ? (
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.modalCloseBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              hitSlop={8}
+            >
+              <MaterialIcons name="close" size={22} color={themeColors.text} />
+            </TouchableOpacity>
+          ) : (
+            <View
+              style={[
+                styles.modalGrabber,
+                { backgroundColor: themeColors.primaryTint },
+              ]}
+            />
+          )}
           <View style={styles.modalHeaderInfo}>
             <Text
               style={[styles.modalCourseCode, { color: themeColors.primary }]}
@@ -1055,6 +1084,25 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 30,
   },
+  modalOverlayCentered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContentDialog: {
+    width: '100%',
+    maxWidth: 600,
+    borderRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    zIndex: 2,
+    padding: 4,
+  },
   modalGrabber: {
     width: 40,
     height: 5,
@@ -1114,12 +1162,20 @@ const styles = StyleSheet.create({
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    // Left-aligned with even side margins (space-between left a hole in the
+    // middle of an incomplete last row).
+    justifyContent: 'flex-start',
+    marginHorizontal: '-1.15%',
     marginTop: 15,
+  },
+  gridBtnWide: {
+    aspectRatio: undefined,
+    height: 104,
   },
   gridBtn: {
     position: 'relative',
     width: '31%',
+    marginHorizontal: '1.15%',
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',

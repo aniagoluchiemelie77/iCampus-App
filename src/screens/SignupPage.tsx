@@ -4,7 +4,6 @@ import {
   Platform,
   StyleSheet,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import { IconBackground } from '../assets/styles/BackgroundIconPattern';
 import StudentSignup from '../components/StudentSignup';
@@ -12,7 +11,6 @@ import InstructorSignup from '../components/InstructorSignup';
 import OtherUserSignup from '../components/OtherUserSignup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 type SignupPageParams = {
   role: 'student' | 'teacher' | 'other';
 };
@@ -58,8 +56,7 @@ const SignupPage = () => {
 const styles = StyleSheet.create({
   bkg: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
   },
   safeArea: {
     flex: 1,

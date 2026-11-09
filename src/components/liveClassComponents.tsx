@@ -17,7 +17,6 @@ import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { UserIdentity } from './UserIdentity';
 import {UserAvatar} from './UserAvatar';
-import {RTCView } from 'react-native-webrtc';
 import { useTheme } from '../context/ThemeContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
 
@@ -48,15 +47,6 @@ const BottomSheet = ({
   </Modal>
 );
 
-interface LecturerControlsProps {
-  localStream: any;
-  isLive: boolean;
-  socket: any;
-  lectureId: string;
-  onMuteAll: () => void;
-  wavers: any[];
-  onGrantMic: (uid: string) => void;
-}
 interface GroupToastProps {
   activeUsers: any[];
   onHide: () => void;
@@ -304,108 +294,6 @@ const AttendeeRow = React.memo(({ student, isWaving, colors }: any) => (
     )}
   </View>
 ));
-export const LecturerStreamControls = ({
-  localStream,
-  isLive,
-  socket,
-  lectureId,
-  onMuteAll,
-  wavers,
-  onGrantMic,
-}: LecturerControlsProps) => {
-  const { colors: themeColors } = useTheme();
-  const [isCameraOff, setIsCameraOff] = useState(false);
-  const toggleCamera = () => {
-    const newStatus = !isCameraOff;
-    setIsCameraOff(newStatus);
-    socket.emit('toggle_lecturer_camera', {
-      lectureId,
-      isCameraOn: !newStatus,
-    });
-  };
-  return (
-    <View style={styles.controlWrapper}>
-      {localStream ? (
-        <RTCView
-          streamURL={localStream.toURL()}
-          style={[
-            styles.previewVideo,
-            { backgroundColor: themeColors.backgroundSecondary },
-          ]}
-          objectFit="cover"
-          mirror={true}
-        />
-      ) : (
-        <View style={styles.previewVideo}>
-          <MaterialIcons
-            name="videocam-off"
-            size={40}
-            color={themeColors.primary}
-          />
-          <Text style={[styles.previewVideoText, { color: themeColors.text }]}>
-            Camera is Off
-          </Text>
-        </View>
-      )}
-      {wavers.length > 0 && (
-        <TouchableOpacity
-          style={[
-            styles.muteAllButton,
-            { backgroundColor: themeColors.btnColor },
-          ]}
-          onPress={() => onGrantMic(wavers[0].uid)}
-        >
-          <MaterialIcons
-            name={'waving-hand'}
-            size={18}
-            color={themeColors.btnTextColor}
-          />
-          <Text
-            style={[styles.muteAllText, { color: themeColors.btnTextColor }]}
-          >
-            Grant Mic
-          </Text>
-        </TouchableOpacity>
-      )}
-      <TouchableOpacity
-        style={[
-          styles.muteAllButton,
-          { backgroundColor: themeColors.btnColor },
-        ]}
-        onPress={toggleCamera}
-      >
-        <MaterialIcons
-          name={isCameraOff ? 'videocam-off' : 'videocam'}
-          size={18}
-          color={themeColors.btnTextColor}
-        />
-        <Text style={[styles.muteAllText, { color: themeColors.btnTextColor }]}>
-          {isCameraOff ? 'Cam off' : 'Cam on'}
-        </Text>
-      </TouchableOpacity>
-      {isLive && (
-        <TouchableOpacity
-          style={[
-            styles.muteAllButton,
-            { backgroundColor: themeColors.btnColor },
-          ]}
-          onPress={onMuteAll}
-        >
-          <MaterialIcons
-            name="mic-off"
-            color={themeColors.btnTextColor}
-            size={18}
-          />
-          <Text
-            style={[styles.muteAllText, { color: themeColors.btnTextColor }]}
-          >
-            Mute All
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
 export const ChatModal = ({
   visible,
   onDismiss,
@@ -612,55 +500,6 @@ export const ParticipantStack = ({
         </View>
       )}
     </TouchableOpacity>
-  );
-};
-export const LecturerTab = ({ lecturer, isCameraOn, streamUrl }: any) => {
-  const { colors: themeColors } = useTheme();
-  return (
-    <View
-      style={[
-        styles.lecturerTab,
-        {
-          backgroundColor: themeColors.backgroundSecondary,
-          borderColor: themeColors.primary,
-        },
-      ]}
-    >
-      <View style={styles.mediaContainer}>
-        {isCameraOn && streamUrl ? (
-          <RTCView
-            streamURL={
-              typeof streamUrl === 'string' ? streamUrl : streamUrl.toURL()
-            }
-            style={styles.lecturerVideo}
-            objectFit="cover"
-            mirror={false}
-          />
-        ) : (
-          <UserAvatar
-            profilePic={lecturer?.profilePic}
-            firstName={lecturer?.firstname}
-            lastName={lecturer?.lastname}
-            username={lecturer?.username}
-            style={styles.lecturerTabAvatar}
-          />
-        )}
-      </View>
-      <View style={styles.otherSection}>
-        <Text
-          style={[styles.nameText, { color: themeColors.textDarker }]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {lecturer?.displayName || 'Lecturer'}
-        </Text>
-        <MaterialIcons
-          name={lecturer?.isMuted ? 'mic-off' : 'mic-none'}
-          size={16}
-          color={themeColors.text}
-        />
-      </View>
-    </View>
   );
 };
 const styles = StyleSheet.create({

@@ -81,7 +81,7 @@ export const HeaderActionButton = ({
   </TouchableOpacity>
 );
 
-export const StoreScreen = () => {
+export const StoreScreen = ({ isActive = true }: { isActive?: boolean } = {}) => {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const navigation = useNavigation<any>();
@@ -96,7 +96,9 @@ export const StoreScreen = () => {
   const { syncCatalogToDatabase, syncUsersToDatabase } = useAppDataContext();
   // Sent with every request so the server can hide listings whose seller
   // doesn't sell as far as this buyer.
-  const { userCoords } = useLocationServices();
+  // Only ask for location once the Store tab is actually opened; the Home
+  // pager mounts every tab at startup.
+  const { userCoords } = useLocationServices({ prompt: isActive });
   const userCoordsRef = useRef(userCoords);
   userCoordsRef.current = userCoords;
   const locationAppliedRef = useRef(false);
