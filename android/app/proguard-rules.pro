@@ -49,6 +49,12 @@
 -keep class com.yalantis.ucrop.** { *; }
 -dontwarn com.yalantis.ucrop.**
 -keep class com.htmltopdf.** { *; }
+# pdfbox-android (pulled in by react-native-html-to-pdf). Its JPEG-2000 filter
+# references an optional decoder (com.gemalto.jp2) that isn't bundled; R8
+# fails on the missing class otherwise. pdfbox also loads filters/fonts by name.
+-keep class com.tom_roush.** { *; }
+-dontwarn com.gemalto.jp2.**
+-dontwarn com.tom_roush.**
 -keep class com.rnbiometrics.** { *; }
 -keep class com.zmxv.RNSound.** { *; }
 -keep class com.rnfs.** { *; }
