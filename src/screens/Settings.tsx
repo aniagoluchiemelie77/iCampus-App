@@ -5,25 +5,20 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Linking,
 } from 'react-native';
 import { SettingItem } from '../components/SettingsItem';
-import Toast from 'react-native-toast-message';
 import { PRIMARY_COLOR_TINT } from '../assets/styles/colors.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Rate, { AndroidMarket } from 'react-native-rate';
 import { ICAMPUS_APPLE_ID } from '../config/environment';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { LogoutModal } from '../components/LogoutModal.tsx';
 import { DeleteAccountModal } from '../components/DeleteAccountModal.tsx';
-import { updateThemeState } from '../context/UserSlice.ts';
 import { useAppSelector } from '../hooks/hooks.ts';
-import { useDispatch } from 'react-redux';
-import { updateUserThemePreference } from '../api/localPutApis.ts';
+import { useThemeToggle } from '../hooks/useThemeToggle';
 import { useTheme } from '../context/ThemeContext';
 import { IconOutline } from '@ant-design/icons-react-native';
 import { canManageSubscriptions } from '../utils/subscriptionAccess';
@@ -50,11 +45,8 @@ export const throttle = (func: Function, limit: number) => {
 export const Settings = () => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user) || {};
-  const dispatch = useDispatch();
-  const deviceColorScheme = useColorScheme();
-  const isCurrentlyDark =
-    user.theme === 'dark' ||
-    (user.theme === 'system' && deviceColorScheme === 'dark');
+  const { isDark: isCurrentlyDark, toggleTheme: handleThemeToggle } =
+    useThemeToggle();
   const navigation = useNavigation<any>();
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -65,40 +57,6 @@ export const Settings = () => {
     preferredAndroidMarket: AndroidMarket.Google,
     preferInApp: true,
     openAppStoreIfInAppFails: true,
-  };
-
-  const handleThemeToggle = async () => {
-    const newTheme = isCurrentlyDark ? 'light' : 'dark';
-    dispatch(updateThemeState(newTheme));
-    try {
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        parsedUser.theme = newTheme;
-        await AsyncStorage.setItem('user', JSON.stringify(parsedUser));
-      }
-      const result = await updateUserThemePreference(newTheme);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to sync');
-      }
-    } catch (error) {
-      console.error('Theme sync error, rolling back:', error);
-      const previousTheme = user.theme;
-      dispatch(updateThemeState(previousTheme));
-
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        parsedUser.theme = previousTheme;
-        await AsyncStorage.setItem('user', JSON.stringify(parsedUser));
-      }
-
-      Toast.show({
-        type: 'error',
-        text1: 'Sync Connection Loss',
-        text2: 'Theme could not be saved to your account cloud.',
-      });
-    }
   };
 
   return (

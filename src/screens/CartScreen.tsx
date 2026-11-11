@@ -7,6 +7,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { CartItem } from '../components/CartItem';
+import {
+  COLUMN_GAP,
+  listColumnStyle,
+  useGridColumns,
+} from '../components/ProductListItem';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useAppSelector } from '../hooks/hooks';
@@ -95,6 +100,8 @@ export const CartScreen = () => {
     [handleCartItemToggle],
   );
 
+  // One column on phones, two side by side on wide screens.
+  const columns = useGridColumns(1, 2, 380);
   const renderItem = useCallback(
     ({ item }: { item: CartItemEntry }) => {
       const productData = productDictionary.get(item.productId);
@@ -110,11 +117,12 @@ export const CartScreen = () => {
         <CartItem
           cartEntry={item}
           product={productData}
+          columns={columns}
           onRemove={() => handleRemoveItem(productData)}
         />
       );
     },
-    [productDictionary, handleRemoveItem],
+    [productDictionary, handleRemoveItem, columns],
   );
 
   return (
@@ -142,7 +150,10 @@ export const CartScreen = () => {
         data={cartData}
         keyExtractor={item => item.productId}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        numColumns={columns}
+        key={`cart-${columns}-columns`}
+        columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
+        contentContainerStyle={[styles.listContent, listColumnStyle]}
         showsVerticalScrollIndicator={false}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
@@ -163,6 +174,7 @@ export const CartScreen = () => {
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
+          <View style={[styles.footerInner, listColumnStyle]}>
           <View style={styles.totalRow}>
             <Text style={[styles.totalLabel, { color: colors.text }]}>
               Total Balance
@@ -182,6 +194,7 @@ export const CartScreen = () => {
             onPress={() => navigation.navigate('Checkout')}
             disabled={containsInvalidItems}
           />
+          </View>
         </View>
       )}
       <ActionModal
@@ -226,6 +239,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
   },
+  footerInner: { alignItems: 'center' },
+  columnWrapper: { gap: COLUMN_GAP },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

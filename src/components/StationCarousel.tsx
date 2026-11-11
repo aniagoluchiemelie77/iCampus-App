@@ -1,8 +1,9 @@
 import React, {useState, useEffect, useMemo} from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {getDistanceInMiles} from '../utils/distanceCalculator';
 import { DropOffStation } from '../types/firebase';
+import { useContentWidth } from './desktop/DesktopShell';
 
 interface StationCarouselProps {
   stations: DropOffStation[];
@@ -25,7 +26,7 @@ const StationCard = ({
   const { colors } = useTheme();
   const images = useMemo(() => item.images || [], [item.images]);
   const [index, setIndex] = useState(0);
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
 
   useEffect(() => {
     if (images.length <= 1) return;

@@ -24,13 +24,19 @@ import {
 interface FavItemProps {
   product: Product;
   onRemove: (product: Product) => void;
+  /** Must match the list's numColumns. */
+  columns?: number;
 }
 
-export const FavItem: React.FC<FavItemProps> = ({ product, onRemove }) => {
+export const FavItem: React.FC<FavItemProps> = ({
+  product,
+  onRemove,
+  columns = 2,
+}) => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const { scale, onPressIn, onPressOut } = usePressScale();
-  const { cardWidth, isStacked: isNarrow } = useResponsiveCardLayout(2);
+  const { cardWidth, isStacked: isNarrow } = useResponsiveCardLayout(columns);
 
   const imageUri = product?.mediaUrls?.[0];
   const unitPrice = Number(product?.price) || 0;

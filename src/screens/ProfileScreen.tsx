@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Dimensions,
   TouchableOpacity,
   Linking,
   Alert,
@@ -47,9 +46,9 @@ import { fetchProfileConnectionsAPI } from '../api/localGetApis.ts';
 import moment from 'moment';
 import { parseFirestoreDate } from '../utils/dateFormatter';
 import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
+import { useContentWidth, useRightRail } from '../components/desktop/DesktopShell';
+import { ProfileRail } from '../components/desktop/RightRails';
 
-// Width of the profile column: the screen on phones, capped on desktop.
-const width = Math.min(Dimensions.get('window').width, PAGE_WIDTH);
 const CARD_HEIGHT = 220;
 const CARD_GAP = 16;
 const POPULAR_SKILLS = [
@@ -616,6 +615,8 @@ const ProfileTabSection = ({
 }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
+  // Width of the profile column: the screen on phones, capped on desktop.
+  const width = Math.min(useContentWidth(), PAGE_WIDTH);
   const { items, hasMore, loading, error, reload } = useProfileTab(
     uid,
     tab,
@@ -825,6 +826,13 @@ export const ProfileScreen = ({ route }: any) => {
     (!!currentUser.username && currentUser.username === identifier);
 
   const navigation = useNavigation<any>();
+
+  // Desktop: profile link actions (copy, share, custom URL) beside the page.
+  useRightRail(
+    () => <ProfileRail profile={profileData} isOwner={isOwner} />,
+    [profileData, isOwner],
+    !!profileData,
+  );
   const [activeTab, setActiveTab] = useState('Posts');
   const [isSaving, setIsSaving] = useState(false);
   const [connections, setConnections] = useState<{

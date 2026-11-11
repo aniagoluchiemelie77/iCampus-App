@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -17,9 +16,10 @@ import { MediaGridItem } from '../components/ProfileScreenTabbedComponents.tsx';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useProfileTab } from '../hooks/useProfileTab';
 import { useLoadMoreOnScroll } from '../hooks/useLoadMoreOnScroll';
+import { useContentWidth } from '../components/desktop/DesktopShell';
+import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
 
 const PAGE_SIZE = 12;
-const { width } = Dimensions.get('window');
 
 const EMPTY_MESSAGES: Record<string, string> = {
   Posts: 'No posts to show.',
@@ -37,6 +37,7 @@ const EMPTY_MESSAGES: Record<string, string> = {
 export const ProfileContentListScreen = () => {
   const route = useRoute<any>();
   const { colors } = useTheme();
+  const width = Math.min(useContentWidth(), PAGE_WIDTH);
   const {
     identifier,
     tab = 'Posts',
@@ -67,7 +68,7 @@ export const ProfileContentListScreen = () => {
           )
         }
         numColumns={isMedia ? 3 : 1}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, centeredColumn(PAGE_WIDTH)]}
         showsVerticalScrollIndicator={false}
         {...loadMoreProps}
         onEndReachedThreshold={0.5}

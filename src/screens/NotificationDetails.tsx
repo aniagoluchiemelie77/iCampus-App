@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Linking,
-  useWindowDimensions,
   Image,
   Modal,
   Pressable,
@@ -23,6 +22,7 @@ import { parseFirestoreDate } from '../utils/dateFormatter';
 import dayjs from 'dayjs';
 import Toast from 'react-native-toast-message';
 import { requestAcademicSessionRecap } from '../api/localPostApis';
+import { useContentWidth } from '../components/desktop/DesktopShell';
 
 const HIDDEN_PAYLOAD_KEYS = new Set([
   'primaryuser',
@@ -36,7 +36,7 @@ type Attachment = { url: string; type?: string; fileName?: string | null };
 /** Memo images (and files) attached by school or iCampus admins. */
 function NotificationAttachments({ attachments }: { attachments: Attachment[] }) {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const [viewing, setViewing] = useState<string | null>(null);
   const images = attachments.filter(a => a.type !== 'file');
   const files = attachments.filter(a => a.type === 'file');
@@ -106,7 +106,7 @@ function NotificationAttachments({ attachments }: { attachments: Attachment[] })
 
 export default function NotificationDetails() {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<any, 'NotificationDetails'>>();
   const { notificationId, notification: passedNotification } =

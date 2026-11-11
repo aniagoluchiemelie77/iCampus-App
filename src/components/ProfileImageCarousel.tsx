@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import {
   View,
   FlatList,
-  Dimensions,
   StyleSheet,
   TouchableOpacity,
   Text,
@@ -20,6 +19,7 @@ import { ImageConfirmationModal } from './ImageConfirmationModal';
 import { useTheme } from '../context/ThemeContext';
 import { LazyImage } from './LazyImage';
 import { PAGE_WIDTH } from '../utils/layout';
+import { useContentWidth } from './desktop/DesktopShell';
 
 interface ProfileImageCarouselProps {
   images: string | string[] | null | undefined;
@@ -31,10 +31,7 @@ interface ProfileImageCarouselProps {
   };
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // Matches the profile column (capped on desktop, see utils/layout).
-const CAROUSEL_WIDTH = Math.min(SCREEN_WIDTH, PAGE_WIDTH) - 32;
-const CAROUSEL_HEIGHT = SCREEN_WIDTH >= 768 ? 260 : 220;
 
 const getInitials = (user?: {
   firstName?: string;
@@ -68,6 +65,13 @@ export const ProfileImageCarousel = ({
   user,
 }: ProfileImageCarouselProps) => {
   const { colors } = useTheme();
+  // Sized from the screen's column (the middle column on desktop).
+  const contentWidth = useContentWidth();
+  const carouselWidth = Math.max(0, Math.min(contentWidth, PAGE_WIDTH) - 32);
+  const sizeStyle = {
+    width: carouselWidth,
+    height: contentWidth >= 768 ? 260 : 220,
+  };
   const dispatch = useDispatch();
   const { pickImage } = useMediaPicker();
 
@@ -116,7 +120,7 @@ export const ProfileImageCarousel = ({
 
   const handleScroll = (event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollPosition / CAROUSEL_WIDTH);
+    const index = Math.round(scrollPosition / (carouselWidth || 1));
     setActiveIndex(index);
   };
   const handleTriggerPick = async () => {
@@ -176,6 +180,7 @@ export const ProfileImageCarousel = ({
     <View
       style={[
         CarouselStyles.container,
+        sizeStyle,
         { backgroundColor: colors.backgroundSecondary },
       ]}
     >
@@ -215,6 +220,7 @@ export const ProfileImageCarousel = ({
         <View
           style={[
             CarouselStyles.container,
+            sizeStyle,
             { backgroundColor: colors.backgroundSecondary },
           ]}
         >
@@ -228,7 +234,7 @@ export const ProfileImageCarousel = ({
           viewabilityConfig={viewabilityConfig}
           keyExtractor={(item, index) => `${item}-${index}`}
           renderItem={({ item, index }) => (
-            <View style={CarouselStyles.imageContainer}>
+            <View style={sizeStyle}>
               <LazyImage
                 uri={item}
                 style={CarouselStyles.image}
@@ -295,8 +301,6 @@ const CarouselStyles = StyleSheet.create({
     marginVertical: 12,
   },
   container: {
-    width: CAROUSEL_WIDTH,
-    height: CAROUSEL_HEIGHT,
     borderRadius: 20,
     overflow: 'hidden',
     position: 'relative',
@@ -305,10 +309,6 @@ const CarouselStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-  },
-  imageContainer: {
-    width: CAROUSEL_WIDTH,
-    height: CAROUSEL_HEIGHT,
   },
   image: {
     width: '100%',

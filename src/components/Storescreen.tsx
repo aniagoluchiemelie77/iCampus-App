@@ -7,7 +7,6 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ProductCard } from './ProductCard';
@@ -21,6 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAppDataContext } from '../context/EventContext';
 import { useProductUpload } from '../context/ProductUploadContext';
 import { useLocationServices } from '../hooks/useLocationService.ts';
+import { useContentWidth } from './desktop/DesktopShell';
 
 interface IconButtonProps {
   onPress: () => void;
@@ -83,7 +83,7 @@ export const HeaderActionButton = ({
 
 export const StoreScreen = ({ isActive = true }: { isActive?: boolean } = {}) => {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const navigation = useNavigation<any>();
   const productColumns = width >= 768 ? 4 : 2;
   const { pendingProduct, publishedVersion } = useProductUpload();

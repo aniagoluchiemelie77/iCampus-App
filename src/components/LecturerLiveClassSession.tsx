@@ -15,6 +15,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useLiveClass } from '../context/LiveClassContext';
 import { formatElapsed, toMillis } from '../utils/liveClassRtc';
 import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
+import { useDesktopShell, useRightRail } from './desktop/DesktopShell';
+import { LiveClassRail } from './desktop/RightRails';
 import {
   ChatModal,
   AttendeeListModal,
@@ -227,6 +229,31 @@ export const LecturerLiveClassSession = ({
       setIsEnding(false);
     }
   };
+
+  // Desktop: attendance (students picked up so far) and the class chat sit
+  // in the right rail instead of bottom sheets.
+  const shell = useDesktopShell();
+  const chatInRail = !!shell?.showRail && !minimized;
+  useRightRail(
+    () => (
+      <LiveClassRail
+        isHost
+        attendees={students}
+        wavers={wavers}
+        onAllowSpeak={grantMic}
+        messages={messages}
+        inputText={inputText}
+        setInputText={setInputText}
+        onSend={sendMessage}
+        userUid={user?.uid}
+      />
+    ),
+    [students, wavers, messages, inputText, socket],
+    !minimized,
+  );
+  useEffect(() => {
+    if (chatInRail) setUnreadCount(0);
+  }, [chatInRail, messages.length]);
 
   // ---- Render ----------------------------------------------------------------
   const isSharingScreen = agora.isScreenSharing;

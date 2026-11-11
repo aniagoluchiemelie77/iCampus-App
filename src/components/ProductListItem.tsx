@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -15,6 +14,8 @@ import { CurrencyDisplay } from './CurrencyFormatter';
 import { useTheme } from '../context/ThemeContext';
 import { PRIMARY_COLOR, withAlpha } from '../assets/styles/colors';
 import { LazyImage } from './LazyImage';
+import { useContentWidth } from './desktop/DesktopShell';
+import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
 
 /**
  * Shared building blocks for the Favorites and Cart list items.
@@ -69,6 +70,29 @@ export const LIST_HORIZONTAL_CHROME = 30;
 export const COLUMN_GAP = 12;
 
 /**
+ * Widest a product list grows. On desktop the screen is the middle column
+ * (not the window), and lists stop at this width, centred, instead of
+ * stretching cards across the whole monitor.
+ */
+export const LIST_MAX_WIDTH = PAGE_WIDTH;
+
+/** Width a product list actually gets (see LIST_MAX_WIDTH). */
+export const useListWidth = () => Math.min(useContentWidth(), LIST_MAX_WIDTH);
+
+/**
+ * How many columns fit, given the narrowest a card may be. Use the result
+ * for both FlatList `numColumns` (and its `key`) and the card's `columns`.
+ */
+export const useGridColumns = (minColumns: number, maxColumns: number, minCardWidth: number) => {
+  const usable = useListWidth() - LIST_HORIZONTAL_CHROME;
+  const fit = Math.floor((usable + COLUMN_GAP) / (minCardWidth + COLUMN_GAP));
+  return Math.max(minColumns, Math.min(maxColumns, fit));
+};
+
+/** contentContainerStyle for product lists: centred, capped column. */
+export const listColumnStyle = centeredColumn(LIST_MAX_WIDTH);
+
+/**
  * Resolves a list card's real rendered width and whether it has room for the
  * side-by-side (media beside text) layout.
  *
@@ -82,7 +106,7 @@ export const COLUMN_GAP = 12;
  * `paddingHorizontal: 15` in their `listContent` for the math to line up.
  */
 export const useResponsiveCardLayout = (columns = 1) => {
-  const { width } = useWindowDimensions();
+  const width = useListWidth();
   const gutters = columns > 1 ? COLUMN_GAP * (columns - 1) : 0;
   const cardWidth = Math.max(
     0,

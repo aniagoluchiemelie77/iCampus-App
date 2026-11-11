@@ -26,17 +26,20 @@ interface CartItemProps {
   cartEntry: CartItemType;
   product: Product;
   onRemove?: (product: Product) => void;
+  /** Must match the list's numColumns. */
+  columns?: number;
 }
 
 export const CartItem: React.FC<CartItemProps> = ({
   cartEntry,
   product,
   onRemove,
+  columns = 1,
 }) => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const { scale, onPressIn, onPressOut } = usePressScale();
-  const { cardWidth, isStacked: isNarrow } = useResponsiveCardLayout(1);
+  const { cardWidth, isStacked: isNarrow } = useResponsiveCardLayout(columns);
 
   const imageUri = product?.mediaUrls?.[0];
   const unitPrice = Number(product?.price) || 0;

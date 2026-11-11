@@ -105,6 +105,9 @@ import { SellerProductsScreen } from './src/screens/SellerProductsScreen.tsx';
 import { initialState } from './src/context/UserSlice.ts';
 import { RegisterStationScreen } from './src/screens/RegisterDropOffStation.tsx';
 import { SocketProvider } from './src/screens/HomeScreen.tsx';
+import { DesktopShell, ScreenFrame } from './src/components/desktop/DesktopShell';
+import { DefaultRail } from './src/components/desktop/RightRails';
+import { ProfileSidebar } from './src/components/HomeScreenComponents';
 import { ViewAllCoursesScreen } from './src/screens/ViewAllCourses.tsx';
 import { TermsScreen } from './src/screens/TermsScreen.tsx';
 import { PrivacyScreen } from './src/screens/PrivacyPolicyScreen.tsx';
@@ -389,6 +392,13 @@ function MainApp() {
           {/* Keep publishing overlays outside screen routes so their uploads
               continue while the user returns to the store or feed. */}
           {/* Live classes too: they shrink to a mini player off their screen. */}
+          {/* Desktop web: profile menu | screen | actions. Outside the
+              providers above so their full-window overlays fill only the
+              middle column. */}
+          <DesktopShell
+            renderSidebar={() => <ProfileSidebar />}
+            renderDefaultRail={routeName => <DefaultRail routeName={routeName} />}
+          >
           <LiveClassProvider>
           <ProductUploadProvider>
             <PostUploadProvider>
@@ -402,6 +412,11 @@ function MainApp() {
             // screen. 'float' turns that mode off; every screen hides the
             // stack header anyway.
             screenOptions={Platform.OS === 'web' ? { headerMode: 'float' } : undefined}
+            screenLayout={({ children, navigation, route }) => (
+              <ScreenFrame navigation={navigation} route={route}>
+                {children}
+              </ScreenFrame>
+            )}
           >
             <Stack.Screen
               name="SignUp"
@@ -654,6 +669,7 @@ function MainApp() {
             </PostUploadProvider>
           </ProductUploadProvider>
           </LiveClassProvider>
+          </DesktopShell>
           <Toast config={toastConfig} />
         </NavigationContainer>
       </AppDataProvider>

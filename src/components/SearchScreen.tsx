@@ -8,7 +8,6 @@ import {
   FlatList,
   ActivityIndicator,
   ScrollView,
-  useWindowDimensions,
 } from 'react-native';
 import { PostCard } from '../components/PostCard';
 import { UserAvatar } from '../components/UserAvatar';
@@ -35,6 +34,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { PRIMARY_COLOR } from '../assets/styles/colors.ts';
 import { Course } from '../types/firebase';
 import { CourseModal } from './ClassroomScreenComponents.tsx';
+import { useContentWidth } from './desktop/DesktopShell';
 
 type SearchTab = 'people' | 'market' | 'resources' | 'courses' | 'posts';
 const CATEGORIES = ['people', 'posts', 'courses', 'resources', 'store'];
@@ -78,7 +78,7 @@ const TAB_META: Record<
 
 export const SearchScreen = () => {
   const navigation = useNavigation<any>();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const { colors } = useTheme();
   const [placeholderIndex, setPlaceholderIndex] = useState(0);

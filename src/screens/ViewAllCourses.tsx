@@ -1,168 +1,166 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 import {
   fetchMyCoursesAPI,
   fetchLecturerCoursesAPI,
 } from '../api/localGetApis.ts';
 import { Course } from '../types/firebase';
-import {
-  FlatList,
-  ActivityIndicator,
-  TouchableOpacity,
-  View,
-  Text,
-  StyleSheet,
-} from 'react-native';
 import { CourseSearchCard } from '../components/SearchScreenComponents';
 import { generateSessions } from '../utils/courseHelper.ts';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
-import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
-import Toast from 'react-native-toast-message';
+import { CourseModal } from '../components/ClassroomScreenComponents.tsx';
 import {
-  CourseModal,
-  SelectionModal
-} from '../components/ClassroomScreenComponents.tsx';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useLoadMoreOnScroll } from '../hooks/useLoadMoreOnScroll';
+  ALL,
+  CourseFilterCard,
+  useCourseFilters,
+} from '../components/CourseFilters';
+import { EmptyState } from '../components/EmptyFlatlistComponent';
+import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
 
-const SESSIONS = generateSessions();
-const PAGE_SIZE = 10;
+// The current academic session (the recap is for sessions already finished).
+const CURRENT_SESSION = generateSessions()[1];
+// One request for every course, as on the Classroom tab; filtering is local.
+const ALL_COURSES_LIMIT = 200;
 
 export const ViewAllCoursesScreen = () => {
   const navigation = useNavigation<any>();
   const currentUser = useAppSelector(state => state.user) || {};
   const { colors } = useTheme();
-  const [selectedSemester, setSelectedSemester] = useState('First');
-  const [selectedSession, setSelectedSession] = useState(SESSIONS[2]);
-  const [isSessionModalVisible, setSessionModalVisible] = useState(false);
-  const [isSemesterModalVisible, setSemesterModalVisible] = useState(false);
+  const usertype = currentUser?.usertype;
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [status, setStatus] = useState<'loading' | 'refreshing' | 'ready' | 'error'>(
+    'loading',
+  );
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isLoading, setLoading] = useState(false);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([]);
-  // Refs, not state: the guards must see the latest values immediately, not
-  // after the next render.
-  const pageRef = useRef(1);
-  const hasMoreRef = useRef(true);
-  // Bumped on every page-1 load so a slow response for an old filter can't
-  // overwrite the list for the new one.
-  const requestIdRef = useRef(0);
-  const usertype = currentUser?.usertype;
+  const fetchingRef = useRef(false);
+  const filters = useCourseFilters(courses);
+  const { visibleCourses, sessionFilter, isFiltered, clearFilters } = filters;
 
-  const fetchPage = useCallback(
-    async (pageNum: number) => {
-      const requestId =
-        pageNum === 1 ? ++requestIdRef.current : requestIdRef.current;
-      if (pageNum === 1) setLoading(true);
-      else setIsFetchingMore(true);
-
+  const load = useCallback(
+    async (mode: 'loading' | 'refreshing' = 'loading') => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+      setStatus(mode);
       try {
-        const params = {
-          semester: selectedSemester,
-          session: selectedSession,
-          page: pageNum,
-          limit: PAGE_SIZE,
-        };
-        const result =
-          usertype === 'lecturer'
-            ? await fetchLecturerCoursesAPI(params)
-            : await fetchMyCoursesAPI(params);
-        if (requestId !== requestIdRef.current) return;
-
-        if (result.success) {
-          const pageCourses = result.courses || [];
-          setCourses(prev =>
-            pageNum === 1 ? pageCourses : [...prev, ...pageCourses],
-          );
-          pageRef.current = pageNum;
-          hasMoreRef.current = pageCourses.length === PAGE_SIZE;
-        }
-      } catch (error) {
-        console.error(error);
-        Toast.show({
-          type: 'error',
-          text1: 'Failed to fetch courses',
-          position: 'bottom',
-          bottomOffset: 5,
+        const fetcher =
+          usertype === 'lecturer' ? fetchLecturerCoursesAPI : fetchMyCoursesAPI;
+        const result = await fetcher({
+          semester: 'All',
+          session: 'All',
+          page: 1,
+          limit: ALL_COURSES_LIMIT,
         });
-      } finally {
-        if (requestId === requestIdRef.current) {
-          setLoading(false);
-          setIsFetchingMore(false);
+        if (result.success) {
+          setCourses(Array.isArray(result.courses) ? result.courses : []);
+          setStatus('ready');
+        } else {
+          setErrorMessage(result.message || 'We could not load your courses.');
+          setStatus('error');
         }
+      } catch (error: any) {
+        setErrorMessage(error?.message || 'Check your connection and try again.');
+        setStatus('error');
+      } finally {
+        fetchingRef.current = false;
       }
     },
-    [selectedSemester, selectedSession, usertype],
+    [usertype],
   );
 
-  // Runs once on mount, then once per filter change (fetchPage only changes
-  // when the semester, session or user type does).
   useEffect(() => {
-    hasMoreRef.current = true;
-    fetchPage(1);
-  }, [fetchPage]);
+    load('loading');
+  }, [load]);
 
-  const loadMoreProps = useLoadMoreOnScroll(() => {
-    if (!hasMoreRef.current || isLoading) return;
-    return fetchPage(pageRef.current + 1);
-  });
+  const showRecap =
+    sessionFilter !== ALL &&
+    sessionFilter !== CURRENT_SESSION &&
+    visibleCourses.length > 0;
 
-  const filters = (
-    <View style={styles.filterContainer}>
-      <TouchableOpacity
-        style={[styles.selectorButton, { borderColor: colors.primary }]}
-        onPress={() => setSessionModalVisible(true)}
-      >
-        <View style={styles.selectorTextContainer}>
-          <Text style={[styles.selectorLabel, { color: colors.text }]}>
-            Session
-          </Text>
-          {selectedSession && (
-            <Text style={[styles.selectorValue, { color: colors.primary }]}>
-              {selectedSession}
+  const header = (
+    <View>
+      {status !== 'loading' && courses.length > 0 && (
+        <Text style={[styles.count, { color: colors.text }]}>
+          {isFiltered
+            ? `${visibleCourses.length} of ${courses.length} courses`
+            : `${courses.length} ${courses.length === 1 ? 'course' : 'courses'}`}
+        </Text>
+      )}
+      {courses.length > 0 && <CourseFilterCard filters={filters} />}
+      {showRecap && (
+        <View
+          style={[
+            styles.recap,
+            { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' },
+          ]}
+        >
+          <MaterialIcons name="celebration" size={22} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.recapTitle, { color: colors.text }]}>
+              Session recap: {sessionFilter}
             </Text>
-          )}
+            <Text style={[styles.recapText, { color: colors.text }]}>
+              You took part in {visibleCourses.length} course
+              {visibleCourses.length === 1 ? '' : 's'} this session. Well done for
+              staying engaged.
+            </Text>
+          </View>
         </View>
-        <MaterialIcons
-          name="arrow-drop-down"
-          size={24}
-          color={colors.textDarker}
-        />
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.selectorButton, { borderColor: colors.primary }]}
-        onPress={() => setSemesterModalVisible(true)}
-      >
-        <View style={styles.selectorTextContainer}>
-          <Text style={[styles.selectorLabel, { color: colors.text }]}>
-            Semester
-          </Text>
-          <Text style={[styles.selectorValue, { color: colors.primary }]}>
-            {selectedSemester || 'All'}
-          </Text>
-        </View>
-        <MaterialIcons
-          name="arrow-drop-down"
-          size={24}
-          color={colors.textDarker}
-        />
-      </TouchableOpacity>
+      )}
     </View>
   );
+
+  const empty =
+    status === 'loading' ? (
+      <View style={styles.loadingBox}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>Loading your courses…</Text>
+      </View>
+    ) : status === 'error' ? (
+      <EmptyState
+        iconName="wifi-off"
+        title="Couldn't load your courses"
+        subtitle={errorMessage}
+        buttonText="Try again"
+        buttonIcon="refresh"
+        onPress={() => load('refreshing')}
+      />
+    ) : isFiltered ? (
+      <EmptyState
+        iconName="filter-alt-off"
+        title="No courses match these filters"
+        subtitle="Try another session or semester."
+        buttonText="Clear filters"
+        buttonIcon="close"
+        onPress={clearFilters}
+      />
+    ) : (
+      <EmptyState
+        iconName="school"
+        title="No courses yet"
+        subtitle="Add courses from the Classroom tab by uploading your form or entering them manually."
+      />
+    );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <PageHeader
         title={usertype === 'lecturer' ? 'Manage Courses' : 'Enrolled Courses'}
-        showBackButton={false}
       />
-      {/* The FlatList is the scroll container: nesting it in a ScrollView
-          disabled virtualization and made onEndReached fire continuously. */}
       <FlatList
-        data={isLoading ? [] : courses}
+        data={status === 'error' ? [] : visibleCourses}
         keyExtractor={item => item.courseId}
         renderItem={({ item }) => (
           <CourseSearchCard
@@ -175,78 +173,38 @@ export const ViewAllCoursesScreen = () => {
             }}
           />
         )}
-        ListHeaderComponent={
-          <>
-            {filters}
-            {selectedSession !== 'All' && selectedSession !== SESSIONS[1] && courses.length > 0 ? (
-              <View style={[styles.recap, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' }]}>
-                <MaterialIcons name="celebration" size={22} color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.recapTitle, { color: colors.text }]}>Session recap: {selectedSession}</Text>
-                  <Text style={[styles.recapText, { color: colors.text }]}>
-                    You completed {courses.length} course{courses.length === 1 ? '' : 's'} activity in this session. Well done for staying engaged.
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-          </>
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        refreshControl={
+          <RefreshControl
+            refreshing={status === 'refreshing'}
+            onRefresh={() => load('refreshing')}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
-        ListEmptyComponent={
-          isLoading ? (
-            <ActivityIndicator
-              color={colors.primary}
-              style={{ alignSelf: 'center', marginTop: 20 }}
-              size="small"
-            />
-          ) : (
-            <Text style={[styles.emptyText, { color: colors.text }]}>
-              No courses for this session and semester.
-            </Text>
-          )
-        }
-        ListFooterComponent={
-          isFetchingMore ? (
-            <ActivityIndicator
-              color={colors.primary}
-              style={{ marginVertical: 16 }}
-            />
-          ) : null
-        }
-        {...loadMoreProps}
-        onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, centeredColumn(PAGE_WIDTH)]}
       />
-      <CourseModal
-        isVisible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        course={selectedCourse!}
-      />
-      <SelectionModal
-        title="Select Session"
-        visible={isSessionModalVisible}
-        options={SESSIONS}
-        selectedValue={selectedSession}
-        onSelect={val => setSelectedSession(val)}
-        onClose={() => setSessionModalVisible(false)}
-      />
-      <SelectionModal
-        title="Select Semester"
-        visible={isSemesterModalVisible}
-        options={['All', 'First', 'Second']}
-        selectedValue={selectedSemester}
-        onSelect={val => setSelectedSemester(val)}
-        onClose={() => setSemesterModalVisible(false)}
-      />
+      {selectedCourse && (
+        <CourseModal
+          isVisible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          course={selectedCourse}
+        />
+      )}
     </View>
   );
 };
+
 const styles = StyleSheet.create({
+  container: { flex: 1 },
+  listContent: { paddingHorizontal: 15, paddingTop: 12, paddingBottom: 30, flexGrow: 1 },
+  count: { fontSize: 12.5, marginBottom: 8, opacity: 0.75 },
   recap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginHorizontal: 16,
     marginBottom: 12,
     padding: 14,
     borderRadius: 14,
@@ -254,42 +212,6 @@ const styles = StyleSheet.create({
   },
   recapTitle: { fontSize: 15, fontWeight: '700', marginBottom: 3 },
   recapText: { fontSize: 13, lineHeight: 18 },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    marginVertical: 15,
-  },
-  selectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
-    borderWidth: 1,
-  },
-  selectorTextContainer: {
-    alignItems: 'center',
-  },
-  selectorLabel: {
-    fontSize: 14,
-  },
-  selectorValue: {
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: 'bold',
-  },
-  container: {
-    flex: 1,
-  },
-  listContent: {
-    marginHorizontal: 15,
-    paddingBottom: 30,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 14,
-  },
+  loadingBox: { alignItems: 'center', paddingTop: 48, gap: 10 },
+  loadingText: { fontSize: 13, opacity: 0.75 },
 });

@@ -6,7 +6,11 @@ import { useAppSelector } from '../hooks/hooks';
 import { PageHeader } from '../components/PageHeader';
 import { useAppDataContext } from '../context/EventContext';
 import { FavItem } from '../components/FavItem';
-import { COLUMN_GAP } from '../components/ProductListItem';
+import {
+  COLUMN_GAP,
+  listColumnStyle,
+  useGridColumns,
+} from '../components/ProductListItem';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../types/firebase';
 import { fetchProductsByIdsFromLocalDb } from '../hooks/useSQLiteDb';
@@ -35,16 +39,19 @@ export const FavoritesScreen = () => {
     }, []),
   );
 
+  // Two columns on phones, more as the screen widens.
+  const columns = useGridColumns(2, 4, 210);
   const renderFavItem = useCallback(
     ({ item }: { item: any }) => {
       return (
         <FavItem
           product={item}
+          columns={columns}
           onRemove={() => handleToggleFavorite(item.productId)}
         />
       );
     },
-    [handleToggleFavorite],
+    [handleToggleFavorite, columns],
   );
 
   const confirmDeleteAllFavorites = async () => {
@@ -80,11 +87,12 @@ export const FavoritesScreen = () => {
         data={favoriteItems}
         keyExtractor={item => item.productId}
         renderItem={renderFavItem}
-        numColumns={2}
+        numColumns={columns}
         columnWrapperStyle={styles.columnWrapper}
-        key="two-column-favorites-list"
+        key={`favorites-${columns}-columns`}
         contentContainerStyle={[
           styles.listContent,
+          listColumnStyle,
           favoriteItems.length === 0 && { flex: 1 },
         ]}
         initialNumToRender={8}

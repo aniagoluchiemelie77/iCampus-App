@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   FlatList,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../hooks/hooks';
@@ -31,13 +30,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { formatStatNumber } from '../utils/followCountFormatter';
 import { ProductReviewsCarousel } from '../components/ProductReviewsCarousel';
+import { useContentWidth } from '../components/desktop/DesktopShell';
+import { centeredColumn } from '../utils/layout';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// Product pages stop at a readable width on desktop.
+const DETAIL_MAX_WIDTH = 760;
 const DESCRIPTION_LIMIT = 220;
 const MORE_CARD_WIDTH = 168;
 
 export const ProductDetailScreen = () => {
   const { colors } = useTheme();
+  // One gallery page = the image box (it used to page by the full window
+  // width inside a box 30px narrower, so slides drifted).
+  const slideWidth = Math.max(0, Math.min(useContentWidth(), DETAIL_MAX_WIDTH) - 30);
   const route = useRoute();
   const navigation = useNavigation<any>();
   const { productId } = route.params as { productId: string };
@@ -151,7 +156,7 @@ export const ProductDetailScreen = () => {
 
   const handleMomentumScrollEnd = (event: any) => {
     const contentOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffset / SCREEN_WIDTH);
+    const index = Math.round(contentOffset / (slideWidth || 1));
     setActiveImageIndex(index);
   };
 
@@ -165,9 +170,12 @@ export const ProductDetailScreen = () => {
       <PageHeader title="Product Detail" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContentContainer}
+        contentContainerStyle={[
+          styles.scrollContentContainer,
+          centeredColumn(DETAIL_MAX_WIDTH),
+        ]}
       >
-        <View style={styles.productImageDiv}>
+        <View style={[styles.productImageDiv, { width: slideWidth }]}>
           <FlatList
             ref={flatListRef}
             data={mediaUrls}
@@ -176,8 +184,8 @@ export const ProductDetailScreen = () => {
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={handleMomentumScrollEnd}
             getItemLayout={(_, index) => ({
-              length: SCREEN_WIDTH,
-              offset: SCREEN_WIDTH * index,
+              length: slideWidth,
+              offset: slideWidth * index,
               index,
             })}
             onScroll={Animated.event(
@@ -185,8 +193,11 @@ export const ProductDetailScreen = () => {
               { useNativeDriver: false },
             )}
             renderItem={({ item }) => (
-              <View style={{ width: SCREEN_WIDTH, height: '100%' }}>
-                <Image source={{ uri: item }} style={styles.productImage} />
+              <View style={{ width: slideWidth, height: '100%' }}>
+                <Image
+                  source={{ uri: item }}
+                  style={[styles.productImage, { width: slideWidth }]}
+                />
               </View>
             )}
             keyExtractor={(_, index) => index.toString()}
@@ -565,7 +576,6 @@ const styles = StyleSheet.create({
   // --- Carousel (unchanged) ---
   productImageDiv: {
     marginBottom: 15,
-    width: SCREEN_WIDTH - 30,
     height: 350,
     borderRadius: 15,
     overflow: 'hidden',
@@ -573,7 +583,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   productImage: {
-    width: SCREEN_WIDTH - 30,
     height: '100%',
     resizeMode: 'cover',
   },

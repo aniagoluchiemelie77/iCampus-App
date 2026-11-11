@@ -386,8 +386,8 @@ export const ProfileModal = ({ visible, onClose }: ProfileModalProps) => {
 export const PROFILE_SIDEBAR_WIDTH = 280;
 
 /**
- * Desktop web: the profile menu as a permanent, scrollable left column
- * (LinkedIn-style), instead of a drawer behind the avatar.
+ * Desktop web: the profile menu as a permanent left column, full window
+ * height. The menu scrolls; the ads banner stays pinned at the bottom.
  */
 export const ProfileSidebar = ({ showAds = true }: { showAds?: boolean }) => {
   const { colors } = useTheme();
@@ -396,7 +396,7 @@ export const ProfileSidebar = ({ showAds = true }: { showAds?: boolean }) => {
     <View
       style={[
         styles.sidebar,
-        { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+        { backgroundColor: colors.backgroundSecondary, borderColor: colors.border + '55' },
       ]}
     >
       <ScrollView
@@ -406,48 +406,12 @@ export const ProfileSidebar = ({ showAds = true }: { showAds?: boolean }) => {
         showsVerticalScrollIndicator
       >
         <ProfileMenu />
-        {showAds && !loadingAds && ads.length > 0 && (
-          <AdBanner ads={ads} width={PROFILE_SIDEBAR_WIDTH - 36} />
-        )}
       </ScrollView>
-    </View>
-  );
-};
-
-export const RIGHT_RAIL_WIDTH = 300;
-
-/** Desktop web right rail: sponsored content in its own scroll area. */
-export const HomeRightRail = () => {
-  const { colors } = useTheme();
-  const { ads, loadingAds } = useMenuAds();
-  return (
-    <View style={styles.rightRail}>
-      <ScrollView
-        style={styles.drawerMenuScroll}
-        contentContainerStyle={styles.rightRailContent}
-        showsVerticalScrollIndicator
-      >
-        <View
-          style={[
-            styles.railCard,
-            { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
-          ]}
-        >
-          <Text style={[styles.railTitle, { color: colors.textDarker }]}>Sponsored</Text>
-          {loadingAds ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
-          ) : ads.length > 0 ? (
-            <AdBanner ads={ads} width={RIGHT_RAIL_WIDTH - 32} />
-          ) : (
-            <Text style={[styles.railEmpty, { color: colors.text }]}>
-              Nothing to show right now.
-            </Text>
-          )}
+      {showAds && !loadingAds && ads.length > 0 && (
+        <View style={[styles.sidebarAds, { borderTopColor: colors.border + '40' }]}>
+          <AdBanner ads={ads} width={PROFILE_SIDEBAR_WIDTH - 28} />
         </View>
-        <Text style={[styles.railFooter, { color: colors.text }]}>
-          iCampus © {new Date().getFullYear()}
-        </Text>
-      </ScrollView>
+      )}
     </View>
   );
 };
@@ -1813,36 +1777,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   sidebar: {
-    width: PROFILE_SIDEBAR_WIDTH,
+    flex: 1,
+    width: '100%',
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    marginVertical: 12,
   },
   sidebarContent: {
     padding: 18,
     paddingBottom: 24,
   },
-  rightRail: {
-    width: RIGHT_RAIL_WIDTH,
-    marginVertical: 12,
-  },
-  rightRailContent: {
-    paddingBottom: 24,
-  },
-  railCard: {
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
+  sidebarAds: {
+    padding: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
   },
-  railTitle: {
-    alignSelf: 'flex-start',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  railEmpty: { fontSize: 13, opacity: 0.7, marginVertical: 16 },
-  railFooter: { fontSize: 11, opacity: 0.6, textAlign: 'center', marginTop: 14 },
   drawerContentDiv: {
     flex: 1,
     justifyContent: 'space-between',

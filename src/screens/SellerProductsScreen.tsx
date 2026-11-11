@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, FlatList, Dimensions } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { PageHeader } from '../components/PageHeader';
@@ -8,9 +8,12 @@ import { UserAvatar } from '../components/UserAvatar';
 import { UserIdentity } from '../components/UserIdentity';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useSellerProducts } from '../hooks/useSQLiteDb.ts';
+import {
+  listColumnStyle,
+  useGridColumns,
+  useListWidth,
+} from '../components/ProductListItem';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
 
 export const SellerProductsScreen = () => {
   const { colors } = useTheme();
@@ -18,6 +21,11 @@ export const SellerProductsScreen = () => {
   const route = useRoute<any>();
   const { sellerId, seller } = route.params || {};
   const { sellerProducts } = useSellerProducts(sellerId);
+  // 2 columns on phones, more on wide screens; sized from this screen's
+  // column (the middle column on desktop), capped and centred.
+  const listWidth = useListWidth();
+  const columns = useGridColumns(2, 4, 180);
+  const cardWidth = (listWidth - 32 - 12 * (columns - 1)) / columns;
 
   const sellerDisplayName = useMemo(() => {
     if (seller?.usertype === 'enterprise') return seller.organizationName;
@@ -36,10 +44,11 @@ export const SellerProductsScreen = () => {
       <FlatList
         data={sellerProducts}
         keyExtractor={item => item.productId}
-        numColumns={2}
+        numColumns={columns}
+        key={`seller-${columns}`}
         columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={[styles.scrollContainer, listColumnStyle]}
         ListHeaderComponent={
           <View
             style={[
@@ -69,7 +78,7 @@ export const SellerProductsScreen = () => {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.cardWrapper}>
+          <View style={[styles.cardWrapper, { width: cardWidth }]}>
             <ProductCard
               product={item}
               onPress={() =>
@@ -117,11 +126,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   row: {
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 16,
   },
   cardWrapper: {
-    width: CARD_WIDTH,
     marginBottom: 15,
   },
 });

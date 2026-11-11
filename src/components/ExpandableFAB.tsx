@@ -26,7 +26,7 @@ interface FABProps {
   onChatOpen?: () => void;
   onWave?: () => void;
 }
-const ACTION_CONFIG: Record<
+export const ACTION_CONFIG: Record<
   string,
   { icon: string; route: string; params?: any; category?: string }
 > = {

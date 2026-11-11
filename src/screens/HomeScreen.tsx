@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  useWindowDimensions,
   Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -43,11 +42,13 @@ import { PageHeader } from '../components/PageHeader';
 import {
   NotificationBell,
   ProfileModal,
-  ProfileSidebar,
-  HomeRightRail,
-  PROFILE_SIDEBAR_WIDTH,
-  RIGHT_RAIL_WIDTH,
 } from '../components/HomeScreenComponents.tsx';
+import {
+  useDesktopShell,
+  useContentWidth,
+  useRightRail,
+} from '../components/desktop/DesktopShell';
+import { FeedRail, StoreRail, AdsRail } from '../components/desktop/RightRails';
 import { UserAvatar } from '../components/UserAvatar';
 import { HeaderActionButton } from '../components/Storescreen.tsx';
 import { useAppDataContext } from '../context/EventContext.tsx';
@@ -177,21 +178,13 @@ const HomeScreen = () => {
   const rawRole = user?.usertype || 'student';
   const { showAssessmentPrompt } = usePersistentActions();
   const isClassroomAllowed = userType === 'student' || userType === 'lecturer';
-  const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768;
-  // Desktop web: LinkedIn-style columns. The profile menu becomes a
-  // permanent left sidebar, and wide windows add a right rail.
-  const showSidebar = Platform.OS === 'web' && width >= 1024;
-  const showRightRail = showSidebar && width >= 1320;
-  const desktop = (() => {
-    if (!showSidebar) return null;
-    const bodyWidth = Math.min(width, BODY_MAX_WIDTH);
-    const outer = (width - bodyWidth) / 2 + BODY_PADDING;
-    const centerLeft = outer + PROFILE_SIDEBAR_WIDTH + COLUMN_GAP;
-    const centerRight = outer + (showRightRail ? RIGHT_RAIL_WIDTH + COLUMN_GAP : 0);
-    const centerWidth = width - centerLeft - centerRight;
-    return { centerLeft, centerRight, centerWidth };
-  })();
+  // Desktop web: the app shell draws the profile menu (left) and the
+  // actions rail (right); this screen is the middle column.
+  const shell = useDesktopShell();
+  const showSidebar = !!shell?.isDesktop;
+  const showRightRail = !!shell?.showRail;
+  const contentWidth = useContentWidth();
+  const isLargeScreen = contentWidth >= 600 || showSidebar;
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isFabMenuVisible, setFabMenuVisible] = useState(false);
   const toggleFab = () => setFabMenuVisible(!isFabMenuVisible);
@@ -283,7 +276,21 @@ const HomeScreen = () => {
         return null;
     }
   };
-  const fabConfig = getFabConfig();
+  // The rail lists the same actions as the FAB, so desktop skips the FAB.
+  const fabConfig = showRightRail ? null : getFabConfig();
+  // Classroom registers its own rail (it owns the upload actions).
+  useRightRail(
+    () =>
+      activeIcon === 'home' ? (
+        <FeedRail />
+      ) : activeIcon === 'store' ? (
+        <StoreRail />
+      ) : (
+        <AdsRail />
+      ),
+    [activeIcon],
+    activeIcon !== 'classroom',
+  );
   const handleTabPress = (screenName: string) => {
     setFabMenuVisible(false);
     setActiveIcon(screenName);
@@ -460,7 +467,7 @@ const HomeScreen = () => {
   return (
     <>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.headerFrame, showSidebar && styles.headerFrameWide]}>
+        <View style={styles.headerFrame}>
           <PageHeader
             title={getHeaderTitle()}
             showBackButton={false}
@@ -485,10 +492,9 @@ const HomeScreen = () => {
             rightElement={getHeaderRightElement()}
           />
         </View>
-        <View style={[styles.body, showSidebar && styles.bodyWide]}>
-        {showSidebar && <ProfileSidebar showAds={!showRightRail} />}
+        <View style={styles.body}>
         <PagerView
-          style={[styles.centerContent, showSidebar && styles.centerContentWide]}
+          style={styles.centerContent}
           initialPage={0}
           ref={pagerRef}
           onPageSelected={handlePageSelected}
@@ -510,6 +516,7 @@ const HomeScreen = () => {
                 ) : screen === 'classroom' ? (
                   <ClassroomScreenComponent
                     userRole={rawRole as 'student' | 'lecturer'}
+                    isActive={activeIcon === 'classroom'}
                   />
                 ) : screen === 'search' ? (
                   <SearchScreen />
@@ -520,18 +527,12 @@ const HomeScreen = () => {
             </View>
           ))}
         </PagerView>
-        {showRightRail && <HomeRightRail />}
         </View>
         {fabConfig && !isFabMenuVisible && (
           <TouchableOpacity
             style={[
               styles.fab,
-              isLargeScreen && {
-                right: desktop
-                  ? desktop.centerRight + 16
-                  : Math.max(24, (width - 1280) / 2 + 24),
-                bottom: 96,
-              },
+              isLargeScreen && { right: 24, bottom: 96 },
             ]}
             onPress={() => setFabMenuVisible(true)}
           >
@@ -562,14 +563,10 @@ const HomeScreen = () => {
             {
               backgroundColor: colors.background,
               borderColor: colors.border,
-              // Centered under the middle column on desktop.
+              // Centered in this screen's column.
               ...(isLargeScreen && {
-                left: desktop
-                  ? desktop.centerLeft + Math.max(0, (desktop.centerWidth - TAB_BAR_WIDTH) / 2)
-                  : Math.max(16, (width - TAB_BAR_WIDTH) / 2),
-                right: desktop
-                  ? desktop.centerRight + Math.max(0, (desktop.centerWidth - TAB_BAR_WIDTH) / 2)
-                  : Math.max(16, (width - TAB_BAR_WIDTH) / 2),
+                left: Math.max(16, (contentWidth - TAB_BAR_WIDTH) / 2),
+                right: Math.max(16, (contentWidth - TAB_BAR_WIDTH) / 2),
               }),
             },
           ]}
@@ -631,30 +628,11 @@ const HomeScreen = () => {
     </>
   );
 };
-const BODY_MAX_WIDTH = 1440;
-const BODY_PADDING = 20;
-const COLUMN_GAP = 20;
 const TAB_BAR_WIDTH = 440;
 
 const styles = StyleSheet.create({
   body: {
     flex: 1,
-  },
-  bodyWide: {
-    flexDirection: 'row',
-    width: '100%',
-    maxWidth: BODY_MAX_WIDTH,
-    alignSelf: 'center',
-    paddingHorizontal: BODY_PADDING,
-    columnGap: COLUMN_GAP,
-    // Room for the floating tab bar under the columns.
-    paddingBottom: 90,
-  },
-  centerContentWide: {
-    paddingBottom: 0,
-  },
-  headerFrameWide: {
-    maxWidth: BODY_MAX_WIDTH,
   },
   mainWrapper: {
     flex: 1,

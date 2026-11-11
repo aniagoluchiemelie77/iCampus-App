@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -33,13 +33,19 @@ import {
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { TodayAttendanceCard } from './TodayAttendanceCard';
+import { CourseFilterCard, useCourseFilters } from './CourseFilters';
+import { useRightRail } from './desktop/DesktopShell';
+import { ClassroomRail } from './desktop/RightRails';
 
 interface DashboardProps {
   user: User;
   userRole: 'student' | 'lecturer';
+  /** Classroom is the visible Home tab (drives the desktop actions rail). */
+  isActive?: boolean;
 }
 interface ClassroomProps {
   userRole: 'student' | 'lecturer';
+  isActive?: boolean;
 }
 
 // One request for every course; a student's or lecturer's list is small.
@@ -47,47 +53,18 @@ const ALL_COURSES_LIMIT = 200;
 
 type LoadState = 'idle' | 'loading' | 'refreshing' | 'loaded' | 'error';
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
+export const Dashboard: React.FC<DashboardProps> = ({
+  user,
+  userRole,
+  isActive = true,
+}) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const [courses, setCourses] = useState<Course[]>([]);
-  // Session / semester helpers. Every course is loaded at once, so these
+  // Session / semester chips. Every course is loaded at once, so these
   // filter on the device: instant, and no extra requests.
-  const [sessionFilter, setSessionFilter] = useState<string>(ALL);
-  const [semesterFilter, setSemesterFilter] = useState<string>(ALL);
-  const sessionOptions = useMemo(
-    () =>
-      uniqueValues(courses.map(c => (c as any).session)).sort((a, b) =>
-        b.localeCompare(a, undefined, { numeric: true }),
-      ),
-    [courses],
-  );
-  const semesterOptions = useMemo(
-    () =>
-      uniqueValues(courses.map(c => (c as any).semester)).sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true }),
-      ),
-    [courses],
-  );
-  // Drop a selection that no longer exists after a refresh.
-  useEffect(() => {
-    if (sessionFilter !== ALL && !sessionOptions.includes(sessionFilter)) setSessionFilter(ALL);
-    if (semesterFilter !== ALL && !semesterOptions.includes(semesterFilter)) setSemesterFilter(ALL);
-  }, [sessionOptions, semesterOptions, sessionFilter, semesterFilter]);
-  const visibleCourses = useMemo(
-    () =>
-      courses.filter(
-        c =>
-          (sessionFilter === ALL || String((c as any).session ?? '').trim() === sessionFilter) &&
-          (semesterFilter === ALL || String((c as any).semester ?? '').trim() === semesterFilter),
-      ),
-    [courses, sessionFilter, semesterFilter],
-  );
-  const isFiltered = sessionFilter !== ALL || semesterFilter !== ALL;
-  const clearFilters = () => {
-    setSessionFilter(ALL);
-    setSemesterFilter(ALL);
-  };
+  const courseFilters = useCourseFilters(courses);
+  const { visibleCourses, isFiltered, clearFilters } = courseFilters;
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -317,6 +294,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
 
   const isBusy = loadState === 'loading' || loadState === 'refreshing';
 
+  // Desktop: upload actions and upcoming lectures beside the course list.
+  useRightRail(
+    () => (
+      <ClassroomRail
+        role={isInstructor ? 'lecturer' : 'student'}
+        onUploadForm={() => setIsAttachmentModalVisible(true)}
+        onManualEntry={() => setIsManualModalVisible(true)}
+        onQuickClass={() =>
+          navigation.navigate('CourseSubPage', {
+            title: 'QuickPublicClass',
+            userRole: user.usertype,
+          })
+        }
+      />
+    ),
+    [isInstructor, user.usertype],
+    isActive,
+  );
+
   const renderHeader = () => (
     <View>
       {isStudent && (
@@ -387,44 +383,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
       </View>
 
       {loadState === 'loaded' && courses.length > 0 && (
-        <View
-          style={[
-            styles.filterCard,
-            { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
-          ]}
-        >
-          {sessionOptions.length > 0 && (
-            <FilterRow
-              label="Session"
-              icon="date-range"
-              options={sessionOptions}
-              value={sessionFilter}
-              onChange={setSessionFilter}
-              colors={colors}
-            />
-          )}
-          {semesterOptions.length > 0 && (
-            <FilterRow
-              label="Semester"
-              icon="event-note"
-              options={semesterOptions}
-              value={semesterFilter}
-              onChange={setSemesterFilter}
-              colors={colors}
-              format={semesterLabel}
-            />
-          )}
-          {isFiltered && (
-            <TouchableOpacity
-              onPress={clearFilters}
-              style={styles.clearFilters}
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="filter-alt-off" size={16} color={colors.primary} />
-              <Text style={[styles.clearFiltersText, { color: colors.primary }]}>Clear filters</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <CourseFilterCard filters={courseFilters} />
       )}
     </View>
   );
@@ -571,74 +530,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, userRole }) => {
   );
 };
 
-const ALL = 'All';
-
-const uniqueValues = (values: any[]) =>
-  Array.from(
-    new Set(
-      values
-        .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
-        .map(v => String(v).trim()),
-    ),
-  );
-
-const semesterLabel = (value: string) =>
-  /^\d+$/.test(value) ? `Semester ${value}` : `${value} semester`;
-
-/** A labelled row of choice chips ("All" first). Wraps instead of scrolling sideways. */
-const FilterRow = ({
-  label,
-  icon,
-  options,
-  value,
-  onChange,
-  colors,
-  format = (v: string) => v,
-}: {
-  label: string;
-  icon: string;
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-  colors: any;
-  format?: (v: string) => string;
-}) => (
-  <View style={styles.filterRow}>
-    <View style={styles.filterLabelRow}>
-      <MaterialIcons name={icon} size={15} color={colors.primary} />
-      <Text style={[styles.filterLabel, { color: colors.textDarker }]}>{label}</Text>
-    </View>
-    <View style={styles.chipWrap}>
-      {[ALL, ...options].map(option => {
-        const selected = option === value;
-        return (
-          <TouchableOpacity
-            key={option}
-            onPress={() => onChange(option)}
-            style={[
-              styles.chip,
-              selected
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : { borderColor: colors.border, backgroundColor: colors.background },
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: selected ? colors.btnTextColor || '#fff' : colors.textDarker },
-              ]}
-            >
-              {option === ALL ? 'All' : format(option)}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  </View>
-);
-
 const ActionTile = ({
   icon,
   label,
@@ -667,7 +558,10 @@ const ActionTile = ({
   </TouchableOpacity>
 );
 
-const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
+const ClassroomScreenComponent: React.FC<ClassroomProps> = ({
+  userRole,
+  isActive,
+}) => {
   const { colors: themeColors } = useTheme();
   const user = useAppSelector(state => state.user) || initialState;
   if (!user) {
@@ -682,7 +576,9 @@ const ClassroomScreenComponent: React.FC<ClassroomProps> = ({ userRole }) => {
       </View>
     );
   }
-  return <Dashboard user={user} userRole={userRole || 'student'} />;
+  return (
+    <Dashboard user={user} userRole={userRole || 'student'} isActive={isActive} />
+  );
 };
 
 const styles = StyleSheet.create({
@@ -734,26 +630,6 @@ const styles = StyleSheet.create({
     height: 36,
     width: 'auto',
   },
-  filterCard: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
-    gap: 10,
-  },
-  filterRow: { gap: 6 },
-  filterLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  filterLabel: { fontSize: 12.5, fontWeight: '800', letterSpacing: 0.2 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipText: { fontSize: 12.5, fontWeight: '700' },
-  clearFilters: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  clearFiltersText: { fontSize: 12.5, fontWeight: '700' },
   loadingBox: { alignItems: 'center', paddingTop: 48, gap: 10 },
   loadingText: { fontSize: 13, opacity: 0.75 },
   emptyState: {

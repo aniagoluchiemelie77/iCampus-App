@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import moment from 'moment';
@@ -17,6 +16,7 @@ import { safeParseDate } from '../utils/dateFormatter';
 import { fetchProductReviewsAPI, ProductReview } from '../api/localGetApis';
 import { ReviewSummary } from '../types/firebase';
 import { formatStatNumber } from '../utils/followCountFormatter';
+import { useContentWidth } from './desktop/DesktopShell';
 
 const CARD_WIDTH = 236;
 const CARD_GAP = 12;
@@ -81,7 +81,7 @@ const ReviewCard = ({ review }: { review: ProductReview }) => {
  */
 export const ProductReviewsCarousel = ({ productId }: { productId: string }) => {
   const { colors } = useTheme();
-  const { width: screenWidth } = useWindowDimensions();
+  const screenWidth = useContentWidth();
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [summary, setSummary] = useState<ReviewSummary | null>(null);
   const [loaded, setLoaded] = useState(false);

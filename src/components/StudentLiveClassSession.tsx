@@ -23,6 +23,12 @@ import { useLiveClass } from '../context/LiveClassContext';
 import { formatElapsed, toMillis } from '../utils/liveClassRtc';
 import { LiveClassSessionStyles as S, LIVE_RED } from './liveClassStyles';
 import {
+  useContentWidth,
+  useDesktopShell,
+  useRightRail,
+} from './desktop/DesktopShell';
+import { LiveClassRail } from './desktop/RightRails';
+import {
   ChatModal,
   AttendeeListModal,
   ConfirmationModal,
@@ -56,7 +62,9 @@ export const StudentLiveClassSession = ({
   const user = useAppSelector(state => state.user) || {};
   const navigation = useNavigation<any>();
   const { minimize, expand, endLiveClass } = useLiveClass();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
+  // The middle column on desktop, the screen on phones.
+  const screenWidth = useContentWidth();
 
   const chatVisibleRef = useRef(false);
   const startedAtRef = useRef<number>(
@@ -246,6 +254,29 @@ export const StudentLiveClassSession = ({
     endLiveClass();
     if (!minimized) navigation.navigate('Home', { activeTab: 'classroom' });
   };
+
+  // Desktop: class chat and who's in class sit in the right rail.
+  const shell = useDesktopShell();
+  const chatInRail = !!shell?.showRail && !minimized;
+  useRightRail(
+    () => (
+      <LiveClassRail
+        isHost={false}
+        attendees={classmates}
+        wavers={[]}
+        messages={messages}
+        inputText={inputText}
+        setInputText={setInputText}
+        onSend={sendMessage}
+        userUid={user.uid}
+      />
+    ),
+    [classmates.length, currentAttendees, messages, inputText, socket],
+    !minimized,
+  );
+  useEffect(() => {
+    if (chatInRail) setUnreadCount(0);
+  }, [chatInRail, messages.length]);
 
   // ---- Render ----------------------------------------------------------------
   const hostName = lecturerLiveData?.displayName || 'Lecturer';
