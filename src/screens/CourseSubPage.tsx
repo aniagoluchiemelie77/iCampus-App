@@ -28,6 +28,7 @@ import {
   LecturerLectureScheduleView,
   QuickPublicMeeting,
   GradeAccelerator,
+  ServerTestResult,
 } from '../components/CourseActionsComponent';
 import {
   getCourseDetails,
@@ -323,35 +324,38 @@ export const CourseSubPage = ({ route, navigation }: Props) => {
     [course],
   );
 
-  // Resolves true when the backend recorded the submission so the test screen
-  // can show results, or false so the student can retry. Tests are not refetched
+  // Resolves with the server's grade when the backend recorded the
+  // submission, or null so the student can retry. Tests are not refetched
   // here: doing so would hand RenderStudentTest a new `test` mid-result screen.
   const handleTestSubmission = useCallback(
-    async (payload: any): Promise<boolean> => {
+    async (payload: any): Promise<ServerTestResult | null> => {
       setLoading(true);
       try {
         const result = await submitStudentTest(payload);
-        if (result.success) {
+        const graded: ServerTestResult | undefined = result.data?.result;
+        if (result.success && graded) {
           Toast.show({
             type: 'success',
             text1: 'Test Submitted!',
             text2: 'Your grade has been recorded.',
           });
-          return true;
+          return graded;
         }
         Toast.show({
           type: 'error',
           text1: 'Submission Failure',
-          text2: result.message,
+          text2: result.success
+            ? 'The server did not return a grade. Please try again.'
+            : result.message,
         });
-        return false;
+        return null;
       } catch (error: any) {
         Toast.show({
           type: 'error',
           text1: 'Submission Error',
           text2: error.message,
         });
-        return false;
+        return null;
       } finally {
         setLoading(false);
       }

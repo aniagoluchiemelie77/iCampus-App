@@ -1639,43 +1639,6 @@ export const toggleFollowUser = async (
     return { success: false, message: error?.message || 'Network error.' };
   }
 };
-export const toggleBlockUserFromProfile = async (
-  targetUserId: string,
-  signal?: AbortSignal
-): Promise<{ success: boolean; action?: 'blocked' | 'unblocked' }> => {
-  const TIMEOUT_MS = await getAdaptiveTimeout();
-  const controller = new AbortController();
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const idempotencyKey = uuidv4();
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-  try {
-    const response = await fetchWithAuth(`${cleanBaseUrl}/users/block/toggle`, {
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({ targetUserId }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    const result = await response.json();
-    return response.ok ? { success: true, action: result.action } : { success: false };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      Toast.show({ type: 'error', text1: 'Timeout Error', text2: 'Block request timed out.' });
-      return { success: false };
-    }
-    console.error('Toggle Block Utility Error:', error);
-    return { success: false };
-  }
-};
 export const submitLectureException = async (
   newException: Partial<CourseException>,
   signal?: AbortSignal

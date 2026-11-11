@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,418 +7,526 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImagePicker from 'react-native-image-crop-picker';
-import { PRIMARY_COLOR, PRIMARY_COLOR_TINT } from '../assets/styles/colors';
+import Toast from 'react-native-toast-message';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { uploadToCloudinary } from '../utils/CloudinaryPresetHelper';
 import { submitReviewApi } from '../api/localPostApis';
-import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { CustomButton } from '../assets/components/AppUIComponents';
+import { PageHeader } from '../components/PageHeader';
+import { centeredColumn } from '../utils/layout';
 
-interface ReviewAttributes {
-  deliverySpeed?: number;
-  accuracy?: number;
-  clarity?: number;
-}
+type AttributeKey = 'accuracy' | 'deliverySpeed' | 'clarity';
+type BackendTarget = 'product' | 'seller' | 'agent' | 'course' | 'lecturer';
+
+// Defined at module level: these used to live inside the component, after
+// the useState that read them (a crash on open), and their arrays changed
+// identity every render, which reset the ratings on every tap.
+const TARGET_CONFIGS: Record<
+  string,
+  {
+    targetType: BackendTarget;
+    headerTitle: string;
+    prompt: string;
+    icon: string;
+    fields: AttributeKey[];
+  }
+> = {
+  physical: {
+    targetType: 'product',
+    headerTitle: 'Rate your order',
+    prompt: 'How was your purchase?',
+    icon: 'shopping-bag',
+    fields: ['accuracy', 'deliverySpeed'],
+  },
+  product: {
+    targetType: 'product',
+    headerTitle: 'Rate your order',
+    prompt: 'How was your purchase?',
+    icon: 'shopping-bag',
+    fields: ['accuracy', 'deliverySpeed'],
+  },
+  file: {
+    targetType: 'product',
+    headerTitle: 'Rate this download',
+    prompt: 'How was this digital product?',
+    icon: 'description',
+    fields: ['accuracy'],
+  },
+  course: {
+    targetType: 'course',
+    headerTitle: 'Rate this course',
+    prompt: 'How was this course?',
+    icon: 'school',
+    fields: ['accuracy', 'clarity'],
+  },
+  agent: {
+    targetType: 'agent',
+    headerTitle: 'Rate the delivery agent',
+    prompt: 'How was the hand-off?',
+    icon: 'local-shipping',
+    fields: ['accuracy', 'deliverySpeed'],
+  },
+  lecturer: {
+    targetType: 'lecturer',
+    headerTitle: 'Rate your instructor',
+    prompt: 'How was this instructor?',
+    icon: 'record-voice-over',
+    fields: ['clarity'],
+  },
+};
+
+const ATTRIBUTE_COPY: Record<AttributeKey, { label: string; hint: string }> = {
+  accuracy: {
+    label: 'As described',
+    hint: 'Did what you got match the listing?',
+  },
+  deliverySpeed: {
+    label: 'Speed',
+    hint: 'Delivery, hand-off or download time',
+  },
+  clarity: {
+    label: 'Clarity',
+    hint: 'Explanations, audio and video quality',
+  },
+};
+
+const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+const MAX_PHOTOS = 3;
+const MAX_COMMENT = 500;
+
+const StarRow = ({
+  value,
+  onChange,
+  size,
+  color,
+  label,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  size: number;
+  color: string;
+  label: string;
+}) => (
+  <View style={styles.starRow}>
+    {[1, 2, 3, 4, 5].map(star => (
+      <TouchableOpacity
+        key={star}
+        onPress={() => onChange(star)}
+        activeOpacity={0.7}
+        hitSlop={4}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${star} star${star > 1 ? 's' : ''}`}
+        accessibilityState={{ selected: star <= value }}
+      >
+        <MaterialIcons
+          name={star <= value ? 'star' : 'star-border'}
+          size={size}
+          color={color}
+          style={styles.star}
+        />
+      </TouchableOpacity>
+    ))}
+  </View>
+);
 
 export const CreateReviewScreen = ({ route, navigation }: any) => {
   const { colors } = useTheme();
-  const { targetId, productType: targetType } = route.params;
-  const [rating, setRating] = useState<number>(0);
-  const [comment, setComment] = useState<string>('');
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [localImageUris, setLocalImageUris] = useState<string[]>([]);
-  const [attributes, setAttributes] = useState<ReviewAttributes>(() => {
-    const initialAttrs: ReviewAttributes = {};
-    config.fields.forEach(field => {
-      initialAttrs[field] = 0;
-    });
-    return initialAttrs;
-  });
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const TARGET_TYPE_CONFIGS: Record<
-    string,
-    {
-      targetType: 'product' | 'seller' | 'agent' | 'course' | 'lecturer';
-      headerTitle: string;
-      fields: Array<'accuracy' | 'deliverySpeed' | 'clarity'>;
-    }
-  > = {
-    physical: {
-      targetType: 'product',
-      headerTitle: 'Physical Product Review',
-      fields: ['accuracy', 'deliverySpeed'],
-    },
-    course: {
-      targetType: 'course',
-      headerTitle: 'Course Curriculum Review',
-      fields: ['accuracy', 'clarity'],
-    },
-    file: {
-      targetType: 'product',
-      headerTitle: 'Digital Product Review',
-      fields: ['accuracy'],
-    },
-    agent: {
-      targetType: 'agent',
-      headerTitle: 'Service Agent Review',
-      fields: ['accuracy', 'deliverySpeed'],
-    },
-    lecturer: {
-      targetType: 'lecturer',
-      headerTitle: 'Instructor Evaluation',
-      fields: ['clarity'],
-    },
-  };
-  const TARGET_ICON_MAP: Record<string, string> = {
-    product: 'shopping-bag',
-    course: 'school',
-    seller: 'store-front',
-    agent: 'local-shipping',
-    lecturer: 'record-voice-over',
-  };
-  const config =
-    TARGET_TYPE_CONFIGS[targetType] || TARGET_TYPE_CONFIGS.physical;
-  const handlePickImages = () => {
+  const insets = useSafeAreaInsets();
+  const {
+    targetId,
+    productType,
+    orderId,
+    productName,
+    productImage,
+  } = route.params || {};
+  const config = TARGET_CONFIGS[productType] || TARGET_CONFIGS.physical;
+
+  const [rating, setRating] = useState(0);
+  const [attributes, setAttributes] = useState<
+    Partial<Record<AttributeKey, number>>
+  >({});
+  const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const pickPhotos = () => {
     ImagePicker.openPicker({
       multiple: true,
-      maxFiles: 3,
+      maxFiles: MAX_PHOTOS - photos.length,
       mediaType: 'photo',
       compressImageQuality: 0.7,
     })
       .then(assets => {
-        const paths = assets.map(asset => asset.path);
-        setLocalImageUris(prev => [...prev, ...paths].slice(0, 3));
+        setPhotos(prev =>
+          [...prev, ...assets.map(a => a.path)].slice(0, MAX_PHOTOS),
+        );
       })
       .catch(err => {
-        if (err.message !== 'User cancelled image selection') {
-          Toast.show({
-            type: 'error',
-            text1: 'Selection Error',
-            text2: 'Could not open photo library',
-          });
+        if (err?.code !== 'E_PICKER_CANCELLED') {
+          Toast.show({ type: 'error', text2: 'Could not open your photos.' });
         }
       });
   };
-  const removeSelectedImage = (index: number) => {
-    setLocalImageUris(prev => prev.filter((_, i) => i !== index));
+
+  const leave = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Home', { activeTab: 'home' });
   };
-  const updateAttributeRating = (
-    key: keyof ReviewAttributes,
-    value: number,
-  ) => {
-    setAttributes(prev => ({ ...prev, [key]: value }));
-  };
-  const handleSubmitReview = async () => {
-    if (rating === 0) {
-      Alert.alert(
-        'Rating Required',
-        'Please choose a primary star rating level.',
-      );
+
+  const submit = async () => {
+    if (!targetId) {
+      Toast.show({
+        type: 'error',
+        text1: 'Nothing to review',
+        text2: 'This review link is missing its item.',
+      });
       return;
     }
+    if (rating === 0) {
+      Toast.show({ type: 'error', text1: 'Tap a star to rate first' });
+      return;
+    }
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
-      let finalMediaUrls: string[] = [];
-      if (localImageUris.length > 0) {
-        finalMediaUrls = await Promise.all(
-          localImageUris.map(uri =>
-            uploadToCloudinary(uri, 'review-attachments'),
-          ),
-        );
-      }
-      const reviewPayload = {
-        targetType: targetType,
-        targetId: targetId || 'UNKNOWN_ID',
-        rating,
-        comment: comment.trim(),
-        mediaUrls: finalMediaUrls,
-        attributes: {
-          deliverySpeed: attributes.deliverySpeed || undefined,
-          accuracy: attributes.accuracy || undefined,
-          clarity: attributes.clarity || undefined,
+      const mediaUrls = photos.length
+        ? await Promise.all(
+            photos.map(uri => uploadToCloudinary(uri, 'review-attachments')),
+          )
+        : [];
+      const result = await submitReviewApi(
+        {
+          targetType: config.targetType,
+          targetId,
+          orderId,
+          rating,
+          comment: comment.trim(),
+          mediaUrls,
+          attributes: {
+            accuracy: attributes.accuracy || undefined,
+            deliverySpeed: attributes.deliverySpeed || undefined,
+            clarity: attributes.clarity || undefined,
+          },
         },
-      };
-      console.log('Pushing schema aligned submission body:', reviewPayload);
-      const result = await submitReviewApi(reviewPayload, authToken!);
+        '',
+      );
       if (result.success) {
         Toast.show({
           type: 'success',
-          text1: 'Review Submitted',
-          text2: result.message,
+          text1: 'Thanks for your review',
+          text2: 'It helps others on iCampus decide.',
         });
-        navigation.navigate('Home', { activeTab: 'home' });
+        leave();
       } else {
         Toast.show({
           type: 'error',
-          text1: 'Review Error',
-          text2: result.message || 'Something went wrong',
+          text1: "Couldn't post review",
+          text2: result.message || 'Please try again.',
         });
       }
-    } catch (error) {
+    } catch {
       Toast.show({
         type: 'error',
-        text1: 'Submission Failure',
-        text2: 'Something broke down while saving your evaluation metrics',
+        text1: "Couldn't post review",
+        text2: 'Check your connection and try again.',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-  const renderStarRatingRow = (
-    currentVal: number,
-    onChange: (val: number) => void,
-    maxStars = 5,
-  ) => {
-    return (
-      <View style={styles.starRow}>
-        {[...Array(maxStars)].map((_, i) => {
-          const starIndex = i + 1;
-          return (
-            <TouchableOpacity
-              key={starIndex}
-              onPress={() => onChange(starIndex)}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons
-                name={starIndex <= currentVal ? 'star' : 'star-border'}
-                size={32}
-                color={colors.primary}
-                style={styles.starSpacing}
-              />
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-  };
-  useEffect(() => {
-    const checkAuthentication = async () => {
-      try {
-        const token =
-          (await AsyncStorage.getItem('accessToken')) ||
-          route.params?.authFallback;
-        console.log('Active Session Token resolved:', token);
-
-        if (token) {
-          setAuthToken(token);
-        }
-      } catch (error) {
-        console.error('Authentication extraction error:', error);
-      }
-    };
-    checkAuthentication();
-  }, [route.params?.authFallback]);
-  useEffect(() => {
-    const initialAttrs: ReviewAttributes = {};
-    config.fields.forEach(field => {
-      initialAttrs[field] = 0;
-    });
-    setAttributes(initialAttrs);
-    setRating(0);
-  }, [targetType, config.fields]);
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.scrollContent}
-    >
-      <View
-        style={[
-          styles.subContainer,
-          { backgroundColor: colors.backgroundSecondary },
-        ]}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <PageHeader title={config.headerTitle} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <MaterialIcons
-          name={TARGET_ICON_MAP[config.targetType] || 'rate-review'}
-          size={24}
-          color={colors.text}
-        />
-        <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
-          {config.headerTitle}
-        </Text>
-        <Text style={[styles.blockHeading, { color: colors.text }]}>
-          Overall Satisfaction *
-        </Text>
-        {renderStarRatingRow(rating, setRating)}
-        <Text style={[styles.blockHeading, { color: colors.text }]}>
-          Detailed Performance Metrics
-        </Text>
-        {attributes.accuracy !== undefined && (
-          <>
-            <Text style={[styles.attributeLabel, { color: colors.text }]}>
-              Item Accuracy
-            </Text>
-            <Text style={[styles.attributeDescription, { color: colors.text }]}>
-              How well did the product description, files, or service details
-              match what you actually received?
-            </Text>
-            {renderStarRatingRow(attributes.accuracy, val =>
-              updateAttributeRating('accuracy', val),
-            )}
-          </>
-        )}
-        {attributes.deliverySpeed !== undefined && (
-          <>
-            <Text style={[styles.attributeLabel, { color: colors.text }]}>
-              Fulfillment Speed
-            </Text>
-            <Text style={[styles.attributeDescription, { color: colors.text }]}>
-              Rate the speed of delivery drop-off, agent handling times, or
-              download availability.
-            </Text>
-            {renderStarRatingRow(attributes.deliverySpeed, val =>
-              updateAttributeRating('deliverySpeed', val),
-            )}
-          </>
-        )}
-        {attributes.clarity !== undefined && (
-          <>
-            <Text style={[styles.attributeLabel, { color: colors.text }]}>
-              Content Clarity
-            </Text>
-            <Text style={[styles.attributeDescription, { color: colors.text }]}>
-              Evaluate the video resolution, audio quality, instruction quality,
-              or explanation breakdown.
-            </Text>
-            {renderStarRatingRow(attributes.clarity, val =>
-              updateAttributeRating('clarity', val),
-            )}
-          </>
-        )}
-        <Text style={[styles.blockHeading, { color: colors.text }]}>
-          Written Feedback (Optional)
-        </Text>
-        <TextInput
-          style={[styles.textAreaInput, { color: colors.text }]}
-          placeholder="Share your experience here to help others make informed decisions..."
-          placeholderTextColor={colors.inputTextHolder}
-          multiline
-          numberOfLines={4}
-          value={comment}
-          onChangeText={setComment}
-        />
-        <Text style={[styles.blockHeading, { color: colors.text }]}>
-          Media Uploads ({localImageUris.length}/3)
-        </Text>
-        <View style={styles.mediaContainerStrip}>
-          {localImageUris.map((uri, index) => (
-            <View key={index} style={styles.imagePreviewWrapper}>
-              <Image source={{ uri }} style={styles.previewThumbnail} />
-              <TouchableOpacity
-                style={[
-                  styles.closeBadgeButton,
-                  { backgroundColor: colors.backgroundSecondary },
-                ]}
-                onPress={() => removeSelectedImage(index)}
-              >
-                <MaterialIcons name="cancel" size={18} color={colors.primary} />
-              </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, centeredColumn(560)]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* What is being reviewed + the main rating */}
+          <View
+            style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+          >
+            <View style={styles.itemRow}>
+              {productImage ? (
+                <Image source={{ uri: productImage }} style={styles.itemThumb} />
+              ) : (
+                <View
+                  style={[
+                    styles.itemThumb,
+                    styles.itemIcon,
+                    { backgroundColor: colors.primary + '14' },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={config.icon}
+                    size={26}
+                    color={colors.primary}
+                  />
+                </View>
+              )}
+              <View style={styles.flex}>
+                <Text
+                  style={[styles.itemName, { color: colors.textDarker }]}
+                  numberOfLines={2}
+                >
+                  {productName || config.prompt}
+                </Text>
+                {!!orderId && (
+                  <Text style={[styles.itemMeta, { color: colors.text }]}>
+                    Order #{String(orderId).slice(-8).toUpperCase()}
+                  </Text>
+                )}
+              </View>
             </View>
-          ))}
-          {localImageUris.length < 3 && (
-            <TouchableOpacity
-              style={styles.addPhotosBoxButton}
-              onPress={handlePickImages}
+
+            <View
+              style={[styles.divider, { backgroundColor: colors.border + '40' }]}
+            />
+            <Text style={[styles.overallLabel, { color: colors.text }]}>
+              Overall rating
+            </Text>
+            <StarRow
+              value={rating}
+              onChange={setRating}
+              size={42}
+              color={colors.primary}
+              label="Overall rating"
+            />
+            <Text
+              style={[
+                styles.ratingWord,
+                { color: rating ? colors.primary : colors.text },
+              ]}
             >
-              <MaterialIcons
-                name="add-a-photo"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[styles.addPhotosText, { color: colors.primary }]}>
-                Add Photo
+              {rating ? RATING_LABELS[rating] : 'Tap a star'}
+            </Text>
+          </View>
+
+          {/* Detail ratings */}
+          <View
+            style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.textDarker }]}>
+              Details{' '}
+              <Text style={[styles.optional, { color: colors.text }]}>
+                optional
               </Text>
+            </Text>
+            {config.fields.map((field, i) => (
+              <View
+                key={field}
+                style={[
+                  styles.attrRow,
+                  i > 0 && {
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: colors.border + '55',
+                  },
+                ]}
+              >
+                <View style={styles.flex}>
+                  <Text style={[styles.attrLabel, { color: colors.textDarker }]}>
+                    {ATTRIBUTE_COPY[field].label}
+                  </Text>
+                  <Text style={[styles.attrHint, { color: colors.text }]}>
+                    {ATTRIBUTE_COPY[field].hint}
+                  </Text>
+                </View>
+                <StarRow
+                  value={attributes[field] || 0}
+                  onChange={v => setAttributes(prev => ({ ...prev, [field]: v }))}
+                  size={22}
+                  color={colors.primary}
+                  label={ATTRIBUTE_COPY[field].label}
+                />
+              </View>
+            ))}
+          </View>
+
+          {/* Written review + photos */}
+          <View
+            style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.textDarker }]}>
+              Your review{' '}
+              <Text style={[styles.optional, { color: colors.text }]}>
+                optional
+              </Text>
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.border + '80',
+                  backgroundColor: colors.background,
+                },
+              ]}
+              placeholder="What did you like or dislike? Others will read this."
+              placeholderTextColor={colors.inputTextHolder}
+              multiline
+              maxLength={MAX_COMMENT}
+              value={comment}
+              onChangeText={setComment}
+            />
+            <Text style={[styles.counter, { color: colors.text }]}>
+              {comment.length}/{MAX_COMMENT}
+            </Text>
+
+            <View style={styles.photoRow}>
+              {photos.map((uri, index) => (
+                <View key={uri} style={styles.photo}>
+                  <Image source={{ uri }} style={styles.photoImg} />
+                  <TouchableOpacity
+                    style={[styles.photoRemove, { backgroundColor: colors.textDarker }]}
+                    onPress={() =>
+                      setPhotos(prev => prev.filter((_, i) => i !== index))
+                    }
+                    accessibilityLabel="Remove photo"
+                    hitSlop={6}
+                  >
+                    <MaterialIcons name="close" size={14} color={colors.background} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <TouchableOpacity
+                  style={[styles.photo, styles.addPhoto, { borderColor: colors.primary + '80' }]}
+                  onPress={pickPhotos}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add photos"
+                >
+                  <MaterialIcons name="add-a-photo" size={22} color={colors.primary} />
+                  <Text style={[styles.addPhotoText, { color: colors.primary }]}>
+                    {photos.length}/{MAX_PHOTOS}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Pinned action */}
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              borderTopColor: colors.border + '40',
+              paddingBottom: Math.max(insets.bottom, 12),
+            },
+          ]}
+        >
+          <View style={[styles.footerInner, centeredColumn(560)]}>
+            <TouchableOpacity onPress={leave} style={styles.skipBtn} disabled={isSubmitting}>
+              <Text style={[styles.skipText, { color: colors.text }]}>Not now</Text>
             </TouchableOpacity>
-          )}
+            <CustomButton
+              title={isSubmitting ? 'Posting…' : 'Post review'}
+              style={styles.submitBtn}
+              onPress={submit}
+              disabled={isSubmitting || rating === 0}
+            />
+          </View>
         </View>
-        <CustomButton
-          title={isSubmitting ? 'Publishing...' : 'Publish Review'}
-          style={[styles.submitButton, isSubmitting && styles.disabledButton]}
-          onPress={handleSubmitReview}
-          disabled={isSubmitting}
-        />
-      </View>
-    </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignContent: 'center' },
-  subContainer: { padding: 20, borderRadius: 15, alignContent: 'center' },
-  scrollContent: { padding: 15 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 15,
+  container: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: { padding: 14, paddingBottom: 24, gap: 12 },
+  card: {
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  blockHeading: {
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemThumb: { width: 56, height: 56, borderRadius: 12 },
+  itemIcon: { alignItems: 'center', justifyContent: 'center' },
+  itemName: { fontSize: 15.5, fontWeight: '700', lineHeight: 21 },
+  itemMeta: { fontSize: 12, marginTop: 3, opacity: 0.75 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 16 },
+  overallLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    opacity: 0.8,
+    marginBottom: 8,
+  },
+  starRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  star: { marginHorizontal: 2 },
+  ratingWord: {
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '700',
-    marginBottom: 15,
+    marginTop: 6,
   },
-  starRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  starSpacing: { marginRight: 8 },
-  attributeLabel: {
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  textAreaInput: {
-    borderWidth: 0.8,
-    borderColor: PRIMARY_COLOR_TINT,
-    borderRadius: 13,
-    padding: 15,
-    fontSize: 14,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 15,
-  },
-  mediaContainerStrip: {
+  cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  optional: { fontSize: 12, fontWeight: '500', opacity: 0.6 },
+  attrRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 15,
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 10,
   },
-  imagePreviewWrapper: {
-    width: 80,
-    height: 80,
-    marginRight: 12,
-    marginBottom: 12,
-    position: 'relative',
-  },
-  previewThumbnail: { width: '100%', height: '100%', borderRadius: 8 },
-  closeBadgeButton: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    borderRadius: 15,
-  },
-  addPhotosBoxButton: {
-    width: 80,
-    height: 80,
+  attrLabel: { fontSize: 14, fontWeight: '600' },
+  attrHint: { fontSize: 12, marginTop: 2, opacity: 0.7 },
+  input: {
     borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
     borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 110,
+    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  counter: { alignSelf: 'flex-end', fontSize: 11, marginTop: 4, opacity: 0.6 },
+  photoRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  photo: { width: 72, height: 72, borderRadius: 12 },
+  photoImg: { width: '100%', height: '100%', borderRadius: 12 },
+  photoRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addPhotosText: {
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '500',
+  addPhoto: {
+    borderWidth: 1.2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
   },
-  submitButton: {
-    paddingHorizontal: 15,
-    marginTop: 15,
+  addPhotoText: { fontSize: 11, fontWeight: '600' },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 12,
+    paddingHorizontal: 14,
   },
-  disabledButton: { opacity: 0.6 },
-  submitButtonText: { fontSize: 14, fontWeight: '600' },
-  attributeDescription: {
-    fontSize: 12,
-    marginBottom: 15,
-    fontStyle: 'italic',
-  },
+  footerInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  skipBtn: { paddingHorizontal: 14, height: 48, justifyContent: 'center' },
+  skipText: { fontSize: 14, fontWeight: '600' },
+  submitBtn: { flex: 1, width: 'auto', height: 48, borderRadius: 24 },
 });

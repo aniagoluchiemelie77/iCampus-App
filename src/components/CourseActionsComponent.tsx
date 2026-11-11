@@ -66,10 +66,8 @@ import { LivenessCamera, LivenessResult } from './LivenessCamera';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { precheckSelfie } from '../utils/facePrecheck';
 import { MathSymbolBar, insertAtSelection } from './MathSymbolBar';
-import { matchShortAnswer } from '../utils/answerMatching';
 import { EmptyState } from './EmptyFlatlistComponent';
 import { getUniqueId } from 'react-native-device-info';
-import { callGeminiAPI } from '../services/aiServices';
 import { PieChart } from 'react-native-chart-kit';
 import { OngoingLectureModal } from './OngoingLiveLecturesModal';
 import {
@@ -197,9 +195,28 @@ interface CreateAssignmentProps {
 interface StudentTestProps {
   test: CreateTestPayload;
   user: any;
-  /** Resolve false when the backend did not record the submission. */
-  onSubmit: (payload: any) => Promise<boolean | void>;
+  /**
+   * Resolves with the server's grade, or null when the backend did not
+   * record the submission. Grading happens on the server only: the test the
+   * student receives has no answer key.
+   */
+  onSubmit: (payload: any) => Promise<ServerTestResult | null>;
 }
+export type ServerTestResult = {
+  score: number;
+  total: number;
+  correct: number;
+  /** Correct answers are only sent once the test window has closed. */
+  answersRevealed?: boolean;
+  answers?: Array<{
+    questionId: string;
+    questionText?: string;
+    studentAnswer: string;
+    isCorrect: boolean;
+    pointsEarned: number;
+    correctAnswer?: string;
+  }>;
+};
 interface SearchBarProps {
   shouldShowSearch: boolean;
   textInput: string;
@@ -3618,8 +3635,6 @@ type IdentityCheck = {
 type PendingSubmission = {
   payload: Partial<TestSubmission>;
   flagged: boolean;
-  score: number;
-  correct: number;
 };
 
 const MAX_GRACES = 3;
@@ -3760,21 +3775,6 @@ export const RenderStudentTest = ({
       ? Number((test.totalMarks / totalQuestions).toFixed(2))
       : 0;
 
-  const gradeShortAnswersWithAI = async (shortAnswerPairs: any[]) => {
-    const prompt = `
-    You are an academic grader. Compare the Student Answer against the Correct Answer for each question.
-    Rate the semantic similarity on a scale of 0 to 1.
-    - 1.0: Perfectly synonymous or correct.
-    - 0.85+: Correct, just phrased differently.
-    - Below 0.8: Incorrect or missing key information.
-
-    Return ONLY a JSON array of objects: [{"questionId": "...", "similarityScore": 0.95}]
-
-    Data: ${JSON.stringify(shortAnswerPairs)}
-  `;
-    const response = await callGeminiAPI(prompt);
-    return JSON.parse(response);
-  };
   const handlePress = (val: string) => {
     if (val === '=') {
       try {
@@ -3854,41 +3854,16 @@ export const RenderStudentTest = ({
   const selectAnswer = (questionId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
-  const runAutoGrade = useCallback(() => {
-    let totalScore = 0;
-    const gradedAnswers = activeQuestions.map((q: any) => {
-      const sAns = (answers[q.id] || '').trim();
-      const correctAnswer = String(q.correctAnswer ?? '');
-      let isCorrect = false;
-      // false = let AI grading have the final say (free-text answers).
-      let autoGradeConfident = true;
-
-      if (q.type === 'MCQ' || q.type === 'TrueFalse') {
-        isCorrect = sAns === correctAnswer;
-      } else if (q.type === 'ShortAnswer') {
-        // Keeps symbols ("-5" ≠ "5") and compares numbers by value
-        // ("1/2" = "0.5" = "½").
-        const match = matchShortAnswer(sAns, correctAnswer);
-        isCorrect = match.isCorrect;
-        autoGradeConfident = match.confident;
-      }
-
-      const pointsEarned = isCorrect ? pointsPerQuestion : 0;
-      totalScore += pointsEarned;
-
-      return {
+  // Only what the student chose is sent; the server holds the answer key
+  // and does all grading (the test sent to the app has no answers in it).
+  const collectAnswers = useCallback(
+    () =>
+      activeQuestions.map((q: any) => ({
         questionId: q.id,
-        questionText: q.questionText,
-        correctAnswer,
-        studentAnswer: sAns,
-        isCorrect,
-        pointsEarned,
-        autoGradeConfident,
-      };
-    });
-
-    return { gradedAnswers, totalScore };
-  }, [activeQuestions, answers, pointsPerQuestion]);
+        studentAnswer: (answers[q.id] || '').trim(),
+      })),
+    [activeQuestions, answers],
+  );
 
   const captureIdentity = async ({
     precheck = true,
@@ -4084,15 +4059,16 @@ export const RenderStudentTest = ({
     const pending = pendingRef.current;
     if (!pending) return;
     goTo('submitting');
-    const ok = await onSubmit(pending.payload);
-    if (ok === false) {
+    const graded = await onSubmit(pending.payload);
+    if (!graded) {
       goTo('submitFailed');
       return;
     }
+    gradedAnswersRef.current = graded.answers || [];
     setFinalResult({
-      score: pending.score,
-      total: test.totalMarks,
-      correct: pending.correct,
+      score: pending.flagged ? 0 : graded.score,
+      total: graded.total || test.totalMarks,
+      correct: pending.flagged ? 0 : graded.correct,
     });
     goTo(pending.flagged ? 'rejected' : 'done');
   }, [onSubmit, test.totalMarks, goTo]);
@@ -4165,68 +4141,14 @@ export const RenderStudentTest = ({
     const flagged = identity.outcome === 'mismatch';
     if (flagged) setVerifyMessage(identity.message || null);
 
-    const { gradedAnswers, totalScore } = runAutoGrade();
-    let finalGradedAnswers: any[] = [...gradedAnswers];
-    let finalTotalScore = totalScore;
-
-    // Only answers the auto-grader isn't sure about go to AI. Numbers and
-    // exact matches are final, so AI can't mark "-5" correct for "5".
-    const shortAnswersToGrade = gradedAnswers
-      .filter(ans => {
-        const question = activeQuestions.find(q => q.id === ans.questionId);
-        return question?.type === 'ShortAnswer' && !ans.autoGradeConfident;
-      })
-      .map(ans => ({
-        questionId: ans.questionId,
-        studentAnswer: ans.studentAnswer,
-        correctAnswer: ans.correctAnswer,
-      }));
-
-    if (!flagged && shortAnswersToGrade.length > 0) {
-      try {
-        const aiScores = await gradeShortAnswersWithAI(shortAnswersToGrade);
-        finalGradedAnswers = gradedAnswers.map(ans => {
-          const aiResult = aiScores.find(
-            (res: any) => res.questionId === ans.questionId,
-          );
-          if (!aiResult) return ans;
-          const isCorrect = aiResult.similarityScore >= 0.85;
-          const points = isCorrect ? pointsPerQuestion : 0;
-          finalTotalScore = finalTotalScore - ans.pointsEarned + points;
-          return {
-            ...ans,
-            isCorrect,
-            pointsEarned: points,
-            aiScore: aiResult.similarityScore,
-          };
-        });
-      } catch (error) {
-        console.error('AI Grading fallback executed.', error);
-      }
-    }
-    const sanitizedScore = flagged
-      ? 0
-      : Number(Math.min(finalTotalScore, test.totalMarks).toFixed(2));
-    // Internal grading hint; not part of the saved submission.
-    finalGradedAnswers = finalGradedAnswers.map(ans => {
-      const saved = { ...ans };
-      delete saved.autoGradeConfident;
-      return saved;
-    });
-    gradedAnswersRef.current = finalGradedAnswers;
-
     pendingRef.current = {
       flagged,
-      score: sanitizedScore,
-      correct: finalGradedAnswers.filter(a => a.isCorrect).length,
       payload: {
         testId: test.id || (test as any)._id,
         studentId: user.uid,
         studentName: `${user.firstname} ${user.lastname}`,
         matricNumber: user.matricNumber || 'N/A',
-        answers: finalGradedAnswers,
-        score: sanitizedScore,
-        totalPossibleScore: test.totalMarks,
+        answers: collectAnswers(),
         status: 'submitted',
         submittedAt: new Date(),
         proctoringData: {
@@ -4315,12 +4237,17 @@ export const RenderStudentTest = ({
       txtContent += `Date: ${dateString}\n`;
       txtContent += `==================================================\n\n`;
 
+      if (gradedAnswers.length > 0 && gradedAnswers[0].correctAnswer === undefined) {
+        txtContent += `Correct answers are released after the test closes.\n\n`;
+      }
       gradedAnswers.forEach((item, index) => {
-        txtContent += `Q${index + 1}: ${item.questionText}\n`;
+        txtContent += `Q${index + 1}: ${item.questionText || ''}\n`;
         txtContent += `Your Answer: ${
           item.studentAnswer || '[No Answer Provided]'
         }\n`;
-        txtContent += `Correct Answer: ${item.correctAnswer}\n`;
+        if (item.correctAnswer !== undefined) {
+          txtContent += `Correct Answer: ${item.correctAnswer}\n`;
+        }
         txtContent += `Outcome: ${item.isCorrect ? 'CORRECT' : 'INCORRECT'} (+${
           item.pointsEarned
         } Marks)\n`;

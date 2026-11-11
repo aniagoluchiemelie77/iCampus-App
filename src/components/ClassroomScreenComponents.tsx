@@ -10,6 +10,7 @@ import {
   Platform,
   StyleSheet,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -200,14 +201,19 @@ const ProgressRing = ({ percentage }: { percentage: number }) => {
     </View>
   );
 };
-export const CourseModal = ({
-  isVisible,
-  onClose,
-  course,
-}: CourseModalProps) => {
-  if (!course) {
-    return null;
-  }
+// Per-course lectures/exceptions from the last time the modal was opened, so
+// reopening a course shows its stats instantly while fresh data loads.
+const courseModalCache = new Map<
+  string,
+  { lectures: Lecture[]; exceptions: CourseException[] }
+>();
+
+export const CourseModal = (props: CourseModalProps) =>
+  // Hooks live in the body component so a missing course can't change the
+  // hook order between renders.
+  props.course ? <CourseModalBody {...props} /> : null;
+
+const CourseModalBody = ({ isVisible, onClose, course }: CourseModalProps) => {
   const { colors: themeColors } = useTheme();
   const { currentUser } = useAppDataContext();
   // Tablets / desktop: a centered dialog instead of a full-width bottom sheet.
@@ -215,41 +221,72 @@ export const CourseModal = ({
   const id = currentUser?.uid;
   const userRole = currentUser?.usertype;
   const navigation = useNavigation<any>();
-  const [allExceptions, setAllExceptions] = useState<CourseException[]>([]);
-  const [lectures, setAllLectures] = useState<Lecture[]>([]);
-  const [loadingExceptions, setLoadingExceptions] = useState(false);
+  const courseId = course.courseId;
+  const cached = courseModalCache.get(courseId);
+  const [allExceptions, setAllExceptions] = useState<CourseException[]>(
+    cached?.exceptions ?? [],
+  );
+  const [lectures, setAllLectures] = useState<Lecture[]>(
+    cached?.lectures ?? [],
+  );
+  const [syncing, setSyncing] = useState(!cached);
 
   useEffect(() => {
-    const fetchCourseData = async () => {
-      if (!course || !isVisible) return;
-      setLoadingExceptions(true);
-      console.log('Selected Course ID: ', course.courseId);
+    if (!isVisible || !courseId) return;
+    let cancelled = false;
+    // Switching course: show that course's cached data (or nothing), never
+    // the previous course's numbers.
+    const hit = courseModalCache.get(courseId);
+    setAllLectures(hit?.lectures ?? []);
+    setAllExceptions(hit?.exceptions ?? []);
+    setSyncing(!hit);
 
+    (async () => {
       try {
         const [exceptionsRes, lecturesRes] = await Promise.all([
-          getCourseExceptions({ courseId: course.courseId }),
-          fetchAllLecturesByCourseId({ courseId: course.courseId }),
+          getCourseExceptions({ courseId }),
+          fetchAllLecturesByCourseId({ courseId }),
         ]);
-        if (exceptionsRes.success && exceptionsRes.data) {
-          setAllExceptions(exceptionsRes.data);
-        } else {
-          setAllExceptions([]);
-        }
-        if (lecturesRes.success && lecturesRes.data) {
-          setAllLectures(lecturesRes.data);
-        } else {
-          setAllLectures([]);
-        }
+        if (cancelled) return;
+        const nextExceptions =
+          exceptionsRes.success && exceptionsRes.data
+            ? exceptionsRes.data
+            : hit?.exceptions ?? [];
+        const nextLectures =
+          lecturesRes.success && lecturesRes.data
+            ? lecturesRes.data
+            : hit?.lectures ?? [];
+        courseModalCache.set(courseId, {
+          lectures: nextLectures,
+          exceptions: nextExceptions,
+        });
+        setAllExceptions(nextExceptions);
+        setAllLectures(nextLectures);
       } catch (error) {
-        console.error('Critical Error fetching data dependencies:', error);
+        console.error('Course modal data fetch failed:', error);
       } finally {
-        setLoadingExceptions(false);
+        if (!cancelled) setSyncing(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
+  }, [courseId, isVisible]);
 
-    fetchCourseData();
-  }, [course.courseId, course.courseTitle, isVisible]);
-  if (!course) return null;
+  // Every action closes the sheet and opens a CourseSubPage. Data the modal
+  // already holds is handed over so the page renders at once and refreshes
+  // in the background instead of starting from a spinner.
+  const openSubPage = (title: string, extra: Record<string, any> = {}) => {
+    onClose();
+    navigation.navigate('CourseSubPage', {
+      title,
+      course,
+      userRole: currentUser?.usertype,
+      exceptions: null,
+      lectures: null,
+      ...extra,
+    });
+  };
   const isLecturer = userRole === 'lecturer';
   const isStudent = userRole === 'student';
   const totalTopics = course.courseContents?.length || 0;
@@ -285,7 +322,10 @@ export const CourseModal = ({
       ? (lecturesDelivered / totalExpectedLectures) * 100
       : 0;
 
-  console.log('Selected Course: ', course);
+  const hasInstructor = lastInstructor !== 'No Instructor Assigned';
+  const pendingExceptions = allExceptions.filter(
+    (e: any) => e.status === 'pending',
+  ).length;
 
   return (
     <Modal
@@ -331,11 +371,16 @@ export const CourseModal = ({
             />
           )}
           <View style={styles.modalHeaderInfo}>
-            <Text
-              style={[styles.modalCourseCode, { color: themeColors.primary }]}
-            >
-              {course.courseCode || 'COURSE'}
-            </Text>
+            <View style={styles.modalCodeRow}>
+              <Text
+                style={[styles.modalCourseCode, { color: themeColors.primary }]}
+              >
+                {course.courseCode || 'COURSE'}
+              </Text>
+              {syncing && (
+                <ActivityIndicator size="small" color={themeColors.primary} />
+              )}
+            </View>
             <Text
               style={[styles.modalCourseTitle, { color: themeColors.text }]}
               numberOfLines={1}
@@ -393,87 +438,31 @@ export const CourseModal = ({
                     label="Course Contents"
                     iconName="format-list-bulleted"
                     count={course.courseContents?.length}
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Contents',
-                        course: course,
-                        userRole: currentUser.usertype,
-                      });
-                    }}
+                    onPress={() => openSubPage('Course Contents')}
                   />
                   <GridItem
                     label="Course Materials"
                     iconName="folder-copy"
                     count={totalMaterials}
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Materials',
-                        course,
-                        lectures: lectures,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                      });
-                    }}
+                    onPress={() => openSubPage('Course Materials', { lectures })}
                   />
                   <GridItem
                     label="View Lectures"
                     iconName="access-time"
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'View Lecture Schedule',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
+                    onPress={() => openSubPage('View Lecture Schedule')}
                   />
                   <GridItem
                     label="Assignments"
                     iconName="pending-actions"
                     count={assignmentCount}
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Assignments',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
+                    onPress={() => openSubPage('Assignments')}
                   />
-                  {!isStudent && (
-                    <GridItem
-                      label="Exceptions"
-                      iconName="verified-user"
-                      onPress={() => {
-                        onClose();
-                        navigation.navigate('CourseSubPage', {
-                          title: 'Exceptions',
-                          course,
-                          userRole: currentUser.usertype,
-                          exceptions: allExceptions,
-                          lectures,
-                        });
-                      }}
-                    />
-                  )}
                   <GridItem
                     label="Instructors"
                     iconName="person-pin"
                     count={instructorCount > 1 ? instructorCount : undefined}
                     onPress={() => {
-                      if (
-                        !lastInstructor ||
-                        lastInstructor === 'No Instructor Assigned' ||
-                        lastInstructor === 'Unknown Instructor'
-                      ) {
-                        return;
-                      }
+                      if (!hasInstructor) return;
                       onClose();
                       navigation.navigate('Profile', {
                         identifier: lastInstructor,
@@ -528,115 +517,50 @@ export const CourseModal = ({
                     label="Course Contents"
                     iconName="format-list-bulleted"
                     count={course.courseContents?.length}
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Contents',
-                        course: course,
-                        userRole: currentUser.usertype,
-                      });
-                    }}
+                    onPress={() => openSubPage('Course Contents')}
                   />
                   <GridItem
                     label="Create Lecture"
                     iconName="add-box"
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Set Lecture Schedule',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
+                    onPress={() => openSubPage('Set Lecture Schedule')}
                   />
                   <GridItem
                     label="Upload Materials"
                     iconName="cloud-upload"
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Course Materials',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures,
-                      });
-                    }}
+                    onPress={() => openSubPage('Course Materials', { lectures })}
                   />
                   <GridItem
                     label="Manage Exceptions"
                     iconName="verified-user"
-                    onPress={() => {
-                      if (loadingExceptions) return;
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Exceptions',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
+                    count={pendingExceptions}
+                    onPress={() =>
+                      openSubPage('Exceptions', {
+                        exceptions: allExceptions,
+                        lectures,
+                      })
+                    }
                   />
                   <GridItem
                     label="Add Assignments"
                     iconName="assignment-add"
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'Assignments',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
+                    onPress={() => openSubPage('Assignments')}
                   />
                   <GridItem
                     label="Lecture Schedule"
                     iconName="access-time"
-                    onPress={() => {
-                      onClose();
-                      navigation.navigate('CourseSubPage', {
-                        title: 'View Lecture Schedule',
-                        course,
-                        userRole: currentUser.usertype,
-                        exceptions: null,
-                        lectures: null,
-                      });
-                    }}
+                    onPress={() => openSubPage('View Lecture Schedule')}
                   />
-                  {currentUser.institutionTier !== 'basic' && (
+                  {currentUser?.institutionTier !== 'basic' && (
                     <>
                       <GridItem
                         label="Create A Test"
                         iconName="quiz"
-                        onPress={() => {
-                          onClose();
-                          navigation.navigate('CourseSubPage', {
-                            title: 'Assessments',
-                            course,
-                            userRole: currentUser.usertype,
-                            exceptions: null,
-                            lectures: null,
-                          });
-                        }}
+                        onPress={() => openSubPage('Assessments')}
                       />
                       <GridItem
                         label="Performance"
                         iconName="insights"
-                        onPress={() => {
-                          onClose();
-                          navigation.navigate('CourseSubPage', {
-                            title: 'Grade Accelerator',
-                            course,
-                            userRole: currentUser.usertype,
-                            exceptions: null,
-                            lectures: null,
-                          });
-                        }}
+                        onPress={() => openSubPage('Grade Accelerator')}
                       />
                     </>
                   )}
@@ -1116,6 +1040,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
+  modalCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   modalCourseCode: {
     fontSize: 11,
     fontWeight: '700',

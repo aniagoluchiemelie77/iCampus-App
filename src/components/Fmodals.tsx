@@ -12,10 +12,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { UserIdentity } from '../components/UserIdentity';
 import { PRIMARY_COLOR_TINT, PRIMARY_COLOR } from '../assets/styles/colors';
-import {
-  toggleFollowUser,
-  toggleBlockUserFromProfile,
-} from '../api/localPostApis';
+import { toggleFollowUser } from '../api/localPostApis';
 import { EmptyState } from '../components/EmptyFlatlistComponent';
 import { useTheme } from '../context/ThemeContext';
 import { UserAvatar } from './UserAvatar.tsx';
@@ -33,48 +30,23 @@ interface UserRowProps {
   type: 'followers' | 'following';
 }
 const UserRow = ({ item, navigation, type }: UserRowProps) => {
-  const [isActiveState, setIsActiveState] = useState(
-    type === 'following' ? item.isFollowingByViewer ?? true : true,
+  const [isFollowing, setIsFollowing] = useState(
+    item.isFollowingByViewer ?? true,
   );
   const [loading, setLoading] = useState(false);
 
   const handleToggle = async () => {
     setLoading(true);
-
-    if (type === 'following') {
-      const result = await toggleFollowUser(item.uid);
-      if (result.success) {
-        setIsActiveState(result.action === 'followed');
-        Toast.show({
-          type: 'success',
-          text1: result.action === 'followed' ? 'Followed' : 'Unfollowed',
-          text2: result.message,
-        });
-      }
-    } else {
-      const result = await toggleBlockUserFromProfile(item.uid);
-      if (result.success) {
-        setIsActiveState(result.action !== 'blocked');
-        Toast.show({
-          type: 'success',
-          text1:
-            result.action === 'blocked' ? 'User Blocked' : 'User Unblocked',
-          text2:
-            result.action === 'blocked'
-              ? 'Removed from your followers list.'
-              : 'Reversed successfully.',
-        });
-      }
+    const result = await toggleFollowUser(item.uid);
+    if (result.success) {
+      setIsFollowing(result.action === 'followed');
+      Toast.show({
+        type: 'success',
+        text1: result.action === 'followed' ? 'Followed' : 'Unfollowed',
+        text2: result.message,
+      });
     }
     setLoading(false);
-  };
-  const getButtonLabel = () => {
-    if (loading) return <ActivityIndicator size="small" color="#fff" />;
-    if (type === 'following') {
-      return isActiveState ? 'Unfollow' : 'Follow';
-    } else {
-      return isActiveState ? 'Block' : 'Blocked';
-    }
   };
 
   return (
@@ -101,35 +73,29 @@ const UserRow = ({ item, navigation, type }: UserRowProps) => {
         />
       </View>
 
-      <TouchableOpacity
-        style={[
-          styles.miniButton,
-          type === 'following'
-            ? isActiveState
-              ? styles.buttonUnfollow
-              : styles.buttonFollow
-            : isActiveState
-            ? styles.buttonBlock
-            : styles.buttonBlocked,
-        ]}
-        onPress={handleToggle}
-        disabled={loading || (!isActiveState && type === 'followers')}
-      >
-        <Text
+      {type === 'following' && (
+        <TouchableOpacity
           style={[
-            styles.miniButtonText,
-            type === 'following'
-              ? isActiveState
-                ? styles.textUnfollow
-                : styles.textFollow
-              : isActiveState
-              ? styles.textBlock
-              : styles.textBlocked,
+            styles.miniButton,
+            isFollowing ? styles.buttonUnfollow : styles.buttonFollow,
           ]}
+          onPress={handleToggle}
+          disabled={loading}
         >
-          {getButtonLabel()}
-        </Text>
-      </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text
+              style={[
+                styles.miniButtonText,
+                isFollowing ? styles.textUnfollow : styles.textFollow,
+              ]}
+            >
+              {isFollowing ? 'Unfollow' : 'Follow'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -293,29 +259,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'inherit',
     borderColor: 'transparent',
   },
-  buttonBlock: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
   buttonUnfollow: {
     backgroundColor: PRIMARY_COLOR,
     borderColor: PRIMARY_COLOR,
   },
-  buttonBlocked: {
-    backgroundColor: 'inherit',
-    borderColor: 'transparent',
-  },
   textFollow: {
     color: PRIMARY_COLOR,
   },
-  textBlock: {
-    color: '#fff',
-  },
   textUnfollow: {
     color: '#fff',
-  },
-  textBlocked: {
-    color: PRIMARY_COLOR,
   },
   buttonFollowing: {
     backgroundColor: 'inherit',

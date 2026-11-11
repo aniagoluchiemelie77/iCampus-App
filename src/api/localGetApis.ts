@@ -55,7 +55,6 @@ interface FetchPostsParams extends ApiRequestOptions {
 }
 export type ProfileFetchResult =
   | { status: 'ok'; data: any }
-  | { status: 'blocked'; blockedByViewer: boolean; targetUid: string | null; message?: string }
   | { status: 'notFound' }
   | { status: 'error'; message: string };
 interface SearchUserProfileParams extends ApiRequestOptions {
@@ -131,16 +130,8 @@ export const searchUserProfile = async ({
       { method: 'GET', signal },
     );
     const result = await response.json().catch(() => ({}));
-    // Blocked and missing profiles are normal outcomes the screen renders
-    // itself; they are not errors to toast about.
-    if (response.status === 403 && result.isBlocked) {
-      return {
-        status: 'blocked',
-        blockedByViewer: !!result.blockedByViewer,
-        targetUid: result.targetUid || null,
-        message: result.message,
-      };
-    }
+    // A missing profile is a normal outcome the screen renders itself, not
+    // an error to toast about.
     if (response.status === 404) return { status: 'notFound' };
     if (!response.ok) {
       return { status: 'error', message: result.message || 'Could not load this profile.' };

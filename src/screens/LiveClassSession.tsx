@@ -310,11 +310,22 @@ export const LiveClassSessionHost = ({
   if (!canJoin) {
     return (
       <AccessDeniedScreen
-        reason={
-          lecture.status === 'completed'
-            ? 'This live session has already ended.'
-            : 'You do not have permission to join this live session. Make sure you are enrolled or listed as a session host.'
-        }
+        {...(lecture.status === 'completed'
+          ? {
+              title: 'This class has ended',
+              icon: 'event-busy',
+              reason:
+                'This live session is over. Check the course page for any materials your lecturer shared.',
+            }
+          : {
+              title: "You can't join this class",
+              reason: 'This live session is only open to its course.',
+              tips: [
+                'Make sure you are enrolled in this course',
+                'Hosts must be listed on the session',
+                'Signed in with the right account?',
+              ],
+            })}
       />
     );
   }

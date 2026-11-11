@@ -492,16 +492,15 @@ export const CreateAssessmentScreen = ({ route, navigation }: Props) => {
         `${stats.problems} question${stats.problems > 1 ? 's' : ''} need attention.`,
       );
     }
-    if (stats.aiSuggested > 0) {
-      Alert.alert(
-        'Unverified answers',
-        `${stats.aiSuggested} answer${stats.aiSuggested > 1 ? 's were' : ' was'} suggested automatically and not confirmed by you. Publish anyway?`,
-        [
-          { text: 'Review', style: 'cancel' },
-          { text: 'Publish', onPress: () => persist(true) },
-        ],
+    // The lecturer owns every answer key: AI-suggested answers must be
+    // confirmed (tap the badge or re-pick the option) before publishing.
+    const firstUnconfirmed = questions.findIndex(q => q.answerSource === 'ai');
+    if (firstUnconfirmed >= 0) {
+      setEditingId(questions[firstUnconfirmed].id);
+      return fail(
+        `Question ${firstUnconfirmed + 1}: confirm the correct answer`,
+        `${stats.aiSuggested} suggested answer${stats.aiSuggested > 1 ? 's' : ''} still need your confirmation.`,
       );
-      return;
     }
     persist(true);
   };

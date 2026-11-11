@@ -308,7 +308,6 @@ export interface User {
   schoolCode?: string;
   current_level?: string;
   coursesEnrolled?: Course['courseId'];
-  blockedUsers?: string[];
   isVerified?: boolean;
   userToken?: string;
   tokenCreatedAt?: string,

@@ -376,7 +376,10 @@ export const navigateForNotification = (
     case 'ORDER_REVIEW_REQUEST':
       navigation.navigate('CreateReviewScreen', {
         targetId: payload.targetId,
-        productType: 'product',
+        productType: payload.productType || 'product',
+        orderId: payload.orderId,
+        productName: payload.productName,
+        productImage: payload.productImage,
       });
       return;
 

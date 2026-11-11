@@ -14,7 +14,6 @@ export const initialState: User = {
   phoneNumbers: [],
   accessToken: '',
   sessions: [],
-  blockedUsers: [],
   password: '',
   department: '',
   hasSubscribed: false,

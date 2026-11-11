@@ -158,7 +158,17 @@ export type RootStackParamList = {
   SalesHub: undefined;
   CreateReviewScreen: {
     targetId: string;
-    productType: 'product' | 'seller' | 'agent' | 'course' | 'lecturer';
+    productType:
+      | 'product'
+      | 'physical'
+      | 'file'
+      | 'seller'
+      | 'agent'
+      | 'course'
+      | 'lecturer';
+    orderId?: string;
+    productName?: string;
+    productImage?: string;
   };
   Welcome: { route: string };
   LinkedDevicesScreen: undefined;

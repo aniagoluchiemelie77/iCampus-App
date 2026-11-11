@@ -50,7 +50,6 @@ import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
 
 // Width of the profile column: the screen on phones, capped on desktop.
 const width = Math.min(Dimensions.get('window').width, PAGE_WIDTH);
-const CARD_WIDTH = width * 0.82;
 const CARD_HEIGHT = 220;
 const CARD_GAP = 16;
 const POPULAR_SKILLS = [
@@ -68,185 +67,328 @@ const POPULAR_SKILLS = [
 ];
 const MAX_BIO_CHAR = 300;
 
-const CourseCard = ({ item }: { item: any }) => {
+const courseMetaLine = (item: any): string =>
+  [
+    item.level ? `${item.level} level` : null,
+    item.semester ? `${item.semester} semester` : null,
+    item.session,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+const CourseStat = ({
+  icon,
+  value,
+  label,
+  colors,
+}: {
+  icon: string;
+  value: React.ReactNode;
+  label: string;
+  colors: any;
+}) => (
+  <View style={[courseStyles.stat, { backgroundColor: colors.background }]}>
+    <MaterialIcons name={icon} size={18} color={colors.primary} />
+    <View style={courseStyles.statValueWrap}>{value}</View>
+    <Text style={[courseStyles.statLabel, { color: colors.text }]}>{label}</Text>
+  </View>
+);
+
+const CourseCard = ({ item, cardWidth }: { item: any; cardWidth: number }) => {
   const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const isProfessional = !!item.thumbnailUrl;
+  const isActive = item.isActive !== false;
+  const enrolled =
+    item.enrolledCount ?? (item.studentsEnrolled?.length || 0);
+  const hasRating = typeof item.rating === 'number' && item.rating > 0;
+  const meta = courseMetaLine(item);
+  const close = () => setModalVisible(false);
+
   return (
     <>
       <TouchableOpacity
         style={[
-          styles.courseCard,
+          courseStyles.card,
           {
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border,
+            width: cardWidth,
+            backgroundColor: colors.background,
+            borderColor: colors.border + '40',
           },
         ]}
         activeOpacity={0.85}
         onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.courseTitle || 'Course'}, view details`}
       >
-        {/* Visual thumbnail area */}
-        <View style={styles.thumbnailArea}>
+        <View
+          style={[courseStyles.cover, { backgroundColor: colors.primary + '14' }]}
+        >
           {isProfessional ? (
             <Image
               source={{ uri: item.thumbnailUrl }}
-              style={styles.thumbnail}
+              style={courseStyles.coverImg}
               resizeMode="cover"
             />
           ) : (
-            <View
-              style={[
-                styles.academicPlaceholder,
-                { backgroundColor: colors.tint },
-              ]}
-            >
+            <>
               <MaterialIcons
                 name="auto-stories"
-                size={40}
+                size={34}
                 color={colors.primary}
               />
-            </View>
+              {!!item.courseCode && (
+                <Text
+                  style={[courseStyles.coverCode, { color: colors.primary }]}
+                  numberOfLines={1}
+                >
+                  {item.courseCode}
+                </Text>
+              )}
+            </>
           )}
-          {/* Active status corner chip */}
-          {item.isActive !== false && (
-            <View
+          <View
+            style={[
+              courseStyles.pill,
+              courseStyles.pillCorner,
+              {
+                backgroundColor: isActive
+                  ? colors.primary
+                  : colors.backgroundSecondary,
+              },
+            ]}
+          >
+            <Text
               style={[
-                styles.statusBadge,
-                { backgroundColor: colors.primary },
+                courseStyles.pillText,
+                { color: isActive ? colors.btnTextColor : colors.text },
               ]}
             >
-              <Text style={[styles.statusText, { color: colors.btnTextColor }]}>
-                Active
-              </Text>
-            </View>
-          )}
+              {isActive ? 'Active' : 'Archived'}
+            </Text>
+          </View>
         </View>
 
-        {/* Details body */}
-        <View style={styles.courseBody}>
+        <View style={courseStyles.body}>
           <Text
-            style={[styles.courseName, { color: colors.text }]}
+            style={[courseStyles.title, { color: colors.textDarker }]}
             numberOfLines={2}
           >
-            {item.courseTitle}
+            {item.courseTitle || 'Untitled course'}
           </Text>
-          {item.courseCode && (
-            <Text style={[styles.courseCode, { color: colors.textDarker }]}>
-              {item.courseCode}
-            </Text>
-          )}
-          {!isProfessional && item.session && item.semester && (
-            <View style={styles.courseMeta}>
-              <Text
-                style={[styles.courseMetaText, { color: colors.textDarker }]}
-              >
-                {item.session}
-              </Text>
-              <Text
-                style={[
-                  styles.courseMetaSeparator,
-                  { color: colors.textDarker },
-                ]}
-              >
-                |
-              </Text>
-              <Text
-                style={[styles.courseMetaText, { color: colors.textDarker }]}
-              >
-                {item.semester}
+          {isProfessional
+            ? !!item.courseCode && (
+                <Text
+                  style={[courseStyles.code, { color: colors.primary }]}
+                  numberOfLines={1}
+                >
+                  {item.courseCode}
+                </Text>
+              )
+            : !!meta && (
+                <Text
+                  style={[courseStyles.meta, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {meta}
+                </Text>
+              )}
+          <View style={courseStyles.footer}>
+            <View style={courseStyles.footerItem}>
+              <MaterialIcons name="people-outline" size={15} color={colors.text} />
+              <Text style={[courseStyles.footerText, { color: colors.text }]}>
+                {formatCount(enrolled)}
               </Text>
             </View>
-          )}
-          {isProfessional && (
-            <View style={styles.courseMeta}>
-              <View style={styles.ratingRow}>
-                <MaterialIcons name="star" size={14} color={colors.primary} />
-                <Text style={[styles.ratingText, { color: colors.textDarker }]}>
-                  {item.rating || '4.5'}
+            {hasRating && (
+              <View style={courseStyles.footerItem}>
+                <MaterialIcons name="star" size={15} color={colors.primary} />
+                <Text style={[courseStyles.footerText, { color: colors.text }]}>
+                  {Number(item.rating).toFixed(1)}
                 </Text>
               </View>
-              <View style={styles.ratingRow}>
-                <MaterialIcons
-                  name="access-time"
-                  size={14}
-                  color={colors.primary}
-                />
-                <Text
-                  style={[styles.durationText, { color: colors.textDarker }]}
-                >
+            )}
+            {isProfessional && !!item.courseDuration && (
+              <View style={courseStyles.footerItem}>
+                <MaterialIcons name="schedule" size={15} color={colors.text} />
+                <Text style={[courseStyles.footerText, { color: colors.text }]}>
                   {formatTime(item.courseDuration)}
                 </Text>
               </View>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-      <Modal
-        isVisible={modalVisible}
-        animationIn="slideInUp"
-        animationOut="slideOutDown"
-        onBackButtonPress={() => setModalVisible(false)}
-        onBackdropPress={() => setModalVisible(false)}
-        swipeDirection="down"
-        onSwipeComplete={() => setModalVisible(false)}
-        style={styles.modalBottom}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-          >
-            <View style={styles.modalDivider} />
-            <Text style={[styles.modalTitle, { color: colors.textDarker }]}>
-              {item.courseTitle}
-            </Text>
-            <Text style={[styles.modalSubTitle, { color: colors.text }]}>
-              {item.courseCode || 'Professional Course'}
-            </Text>
-            <Text style={[styles.modalDescription, { color: colors.text }]}>
-              {item.description ||
-                'Detailed course information and curriculum will appear here.'}
-            </Text>
-            <View style={styles.modalStatsRow}>
-              <View style={styles.statItem}>
-                <MaterialIcons name="people" size={20} color={colors.text} />
-                <Text style={[styles.statText, { color: colors.text }]}>
-                  {item.enrolledCount} Students
+            )}
+            {!isProfessional && !!item.credits && (
+              <View style={courseStyles.footerItem}>
+                <MaterialIcons name="workspace-premium" size={15} color={colors.text} />
+                <Text style={[courseStyles.footerText, { color: colors.text }]}>
+                  {item.credits} unit{item.credits > 1 ? 's' : ''}
                 </Text>
               </View>
-              {item.price && (
-                <CurrencyDisplay value={item.price} size="small" />
-              )}
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      <Modal
+        isVisible={modalVisible}
+        onBackButtonPress={close}
+        onBackdropPress={close}
+        swipeDirection="down"
+        onSwipeComplete={close}
+        propagateSwipe
+        backdropOpacity={0.45}
+        style={styles.modalBottom}
+      >
+        <View
+          style={[
+            courseStyles.sheet,
+            centeredColumn(PAGE_WIDTH),
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
+          <View style={[courseStyles.grabber, { backgroundColor: colors.border }]} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={courseStyles.sheetScroll}
+          >
+            {isProfessional && (
+              <Image
+                source={{ uri: item.thumbnailUrl }}
+                style={courseStyles.sheetCover}
+                resizeMode="cover"
+              />
+            )}
+            <View style={courseStyles.sheetHeadRow}>
+              <Text style={[courseStyles.sheetEyebrow, { color: colors.primary }]}>
+                {item.courseCode || (isProfessional ? 'Professional course' : 'Course')}
+              </Text>
               <View
                 style={[
-                  styles.statusBadge,
+                  courseStyles.pill,
                   {
-                    backgroundColor: item.isActive && colors.btnColor,
+                    backgroundColor: isActive
+                      ? colors.primary + '1A'
+                      : colors.background,
                   },
                 ]}
               >
                 <Text
                   style={[
-                    styles.statusText,
-                    {
-                      color: item.isActive
-                        ? colors.btnTextColor
-                        : colors.primary,
-                    },
+                    courseStyles.pillText,
+                    { color: isActive ? colors.primary : colors.text },
                   ]}
                 >
-                  {item.isActive ? 'Active' : 'Archived'}
+                  {isActive ? 'Active' : 'Archived'}
                 </Text>
               </View>
             </View>
-          </View>
+            <Text style={[courseStyles.sheetTitle, { color: colors.textDarker }]}>
+              {item.courseTitle || 'Untitled course'}
+            </Text>
+            {!!meta && (
+              <Text style={[courseStyles.sheetMeta, { color: colors.text }]}>
+                {meta}
+              </Text>
+            )}
+
+            <View style={courseStyles.statRow}>
+              <CourseStat
+                icon="people-outline"
+                label="Students"
+                colors={colors}
+                value={
+                  <Text style={[courseStyles.statValue, { color: colors.textDarker }]}>
+                    {formatCount(enrolled)}
+                  </Text>
+                }
+              />
+              {hasRating ? (
+                <CourseStat
+                  icon="star-outline"
+                  label={
+                    item.totalReviews
+                      ? `${formatCount(item.totalReviews)} reviews`
+                      : 'Rating'
+                  }
+                  colors={colors}
+                  value={
+                    <Text style={[courseStyles.statValue, { color: colors.textDarker }]}>
+                      {Number(item.rating).toFixed(1)}
+                    </Text>
+                  }
+                />
+              ) : !!item.credits ? (
+                <CourseStat
+                  icon="workspace-premium"
+                  label="Credit units"
+                  colors={colors}
+                  value={
+                    <Text style={[courseStyles.statValue, { color: colors.textDarker }]}>
+                      {item.credits}
+                    </Text>
+                  }
+                />
+              ) : null}
+              {typeof item.price === 'number' && item.price > 0 ? (
+                <CourseStat
+                  icon="sell"
+                  label="Price"
+                  colors={colors}
+                  value={<CurrencyDisplay value={item.price} size="small" />}
+                />
+              ) : isProfessional && !!item.courseDuration ? (
+                <CourseStat
+                  icon="schedule"
+                  label="Duration"
+                  colors={colors}
+                  value={
+                    <Text style={[courseStyles.statValue, { color: colors.textDarker }]}>
+                      {formatTime(item.courseDuration)}
+                    </Text>
+                  }
+                />
+              ) : null}
+            </View>
+
+            <Text style={[courseStyles.sectionLabel, { color: colors.textDarker }]}>
+              About this course
+            </Text>
+            <Text style={[courseStyles.description, { color: colors.text }]}>
+              {item.description?.trim() ||
+                'No description has been added for this course yet.'}
+            </Text>
+
+            {item.courseContents?.length > 0 && (
+              <>
+                <Text style={[courseStyles.sectionLabel, { color: colors.textDarker }]}>
+                  Topics ({item.courseContents.length})
+                </Text>
+                {item.courseContents.slice(0, 6).map((topic: string, i: number) => (
+                  <View key={`${i}-${topic}`} style={courseStyles.topicRow}>
+                    <Text style={[courseStyles.topicIndex, { color: colors.primary }]}>
+                      {String(i + 1).padStart(2, '0')}
+                    </Text>
+                    <Text
+                      style={[courseStyles.topicText, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {topic}
+                    </Text>
+                  </View>
+                ))}
+                {item.courseContents.length > 6 && (
+                  <Text style={[courseStyles.moreTopics, { color: colors.text }]}>
+                    +{item.courseContents.length - 6} more
+                  </Text>
+                )}
+              </>
+            )}
+          </ScrollView>
         </View>
       </Modal>
     </>
   );
 };
+
 export const CoursesView = ({
   courses,
   colors,
@@ -256,59 +398,205 @@ export const CoursesView = ({
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const single = courses.length === 1;
+  // One course fills the row; several peek the next card to hint at swiping.
+  const cardWidth = containerWidth
+    ? single
+      ? containerWidth
+      : Math.min(containerWidth * 0.82, 340)
+    : 0;
+  const step = cardWidth + CARD_GAP;
 
   useEffect(() => {
-    if (courses.length <= 1) return;
-    const interval = setInterval(() => {
-      let nextIndex = currentIndex + 1;
-      if (nextIndex >= courses.length) {
-        nextIndex = 0;
-      }
-
-      flatListRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
-      });
-      setCurrentIndex(nextIndex);
+    if (courses.length <= 1 || !cardWidth) return;
+    const timer = setTimeout(() => {
+      const next = (currentIndex + 1) % courses.length;
+      flatListRef.current?.scrollToOffset({ offset: next * step, animated: true });
+      setCurrentIndex(next);
     }, 8000);
-    return () => clearInterval(interval);
-  }, [currentIndex, courses.length]);
+    return () => clearTimeout(timer);
+  }, [currentIndex, courses.length, cardWidth, step]);
 
   return (
     <View
-      style={[
-        styles.sectionContainer,
-        { backgroundColor: colors.backgroundSecondary },
-      ]}
+      style={[styles.sectionContainer, { backgroundColor: colors.backgroundSecondary }]}
     >
-      <Text
-        style={[styles.sectionTitle, { color: colors.text, marginBottom: 15 }]}
-      >
-        Contributions {courses.length}
-      </Text>
+      <View style={styles.sectionTitleDiv}>
+        <View style={courseStyles.headerLeft}>
+          <Text style={[styles.sectionTitle, { color: colors.textDarker }]}>
+            Courses
+          </Text>
+          <View style={[courseStyles.countPill, { backgroundColor: colors.primary + '1A' }]}>
+            <Text style={[courseStyles.countText, { color: colors.primary }]}>
+              {courses.length}
+            </Text>
+          </View>
+        </View>
+        {courses.length > 1 && (
+          <View style={courseStyles.dots}>
+            {courses.slice(0, 8).map((c, i) => (
+              <View
+                key={c.courseId}
+                style={[
+                  courseStyles.dot,
+                  {
+                    backgroundColor:
+                      i === currentIndex ? colors.primary : colors.border + '80',
+                    width: i === currentIndex ? 14 : 6,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={courses}
-        keyExtractor={item => item.courseId}
-        renderItem={({ item }) => <CourseCard item={item} />}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={courses.length > 1 ? CARD_WIDTH + CARD_GAP : 0}
-        decelerationRate="fast"
-        contentContainerStyle={{
-          paddingHorizontal: courses.length > 1 ? 16 : 0,
-          paddingRight: courses.length > 1 ? 16 : 0,
-        }}
-        getItemLayout={(data, index) => ({
-          length: CARD_WIDTH + CARD_GAP,
-          offset: (CARD_WIDTH + CARD_GAP) * index,
-          index,
-        })}
-      />
+      <View onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+        {!!cardWidth && (
+          <FlatList
+            ref={flatListRef}
+            data={courses}
+            keyExtractor={item => item.courseId}
+            renderItem={({ item, index }) => (
+              <View
+                style={{ marginRight: index === courses.length - 1 ? 0 : CARD_GAP }}
+              >
+                <CourseCard item={item} cardWidth={cardWidth} />
+              </View>
+            )}
+            horizontal
+            scrollEnabled={!single}
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={single ? undefined : step}
+            decelerationRate="fast"
+            onMomentumScrollEnd={e => {
+              // Keep the auto-advance in step with manual swipes.
+              const idx = Math.round(e.nativeEvent.contentOffset.x / step);
+              setCurrentIndex(Math.max(0, Math.min(idx, courses.length - 1)));
+            }}
+            getItemLayout={(_, index) => ({
+              length: step,
+              offset: step * index,
+              index,
+            })}
+          />
+        )}
+      </View>
     </View>
   );
 };
+
+const courseStyles = StyleSheet.create({
+  card: {
+    height: CARD_HEIGHT,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  cover: {
+    height: 104,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  coverImg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  coverCode: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  pill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  pillCorner: { position: 'absolute', top: 10, right: 10 },
+  pillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  body: { flex: 1, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 },
+  title: { fontSize: 15, fontWeight: '700', lineHeight: 20 },
+  code: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  meta: { fontSize: 12, marginTop: 3, opacity: 0.75 },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 'auto',
+  },
+  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  footerText: { fontSize: 12, fontWeight: '600' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  countPill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  countText: { fontSize: 12, fontWeight: '800' },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dot: { height: 6, borderRadius: 3 },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+    maxHeight: '85%',
+  },
+  grabber: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  sheetScroll: { paddingHorizontal: 20, paddingBottom: 32 },
+  sheetCover: {
+    width: '100%',
+    height: 160,
+    borderRadius: 16,
+    marginTop: 6,
+    marginBottom: 14,
+  },
+  sheetHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  sheetEyebrow: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    flexShrink: 1,
+  },
+  sheetTitle: { fontSize: 20, fontWeight: '800', lineHeight: 26, marginTop: 6 },
+  sheetMeta: { fontSize: 13, marginTop: 4, opacity: 0.75 },
+  statRow: { flexDirection: 'row', gap: 8, marginTop: 18 },
+  stat: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValueWrap: { minHeight: 22, justifyContent: 'center' },
+  statValue: { fontSize: 16, fontWeight: '800' },
+  statLabel: { fontSize: 11.5, opacity: 0.75, textAlign: 'center' },
+  sectionLabel: { fontSize: 14, fontWeight: '700', marginTop: 22, marginBottom: 6 },
+  description: { fontSize: 14, lineHeight: 21, opacity: 0.9 },
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 7,
+  },
+  topicIndex: { fontSize: 12, fontWeight: '800', width: 22 },
+  topicText: { flex: 1, fontSize: 13.5 },
+  moreTopics: { fontSize: 12.5, marginTop: 4, opacity: 0.7 },
+});
 // Items shown inline per tab before "View all" (the rest page in on the
 // ProfileContentList screen).
 const PROFILE_PREVIEW_COUNT = 5;
@@ -521,14 +809,11 @@ export const ProfileScreen = ({ route }: any) => {
     profileData,
     status,
     errorMessage,
-    blockedByViewer,
     isFollowing,
     followBusy,
-    blockBusy,
     fetchProfile,
     updateLocalProfile,
     handleFollowToggle,
-    handleBlockToggle,
   } = useProfileData(identifier, currentUser);
 
   const { tempBio, setTempBio, tempSkills, setTempSkills } =
@@ -608,18 +893,6 @@ export const ProfileScreen = ({ route }: any) => {
     setConnections({ type, data: res.users, loading: null });
   };
 
-  const confirmBlock = () => {
-    setMoreMenuVisible(false);
-    const name = profileData?.firstname || 'this user';
-    Alert.alert(
-      `Block ${name}?`,
-      `${name} won't be able to see your profile or posts, and you'll unfollow each other.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Block', style: 'destructive', onPress: handleBlockToggle },
-      ],
-    );
-  };
 
   const profileLink = profileData
     ? `https://useicampus.io/user/${profileData.username || profileData.uid}`
@@ -722,27 +995,27 @@ export const ProfileScreen = ({ route }: any) => {
             size={72}
             color={colors.primary}
           />
-          <Text style={[styles.blockedTitle, { color: colors.textDarker }]}>
+          <Text style={[styles.errorTitle, { color: colors.textDarker }]}>
             {status === 'error' ? "Couldn't load profile" : 'User not found'}
           </Text>
-          <Text style={[styles.blockedSubTitle, { color: colors.text }]}>
+          <Text style={[styles.errorSubTitle, { color: colors.text }]}>
             {status === 'error'
               ? errorMessage || 'Check your connection and try again.'
               : 'This account was not found or has been deleted.'}
           </Text>
-          <View style={styles.blockedBtnRow}>
+          <View style={styles.errorBtnRow}>
             <TouchableOpacity
-              style={[styles.blockBtn, { borderColor: colors.primary }]}
+              style={[styles.errorBtn, { borderColor: colors.primary }]}
               onPress={() => navigation.goBack()}
             >
-              <Text style={[styles.blockBtnText, { color: colors.primary }]}>
+              <Text style={[styles.errorBtnText, { color: colors.primary }]}>
                 Go back
               </Text>
             </TouchableOpacity>
             {status === 'error' && (
               <CustomButton
                 title="Try again"
-                style={styles.blockBtnMain}
+                style={styles.errorBtnMain}
                 onPress={fetchProfile}
               />
             )}
@@ -1216,16 +1489,6 @@ export const ProfileScreen = ({ route }: any) => {
               Share profile
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.sheetItem}
-            onPress={confirmBlock}
-            disabled={blockBusy}
-          >
-            <MaterialIcons name="block" size={22} color={colors.primary} />
-            <Text style={[styles.sheetText, { color: colors.primary }]}>
-              Block {profileData.firstname || 'user'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </Modal>
 
@@ -1498,13 +1761,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   sheetText: { fontSize: 15.5, fontWeight: '600' },
-  blockedContainer: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    flex: 1,
-  },
   headerRightDiv: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1545,140 +1801,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginVertical: 5,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 20,
-    minHeight: '70%',
-  },
-  modalSubTitle: {
-    fontSize: 12,
-    marginBottom: 15,
-  },
-  modalDivider: {
-    height: 1,
-    backgroundColor: PRIMARY_COLOR_TINT,
-    marginVertical: 10,
-  },
-  modalDescription: {
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  courseCard: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 20,
-    marginRight: CARD_GAP,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    elevation: 3,
-  },
-  thumbnailArea: {
-    width: '100%',
-    height: 120,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#F4F2EF',
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  academicPlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4F2EF',
-  },
-  courseBody: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-  },
-  courseName: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 5,
-    lineHeight: 21,
-  },
-  courseCode: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: PRIMARY_COLOR,
-    marginBottom: 2,
-  },
-  courseMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  courseMetaText: {
-    fontSize: 11,
-    color: '#666',
-    fontWeight: '500',
-  },
-  courseMetaSeparator: {
-    fontSize: 11,
-    color: '#999',
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-  },
-  durationText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-  },
-  modalStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statText: {
-    fontSize: 12,
-    marginTop: 5,
-    fontWeight: '600',
-  },
-  statusBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
   userType: {
     fontSize: 12,
     color: '#676D75',
@@ -1692,7 +1814,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 15,
   },
-  blockBtnMain: {
+  errorBtnMain: {
     paddingHorizontal: 15,
     width: 'auto',
   },
@@ -1920,28 +2042,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  blockedTitle: {
+  errorTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginTop: 15,
   },
-  blockedSubTitle: {
+  errorSubTitle: {
     fontSize: 14,
     textAlign: 'center',
     marginVertical: 10,
   },
-  blockedBtnRow: {
+  errorBtnRow: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 20,
   },
-  blockBtn: {
+  errorBtn: {
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 10,
   },
-  blockBtnText: {
+  errorBtnText: {
     fontWeight: '600',
   },
   modalBottom: {
