@@ -1,6 +1,7 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../services/firebaseConfig"; 
 import {CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET} from '../config/environment';
+import { appendFile, mimeFromUri, uploadExtension } from './formDataFile';
 
 export const uploadToFirebase = async (fileUri: string, folder: string = "uploads") => {
   try {
@@ -50,28 +51,27 @@ export const uploadFileToFirebaseClient = async (fileUri: string, folder: string
  * Cloudinary upload that reports byte progress (0–1) through `onProgress`.
  * Uses XMLHttpRequest because fetch exposes no upload progress events.
  */
-export const uploadToCloudinaryWithProgress = (
+export const uploadToCloudinaryWithProgress = async (
   fileUri: string,
   folder: string = 'uploads',
   mediaType: 'image' | 'video' = 'image',
   onProgress?: (fraction: number) => void,
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const filename = fileUri.split('/').pop()?.split('?')[0] || '';
-    const ext = (filename.split('.').pop() || '').toLowerCase();
-    const fileExtension = ext && ext !== filename ? ext : mediaType === 'video' ? 'mp4' : 'jpg';
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+): Promise<string> => {
+  const fileExtension = uploadExtension(fileUri, mediaType);
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-    const formData = new FormData();
-    formData.append('file', {
-      uri: fileUri,
-      type: `${mediaType}/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
-      name: `${uniqueName}.${fileExtension}`,
-    } as any);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('folder', folder);
-    formData.append('public_id', uniqueName);
+  const formData = new FormData();
+  // On web this reads the blob: URI into a File (see utils/formDataFile).
+  await appendFile(formData, 'file', {
+    uri: fileUri,
+    type: mimeFromUri(fileUri, mediaType),
+    name: `${uniqueName}.${fileExtension}`,
+  });
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', folder);
+  formData.append('public_id', uniqueName);
 
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`);
     xhr.upload.onprogress = event => {
@@ -97,6 +97,7 @@ export const uploadToCloudinaryWithProgress = (
     xhr.ontimeout = () => reject(new Error('Media upload timed out'));
     xhr.send(formData);
   });
+};
 
 //For development purposes only
 export const uploadToCloudinary = async (
@@ -107,17 +108,14 @@ export const uploadToCloudinary = async (
   const uploadPreset = CLOUDINARY_UPLOAD_PRESET;
 
   try {
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
-    const filename = fileUri.split('/').pop() || Date.now().toString();
-    const fileExtension = filename.split('.').pop() || 'jpg';
+    const fileExtension = uploadExtension(fileUri, 'image');
     const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const formData = new FormData();
-    formData.append("file", {
-  uri: fileUri,
-  type: `image/${fileExtension}`,
-  name: `${uniqueName}.${fileExtension}`,
-} as any);
+    await appendFile(formData, 'file', {
+      uri: fileUri,
+      type: mimeFromUri(fileUri, 'image'),
+      name: `${uniqueName}.${fileExtension}`,
+    });
     formData.append("upload_preset", uploadPreset);
     formData.append("folder", folder);
     formData.append("public_id", uniqueName);

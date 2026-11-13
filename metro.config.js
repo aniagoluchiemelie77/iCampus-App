@@ -11,7 +11,6 @@ const isWebBuild = process.env.ICAMPUS_WEB_BUILD === '1';
 const WEB_STUBBED_PACKAGES = [
   '@bam.tech/react-native-image-resizer',
   '@react-native-community/datetimepicker',
-  '@react-native-documents/picker',
   '@react-native-firebase/app',
   '@react-native-firebase/messaging',
   'react-native-agora',
@@ -24,12 +23,10 @@ const WEB_STUBBED_PACKAGES = [
   'react-native-fs',
   'react-native-geolocation-service',
   'react-native-html-to-pdf',
-  'react-native-image-crop-picker',
   'react-native-nitro-image',
   'react-native-nitro-modules',
   'react-native-permissions',
   'react-native-persona',
-  'react-native-quick-sqlite',
   'react-native-rate',
   'react-native-sound',
   'react-native-vision-camera',
@@ -41,6 +38,15 @@ const WEB_REPLACEMENTS = {
   'react-native-calendar-events': './src/services/calendarEvents.web.ts',
   'react-native-linear-gradient': './src/web/LinearGradient.web.tsx',
   'react-native-pager-view': './src/web/PagerView.web.tsx',
+  // Real browser versions of native-only packages the app depends on.
+  // SQLite holds the product cache (Favorites, Cart, Product Detail...).
+  'react-native-quick-sqlite': './src/web/quickSqlite.web.ts',
+  // File dialogs: the stub returned a fake file at once, so screens opened
+  // their confirm step without the user picking anything.
+  'react-native-image-crop-picker': './src/web/imageCropPicker.web.ts',
+  '@react-native-documents/picker': './src/web/documentPicker.web.ts',
+  // File saving/reading: "save to Downloads" becomes a browser download.
+  'react-native-blob-util': './src/web/blobUtil.web.ts',
 };
 const isPackage = (moduleName, pkg) =>
   moduleName === pkg || moduleName.startsWith(`${pkg}/`);
@@ -89,7 +95,12 @@ const config = {
       }
 
       if (platform === 'web' && moduleName === 'react-native') {
-        return context.resolveRequest(context, 'react-native-web', platform);
+        // react-native-web, with a Modal that keeps sheets and dialogs to a
+        // sensible width on desktop (see src/web/reactNative.web.js).
+        return {
+          type: 'sourceFile',
+          filePath: require.resolve('./src/web/reactNative.web.js'),
+        };
       }
 
       return context.resolveRequest(context, moduleName, platform);

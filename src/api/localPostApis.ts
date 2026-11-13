@@ -15,6 +15,7 @@ import {
 } from '../utils/userTokenAuth';
 import { clearSession } from '../utils/session';
 import {getAdaptiveTimeout} from '../utils/DeviceNetworkStrengthDetector.ts';
+import { appendFile, toFormDataFile } from '../utils/formDataFile';
 
 interface ServiceResponse {
   success: boolean;
@@ -1958,11 +1959,7 @@ export const extractCourseContentFromImage = async (
   try {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const formData = new FormData();
-    formData.append('image', {
-      uri: image.uri,
-      name: image.name,
-      type: image.type,
-    } as any);
+    await appendFile(formData, 'image', image);
     const response = await fetchWithAuth(
       `${cleanBaseUrl}/users/lecturers/class/courses/extractCourseContent/${courseId}`,
       {
@@ -2113,14 +2110,12 @@ export const extractCourseFormAPI = async (
 
   // Plain XHR: axios 1.x mangles React Native FormData (no multipart
   // boundary / "Network Error" on Android), and XHR reports upload progress.
+  // Read once up front: on web this turns the blob: URI into a File.
+  const filePart = await toFormDataFile(fileParam);
   const send = (token: string | null) =>
     new Promise<{ status: number; data: any }>((resolve, reject) => {
       const formData = new FormData();
-      formData.append('file', {
-        uri: fileParam.uri,
-        type: fileParam.type,
-        name: fileParam.name,
-      } as any);
+      formData.append('file', filePart);
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', url);

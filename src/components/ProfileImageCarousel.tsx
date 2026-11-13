@@ -23,6 +23,11 @@ import { useContentWidth } from './desktop/DesktopShell';
 
 interface ProfileImageCarouselProps {
   images: string | string[] | null | undefined;
+  /**
+   * Shows the add-photo button. Only for the profile's owner: uploading
+   * from someone else's profile used to overwrite your own photo list.
+   */
+  editable?: boolean;
   user?: {
     firstname?: string;
     lastname?: string;
@@ -63,6 +68,7 @@ const getInitials = (user?: {
 export const ProfileImageCarousel = ({
   images: profileImages,
   user,
+  editable = false,
 }: ProfileImageCarouselProps) => {
   const { colors } = useTheme();
   // Sized from the screen's column (the middle column on desktop).
@@ -124,8 +130,10 @@ export const ProfileImageCarousel = ({
     setActiveIndex(index);
   };
   const handleTriggerPick = async () => {
+    if (isUploading) return;
     const fileData = await pickImage();
-    if (!fileData || !fileData.uri) return;
+    // Cancelled (or nothing usable came back): don't open the confirm step.
+    if (typeof fileData?.uri !== 'string' || !fileData.uri) return;
 
     setSelectedUri(fileData.uri);
     setIsModalVisible(true);
@@ -200,17 +208,20 @@ export const ProfileImageCarousel = ({
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[
-          CarouselStyles.cameraButton,
-          { backgroundColor: PRIMARY_COLOR },
-        ]}
-        onPress={handleTriggerPick}
-        disabled={isUploading}
-        activeOpacity={0.8}
-      >
-        <MaterialIcons name="camera-alt" size={18} color="#fff" />
-      </TouchableOpacity>
+      {editable && (
+        <TouchableOpacity
+          style={[
+            CarouselStyles.cameraButton,
+            { backgroundColor: PRIMARY_COLOR },
+          ]}
+          onPress={handleTriggerPick}
+          disabled={isUploading}
+          activeOpacity={0.8}
+          accessibilityLabel="Add profile photo"
+        >
+          <MaterialIcons name="camera-alt" size={18} color="#fff" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -264,20 +275,24 @@ export const ProfileImageCarousel = ({
             ))}
           </View>
         )}
-        <TouchableOpacity
-          style={[
-            CarouselStyles.cameraButton,
-            { backgroundColor: PRIMARY_COLOR, opacity: isUploading ? 0.7 : 1 },
-          ]}
-          onPress={handleTriggerPick}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons
-            name={isUploading ? 'hourglass-empty' : 'camera-alt'}
-            size={18}
-            color="#fff"
-          />
-        </TouchableOpacity>
+        {editable && (
+          <TouchableOpacity
+            style={[
+              CarouselStyles.cameraButton,
+              { backgroundColor: PRIMARY_COLOR, opacity: isUploading ? 0.7 : 1 },
+            ]}
+            onPress={handleTriggerPick}
+            disabled={isUploading}
+            activeOpacity={0.8}
+            accessibilityLabel="Add profile photo"
+          >
+            <MaterialIcons
+              name={isUploading ? 'hourglass-empty' : 'camera-alt'}
+              size={18}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        )}
       </View>)}
       <ImageConfirmationModal
         isVisible={isModalVisible}
@@ -289,6 +304,7 @@ export const ProfileImageCarousel = ({
           }
         }}
         onConfirm={handleConfirmUpload}
+        onChangeImage={handleTriggerPick}
         isUploading={isUploading}
       />
     </View>

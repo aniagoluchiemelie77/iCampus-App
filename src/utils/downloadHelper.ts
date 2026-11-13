@@ -1,5 +1,12 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import Toast from 'react-native-toast-message';
+
+// react-native-web's Alert.alert does nothing, so the browser gets a toast.
+const notify = (title: string, message: string, type: 'success' | 'error') =>
+  Platform.OS === 'web'
+    ? Toast.show({ type, text1: title, text2: message })
+    : Alert.alert(title, message);
 
 export const downloadFile = async (url: string, fileName: string) => {
   if (Platform.OS === 'android') {
@@ -29,10 +36,10 @@ export const downloadFile = async (url: string, fileName: string) => {
     if (Platform.OS === 'ios') {
       ReactNativeBlobUtil.ios.previewDocument(res.path());
     } else {
-      Alert.alert('Success', 'File downloaded to your Downloads folder');
+      notify('Success', 'File downloaded to your Downloads folder', 'success');
     }
   } catch (error) {
     console.error('Download error:', error);
-    Alert.alert('Error', 'Could not download file.');
+    notify('Error', 'Could not download file.', 'error');
   }
 };

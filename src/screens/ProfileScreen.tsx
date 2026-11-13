@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -48,6 +48,8 @@ import { parseFirestoreDate } from '../utils/dateFormatter';
 import { centeredColumn, PAGE_WIDTH } from '../utils/layout';
 import { useContentWidth, useRightRail } from '../components/desktop/DesktopShell';
 import { ProfileRail } from '../components/desktop/RightRails';
+import { ProfileUrlEditor } from '../components/ProfileUrlEditor';
+import { getProfileLinks } from '../utils/profileLinks';
 
 const CARD_HEIGHT = 220;
 const CARD_GAP = 16;
@@ -826,13 +828,47 @@ export const ProfileScreen = ({ route }: any) => {
     (!!currentUser.username && currentUser.username === identifier);
 
   const navigation = useNavigation<any>();
+  const [urlEditorVisible, setUrlEditorVisible] = useState(false);
+  const links = getProfileLinks(profileData);
+
+  // After a custom-URL change: show it here and in the address bar.
+  const handleUsernameSaved = useCallback(
+    (username: string) => {
+      updateLocalProfile((prev: any) => (prev ? { ...prev, username } : prev));
+      navigation.setParams({ identifier: username });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [navigation],
+  );
 
   // Desktop: profile link actions (copy, share, custom URL) beside the page.
   useRightRail(
-    () => <ProfileRail profile={profileData} isOwner={isOwner} />,
-    [profileData, isOwner],
+    () => (
+      <ProfileRail
+        profile={profileData}
+        isOwner={isOwner}
+        onUsernameChange={handleUsernameSaved}
+      />
+    ),
+    [profileData, isOwner, handleUsernameSaved],
     !!profileData,
   );
+
+  // URL masking, LinkedIn style: a profile opened by its permanent uid link
+  // shows the custom URL (/user/<username>) instead. Both resolve to the
+  // same account; only the address changes, so there's no second fetch.
+  useEffect(() => {
+    const username = profileData?.username;
+    if (
+      status === 'ready' &&
+      username &&
+      identifier &&
+      identifier === profileData?.uid &&
+      identifier !== username
+    ) {
+      navigation.setParams({ identifier: username });
+    }
+  }, [status, profileData?.uid, profileData?.username, identifier, navigation]);
   const [activeTab, setActiveTab] = useState('Posts');
   const [isSaving, setIsSaving] = useState(false);
   const [connections, setConnections] = useState<{
@@ -883,7 +919,17 @@ export const ProfileScreen = ({ route }: any) => {
   };
 
   useEffect(() => {
+    // The identifier changing to another name for the profile already on
+    // screen (the URL masking above, or a custom-URL change) needs no refetch.
+    if (
+      status === 'ready' &&
+      profileData &&
+      (identifier === profileData.uid || identifier === profileData.username)
+    ) {
+      return;
+    }
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchProfile]);
 
   const openConnections = async (type: 'followers' | 'following') => {
@@ -902,9 +948,11 @@ export const ProfileScreen = ({ route }: any) => {
   };
 
 
-  const profileLink = profileData
-    ? `https://useicampus.io/user/${profileData.username || profileData.uid}`
-    : '';
+  const profileLink = links.url;
+  const copyProfileLink = () => {
+    Clipboard.setString(profileLink);
+    Toast.show({ type: 'success', text2: 'Profile link copied' });
+  };
   const shareProfile = async () => {
     setMoreMenuVisible(false);
     try {
@@ -1084,6 +1132,7 @@ export const ProfileScreen = ({ route }: any) => {
       >
         <ProfileImageCarousel
           images={profileData.profilePic}
+          editable={isOwner}
           user={{
             firstname: profileData.firstname,
             lastname: profileData.lastname,
@@ -1153,6 +1202,36 @@ export const ProfileScreen = ({ route }: any) => {
               />
             )}
           </View>
+
+          {!!links.display && (
+            <View style={[styles.linkRow, { backgroundColor: colors.background }]}>
+              <MaterialIcons name="link" size={16} color={colors.primary} />
+              <Text
+                style={[styles.linkText, { color: colors.textDarker }]}
+                numberOfLines={1}
+              >
+                {links.display}
+              </Text>
+              <TouchableOpacity
+                onPress={copyProfileLink}
+                hitSlop={8}
+                style={styles.linkBtn}
+                accessibilityLabel="Copy profile link"
+              >
+                <MaterialIcons name="content-copy" size={16} color={colors.primary} />
+              </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={() => setUrlEditorVisible(true)}
+                  hitSlop={8}
+                  style={styles.linkBtn}
+                  accessibilityLabel="Edit custom URL"
+                >
+                  <MaterialIcons name="edit" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           <View
             style={[styles.statTiles, { borderColor: colors.border + '55' }]}
@@ -1477,9 +1556,8 @@ export const ProfileScreen = ({ route }: any) => {
           <TouchableOpacity
             style={styles.sheetItem}
             onPress={() => {
-              Clipboard.setString(profileLink);
               setMoreMenuVisible(false);
-              Toast.show({ type: 'success', text2: 'Profile link copied' });
+              copyProfileLink();
             }}
           >
             <MaterialIcons name="link" size={22} color={colors.textDarker} />
@@ -1499,6 +1577,15 @@ export const ProfileScreen = ({ route }: any) => {
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {isOwner && (
+        <ProfileUrlEditor
+          visible={urlEditorVisible}
+          onClose={() => setUrlEditorVisible(false)}
+          profile={profileData}
+          onSaved={handleUsernameSaved}
+        />
+      )}
 
       <Modal
         isVisible={isEditModalVisible}
@@ -1699,6 +1786,18 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   metaChipText: { fontSize: 12.5, fontWeight: '600', flexShrink: 1 },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    borderRadius: 12,
+    paddingLeft: 12,
+    paddingRight: 6,
+    minHeight: 38,
+  },
+  linkText: { flex: 1, fontSize: 13, fontWeight: '600' },
+  linkBtn: { padding: 6, borderRadius: 8 },
   statTiles: {
     flexDirection: 'row',
     alignItems: 'center',

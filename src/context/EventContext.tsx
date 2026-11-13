@@ -31,7 +31,7 @@ import {
 import {
   db,
   deleteProductFromLocalDb,
-  fetchProductsByIdsFromLocalDb,
+  isProductCacheEmpty,
   parseProductRow,
   setupDatabase,
   upsertProductToLocalDb,
@@ -476,6 +476,9 @@ export const AppDataProvider = ({ user, children }: AppDataProviderProps) => {
 
       if (
         options?.force ||
+        // An empty cache (fresh web storage, cleared site data, a failed
+        // save) must refill now, not after the 30-minute throttle.
+        isProductCacheEmpty() ||
         !lastSync ||
         now - parseInt(lastSync, 10) > thirtyMinutes
       ) {

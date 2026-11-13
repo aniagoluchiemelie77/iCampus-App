@@ -309,6 +309,15 @@ export const fetchProductsByIdsFromLocalDb = (productIds: string[]) => {
   }
 };
 
+/** True when the local product cache has no rows (or can't be read). */
+export const isProductCacheEmpty = (): boolean => {
+  try {
+    return readRows(db.execute('SELECT productId FROM products LIMIT 1;')).length === 0;
+  } catch {
+    return true;
+  }
+};
+
 export const clearDraftFromLocalDb = (draftKey: string) => {
   try {
     db.execute(`SELECT * FROM product_drafts WHERE draftKey = ?;`, [draftKey]); // Optional safety check

@@ -40,6 +40,8 @@ import AdBanner from '../AdsBanner';
 import { UserAvatar } from '../UserAvatar';
 import { CurrencyDisplay } from '../CurrencyFormatter';
 import { RAIL_WIDTH } from './DesktopShell';
+import { ProfileUrlEditor } from '../ProfileUrlEditor';
+import { getProfileLinks, PROFILE_PATH } from '../../utils/profileLinks';
 import type { AdItem } from '../../types/firebase';
 
 const CARD_INNER_WIDTH = RAIL_WIDTH - 32;
@@ -660,15 +662,17 @@ export const ClassroomRail = ({
 export const ProfileRail = ({
   profile,
   isOwner,
+  onUsernameChange,
 }: {
   profile: any;
   isOwner: boolean;
+  /** Lets the profile screen follow a custom-URL change made here. */
+  onUsernameChange?: (username: string) => void;
 }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const handle = profile?.username || profile?.uid;
-  const url = `https://useicampus.io/user/${handle}`;
-  const display = `useicampus.io/user/${handle}`;
+  const [editorVisible, setEditorVisible] = useState(false);
+  const links = getProfileLinks(profile);
   const name = profile?.organizationName || profile?.firstname || 'this profile';
 
   return (
@@ -677,7 +681,7 @@ export const ProfileRail = ({
         <View style={[styles.urlBox, { backgroundColor: colors.background }]}>
           <MaterialIcons name="link" size={16} color={colors.primary} />
           <Text style={[styles.urlText, { color: colors.textDarker }]} numberOfLines={1}>
-            {display}
+            {links.display}
           </Text>
         </View>
         <RailAction
@@ -685,7 +689,7 @@ export const ProfileRail = ({
           label="Copy profile URL"
           primary
           onPress={() => {
-            Clipboard.setString(url);
+            Clipboard.setString(links.url);
             Toast.show({ type: 'success', text2: 'Profile link copied' });
           }}
         />
@@ -693,18 +697,26 @@ export const ProfileRail = ({
           icon="ios-share"
           label="Share profile"
           onPress={() =>
-            Share.share({ message: `Check out ${name} on iCampus: ${url}` }).catch(() => {})
+            Share.share({ message: `Check out ${name} on iCampus: ${links.url}` }).catch(() => {})
           }
         />
         {isOwner && (
           <RailAction
             icon="edit"
             label="Edit your custom URL"
-            hint={profile?.username ? `Currently @${profile.username}` : 'Pick a username'}
-            onPress={() => navigation.navigate('EditProfile')}
+            hint={links.hasCustomUrl ? `${PROFILE_PATH.slice(1)}${links.handle}` : 'Choose a custom name'}
+            onPress={() => setEditorVisible(true)}
           />
         )}
       </RailCard>
+      {isOwner && (
+        <ProfileUrlEditor
+          visible={editorVisible}
+          onClose={() => setEditorVisible(false)}
+          profile={profile}
+          onSaved={onUsernameChange}
+        />
+      )}
       {isOwner && (
         <RailCard title="Profile strength" icon="trending-up">
           {[
