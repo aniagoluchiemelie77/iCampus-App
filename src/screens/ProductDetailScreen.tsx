@@ -37,6 +37,9 @@ import { centeredColumn } from '../utils/layout';
 const DETAIL_MAX_WIDTH = 760;
 const DESCRIPTION_LIMIT = 220;
 const MORE_CARD_WIDTH = 168;
+// Explicit pixel height: on web a horizontal FlatList doesn't stretch to its
+// parent, so percentage heights inside it resolved to 0 and images vanished.
+const GALLERY_HEIGHT = 350;
 
 export const ProductDetailScreen = () => {
   const { colors } = useTheme();
@@ -178,6 +181,7 @@ export const ProductDetailScreen = () => {
         <View style={[styles.productImageDiv, { width: slideWidth }]}>
           <FlatList
             ref={flatListRef}
+            style={styles.gallery}
             data={mediaUrls}
             horizontal
             pagingEnabled
@@ -193,9 +197,10 @@ export const ProductDetailScreen = () => {
               { useNativeDriver: false },
             )}
             renderItem={({ item }) => (
-              <View style={{ width: slideWidth, height: '100%' }}>
+              <View style={{ width: slideWidth, height: GALLERY_HEIGHT }}>
                 <Image
                   source={{ uri: item }}
+                  resizeMode="cover"
                   style={[styles.productImage, { width: slideWidth }]}
                 />
               </View>
@@ -576,15 +581,15 @@ const styles = StyleSheet.create({
   // --- Carousel (unchanged) ---
   productImageDiv: {
     marginBottom: 15,
-    height: 350,
+    height: GALLERY_HEIGHT,
     borderRadius: 15,
     overflow: 'hidden',
     alignSelf: 'center',
     position: 'relative',
   },
+  gallery: { height: GALLERY_HEIGHT, flexGrow: 0 },
   productImage: {
-    height: '100%',
-    resizeMode: 'cover',
+    height: GALLERY_HEIGHT,
   },
   pagination: {
     flexDirection: 'row',

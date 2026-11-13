@@ -251,11 +251,11 @@ const CourseModalBody = ({ isVisible, onClose, course }: CourseModalProps) => {
         const nextExceptions =
           exceptionsRes.success && exceptionsRes.data
             ? exceptionsRes.data
-            : hit?.exceptions ?? [];
+            : (hit?.exceptions ?? []);
         const nextLectures =
           lecturesRes.success && lecturesRes.data
             ? lecturesRes.data
-            : hit?.lectures ?? [];
+            : (hit?.lectures ?? []);
         courseModalCache.set(courseId, {
           lectures: nextLectures,
           exceptions: nextExceptions,
@@ -444,7 +444,9 @@ const CourseModalBody = ({ isVisible, onClose, course }: CourseModalProps) => {
                     label="Course Materials"
                     iconName="folder-copy"
                     count={totalMaterials}
-                    onPress={() => openSubPage('Course Materials', { lectures })}
+                    onPress={() =>
+                      openSubPage('Course Materials', { lectures })
+                    }
                   />
                   <GridItem
                     label="View Lectures"
@@ -527,7 +529,9 @@ const CourseModalBody = ({ isVisible, onClose, course }: CourseModalProps) => {
                   <GridItem
                     label="Upload Materials"
                     iconName="cloud-upload"
-                    onPress={() => openSubPage('Course Materials', { lectures })}
+                    onPress={() =>
+                      openSubPage('Course Materials', { lectures })
+                    }
                   />
                   <GridItem
                     label="Manage Exceptions"
@@ -669,6 +673,9 @@ export const ManualCourseModal = ({
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Tablets / desktop: a centered dialog. A non-transparent full-screen
+  // modal covered the whole browser window (WebModal leaves those alone).
+  const isWide = useWindowDimensions().width >= WIDE_MODAL_BREAKPOINT;
 
   const handleSave = async () => {
     if (!courseTitle.trim() || !courseCode.trim() || !credits.trim()) {
@@ -702,202 +709,227 @@ export const ManualCourseModal = ({
   return (
     <Modal
       visible={isVisible}
-      animationType="slide"
-      presentationStyle="fullScreen"
+      animationType={isWide ? 'fade' : 'slide'}
+      transparent={isWide}
+      presentationStyle={isWide ? 'overFullScreen' : 'fullScreen'}
       onRequestClose={onClose}
     >
-      <SafeAreaView
-        style={[styles.modalContainer, { backgroundColor: colors.background }]}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <View style={isWide ? styles.manualOverlay : styles.flexFill}>
+        <SafeAreaView
+          style={[
+            styles.modalContainer,
+            isWide && styles.manualDialog,
+            { backgroundColor: colors.background },
+          ]}
         >
-          <View style={[styles.header]}>
-            <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
-              Add Course Manually
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialIcons name="close" size={24} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
+          <KeyboardAvoidingView
+            style={styles.flexFill}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <View
-              style={[styles.warningBox, { borderLeftColor: colors.primary }]}
+            <View style={[styles.header]}>
+              <Text style={[styles.headerTitle, { color: colors.textDarker }]}>
+                Add Course Manually
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialIcons name="close" size={24} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
             >
-              <MaterialIcons
-                name="info-outline"
-                size={30}
-                color={colors.primary}
-                style={{ marginRight: 15 }}
-              />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[styles.warningTitle, { color: colors.textDarker }]}
-                >
-                  Double Check Fields
-                </Text>
-                <Text style={[styles.warningText, { color: colors.text }]}>
-                  Please ensure the course code and title match your official
-                  syllabus exactly. Automated system extractions, attendance
-                  records, and exam updates rely heavily on these accurate
-                  matching parameters.
-                </Text>
-              </View>
-            </View>
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                Course Code
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder="e.g., COS 301"
-                placeholderTextColor={colors.inputTextHolder || '#888'}
-                value={courseCode}
-                onChangeText={setCourseCode}
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
-            </View>
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                Course Title
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder="e.g., Database Management Systems"
-                placeholderTextColor={colors.inputTextHolder || '#888'}
-                value={courseTitle}
-                onChangeText={setCourseTitle}
-              />
-            </View>
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                Credit Unit Load
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder="e.g., 3"
-                placeholderTextColor={colors.inputTextHolder || '#888'}
-                value={credits}
-                onChangeText={setCredits}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
-            <View style={[styles.formGroup, { zIndex: 3000 }]}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                Academic Session
-              </Text>
-              <DropDownPicker
-                open={openSession}
-                value={session}
-                items={sessionItems}
-                setOpen={setOpenSession}
-                setValue={callback => {
-                  const val =
-                    typeof callback === 'function'
-                      ? callback(session)
-                      : callback;
-                  setSession(val);
-                }}
-                placeholder="Select session"
-                style={[
-                  styles.dropdown,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-                dropDownContainerStyle={[
-                  styles.dropdownContainer,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-                textStyle={{ color: colors.text }}
-                zIndex={3000}
-                zIndexInverse={1000}
-              />
-            </View>
-            <View
-              style={[
-                styles.formGroup,
-                { zIndex: 4000, marginTop: openSession ? 140 : 0 },
-              ]}
-            >
-              <Text style={[styles.label, { color: colors.text }]}>
-                Semester
-              </Text>
-              <DropDownPicker
-                open={openSemester}
-                value={semester}
-                items={semesterItems}
-                setOpen={setOpenSemester}
-                setValue={callback => {
-                  const val =
-                    typeof callback === 'function'
-                      ? callback(semester)
-                      : callback;
-                  setSemester(val);
-                }}
-                placeholder="Select semester"
-                style={[
-                  styles.dropdown,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-                dropDownContainerStyle={[
-                  styles.dropdownContainer,
-                  {
-                    backgroundColor: colors.backgroundSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
-                textStyle={{ color: colors.text }}
-                zIndex={2000}
-                zIndexInverse={2000}
-              />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                {
-                  backgroundColor: colors.btnColor,
-                  opacity: isSubmitting ? 0.7 : 1,
-                },
-              ]}
-              onPress={handleSave}
-              disabled={isSubmitting}
-            >
-              <Text
-                style={[styles.submitBtnText, { color: colors.btnTextColor }]}
+              <View
+                style={[styles.warningBox, { borderLeftColor: colors.primary }]}
               >
-                {isSubmitting ? 'Saving Course...' : 'Create Course Entry'}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+                <MaterialIcons
+                  name="info-outline"
+                  size={30}
+                  color={colors.primary}
+                  style={{ marginRight: 15 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[styles.warningTitle, { color: colors.textDarker }]}
+                  >
+                    Double Check Fields
+                  </Text>
+                  <Text style={[styles.warningText, { color: colors.text }]}>
+                    Please ensure the course code and title match your official
+                    syllabus exactly. Automated system extractions, attendance
+                    records, and exam updates rely heavily on these accurate
+                    matching parameters.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Course Code
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { color: colors.text, borderColor: colors.border },
+                  ]}
+                  placeholder="e.g., COS 301"
+                  placeholderTextColor={colors.inputTextHolder || '#888'}
+                  value={courseCode}
+                  onChangeText={setCourseCode}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Course Title
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { color: colors.text, borderColor: colors.border },
+                  ]}
+                  placeholder="e.g., Database Management Systems"
+                  placeholderTextColor={colors.inputTextHolder || '#888'}
+                  value={courseTitle}
+                  onChangeText={setCourseTitle}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Credit Unit Load
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { color: colors.text, borderColor: colors.border },
+                  ]}
+                  placeholder="e.g., 3"
+                  placeholderTextColor={colors.inputTextHolder || '#888'}
+                  value={credits}
+                  onChangeText={setCredits}
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              </View>
+              <View style={[styles.formGroup, { zIndex: 3000 }]}>
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Academic Session
+                </Text>
+                <DropDownPicker
+                  open={openSession}
+                  value={session}
+                  items={sessionItems}
+                  setOpen={setOpenSession}
+                  setValue={callback => {
+                    const val =
+                      typeof callback === 'function'
+                        ? callback(session)
+                        : callback;
+                    setSession(val);
+                  }}
+                  placeholder="Select session"
+                  style={[
+                    styles.dropdown,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  dropDownContainerStyle={[
+                    styles.dropdownContainer,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  textStyle={{ color: colors.text }}
+                  zIndex={3000}
+                  zIndexInverse={1000}
+                />
+              </View>
+              <View
+                style={[
+                  styles.formGroup,
+                  { zIndex: 4000, marginTop: openSession ? 140 : 0 },
+                ]}
+              >
+                <Text style={[styles.label, { color: colors.text }]}>
+                  Semester
+                </Text>
+                <DropDownPicker
+                  open={openSemester}
+                  value={semester}
+                  items={semesterItems}
+                  setOpen={setOpenSemester}
+                  setValue={callback => {
+                    const val =
+                      typeof callback === 'function'
+                        ? callback(semester)
+                        : callback;
+                    setSemester(val);
+                  }}
+                  placeholder="Select semester"
+                  style={[
+                    styles.dropdown,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  dropDownContainerStyle={[
+                    styles.dropdownContainer,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  textStyle={{ color: colors.text }}
+                  zIndex={2000}
+                  zIndexInverse={2000}
+                />
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.submitBtn,
+                  {
+                    backgroundColor: colors.btnColor,
+                    opacity: isSubmitting ? 0.7 : 1,
+                  },
+                ]}
+                onPress={handleSave}
+                disabled={isSubmitting}
+              >
+                <Text
+                  style={[styles.submitBtnText, { color: colors.btnTextColor }]}
+                >
+                  {isSubmitting ? 'Saving Course...' : 'Create Course Entry'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
     </Modal>
   );
 };
 const styles = StyleSheet.create({
   modalContainer: { flex: 1, padding: 15 },
+  flexFill: { flex: 1 },
+  manualOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  manualDialog: {
+    flex: 0,
+    width: '100%',
+    maxWidth: 600,
+    height: '90%',
+    maxHeight: 820,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
   title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   progressContainer: {
     alignItems: 'center',

@@ -45,6 +45,8 @@ const WEB_REPLACEMENTS = {
   // their confirm step without the user picking anything.
   'react-native-image-crop-picker': './src/web/imageCropPicker.web.ts',
   '@react-native-documents/picker': './src/web/documentPicker.web.ts',
+  // The package's web build only allows photos; this one also does videos.
+  'react-native-image-picker': './src/web/imagePicker.web.ts',
   // File saving/reading: "save to Downloads" becomes a browser download.
   'react-native-blob-util': './src/web/blobUtil.web.ts',
 };
