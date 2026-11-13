@@ -8,6 +8,9 @@ local.properties
 # Web build output (npm run web:build)
 dist/
 public/
+src/web/
+THIRD_PARTY_SERVICES
+scripts/
 
 
 

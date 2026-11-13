@@ -36,7 +36,9 @@ import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { PulseEmitter } from '../components/PulsingAnimation';
 import { PageHeader } from '../components/PageHeader';
+import { AttendanceWebNotice } from '../components/AttendanceWebNotice';
 import {
+  BLE_ATTENDANCE_SUPPORTED,
   ensureBluetoothOn,
   ensureBluetoothPermissions,
   isLectureBeacon,
@@ -289,7 +291,13 @@ export const StudentAttendanceScanner = ({ route, navigation }: Props) => {
           </View>
         </View>
 
-        {(status === 'idle' || status === 'preparing') && (
+        {!BLE_ATTENDANCE_SUPPORTED && (
+          <View style={styles.center}>
+            <AttendanceWebNotice role="student" />
+          </View>
+        )}
+
+        {BLE_ATTENDANCE_SUPPORTED && (status === 'idle' || status === 'preparing') && (
           <View style={styles.center}>
             <View style={styles.steps}>
               {[

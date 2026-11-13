@@ -34,6 +34,8 @@ export const useAgoraClass = ({
   onMicAudio,
   micAudioActive = false,
 }: {
+  /** Web only (the browser's "Stop sharing" bar); see useAgoraClass.web.ts. */
+  onScreenShareEnded?: () => void;
   lectureId: string;
   role: 'host' | 'audience';
   enabled: boolean;

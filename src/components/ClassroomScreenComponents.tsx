@@ -667,9 +667,12 @@ export const ManualCourseModal = ({
     { label: 'Second Semester', value: 'Second' },
   ]);
   const [openSession, setOpenSession] = useState(false);
-  const [session, setSession] = useState(`${generateSessions()[5]}`);
-  const [sessionItems] = useState(
-    generateSessions().map(sess => ({ label: sess, value: sess })),
+  // generateSessions() starts with the "All" filter option, which isn't a
+  // session a course can belong to; default to the current one.
+  const realSessions = () => generateSessions().filter(sess => sess !== 'All');
+  const [session, setSession] = useState(() => realSessions()[0]);
+  const [sessionItems] = useState(() =>
+    realSessions().map(sess => ({ label: sess, value: sess })),
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -697,7 +700,7 @@ export const ManualCourseModal = ({
       setCourseTitle('');
       setCourseCode('');
       setCredits('');
-      setSession(`${generateSessions()[0]}`);
+      setSession(realSessions()[0]);
       onClose();
     } catch (error) {
       console.error(error);

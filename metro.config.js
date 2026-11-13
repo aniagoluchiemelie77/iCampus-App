@@ -13,7 +13,6 @@ const WEB_STUBBED_PACKAGES = [
   '@react-native-community/datetimepicker',
   '@react-native-firebase/app',
   '@react-native-firebase/messaging',
-  'react-native-agora',
   'react-native-app-auth',
   'react-native-biometrics',
   'react-native-ble-manager',
@@ -38,6 +37,9 @@ const WEB_REPLACEMENTS = {
   'react-native-calendar-events': './src/services/calendarEvents.web.ts',
   'react-native-linear-gradient': './src/web/LinearGradient.web.tsx',
   'react-native-pager-view': './src/web/PagerView.web.tsx',
+  // Live class video. Media runs on Agora's Web SDK (useAgoraClass.web.ts);
+  // this provides the <RtcSurfaceView> the screens render.
+  'react-native-agora': './src/web/agora.web.tsx',
   // Real browser versions of native-only packages the app depends on.
   // SQLite holds the product cache (Favorites, Cart, Product Detail...).
   'react-native-quick-sqlite': './src/web/quickSqlite.web.ts',
@@ -50,6 +52,12 @@ const WEB_REPLACEMENTS = {
   // File saving/reading: "save to Downloads" becomes a browser download.
   'react-native-blob-util': './src/web/blobUtil.web.ts',
 };
+// What metro's generated asset modules require (assetRegistryPath), plus the
+// registry it re-exports.
+const WEB_ASSET_REGISTRY_MODULES = [
+  'react-native/Libraries/Image/AssetRegistry',
+  '@react-native/assets-registry/registry',
+];
 const isPackage = (moduleName, pkg) =>
   moduleName === pkg || moduleName.startsWith(`${pkg}/`);
 
@@ -77,6 +85,19 @@ const config = {
         platform === 'web'
           ? { ...baseContext, preferNativePlatform: false }
           : baseContext;
+      if (platform === 'web' && WEB_ASSET_REGISTRY_MODULES.includes(moduleName)) {
+        // Bundled images (require('./x.png')) register here, but
+        // react-native-web's Image looks them up in its own registry. With
+        // React Native's, every bundled image threw "asset with ID n could
+        // not be found" (e.g. the dropdown picker's arrows, which crashed
+        // the Manual Entry form).
+        return {
+          type: 'sourceFile',
+          filePath: require.resolve(
+            'react-native-web/dist/cjs/modules/AssetRegistry/index.js',
+          ),
+        };
+      }
       if (platform === 'web') {
         const replacement = Object.keys(WEB_REPLACEMENTS).find(
           pkg => moduleName === pkg,

@@ -39,8 +39,11 @@ const result = spawnSync(
     'index.web.js',
     '--bundle-output',
     path.join(dist, 'bundle.js'),
+    // Bundled images are requested at "/assets/<path>" (their
+    // httpServerLocation) and saved under "<dest>/assets/<path>", so the
+    // destination is dist itself. dist/assets made it dist/assets/assets/...
     '--assets-dest',
-    path.join(dist, 'assets'),
+    dist,
   ],
   {
     cwd: root,

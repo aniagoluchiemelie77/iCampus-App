@@ -24,7 +24,9 @@ import { useSocketConnection } from '../hooks/useSocket.ts';
 import { CustomButton } from '../assets/components/AppUIComponents';
 import { PulseRadar } from '../components/PulsingAnimation';
 import { PageHeader } from '../components/PageHeader';
+import { AttendanceWebNotice } from '../components/AttendanceWebNotice';
 import {
+  BLE_ATTENDANCE_SUPPORTED,
   beaconNameFor,
   ensureBluetoothOn,
   ensureBluetoothPermissions,
@@ -261,7 +263,13 @@ export const PhysicalAttendanceManager = ({ route, navigation }: Props) => {
       <View style={styles.body}>
         {lectureCard}
 
-        {(status === 'idle' || status === 'starting') && (
+        {!BLE_ATTENDANCE_SUPPORTED && (
+          <View style={styles.centerBlock}>
+            <AttendanceWebNotice role="lecturer" />
+          </View>
+        )}
+
+        {BLE_ATTENDANCE_SUPPORTED && (status === 'idle' || status === 'starting') && (
           <View style={styles.centerBlock}>
             <View style={styles.steps}>
               {[

@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { Lecture } from '../types/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { SocketContext } from '../hooks/useSocket';
 import {
   getLecturersLecturesTimeline,
   getStudentLecturesTimeline,
@@ -25,8 +26,9 @@ import {
 
 /**
  * Classroom tab shortcut for today's classes: physical lectures get a one-tap
- * attendance button (Start / Continue / Redo for lecturers, Mark for
- * students) once the class has started; online lectures a Start / Join
+ * attendance button once the class has started (lecturers: Start, Continue
+ * while a session is open, Redo only after one has run; students: Mark, only
+ * while the lecturer's Bluetooth session is open); online lectures a Start / Join
  * button during their scheduled time. Renders nothing when there are no
  * classes today.
  */
@@ -43,6 +45,7 @@ export const TodayAttendanceCard = ({
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [clock, setClock] = useState(Date.now());
+  const socket = useContext(SocketContext)?.socket;
 
   const load = useCallback(async () => {
     const fetcher = role === 'lecturer' ? getLecturersLecturesTimeline : getStudentLecturesTimeline;
@@ -69,6 +72,32 @@ export const TodayAttendanceCard = ({
     const timer = setInterval(() => setClock(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
+
+  // Students only get "Mark" while a session is open, so follow the
+  // lecturer opening and closing it live instead of waiting for a reload.
+  useEffect(() => {
+    if (!socket) return;
+    const setOpen = (lectureId: string | undefined, attendanceOpen: boolean) => {
+      if (!lectureId) return;
+      setLectures(prev =>
+        prev.map(l => (l?.id === lectureId ? { ...l, attendanceOpen } : l)),
+      );
+    };
+    const onStarted = (payload: { lectureId?: string }) => {
+      setOpen(payload?.lectureId, true);
+      load();
+    };
+    const onEnded = (payload: { lectureId?: string }) => {
+      setOpen(payload?.lectureId, false);
+      load();
+    };
+    socket.on('attendance_session_started', onStarted);
+    socket.on('attendance_session_ended', onEnded);
+    return () => {
+      socket.off('attendance_session_started', onStarted);
+      socket.off('attendance_session_ended', onEnded);
+    };
+  }, [socket, load]);
 
   const today = todayKey();
   const todays = useMemo(
@@ -166,8 +195,13 @@ export const TodayAttendanceCard = ({
             withinScheduledTime
           : !!lecture.attendanceOpen && !wasAttendanceEndedThisRun(lecture.id);
         const attendanceTaken = !isOnline && hasTakenAttendance(lecture);
-        // Physical: from the start time on (late attendance is allowed).
-        const showClassAction = isOnline ? withinScheduledTime : hasStarted;
+        // Physical: lecturers from the start time on (late attendance is
+        // allowed); students only while the lecturer's session is open.
+        const showClassAction = isOnline
+          ? withinScheduledTime
+          : role === 'lecturer'
+            ? hasStarted
+            : open;
         const canAddToCalendar =
           !!start &&
           start.getTime() > clock &&

@@ -24,13 +24,13 @@ export const markAttendanceSessionStarted = (lectureId: string) => {
 export const wasAttendanceEndedThisRun = (lectureId: string) =>
   endedThisRun.has(String(lectureId));
 
-/** True once attendance has been taken at least once for this lecture. */
+/**
+ * True once a Bluetooth attendance session has run for this lecture. Only
+ * real evidence counts: `status: 'ongoing'` is also set when the class merely
+ * starts, so it made the very first session show "Redo".
+ */
 export const hasTakenAttendance = (lecture: Lecture) =>
-  wasAttendanceEndedThisRun(lecture.id) ||
-  !!lecture.attendanceTakenAt ||
-  // Before attendanceTakenAt existed: opening a session marks the lecture
-  // "ongoing", so ongoing + closed means a session already ran.
-  (lecture.status === 'ongoing' && !lecture.attendanceOpen);
+  wasAttendanceEndedThisRun(lecture.id) || !!lecture.attendanceTakenAt;
 
 /** Loads the lecture context required by the lecturer attendance manager. */
 export const openLecturerAttendance = async (

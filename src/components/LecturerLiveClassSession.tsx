@@ -104,6 +104,9 @@ export const LecturerLiveClassSession = ({
     enabled: true,
     onMicAudio: sendAudioChunkToDeepgram,
     micAudioActive: joined && !isLocalMuted,
+    // Web: sharing stopped from the browser's own bar.
+    onScreenShareEnded: () =>
+      socket?.emit('lecturer_stopped_sharing', { lectureId: lecture.id }),
   });
   const isLiveOnAir = agora.status === 'joined' && joined;
 
@@ -177,8 +180,9 @@ export const LecturerLiveClassSession = ({
     socket?.emit('toggle_lecturer_camera', { lectureId: lecture.id, isCameraOn: next });
   };
 
-  const startScreenShare = () => {
-    if (!agora.startScreenShare()) {
+  // Native returns at once; web resolves after the screen picker.
+  const startScreenShare = async () => {
+    if (!(await agora.startScreenShare())) {
       Toast.show({ type: 'error', text1: 'Could not start screen sharing' });
       return;
     }
@@ -423,7 +427,10 @@ export const LecturerLiveClassSession = ({
           icon={isSharingScreen ? 'stop-screen-share' : 'screen-share'}
           label={isSharingScreen ? 'Stop' : 'Share'}
           active={isSharingScreen}
-          disabled={agora.status !== 'joined' || Platform.OS !== 'android'}
+          disabled={
+            agora.status !== 'joined' ||
+            (Platform.OS !== 'android' && Platform.OS !== 'web')
+          }
           onPress={isSharingScreen ? stopScreenShare : startScreenShare}
         />
         <LiveControlButton

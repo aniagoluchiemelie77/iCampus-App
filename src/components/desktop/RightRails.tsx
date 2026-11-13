@@ -35,6 +35,7 @@ import { askIAssistantAgent } from '../../api/localPostApis';
 import { fetchProductsByIdsFromLocalDb } from '../../hooks/useSQLiteDb';
 import { navigateForNotification } from '../../utils/notificationNavigation';
 import { safeParseDate } from '../../utils/dateFormatter';
+import { resolveLectureTime } from '../../utils/lectureTime';
 import { ACTION_CONFIG } from '../ExpandableFAB';
 import AdBanner from '../AdsBanner';
 import { UserAvatar } from '../UserAvatar';
@@ -222,6 +223,22 @@ export const AdsCard = () => {
   );
 };
 
+/**
+ * Way back for the default rails (screens without their own panel), so a
+ * user deep in the app can return to the feed and retrace their steps.
+ */
+const GoHomeCard = () => {
+  const navigation = useNavigation<any>();
+  return (
+    <RailAction
+      icon="home"
+      label="Go to Home"
+      hint="Back to your feed"
+      onPress={() => navigation.navigate('Home', { activeTab: 'home' })}
+    />
+  );
+};
+
 const RailFooter = () => {
   const { colors } = useTheme();
   return (
@@ -231,8 +248,9 @@ const RailFooter = () => {
   );
 };
 
-export const AdsRail = () => (
+export const AdsRail = ({ showHome }: { showHome?: boolean }) => (
   <RailScroll>
+    {showHome && <GoHomeCard />}
     <AdsCard />
     <RailFooter />
   </RailScroll>
@@ -337,10 +355,11 @@ const LatestNotificationsCard = () => {
   );
 };
 
-export const FeedRail = () => {
+export const FeedRail = ({ showHome }: { showHome?: boolean }) => {
   const navigation = useNavigation<any>();
   return (
     <RailScroll>
+      {showHome && <GoHomeCard />}
       <RailCard title="Create" icon="add-circle-outline">
         {CREATE_ACTIONS.map(({ key, label, hint }, i) => {
           const config = ACTION_CONFIG[key];
@@ -406,7 +425,7 @@ const ProductLine = ({
   );
 };
 
-export const StoreRail = () => {
+export const StoreRail = ({ showHome }: { showHome?: boolean }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const user = useAppSelector((s: any) => s.user) || {};
@@ -427,6 +446,7 @@ export const StoreRail = () => {
 
   return (
     <RailScroll>
+      {showHome && <GoHomeCard />}
       <RailCard title="Sell on iCampus" icon="storefront">
         <RailAction
           icon="add-business"
@@ -513,8 +533,16 @@ export const StoreRail = () => {
 // Classroom: upload actions + upcoming lectures
 // ---------------------------------------------------------------------------
 
-const lectureStart = (l: any) =>
-  safeParseDate(l.startAt) || safeParseDate(l.startTime) || safeParseDate(l.date);
+// Same resolution as the Classroom "Today" card: startTime can be a bare
+// "HH:mm" or week 1's instant for repeating lectures, so it can't be parsed
+// on its own (that pushed every repeat lecture into the past).
+const lectureStart = (l: any) => resolveLectureTime(l, 'start');
+const lectureEnd = (l: any) => {
+  const end = resolveLectureTime(l, 'end');
+  if (end) return end;
+  const start = lectureStart(l);
+  return start ? new Date(start.getTime() + 2 * 60 * 60 * 1000) : null;
+};
 
 const UpcomingLecturesCard = ({ role }: { role: 'student' | 'lecturer' }) => {
   const { colors } = useTheme();
@@ -527,11 +555,12 @@ const UpcomingLecturesCard = ({ role }: { role: 'student' | 'lecturer' }) => {
       .then((res: any) => {
         if (!active) return;
         const list: any[] = res?.success && Array.isArray(res.data) ? res.data : [];
-        const now = Date.now() - 2 * 60 * 60 * 1000; // keep ones that just started
+        const now = Date.now();
         setLectures(
           list
-            .filter(l => l.status !== 'cancelled' && l.status !== 'completed')
-            .filter(l => (lectureStart(l)?.getTime() ?? 0) >= now)
+            .filter(l => !!l && l.status !== 'cancelled' && l.status !== 'completed')
+            // Keep classes still running, not just ones yet to start.
+            .filter(l => (lectureEnd(l)?.getTime() ?? 0) >= now)
             .sort(
               (a, b) =>
                 (lectureStart(a)?.getTime() ?? 0) - (lectureStart(b)?.getTime() ?? 0),
@@ -567,7 +596,7 @@ const UpcomingLecturesCard = ({ role }: { role: 'student' | 'lecturer' }) => {
               onPress={() =>
                 navigation.navigate('LiveClassSessions', {
                   lectureId: l.id,
-                  courseId: l.courseId,
+                  courseId: l.courseId?.courseId || l.courseId,
                 })
               }
             >
@@ -584,7 +613,7 @@ const UpcomingLecturesCard = ({ role }: { role: 'student' | 'lecturer' }) => {
                   {l.topicName || 'Lecture'}
                 </Text>
                 <Text style={[styles.lectureMeta, { color: colors.text }]} numberOfLines={1}>
-                  {[l.courseCode || l.courseInfo?.courseCode, start && moment(start).format('h:mm A'), l.lectureType]
+                  {[l.courseCode || l.courseInfo?.courseCode || l.courseId?.courseCode, start && moment(start).format('h:mm A'), l.lectureType]
                     .filter(Boolean)
                     .join(' · ')}
                 </Text>
@@ -878,11 +907,12 @@ const AssistantChatCard = () => {
   );
 };
 
-export const SettingsRail = () => {
+export const SettingsRail = ({ showHome }: { showHome?: boolean }) => {
   const { colors } = useTheme();
   const { isDark, toggleTheme } = useThemeToggle();
   return (
     <RailScroll>
+      {showHome && <GoHomeCard />}
       <RailCard title="Appearance" icon="palette">
         <View style={[styles.toggleRow, { backgroundColor: colors.background }]}>
           <MaterialIcons
@@ -1072,18 +1102,19 @@ export const DefaultRail = ({ routeName }: { routeName?: string }) => {
     case 'PhoneScreen':
     case 'ResetPasswordScreen':
     case 'ChangePasswordScreen':
-      return <SettingsRail />;
+      return <SettingsRail showHome />;
     case 'CartScreen':
     case 'FavoritesScreen':
     case 'ProductDetails':
     case 'SellerProducts':
-      return <StoreRail />;
+      return <StoreRail showHome />;
     // The Notifications screen is the full list already; a single
     // notification gets the latest ones beside it.
     case 'NotificationDetails':
-      return <FeedRail />;
+      return <FeedRail showHome />;
+    // Home itself registers its own rail, so it never lands here.
     default:
-      return <AdsRail />;
+      return <AdsRail showHome />;
   }
 };
 

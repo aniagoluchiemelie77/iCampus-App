@@ -38,6 +38,19 @@ export const isLectureBeacon = (deviceName: string | undefined | null, lectureId
   return name === beaconNameFor(lectureId) || name === `iCampus-${lectureId}`;
 };
 
+/**
+ * Bluetooth attendance needs the mobile app: browsers can't advertise BLE, and
+ * the BLE/biometric/camera packages are no-op stubs in the web build.
+ */
+export const BLE_ATTENDANCE_SUPPORTED = Platform.OS !== 'web';
+
+const showWebUnsupported = () =>
+  Toast.show({
+    type: 'info',
+    text1: 'Use the iCampus mobile app',
+    text2: 'Bluetooth attendance isn’t available in the browser.',
+  });
+
 // ---------------------------------------------------------------------------
 // Permissions + Bluetooth state
 // ---------------------------------------------------------------------------
@@ -54,6 +67,12 @@ const permissionsFor = (mode: 'advertise' | 'scan'): Permission[] => {
 
 /** Asks for what attendance needs; explains and offers Settings if blocked. */
 export const ensureBluetoothPermissions = async (mode: 'advertise' | 'scan') => {
+  // On web the permission stub "grants" everything and Alert is a no-op, so
+  // the flow used to stall silently.
+  if (!BLE_ATTENDANCE_SUPPORTED) {
+    showWebUnsupported();
+    return false;
+  }
   const statuses = await requestMultiple(permissionsFor(mode));
   const values = Object.values(statuses);
   if (values.every(s => s === RESULTS.GRANTED || s === RESULTS.LIMITED)) return true;
@@ -83,6 +102,10 @@ export const startBleManager = async () => {
 
 /** Makes sure Bluetooth is on, prompting the user to turn it on if not. */
 export const ensureBluetoothOn = async (purpose: string) => {
+  if (!BLE_ATTENDANCE_SUPPORTED) {
+    showWebUnsupported();
+    return false;
+  }
   await startBleManager();
   const state = await BleManager.checkState().catch(() => 'unknown');
   if (state === 'on') return true;

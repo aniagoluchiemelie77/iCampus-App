@@ -11,6 +11,7 @@ import {
   Animated,
   Modal,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { StyleSheet } from 'react-native';
 import {PRIMARY_COLOR, PRIMARY_COLOR_TINT} from '../assets/styles/colors';
@@ -42,7 +43,9 @@ const BottomSheet = ({
   >
     <View style={styles.bottomOverlay}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      {children}
+      {/* Capped and centred, so on a desktop browser the sheet isn't a
+          monitor-wide strip. */}
+      <View style={styles.sheetFrame}>{children}</View>
     </View>
   </Modal>
 );
@@ -244,7 +247,7 @@ const ChatInput = ({ text, onChangeText, onSend, colors }: any) => (
     <View
       style={[
         styles.chatInputRow,
-        { backgroundColor: colors.backgroundSecondary },
+        { backgroundColor: colors.background, borderColor: colors.border + '80' },
       ]}
     >
       <TextInput
@@ -259,8 +262,14 @@ const ChatInput = ({ text, onChangeText, onSend, colors }: any) => (
         onPress={onSend}
         disabled={!text.trim()}
         style={styles.sendBtn}
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
       >
-        <MaterialIcons name="send" color={colors.primary} size={17} />
+        <MaterialIcons
+          name="send"
+          color={text.trim() ? colors.primary : colors.text}
+          size={20}
+        />
       </TouchableOpacity>
     </View>
   </KeyboardAvoidingView>
@@ -305,6 +314,10 @@ export const ChatModal = ({
   user,
 }: any) => {
   const scrollViewRef = useRef<ScrollView>(null);
+  // A fixed height (not "70%" of an auto-sized parent) so the message list
+  // can flex and scroll on every platform.
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetHeight = Math.min(windowHeight * 0.75, 720);
   useEffect(() => {
     if (visible) {
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -317,7 +330,7 @@ export const ChatModal = ({
         style={[
           styles.bottomModalContainer,
           styles.chatSheet,
-          { backgroundColor: colors.backgroundSecondary },
+          { height: sheetHeight, backgroundColor: colors.backgroundSecondary },
         ]}
       >
         <View style={styles.modalHandle} />
@@ -328,9 +341,14 @@ export const ChatModal = ({
         <ScrollView
           ref={scrollViewRef}
           style={styles.messageList}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={styles.messageListContent}
           showsVerticalScrollIndicator={false}
         >
+          {messages.length === 0 && (
+            <Text style={[styles.chatEmpty, { color: colors.text }]}>
+              No messages yet. Say hello!
+            </Text>
+          )}
           {messages.map((msg: any) => (
             <MessageBubble
               key={msg.id}
@@ -357,12 +375,16 @@ export const AttendeeListModal = ({
   attendees,
   wavers,
   colors,
-}: any) => (
+}: any) => {
+  // "70%" resolved against the auto-height sheet frame, so on web the list
+  // grew past the window instead of scrolling.
+  const { height: windowHeight } = useWindowDimensions();
+  return (
   <BottomSheet visible={visible} onDismiss={onDismiss}>
       <View
         style={[
           styles.bottomModalContainer,
-          { backgroundColor: colors.backgroundSecondary },
+          { maxHeight: windowHeight * 0.7, backgroundColor: colors.backgroundSecondary },
         ]}
       >
         <View style={styles.modalHandle} />
@@ -371,6 +393,12 @@ export const AttendeeListModal = ({
         </Text>
         <FlatList
           data={attendees}
+          style={styles.attendeeFlatList}
+          ListEmptyComponent={
+            <Text style={[styles.chatEmpty, { color: colors.text }]}>
+              No one has joined yet.
+            </Text>
+          }
           keyExtractor={item => item.uid}
           renderItem={({ item }) => (
             <AttendeeRow
@@ -382,7 +410,8 @@ export const AttendeeListModal = ({
         />
       </View>
   </BottomSheet>
-);
+  );
+};
 export const ConfirmationModal = ({
   visible,
   onDismiss,
@@ -416,10 +445,13 @@ export const ConfirmationModal = ({
           {subText}
         </Text>
 
+        {/* Equal halves: CustomButton is full width by default, which pushed
+            Cancel off the row. */}
         <View style={styles.modalButtonRow}>
           <TouchableOpacity
             onPress={onDismiss}
             style={[styles.modalButtonRowBtn, { borderColor: colors.primary }]}
+            accessibilityRole="button"
           >
             <Text
               style={[styles.modalButtonRowBtnText, { color: colors.primary }]}
@@ -553,7 +585,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  chatSheet: { height: '70%', paddingBottom: 76 },
+  sheetFrame: { width: '100%', maxWidth: 640, alignSelf: 'center' },
+  chatSheet: { maxHeight: '100%', paddingBottom: 16 },
+  messageListContent: { paddingBottom: 12, flexGrow: 1 },
+  chatEmpty: { textAlign: 'center', opacity: 0.7, marginTop: 24, fontSize: 13.5 },
   stackRow: { flexDirection: 'row', alignItems: 'center' },
   stackRing: {
     width: 30,
@@ -585,21 +620,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 15,
   },
-  messageList: { flex: 1, paddingBottom: 30 },
+  messageList: { flex: 1 },
+  attendeeFlatList: { flexGrow: 0 },
   chatInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingLeft: 14,
+    marginTop: 8,
   },
   chatInput: {
     flex: 1,
-    height: 60,
+    height: 48,
     fontSize: 14,
   },
   sendBtn: {
-    marginHorizontal: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   studentRow: {
     flexDirection: 'row',
@@ -636,38 +676,45 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   modalContainer: {
-    padding: 20,
-    borderRadius: 12,
+    padding: 24,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     width: '90%',
+    maxWidth: 420,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    textAlign: 'center',
     marginVertical: 15,
   },
   modalSubText: {
     fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
     marginBottom: 15,
   },
   modalButtonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
+    gap: 12,
+    width: '100%',
     alignItems: 'center',
     marginTop: 10,
   },
   modalButtonRowBtn: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 15,
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   modalButtonRowBtn2: {
-    paddingHorizontal: 15,
+    flex: 1,
+    width: 'auto',
+    height: 46,
+    borderRadius: 14,
   },
   modalButtonRowBtnText: {
     fontSize: 14,
